@@ -40,6 +40,9 @@
 namespace autofill {
 
 class AutofillPopupControllerImpl;
+#if BUILDFLAG(IS_ANDROID)
+class AutofillSnackbarControllerImpl;
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // Chrome implementation of AutofillClient.
 class ChromeAutofillClient
@@ -231,6 +234,8 @@ class ChromeAutofillClient
   CardNameFixFlowControllerImpl card_name_fix_flow_controller_;
   SaveCardMessageControllerAndroid save_card_message_controller_android_;
   SaveUpdateAddressProfileFlowManager save_update_address_profile_flow_manager_;
+  std::unique_ptr<AutofillSnackbarControllerImpl>
+      autofill_snackbar_controller_impl_;
 #endif
   CardUnmaskPromptControllerImpl unmask_controller_;
   AutofillErrorDialogControllerImpl autofill_error_dialog_controller_;

@@ -167,6 +167,8 @@ PWAConfirmationBubbleView::PWAConfirmationBubbleView(
 
   chrome::RecordDialogCreation(chrome::DialogIdentifier::PWA_CONFIRMATION);
 
+  SetDefaultButton(ui::DIALOG_BUTTON_CANCEL);
+
   SetHighlightedButton(highlight_button);
 }
 
