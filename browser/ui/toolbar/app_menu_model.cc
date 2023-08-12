@@ -60,7 +60,6 @@
 #include "components/dom_distiller/content/browser/uma_helper.h"
 #include "components/dom_distiller/core/dom_distiller_features.h"
 #include "components/dom_distiller/core/url_utils.h"
-#include "components/media_router/browser/media_router_metrics.h"
 #include "components/prefs/pref_service.h"
 #include "components/profile_metrics/browser_profile_type.h"
 #include "components/signin/public/base/signin_metrics.h"
@@ -102,6 +101,10 @@
 #include "base/win/shortcut.h"
 #include "base/win/windows_version.h"
 #include "content/public/browser/gpu_data_manager.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
+#include "components/media_router/browser/media_router_metrics.h"
 #endif
 
 using base::UserMetricsAction;
@@ -483,6 +486,7 @@ void AppMenuModel::LogMenuMetrics(int command_id) {
       LogMenuAction(MENU_ACTION_PRINT);
       break;
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
     case IDC_ROUTE_MEDIA:
       if (!uma_action_recorded_)
         UMA_HISTOGRAM_MEDIUM_TIMES("WrenchMenu.TimeToAction.Cast", delta);
@@ -492,6 +496,7 @@ void AppMenuModel::LogMenuMetrics(int command_id) {
       media_router::MediaRouterMetrics::RecordMediaRouterDialogOrigin(
           media_router::MediaRouterDialogOpenOrigin::APP_MENU);
       break;
+#endif
 
     // Edit menu.
     case IDC_CUT:
@@ -826,8 +831,10 @@ void AppMenuModel::Build() {
 
   AddItemWithStringId(IDC_PRINT, IDS_PRINT);
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   if (media_router::MediaRouterEnabled(browser()->profile()))
     AddItemWithStringId(IDC_ROUTE_MEDIA, IDS_MEDIA_ROUTER_MENU_ITEM_TITLE);
+#endif
 
   AddItemWithStringId(IDC_FIND, IDS_FIND);
 

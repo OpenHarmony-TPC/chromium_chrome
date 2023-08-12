@@ -938,6 +938,14 @@ static_library("extensions") {
     "//url",
   ]
 
+  if (is_ohos && !ohos_enable_media_router) {
+    deps -= [
+      "//chrome/browser/media/router",
+      "//chrome/browser/media/router:media_router_feature",
+      "//chrome/browser/media/router/discovery",
+    ]
+  }
+
   if (is_linux || is_mac || is_win) {
     sources += [
       "api/system_indicator/system_indicator_api.cc",

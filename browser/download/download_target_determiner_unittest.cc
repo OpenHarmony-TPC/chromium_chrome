@@ -1772,6 +1772,32 @@ TEST_F(DownloadTargetDeterminerTest, NotifyExtensionsDefaultPath) {
   RunTestCase(test_case, base::FilePath(), item.get());
 }
 
+// Test that relative paths returned by extensions are always relative to the
+// default downloads path.
+TEST_F(DownloadTargetDeterminerTest, NotifyExtensionsLocalFile) {
+  const DownloadTestCase kNotifyExtensionsTestCases[] = {
+      {AUTOMATIC, download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
+       DownloadFileType::NOT_DANGEROUS,
+#if BUILDFLAG(IS_WIN)
+       "file:///usr/local/xyz",
+#else
+       "file:///c:/usr/local/xyz",
+#endif  // BUILDFLAG(IS_WIN)
+       "text/plain", FILE_PATH_LITERAL(""),
+
+       FILE_PATH_LITERAL("overridden/xyz"),
+       DownloadItem::TARGET_DISPOSITION_OVERWRITE,
+
+       EXPECT_CRDOWNLOAD}};
+
+  base::FilePath overridden_path(FILE_PATH_LITERAL("overridden/foo.txt"));
+  EXPECT_CALL(*delegate(), NotifyExtensions_(_, _, _))
+      .WillRepeatedly(WithArg<2>(ScheduleCallback2(
+          overridden_path, DownloadPathReservationTracker::UNIQUIFY)));
+  RunTestCasesWithActiveItem(kNotifyExtensionsTestCases,
+                             std::size(kNotifyExtensionsTestCases));
+}
+
 TEST_F(DownloadTargetDeterminerTest, InitialVirtualPathUnsafe) {
   const base::FilePath::CharType* kInitialPath =
       FILE_PATH_LITERAL("some_path/bar.html");
@@ -2432,6 +2458,43 @@ TEST_F(DownloadTargetDeterminerTest, TransientDownloadResumption) {
   histogram_tester.ExpectTotalCount(kTransientPathGenerationHistogram, 1);
   histogram_tester.ExpectTotalCount(kTransientPathValidationHistogram, 1);
 }
+
+#if BUILDFLAG(IS_WIN)
+// Test that env variables will be removed from file name before prompting Save
+// As dialog.
+TEST_F(DownloadTargetDeterminerTest, TestSanitizeEnvVariable) {
+  const DownloadTestCase kSaveEnvPathTestCases[] = {
+      {// 0: File name contains env var delimits.
+       SAVE_AS, download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
+       DownloadFileType::NOT_DANGEROUS, "http://example.com/f%oo%.tx%xyz%t",
+       "text/plain", FILE_PATH_LITERAL(""),
+
+       FILE_PATH_LITERAL("f.txt"), DownloadItem::TARGET_DISPOSITION_PROMPT,
+
+       EXPECT_CRDOWNLOAD},
+
+      {// 1: File name contains dangerous extensions after removing env var.
+       SAVE_AS, download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
+       DownloadFileType::NOT_DANGEROUS, "http://example.com/foo.ln%xyz%k",
+       "application/octet-stream", FILE_PATH_LITERAL(""),
+
+       FILE_PATH_LITERAL("foo.download"),
+       DownloadItem::TARGET_DISPOSITION_PROMPT,
+
+       EXPECT_CRDOWNLOAD},
+      {// 2: File name is an env var.
+       SAVE_AS, download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
+       DownloadFileType::NOT_DANGEROUS, "http://example.com/%foo.txt%",
+       "text/plain", FILE_PATH_LITERAL(""),
+
+       FILE_PATH_LITERAL("download"), DownloadItem::TARGET_DISPOSITION_PROMPT,
+
+       EXPECT_CRDOWNLOAD}};
+
+  RunTestCasesWithActiveItem(kSaveEnvPathTestCases,
+                             std::size(kSaveEnvPathTestCases));
+}
+#endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(ENABLE_PLUGINS)
 

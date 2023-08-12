@@ -227,6 +227,10 @@ static_library("devtools") {
         "device/cast_device_provider.h",
       ]
     }
+
+    if (is_ohos && !ohos_enable_media_router) {
+      deps -= [ "//chrome/browser/media/router:media_router_feature" ]
+    }
   }
 
   if (is_mac) {
@@ -269,6 +273,17 @@ static_library("devtools") {
       deps += [ "//components/printing/browser/print_to_pdf" ]
     }
     sources += rebase_path(_protocol_generated, ".", target_gen_dir)
+
+    if (is_ohos && !ohos_enable_media_router) {
+      sources -= [
+        "protocol/cast_handler.cc",
+        "protocol/cast_handler.h",
+      ]
+      deps -= [
+        "//components/media_router/browser",
+        "//components/media_router/common/mojom:media_router",
+      ]
+    }
   }
 
   if (enable_extensions) {

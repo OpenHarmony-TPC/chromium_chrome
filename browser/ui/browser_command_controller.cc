@@ -815,9 +815,11 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
     case IDC_DISTILL_PAGE:
       ToggleDistilledView(browser_);
       break;
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
     case IDC_ROUTE_MEDIA:
       RouteMediaInvokedFromAppMenu(browser_);
       break;
+#endif
     case IDC_WINDOW_MUTE_SITE:
       MuteSite(browser_);
       break;
@@ -1595,8 +1597,10 @@ void BrowserCommandController::UpdateCommandsForMediaRouter() {
   if (is_locked_fullscreen_)
     return;
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   command_updater_.UpdateCommandEnabled(IDC_ROUTE_MEDIA,
                                         CanRouteMedia(browser_));
+#endif
 }
 
 void BrowserCommandController::UpdateCommandsForTabKeyboardFocus(

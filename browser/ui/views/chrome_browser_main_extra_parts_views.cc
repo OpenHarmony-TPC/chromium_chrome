@@ -16,11 +16,9 @@
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_views_delegate.h"
 #include "chrome/browser/ui/views/devtools_process_observer.h"
-#include "chrome/browser/ui/views/media_router/media_router_dialog_controller_views.h"
 #include "chrome/browser/ui/views/relaunch_notification/relaunch_notification_controller.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/constrained_window/constrained_window_views.h"
-#include "components/media_router/browser/media_router_dialog_controller.h"
 #include "components/ui_devtools/connector_delegate.h"
 #include "components/ui_devtools/switches.h"
 #include "components/ui_devtools/views/devtools_server_util.h"
@@ -52,6 +50,11 @@
 #include "content/public/common/content_switches.h"
 #include "ui/base/l10n/l10n_util.h"
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
+#include "chrome/browser/ui/views/media_router/media_router_dialog_controller_views.h"
+#include "components/media_router/browser/media_router_dialog_controller.h"
+#endif
 
 namespace {
 
@@ -121,6 +124,7 @@ void ChromeBrowserMainExtraPartsViews::PreProfileInit() {
     CreateUiDevTools();
   }
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   media_router::MediaRouterDialogController::SetGetOrCreate(
       base::BindRepeating([](content::WebContents* web_contents) {
         DCHECK(web_contents);
@@ -133,6 +137,7 @@ void ChromeBrowserMainExtraPartsViews::PreProfileInit() {
                 web_contents);
         return controller;
       }));
+#endif
 
 // TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
 // of lacros-chrome is complete.

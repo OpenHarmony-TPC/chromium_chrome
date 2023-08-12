@@ -10,7 +10,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/devtools/protocol/browser_handler.h"
-#include "chrome/browser/devtools/protocol/cast_handler.h"
 #include "chrome/browser/devtools/protocol/page_handler.h"
 #include "chrome/browser/devtools/protocol/security_handler.h"
 #include "chrome/browser/devtools/protocol/target_handler.h"
@@ -24,6 +23,10 @@
 #include "chrome/browser/devtools/protocol/window_manager_handler.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
+#include "chrome/browser/devtools/protocol/cast_handler.h"
+#endif
+
 ChromeDevToolsSession::ChromeDevToolsSession(
     content::DevToolsAgentHostClientChannel* channel)
     : dispatcher_(this), client_channel_(channel) {
@@ -34,10 +37,12 @@ ChromeDevToolsSession::ChromeDevToolsSession(
         agent_host, agent_host->GetWebContents(), &dispatcher_);
     security_handler_ = std::make_unique<SecurityHandler>(
         agent_host->GetWebContents(), &dispatcher_);
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
     if (channel->GetClient()->MayAttachToBrowser()) {
       cast_handler_ = std::make_unique<CastHandler>(
           agent_host->GetWebContents(), &dispatcher_);
     }
+#endif
   }
   target_handler_ = std::make_unique<TargetHandler>(&dispatcher_);
   if (channel->GetClient()->MayAttachToBrowser()) {

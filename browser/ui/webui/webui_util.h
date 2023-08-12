@@ -39,7 +39,7 @@ void SetupWebUIDataSource(content::WebUIDataSource* source,
 // false.
 bool IsEnterpriseManaged();
 
-#if defined(TOOLKIT_VIEWS)
+#if defined(TOOLKIT_VIEWS) || BUILDFLAG(IS_OHOS)
 // Returns whether WebContents should use dark mode colors depending on the
 // theme.
 ui::NativeTheme* GetNativeTheme(content::WebContents* web_contents);

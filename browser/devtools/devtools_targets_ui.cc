@@ -19,11 +19,17 @@
 #include "chrome/browser/devtools/device/devtools_android_bridge.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/devtools/serialize_host_descriptions.h"
-#include "components/media_router/browser/presentation/local_presentation_manager.h"
-#include "components/media_router/browser/presentation/local_presentation_manager_factory.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/devtools_agent_host_observer.h"
+
+#if BUILDFLAG(IS_OHOS)
+#include "media/media_buildflags.h"
+#if BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
+#include "components/media_router/browser/presentation/local_presentation_manager.h"
+#include "components/media_router/browser/presentation/local_presentation_manager_factory.h"
+#endif
+#endif
 
 using content::BrowserThread;
 using content::DevToolsAgentHost;
@@ -85,7 +91,9 @@ private:
  bool AllowDevToolsFor(DevToolsAgentHost* host);
 
  Profile* profile_;
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
  media_router::LocalPresentationManager* local_presentation_manager_;
+#endif
  std::unique_ptr<base::OneShotTimer> timer_;
  base::WeakPtrFactory<LocalTargetsUIHandler> weak_factory_{this};
 };
@@ -93,10 +101,15 @@ private:
 LocalTargetsUIHandler::LocalTargetsUIHandler(const Callback& callback,
                                              Profile* profile)
     : DevToolsTargetsUIHandler(kTargetSourceLocal, callback),
-      profile_(profile),
+      profile_(profile)
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
+      ,
       local_presentation_manager_(
           media_router::LocalPresentationManagerFactory::
               GetOrCreateForBrowserContext(profile_)) {
+#else
+        {
+#endif
   DevToolsAgentHost::AddObserver(this);
   UpdateTargets();
 }
@@ -150,8 +163,12 @@ void LocalTargetsUIHandler::UpdateTargets() {
 }
 
 bool LocalTargetsUIHandler::AllowDevToolsFor(DevToolsAgentHost* host) {
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   return local_presentation_manager_->IsLocalPresentation(
              host->GetWebContents()) ||
+#else
+    return
+#endif
          (Profile::FromBrowserContext(host->GetBrowserContext()) == profile_ &&
           DevToolsWindow::AllowDevToolsFor(profile_, host->GetWebContents()));
 }

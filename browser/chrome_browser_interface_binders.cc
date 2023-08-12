@@ -128,8 +128,6 @@
 #include "chrome/browser/speech/speech_recognition_client_browser_interface.h"
 #include "chrome/browser/speech/speech_recognition_client_browser_interface_factory.h"
 #include "chrome/browser/speech/speech_recognition_service.h"
-#include "chrome/browser/ui/webui/access_code_cast/access_code_cast.mojom.h"
-#include "chrome/browser/ui/webui/access_code_cast/access_code_cast_ui.h"
 #include "chrome/browser/ui/webui/app_service_internals/app_service_internals.mojom.h"
 #include "chrome/browser/ui/webui/app_service_internals/app_service_internals_ui.h"
 #include "chrome/browser/ui/webui/downloads/downloads.mojom.h"
@@ -283,6 +281,11 @@
 
 #if BUILDFLAG(PLATFORM_CFM)
 #include "chrome/browser/ui/webui/chromeos/chromebox_for_meetings/network_settings_dialog.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
+#include "chrome/browser/ui/webui/access_code_cast/access_code_cast.mojom.h"
+#include "chrome/browser/ui/webui/access_code_cast/access_code_cast_ui.h"
 #endif
 
 namespace chrome {
@@ -810,8 +813,10 @@ void PopulateChromeWebUIFrameBinders(
       ::mojom::app_service_internals::AppServiceInternalsPageHandler,
       AppServiceInternalsUI>(map);
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   RegisterWebUIControllerInterfaceBinder<
       access_code_cast::mojom::PageHandlerFactory, AccessCodeCastUI>(map);
+#endif
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)

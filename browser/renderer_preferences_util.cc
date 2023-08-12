@@ -189,7 +189,7 @@ void UpdateFromSystemSettings(blink::RendererPreferences* prefs,
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_WIN)
+    BUILDFLAG(IS_WIN) || BUILDFLAG(IS_OHOS)
   content::UpdateFontRendererPreferencesFromSystemSettings(prefs);
 #endif
 

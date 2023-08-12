@@ -40,15 +40,13 @@ ExtensionInstalledWaiter::ExtensionInstalledWaiter(
       done_callback_(std::move(done_callback)) {
   extension_registry_observation_.Observe(
       extensions::ExtensionRegistry::Get(browser->profile()));
-  removal_watcher_ = std::make_unique<ExtensionRemovalWatcher>(
-      browser, extension,
-      base::BindOnce(&ExtensionInstalledWaiter::OnExtensionRemoved,
-                     weak_factory_.GetWeakPtr()));
+  BrowserList::AddObserver(this);
 }
 
 ExtensionInstalledWaiter::~ExtensionInstalledWaiter() {
   if (done_callback_ && g_giving_up_callback)
     g_giving_up_callback->Run();
+  BrowserList::RemoveObserver(this);
 }
 
 void ExtensionInstalledWaiter::RunCallbackIfExtensionInstalled() {
@@ -79,6 +77,15 @@ void ExtensionInstalledWaiter::OnExtensionLoaded(
                      weak_factory_.GetWeakPtr()));
 }
 
-void ExtensionInstalledWaiter::OnExtensionRemoved() {
-  delete this;
+void ExtensionInstalledWaiter::OnExtensionUnloaded(
+    content::BrowserContext* browser_context,
+    const extensions::Extension* extension,
+    extensions::UnloadedExtensionReason reason) {
+  if (extension == extension_.get())
+    delete this;
+}
+
+void ExtensionInstalledWaiter::OnBrowserClosing(Browser* browser) {
+  if (browser == browser_)
+    delete this;
 }

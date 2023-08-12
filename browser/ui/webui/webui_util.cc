@@ -21,7 +21,7 @@
 #include "base/enterprise_util.h"
 #endif
 
-#if defined(TOOLKIT_VIEWS)
+#if defined(TOOLKIT_VIEWS) || BUILDFLAG(IS_OHOS)
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -66,7 +66,7 @@ bool IsEnterpriseManaged() {
 #endif
 }
 
-#if defined(TOOLKIT_VIEWS)
+#if defined(TOOLKIT_VIEWS) || BUILDFLAG(IS_OHOS)
 ui::NativeTheme* GetNativeTheme(content::WebContents* web_contents) {
   ui::NativeTheme* native_theme = nullptr;
 

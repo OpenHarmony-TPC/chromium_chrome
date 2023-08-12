@@ -14,6 +14,10 @@
 #include "chrome/browser/devtools/protocol/protocol.h"
 #include "content/public/browser/devtools_manager_delegate.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "media/media_buildflags.h"
+#endif
+
 namespace content {
 class DevToolsAgentHostClientChannel;
 }  // namespace content
@@ -58,7 +62,9 @@ class ChromeDevToolsSession : public protocol::FrontendChannel {
 
   protocol::UberDispatcher dispatcher_;
   std::unique_ptr<BrowserHandler> browser_handler_;
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   std::unique_ptr<CastHandler> cast_handler_;
+#endif
   std::unique_ptr<PageHandler> page_handler_;
   std::unique_ptr<SecurityHandler> security_handler_;
   std::unique_ptr<TargetHandler> target_handler_;

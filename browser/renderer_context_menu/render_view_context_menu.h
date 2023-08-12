@@ -43,6 +43,10 @@
 #include "chrome/browser/extensions/menu_manager.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "media/media_buildflags.h"
+#endif
+
 class AccessibilityLabelsMenuObserver;
 class ClickToCallContextMenuObserver;
 class LinkToTextMenuObserver;
@@ -265,7 +269,9 @@ class RenderViewContextMenu
   bool IsPasteAndMatchStyleEnabled() const;
   bool IsPrintPreviewEnabled() const;
   bool IsQRCodeGeneratorEnabled() const;
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   bool IsRouteMediaEnabled() const;
+#endif
   bool IsOpenLinkOTREnabled() const;
   bool IsSearchWebForEnabled() const;
   bool IsRegionSearchEnabled() const;
@@ -295,7 +301,9 @@ class RenderViewContextMenu
   void ExecReloadPackagedApp();
   void ExecRestartPackagedApp();
   void ExecPrint();
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   void ExecRouteMedia();
+#endif
   void ExecTranslate();
   void ExecLanguageSettings(int event_flags);
   void ExecProtocolHandlerSettings(int event_flags);

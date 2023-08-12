@@ -9,6 +9,10 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "media/media_buildflags.h"
+#endif
+
 // This file lists all the command IDs understood by e.g. the browser.
 // It is used by Windows RC files, Mac NIB files, and other platforms too.
 
@@ -105,7 +109,9 @@
 #define IDC_SAVE_CREDIT_CARD_FOR_PAGE   35008
 #define IDC_TRANSLATE_PAGE              35009
 #define IDC_MANAGE_PASSWORDS_FOR_PAGE   35010
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
 #define IDC_ROUTE_MEDIA                 35011
+#endif
 #define IDC_WINDOW_MUTE_SITE            35012
 #define IDC_WINDOW_PIN_TAB              35013
 #define IDC_WINDOW_GROUP_TAB            35014

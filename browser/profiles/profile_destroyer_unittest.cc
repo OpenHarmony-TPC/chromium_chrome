@@ -115,6 +115,33 @@ TEST_P(ProfileDestroyerTest, DelayedOTRProfileDestruction) {
   EXPECT_TRUE(IsOTRProfileDestroyed());
 }
 
+TEST_P(ProfileDestroyerTest, RenderProcessAddedAfterDestroyRequested) {
+  if (!IsScopedProfileKeepAliveSupported())
+    return;
+  CreateOriginalProfile();
+
+  content::RenderProcessHost* render_process_host_1 =
+      CreatedRendererProcessHost(original_profile());
+  StopKeepingAliveOriginalProfile();
+
+  ProfileDestroyer::DestroyProfileWhenAppropriate(original_profile());
+
+  EXPECT_TRUE(original_profile());
+  content::RenderProcessHost* render_process_host_2 =
+      CreatedRendererProcessHost(original_profile());
+
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(original_profile());  // Waiting for 2 processes to be released
+
+  render_process_host_1->Cleanup();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(original_profile());  // Waiting for 1 process to be released.
+
+  render_process_host_2->Cleanup();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(original_profile());  // Destroyed.
+}
+
 INSTANTIATE_TEST_SUITE_P(AllOTRProfileTypes,
                          ProfileDestroyerTest,
                          /*is_primary_otr=*/testing::Bool());

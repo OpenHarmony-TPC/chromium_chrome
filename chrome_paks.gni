@@ -58,7 +58,7 @@ template("chrome_repack_percent") {
       deps += invoker.deps
     }
 
-    if (toolkit_views || is_ohos) {
+    if (toolkit_views) {
       sources += [ "$root_gen_dir/ui/views/resources/views_resources_${percent}_percent.pak" ]
       deps += [ "//ui/views/resources" ]
     }
@@ -143,7 +143,7 @@ template("chrome_extra_paks") {
       deps += [ "//ohos_nweb_ex/overrides/ui/resources" ]
     }
 
-    if (!is_android) {
+    if (!is_android && !is_ohos) {
       # New paks should be added here by default.
       sources += [
         "$root_gen_dir/chrome/access_code_cast_resources.pak",
@@ -326,7 +326,7 @@ template("chrome_extra_paks") {
       sources += [ "$root_gen_dir/chrome/webui_js_error_resources.pak" ]
       deps += [ "//chrome/browser/resources/webui_js_error:resources" ]
     }
-    if (!is_android && !is_chromeos_ash) {
+    if (!is_android && !is_chromeos_ash && !is_ohos) {
       sources += [
         "$root_gen_dir/chrome/apps_resources.pak",
         "$root_gen_dir/chrome/profile_picker_resources.pak",

@@ -679,6 +679,11 @@ bool CartService::ShouldSkip(const GURL& url) {
 void CartService::OnLoadCarts(CartDB::LoadCallback callback,
                               bool success,
                               std::vector<CartDB::KeyAndValue> proto_pairs) {
+  DCHECK(success);
+  if (!success) {
+    std::move(callback).Run(success, {});
+    return;
+  }
   if (cart_features::IsFakeDataEnabled()) {
     std::sort(proto_pairs.begin(), proto_pairs.end(),
               CompareTimeStampForProtoPair);

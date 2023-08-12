@@ -256,6 +256,10 @@ Profile* Profile::FromWebUI(content::WebUI* web_ui) {
 }
 
 void Profile::AddObserver(ProfileObserver* observer) {
+  // Instrumentation for https://crbug.com/1359689.
+  CHECK(observer);
+  CHECK(!observers_.HasObserver(observer));
+
   observers_.AddObserver(observer);
 }
 
@@ -364,7 +368,7 @@ void Profile::RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
                                std::string());
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   registry->RegisterBooleanPref(
       media_router::prefs::kMediaRouterCloudServicesPrefSet, false,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
@@ -461,13 +465,19 @@ void Profile::MaybeSendDestroyedNotification() {
   TRACE_EVENT1("shutdown", "Profile::MaybeSendDestroyedNotification", "profile",
                this);
 
-  if (!sent_destroyed_notification_) {
-    sent_destroyed_notification_ = true;
+  if (sent_destroyed_notification_)
+    return;
+  sent_destroyed_notification_ = true;
 
-    NotifyWillBeDestroyed();
+  // Instrumentation for https://crbug.com/1359689,
+  auto weak_this = GetWeakPtr();
 
-    for (auto& observer : observers_)
-      observer.OnProfileWillBeDestroyed(this);
+  NotifyWillBeDestroyed();
+  CHECK(weak_this);
+
+  for (auto& observer : observers_) {
+    observer.OnProfileWillBeDestroyed(this);
+    CHECK(weak_this);
   }
 }
 
@@ -542,4 +552,8 @@ variations::VariationsClient* Profile::GetVariationsClient() {
 
 content::ResourceContext* Profile::GetResourceContext() {
   return resource_context_.get();
+}
+
+base::WeakPtr<Profile> Profile::GetWeakPtr() {
+  return weak_factory_.GetWeakPtr();
 }

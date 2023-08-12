@@ -496,7 +496,7 @@ void ShowExtensionInstallFrictionDialog(
 // Returns a OnceClosure that client code can call to close the device chooser.
 // This OnceClosure references the actual dialog as a WeakPtr, so it's safe to
 // call at any point.
-#if defined(TOOLKIT_VIEWS)
+#if defined(TOOLKIT_VIEWS) || BUILDFLAG(IS_OHOS)
 base::OnceClosure ShowDeviceChooserDialog(
     content::RenderFrameHost* owner,
     std::unique_ptr<permissions::ChooserController> controller);

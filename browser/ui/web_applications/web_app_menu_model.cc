@@ -144,8 +144,10 @@ void WebAppMenuModel::Build() {
   AddSeparator(ui::UPPER_SEPARATOR);
   AddItemWithStringId(IDC_PRINT, IDS_PRINT);
   AddItemWithStringId(IDC_FIND, IDS_FIND);
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   if (media_router::MediaRouterEnabled(browser()->profile()))
     AddItemWithStringId(IDC_ROUTE_MEDIA, IDS_MEDIA_ROUTER_MENU_ITEM_TITLE);
+#endif
   AddSeparator(ui::LOWER_SEPARATOR);
   CreateCutCopyPasteMenu();
 }

@@ -11,6 +11,7 @@
 #include "base/location.h"
 #include "base/rand_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/task_runner_util.h"
@@ -61,6 +62,7 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "chrome/browser/ui/pdf/adobe_reader_info_win.h"
+#include "ui/shell_dialogs/select_file_utils_win.h"
 #endif
 
 using content::BrowserThread;
@@ -88,6 +90,21 @@ void VisitCountsToVisitedBefore(base::OnceCallback<void(bool)> callback,
 // Keeps track of whether Adobe Reader is up to date.
 bool g_is_adobe_reader_up_to_date_ = false;
 #endif
+
+// For the `new_path`, generates a new safe file name if needed. Keep its
+// extension if it is empty or matches that of the `old_extension`. Otherwise,
+// suggest a new safe extension.
+void GenerateSafeFileName(base::FilePath* new_path,
+                          const base::FilePath::StringType& old_extension,
+                          const std::string& mime_type) {
+  DCHECK(new_path);
+  if (new_path->Extension().empty() || new_path->Extension() == old_extension) {
+    net::GenerateSafeFileName(std::string() /*mime_type*/,
+                              false /*ignore_extension*/, new_path);
+  } else {
+    net::GenerateSafeFileName(mime_type, true /*ignore_extension*/, new_path);
+  }
+}
 
 }  // namespace
 
@@ -404,25 +421,22 @@ void DownloadTargetDeterminer::NotifyExtensionsDone(
         suggested_path).NormalizePathSeparators());
 
     // If this is a local file, don't allow extensions to override its
-    // extension.
+    // name.
     if (download_->GetURL().SchemeIsFile()) {
       base::FilePath file_path;
       net::FileURLToFilePath(download_->GetURL(), &file_path);
-      new_path = new_path.ReplaceExtension(file_path.Extension());
+      base::FilePath file_name = file_path.BaseName();
+      // Check if file name is a dir.
+      if (file_name.BaseName() != file_name.DirName())
+        new_path = new_path.DirName().Append(file_name);
     } else {
       // If the (Chrome) extension does not suggest an file extension, or if the
       // suggested extension matches that of the |virtual_path_|, do not
       // pass a mime type to GenerateSafeFileName so that it does not force the
       // filename to have an extension or generate a different one. Otherwise,
       // correct the file extension in case it is wrongly given.
-      if (new_path.Extension().empty() ||
-          new_path.Extension() == virtual_path_.Extension()) {
-        net::GenerateSafeFileName(std::string() /*mime_type*/,
-                                  false /*ignore_extension*/, &new_path);
-      } else {
-        net::GenerateSafeFileName(download_->GetMimeType(),
-                                  true /*ignore_extension*/, &new_path);
-      }
+      GenerateSafeFileName(&new_path, virtual_path_.Extension(),
+                           download_->GetMimeType());
     }
     virtual_path_ = new_path;
     create_target_directory_ = true;
@@ -534,8 +548,24 @@ DownloadTargetDeterminer::DoRequestConfirmation() {
 
     // If there is a non-neutral confirmation reason, prompt the user.
     if (confirmation_reason_ != DownloadConfirmationReason::NONE) {
+      base::FilePath sanitized_path = virtual_path_;
+#if BUILDFLAG(IS_WIN)
+      // Windows prompt dialog will resolve all env variables in the file name,
+      // which may generate unexpected results. Remove env variables from the
+      // file name first.
+      std::wstring sanitized_name = ui::RemoveEnvVarFromFileName<wchar_t>(
+          virtual_path_.BaseName().value(), L"%");
+      if (sanitized_name.empty()) {
+        sanitized_name = base::UTF8ToWide(
+            l10n_util::GetStringUTF8(IDS_DEFAULT_DOWNLOAD_FILENAME));
+      }
+      sanitized_path =
+          virtual_path_.DirName().Append(base::FilePath(sanitized_name));
+      GenerateSafeFileName(&sanitized_path, virtual_path_.Extension(),
+                           download_->GetMimeType());
+#endif  // BUILDFLAG(IS_WIN)
       delegate_->RequestConfirmation(
-          download_, virtual_path_, confirmation_reason_,
+          download_, sanitized_path, confirmation_reason_,
           base::BindRepeating(
               &DownloadTargetDeterminer::RequestConfirmationDone,
               weak_ptr_factory_.GetWeakPtr()));

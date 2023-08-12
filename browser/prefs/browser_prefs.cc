@@ -1038,7 +1038,9 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
 #else   // BUILDFLAG(IS_ANDROID)
   gcm::RegisterPrefs(registry);
   IntranetRedirectDetector::RegisterPrefs(registry);
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   media_router::RegisterLocalStatePrefs(registry);
+#endif
   metrics::TabStatsTracker::RegisterPrefs(registry);
   RegisterBrowserPrefs(registry);
   speech::SodaInstaller::RegisterLocalStatePrefs(registry);
@@ -1352,8 +1354,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   gcm::RegisterProfilePrefs(registry);
   HatsService::RegisterProfilePrefs(registry);
   NtpCustomBackgroundService::RegisterProfilePrefs(registry);
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   media_router::RegisterAccessCodeProfilePrefs(registry);
   media_router::RegisterProfilePrefs(registry);
+#endif
   NewTabPageHandler::RegisterProfilePrefs(registry);
   NewTabPageUI::RegisterProfilePrefs(registry);
   NewTabUI::RegisterProfilePrefs(registry);
