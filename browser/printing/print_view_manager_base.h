@@ -146,9 +146,6 @@ class PrintViewManagerBase : public PrintManager, public PrintJob::Observer {
   // Manages the low-level talk to the printer.
   scoped_refptr<PrintJob> print_job_;
 
- private:
-  friend class TestPrintViewManager;
-
   // content::WebContentsObserver implementation.
   void RenderFrameHostStateChanged(
       content::RenderFrameHost* render_frame_host,

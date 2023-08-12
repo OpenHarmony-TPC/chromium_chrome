@@ -8,6 +8,7 @@
 
 #include "base/bind.h"
 #include "build/chromeos_buildflags.h"
+#include "cef/libcef/features/runtime.h"
 #include "chrome/browser/content_settings/content_settings_manager_delegate.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -60,8 +61,12 @@ void GetGuestViewDefaultContentSettingRules(
 }  // namespace
 
 RendererUpdater::RendererUpdater(Profile* profile) : profile_(profile) {
+  if (cef::IsAlloyRuntimeEnabled()) {
+    identity_manager_ = nullptr;
+  } else {
   identity_manager_ = IdentityManagerFactory::GetForProfile(profile);
   identity_manager_observation_.Observe(identity_manager_.get());
+  }
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   oauth2_login_manager_ =
       ash::OAuth2LoginManagerFactory::GetForProfile(profile_);

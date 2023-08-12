@@ -5,6 +5,7 @@
 #include "chrome/browser/plugins/plugin_utils.h"
 
 #include "base/values.h"
+#include "cef/libcef/features/runtime.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_types.h"
@@ -13,6 +14,10 @@
 #include "extensions/buildflags/buildflags.h"
 #include "url/gurl.h"
 #include "url/origin.h"
+
+#if BUILDFLAG(ENABLE_CEF)
+#include "cef/libcef/common/extensions/extensions_util.h"
+#endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/common/pref_names.h"
@@ -68,6 +73,12 @@ base::flat_map<std::string, std::string>
 PluginUtils::GetMimeTypeToExtensionIdMap(
     content::BrowserContext* browser_context) {
   base::flat_map<std::string, std::string> mime_type_to_extension_id_map;
+
+#if BUILDFLAG(ENABLE_CEF)
+  if (cef::IsAlloyRuntimeEnabled() && !extensions::ExtensionsEnabled())
+    return mime_type_to_extension_id_map;
+#endif
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   Profile* profile = Profile::FromBrowserContext(browser_context);
   const std::vector<std::string>& allowlist =

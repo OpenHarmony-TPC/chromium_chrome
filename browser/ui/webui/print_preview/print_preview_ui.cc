@@ -22,6 +22,7 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "cef/libcef/features/runtime.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/pdf/pdf_extension_util.h"
 #include "chrome/browser/printing/background_printing_manager.h"
@@ -96,6 +97,13 @@ const char16_t kBasicPrintShortcut[] = u"\u0028\u21e7\u2318\u0050\u0029";
 #elif !BUILDFLAG(IS_CHROMEOS)
 const char16_t kBasicPrintShortcut[] = u"(Ctrl+Shift+P)";
 #endif
+
+const char16_t* GetBasicPrintShortcut() {
+  if (cef::IsAlloyRuntimeEnabled()) {
+    return u"";
+  }
+  return kBasicPrintShortcut;
+}
 
 constexpr char kInvalidArgsForDidStartPreview[] =
     "Invalid arguments for DidStartPreview";
@@ -342,7 +350,7 @@ void AddPrintPreviewStrings(content::WebUIDataSource* source) {
                     chrome::kCloudPrintCertificateErrorLearnMoreURL);
 
 #if !BUILDFLAG(IS_CHROMEOS)
-  const std::u16string shortcut_text(kBasicPrintShortcut);
+  const std::u16string shortcut_text(GetBasicPrintShortcut());
   source->AddString("systemDialogOption",
                     l10n_util::GetStringFUTF16(
                         IDS_PRINT_PREVIEW_SYSTEM_DIALOG_OPTION, shortcut_text));

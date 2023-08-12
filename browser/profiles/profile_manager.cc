@@ -496,7 +496,7 @@ ProfileManager::ProfileManager(const base::FilePath& user_data_dir)
                           base::Unretained(this)));
 #endif
 
-  if (ProfileShortcutManager::IsFeatureEnabled() && !user_data_dir_.empty())
+  if (!user_data_dir_.empty() && ProfileShortcutManager::IsFeatureEnabled())
     profile_shortcut_manager_ = ProfileShortcutManager::Create(this);
 
   zombie_metrics_timer_.Start(FROM_HERE, base::Minutes(30), this,

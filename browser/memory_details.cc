@@ -8,6 +8,7 @@
 #include <set>
 
 #include "base/bind.h"
+#include "base/command_line.h"
 #include "base/containers/adapters.h"
 #include "base/containers/cxx20_erase.h"
 #include "base/file_version_info.h"
@@ -18,6 +19,7 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/common/chrome_switches.h"
 #include "components/nacl/common/nacl_process_type.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/browser_child_process_host_iterator.h"
@@ -291,7 +293,9 @@ void MemoryDetails::CollectChildInfoOnUIThread() {
     // Determine if this is an extension process.
     bool process_is_for_extensions = false;
     const extensions::ExtensionSet* extension_set = nullptr;
-    if (render_process_host) {
+    if (render_process_host &&
+        !base::CommandLine::ForCurrentProcess()->HasSwitch(
+            switches::kDisableExtensions)) {
       content::BrowserContext* context =
           render_process_host->GetBrowserContext();
       extensions::ExtensionRegistry* extension_registry =
