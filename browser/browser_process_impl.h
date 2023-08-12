@@ -28,6 +28,7 @@
 #include "components/nacl/common/buildflags.h"
 #include "components/prefs/persistent_pref_store.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "components/safe_browsing/buildflags.h"
 #include "extensions/buildflags/buildflags.h"
 #include "media/media_buildflags.h"
 #include "ppapi/buildflags/buildflags.h"
@@ -189,7 +190,9 @@ class BrowserProcessImpl : public BrowserProcess,
       std::unique_ptr<BackgroundModeManager> manager) override;
 #endif
   StatusTray* status_tray() override;
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   safe_browsing::SafeBrowsingService* safe_browsing_service() override;
+#endif
   subresource_filter::RulesetService* subresource_filter_ruleset_service()
       override;
   federated_learning::FlocSortingLshClustersService*
@@ -241,7 +244,9 @@ class BrowserProcessImpl : public BrowserProcess,
   void CreateNotificationUIManager();
   void CreatePrintPreviewDialogController();
   void CreateBackgroundPrintingManager();
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   void CreateSafeBrowsingService();
+#endif
   void CreateSubresourceFilterRulesetService();
   void CreateFlocBlocklistService();
   void CreateFlocSortingLshClustersService();
@@ -338,9 +343,10 @@ class BrowserProcessImpl : public BrowserProcess,
   // itself as a profile attributes storage observer on destruction.
   std::unique_ptr<BackgroundModeManager> background_mode_manager_;
 #endif
-
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   bool created_safe_browsing_service_ = false;
   scoped_refptr<safe_browsing::SafeBrowsingService> safe_browsing_service_;
+#endif
 
   bool created_subresource_filter_ruleset_service_ = false;
   std::unique_ptr<subresource_filter::RulesetService>

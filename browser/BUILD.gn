@@ -1854,6 +1854,14 @@ static_library("browser") {
     "webid/federated_identity_sharing_permission_context_factory.cc",
     "webid/federated_identity_sharing_permission_context_factory.h",
   ]
+  if (is_ohos && safe_browsing_mode == 0) {
+    sources -= [
+      "component_updater/chrome_client_side_phishing_component_installer.cc",
+      "component_updater/chrome_client_side_phishing_component_installer.h",
+      "permissions/crowd_deny_safe_browsing_request.cc",
+      "permissions/crowd_deny_safe_browsing_request.h",
+    ]
+  }
 
   configs += [
     "//build/config/compiler:wexit_time_destructors",
@@ -1882,6 +1890,15 @@ static_library("browser") {
     # TODO(crbug.com/1030821): Eliminate usages of browser.h from Media Router.
     "//chrome/browser/media/router",
   ]
+
+  if (is_ohos && safe_browsing_mode == 0) {
+    allow_circular_includes_from -= [
+      "//chrome/browser/safe_browsing",
+      "//chrome/browser/safe_browsing:verdict_cache_manager_factory",
+      "//chrome/browser/safe_browsing:advanced_protection",
+      "//chrome/browser/safe_browsing:metrics_collector",
+    ]
+  }
 
   public_deps = [
     "//base",
@@ -2412,6 +2429,32 @@ static_library("browser") {
     "//ui/webui/resources/cr_components/most_visited:mojom",
     "//ui/webui/resources/js/browser_command:mojo_bindings",
   ]
+
+  if (is_ohos && safe_browsing_mode == 0) {
+    deps -= [
+      "//chrome/browser/safe_browsing",
+      "//chrome/browser/safe_browsing:advanced_protection",
+      "//chrome/browser/safe_browsing:metrics_collector",
+      "//chrome/browser/safe_browsing:verdict_cache_manager_factory",
+      "//components/safe_browsing/content/browser",
+      "//components/safe_browsing/content/browser:client_side_detection",
+      "//components/safe_browsing/content/browser:safe_browsing_service",
+      "//components/safe_browsing/content/browser/password_protection",
+      "//components/safe_browsing/content/browser/web_ui",
+      "//components/safe_browsing/core/browser",
+      "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
+      "//components/safe_browsing/core/browser/db:database_manager",
+      "//components/safe_browsing/core/browser/realtime:policy_engine",
+      "//components/safe_browsing/core/browser/realtime:url_lookup_service",
+      "//components/safe_browsing/core/browser/sync",
+      "//components/safe_browsing/core/common",
+      "//components/safe_browsing/core/common:safe_browsing_policy_handler",
+      "//components/safe_browsing/core/common/proto:csd_proto",
+    ]
+
+    deps += [ "//components/safe_browsing/content/common/proto:download_file_types_proto" ]
+  }
+
   if (is_chromeos_ash) {
     sources += [
       "apps/digital_goods/digital_goods_factory_impl.cc",
@@ -3360,6 +3403,18 @@ static_library("browser") {
       "video_tutorials/internal/android/video_tutorial_service_bridge_factory.cc",
       "webauthn/android/cable_module_android.cc",
     ]
+
+    if (is_ohos && safe_browsing_mode == 0) {
+      sources -= [
+        "safe_browsing/android/password_reuse_controller_android.cc",
+        "safe_browsing/android/password_reuse_controller_android.h",
+        "safe_browsing/android/safe_browsing_referring_app_bridge_android.cc",
+        "safe_browsing/android/safe_browsing_referring_app_bridge_android.h",
+        "safe_browsing/android/safe_browsing_settings_launcher_android.cc",
+        "safe_browsing/android/safe_browsing_settings_launcher_android.h",
+      ]
+    }
+
     public_deps += [
       "//chrome/android/features/dev_ui:buildflags",
       "//components/image_fetcher/core",
@@ -3533,6 +3588,10 @@ static_library("browser") {
       "//url:gurl_android",
       "//url:origin_android",
     ]
+
+    if (is_ohos && safe_browsing_mode == 0) {
+      deps -= [ "//components/safe_browsing/core/password_protection:password_protection_metrics_util" ]
+    }
 
     allow_circular_includes_from += [ "//chrome/browser/share" ]
 
@@ -4431,6 +4490,14 @@ static_library("browser") {
       "webauthn/observable_authenticator_list.cc",
       "webauthn/observable_authenticator_list.h",
     ]
+
+    if (is_ohos && safe_browsing_mode == 0) {
+      sources -= [
+        "safe_browsing/generated_safe_browsing_pref.cc",
+        "safe_browsing/generated_safe_browsing_pref.h",
+      ]
+    }
+
     deps += [
       ":cart_db_content_proto",
       ":coupon_db_content_proto",
@@ -5525,6 +5592,13 @@ static_library("browser") {
       "//ui/color:accent_color_observer",
       "//ui/color:color_switches",
     ]
+
+    if (is_ohos && safe_browsing_mode == 0) {
+      deps -= [
+        "//chrome/browser/safe_browsing/chrome_cleaner",
+        "//chrome/browser/safe_browsing/chrome_cleaner:public",
+      ]
+    }
     allow_circular_includes_from +=
         [ "//chrome/browser/safe_browsing/chrome_cleaner" ]
 
@@ -5815,6 +5889,20 @@ static_library("browser") {
     ]
   }
 
+  if (is_ohos) {
+    sources += [
+      "chrome_browser_main_linux.cc",
+      "chrome_browser_main_linux.h",
+      "enterprise/signals/device_info_fetcher_linux.cc",
+      "enterprise/signals/device_info_fetcher_linux.h",
+      "first_run/first_run_internal_linux.cc",
+      "memory_details_linux.cc",
+      "obsolete_system/obsolete_system_stub.cc",
+      "policy/browser_dm_token_storage_linux.cc",
+      "policy/browser_dm_token_storage_linux.h",
+    ]
+  }
+
   if (is_linux || is_chromeos) {
     sources += [
       "chrome_browser_main_linux.cc",
@@ -5851,7 +5939,7 @@ static_library("browser") {
     deps += [ "//chrome/common:chrome_features" ]
   }
 
-  if (is_linux || is_chromeos_lacros) {
+  if (is_linux || is_chromeos_lacros || is_ohos) {
     sources += [
       "download/download_status_updater_linux.cc",
       "first_run/upgrade_util_linux.cc",
@@ -5970,7 +6058,7 @@ static_library("browser") {
     sources += [ "hang_monitor/hang_crash_dump.cc" ]
   }
 
-  if (is_win || is_linux || is_chromeos || is_fuchsia) {
+  if (is_win || is_linux || is_chromeos || is_fuchsia || is_ohos) {
     sources += [
       "renderer_context_menu/spelling_options_submenu_observer.cc",
       "renderer_context_menu/spelling_options_submenu_observer.h",
@@ -5990,7 +6078,8 @@ static_library("browser") {
     ]
   }
 
-  if (is_win || is_mac || (is_linux || is_chromeos_lacros) || is_fuchsia) {
+  if (is_win || is_mac || (is_linux || is_chromeos_lacros) || is_fuchsia ||
+      is_ohos) {
     sources += [
       "browser_switcher/alternative_browser_driver.h",
       "browser_switcher/browser_switcher_features.cc",
@@ -6011,7 +6100,7 @@ static_library("browser") {
     if (is_win) {
       sources += [ "browser_switcher/alternative_browser_driver_win.cc" ]
     }
-    if (is_mac || (is_linux || is_chromeos_lacros)) {
+    if (is_mac || (is_linux || is_chromeos_lacros) || is_ohos) {
       sources += [ "browser_switcher/alternative_browser_driver_posix.cc" ]
     }
   }
@@ -6126,7 +6215,7 @@ static_library("browser") {
     ]
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos || is_fuchsia) {
+  if (is_win || is_mac || is_linux || is_chromeos || is_fuchsia || is_ohos) {
     sources += [
       "media/cast_mirroring_service_host.cc",
       "media/cast_mirroring_service_host.h",
@@ -6295,7 +6384,7 @@ static_library("browser") {
     if (is_chromeos) {
       deps += [ "//chromeos/crosapi/mojom" ]
     }
-    if (is_linux || is_chromeos) {
+    if (is_linux || is_chromeos || is_ohos) {
       sources += [ "printing/printer_manager_dialog_linux.cc" ]
     }
     if (enable_oop_printing) {
@@ -7374,7 +7463,7 @@ grit("resources") {
     if (is_chromeos_ash) {
       inputs = [ "resources/plugin_metadata/plugins_chromeos.json" ]
     }
-    if (is_linux || is_chromeos_lacros) {
+    if (is_linux || is_chromeos_lacros || is_ohos) {
       inputs = [ "resources/plugin_metadata/plugins_linux.json" ]
     }
     if (is_mac) {
@@ -7385,7 +7474,7 @@ grit("resources") {
     }
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos || is_fuchsia) {
+  if (is_win || is_mac || is_linux || is_chromeos || is_fuchsia || is_ohos) {
     deps += [
       "//chrome/browser/resources/discards:discards_resources_gen",
       "//chrome/browser/resources/gaia_auth_host:modulize",
@@ -7581,6 +7670,11 @@ static_library("test_support") {
     "//chrome/browser/safe_browsing:test_support",
     "//chrome/browser/ui:test_support",
   ]
+
+  if (is_ohos && safe_browsing_mode == 0) {
+    public_deps -= [ "//chrome/browser/safe_browsing:test_support" ]
+  }
+
   deps = [
     ":browser_process",
     "//build:chromeos_buildflags",
@@ -7628,6 +7722,13 @@ static_library("test_support") {
     "//ui/gfx",
     "//ui/gfx:test_support",
   ]
+
+  if (is_ohos && safe_browsing_mode == 0) {
+    deps -= [
+      "//chrome/common/safe_browsing:proto",
+      "//components/safe_browsing/core/common/proto:csd_proto",
+    ]
+  }
 
   if (is_android) {
     sources += [
@@ -7813,6 +7914,10 @@ static_library("test_support") {
       "//google_apis:test_support",
       "//services/data_decoder/public/cpp:test_support",
     ]
+    if (is_ohos && safe_browsing_mode == 0) {
+      deps -= [ "//components/safe_browsing/core/browser/db:v4_test_util" ]
+    }
+
     if (!is_fuchsia) {
       # Native Messaging is not available under Fuchsia.
       sources += [

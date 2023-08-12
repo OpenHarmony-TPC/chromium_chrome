@@ -26,6 +26,7 @@
 #include "chrome/browser/ui/tab_modal_confirm_dialog.h"
 #include "chrome/browser/ui/tab_modal_confirm_dialog_delegate.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
+#include "components/safe_browsing/buildflags.h"
 #include "content/public/browser/web_contents_view_delegate.h"
 #include "url/gurl.h"
 
@@ -257,6 +258,7 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
   // to true right before returning.
   bool UploadData();
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   // Prepares an upload request for the text in `data_`. If `data_.text` is
   // empty, this method does nothing.
   void PrepareTextRequest();
@@ -264,7 +266,7 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
   // Prepares an upload request for the printed page bytes in `data_`. If there
   // aren't any, this method does nothing.
   void PreparePageRequest();
-
+#endif
   // Prepares an upload request for the file at `path`.  If the file
   // cannot be uploaded it will have a failure verdict added to `result_`.
   safe_browsing::FileAnalysisRequest* PrepareFileRequest(
@@ -347,8 +349,10 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
   bool page_warning_ = false;
   enterprise_connectors::ContentAnalysisResponse page_response_;
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   // Stores the scanned page's size since it moves from `data_` to be uploaded.
   int64_t page_size_bytes_ = 0;
+#endif
 
   // Set to true once the scan of text has completed.  If the scan request has
   // no text requiring deep scanning, this is set to true immediately.
@@ -370,9 +374,10 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
   // Pointer to UI when enabled.
   raw_ptr<ContentAnalysisDialog> dialog_ = nullptr;
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   // Access point to use to record UMA metrics.
   safe_browsing::DeepScanAccessPoint access_point_;
-
+#endif
   // Scanning result to be shown to the user once every request is done.
   ContentAnalysisDelegateBase::FinalResult final_result_ =
       ContentAnalysisDelegateBase::FinalResult::SUCCESS;

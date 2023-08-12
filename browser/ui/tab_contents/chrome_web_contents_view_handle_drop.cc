@@ -14,12 +14,14 @@
 #include "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
+#include "components/safe_browsing/buildflags.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_view_delegate.h"
 #include "content/public/common/drop_data.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 namespace {
 
 void CompletionCallback(
@@ -153,3 +155,16 @@ void HandleOnPerformDrop(
         content::WebContentsViewDelegate::DropCompletionResult::kContinue);
   }
 }
+#else
+
+void HandleOnPerformDrop(
+    content::WebContents* web_contents,
+    const content::DropData& drop_data,
+    content::WebContentsViewDelegate::DropCompletionCallback callback) {
+  // In the original code, this ran safe_browsing::DeepScanningDialogDelegate
+  // Instead, run the code under "if
+  // (!safe_browsing::DeepScanningDialogDelegate::IsEnabled(...)) ..."
+  std::move(callback).Run(
+      content::WebContentsViewDelegate::DropCompletionResult::kContinue);
+}
+#endif

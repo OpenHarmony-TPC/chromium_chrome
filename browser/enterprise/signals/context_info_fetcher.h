@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_ENTERPRISE_SIGNALS_CONTEXT_INFO_FETCHER_H_
 #define CHROME_BROWSER_ENTERPRISE_SIGNALS_CONTEXT_INFO_FETCHER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -12,7 +13,10 @@
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "chrome/browser/enterprise/signals/signals_common.h"
+#include "components/safe_browsing/buildflags.h"
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#endif
 
 namespace content {
 class BrowserContext;
@@ -38,13 +42,19 @@ struct ContextInfo {
   std::vector<std::string> on_file_downloaded_providers;
   std::vector<std::string> on_bulk_data_entry_providers;
   std::vector<std::string> on_security_event_providers;
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   safe_browsing::EnterpriseRealTimeUrlCheckMode realtime_url_check_mode;
+#endif
   std::string browser_version;
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   safe_browsing::SafeBrowsingState safe_browsing_protection_level;
+#endif
   bool site_isolation_enabled;
   bool built_in_dns_client_enabled;
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   absl::optional<safe_browsing::PasswordProtectionTrigger>
       password_protection_warning_trigger;
+#endif
   absl::optional<bool> chrome_cleanup_enabled;
   bool chrome_remote_desktop_app_blocked;
   absl::optional<bool> third_party_blocking_enabled;
@@ -89,7 +99,9 @@ class ContextInfoFetcher {
   std::vector<std::string> GetAnalysisConnectorProviders(
       enterprise_connectors::AnalysisConnector connector);
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   safe_browsing::EnterpriseRealTimeUrlCheckMode GetRealtimeUrlCheckMode();
+#endif
 
   std::vector<std::string> GetOnSecurityEventProviders();
 

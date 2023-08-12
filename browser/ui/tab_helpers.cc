@@ -178,7 +178,7 @@
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_OHOS)
 #include "chrome/browser/ui/blocked_content/framebust_block_tab_helper.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/hats/hats_helper.h"
@@ -360,6 +360,7 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
   //     See https://crbug.com/910288.
   resource_coordinator::ResourceCoordinatorTabHelper::CreateForWebContents(
       web_contents);
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   safe_browsing::SafeBrowsingNavigationObserver::MaybeCreateForWebContents(
       web_contents, HostContentSettingsMapFactory::GetForProfile(profile),
       safe_browsing::SafeBrowsingNavigationObserverManagerFactory::
@@ -376,6 +377,7 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
       std::make_unique<safe_browsing::ChromeSafeBrowsingTabObserverDelegate>());
   safe_browsing::TriggerCreator::MaybeCreateTriggersForWebContents(
       profile, web_contents);
+#endif
   ReputationWebContentsObserver::CreateForWebContents(web_contents);
   SearchEngineTabHelper::CreateForWebContents(web_contents);
   SecurityStateTabHelper::CreateForWebContents(web_contents);

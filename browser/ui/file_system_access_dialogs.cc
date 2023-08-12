@@ -6,7 +6,7 @@
 
 #include "components/permissions/permission_util.h"
 
-#if !defined(TOOLKIT_VIEWS)
+#if !defined(TOOLKIT_VIEWS) && !BUILDFLAG(IS_OHOS)
 void ShowFileSystemAccessPermissionDialog(
     const FileSystemAccessPermissionRequestManager::RequestData& request,
     base::OnceCallback<void(permissions::PermissionAction result)> callback,
@@ -20,14 +20,27 @@ void ShowFileSystemAccessRestrictedDirectoryDialog(
     const url::Origin& origin,
     const base::FilePath& path,
     content::FileSystemAccessPermissionContext::HandleType handle_type,
-    base::OnceCallback<void(
-        content::FileSystemAccessPermissionContext::SensitiveDirectoryResult)>
+    base::OnceCallback<
+        void(content::FileSystemAccessPermissionContext::SensitiveEntryResult)>
         callback,
     content::WebContents* web_contents) {
   // There's no dialog version of this available outside views, run callback as
   // if the dialog was instantly dismissed.
-  std::move(callback).Run(content::FileSystemAccessPermissionContext::
-                              SensitiveDirectoryResult::kAbort);
+  std::move(callback).Run(
+      content::FileSystemAccessPermissionContext::SensitiveEntryResult::kAbort);
+}
+
+void ShowFileSystemAccessDangerousFileDialog(
+    const url::Origin& origin,
+    const base::FilePath& path,
+    base::OnceCallback<
+        void(content::FileSystemAccessPermissionContext::SensitiveEntryResult)>
+        callback,
+    content::WebContents* web_contents) {
+  // There's no dialog version of this available outside views, run callback as
+  // if the dialog was instantly dismissed.
+  std::move(callback).Run(
+      content::FileSystemAccessPermissionContext::SensitiveEntryResult::kAbort);
 }
 
 #endif  // !defined(TOOLKIT_VIEWS)

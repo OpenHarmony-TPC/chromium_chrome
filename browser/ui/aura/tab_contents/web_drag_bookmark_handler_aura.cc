@@ -41,11 +41,15 @@ void WebDragBookmarkHandlerAura::OnDragOver() {
 
 void WebDragBookmarkHandlerAura::OnReceiveDragData(
     const ui::OSExchangeData& data) {
+#if !BUILDFLAG(IS_OHOS)
   if (bookmark_tab_helper_ && bookmark_tab_helper_->bookmark_drag_delegate()) {
     // Read the bookmark drag data and save it for use in later events in this
     // drag.
     bookmark_drag_data_.Read(data);
   }
+#else
+  LOG(INFO) << "WebDragBookmarkHandlerAura::OnReceiveDragData TODO for OS_OHOS";
+#endif
 }
 
 void WebDragBookmarkHandlerAura::OnDragEnter() {

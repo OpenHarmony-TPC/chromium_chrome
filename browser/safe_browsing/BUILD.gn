@@ -14,6 +14,13 @@ static_library("safe_browsing") {
     "url_checker_delegate_impl.h",
   ]
 
+  if (is_ohos && safe_browsing_mode == 0) {
+    sources -= [
+      "chrome_safe_browsing_tab_observer_delegate.cc",
+      "chrome_safe_browsing_tab_observer_delegate.h",
+    ]
+  }
+
   public_deps = []
 
   deps = [
@@ -399,6 +406,11 @@ static_library("safe_browsing") {
         "//components/safe_browsing/android:safe_browsing_mobile",
       ]
     }
+  }
+
+  if (is_ohos && safe_browsing_mode == 0) {
+    deps -=
+        [ "//components/safe_browsing/content/browser:client_side_detection" ]
   }
 }
 

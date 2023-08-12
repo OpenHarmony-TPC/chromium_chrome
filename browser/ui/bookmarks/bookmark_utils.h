@@ -98,7 +98,7 @@ bool IsValidBookmarkDropLocation(Profile* profile,
                                  const bookmarks::BookmarkNode* drop_parent,
                                  size_t index);
 
-#if defined(TOOLKIT_VIEWS)
+#if defined(TOOLKIT_VIEWS) || BUILDFLAG(IS_OHOS)
 enum class BookmarkFolderIconType {
   kNormal,
   kManaged,

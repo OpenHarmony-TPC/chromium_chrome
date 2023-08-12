@@ -63,7 +63,7 @@ ReceivingUiHandlerRegistry::GetToolbarButtonControllerForProfile(
   auto* button_controller = static_cast<SendTabToSelfToolbarIconController*>(
       applicable_handlers_.back().get());
   return button_controller;
-#elif BUILDFLAG(IS_ANDROID)
+#elif BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_OHOS)
   return nullptr;
 #else
 #error Unknown platform.

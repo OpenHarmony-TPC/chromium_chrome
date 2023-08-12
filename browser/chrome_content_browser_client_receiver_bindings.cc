@@ -132,6 +132,7 @@
 
 namespace {
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 // Helper method for ExposeInterfacesToRenderer() that checks the latest
 // SafeBrowsing pref value on the UI thread before hopping over to the IO
 // thread.
@@ -144,6 +145,7 @@ void MaybeCreateSafeBrowsingForRenderer(
         const std::vector<std::string>& allowlist_domains)>
         get_checker_delegate,
     mojo::PendingReceiver<safe_browsing::mojom::SafeBrowsing> receiver) {
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   content::RenderProcessHost* render_process_host =
@@ -183,8 +185,9 @@ void MaybeCreateSafeBrowsingForRenderer(
                               /*should_check_on_sb_disabled=*/false,
                               allowlist_domains),
           std::move(receiver)));
+#endif
 }
-
+#endif
 // BadgeManager is not used for Android.
 #if !BUILDFLAG(IS_ANDROID)
 void BindBadgeServiceForServiceWorker(
@@ -238,6 +241,7 @@ void ChromeContentBrowserClient::ExposeInterfacesToRenderer(
   if (safe_browsing_service_) {
     content::ResourceContext* resource_context =
         render_process_host->GetBrowserContext()->GetResourceContext();
+#if BUILDFLAG(FULL_SAFE_BROWSING)
     registry->AddInterface(
         base::BindRepeating(
             &MaybeCreateSafeBrowsingForRenderer, render_process_host->GetID(),
@@ -246,6 +250,7 @@ void ChromeContentBrowserClient::ExposeInterfacesToRenderer(
                 &ChromeContentBrowserClient::GetSafeBrowsingUrlCheckerDelegate,
                 base::Unretained(this))),
         ui_task_runner);
+#endif
   }
 #endif
 

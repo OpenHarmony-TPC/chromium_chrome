@@ -460,6 +460,7 @@ absl::optional<std::string> ConnectorsService::GetDMTokenForRealTimeUrlCheck()
   return absl::nullopt;
 }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 safe_browsing::EnterpriseRealTimeUrlCheckMode
 ConnectorsService::GetAppliedRealTimeUrlCheck() const {
   if (!ConnectorsEnabled() ||
@@ -472,6 +473,7 @@ ConnectorsService::GetAppliedRealTimeUrlCheck() const {
       Profile::FromBrowserContext(context_)->GetPrefs()->GetInteger(
           prefs::kSafeBrowsingEnterpriseRealTimeUrlCheckMode));
 }
+#endif
 
 ConnectorsManager* ConnectorsService::ConnectorsManagerForTesting() {
   return connectors_manager_.get();

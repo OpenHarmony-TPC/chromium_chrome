@@ -93,6 +93,9 @@
 #include "ppapi/buildflags/buildflags.h"
 #include "ui/base/l10n/l10n_util.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "net/http/http_content_disposition.h"
+#endif
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/path_utils.h"
 #include "chrome/browser/download/android/chrome_duplicate_download_infobar_delegate.h"
@@ -134,7 +137,11 @@ using content::DownloadManager;
 using download::DownloadItem;
 using download::DownloadPathReservationTracker;
 using download::PathValidationResult;
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 using safe_browsing::DownloadFileType;
+#endif
+
 using safe_browsing::DownloadProtectionService;
 using ConnectionType = net::NetworkChangeNotifier::ConnectionType;
 
@@ -436,12 +443,14 @@ ChromeDownloadManagerDelegate::~ChromeDownloadManagerDelegate() {
 void ChromeDownloadManagerDelegate::SetDownloadManager(DownloadManager* dm) {
   download_manager_ = dm;
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   safe_browsing::SafeBrowsingService* sb_service =
       g_browser_process->safe_browsing_service();
   if (sb_service && !profile_->IsOffTheRecord()) {
     // Include this download manager in the set monitored by safe browsing.
     sb_service->AddDownloadManager(dm);
   }
+#endif
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -790,13 +799,14 @@ void ChromeDownloadManagerDelegate::ChooseSavePath(
 
 void ChromeDownloadManagerDelegate::SanitizeSavePackageResourceName(
     base::FilePath* filename) {
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   safe_browsing::FileTypePolicies* file_type_policies =
       safe_browsing::FileTypePolicies::GetInstance();
 
   if (file_type_policies->GetFileDangerLevel(*filename) ==
       safe_browsing::DownloadFileType::NOT_DANGEROUS)
     return;
-
+#endif
   base::FilePath default_filename = base::FilePath::FromUTF8Unsafe(
       l10n_util::GetStringUTF8(IDS_DEFAULT_DOWNLOAD_FILENAME));
   *filename = filename->AddExtension(default_filename.BaseName().value());
@@ -1544,7 +1554,9 @@ void ChromeDownloadManagerDelegate::OnDownloadTargetDetermined(
       DownloadItemModel(item).SetShouldPreferOpeningInBrowser(true);
 #endif
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
     DownloadItemModel(item).SetDangerLevel(target_info->danger_level);
+#endif
   }
   if (ShouldBlockFile(target_info->danger_type, item)) {
     MaybeReportDangerousDownloadBlocked(
@@ -1696,7 +1708,6 @@ void ChromeDownloadManagerDelegate::MaybeSendDangerousDownloadOpenedReport(
     service->MaybeSendDangerousDownloadOpenedReport(download,
                                                     show_download_in_folder);
   }
-#endif
   if (!download->GetAutoOpened()) {
     download::DownloadContent download_content =
         download::DownloadContentFromMimeType(download->GetMimeType(), false);
@@ -1704,6 +1715,7 @@ void ChromeDownloadManagerDelegate::MaybeSendDangerousDownloadOpenedReport(
         download->GetDangerType(), download_content, base::Time::Now(),
         download->GetEndTime(), show_download_in_folder);
   }
+#endif
 }
 
 void ChromeDownloadManagerDelegate::CheckDownloadAllowed(

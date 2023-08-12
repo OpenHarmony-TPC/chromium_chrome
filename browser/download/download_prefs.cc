@@ -75,14 +75,14 @@ namespace {
 // Consider downloads 'dangerous' if they go to the home directory on Linux and
 // to the desktop on any platform.
 bool DownloadPathIsDangerous(const base::FilePath& download_path) {
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
   base::FilePath home_dir = base::GetHomeDir();
   if (download_path == home_dir) {
     return true;
   }
 #endif
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_OHOS)
   // Neither Fuchsia nor Android have a desktop dir.
   return false;
 #else
@@ -256,6 +256,7 @@ DownloadPrefs::DownloadPrefs(Profile* profile) : profile_(profile) {
         base::FilePath::StringType(1, base::FilePath::kExtensionSeparator) +
         extension);
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
     // Note that the list of file types that are not allowed to open
     // automatically can change in the future. When the list is tightened, it is
     // expected that some entries in the users' auto open list will get dropped
@@ -264,6 +265,7 @@ DownloadPrefs::DownloadPrefs(Profile* profile) : profile_(profile) {
             filename_with_extension)) {
       auto_open_by_user_.insert(extension);
     }
+#endif
   }
 }
 
@@ -476,11 +478,12 @@ bool DownloadPrefs::IsAutoOpenByPolicy(const GURL& url,
 bool DownloadPrefs::EnableAutoOpenByUserBasedOnExtension(
     const base::FilePath& file_name) {
   base::FilePath::StringType extension = file_name.Extension();
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   if (!FileTypePolicies::GetInstance()->IsAllowedToOpenAutomatically(
           file_name)) {
     return false;
   }
-
+#endif
   DCHECK(extension[0] == base::FilePath::kExtensionSeparator);
   extension.erase(0, 1);
 

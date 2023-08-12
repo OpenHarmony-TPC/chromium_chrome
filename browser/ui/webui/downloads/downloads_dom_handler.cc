@@ -377,7 +377,9 @@ void DownloadsDOMHandler::OpenDuringScanningRequiringGesture(
   if (download) {
     DownloadItemModel model(download);
     model.SetOpenWhenComplete(true);
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
     model.CompleteSafeBrowsingScan();
+#endif
   }
 }
 

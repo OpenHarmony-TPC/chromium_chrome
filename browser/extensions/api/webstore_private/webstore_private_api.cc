@@ -46,6 +46,7 @@
 #include "components/crx_file/id_util.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
 #include "components/safe_browsing/core/browser/safe_browsing_metrics_collector.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -245,8 +246,10 @@ void ShowBlockedByParentDialog(const Extension* extension,
 
 #endif  // BUILDFLAG(ENABLE_SUPERVISED_USERS)
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 // The number of user gestures to trace back for the referrer chain.
 const int kExtensionReferrerUserGestureLimit = 2;
+#endif
 
 WebstoreInstaller::Delegate* test_webstore_installer_delegate = nullptr;
 
@@ -1192,6 +1195,7 @@ WebstorePrivateGetReferrerChainFunction::
 
 ExtensionFunction::ResponseAction
 WebstorePrivateGetReferrerChainFunction::Run() {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   Profile* profile = Profile::FromBrowserContext(browser_context());
   if (!SafeBrowsingNavigationObserverManager::IsEnabledAndReady(
           profile->GetPrefs(), g_browser_process->safe_browsing_service()))
@@ -1238,6 +1242,9 @@ WebstorePrivateGetReferrerChainFunction::Run() {
   return RespondNow(
       ArgumentList(api::webstore_private::GetReferrerChain::Results::Create(
           serialized_referrer_proto)));
+#else
+  return RespondLater();
+#endif
 }
 
 WebstorePrivateGetExtensionStatusFunction::

@@ -401,7 +401,7 @@ are declared in tools/grit/grit_rule.gni.
           Permission requested, press ⌘ + Option + Down arrow to respond
         </message>
       </if>
-      <if expr="is_win or desktop_linux or is_fuchsia">
+      <if expr="is_win or desktop_linux or is_fuchsia or is_ohos">
         <message name="IDS_PERMISSIONS_REQUESTED_SCREENREADER_ANNOUNCEMENT" desc="Announcement to screen readers on Windows, Linux or Fuchsia when permission is requested to inform users of how to focus the permission UI.">
           Permission requested, press F6 to respond
         </message>
@@ -3067,7 +3067,7 @@ are declared in tools/grit/grit_rule.gni.
       </message>
 
       <!-- Win certificate selector dialog strings.  -->
-      <if expr="toolkit_views">
+      <if expr="toolkit_views or is_ohos">
         <message name="IDS_CERT_SELECTOR_SUBJECT_COLUMN" desc="The text of the header for the certificate subject column in the certificate selector dialog.">
           Subject
         </message>
@@ -8362,7 +8362,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
 
       <!-- Accessiblility strings for Infobars in Views -->
-      <if expr="toolkit_views">
+      <if expr="toolkit_views or is_ohos">
         <message name="IDS_ACCNAME_INFOBAR_CONTAINER" desc="The accessible name for the infobar container.">
           Infobar Container
         </message>
@@ -9374,7 +9374,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </if>
 
       <!-- Translate Bubble -->
-      <if expr="toolkit_views">
+      <if expr="toolkit_views or is_ohos">
         <message name="IDS_TRANSLATE_BUBBLE_BEFORE_TRANSLATE_TITLE" desc="Title text for the translate bubble when asking to translate a page.">
           Translate this page?
         </message>
@@ -10650,7 +10650,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_DESKTOP_MEDIA_PICKER_MANAGED" desc="Text to display when picker choices have been limited by enterprise policies.">
         Options for sharing are managed by your organization. Some items may be hidden.
       </message>
-      <if expr="toolkit_views">
+      <if expr="toolkit_views or is_ohos">
         <message name="IDS_DESKTOP_MEDIA_PICKER_SOURCE_TYPE_THIS_TAB" desc="Text for one of the dialog-tabs on the media picker dialog. This dialog-tab controls sharing the current tab.">
           This Tab
         </message>
@@ -10779,7 +10779,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
           <ph name="WINDOW_TITLE">$1<ex>Google Search</ex></ph> - Permission requested, press ⌘ + Option + Up arrow to respond
         </message>
       </if>
-      <if expr="is_win or desktop_linux or is_fuchsia">
+      <if expr="is_win or desktop_linux or is_fuchsia or is_ohos">
         <message name="IDS_TAB_AX_LABEL_PERMISSION_REQUESTED_FORMAT" desc="Accessibility label text for Windows, Linux or Fuchsia, when a tab has a pending request. Example: 'Google Search - Permission requested, press F6 to respond'.">
           <ph name="WINDOW_TITLE">$1<ex>Google Search</ex></ph> - Permission requested, press F6 to respond
         </message>
@@ -11448,6 +11448,20 @@ Please help our engineers fix this problem. Tell us what happened right before y
       Choose a different file
     </message>
 
+    <!-- File System Access dangerous file dialogs. -->
+    <message name="IDS_FILE_SYSTEM_ACCESS_DANGEROUS_FILE_TITLE" desc="Title of dialog explaining that the user is attempting to save a file with a dangerous extension">
+      Save <ph name="FILE">$1<ex>filename.exe</ex></ph>?
+    </message>
+    <message name="IDS_FILE_SYSTEM_ACCESS_DANGEROUS_FILE_TEXT" desc="Text of dialog explaining that the user is attempting to save a file with a dangerous extension">
+      This type of file can be dangerous. Only save this file if you trust <ph name="ORIGIN">$1<ex>example.com</ex></ph>
+    </message>
+    <message name="IDS_FILE_SYSTEM_ACCESS_DANGEROUS_FILE_DONT_SAVE" desc="Text of the button allowing the user to choose to not save a file with a dangerous extension">
+      Don't save
+    </message>
+    <message name="IDS_FILE_SYSTEM_ACCESS_DANGEROUS_FILE_SAVE" desc="Text of the button allowing the user to choose to save a file with a dangerous extension">
+      Save
+    </message>
+
     <!-- Relaunch notification bubble and dialog. -->
     <if expr="not is_android">
       <if expr="not chromeos">
@@ -11466,7 +11480,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </if>
 
     <!-- Web-modal dialog shown during Web Authenticaton API requests. -->
-    <if expr="is_win or is_macosx or desktop_linux or chromeos or is_fuchsia">
+    <if expr="is_win or is_macosx or desktop_linux or chromeos or is_fuchsia or is_ohos">
       <message name="IDS_WEBAUTHN_GENERIC_TITLE" desc="Title of most dialogs shown while the user is authenticating on a web site using a security key.">
         Use your security key with <ph name="APP_NAME">$1<ex>google.com</ex></ph>
       </message>
@@ -11736,7 +11750,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
    </if>
 
    <!-- WebAuthn strings that are used on both Android and Desktop -->
-   <if expr="is_win or is_macosx or desktop_linux or chromeos or is_android or is_fuchsia">
+   <if expr="is_win or is_macosx or desktop_linux or chromeos or is_android or is_fuchsia or is_ohos">
       <message name="IDS_CABLEV2_MAKE_CREDENTIAL_NOTIFICATION_TITLE" desc="The title of a notification shown on Android that informs the user that a website wishes to register their phone for signing into that website." formatter_data="android_java">
         Verify with this phone
       </message>

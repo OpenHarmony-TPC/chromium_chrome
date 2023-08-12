@@ -20,6 +20,7 @@
 #include "base/task/thread_pool.h"
 #include "base/version.h"
 #include "components/component_updater/component_updater_paths.h"
+#include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/content/common/file_type_policies.h"
 #include "components/safe_browsing/core/common/features.h"
 
@@ -52,8 +53,10 @@ void LoadFileTypesFromDisk(const base::FilePath& pb_path) {
     return;
   }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   safe_browsing::FileTypePolicies::GetInstance()->PopulateFromDynamicUpdate(
       binary_pb);
+#endif
 }
 
 }  // namespace

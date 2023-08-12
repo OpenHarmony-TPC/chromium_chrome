@@ -40,6 +40,7 @@ using sll = struct sockaddr_dl;
 #define SOCKET_ADDRESS(s) (LLADDR(s))
 #endif
 
+#if !BUILDFLAG(IS_OHOS)
 void GetDiscoveryNetworkInfoListImpl(
     const struct ifaddrs* if_list,
     std::vector<DiscoveryNetworkInfo>* network_info_list) {
@@ -88,12 +89,14 @@ void GetDiscoveryNetworkInfoListImpl(
                                SOCKET_ADDRESS_LEN(ll_addr))});
   }
 }
+#endif
 
 }  // namespace
 
 std::vector<DiscoveryNetworkInfo> GetDiscoveryNetworkInfoList() {
   std::vector<DiscoveryNetworkInfo> network_ids;
 
+#if !BUILDFLAG(IS_OHOS)
   struct ifaddrs* if_list;
   if (getifaddrs(&if_list)) {
     return network_ids;
@@ -102,6 +105,9 @@ std::vector<DiscoveryNetworkInfo> GetDiscoveryNetworkInfoList() {
   GetDiscoveryNetworkInfoListImpl(if_list, &network_ids);
   StableSortDiscoveryNetworkInfo(network_ids.begin(), network_ids.end());
   freeifaddrs(if_list);
+#else
+  LOG(INFO) << "GetDiscoveryNetworkInfoList TODO in OS_OHOS";
+#endif
   return network_ids;
 }
 

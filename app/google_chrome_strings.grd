@@ -793,7 +793,7 @@ Google Chrome is unable to recover your settings.
       </if>
 
       <!-- Enterprise sign-in dialog -->
-      <if expr="toolkit_views">
+      <if expr="toolkit_views or is_ohos">
         <message name="IDS_ENTERPRISE_SIGNIN_TITLE" desc="The title of the dialog to confirm linking the browser profile with the signed-in enterprise account">
           Link your Chrome data to this account?
         </message>

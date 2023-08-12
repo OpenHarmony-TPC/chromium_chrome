@@ -1607,8 +1607,10 @@ void DevToolsWindow::ShowCertificateViewer(const std::string& cert_chain) {
   int tab = 0;
   if (!FindInspectedBrowserAndTabIndex(inspected_contents, &browser, &tab))
     return;
+#if !BUILDFLAG(IS_OHOS)
   gfx::NativeWindow parent = browser->window()->GetNativeWindow();
   ::ShowCertificateViewer(inspected_contents, parent, cert.get());
+#endif
 }
 
 void DevToolsWindow::OnLoadCompleted() {

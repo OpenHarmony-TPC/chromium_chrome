@@ -177,7 +177,7 @@ source_set("web_applications") {
     sources += [ "web_app_stubs.cc" ]
   }
 
-  if (is_linux) {
+  if (is_linux || is_ohos) {
     # Desktop linux, doesn't count ChromeOS.
     sources += [
       "web_app_file_handler_registration_linux.cc",
@@ -213,7 +213,7 @@ source_set("web_applications") {
     ]
   }
 
-  if (is_win || is_mac || (is_linux && !is_chromeos_lacros)) {
+  if (is_win || is_mac || ((is_linux || is_ohos) && !is_chromeos_lacros)) {
     sources += [
       "url_handler_launch_params.cc",
       "url_handler_launch_params.h",
@@ -528,7 +528,7 @@ source_set("web_applications_unit_tests") {
     ]
   }
 
-  if (is_linux) {
+  if (is_linux || is_ohos) {
     # Desktop linux, doesn't count ChromeOS.
     sources += [
       "web_app_file_handler_registration_linux_unittest.cc",
@@ -537,7 +537,7 @@ source_set("web_applications_unit_tests") {
     ]
   }
 
-  if (is_win || is_mac || (is_linux && !is_chromeos_lacros)) {
+  if (is_win || is_mac || ((is_linux || is_ohos) && !is_chromeos_lacros)) {
     sources += [
       "url_handler_manager_impl_unittest.cc",
       "url_handler_prefs_unittest.cc",
@@ -596,7 +596,7 @@ source_set("web_applications_unit_tests") {
     ]
   }
 
-  if (is_win || is_mac || (is_linux && !is_chromeos_lacros)) {
+  if (is_win || is_mac || ((is_linux || is_ohos) && !is_chromeos_lacros)) {
     deps += [ "//components/services/app_service/public/cpp:app_url_handling" ]
   }
 }
@@ -619,7 +619,7 @@ source_set("web_applications_browser_tests") {
     "web_app_url_loader_browsertest.cc",
   ]
 
-  if (is_linux) {
+  if (is_linux || is_ohos) {
     sources += [ "web_app_file_handler_registration_linux_browsertest.cc" ]
   }
 

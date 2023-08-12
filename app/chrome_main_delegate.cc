@@ -163,7 +163,7 @@
 #endif
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
 #include "chrome/browser/policy/policy_path_parser.h"
 #include "components/crash/core/app/crashpad.h"
 #endif
@@ -363,7 +363,7 @@ void HandleHelpSwitches(const base::CommandLine& command_line) {
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
 
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_OHOS)
 void SIGTERMProfilingShutdown(int signal) {
   content::Profiling::Stop();
   struct sigaction sigact;
@@ -1168,8 +1168,10 @@ void ChromeMainDelegate::PreSandboxStartup() {
 #else   // !BUILDFLAG(IS_ANDROID)
     if (crash_reporter::IsCrashpadEnabled()) {
       crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
+#if !defined(__MUSL__)
       crash_reporter::SetFirstChanceExceptionHandler(
           v8::TryHandleWebAssemblyTrapPosix);
+#endif
     } else {
       breakpad::InitCrashReporter(process_type);
     }

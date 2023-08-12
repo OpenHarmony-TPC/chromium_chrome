@@ -631,6 +631,7 @@ void ChromeBrowsingDataRemoverDelegate::RemoveEmbedderData(
        content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB)) {
     base::RecordAction(UserMetricsAction("ClearBrowsingData_Cookies"));
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
     network::mojom::NetworkContext* safe_browsing_context = nullptr;
     safe_browsing::SafeBrowsingService* sb_service =
         g_browser_process->safe_browsing_service();
@@ -645,7 +646,7 @@ void ChromeBrowsingDataRemoverDelegate::RemoveEmbedderData(
               &ChromeBrowsingDataRemoverDelegate::CreateTaskCompletionClosure,
               base::Unretained(this), TracingDataType::kCookies));
     }
-
+#endif
     if (filter_builder->GetMode() ==
         BrowsingDataFilterBuilder::Mode::kPreserve) {
       PrivacySandboxSettings* privacy_sandbox_settings =

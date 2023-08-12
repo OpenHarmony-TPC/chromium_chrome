@@ -73,7 +73,7 @@ ChromeAppWindowClient::CreateAppWindowForLockScreenAction(
 extensions::NativeAppWindow* ChromeAppWindowClient::CreateNativeAppWindow(
     extensions::AppWindow* window,
     extensions::AppWindow::CreateParams* params) {
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_OHOS)
   return nullptr;
 #else
   return CreateNativeAppWindowImpl(window, *params);

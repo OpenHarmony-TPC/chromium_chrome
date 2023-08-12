@@ -416,7 +416,11 @@ void NTPResourceCache::CreateNewTabGuestHTML() {
 
 void NTPResourceCache::CreateNewTabIncognitoCSS(
     const content::WebContents::Getter wc_getter) {
+#if !BUILDFLAG(IS_OHOS)
   const ui::NativeTheme* native_theme = webui::GetNativeTheme(wc_getter.Run());
+#else
+  LOG(INFO) << "NTPResourceCache::CreateNewTabIncognitoCSS TODO for OS_OHOS";
+#endif
   const ui::ThemeProvider& tp = ThemeService::GetThemeProviderForProfile(
       profile_->GetPrimaryOTRProfile(/*create_if_needed=*/true));
 
@@ -428,8 +432,10 @@ void NTPResourceCache::CreateNewTabIncognitoCSS(
       profile_->GetPrefs()->GetString(prefs::kCurrentThemeID);
 
   // Colors.
+#if !BUILDFLAG(IS_OHOS)
   substitutions["colorBackground"] = color_utils::SkColorToRgbaString(
       GetThemeColor(native_theme, tp, ThemeProperties::COLOR_NTP_BACKGROUND));
+#endif
   substitutions["backgroundPosition"] = GetNewTabBackgroundPositionCSS(tp);
   substitutions["backgroundTiling"] = GetNewTabBackgroundTilingCSS(tp);
 
@@ -449,7 +455,12 @@ void NTPResourceCache::CreateNewTabIncognitoCSS(
 
 void NTPResourceCache::CreateNewTabCSS(
     const content::WebContents::Getter wc_getter) {
+#if !BUILDFLAG(IS_OHOS)
   const ui::NativeTheme* native_theme = webui::GetNativeTheme(wc_getter.Run());
+#else
+  const ui::NativeTheme* native_theme = nullptr;
+  LOG(INFO) << "NTPResourceCache::CreateNewTabCSS TODO for OS_OHOS";
+#endif
   const ui::ThemeProvider& tp =
       ThemeService::GetThemeProviderForProfile(profile_);
 

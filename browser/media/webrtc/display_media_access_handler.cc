@@ -23,6 +23,7 @@
 #include "chrome/browser/safe_browsing/user_interaction_observer.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
+#include "components/safe_browsing/buildflags.h"
 #include "components/url_formatter/elide_url.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/desktop_capture.h"
@@ -106,6 +107,7 @@ void DisplayMediaAccessHandler::HandleRequest(
     return;
   }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   // SafeBrowsing Delayed Warnings experiment can delay some SafeBrowsing
   // warnings until user interaction. If the current page has a delayed warning,
   // it'll have a user interaction observer attached. Show the warning
@@ -121,6 +123,7 @@ void DisplayMediaAccessHandler::HandleRequest(
     observer->OnDesktopCaptureRequest();
     return;
   }
+#endif
 
 #if BUILDFLAG(IS_MAC)
   // Do not allow picker UI to be shown on a page that isn't in the foreground

@@ -165,6 +165,8 @@ WindowsEventRouter::WindowsEventRouter(Profile* profile)
       &g_browser_process->platform_part()->key_window_notifier());
 #elif defined(TOOLKIT_VIEWS)
   views::WidgetFocusManager::GetInstance()->AddFocusChangeListener(this);
+#elif BUILDFLAG(IS_OHOS)
+  LOG(INFO) << "WindowsEventRouter::WindowsEventRouter TODO for OS_OHOS";
 #else
 #error Unsupported
 #endif

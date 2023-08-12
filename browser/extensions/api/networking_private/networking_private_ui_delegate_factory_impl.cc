@@ -15,6 +15,10 @@
 
 namespace extensions {
 
+NetworkingPrivateDelegateFactory::UIDelegateFactory::UIDelegateFactory() {}
+
+NetworkingPrivateDelegateFactory::UIDelegateFactory::~UIDelegateFactory() {}
+
 NetworkingPrivateUIDelegateFactoryImpl::
     NetworkingPrivateUIDelegateFactoryImpl() {}
 

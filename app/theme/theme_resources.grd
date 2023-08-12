@@ -28,7 +28,7 @@
       <if expr="is_linux or is_win or chromeos">
         <structure type="chrome_scaled_image" name="IDR_ACCESSIBILITY_CAPTIONS_PREVIEW_BACKGROUND" file="common/captions-preview-bg.png" />
       </if>
-      <if expr="toolkit_views and not is_macosx">
+      <if expr="toolkit_views and not is_macosx or is_ohos">
         <structure type="chrome_scaled_image" name="IDR_APP_WINDOW_CLOSE" file="common/app_window_close.png" />
         <structure type="chrome_scaled_image" name="IDR_APP_WINDOW_CLOSE_H" file="common/app_window_close_hover.png" />
         <structure type="chrome_scaled_image" name="IDR_APP_WINDOW_CLOSE_P" file="common/app_window_close_active.png" />
@@ -52,7 +52,7 @@
         <structure type="chrome_scaled_image" name="IDR_ASH_SHELF_LIST_BROWSER" file="cros/window_switcher_icon_normal.png" />
         <structure type="chrome_scaled_image" name="IDR_ASH_SHELF_LIST_INCOGNITO_BROWSER" file="cros/window_switcher_icon_incognito.png" />
       </if>
-      <if expr="toolkit_views">
+      <if expr="toolkit_views or is_ohos">
         <structure type="chrome_scaled_image" name="IDR_AUTOFILL_OFFERS" file="common/autofill_offers.png" />
       </if>
       <if expr="chromeos">

@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_DOWNLOAD_DOWNLOAD_DANGER_PROMPT_H_
 
 #include "base/callback_forward.h"
+#include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 
 namespace content {
@@ -53,6 +54,7 @@ class DownloadDangerPrompt {
   // respective button click handler.
   virtual void InvokeActionForTesting(Action action) = 0;
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   // Sends download recovery report to safe browsing backend.
   // Since it only records download url (DownloadItem::GetURL()), user's
   // action (click through or not) and its download danger type, it isn't gated
@@ -63,6 +65,7 @@ class DownloadDangerPrompt {
       safe_browsing::ClientSafeBrowsingReportRequest::ReportType report_type,
       bool did_proceed,
       const download::DownloadItem& download);
+#endif
 
  protected:
   // Records UMA stats for a download danger prompt event.

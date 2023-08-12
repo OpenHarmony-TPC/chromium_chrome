@@ -33,13 +33,17 @@
 #include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service_factory.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/file_analysis_request.h"
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "chrome/browser/safe_browsing/download_protection/check_client_download_request.h"
+#endif
 #include "chrome/grit/generated_resources.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
 #include "components/policy/core/common/chrome_schema.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/features.h"
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#endif
 #include "components/url_matcher/url_matcher.h"
 #include "content/public/browser/web_contents.h"
 #include "crypto/secure_hash.h"
@@ -129,6 +133,7 @@ bool* UIEnabledStorage() {
   return &enabled;
 }
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 safe_browsing::EventResult CalculateEventResult(
     const enterprise_connectors::AnalysisSettings& settings,
     bool allowed_by_scan_result,
@@ -140,7 +145,7 @@ safe_browsing::EventResult CalculateEventResult(
              : (should_warn ? safe_browsing::EventResult::WARNED
                             : safe_browsing::EventResult::BLOCKED);
 }
-
+#endif
 }  // namespace
 
 ContentAnalysisDelegate::Data::Data() = default;
@@ -173,6 +178,7 @@ void ContentAnalysisDelegate::BypassWarnings(
   if (callback_.is_null())
     return;
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   // Mark the full text as complying and report a warning bypass.
   if (text_warning_) {
     std::fill(result_.text_results.begin(), result_.text_results.end(), true);
@@ -198,6 +204,7 @@ void ContentAnalysisDelegate::BypassWarnings(
         extensions::SafeBrowsingPrivateEventRouter::kTriggerFileUpload,
         access_point_, file_info_[index].size, warning.second);
   }
+#endif
 
   // TODO(crbug.com/1273922): Add bypass reporting code for print.
 
@@ -208,6 +215,7 @@ void ContentAnalysisDelegate::Cancel(bool warning) {
   if (callback_.is_null())
     return;
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   // Don't report this upload as cancelled if the user didn't bypass the
   // warning.
   if (!warning) {
@@ -215,6 +223,7 @@ void ContentAnalysisDelegate::Cancel(bool warning) {
                           base::TimeTicks::Now() - upload_start_time_, 0,
                           "CancelledByUser", false);
   }
+#endif
 
   // Make sure to reject everything.
   FillAllResultsWith(false);
@@ -395,8 +404,12 @@ ContentAnalysisDelegate::ContentAnalysisDelegate(
     CompletionCallback callback,
     safe_browsing::DeepScanAccessPoint access_point)
     : data_(std::move(data)),
-      callback_(std::move(callback)),
-      access_point_(access_point) {
+      callback_(std::move(callback))
+#if BUILDFLAG(FULL_SAFE_BROWSING)
+      ,
+      access_point_(access_point)
+#endif
+{
   DCHECK(web_contents);
   profile_ = Profile::FromBrowserContext(web_contents->GetBrowserContext());
   url_ = web_contents->GetLastCommittedURL();
@@ -412,9 +425,11 @@ void ContentAnalysisDelegate::StringRequestCallback(
   int64_t content_size = 0;
   for (const std::string& entry : data_.text)
     content_size += entry.size();
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   RecordDeepScanMetrics(access_point_,
                         base::TimeTicks::Now() - upload_start_time_,
                         content_size, result, response);
+#endif
 
   text_request_complete_ = true;
   std::string tag;
@@ -428,11 +443,13 @@ void ContentAnalysisDelegate::StringRequestCallback(
   std::fill(result_.text_results.begin(), result_.text_results.end(),
             text_complies);
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   MaybeReportDeepScanningVerdict(
       profile_, url_, "Text data", std::string(), "text/plain",
       extensions::SafeBrowsingPrivateEventRouter::kTriggerWebContentUpload,
       access_point_, content_size, result, response,
       CalculateEventResult(data_.settings, text_complies, should_warn));
+#endif
 
   if (!text_complies) {
     if (should_warn) {
@@ -458,11 +475,11 @@ void ContentAnalysisDelegate::FileRequestCallback(
   auto it = std::find(data_.paths.begin(), data_.paths.end(), path);
   DCHECK(it != data_.paths.end());
   size_t index = std::distance(data_.paths.begin(), it);
-
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   RecordDeepScanMetrics(access_point_,
                         base::TimeTicks::Now() - upload_start_time_,
                         file_info_[index].size, result, response);
-
+#endif
   std::string tag;
   auto action = GetHighestPrecedenceAction(response, &tag);
   bool file_complies = ResultShouldAllowDataUse(result, data_.settings) &&
@@ -470,13 +487,14 @@ void ContentAnalysisDelegate::FileRequestCallback(
   bool should_warn = action == enterprise_connectors::TriggeredRule::WARN;
   result_.paths_results[index] = file_complies;
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   MaybeReportDeepScanningVerdict(
       profile_, url_, path.AsUTF8Unsafe(), file_info_[index].sha256,
       file_info_[index].mime_type,
       extensions::SafeBrowsingPrivateEventRouter::kTriggerFileUpload,
       access_point_, file_info_[index].size, result, response,
       CalculateEventResult(data_.settings, file_complies, should_warn));
-
+#endif
   ++file_result_count_;
 
   if (!file_complies) {
@@ -502,9 +520,11 @@ void ContentAnalysisDelegate::FileRequestCallback(
 void ContentAnalysisDelegate::PageRequestCallback(
     BinaryUploadService::Result result,
     enterprise_connectors::ContentAnalysisResponse response) {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   RecordDeepScanMetrics(access_point_,
                         base::TimeTicks::Now() - upload_start_time_,
                         page_size_bytes_, result, response);
+#endif
 
   page_request_complete_ = true;
   std::string tag;
@@ -541,8 +561,10 @@ bool ContentAnalysisDelegate::UploadData() {
   upload_start_time_ = base::TimeTicks::Now();
 
   // Create a text request, a page request and a file request for each file.
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   PrepareTextRequest();
   PreparePageRequest();
+#endif
   safe_browsing::IncrementCrashKey(
       safe_browsing::ScanningCrashKey::PENDING_FILE_UPLOADS,
       data_.paths.size());
@@ -567,7 +589,7 @@ bool ContentAnalysisDelegate::UploadData() {
   return !text_request_complete_ || file_result_count_ != data_.paths.size() ||
          !page_request_complete_;
 }
-
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 void ContentAnalysisDelegate::PrepareTextRequest() {
   std::string full_text;
   for (const std::string& text : data_.text)
@@ -615,6 +637,7 @@ void ContentAnalysisDelegate::PreparePageRequest() {
     UploadPageForDeepScanning(std::move(request));
   }
 }
+#endif
 
 safe_browsing::FileAnalysisRequest* ContentAnalysisDelegate::PrepareFileRequest(
     const base::FilePath& path) {
@@ -654,7 +677,11 @@ void ContentAnalysisDelegate::FillAllResultsWith(bool status) {
 }
 
 BinaryUploadService* ContentAnalysisDelegate::GetBinaryUploadService() {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   return safe_browsing::BinaryUploadServiceFactory::GetForProfile(profile_);
+#else
+  return nullptr;
+#endif
 }
 
 void ContentAnalysisDelegate::UploadTextForDeepScanning(

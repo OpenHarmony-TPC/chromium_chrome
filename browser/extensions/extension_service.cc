@@ -861,6 +861,7 @@ bool ExtensionService::IsExtensionEnabled(
   return extension_registrar_.IsExtensionEnabled(extension_id);
 }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 void ExtensionService::PerformActionBasedOnOmahaAttributes(
     const std::string& extension_id,
     const base::Value& attributes) {
@@ -871,6 +872,8 @@ void ExtensionService::PerformActionBasedOnOmahaAttributes(
   // Show an error for the newly blocklisted extension.
   error_controller_->ShowErrorIfNeeded();
 }
+
+#endif
 
 void ExtensionService::OnGreylistStateRemoved(const std::string& extension_id) {
   bool is_on_sb_list = (blocklist_prefs::GetSafeBrowsingExtensionBlocklistState(

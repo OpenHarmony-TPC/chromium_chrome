@@ -18,6 +18,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/simple_test_clock.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
@@ -34,6 +35,7 @@
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "ui/shell_dialogs/select_file_dialog.h"
 #include "ui/webui/webui_allowlist.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -53,7 +55,7 @@ using PersistedPermissionOptions =
 using PermissionRequestOutcome =
     content::FileSystemAccessPermissionGrant::PermissionRequestOutcome;
 using SensitiveDirectoryResult =
-    ChromeFileSystemAccessPermissionContext::SensitiveDirectoryResult;
+    ChromeFileSystemAccessPermissionContext::SensitiveEntryResult;
 using UserActivationState =
     content::FileSystemAccessPermissionGrant::UserActivationState;
 
@@ -71,11 +73,6 @@ class TestFileSystemAccessPermissionContext
     periodic_sweep_persisted_permissions_timer_for_testing().Stop();
   }
   ~TestFileSystemAccessPermissionContext() override = default;
-
- protected:
-  bool OriginIsInstalledPWA(const url::Origin& origin) override {
-    return false;
-  }
 
  private:
   base::WeakPtrFactory<TestFileSystemAccessPermissionContext> weak_factory_{
@@ -110,22 +107,19 @@ class ChromeFileSystemAccessPermissionContextTest : public testing::Test {
     web_contents_.reset();
   }
 
-  SensitiveDirectoryResult ConfirmSensitiveDirectoryAccessSync(
+  SensitiveDirectoryResult ConfirmSensitiveEntryAccessSync(
       ChromeFileSystemAccessPermissionContext* context,
       PathType path_type,
       const base::FilePath& path,
-      HandleType handle_type) {
-    base::RunLoop loop;
-    SensitiveDirectoryResult out_result;
-    permission_context_->ConfirmSensitiveDirectoryAccess(
-        kTestOrigin, path_type, path, handle_type,
-        content::GlobalRenderFrameHostId(),
-        base::BindLambdaForTesting([&](SensitiveDirectoryResult result) {
-          out_result = result;
-          loop.Quit();
-        }));
-    loop.Run();
-    return out_result;
+      HandleType handle_type,
+      ui::SelectFileDialog::Type dialog_type) {
+    base::test::TestFuture<
+        ChromeFileSystemAccessPermissionContext::SensitiveEntryResult>
+        future;
+    permission_context_->ConfirmSensitiveEntryAccess(
+        kTestOrigin, path_type, path, handle_type, dialog_type,
+        content::GlobalRenderFrameHostId(), future.GetCallback());
+    return future.Get();
   }
 
   void SetDefaultContentSettingValue(ContentSettingsType type,
@@ -204,7 +198,7 @@ class ChromeFileSystemAccessPermissionContextNoPersistenceTest
 #if !BUILDFLAG(IS_ANDROID)
 
 TEST_F(ChromeFileSystemAccessPermissionContextTest,
-       ConfirmSensitiveDirectoryAccess_NoSpecialPath) {
+       ConfirmSensitiveEntryAccess_NoSpecialPath) {
   const base::FilePath kTestPath =
 #if defined(FILE_PATH_USES_DRIVE_LETTERS)
       base::FilePath(FILE_PATH_LITERAL("c:\\foo\\bar"));
@@ -213,77 +207,87 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
 #endif
 
   // Path outside any special directories should be allowed.
-  EXPECT_EQ(SensitiveDirectoryResult::kAllowed,
-            ConfirmSensitiveDirectoryAccessSync(permission_context(),
-                                                PathType::kLocal, kTestPath,
-                                                HandleType::kFile));
-  EXPECT_EQ(SensitiveDirectoryResult::kAllowed,
-            ConfirmSensitiveDirectoryAccessSync(permission_context(),
-                                                PathType::kLocal, kTestPath,
-                                                HandleType::kDirectory));
-
-  // External (relative) paths should also be allowed.
   EXPECT_EQ(
       SensitiveDirectoryResult::kAllowed,
-      ConfirmSensitiveDirectoryAccessSync(
-          permission_context(), PathType::kExternal,
-          base::FilePath(FILE_PATH_LITERAL("foo/bar")), HandleType::kFile));
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, kTestPath, HandleType::kFile,
+          ui::SelectFileDialog::Type::SELECT_OPEN_FILE));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAllowed,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, kTestPath,
+          HandleType::kDirectory, ui::SelectFileDialog::Type::SELECT_FOLDER));
+
+  // External (relative) paths should also be allowed.
+  EXPECT_EQ(SensitiveDirectoryResult::kAllowed,
+            ConfirmSensitiveEntryAccessSync(
+                permission_context(), PathType::kExternal,
+                base::FilePath(FILE_PATH_LITERAL("foo/bar")), HandleType::kFile,
+                ui::SelectFileDialog::Type::SELECT_OPEN_FILE));
 }
 
 TEST_F(ChromeFileSystemAccessPermissionContextTest,
-       ConfirmSensitiveDirectoryAccess_DontBlockAllChildren) {
+       ConfirmSensitiveEntryAccess_DontBlockAllChildren) {
   base::FilePath home_dir = temp_dir_.GetPath().AppendASCII("home");
   base::ScopedPathOverride home_override(base::DIR_HOME, home_dir, true, true);
 
   // Home directory itself should not be allowed.
-  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(permission_context(),
-                                                PathType::kLocal, home_dir,
-                                                HandleType::kDirectory));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAbort,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, home_dir,
+          HandleType::kDirectory, ui::SelectFileDialog::Type::SELECT_FOLDER));
   // Parent of home directory should also not be allowed.
-  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(
-                permission_context(), PathType::kLocal, temp_dir_.GetPath(),
-                HandleType::kDirectory));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAbort,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, temp_dir_.GetPath(),
+          HandleType::kDirectory, ui::SelectFileDialog::Type::SELECT_FOLDER));
   // Paths inside home directory should be allowed.
-  EXPECT_EQ(SensitiveDirectoryResult::kAllowed,
-            ConfirmSensitiveDirectoryAccessSync(
-                permission_context(), PathType::kLocal,
-                home_dir.AppendASCII("foo"), HandleType::kFile));
-  EXPECT_EQ(SensitiveDirectoryResult::kAllowed,
-            ConfirmSensitiveDirectoryAccessSync(
-                permission_context(), PathType::kLocal,
-                home_dir.AppendASCII("foo"), HandleType::kDirectory));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAllowed,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, home_dir.AppendASCII("foo"),
+          HandleType::kFile, ui::SelectFileDialog::Type::SELECT_OPEN_FILE));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAllowed,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, home_dir.AppendASCII("foo"),
+          HandleType::kDirectory, ui::SelectFileDialog::Type::SELECT_FOLDER));
 }
 
 TEST_F(ChromeFileSystemAccessPermissionContextTest,
-       ConfirmSensitiveDirectoryAccess_BlockAllChildren) {
+       ConfirmSensitiveEntryAccess_BlockAllChildren) {
   base::FilePath app_dir = temp_dir_.GetPath().AppendASCII("app");
   base::ScopedPathOverride app_override(base::DIR_EXE, app_dir, true, true);
 
   // App directory itself should not be allowed.
-  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(permission_context(),
-                                                PathType::kLocal, app_dir,
-                                                HandleType::kDirectory));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAbort,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, app_dir,
+          HandleType::kDirectory, ui::SelectFileDialog::Type::SELECT_FOLDER));
   // Parent of App directory should also not be allowed.
-  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(
-                permission_context(), PathType::kLocal, temp_dir_.GetPath(),
-                HandleType::kDirectory));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAbort,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, temp_dir_.GetPath(),
+          HandleType::kDirectory, ui::SelectFileDialog::Type::SELECT_FOLDER));
   // Paths inside App directory should also not be allowed.
-  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(
-                permission_context(), PathType::kLocal,
-                app_dir.AppendASCII("foo"), HandleType::kFile));
-  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(
-                permission_context(), PathType::kLocal,
-                app_dir.AppendASCII("foo"), HandleType::kDirectory));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAbort,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, app_dir.AppendASCII("foo"),
+          HandleType::kFile, ui::SelectFileDialog::Type::SELECT_OPEN_FILE));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAbort,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, app_dir.AppendASCII("foo"),
+          HandleType::kDirectory, ui::SelectFileDialog::Type::SELECT_FOLDER));
 }
 
 TEST_F(ChromeFileSystemAccessPermissionContextTest,
-       ConfirmSensitiveDirectoryAccess_BlockChildrenNested) {
+       ConfirmSensitiveEntryAccess_BlockChildrenNested) {
   base::FilePath user_data_dir = temp_dir_.GetPath().AppendASCII("user");
   base::ScopedPathOverride user_data_override(chrome::DIR_USER_DATA,
                                               user_data_dir, true, true);
@@ -292,29 +296,34 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
                                              download_dir, true, true);
 
   // User Data directory itself should not be allowed.
-  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(permission_context(),
-                                                PathType::kLocal, user_data_dir,
-                                                HandleType::kDirectory));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAbort,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, user_data_dir,
+          HandleType::kDirectory, ui::SelectFileDialog::Type::SELECT_FOLDER));
   // Parent of User Data directory should also not be allowed.
-  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(
-                permission_context(), PathType::kLocal, temp_dir_.GetPath(),
-                HandleType::kDirectory));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAbort,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, temp_dir_.GetPath(),
+          HandleType::kDirectory, ui::SelectFileDialog::Type::SELECT_FOLDER));
   // The nested Download directory itself should not be allowed.
-  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(permission_context(),
-                                                PathType::kLocal, download_dir,
-                                                HandleType::kDirectory));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAbort,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, download_dir,
+          HandleType::kDirectory, ui::SelectFileDialog::Type::SELECT_FOLDER));
   // Paths inside the nested Download directory should be allowed.
   EXPECT_EQ(SensitiveDirectoryResult::kAllowed,
-            ConfirmSensitiveDirectoryAccessSync(
+            ConfirmSensitiveEntryAccessSync(
                 permission_context(), PathType::kLocal,
-                download_dir.AppendASCII("foo"), HandleType::kFile));
+                download_dir.AppendASCII("foo"), HandleType::kFile,
+                ui::SelectFileDialog::Type::SELECT_OPEN_FILE));
   EXPECT_EQ(SensitiveDirectoryResult::kAllowed,
-            ConfirmSensitiveDirectoryAccessSync(
+            ConfirmSensitiveEntryAccessSync(
                 permission_context(), PathType::kLocal,
-                download_dir.AppendASCII("foo"), HandleType::kDirectory));
+                download_dir.AppendASCII("foo"), HandleType::kDirectory,
+                ui::SelectFileDialog::Type::SELECT_FOLDER));
 
 #if BUILDFLAG(IS_WIN)
   // DIR_IE_INTERNET_CACHE is an example of a directory where nested directories
@@ -324,63 +333,99 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
                                                    internet_cache, true, true);
 
   // The nested INetCache directory itself should not be allowed.
-  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(
-                permission_context(), PathType::kLocal, internet_cache,
-                HandleType::kDirectory));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAbort,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, internet_cache,
+          HandleType::kDirectory, ui::SelectFileDialog::Type::SELECT_FOLDER));
   // Files inside the nested INetCache directory should be allowed.
   EXPECT_EQ(SensitiveDirectoryResult::kAllowed,
-            ConfirmSensitiveDirectoryAccessSync(
+            ConfirmSensitiveEntryAccessSync(
                 permission_context(), PathType::kLocal,
-                internet_cache.AppendASCII("foo"), HandleType::kFile));
+                internet_cache.AppendASCII("foo"), HandleType::kFile,
+                ui::SelectFileDialog::Type::SELECT_OPEN_FILE));
   // But directories should be blocked.
   EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(
+            ConfirmSensitiveEntryAccessSync(
                 permission_context(), PathType::kLocal,
-                internet_cache.AppendASCII("foo"), HandleType::kDirectory));
+                internet_cache.AppendASCII("foo"), HandleType::kDirectory,
+                ui::SelectFileDialog::Type::SELECT_FOLDER));
 #endif
 }
 
 TEST_F(ChromeFileSystemAccessPermissionContextTest,
-       ConfirmSensitiveDirectoryAccess_RelativePathBlock) {
+       ConfirmSensitiveEntryAccess_RelativePathBlock) {
   base::FilePath home_dir = temp_dir_.GetPath().AppendASCII("home");
   base::ScopedPathOverride home_override(base::DIR_HOME, home_dir, true, true);
 
   // ~/.ssh should be blocked
-  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(
-                permission_context(), PathType::kLocal,
-                home_dir.AppendASCII(".ssh"), HandleType::kDirectory));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAbort,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal, home_dir.AppendASCII(".ssh"),
+          HandleType::kDirectory, ui::SelectFileDialog::Type::SELECT_FOLDER));
   // And anything inside ~/.ssh should also be blocked
   EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(
+            ConfirmSensitiveEntryAccessSync(
                 permission_context(), PathType::kLocal,
-                home_dir.AppendASCII(".ssh/id_rsa"), HandleType::kFile));
+                home_dir.AppendASCII(".ssh/id_rsa"), HandleType::kFile,
+                ui::SelectFileDialog::Type::SELECT_OPEN_FILE));
 }
 
 TEST_F(ChromeFileSystemAccessPermissionContextTest,
-       ConfirmSensitiveDirectoryAccess_ExplicitPathBlock) {
+       ConfirmSensitiveEntryAccess_ExplicitPathBlock) {
 // Linux is the only OS where we have some blocked directories with explicit
 // paths (as opposed to PathService provided paths).
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // /dev should be blocked.
   EXPECT_EQ(
       SensitiveDirectoryResult::kAbort,
-      ConfirmSensitiveDirectoryAccessSync(
+      ConfirmSensitiveEntryAccessSync(
           permission_context(), PathType::kLocal,
-          base::FilePath(FILE_PATH_LITERAL("/dev")), HandleType::kDirectory));
+          base::FilePath(FILE_PATH_LITERAL("/dev")), HandleType::kDirectory,
+          ui::SelectFileDialog::Type::SELECT_FOLDER));
   // As well as children of /dev.
-  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
-            ConfirmSensitiveDirectoryAccessSync(
-                permission_context(), PathType::kLocal,
-                base::FilePath(FILE_PATH_LITERAL("/dev/foo")),
-                HandleType::kDirectory));
   EXPECT_EQ(
       SensitiveDirectoryResult::kAbort,
-      ConfirmSensitiveDirectoryAccessSync(
+      ConfirmSensitiveEntryAccessSync(
           permission_context(), PathType::kLocal,
-          base::FilePath(FILE_PATH_LITERAL("/dev/foo")), HandleType::kFile));
+          base::FilePath(FILE_PATH_LITERAL("/dev/foo")), HandleType::kDirectory,
+          ui::SelectFileDialog::Type::SELECT_FOLDER));
+  EXPECT_EQ(
+      SensitiveDirectoryResult::kAbort,
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathType::kLocal,
+          base::FilePath(FILE_PATH_LITERAL("/dev/foo")), HandleType::kFile,
+          ui::SelectFileDialog::Type::SELECT_OPEN_FILE));
 #endif
+}
+
+TEST_F(ChromeFileSystemAccessPermissionContextTest,
+       ConfirmSensitiveEntryAccess_DangerousFile) {
+  // Saving files with a harmless extension should be allowed.
+  EXPECT_EQ(SensitiveDirectoryResult::kAllowed,
+            ConfirmSensitiveEntryAccessSync(
+                permission_context(), PathType::kLocal,
+                temp_dir_.GetPath().AppendASCII("test.txt"), HandleType::kFile,
+                ui::SelectFileDialog::SELECT_SAVEAS_FILE));
+  // Saving files with a dangerous extension should show a prompt.
+  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
+            ConfirmSensitiveEntryAccessSync(
+                permission_context(), PathType::kLocal,
+                temp_dir_.GetPath().AppendASCII("test.swf"), HandleType::kFile,
+                ui::SelectFileDialog::SELECT_SAVEAS_FILE));
+  // Opening files with a dangerous extension should be allowed.
+  EXPECT_EQ(SensitiveDirectoryResult::kAllowed,
+            ConfirmSensitiveEntryAccessSync(
+                permission_context(), PathType::kLocal,
+                temp_dir_.GetPath().AppendASCII("test.swf"), HandleType::kFile,
+                ui::SelectFileDialog::SELECT_OPEN_FILE));
+  // Opening files with a dangerous compound extension should show a prompt.
+  EXPECT_EQ(SensitiveDirectoryResult::kAbort,
+            ConfirmSensitiveEntryAccessSync(
+                permission_context(), PathType::kLocal,
+                temp_dir_.GetPath().AppendASCII("test.txt.swf"),
+                HandleType::kFile, ui::SelectFileDialog::SELECT_SAVEAS_FILE));
 }
 
 TEST_F(ChromeFileSystemAccessPermissionContextTest,
@@ -1192,7 +1237,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
 
   // Advance the clock far enough that all permissions should be expired.
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA +
+              kPersistentPermissionExpirationTimeoutDefault +
           base::Minutes(1));
 
   // Permission should not be granted for |kOpen|.
@@ -1261,7 +1306,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
       kTestOrigin, kTestPath, HandleType::kFile, GrantType::kWrite));
 
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA +
+              kPersistentPermissionExpirationTimeoutDefault +
           base::Seconds(1));
   auto advance_once = Now();
   // The active grant exists, so its timestamp should have been updated.
@@ -1276,7 +1321,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
   // Do not advance far enough to expire the persisted permission. The timestamp
   // should NOT have been updated, since the active permission no longer exists.
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA -
+              kPersistentPermissionExpirationTimeoutDefault -
           base::Seconds(1));
   permission_context()->UpdatePersistedPermissionsForTesting();
   objects = permission_context()->GetAllGrantedOrExpiredObjects();
@@ -1286,7 +1331,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
 
   // |grant| should now be expired, but not revokable until after grace period.
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA +
+              kPersistentPermissionExpirationTimeoutDefault +
           base::Seconds(1));
   permission_context()->UpdatePersistedPermissionsForTesting();
   objects = permission_context()->GetAllGrantedOrExpiredObjects();
@@ -1316,7 +1361,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
       kTestOrigin, kTestPath, HandleType::kFile, GrantType::kRead));
 
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA +
+              kPersistentPermissionExpirationTimeoutDefault +
           base::Seconds(1));
   auto advance_once = Now();
   // The active grant exists, so its timestamp should have been updated.
@@ -1331,7 +1376,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
   // Do not advance far enough to expire the persisted permission. The timestamp
   // should NOT have been updated, since the active permission no longer exists.
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA -
+              kPersistentPermissionExpirationTimeoutDefault -
           base::Seconds(1));
   permission_context()->UpdatePersistedPermissionsForTesting();
   objects = permission_context()->GetAllGrantedOrExpiredObjects();
@@ -1341,7 +1386,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
 
   // |grant| should now be expired, but not revokable until after grace period.
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA +
+              kPersistentPermissionExpirationTimeoutDefault +
           base::Seconds(1));
   permission_context()->UpdatePersistedPermissionsForTesting();
   objects = permission_context()->GetAllGrantedOrExpiredObjects();
@@ -1382,7 +1427,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
   grant2.reset();
 
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA -
+              kPersistentPermissionExpirationTimeoutDefault -
           base::Seconds(1));
 
   // Both grants are still valid.
@@ -1461,7 +1506,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
       kTestOrigin2, kTestPath, HandleType::kFile, GrantType::kWrite));
 
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA -
+              kPersistentPermissionExpirationTimeoutDefault -
           base::Seconds(1));
 
   // Auto-grant because active permissions exist. This should update the
@@ -1498,7 +1543,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
 
   // Permissions should still be valid.
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA -
+              kPersistentPermissionExpirationTimeoutDefault -
           base::Minutes(1));
 
   // Resetting the permission context should kick off a sweep.
@@ -1514,7 +1559,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
 
   // Permissions should now be expired and can be revoked.
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA +
+              kPersistentPermissionExpirationTimeoutDefault +
           ChromeFileSystemAccessPermissionContext::
               kPersistentPermissionGracePeriod +
           base::Minutes(1));
@@ -1554,7 +1599,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
   read_grant.reset();
 
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA -
+              kPersistentPermissionExpirationTimeoutDefault -
           base::Seconds(1));
 
   // Auto-grant because active permissions exist. This should update the
@@ -1570,7 +1615,7 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
 
   // Though only |write_grant| was accessed, we should not lose read access.
   Advance(ChromeFileSystemAccessPermissionContext::
-              kPersistentPermissionExpirationTimeoutNonPWA -
+              kPersistentPermissionExpirationTimeoutDefault -
           base::Seconds(1));
   EXPECT_TRUE(permission_context()->HasPersistedPermissionForTesting(
       kTestOrigin, kTestPath, HandleType::kFile, GrantType::kRead));

@@ -44,6 +44,8 @@ const char kProduct[] = "Chrome_ChromeOS";
 const char kProduct[] = "Chrome_Linux";
 #elif BUILDFLAG(IS_ANDROID)
 const char kProduct[] = "Chrome_Android";
+#elif BUILDFLAG(IS_OHOS)
+const char kProduct[] = "Chrome_Ohos";
 #elif BUILDFLAG(IS_FUCHSIA)
 const char kProduct[] = "Chrome_Fuchsia";
 #else

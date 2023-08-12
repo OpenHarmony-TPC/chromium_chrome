@@ -1799,7 +1799,7 @@ void ToggleCommander(Browser* browser) {
   commander::Commander::Get()->ToggleForBrowser(browser);
 }
 
-#if !defined(TOOLKIT_VIEWS)
+#if !defined(TOOLKIT_VIEWS) && !BUILDFLAG(IS_OHOS)
 absl::optional<int> GetKeyboardFocusedTabIndex(const Browser* browser) {
   return absl::nullopt;
 }

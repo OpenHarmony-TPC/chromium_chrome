@@ -119,6 +119,7 @@ void DoCalculateSizeBetween(
   std::move(callback).Run(total_size);
 }
 
+#if defined(OS_ANDROID)
 content::WebContents* GetWebContentsByFrameID(int render_process_id,
                                               int render_frame_id) {
   content::RenderFrameHost* render_frame_host =
@@ -127,7 +128,9 @@ content::WebContents* GetWebContentsByFrameID(int render_process_id,
     return NULL;
   return content::WebContents::FromRenderFrameHost(render_frame_host);
 }
+#endif
 
+#if defined(OS_ANDROID)
 content::WebContents::Getter GetWebContentsGetter(
     content::WebContents* web_contents) {
   // The FrameTreeNode ID should be used to access the WebContents.
@@ -144,6 +147,7 @@ content::WebContents::Getter GetWebContentsGetter(
       web_contents->GetMainFrame()->GetProcess()->GetID(),
       web_contents->GetMainFrame()->GetRoutingID());
 }
+#endif
 
 void AcquireFileAccessPermissionDoneForScheduleDownload(
     content::WebContents* web_contents,

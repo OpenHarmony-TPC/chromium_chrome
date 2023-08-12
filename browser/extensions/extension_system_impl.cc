@@ -464,8 +464,10 @@ void ExtensionSystemImpl::InstallUpdate(
 void ExtensionSystemImpl::PerformActionBasedOnOmahaAttributes(
     const std::string& extension_id,
     const base::Value& attributes) {
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   extension_service()->PerformActionBasedOnOmahaAttributes(extension_id,
                                                            attributes);
+#endif
 }
 
 bool ExtensionSystemImpl::FinishDelayedInstallationIfReady(

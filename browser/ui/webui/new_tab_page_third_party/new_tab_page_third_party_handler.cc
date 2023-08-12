@@ -23,7 +23,9 @@ NewTabPageThirdPartyHandler::NewTabPageThirdPartyHandler(
     Profile* profile,
     content::WebContents* web_contents)
     : profile_(profile),
+#if !BUILDFLAG(IS_OHOS)
       web_contents_(web_contents),
+#endif
       page_{std::move(pending_page)},
       receiver_{this, std::move(pending_page_handler)} {
   // Listen for theme installation.
@@ -59,9 +61,13 @@ void NewTabPageThirdPartyHandler::NotifyAboutTheme() {
   most_visited->use_title_pill = false;
   theme->text_color = theme_provider.GetColor(ThemeProperties::COLOR_NTP_TEXT);
   most_visited->is_dark = !color_utils::IsDark(theme->text_color);
+#if !BUILDFLAG(IS_OHOS)
   theme->color_background = color_utils::SkColorToRgbaString(
       GetThemeColor(webui::GetNativeTheme(web_contents_), theme_provider,
                     ThemeProperties::COLOR_NTP_BACKGROUND));
+#else
+  LOG(INFO) << "NewTabPageThirdPartyHandler::NotifyAboutTheme TODO for OS_OHOS";
+#endif
   if (theme_provider.HasCustomImage(IDR_THEME_NTP_BACKGROUND)) {
     theme->background_tiling = GetNewTabBackgroundTilingCSS(theme_provider);
     theme->background_position = GetNewTabBackgroundPositionCSS(theme_provider);

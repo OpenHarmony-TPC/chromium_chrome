@@ -263,10 +263,11 @@ void ChromePasswordManagerClient::CreateForWebContentsWithAutofillClient(
     autofill::AutofillClient* autofill_client) {
   if (FromWebContents(contents))
     return;
-
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   contents->SetUserData(UserDataKey(),
                         base::WrapUnique(new ChromePasswordManagerClient(
                             contents, autofill_client)));
+#endif
 }
 
 // static
@@ -837,16 +838,22 @@ autofill::LanguageCode ChromePasswordManagerClient::GetPageLanguage() const {
   return autofill::LanguageCode();
 }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 safe_browsing::PasswordProtectionService*
 ChromePasswordManagerClient::GetPasswordProtectionService() const {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   return safe_browsing::ChromePasswordProtectionService::
       GetPasswordProtectionService(profile_);
+#else
+  return nullptr;
+#endif
 }
 
 #if defined(ON_FOCUS_PING_ENABLED)
 void ChromePasswordManagerClient::CheckSafeBrowsingReputation(
     const GURL& form_action,
     const GURL& frame_url) {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   safe_browsing::PasswordProtectionService* pps =
       GetPasswordProtectionService();
   if (pps) {
@@ -854,6 +861,7 @@ void ChromePasswordManagerClient::CheckSafeBrowsingReputation(
         web_contents(), web_contents()->GetLastCommittedURL(), form_action,
         frame_url, pps->GetAccountInfo().hosted_domain);
   }
+#endif  // BUILDFLAG(FULL_SAFE_BROWSING)
 }
 #endif  // defined(ON_FOCUS_PING_ENABLED)
 
@@ -863,6 +871,7 @@ void ChromePasswordManagerClient::CheckProtectedPasswordEntry(
     const std::vector<password_manager::MatchingReusedCredential>&
         matching_reused_credentials,
     bool password_field_exists) {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   safe_browsing::PasswordProtectionService* pps =
       GetPasswordProtectionService();
   if (!pps)
@@ -871,14 +880,18 @@ void ChromePasswordManagerClient::CheckProtectedPasswordEntry(
   pps->MaybeStartProtectedPasswordEntryRequest(
       web_contents(), web_contents()->GetLastCommittedURL(), username,
       password_type, matching_reused_credentials, password_field_exists);
+#endif
 }
+#endif  // BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 
 void ChromePasswordManagerClient::LogPasswordReuseDetectedEvent() {
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   safe_browsing::PasswordProtectionService* pps =
       GetPasswordProtectionService();
   if (pps) {
     pps->MaybeLogPasswordReuseDetectedEvent(web_contents());
   }
+#endif
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1375,6 +1388,7 @@ void ChromePasswordManagerClient::OnPaste() {
   }
 #endif
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   if (!used_crosapi_workaround) {
     ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
     // Given that this clipboard data read happens in the background and not
@@ -1385,7 +1399,8 @@ void ChromePasswordManagerClient::OnPaste() {
         ui::EndpointType::kDefault, /*notify_if_restricted=*/false);
     clipboard->ReadText(ui::ClipboardBuffer::kCopyPaste, &data_dst, &text);
   }
-
+#endif
+  used_crosapi_workaround = false;
   was_on_paste_called_ = true;
   password_reuse_detection_manager_.OnPaste(std::move(text));
 }
@@ -1417,6 +1432,7 @@ void ChromePasswordManagerClient::OnInputEvent(
 #else   // !BUILDFLAG(IS_ANDROID)
   if (event.GetType() != blink::WebInputEvent::Type::kChar)
     return;
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   const blink::WebKeyboardEvent& key_event =
       static_cast<const blink::WebKeyboardEvent&>(event);
   // Key & 0x1f corresponds to the value of the key when either the control or
@@ -1426,6 +1442,7 @@ void ChromePasswordManagerClient::OnInputEvent(
   } else {
     password_reuse_detection_manager_.OnKeyPressedCommitted(key_event.text);
   }
+#endif  // full_safe_browsing
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 
@@ -1463,6 +1480,7 @@ bool ChromePasswordManagerClient::IsPasswordManagementEnabledForCurrentPage(
     is_enabled = false;
   }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   // SafeBrowsing Delayed Warnings experiment can delay some SafeBrowsing
   // warnings until user interaction. If the current page has a delayed warning,
   // it'll have a user interaction observer attached. Disable password
@@ -1473,6 +1491,7 @@ bool ChromePasswordManagerClient::IsPasswordManagementEnabledForCurrentPage(
     observer->OnPasswordSaveOrAutofillDenied();
     is_enabled = false;
   }
+#endif
 
   if (log_manager_->IsLoggingActive()) {
     password_manager::BrowserSavePasswordProgressLogger logger(

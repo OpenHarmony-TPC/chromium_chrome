@@ -67,10 +67,14 @@ content::WebUIDataSource* CreateNewTabPageThirdPartyUiHtmlSource(
                     GetNewTabBackgroundPositionCSS(theme_provider));
   source->AddString("backgroundTiling",
                     GetNewTabBackgroundTilingCSS(theme_provider));
+#if !BUILDFLAG(IS_OHOS)
   source->AddString("colorBackground",
                     color_utils::SkColorToRgbaString(GetThemeColor(
                         webui::GetNativeTheme(web_contents), theme_provider,
                         ThemeProperties::COLOR_NTP_BACKGROUND)));
+#else
+  LOG(INFO) << "CreateNewTabPageThirdPartyUiHtmlSource TODO for OS_OHOS";
+#endif
   source->AddString("themeId",
                     profile->GetPrefs()->GetString(prefs::kCurrentThemeID));
   source->AddString("hascustombackground",

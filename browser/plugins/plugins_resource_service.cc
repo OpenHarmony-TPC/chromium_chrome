@@ -66,6 +66,8 @@ GURL GetPluginsServerURL() {
   filename = "plugins_linux.json";
 #elif BUILDFLAG(IS_MAC)
   filename = "plugins_mac.json";
+#elif BUILDFLAG(IS_OHOS)
+  filename = "plugins_linux.json";
 #else
 #error Unknown platform
 #endif

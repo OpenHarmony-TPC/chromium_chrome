@@ -32,6 +32,7 @@ SCTReportingServiceFactory::~SCTReportingServiceFactory() = default;
 
 KeyedService* SCTReportingServiceFactory::BuildServiceInstanceFor(
     content::BrowserContext* profile) const {
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   safe_browsing::SafeBrowsingService* safe_browsing_service =
       g_browser_process->safe_browsing_service();
   // In unit tests the safe browsing service can be null, if this happens,
@@ -41,6 +42,9 @@ KeyedService* SCTReportingServiceFactory::BuildServiceInstanceFor(
 
   return new SCTReportingService(safe_browsing_service,
                                  static_cast<Profile*>(profile));
+#else
+  return nullptr;
+#endif
 }
 
 content::BrowserContext* SCTReportingServiceFactory::GetBrowserContextToUse(

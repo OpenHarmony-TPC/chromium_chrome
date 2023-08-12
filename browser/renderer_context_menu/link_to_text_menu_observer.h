@@ -21,7 +21,7 @@ class LinkToTextMenuObserver : public RenderViewContextMenuObserver {
  public:
   static std::unique_ptr<LinkToTextMenuObserver> Create(
       RenderViewContextMenuProxy* proxy,
-      content::RenderFrameHost* render_frame_host);
+      content::GlobalRenderFrameHostId render_frame_host_id);
 
   LinkToTextMenuObserver(const LinkToTextMenuObserver&) = delete;
   LinkToTextMenuObserver& operator=(const LinkToTextMenuObserver&) = delete;
@@ -40,8 +40,9 @@ class LinkToTextMenuObserver : public RenderViewContextMenuObserver {
  private:
   friend class MockLinkToTextMenuObserver;
 
-  explicit LinkToTextMenuObserver(RenderViewContextMenuProxy* proxy,
-                                  content::RenderFrameHost* render_frame_host);
+  explicit LinkToTextMenuObserver(
+      RenderViewContextMenuProxy* proxy,
+      content::GlobalRenderFrameHostId render_frame_host_id);
   // Returns true if the link should be generated from the constructor, vs
   // determined when executed.
   bool ShouldPreemptivelyGenerateLink();
@@ -91,7 +92,7 @@ class LinkToTextMenuObserver : public RenderViewContextMenuObserver {
   raw_ptr<RenderViewContextMenuProxy> proxy_;
   GURL url_;
   GURL raw_url_;
-  raw_ptr<content::RenderFrameHost> render_frame_host_;
+  content::GlobalRenderFrameHostId render_frame_host_id_;
 
   std::unordered_map<content::GlobalRenderFrameHostId,
                      std::vector<std::string>,

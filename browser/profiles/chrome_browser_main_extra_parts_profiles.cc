@@ -311,7 +311,9 @@ void ChromeBrowserMainExtraPartsProfiles::
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
   CertDbInitializerFactory::GetInstance();
 #endif
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   CertificateReportingServiceFactory::GetInstance();
+#endif
 #if !BUILDFLAG(IS_ANDROID)
   ChromeBrowsingDataLifetimeManagerFactory::GetInstance();
 #endif
@@ -518,7 +520,9 @@ void ChromeBrowserMainExtraPartsProfiles::
     SystemExtensionsProviderFactory::GetInstance();
 #endif
   TabRestoreServiceFactory::GetInstance();
+#if !BUILDFLAG(IS_OHOS)
   safe_browsing::TailoredSecurityServiceFactory::GetInstance();
+#endif
   TemplateURLFetcherFactory::GetInstance();
   TemplateURLServiceFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)

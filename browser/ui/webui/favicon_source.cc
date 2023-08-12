@@ -220,7 +220,12 @@ bool FaviconSource::ShouldServiceRequest(
 
 ui::NativeTheme* FaviconSource::GetNativeTheme(
     const content::WebContents::Getter& wc_getter) {
+#if !BUILDFLAG(IS_OHOS)
   return webui::GetNativeTheme(wc_getter.Run());
+#else
+  LOG(INFO) << "FaviconSource::GetNativeTheme TODO for OS_OHOS";
+  return nullptr;
+#endif
 }
 
 void FaviconSource::OnFaviconDataAvailable(

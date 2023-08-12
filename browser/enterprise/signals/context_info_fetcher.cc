@@ -204,7 +204,9 @@ void ContextInfoFetcher::Fetch(ContextInfoCallback callback) {
       GetAnalysisConnectorProviders(enterprise_connectors::FILE_DOWNLOADED);
   info.on_bulk_data_entry_providers =
       GetAnalysisConnectorProviders(enterprise_connectors::BULK_DATA_ENTRY);
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   info.realtime_url_check_mode = GetRealtimeUrlCheckMode();
+#endif
   info.on_security_event_providers = GetOnSecurityEventProviders();
   info.browser_version = version_info::GetVersionNumber();
   info.site_isolation_enabled =
@@ -219,11 +221,13 @@ void ContextInfoFetcher::Fetch(ContextInfoCallback callback) {
   info.third_party_blocking_enabled =
       utils::GetThirdPartyBlockingEnabled(g_browser_process->local_state());
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   Profile* profile = Profile::FromBrowserContext(browser_context_);
   info.safe_browsing_protection_level =
       utils::GetSafeBrowsingProtectionLevel(profile->GetPrefs());
   info.password_protection_warning_trigger =
       utils::GetPasswordProtectionWarningTrigger(profile->GetPrefs());
+#endif
 
 #if BUILDFLAG(IS_WIN)
   base::ThreadPool::CreateCOMSTATaskRunner({base::MayBlock()})
@@ -262,10 +266,12 @@ std::vector<std::string> ContextInfoFetcher::GetAnalysisConnectorProviders(
   return connectors_service_->GetAnalysisServiceProviderNames(connector);
 }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 safe_browsing::EnterpriseRealTimeUrlCheckMode
 ContextInfoFetcher::GetRealtimeUrlCheckMode() {
   return connectors_service_->GetAppliedRealTimeUrlCheck();
 }
+#endif
 
 std::vector<std::string> ContextInfoFetcher::GetOnSecurityEventProviders() {
   return connectors_service_->GetReportingServiceProviderNames(
@@ -299,7 +305,7 @@ ScopedUfwConfigPathForTesting::~ScopedUfwConfigPathForTesting() {
 
 std::vector<std::string> ContextInfoFetcher::GetDnsServers() {
   std::vector<std::string> dns_addresses;
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_OHOS)
   std::unique_ptr<net::ScopedResState> res = net::ResolvReader().GetResState();
   if (res) {
     absl::optional<std::vector<net::IPEndPoint>> nameservers =

@@ -303,11 +303,13 @@ void DownloadDangerPromptViews::RunDone(Action action) {
       if (!download_->GetURL().is_empty() &&
           !content::DownloadItemUtils::GetBrowserContext(download_)
                ->IsOffTheRecord()) {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
         ClientSafeBrowsingReportRequest::ReportType report_type =
             show_context_
                 ? ClientSafeBrowsingReportRequest::DANGEROUS_DOWNLOAD_BY_API
                 : ClientSafeBrowsingReportRequest::DANGEROUS_DOWNLOAD_RECOVERY;
         SendSafeBrowsingDownloadReport(report_type, accept, *download_);
+#endif
       }
     }
     download_->RemoveObserver(this);

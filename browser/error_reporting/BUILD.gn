@@ -5,7 +5,7 @@ import("//build/config/chromeos/ui_mode.gni")
 
 # TODO(crbug.com/1129544) This is currently disabled due to Windows DLL
 # thunking issues. Fix & re-enable.
-assert(is_linux || is_chromeos_ash || is_chromeos_lacros)
+assert(is_linux || is_chromeos_ash || is_chromeos_lacros || is_ohos)
 
 source_set("constants") {
   sources = [

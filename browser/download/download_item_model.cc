@@ -596,6 +596,7 @@ bool DownloadItemModel::IsCommandEnabled(
       return download_->CanOpenDownload() &&
              !download_crx_util::IsExtensionDownload(*download_);
     case DownloadCommands::ALWAYS_OPEN_TYPE:
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
       // For temporary downloads, the target filename might be a temporary
       // filename. Don't base an "Always open" decision based on it. Also
       // exclude extensions.
@@ -604,6 +605,10 @@ bool DownloadItemModel::IsCommandEnabled(
                  ->IsAllowedToOpenAutomatically(
                      download_->GetTargetFilePath()) &&
              !download_crx_util::IsExtensionDownload(*download_);
+#else
+      return download_->CanOpenDownload() &&
+             !download_crx_util::IsExtensionDownload(*download_);
+#endif
     case DownloadCommands::PAUSE:
       return !download_->IsSavePackageDownload() &&
              DownloadUIModel::IsCommandEnabled(download_commands, command);
@@ -789,6 +794,7 @@ void DownloadItemModel::ExecuteCommand(DownloadCommands* download_commands,
       DownloadUIModel::ExecuteCommand(download_commands, command);
       break;
     case DownloadCommands::DEEP_SCAN:
+#if BUILDFLAG(FULL_SAFE_BROWSING)
       safe_browsing::SafeBrowsingService* sb_service =
           g_browser_process->safe_browsing_service();
       if (!sb_service)
@@ -814,6 +820,7 @@ void DownloadItemModel::ExecuteCommand(DownloadCommands* download_commands,
           safe_browsing::DeepScanningRequest::DeepScanTrigger::
               TRIGGER_APP_PROMPT,
           safe_browsing::DownloadCheckResult::UNKNOWN, std::move(settings));
+#endif
       break;
   }
 }

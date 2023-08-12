@@ -86,7 +86,12 @@ bool DesktopBrowserFrameAuraLinux::UseCustomFrame() const {
 
 void DesktopBrowserFrameAuraLinux::TabDraggingKindChanged(
     TabDragKind tab_drag_kind) {
+#if !BUILDFLAG(IS_OHOS)
   host_->TabDraggingKindChanged(tab_drag_kind);
+#else
+  LOG(INFO) << "DesktopBrowserFrameAuraLinux::TabDraggingKindChanged TODO for "
+               "OS_OHOS";
+#endif
 }
 
 bool DesktopBrowserFrameAuraLinux::ShouldDrawRestoredFrameShadow() const {
@@ -99,7 +104,12 @@ void DesktopBrowserFrameAuraLinux::OnUseCustomChromeFrameChanged() {
                                       ? views::Widget::FrameType::kForceCustom
                                       : views::Widget::FrameType::kForceNative);
   browser_frame()->FrameTypeChanged();
+#if !BUILDFLAG(IS_OHOS)
   host_->UpdateFrameHints();
+#else
+  LOG(INFO) << "DesktopBrowserFrameAuraLinux::OnUseCustomChromeFrameChanged "
+               "TODO for OS_OHOS";
+#endif
 }
 
 NativeBrowserFrame* NativeBrowserFrameFactory::Create(

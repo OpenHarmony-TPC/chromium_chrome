@@ -16,6 +16,7 @@
 #include "components/javascript_dialogs/tab_modal_dialog_manager.h"
 #include "components/javascript_dialogs/tab_modal_dialog_view.h"
 #include "components/navigation_metrics/navigation_metrics.h"
+#include "components/safe_browsing/buildflags.h"
 #include "components/ukm/content/source_url_recorder.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/navigation_handle.h"
@@ -36,6 +37,8 @@ JavaScriptTabModalDialogManagerDelegateDesktop::
 
 void JavaScriptTabModalDialogManagerDelegateDesktop::WillRunDialog() {
   BrowserList::AddObserver(this);
+
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   // SafeBrowsing Delayed Warnings experiment can delay some SafeBrowsing
   // warnings until user interaction. If the current page has a delayed warning,
   // it'll have a user interaction observer attached. Show the warning
@@ -46,6 +49,7 @@ void JavaScriptTabModalDialogManagerDelegateDesktop::WillRunDialog() {
   if (observer) {
     observer->OnJavaScriptDialog();
   }
+#endif  // BUILDFLAG(FULL_SAFE_BROWSING)
 }
 
 void JavaScriptTabModalDialogManagerDelegateDesktop::DidCloseDialog() {

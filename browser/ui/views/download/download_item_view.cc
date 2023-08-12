@@ -838,11 +838,18 @@ void DownloadItemView::UpdateLabels() {
   deep_scanning_label_->SetVisible(mode_ ==
                                    download::DownloadItemMode::kDeepScanning);
   if (deep_scanning_label_->GetVisible()) {
-    const int id = (model_->download() &&
-                    safe_browsing::DeepScanningRequest::ShouldUploadBinary(
-                        model_->download()))
-                       ? IDS_PROMPT_DEEP_SCANNING_DOWNLOAD
-                       : IDS_PROMPT_DEEP_SCANNING_APP_DOWNLOAD;
+    int id;
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+    id = (model_->download() &&
+          safe_browsing::DeepScanningRequest::ShouldUploadBinary(
+              model_->download()))
+             ? IDS_PROMPT_DEEP_SCANNING_DOWNLOAD
+             : IDS_PROMPT_DEEP_SCANNING_APP_DOWNLOAD;
+#else
+    id = model_->download() ? IDS_PROMPT_DEEP_SCANNING_DOWNLOAD
+                            : IDS_PROMPT_DEEP_SCANNING_APP_DOWNLOAD;
+#endif
+
     const std::u16string filename = ElidedFilename(*deep_scanning_label_);
     size_t filename_offset;
     deep_scanning_label_->SetText(
@@ -887,13 +894,17 @@ void DownloadItemView::UpdateButtons() {
   }
 
   const bool allow_open_during_deep_scan =
+#if BUILDFLAG(FULL_SAFE_BROWSING)
       (mode_ == download::DownloadItemMode::kDeepScanning) &&
       !enterprise_connectors::ConnectorsServiceFactory::GetForBrowserContext(
            model_->profile())
            ->DelayUntilVerdict(
                enterprise_connectors::AnalysisConnector::FILE_DOWNLOADED);
-  open_button_->SetEnabled((mode_ == download::DownloadItemMode::kNormal) ||
-                           prompt_to_scan || allow_open_during_deep_scan);
+  open_button_->SetEnabled((mode_ == Mode::kNormal) || prompt_to_scan ||
+                           allow_open_during_deep_scan);
+#else
+      false;
+#endif
 
   open_now_button_->SetVisible(allow_open_during_deep_scan);
 
@@ -1433,7 +1444,9 @@ void DownloadItemView::ShowContextMenuImpl(const gfx::Rect& rect,
 }
 
 void DownloadItemView::OpenDownloadDuringAsyncScanning() {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   model_->CompleteSafeBrowsingScan();
+#endif
   model_->SetOpenWhenComplete(true);
 }
 

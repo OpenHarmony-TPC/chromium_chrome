@@ -20,8 +20,10 @@ WebUsbChooserDesktop::~WebUsbChooserDesktop() = default;
 void WebUsbChooserDesktop::ShowChooser(
     std::unique_ptr<UsbChooserController> controller) {
   closure_runner_.RunAndReset();
+#if !BUILDFLAG(IS_OHOS)
   closure_runner_.ReplaceClosure(chrome::ShowDeviceChooserDialog(
       render_frame_host(), std::move(controller)));
+#endif
 }
 
 base::WeakPtr<WebUsbChooser> WebUsbChooserDesktop::GetWeakPtr() {
