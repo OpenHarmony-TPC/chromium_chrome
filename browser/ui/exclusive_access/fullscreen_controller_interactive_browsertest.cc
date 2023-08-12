@@ -978,7 +978,7 @@ IN_PROC_BROWSER_TEST_F(ExperimentalFullscreenControllerInteractiveTest,
       ->UpdateExclusiveAccessExitBubbleContent(
           browser()->exclusive_access_manager()->GetExclusiveAccessBubbleURL(),
           EXCLUSIVE_ACCESS_BUBBLE_TYPE_NONE, std::move(callback),
-          /*force_update=*/false);
+          /*notify_download=*/false, /*force_update=*/false);
   run_loop.Run();
   EXPECT_FALSE(IsExclusiveAccessBubbleDisplayed());
 

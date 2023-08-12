@@ -9,6 +9,7 @@
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/common/content_restriction.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+#include "pdf/buildflags.h"
 #include "ppapi/c/private/ppb_pdf.h"
 
 namespace {
@@ -43,8 +44,12 @@ ChromePDFWebContentsHelperClient::~ChromePDFWebContentsHelperClient() = default;
 content::RenderFrameHost* ChromePDFWebContentsHelperClient::FindPdfFrame(
     content::WebContents* contents) {
   content::RenderFrameHost* main_frame = contents->GetMainFrame();
+#if !BUILDFLAG(IS_OHOS) || BUILDFLAG(ENABLE_PDF)
   content::RenderFrameHost* pdf_frame =
       pdf_frame_util::FindPdfChildFrame(main_frame);
+#else
+  content::RenderFrameHost* pdf_frame = nullptr;
+#endif
   return pdf_frame ? pdf_frame : main_frame;
 }
 

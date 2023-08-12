@@ -380,10 +380,12 @@ void ChromeBrowserMainExtraPartsProfiles::
 #endif
   if (base::FeatureList::IsEnabled(media::kUseMediaHistoryStore))
     media_history::MediaHistoryKeyedServiceFactory::GetInstance();
+#if !BUILDFLAG(IS_OHOS) || BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   media_router::ChromeLocalPresentationManagerFactory::GetInstance();
   media_router::ChromeMediaRouterFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)
   media_router::MediaRouterUIServiceFactory::GetInstance();
+#endif
 #endif
 // TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
 // of lacros-chrome is complete.

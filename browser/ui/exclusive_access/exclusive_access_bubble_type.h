@@ -50,7 +50,12 @@ std::u16string GetAllowButtonTextForType(ExclusiveAccessBubbleType type,
 // Gets the text instructing the user how to exit an exclusive access mode.
 // |accelerator| is the name of the key to exit fullscreen mode.
 std::u16string GetInstructionTextForType(ExclusiveAccessBubbleType type,
-                                         const std::u16string& accelerator);
+                                         const std::u16string& accelerator,
+                                         bool notify_download,
+                                         bool notify_overridden);
+
+// Helpers to categorize different types of ExclusiveAccessBubbleType.
+bool IsExclusiveAccessModeBrowserFullscreen(ExclusiveAccessBubbleType type);
 
 }  // namespace exclusive_access_bubble
 

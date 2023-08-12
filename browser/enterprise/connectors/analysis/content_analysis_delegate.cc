@@ -578,8 +578,10 @@ bool ContentAnalysisDelegate::UploadData() {
     for (size_t i = 0; i < data_.paths.size(); ++i)
       tasks[i].request = PrepareFileRequest(data_.paths[i]);
 
+#if !BUILDFLAG(IS_OHOS) || BUILDFLAG(FULL_SAFE_BROWSING)
     file_opening_job_ =
         std::make_unique<safe_browsing::FileOpeningJob>(std::move(tasks));
+#endif
   }
 
   data_uploaded_ = true;

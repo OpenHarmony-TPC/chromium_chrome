@@ -4502,6 +4502,8 @@ static_library("browser") {
 
     if (is_ohos && safe_browsing_mode == 0) {
       sources -= [
+        "enterprise/connectors/analysis/page_print_analysis_request.cc",
+        "enterprise/connectors/analysis/page_print_analysis_request.h",
         "safe_browsing/generated_safe_browsing_pref.cc",
         "safe_browsing/generated_safe_browsing_pref.h",
       ]

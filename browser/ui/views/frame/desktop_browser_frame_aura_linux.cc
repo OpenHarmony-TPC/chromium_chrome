@@ -95,7 +95,14 @@ void DesktopBrowserFrameAuraLinux::TabDraggingKindChanged(
 }
 
 bool DesktopBrowserFrameAuraLinux::ShouldDrawRestoredFrameShadow() const {
+#if !BUILDFLAG(IS_OHOS)
   return host_->SupportsClientFrameShadow() && UseCustomFrame();
+#else
+  LOG(INFO)
+      << "DesktopBrowserFrameAuraLinux::ShouldDrawRestoredFrameShadow TODO for "
+         "OS_OHOS";
+  return false;
+#endif
 }
 
 void DesktopBrowserFrameAuraLinux::OnUseCustomChromeFrameChanged() {
