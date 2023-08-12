@@ -38,6 +38,7 @@ BlocklistStateFetcher::~BlocklistStateFetcher() {
 void BlocklistStateFetcher::Request(const std::string& id,
                                     RequestCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   if (!safe_browsing_config_) {
     if (g_browser_process && g_browser_process->safe_browsing_service()) {
       SetSafeBrowsingConfig(
@@ -53,7 +54,7 @@ void BlocklistStateFetcher::Request(const std::string& id,
   callbacks_.insert(std::make_pair(id, std::move(callback)));
   if (request_already_sent)
     return;
-
+#endif
   SendRequest(id);
 }
 

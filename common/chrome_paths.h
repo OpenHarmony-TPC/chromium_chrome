@@ -88,7 +88,7 @@ enum {
   DIR_COMPONENT_UPDATED_WIDEVINE_CDM,  // Base directory of the Widevine CDM
                                        // downloaded by the component updater.
   FILE_COMPONENT_WIDEVINE_CDM_HINT,    // A file in a known location that points
-                                       // to the component updated Widevine CDM.
+                                     // to the component updated Widevine CDM.
 #endif
   FILE_RESOURCES_PACK,  // Full path to the .pak file containing binary data.
                         // This includes data for internal pages (e.g., html
@@ -105,7 +105,8 @@ enum {
   DIR_CHROMEOS_CUSTOM_WALLPAPERS,     // Directory where custom wallpapers
                                       // reside.
 #endif
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
+    BUILDFLAG(IS_OHOS)
   DIR_NATIVE_MESSAGING,       // System directory where native messaging host
                               // manifest files are stored.
   DIR_USER_NATIVE_MESSAGING,  // Directory with Native Messaging Hosts

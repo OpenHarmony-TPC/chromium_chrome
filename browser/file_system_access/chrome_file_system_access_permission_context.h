@@ -19,6 +19,7 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/permissions/object_permission_context_base.h"
 #include "components/permissions/permission_util.h"
+#include "components/safe_browsing/buildflags.h"
 #include "content/public/browser/file_system_access_permission_context.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom.h"
 
@@ -79,17 +80,20 @@ class ChromeFileSystemAccessPermissionContext
                           const base::FilePath& path,
                           HandleType handle_type,
                           UserAction user_action) override;
-  void ConfirmSensitiveDirectoryAccess(
+  void ConfirmSensitiveEntryAccess(
       const url::Origin& origin,
       PathType path_type,
       const base::FilePath& path,
       HandleType handle_type,
+      ui::SelectFileDialog::Type dialog_type,
       content::GlobalRenderFrameHostId frame_id,
-      base::OnceCallback<void(SensitiveDirectoryResult)> callback) override;
+      base::OnceCallback<void(SensitiveEntryResult)> callback) override;
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   void PerformAfterWriteChecks(
       std::unique_ptr<content::FileSystemAccessWriteItem> item,
       content::GlobalRenderFrameHostId frame_id,
       base::OnceCallback<void(AfterWriteCheckResult)> callback) override;
+#endif
   bool CanObtainReadPermission(const url::Origin& origin) override;
   bool CanObtainWritePermission(const url::Origin& origin) override;
 
@@ -160,9 +164,9 @@ class ChromeFileSystemAccessPermissionContext
   // This long after the handle has last been used, revoke the persisted
   // permission.
   static constexpr base::TimeDelta
-      kPersistentPermissionExpirationTimeoutNonPWA = base::Hours(5);
-  static constexpr base::TimeDelta kPersistentPermissionExpirationTimeoutPWA =
-      base::Days(30);
+      kPersistentPermissionExpirationTimeoutDefault = base::Hours(5);
+  static constexpr base::TimeDelta
+      kPersistentPermissionExpirationTimeoutExtended = base::Days(30);
   // Amount of time a persisted permission will remain persisted after its
   // expiry. Used for metrics.
   static constexpr base::TimeDelta kPersistentPermissionGracePeriod =
@@ -176,8 +180,9 @@ class ChromeFileSystemAccessPermissionContext
     return periodic_sweep_persisted_permissions_timer_;
   }
 
-  // Overridden in tests.
-  virtual bool OriginIsInstalledPWA(const url::Origin& origin);
+  // Returns whether persisted permission grants for the origin are subject to
+  // the extended permission duration policy.
+  bool OriginHasExtendedPermissions(const url::Origin& origin);
 
  private:
   enum class MetricsOptions { kRecord, kDoNotRecord };
@@ -189,8 +194,9 @@ class ChromeFileSystemAccessPermissionContext
       const url::Origin& origin,
       const base::FilePath& path,
       HandleType handle_type,
+      ui::SelectFileDialog::Type dialog_type,
       content::GlobalRenderFrameHostId frame_id,
-      base::OnceCallback<void(SensitiveDirectoryResult)> callback,
+      base::OnceCallback<void(SensitiveEntryResult)> callback,
       bool should_block);
 
   void MaybeMigrateOriginToNewSchema(const url::Origin& origin);
@@ -223,7 +229,7 @@ class ChromeFileSystemAccessPermissionContext
   // revoke the persisted permission if it has expired.
   void MaybeRenewOrRevokePersistedPermission(const url::Origin& origin,
                                              base::Value grant,
-                                             bool is_installed_pwa);
+                                             bool has_extended_permissions);
 
   bool AncestorHasActivePermission(const url::Origin& origin,
                                    const base::FilePath& path,
@@ -237,7 +243,7 @@ class ChromeFileSystemAccessPermissionContext
                               GrantType grant_type,
                               MetricsOptions options);
   bool PersistentPermissionIsExpired(const base::Time& last_used,
-                                     bool is_installed_pwa);
+                                     bool has_extended_permissions);
 
   base::WeakPtr<ChromeFileSystemAccessPermissionContext> GetWeakPtr();
 

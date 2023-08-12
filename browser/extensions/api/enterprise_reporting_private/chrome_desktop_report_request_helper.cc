@@ -215,6 +215,8 @@ base::FilePath GetEndpointVerificationDir() {
   got_path = !path.empty();
 #elif BUILDFLAG(IS_MAC)
   got_path = base::PathService::Get(base::DIR_APP_DATA, &path);
+#elif BUILDFLAG(IS_OHOS)
+  if (!base::PathService::Get(base::DIR_OHOS_APP_DATA, &path))
 #endif
   if (!got_path)
     return path;

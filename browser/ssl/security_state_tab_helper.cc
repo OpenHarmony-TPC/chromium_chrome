@@ -184,6 +184,7 @@ SecurityStateTabHelper::GetMaliciousContentStatus() const {
       web_contents()->GetController().GetVisibleEntry();
   if (!entry)
     return security_state::MALICIOUS_CONTENT_STATUS_NONE;
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   safe_browsing::SafeBrowsingService* sb_service =
       g_browser_process->safe_browsing_service();
   if (!sb_service)
@@ -264,6 +265,9 @@ SecurityStateTabHelper::GetMaliciousContentStatus() const {
     }
   }
   return security_state::MALICIOUS_CONTENT_STATUS_NONE;
+#else
+  return security_state::MALICIOUS_CONTENT_STATUS_NONE;
+#endif
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(SecurityStateTabHelper);

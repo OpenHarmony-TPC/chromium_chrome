@@ -32,9 +32,14 @@ std::unique_ptr<content::SerialChooser> ChromeSerialDelegate::RunChooser(
     content::RenderFrameHost* frame,
     std::vector<blink::mojom::SerialPortFilterPtr> filters,
     content::SerialChooser::Callback callback) {
+#if !BUILDFLAG(IS_OHOS)
   return std::make_unique<SerialChooser>(chrome::ShowDeviceChooserDialog(
       frame, std::make_unique<SerialChooserController>(
                  frame, std::move(filters), std::move(callback))));
+#else
+  LOG(INFO) << "ChromeSerialDelegate::RunChooser TODO for OS_OHOS";
+  return nullptr;
+#endif
 }
 
 bool ChromeSerialDelegate::CanRequestPortPermission(

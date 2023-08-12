@@ -394,8 +394,10 @@ void BrowserProcessImpl::StartTearDown() {
 
   metrics_services_manager_.reset();
   intranet_redirect_detector_.reset();
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   if (safe_browsing_service_.get())
     safe_browsing_service()->ShutDown();
+#endif
   network_time_tracker_.reset();
 #if BUILDFLAG(ENABLE_PLUGINS)
   plugins_resource_service_.reset();
@@ -1016,6 +1018,7 @@ StatusTray* BrowserProcessImpl::status_tray() {
   return status_tray_.get();
 }
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 safe_browsing::SafeBrowsingService*
 BrowserProcessImpl::safe_browsing_service() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -1023,6 +1026,7 @@ BrowserProcessImpl::safe_browsing_service() {
     CreateSafeBrowsingService();
   return safe_browsing_service_.get();
 }
+#endif
 
 subresource_filter::RulesetService*
 BrowserProcessImpl::subresource_filter_ruleset_service() {
@@ -1276,6 +1280,7 @@ void BrowserProcessImpl::CreateBackgroundPrintingManager() {
 #endif
 }
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 void BrowserProcessImpl::CreateSafeBrowsingService() {
   DCHECK(!safe_browsing_service_);
   // Set this flag to true so that we don't retry indefinitely to
@@ -1295,6 +1300,7 @@ void BrowserProcessImpl::CreateSafeBrowsingService() {
   if (safe_browsing_service_)
     safe_browsing_service_->Initialize();
 }
+#endif
 
 void BrowserProcessImpl::CreateSubresourceFilterRulesetService() {
   DCHECK(!subresource_filter_ruleset_service_);

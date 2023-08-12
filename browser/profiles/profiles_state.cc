@@ -250,6 +250,7 @@ void UpdateGaiaProfileInfoIfNeeded(Profile* profile) {
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
 
 void RemoveBrowsingDataForProfile(const base::FilePath& profile_path) {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   // The BrowsingDataRemover relies on many objects that aren't created in unit
   // tests. Previously this code would depend on content::ResourceDispatcherHost
   // but that's gone, so do a similar hack for now.
@@ -266,6 +267,7 @@ void RemoveBrowsingDataForProfile(const base::FilePath& profile_path) {
     profile = profile->GetPrimaryOTRProfile(/*create_if_needed=*/true);
 
   profile->Wipe();
+#endif
 }
 
 bool IsPublicSession() {

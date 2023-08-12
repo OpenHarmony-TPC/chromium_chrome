@@ -187,11 +187,13 @@ void ChromePageInfoDelegate::OpenCookiesDialog() {
 
 void ChromePageInfoDelegate::OpenCertificateDialog(
     net::X509Certificate* certificate) {
+#if !BUILDFLAG(IS_OHOS)
   gfx::NativeWindow top_window = web_contents_->GetTopLevelNativeWindow();
   DCHECK(certificate);
   DCHECK(top_window);
 
   ShowCertificateViewer(web_contents_, top_window, certificate);
+#endif
 }
 
 void ChromePageInfoDelegate::OpenConnectionHelpCenterPage(

@@ -16,6 +16,7 @@
 #include "chrome/browser/safe_browsing/generated_safe_browsing_pref.h"
 #include "chrome/common/extensions/api/settings_private.h"
 #include "components/content_settings/core/common/pref_names.h"
+#include "components/safe_browsing/buildflags.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/extensions/api/settings_private/chromeos_resolve_time_zone_by_geolocation_method_short.h"
@@ -100,8 +101,10 @@ void GeneratedPrefs::CreatePrefs() {
           profile_);
   prefs_[kGeneratedPasswordLeakDetectionPref] =
       std::make_unique<GeneratedPasswordLeakDetectionPref>(profile_);
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   prefs_[safe_browsing::kGeneratedSafeBrowsingPref] =
       std::make_unique<safe_browsing::GeneratedSafeBrowsingPref>(profile_);
+#endif
   prefs_[content_settings::kGeneratedNotificationPref] =
       std::make_unique<content_settings::GeneratedNotificationPref>(profile_);
   prefs_[kGeneratedFlocPref] = std::make_unique<GeneratedFlocPref>(profile_);

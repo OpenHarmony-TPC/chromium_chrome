@@ -31,6 +31,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_manager_observer.h"
 #include "chrome/browser/upgrade_detector/upgrade_observer.h"
+#include "components/safe_browsing/buildflags.h"
 #include "components/sync/model/string_ordinal.h"
 #include "content/public/browser/notification_observer.h"
 #include "content/public/browser/notification_registrar.h"
@@ -305,9 +306,11 @@ class ExtensionService : public ExtensionServiceInterface,
   void RemoveDisableReasonAndMaybeEnable(const std::string& extension_id,
                                          disable_reason::DisableReason reason);
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   // Performs action based on Omaha attributes for the extension.
   void PerformActionBasedOnOmahaAttributes(const std::string& extension_id,
                                            const base::Value& attributes);
+#endif
 
   // Disables the extension. If the extension is already disabled, just adds
   // the |disable_reasons| (a bitmask of disable_reason::DisableReason - there

@@ -200,7 +200,9 @@ void RegisterComponentsForUpdate() {
 
   RegisterAutofillRegexComponent(cus);
 
+#if !BUILDFLAG(IS_OHOS)
   RegisterClientSidePhishingComponent(cus);
+#endif
 }
 
 }  // namespace component_updater

@@ -284,7 +284,7 @@ void HideTaskManagerViews();
 
 #endif  // BUILDFLAG(IS_MAC)
 
-#if defined(TOOLKIT_VIEWS)
+#if defined(TOOLKIT_VIEWS) || BUILDFLAG(IS_OHOS)
 
 // Creates a toolkit-views based LoginHandler (e.g. HTTP-Auth dialog).
 std::unique_ptr<LoginHandler> CreateLoginHandlerViews(

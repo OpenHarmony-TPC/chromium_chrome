@@ -24,7 +24,7 @@ using safe_browsing::ClientDownloadResponse;
 using safe_browsing::ClientSafeBrowsingReportRequest;
 
 namespace {
-
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 const char kDownloadDangerPromptPrefix[] = "Download.DownloadDangerPrompt";
 
 // Converts DownloadDangerType into their corresponding string.
@@ -73,9 +73,11 @@ const char* GetDangerTypeString(
   NOTREACHED();
   return nullptr;
 }
+#endif
 
 }  // namespace
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 void DownloadDangerPrompt::SendSafeBrowsingDownloadReport(
     ClientSafeBrowsingReportRequest::ReportType report_type,
     bool did_proceed,
@@ -118,10 +120,12 @@ void DownloadDangerPrompt::SendSafeBrowsingDownloadReport(
     DLOG(ERROR) << "Unable to serialize the threat report.";
   }
 }
+#endif
 
 void DownloadDangerPrompt::RecordDownloadDangerPrompt(
     bool did_proceed,
     const download::DownloadItem& download) {
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   int64_t file_type_uma_value =
       safe_browsing::FileTypePolicies::GetInstance()->UmaValueForFile(
           download.GetTargetFilePath());
@@ -137,4 +141,5 @@ void DownloadDangerPrompt::RecordDownloadDangerPrompt(
                            GetDangerTypeString(danger_type)),
         file_type_uma_value);
   }
+#endif
 }

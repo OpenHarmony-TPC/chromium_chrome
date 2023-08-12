@@ -239,6 +239,7 @@ std::unique_ptr<BadClockBlockingPage> CreateBadClockBlockingPage(
       clock_state, nullptr);
 }
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 std::unique_ptr<LookalikeUrlBlockingPage> CreateLookalikeInterstitialPage(
     content::WebContents* web_contents) {
   GURL request_url("https://example.net");
@@ -254,6 +255,7 @@ std::unique_ptr<LookalikeUrlBlockingPage> CreateLookalikeInterstitialPage(
       std::make_unique<LookalikeUrlControllerClient>(web_contents, request_url,
                                                      safe_url));
 }
+#endif
 
 std::unique_ptr<security_interstitials::InsecureFormBlockingPage>
 CreateInsecureFormPage(content::WebContents* web_contents) {
@@ -273,6 +275,7 @@ CreateHttpsOnlyModePage(content::WebContents* web_contents) {
                                                       request_url));
 }
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 std::unique_ptr<safe_browsing::SafeBrowsingBlockingPage>
 CreateSafeBrowsingBlockingPage(content::WebContents* web_contents) {
   safe_browsing::SBThreatType threat_type =
@@ -386,6 +389,7 @@ CreateSafeBrowsingQuietBlockingPage(content::WebContents* web_contents) {
           g_browser_process->safe_browsing_service()->ui_manager().get(),
           web_contents, main_frame_url, resource, is_giant_webview));
 }
+#endif
 
 #if BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
 std::unique_ptr<CaptivePortalBlockingPage> CreateCaptivePortalBlockingPage(
@@ -501,12 +505,16 @@ void InterstitialHTMLSource::StartDataRequest(
     interstitial_delegate = CreateMITMSoftwareBlockingPage(web_contents);
   } else if (path_without_query == "/blocked-interception") {
     interstitial_delegate = CreateBlockedInterceptionBlockingPage(web_contents);
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   } else if (path_without_query == "/safebrowsing") {
     interstitial_delegate = CreateSafeBrowsingBlockingPage(web_contents);
+#endif
   } else if (path_without_query == "/clock") {
     interstitial_delegate = CreateBadClockBlockingPage(web_contents);
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   } else if (path_without_query == "/lookalike") {
     interstitial_delegate = CreateLookalikeInterstitialPage(web_contents);
+#endif
 #if BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
   } else if (path_without_query == "/captiveportal") {
     interstitial_delegate = CreateCaptivePortalBlockingPage(web_contents);
@@ -520,10 +528,12 @@ void InterstitialHTMLSource::StartDataRequest(
   }
 
   if (path_without_query == "/quietsafebrowsing") {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
     std::unique_ptr<TestSafeBrowsingBlockingPageQuiet> blocking_page =
         CreateSafeBrowsingQuietBlockingPage(web_contents);
     html = blocking_page->GetHTML();
     interstitial_delegate = std::move(blocking_page);
+#endif
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
   } else if (path_without_query == "/supervised_user") {
     html = GetSupervisedUserInterstitialHTML(path);

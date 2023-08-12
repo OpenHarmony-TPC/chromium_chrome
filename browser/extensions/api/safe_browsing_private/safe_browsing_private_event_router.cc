@@ -70,6 +70,7 @@ const char kProfilePolicyClientDescription[] = "a profile-level user";
 
 const char16_t kMaskedUsername[] = u"*****";
 
+#if defined(FULL_SAFE_BROWSING)
 void AddAnalysisConnectorVerdictToEvent(
     const enterprise_connectors::ContentAnalysisResponse::Result& result,
     base::Value* event) {
@@ -101,6 +102,7 @@ std::string MalwareRuleToThreatType(const std::string& rule_name) {
     return "UNKNOWN";
   }
 }
+#endif  // FULL_SAFE_BROWSING
 
 bool IsClientValid(const std::string& dm_token,
                    policy::CloudPolicyClient* client) {
@@ -269,7 +271,7 @@ void SafeBrowsingPrivateEventRouter::OnPolicySpecifiedPasswordReuseDetected(
         std::move(event_value));
     event_router_->BroadcastEvent(std::move(extension_event));
   }
-
+#if defined(FULL_SAFE_BROWSING)
   absl::optional<enterprise_connectors::ReportingSettings> settings =
       GetReportingSettings();
   if (!settings.has_value() ||
@@ -285,6 +287,7 @@ void SafeBrowsingPrivateEventRouter::OnPolicySpecifiedPasswordReuseDetected(
 
   ReportRealtimeEvent(kKeyPasswordReuseEvent, std::move(settings.value()),
                       std::move(event));
+#endif
 }
 
 void SafeBrowsingPrivateEventRouter::OnPolicySpecifiedPasswordChanged(
@@ -342,6 +345,7 @@ void SafeBrowsingPrivateEventRouter::OnDangerousDownloadOpened(
     event_router_->BroadcastEvent(std::move(extension_event));
   }
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   absl::optional<enterprise_connectors::ReportingSettings> settings =
       GetReportingSettings();
   if (!settings.has_value() ||
@@ -360,9 +364,11 @@ void SafeBrowsingPrivateEventRouter::OnDangerousDownloadOpened(
   if (content_size >= 0)
     event.SetIntKey(kKeyContentSize, content_size);
   event.SetStringKey(kKeyTrigger, kTriggerFileDownload);
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   event.SetStringKey(
       kKeyEventResult,
       safe_browsing::EventResultToString(safe_browsing::EventResult::BYPASSED));
+#endif
   event.SetBoolKey(kKeyClickedThrough, true);
   event.SetStringKey(kKeyThreatType, DangerTypeToThreatType(danger_type));
   // The scan ID can be empty when the reported dangerous download is from a
@@ -372,6 +378,7 @@ void SafeBrowsingPrivateEventRouter::OnDangerousDownloadOpened(
 
   ReportRealtimeEvent(kKeyDangerousDownloadEvent, std::move(settings.value()),
                       std::move(event));
+#endif  // FULL_SAFE_BROWSING
 }
 
 void SafeBrowsingPrivateEventRouter::OnSecurityInterstitialShown(
@@ -398,7 +405,7 @@ void SafeBrowsingPrivateEventRouter::OnSecurityInterstitialShown(
         std::move(event_value));
     event_router_->BroadcastEvent(std::move(extension_event));
   }
-
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   absl::optional<enterprise_connectors::ReportingSettings> settings =
       GetReportingSettings();
   if (!settings.has_value() ||
@@ -422,6 +429,7 @@ void SafeBrowsingPrivateEventRouter::OnSecurityInterstitialShown(
 
   ReportRealtimeEvent(kKeyInterstitialEvent, std::move(settings.value()),
                       std::move(event));
+#endif  // FULL_SAFE_BROWSING
 }
 
 void SafeBrowsingPrivateEventRouter::OnSecurityInterstitialProceeded(
@@ -449,6 +457,7 @@ void SafeBrowsingPrivateEventRouter::OnSecurityInterstitialProceeded(
     event_router_->BroadcastEvent(std::move(extension_event));
   }
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   absl::optional<enterprise_connectors::ReportingSettings> settings =
       GetReportingSettings();
   if (!settings.has_value() ||
@@ -462,12 +471,15 @@ void SafeBrowsingPrivateEventRouter::OnSecurityInterstitialProceeded(
   event.SetIntKey(kKeyNetErrorCode, net_error_code);
   event.SetStringKey(kKeyProfileUserName, params.user_name);
   event.SetBoolKey(kKeyClickedThrough, true);
+
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   event.SetStringKey(
       kKeyEventResult,
       safe_browsing::EventResultToString(safe_browsing::EventResult::BYPASSED));
-
+#endif
   ReportRealtimeEvent(kKeyInterstitialEvent, std::move(settings.value()),
                       std::move(event));
+#endif  // FULL_SAFE_BROWSING
 }
 
 void SafeBrowsingPrivateEventRouter::OnAnalysisConnectorResult(
@@ -481,6 +493,7 @@ void SafeBrowsingPrivateEventRouter::OnAnalysisConnectorResult(
     const enterprise_connectors::ContentAnalysisResponse::Result& result,
     const int64_t content_size,
     safe_browsing::EventResult event_result) {
+#if defined(FULL_SAFE_BROWSING)
   if (result.tag() == "malware") {
     DCHECK_EQ(1, result.triggered_rules().size());
     OnDangerousDeepScanningResult(
@@ -492,6 +505,7 @@ void SafeBrowsingPrivateEventRouter::OnAnalysisConnectorResult(
     OnSensitiveDataEvent(url, file_name, download_digest_sha256, mime_type,
                          trigger, scan_id, result, content_size, event_result);
   }
+#endif  // FULL_SAFE_BROWSING
 }
 
 void SafeBrowsingPrivateEventRouter::OnDangerousDeepScanningResult(
@@ -507,6 +521,7 @@ void SafeBrowsingPrivateEventRouter::OnDangerousDeepScanningResult(
     const std::string& malware_category,
     const std::string& evidence_locker_filepath,
     const std::string& scan_id) {
+#if defined(FULL_SAFE_BROWSING)
   absl::optional<enterprise_connectors::ReportingSettings> settings =
       GetReportingSettings();
   if (!settings.has_value() ||
@@ -526,8 +541,12 @@ void SafeBrowsingPrivateEventRouter::OnDangerousDeepScanningResult(
   if (content_size >= 0)
     event.SetIntKey(kKeyContentSize, content_size);
   event.SetStringKey(kKeyTrigger, trigger);
+
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   event.SetStringKey(kKeyEventResult,
                      safe_browsing::EventResultToString(event_result));
+#endif
+
   event.SetBoolKey(kKeyClickedThrough,
                    event_result == safe_browsing::EventResult::BYPASSED);
   if (!malware_family.empty())
@@ -544,6 +563,7 @@ void SafeBrowsingPrivateEventRouter::OnDangerousDeepScanningResult(
 
   ReportRealtimeEvent(kKeyDangerousDownloadEvent, std::move(settings.value()),
                       std::move(event));
+#endif  // FULL_SAFE_BROWSING
 }
 
 void SafeBrowsingPrivateEventRouter::OnSensitiveDataEvent(
@@ -556,6 +576,7 @@ void SafeBrowsingPrivateEventRouter::OnSensitiveDataEvent(
     const enterprise_connectors::ContentAnalysisResponse::Result& result,
     const int64_t content_size,
     safe_browsing::EventResult event_result) {
+#if defined(FULL_SAFE_BROWSING)
   absl::optional<enterprise_connectors::ReportingSettings> settings =
       GetReportingSettings();
   if (!settings.has_value() ||
@@ -574,8 +595,12 @@ void SafeBrowsingPrivateEventRouter::OnSensitiveDataEvent(
   if (content_size >= 0)
     event.SetIntKey(kKeyContentSize, content_size);
   event.SetStringKey(kKeyTrigger, trigger);
+
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   event.SetStringKey(kKeyEventResult,
                      safe_browsing::EventResultToString(event_result));
+#endif
+
   event.SetBoolKey(kKeyClickedThrough,
                    event_result == safe_browsing::EventResult::BYPASSED);
   if (!result.evidence_locker_filepath().empty()) {
@@ -588,6 +613,7 @@ void SafeBrowsingPrivateEventRouter::OnSensitiveDataEvent(
 
   ReportRealtimeEvent(kKeySensitiveDataEvent, std::move(settings.value()),
                       std::move(event));
+#endif  // FULL_SAFE_BROWSING
 }
 
 void SafeBrowsingPrivateEventRouter::OnAnalysisConnectorWarningBypassed(
@@ -601,6 +627,7 @@ void SafeBrowsingPrivateEventRouter::OnAnalysisConnectorWarningBypassed(
     const enterprise_connectors::ContentAnalysisResponse::Result& result,
     const int64_t content_size,
     absl::optional<std::u16string> user_justification) {
+#if defined(FULL_SAFE_BROWSING)
   absl::optional<enterprise_connectors::ReportingSettings> settings =
       GetReportingSettings();
   if (!settings.has_value() ||
@@ -619,9 +646,13 @@ void SafeBrowsingPrivateEventRouter::OnAnalysisConnectorWarningBypassed(
   if (content_size >= 0)
     event.SetIntKey(kKeyContentSize, content_size);
   event.SetStringKey(kKeyTrigger, trigger);
+
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   event.SetStringKey(
       kKeyEventResult,
       safe_browsing::EventResultToString(safe_browsing::EventResult::BYPASSED));
+#endif
+
   event.SetBoolKey(kKeyClickedThrough, true);
   if (!result.evidence_locker_filepath().empty()) {
     event.SetStringKey(kKeyEvidenceLockerFilePath,
@@ -636,6 +667,7 @@ void SafeBrowsingPrivateEventRouter::OnAnalysisConnectorWarningBypassed(
 
   ReportRealtimeEvent(kKeySensitiveDataEvent, std::move(settings.value()),
                       std::move(event));
+#endif  // FULL_SAFE_BROWSING
 }
 
 void SafeBrowsingPrivateEventRouter::OnUnscannedFileEvent(
@@ -648,6 +680,7 @@ void SafeBrowsingPrivateEventRouter::OnUnscannedFileEvent(
     const std::string& reason,
     const int64_t content_size,
     safe_browsing::EventResult event_result) {
+#if defined(FULL_SAFE_BROWSING)
   absl::optional<enterprise_connectors::ReportingSettings> settings =
       GetReportingSettings();
   if (!settings.has_value() ||
@@ -667,13 +700,18 @@ void SafeBrowsingPrivateEventRouter::OnUnscannedFileEvent(
   if (content_size >= 0)
     event.SetIntKey(kKeyContentSize, content_size);
   event.SetStringKey(kKeyTrigger, trigger);
+
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   event.SetStringKey(kKeyEventResult,
                      safe_browsing::EventResultToString(event_result));
+#endif
+
   event.SetBoolKey(kKeyClickedThrough,
                    event_result == safe_browsing::EventResult::BYPASSED);
 
   ReportRealtimeEvent(kKeyUnscannedFileEvent, std::move(settings.value()),
                       std::move(event));
+#endif  // FULL_SAFE_BROWSING
 }
 
 void SafeBrowsingPrivateEventRouter::OnDangerousDownloadEvent(
@@ -719,9 +757,10 @@ void SafeBrowsingPrivateEventRouter::OnDangerousDownloadEvent(
   if (content_size >= 0)
     event.SetIntKey(kKeyContentSize, content_size);
   event.SetStringKey(kKeyTrigger, kTriggerFileDownload);
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   event.SetStringKey(kKeyEventResult,
                      safe_browsing::EventResultToString(event_result));
-
+#endif
   // The scan ID can be empty when the reported dangerous download is from a
   // Safe Browsing verdict.
   if (!scan_id.empty())
@@ -752,6 +791,7 @@ void SafeBrowsingPrivateEventRouter::OnDangerousDownloadWarningBypassed(
     const std::string& mime_type,
     const std::string& scan_id,
     const int64_t content_size) {
+#if defined(FULL_SAFE_BROWSING)
   absl::optional<enterprise_connectors::ReportingSettings> settings =
       GetReportingSettings();
   if (!settings.has_value() ||
@@ -772,9 +812,11 @@ void SafeBrowsingPrivateEventRouter::OnDangerousDownloadWarningBypassed(
   if (content_size >= 0)
     event.SetIntKey(kKeyContentSize, content_size);
   event.SetStringKey(kKeyTrigger, kTriggerFileDownload);
+#if defined(FULL_SAFE_BROWSING)
   event.SetStringKey(
       kKeyEventResult,
       safe_browsing::EventResultToString(safe_browsing::EventResult::BYPASSED));
+#endif
   // The scan ID can be empty when the reported dangerous download is from a
   // Safe Browsing verdict.
   if (!scan_id.empty())
@@ -782,6 +824,7 @@ void SafeBrowsingPrivateEventRouter::OnDangerousDownloadWarningBypassed(
 
   ReportRealtimeEvent(kKeyDangerousDownloadEvent, std::move(settings.value()),
                       std::move(event));
+#endif  // FULL_SAFE_BROWSING
 }
 
 void SafeBrowsingPrivateEventRouter::OnLoginEvent(
@@ -1107,7 +1150,11 @@ void SafeBrowsingPrivateEventRouter::ReportRealtimeEvent(
 }
 
 std::string SafeBrowsingPrivateEventRouter::GetProfileUserName() const {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   return safe_browsing::GetProfileEmail(identity_manager_);
+#else
+  return "";
+#endif
 }
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)

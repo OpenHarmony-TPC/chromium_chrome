@@ -784,6 +784,7 @@ static_library("extensions") {
     "//chrome/browser/safe_browsing:metrics_collector",
     "//chrome/browser/web_applications",
     "//components/cbor:cbor",
+    "//components/security_interstitials/content:security_interstitial_page",
     "//components/safe_browsing/content/browser",
     "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
     "//components/site_engagement/core/mojom:mojo_bindings",
@@ -1205,7 +1206,7 @@ static_library("extensions") {
       "//components/enterprise/common/proto:connectors_proto",
       "//components/keep_alive_registry",
     ]
-    if (is_linux) {
+    if (is_linux || is_ohos) {
       sources +=
           [ "api/image_writer_private/removable_storage_provider_linux.cc" ]
     }
@@ -1317,7 +1318,7 @@ static_library("extensions") {
     deps += [ "//rlz:rlz_lib" ]
   }
 
-  if (toolkit_views) {
+  if (toolkit_views || is_ohos) {
     deps += [ "//ui/views" ]
   }
 

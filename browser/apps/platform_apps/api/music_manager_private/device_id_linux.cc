@@ -41,9 +41,11 @@ const char* const kDeviceNames[] = {
 // Fedora 15 uses biosdevname feature where Embedded ethernet uses the
 // "em" prefix and PCI cards use the p[0-9]c[0-9] format based on PCI
 // slot and card information.
+#if !BUILDFLAG(IS_OHOS)
 const char* const kNetDeviceNamePrefixes[] = {
     "eth", "em", "en", "wl", "ww", "p0", "p1", "p2",
     "p3",  "p4", "p5", "p6", "p7", "p8", "p9", "wlan"};
+#endif
 
 // Map from device name to disk uuid
 typedef std::map<base::FilePath, base::FilePath> DiskEntries;
@@ -152,7 +154,7 @@ class MacAddressProcessor {
 std::string GetMacAddress(IsValidMacAddressCallback is_valid_mac_address) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
-
+#if !BUILDFLAG(IS_OHOS)
   struct ifaddrs* ifaddrs;
   int rv = getifaddrs(&ifaddrs);
   if (rv < 0) {
@@ -169,6 +171,10 @@ std::string GetMacAddress(IsValidMacAddressCallback is_valid_mac_address) {
   }
   freeifaddrs(ifaddrs);
   return processor.mac_address();
+#else
+  LOG(INFO) << "GetMacAddress TODO for OS_OHOS";
+  return "";
+#endif
 }
 
 void GetRawDeviceIdImpl(IsValidMacAddressCallback is_valid_mac_address,

@@ -1706,6 +1706,14 @@ if (is_android) {
       "//content/public/app",
     ]
 
+    if (is_ohos && safe_browsing_mode == 0) {
+      deps -= [
+        "//components/safe_browsing:buildflags",
+        "//components/safe_browsing/android:safe_browsing_api_handler",
+        "//components/safe_browsing/android:safe_browsing_mobile",
+      ]
+    }
+
     # Explicit dependency required for JNI registration to be able to
     # find the native side functions.
     if (is_android && is_component_build) {

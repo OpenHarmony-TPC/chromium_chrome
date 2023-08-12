@@ -52,6 +52,7 @@ void DestroyNoStatePrefetchContents(
   }
 }
 
+#if !BUILDFLAG(IS_OHOS)
 void CreateSafeBrowsingUserInteractionObserver(
     const security_interstitials::UnsafeResource& resource,
     bool is_main_frame,
@@ -77,6 +78,7 @@ void CreateSafeBrowsingUserInteractionObserver(
   SafeBrowsingUserInteractionObserver::CreateForWebContents(
       web_contents, resource, is_main_frame, ui_manager);
 }
+#endif
 
 }  // namespace
 
@@ -113,10 +115,12 @@ void UrlCheckerDelegateImpl::StartDisplayingBlockingPageHelper(
     const net::HttpRequestHeaders& headers,
     bool is_main_frame,
     bool has_user_gesture) {
+#if !BUILDFLAG(IS_OHOS)
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindOnce(&SafeBrowsingUIManager::StartDisplayingBlockingPage,
                      ui_manager_, resource));
+#endif
 }
 
 // Starts displaying the SafeBrowsing interstitial page.
@@ -124,9 +128,11 @@ void UrlCheckerDelegateImpl::
     StartObservingInteractionsForDelayedBlockingPageHelper(
         const security_interstitials::UnsafeResource& resource,
         bool is_main_frame) {
+#if !BUILDFLAG(IS_OHOS)
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE, base::BindOnce(&CreateSafeBrowsingUserInteractionObserver,
                                 resource, is_main_frame, ui_manager_));
+#endif
 }
 
 bool UrlCheckerDelegateImpl::IsUrlAllowlisted(const GURL& url) {

@@ -24,10 +24,10 @@ using safe_browsing::SafeBrowsingNavigationObserverManager;
 namespace extensions {
 
 namespace {
-
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 // The number of user gestures we trace back for the referrer chain.
 const int kReferrerUserGestureLimit = 2;
-
+#endif
 }  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -53,7 +53,7 @@ SafeBrowsingPrivateGetReferrerChainFunction::Run() {
     return RespondNow(Error(
         base::StringPrintf("Could not find tab with id %d.", params->tab_id)));
   }
-
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   Profile* profile = Profile::FromBrowserContext(browser_context());
   if (!SafeBrowsingNavigationObserverManager::IsEnabledAndReady(
           profile->GetPrefs(), g_browser_process->safe_browsing_service()))
@@ -89,6 +89,9 @@ SafeBrowsingPrivateGetReferrerChainFunction::Run() {
   return RespondNow(ArgumentList(
       api::safe_browsing_private::GetReferrerChain::Results::Create(
           referrer_entries)));
+#else
+  return RespondLater();
+#endif
 }
 
 }  // namespace extensions

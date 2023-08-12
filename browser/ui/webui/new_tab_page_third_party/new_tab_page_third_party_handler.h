@@ -53,7 +53,9 @@ class NewTabPageThirdPartyHandler
   void NotifyAboutTheme();
 
   Profile* profile_;
+#if !BUILDFLAG(IS_OHOS)
   content::WebContents* web_contents_;
+#endif
 
   // These are located at the end of the list of member variables to ensure the
   // WebUI page is disconnected before other members are destroyed.

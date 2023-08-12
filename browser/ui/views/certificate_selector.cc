@@ -277,8 +277,12 @@ void CertificateSelector::ViewCertButtonPressed() {
   net::ClientCertIdentity* const cert = GetSelectedCert();
   if (!cert)
     return;
+#if !BUILDFLAG(IS_OHOS)
   ShowCertificateViewer(web_contents_, web_contents_->GetTopLevelNativeWindow(),
                         cert->certificate());
+#else
+  LOG(INFO) << "CertificateSelector::ViewCertButtonPressed TODO for OS_OHOS";
+#endif
 }
 
 void CertificateSelector::OnSelectionChanged() {

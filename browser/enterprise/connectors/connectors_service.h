@@ -15,7 +15,12 @@
 #include "components/keyed_service/content/browser_context_keyed_service_factory.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/policy/core/common/policy_types.h"
+#include "components/safe_browsing/buildflags.h"
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#endif
+
 #include "content/public/browser/browser_context.h"
 
 namespace base {
@@ -80,11 +85,13 @@ class ConnectorsService : public KeyedService {
   // is no token to use.
   absl::optional<std::string> GetDMTokenForRealTimeUrlCheck() const;
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   // Returns the value to used by the enterprise real-time URL check Connector
   // if it is set and if the scope it's set at has a valid browser-profile
   // affiliation.
   safe_browsing::EnterpriseRealTimeUrlCheckMode GetAppliedRealTimeUrlCheck()
       const;
+#endif
 
   // Returns the CBCM domain or profile domain that enables connector policies.
   // If both set Connector policies, the CBCM domain is returned as it has

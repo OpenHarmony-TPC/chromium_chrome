@@ -628,6 +628,7 @@ void ProfileImpl::LoadPrefsForNormalStartup(bool async_prefs) {
 
   mojo::PendingRemote<prefs::mojom::TrackedPreferenceValidationDelegate>
       pref_validation_delegate;
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   scoped_refptr<safe_browsing::SafeBrowsingService> safe_browsing_service(
       g_browser_process->safe_browsing_service());
   if (safe_browsing_service.get()) {
@@ -639,6 +640,7 @@ void ProfileImpl::LoadPrefsForNormalStartup(bool async_prefs) {
           pref_validation_delegate.InitWithNewPipeAndPassReceiver());
     }
   }
+#endif
 
   prefs_ =
       CreatePrefService(pref_registry_, CreateExtensionPrefStore(this, false),

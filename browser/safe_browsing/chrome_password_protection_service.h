@@ -217,8 +217,13 @@ class ChromePasswordProtectionService : public PasswordProtectionService,
   // policy, this function should always return PHISHING_REUSE. Otherwise,
   // returns the specified pref value adjusted for the given username's account
   // type.
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   PasswordProtectionTrigger GetPasswordProtectionWarningTriggerPref(
       ReusedPasswordAccountType password_type) const override;
+#else
+  PasswordProtectionTrigger GetPasswordProtectionWarningTriggerPref(
+      ReusedPasswordAccountType password_type) const override;
+#endif
 
   // If |url| matches Safe Browsing allowlist domains, password protection
   // change password URL, or password protection login URLs in the enterprise

@@ -76,7 +76,35 @@ static_library("utility") {
     deps += [ "//chrome/services/mac_notifications" ]
   }
 
-  if (!is_android) {
+  if (is_ohos) {
+    sources += [
+      "importer/bookmark_html_reader.cc",
+      "importer/bookmark_html_reader.h",
+      "importer/bookmarks_file_importer.cc",
+      "importer/bookmarks_file_importer.h",
+      "importer/external_process_importer_bridge.cc",
+      "importer/external_process_importer_bridge.h",
+      "importer/favicon_reencode.cc",
+      "importer/favicon_reencode.h",
+      "importer/firefox_importer.cc",
+      "importer/firefox_importer.h",
+      "importer/importer.cc",
+      "importer/importer.h",
+      "importer/importer_creator.cc",
+      "importer/importer_creator.h",
+      "importer/profile_import_impl.cc",
+      "importer/profile_import_impl.h",
+    ]
+    deps += [
+      "//chrome/common:mojo_bindings",
+      "//chrome/common/importer:interfaces",
+      "//chrome/services/speech:lib",
+      "//components/autofill/core/common",
+      "//services/proxy_resolver:lib",
+    ]
+  }
+
+  if (!is_android && !is_ohos) {
     sources += [
       "importer/bookmark_html_reader.cc",
       "importer/bookmark_html_reader.h",

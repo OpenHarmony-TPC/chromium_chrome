@@ -40,11 +40,13 @@ void ThemeHandler::OnJavascriptAllowed() {
   // Listen for theme installation.
   ThemeServiceFactory::GetForProfile(GetProfile())->AddObserver(this);
 
+#if defined(TOOLKIT_VIEWS)
   // Or native theme change.
   if (web_ui()) {
     theme_observation_.Observe(
         webui::GetNativeTheme(web_ui()->GetWebContents()));
   }
+#endif
 }
 
 void ThemeHandler::OnJavascriptDisallowed() {
@@ -60,12 +62,14 @@ void ThemeHandler::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
   // There are two types of theme update. a) The observed theme change. e.g.
   // switch between light/dark mode. b) A different theme is enabled. e.g.
   // switch between GTK and classic theme on Linux. Reset observer in case b).
+#if defined(TOOLKIT_VIEWS)
   ui::NativeTheme* current_theme =
       webui::GetNativeTheme(web_ui()->GetWebContents());
   if (observed_theme != current_theme) {
     theme_observation_.Reset();
     theme_observation_.Observe(current_theme);
   }
+#endif
   SendThemeChanged();
 }
 

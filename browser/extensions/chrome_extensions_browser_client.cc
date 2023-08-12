@@ -606,6 +606,7 @@ void ChromeExtensionsBrowserClient::NotifyExtensionApiTabExecuteScript(
     content::BrowserContext* context,
     const ExtensionId& extension_id,
     const std::string& code) const {
+#if !BUILDFLAG(IS_OHOS)
   auto* telemetry_service =
       safe_browsing::ExtensionTelemetryServiceFactory::GetForProfile(
           Profile::FromBrowserContext(context));
@@ -615,6 +616,7 @@ void ChromeExtensionsBrowserClient::NotifyExtensionApiTabExecuteScript(
   auto signal = std::make_unique<safe_browsing::TabsExecuteScriptSignal>(
       extension_id, code);
   telemetry_service->AddSignal(std::move(signal));
+#endif
 }
 
 // static

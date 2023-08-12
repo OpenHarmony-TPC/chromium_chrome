@@ -146,8 +146,7 @@ void WebAppUninstallDialogDelegateView::OnDialogCanceled() {
   UMA_HISTOGRAM_ENUMERATION("Webapp.UninstallDialogAction",
                             HistogramCloseAction::kCancelled);
 
-  if (dialog_)
-    std::exchange(dialog_, nullptr)->UninstallCancelled();
+  // `dialog_->UninstallCancelled()` is handled in the destructor.
 }
 
 ui::ImageModel WebAppUninstallDialogDelegateView::GetWindowIcon() {

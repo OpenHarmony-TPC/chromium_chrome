@@ -37,7 +37,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/pointer/touch_ui_controller.h"
 
-#if defined(TOOLKIT_VIEWS)
+#if defined(TOOLKIT_VIEWS) || BUILDFLAG(IS_OHOS)
 #include "chrome/grit/theme_resources.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
@@ -58,7 +58,7 @@ using ::bookmarks::BookmarkModel;
 using ::bookmarks::BookmarkNode;
 using ::ui::mojom::DragOperation;
 
-#if defined(TOOLKIT_VIEWS)
+#if defined(TOOLKIT_VIEWS) || BUILDFLAG(IS_OHOS)
 // Image source that flips the supplied source image in RTL.
 class RTLFlipSource : public gfx::ImageSkiaSource {
  public:
@@ -272,7 +272,7 @@ bool IsValidBookmarkDropLocation(Profile* profile,
   return true;
 }
 
-#if defined(TOOLKIT_VIEWS)
+#if defined(TOOLKIT_VIEWS) || BUILDFLAG(IS_OHOS)
 ui::ImageModel GetBookmarkFolderIcon(
     BookmarkFolderIconType icon_type,
     absl::variant<ui::ColorId, SkColor> color) {

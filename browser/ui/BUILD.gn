@@ -667,6 +667,11 @@ static_library("ui") {
     "//v8:v8_version",
   ]
 
+  if (is_ohos && safe_browsing_mode == 0) {
+    deps -=
+        [ "//components/safe_browsing/content/browser:client_side_detection" ]
+  }
+
   # TODO(crbug/925153): Remove this circular dependency.
   allow_circular_includes_from = [
     # TODO(crbug.com/1158905): Remove this circular dependency.
@@ -1776,7 +1781,7 @@ static_library("ui") {
       deps += [ "//ui/base/ime/linux" ]
     }
 
-    if (!toolkit_views) {
+    if (!toolkit_views && !is_ohos) {
       sources += [ "media_router/cloud_services_dialog.cc" ]
     }
 
@@ -3191,7 +3196,7 @@ static_library("ui") {
     deps += [ "//chrome/browser/ui/webui/settings/chromeos/constants:mojom" ]
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos || is_fuchsia) {
+  if (is_win || is_mac || is_linux || is_chromeos || is_fuchsia || is_ohos) {
     sources += [
       "autofill/payments/virtual_card_selection_dialog_controller.h",
       "autofill/payments/virtual_card_selection_dialog_controller_impl.cc",
@@ -3269,7 +3274,7 @@ static_library("ui") {
     ]
   }
 
-  if (is_win || is_mac || is_fuchsia || is_linux) {
+  if (is_win || is_mac || is_fuchsia || is_linux || is_ohos) {
     sources += [
       "webui/app_launcher_page_ui.cc",
       "webui/app_launcher_page_ui.h",
@@ -3280,7 +3285,8 @@ static_library("ui") {
     ]
   }
 
-  if (is_win || is_mac || is_fuchsia || (is_linux || is_chromeos_lacros)) {
+  if (is_win || is_mac || is_fuchsia || (is_linux || is_chromeos_lacros) ||
+      is_ohos) {
     sources += [
       "profile_picker.cc",
       "profile_picker.h",
@@ -3351,7 +3357,7 @@ static_library("ui") {
       "//components/country_codes",
     ]
 
-    if (enable_dice_support) {
+    if (enable_dice_support || is_ohos) {
       sources += [
         "bookmarks/bookmark_bubble_sign_in_delegate.cc",
         "bookmarks/bookmark_bubble_sign_in_delegate.h",
@@ -3745,7 +3751,7 @@ static_library("ui") {
     }
   }
 
-  if (is_linux || is_chromeos_lacros || is_mac) {
+  if (is_linux || is_chromeos_lacros || is_mac || is_ohos) {
     # The first run dialog shows only on Linux and macOS.
     sources += [
       "views/first_run_dialog.cc",
@@ -3753,7 +3759,7 @@ static_library("ui") {
     ]
   }
 
-  if (is_linux) {
+  if (is_linux || is_ohos) {
     sources += [
       "views/frame/desktop_browser_frame_aura_linux.cc",
       "views/frame/desktop_browser_frame_aura_linux.h",
@@ -3770,7 +3776,7 @@ static_library("ui") {
     sources += [ "views/apps/chrome_app_window_client_views_aura.cc" ]
   }
 
-  if (is_linux || is_chromeos_lacros) {
+  if (is_linux || is_chromeos_lacros || is_ohos) {
     sources += [
       "views/frame/browser_desktop_window_tree_host.h",
       "webui/help/version_updater_basic.cc",
@@ -3808,6 +3814,15 @@ static_library("ui") {
       ]
       defines += [ "USE_DBUS_MENU" ]
       deps += [ "//ui/gfx/x" ]
+    }
+
+    if (is_ohos && use_ozone) {
+      if (!is_linux && !is_chromeos_lacros) {
+        sources += [
+          "views/frame/browser_desktop_window_tree_host_platform.cc",
+          "views/frame/browser_desktop_window_tree_host_platform.h",
+        ]
+      }
     }
 
     if (is_linux || is_chromeos_lacros) {
@@ -3856,7 +3871,7 @@ static_library("ui") {
     }
   }
 
-  if (toolkit_views) {
+  if (toolkit_views || is_ohos) {
     sources += [
       "autofill/address_editor_controller.cc",
       "autofill/address_editor_controller.h",
@@ -4141,6 +4156,8 @@ static_library("ui") {
       "views/extensions/extensions_toolbar_container.h",
       "views/extensions/extensions_toolbar_controls.cc",
       "views/extensions/extensions_toolbar_controls.h",
+      "views/file_system_access/file_system_access_dangerous_file_dialog_view.cc",
+      "views/file_system_access/file_system_access_dangerous_file_dialog_view.h",
       "views/file_system_access/file_system_access_icon_view.cc",
       "views/file_system_access/file_system_access_icon_view.h",
       "views/file_system_access/file_system_access_permission_view.cc",
@@ -4845,7 +4862,7 @@ static_library("ui") {
 
     allow_circular_includes_from += [ "//chrome/browser/ui/views" ]
 
-    if (is_linux || is_chromeos_lacros) {
+    if (is_linux || is_chromeos_lacros || is_ohos) {
       sources += [
         "views/chrome_views_delegate_linux.cc",
         "views/frame/browser_frame_view_layout_linux.cc",
@@ -4859,11 +4876,11 @@ static_library("ui") {
       ]
     }
 
-    if (is_linux || is_chromeos) {
+    if (is_linux || is_chromeos || is_ohos) {
       sources += [ "views/process_singleton_dialog_linux.cc" ]
     }
 
-    if (is_linux) {
+    if (is_linux || is_ohos) {
       sources += [
         "views/status_icons/status_tray_linux.cc",
         "views/status_icons/status_tray_linux.h",
@@ -4922,7 +4939,7 @@ static_library("ui") {
       ]
     }
 
-    if (is_win || is_fuchsia || (is_linux || is_chromeos_lacros)) {
+    if (is_win || is_fuchsia || (is_linux || is_chromeos_lacros) || is_ohos) {
       sources += [
         "views/native_widget_factory.cc",
         "views/native_widget_factory.h",

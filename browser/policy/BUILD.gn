@@ -10,7 +10,7 @@ import("//extensions/buildflags/buildflags.gni")
 source_set("path_parser") {
   sources = [ "policy_path_parser.h" ]
 
-  if (is_chromeos || is_linux) {
+  if (is_chromeos || is_linux || is_ohos) {
     sources += [ "policy_path_parser_linux.cc" ]
   } else if (is_fuchsia) {
     sources += [ "policy_path_parser_fuchsia.cc" ]

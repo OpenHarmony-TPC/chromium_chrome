@@ -26,6 +26,7 @@
 #include "components/permissions/prediction_service/prediction_service.h"
 #include "components/permissions/prediction_service/prediction_service_messages.pb.h"
 #include "components/prefs/pref_service.h"
+#include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
@@ -307,10 +308,11 @@ bool PredictionBasedPermissionUiSelector::ShouldHoldBack(
 
 PredictionSource PredictionBasedPermissionUiSelector::GetPredictionTypeToUse(
     permissions::RequestType request_type) {
+#if !BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   if (!safe_browsing::IsSafeBrowsingEnabled(*(profile_->GetPrefs()))) {
     return PredictionSource::USE_NONE;
   }
-
+#endif
   bool is_server_side_prediction_enabled = false;
   bool is_ondevice_prediction_enabled = false;
 

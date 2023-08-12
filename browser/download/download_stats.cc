@@ -9,6 +9,7 @@
 #include "base/notreached.h"
 #include "build/build_config.h"
 #include "components/profile_metrics/browser_profile_type.h"
+#include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/content/browser/download/download_stats.h"
 
 void RecordDownloadCount(ChromeDownloadCountTypes type) {
@@ -26,10 +27,12 @@ void RecordDangerousDownloadWarningShown(
     const base::FilePath& file_path,
     bool is_https,
     bool has_user_gesture) {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   base::UmaHistogramEnumeration("Download.ShowedDownloadWarning", danger_type,
                                 download::DOWNLOAD_DANGER_TYPE_MAX);
   safe_browsing::RecordDangerousDownloadWarningShown(
       danger_type, file_path, is_https, has_user_gesture);
+#endif
 }
 
 void RecordOpenedDangerousConfirmDialog(

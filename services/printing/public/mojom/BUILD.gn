@@ -38,7 +38,7 @@ mojom("mojom") {
     sources += [ "pdf_to_emf_converter.mojom" ]
   }
 
-  if (enable_oop_printing) {
+  if (enable_oop_printing || is_ohos) {
     sources += [ "print_backend_service.mojom" ]
     public_deps += [
       "//printing/backend/mojom",

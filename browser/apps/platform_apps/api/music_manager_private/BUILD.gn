@@ -33,7 +33,7 @@ source_set("music_manager_private") {
 
   if (is_chromeos_ash) {
     sources += [ "device_id_chromeos.cc" ]
-  } else if (is_linux || is_chromeos_lacros) {
+  } else if (is_linux || is_chromeos_lacros || is_ohos) {
     sources += [ "device_id_linux.cc" ]
   } else if (is_mac) {
     sources += [ "device_id_mac.cc" ]

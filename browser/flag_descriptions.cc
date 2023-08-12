@@ -5323,7 +5323,7 @@ const char kDownloadShelfWebUIDescription[] =
 // Random platform combinations -----------------------------------------------
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_OHOS)
 
 const char kWebUIBrandingUpdateName[] = "WebUI Branding Update";
 const char kWebUIBrandingUpdateDescription[] =

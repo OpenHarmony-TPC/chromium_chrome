@@ -18,10 +18,14 @@ namespace {
 // available. Otherwise returns nullptr.
 const scoped_refptr<safe_browsing::SafeBrowsingDatabaseManager>
 GetDatabaseManagerFromSafeBrowsingService() {
+#if BUILDFLAG(IS_OHOS)
+  return nullptr;
+#else
   safe_browsing::SafeBrowsingService* safe_browsing_service =
       g_browser_process->safe_browsing_service();
   return safe_browsing_service ? safe_browsing_service->database_manager()
                                : nullptr;
+#endif
 }
 
 }  // namespace

@@ -18,7 +18,7 @@ void RecordDialogCreation(DialogIdentifier identifier) {
                             DialogIdentifier::MAX_VALUE);
 }
 
-#if !defined(TOOLKIT_VIEWS)
+#if !defined(TOOLKIT_VIEWS) && !BUILDFLAG(IS_OHOS)
 void ShowWindowNamePrompt(Browser* browser) {
   NOTIMPLEMENTED();
 }
@@ -31,7 +31,7 @@ void ShowWindowNamePromptForTesting(Browser* browser,
 
 }  // namespace chrome
 
-#if !defined(TOOLKIT_VIEWS)
+#if !defined(TOOLKIT_VIEWS) && !BUILDFLAG(IS_OHOS)
 // There's no dialog version of this available outside views, run callback as if
 // the dialog was instantly accepted.
 void ShowFolderUploadConfirmationDialog(

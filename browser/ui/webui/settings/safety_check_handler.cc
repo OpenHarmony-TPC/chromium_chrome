@@ -293,6 +293,7 @@ void SafetyCheckHandler::PerformSafetyCheck() {
       kSafeBrowsingEvent, static_cast<int>(safe_browsing_status_),
       GetStringForSafeBrowsing(safe_browsing_status_));
 
+#if !BUILDFLAG(IS_OHOS)
   if (!version_updater_) {
     version_updater_.reset(VersionUpdater::Create(web_ui()->GetWebContents()));
   }
@@ -305,6 +306,7 @@ void SafetyCheckHandler::PerformSafetyCheck() {
   }
   DCHECK(update_helper_);
   CheckUpdates();
+#endif
 
   if (!leak_service_) {
     leak_service_ = BulkLeakCheckServiceFactory::GetForProfile(

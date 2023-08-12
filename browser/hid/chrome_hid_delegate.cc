@@ -38,10 +38,15 @@ std::unique_ptr<content::HidChooser> ChromeHidDelegate::RunChooser(
   if (!permission_observation_.IsObserving())
     permission_observation_.Observe(chooser_context);
 
+#if !BUILDFLAG(IS_OHOS)
   return std::make_unique<HidChooser>(chrome::ShowDeviceChooserDialog(
       render_frame_host,
       std::make_unique<HidChooserController>(
           render_frame_host, std::move(filters), std::move(callback))));
+#else
+  LOG(INFO) << "ChromeHidDelegate::RunChooser TODO for OS_OHOS";
+  return nullptr;
+#endif
 }
 
 bool ChromeHidDelegate::CanRequestDevicePermission(

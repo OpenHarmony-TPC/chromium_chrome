@@ -297,14 +297,14 @@ base::FilePath DownloadTargetDeterminer::GenerateFileName() const {
   base::FilePath generated_filename = net::GenerateFileName(
       download_->GetURL(), download_->GetContentDisposition(), referrer_charset,
       suggested_filename, sniffed_mime_type, default_filename);
-
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   // We don't replace the file extension if sfafe browsing consider the file
   // extension to be unsafe. Just let safe browsing scan the generated file.
   if (safe_browsing::FileTypePolicies::GetInstance()->IsCheckedBinaryFile(
           generated_filename)) {
     return generated_filename;
   }
-
+#endif
   // If no mime type or explicitly specified a name, don't replace file
   // extension.
   if (sniffed_mime_type.empty() || !suggested_filename.empty())
@@ -1114,9 +1114,12 @@ DownloadFileType::DangerLevel DownloadTargetDeterminer::GetDangerLevel(
       download_->HasUserGesture())
     return DownloadFileType::NOT_DANGEROUS;
 
-  DownloadFileType::DangerLevel danger_level =
+  DownloadFileType::DangerLevel danger_level = DownloadFileType::NOT_DANGEROUS;
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+  danger_level =
       safe_browsing::FileTypePolicies::GetInstance()->GetFileDangerLevel(
           virtual_path_.BaseName());
+#endif
 
   // A danger level of ALLOW_ON_USER_GESTURE is used to label potentially
   // dangerous file types that have a high frequency of legitimate use. We would

@@ -37,9 +37,11 @@
 #include "chrome/browser/ui/webui/chrome_web_ui_controller_factory.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
+#include "components/security_interstitials/content/security_interstitial_tab_helper.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/notification_service.h"
 #include "content/public/browser/notification_source.h"
 #include "content/public/browser/render_process_host.h"
@@ -48,6 +50,9 @@
 #include "content/public/common/content_client.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/common/url_utils.h"
+#if !BUILDFLAG(IS_OHOS)
+#include "content/public/test/mock_navigation_handle.h"
+#endif
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_registry.h"
@@ -131,12 +136,27 @@ bool ExtensionMayAttachToWebContents(const Extension& extension,
                                      WebContents& web_contents,
                                      Profile* profile,
                                      std::string* error) {
+  security_interstitials::SecurityInterstitialTabHelper*
+      security_interstitial_tab_helper = security_interstitials::
+          SecurityInterstitialTabHelper::FromWebContents(&web_contents);
+  if (security_interstitial_tab_helper &&
+      security_interstitial_tab_helper->IsDisplayingInterstitial()) {
+    *error = debugger_api_constants::kRestrictedError;
+    return false;
+  }
   // This is *not* redundant to the checks below, as
   // web_contents.GetLastCommittedURL() may be different from
   // web_contents.GetMainFrame()->GetLastCommittedURL(), with the
   // former being a 'virtual' URL as obtained from NavigationEntry.
   if (!ExtensionMayAttachToURL(extension, web_contents.GetLastCommittedURL(),
                                profile, error)) {
+    return false;
+  }
+
+  if (web_contents.GetController().GetPendingEntry() &&
+      !ExtensionMayAttachToURL(
+          extension, web_contents.GetController().GetPendingEntry()->GetURL(),
+          profile, error)) {
     return false;
   }
 
@@ -660,7 +680,7 @@ ExtensionFunction::ResponseAction DebuggerSendCommandFunction::Run() {
     return RespondNow(Error(std::move(error)));
 
   client_host_->SendMessageToBackend(this, params->method,
-      params->command_params.get());
+                                     params->command_params.get());
   if (did_respond())
     return AlreadyResponded();
   return RespondLater();
@@ -714,8 +734,7 @@ base::Value SerializeTarget(scoped_refptr<DevToolsAgentHost> host) {
   std::string type = host->GetType();
   std::string target_type = kTargetTypeOther;
   if (type == DevToolsAgentHost::kTypePage) {
-    int tab_id =
-        extensions::ExtensionTabUtil::GetTabId(host->GetWebContents());
+    int tab_id = extensions::ExtensionTabUtil::GetTabId(host->GetWebContents());
     dictionary.SetIntKey(kTargetTabIdField, tab_id);
     target_type = kTargetTypePage;
   } else if (type == ChromeDevToolsManagerDelegate::kTypeBackgroundPage) {

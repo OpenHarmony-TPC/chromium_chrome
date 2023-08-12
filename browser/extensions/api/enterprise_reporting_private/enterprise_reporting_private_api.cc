@@ -72,10 +72,13 @@ api::enterprise_reporting_private::ContextInfo ToContextInfo(
           : nullptr;
   info.os_firewall = ToInfoSettingValue(signals.os_firewall);
   info.system_dns_servers = std::move(signals.system_dns_servers);
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   switch (signals.realtime_url_check_mode) {
     case safe_browsing::REAL_TIME_CHECK_DISABLED:
+#endif
       info.realtime_url_check_mode = extensions::api::
           enterprise_reporting_private::REALTIME_URL_CHECK_MODE_DISABLED;
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
       break;
     case safe_browsing::REAL_TIME_CHECK_FOR_MAINFRAME_ENABLED:
       info.realtime_url_check_mode =
@@ -83,9 +86,11 @@ api::enterprise_reporting_private::ContextInfo ToContextInfo(
               REALTIME_URL_CHECK_MODE_ENABLED_MAIN_FRAME;
       break;
   }
+#endif
   info.browser_version = std::move(signals.browser_version);
   info.built_in_dns_client_enabled = signals.built_in_dns_client_enabled;
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   switch (signals.safe_browsing_protection_level) {
     case safe_browsing::SafeBrowsingState::NO_SAFE_BROWSING:
       info.safe_browsing_protection_level = extensions::api::
@@ -125,6 +130,7 @@ api::enterprise_reporting_private::ContextInfo ToContextInfo(
         break;
     }
   }
+#endif
 
   return info;
 }

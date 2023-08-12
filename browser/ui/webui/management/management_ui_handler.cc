@@ -819,11 +819,13 @@ base::Value ManagementUIHandler::GetThreatProtectionInfo(Profile* profile) {
                                   &info);
   }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   if (connectors_service->GetAppliedRealTimeUrlCheck() !=
       safe_browsing::REAL_TIME_CHECK_DISABLED) {
     AddThreatProtectionPermission(kManagementOnPageVisitedEvent,
                                   kManagementOnPageVisitedVisibleData, &info);
   }
+#endif
 
   const std::string enterprise_manager =
       connectors_service->GetManagementDomain();

@@ -10,6 +10,7 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/permissions/crowd_deny_preload_data.h"
 #include "chrome/browser/permissions/crowd_deny_safe_browsing_request.h"
+#include "components/safe_browsing/buildflags.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
@@ -64,8 +65,9 @@ class AbusiveOriginPermissionRevocationRequest {
   void OnSafeBrowsingVerdictReceived(
       CrowdDenySafeBrowsingRequest::Verdict verdict);
   void NotifyCallback(Outcome outcome);
-
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   absl::optional<CrowdDenySafeBrowsingRequest> safe_browsing_request_;
+#endif
   raw_ptr<Profile> profile_;
   const GURL origin_;
   OutcomeCallback callback_;

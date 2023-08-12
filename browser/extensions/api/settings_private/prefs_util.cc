@@ -296,8 +296,10 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[::prefs::kSafeBrowsingScoutReportingEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   (*s_allowlist)[::safe_browsing::kGeneratedSafeBrowsingPref] =
       settings_api::PrefType::PREF_TYPE_NUMBER;
+#endif
   (*s_allowlist)[::prefs::kHttpsOnlyModeEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
 

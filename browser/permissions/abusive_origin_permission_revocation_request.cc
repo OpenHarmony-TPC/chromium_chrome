@@ -17,7 +17,10 @@
 #include "components/permissions/permissions_client.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/browser/db/database_manager.h"
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#endif
+#include "components/safe_browsing/buildflags.h"
 
 namespace {
 constexpr char kExcludedKey[] = "exempted";
@@ -76,6 +79,7 @@ void SetOriginStatus(Profile* profile,
           dict.Clone());
 }
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 void RevokePermission(const GURL& origin, Profile* profile) {
   permissions::PermissionsClient::Get()
       ->GetSettingsMap(profile)
@@ -91,6 +95,7 @@ void RevokePermission(const GURL& origin, Profile* profile) {
       ContentSettingsType::NOTIFICATIONS,
       permissions::PermissionSourceUI::AUTO_REVOCATION, origin, profile);
 }
+#endif
 }  // namespace
 
 AbusiveOriginPermissionRevocationRequest::
@@ -136,6 +141,7 @@ void AbusiveOriginPermissionRevocationRequest::CheckAndRevokeIfAbusive() {
   DCHECK(profile_);
   DCHECK(callback_);
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   if (!AbusiveOriginNotificationsPermissionRevocationConfig::IsEnabled() ||
       !safe_browsing::IsSafeBrowsingEnabled(*profile_->GetPrefs()) ||
       IsOriginExemptedFromFutureRevocations(profile_, origin_)) {
@@ -169,6 +175,7 @@ void AbusiveOriginPermissionRevocationRequest::OnSiteReputationReady(
            CrowdDenyPreloadData::SiteReputation::ABUSIVE_PROMPTS ||
        site_reputation->notification_ux_quality() ==
            CrowdDenyPreloadData::SiteReputation::ABUSIVE_CONTENT)) {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
     DCHECK(g_browser_process->safe_browsing_service());
 
     if (g_browser_process->safe_browsing_service()) {
@@ -180,12 +187,15 @@ void AbusiveOriginPermissionRevocationRequest::OnSiteReputationReady(
                          weak_factory_.GetWeakPtr()));
       return;
     }
+#endif
   }
   NotifyCallback(Outcome::PERMISSION_NOT_REVOKED);
+#endif  // BUILDFLAG(FULL_SAFE_BROWSING)
 }
 
 void AbusiveOriginPermissionRevocationRequest::OnSafeBrowsingVerdictReceived(
     CrowdDenySafeBrowsingRequest::Verdict verdict) {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   DCHECK(safe_browsing_request_);
   DCHECK(profile_);
   DCHECK(callback_);
@@ -196,6 +206,7 @@ void AbusiveOriginPermissionRevocationRequest::OnSafeBrowsingVerdictReceived(
   } else {
     NotifyCallback(Outcome::PERMISSION_NOT_REVOKED);
   }
+#endif
 }
 
 void AbusiveOriginPermissionRevocationRequest::NotifyCallback(Outcome outcome) {

@@ -21,6 +21,7 @@
 #include "chrome/common/chrome_features.h"
 #include "components/permissions/permission_request.h"
 #include "components/permissions/request_type.h"
+#include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/core/browser/db/database_manager.h"
 
 namespace {
@@ -108,6 +109,7 @@ absl::optional<Decision> GetDecisionBasedOnSiteReputation(
   return absl::nullopt;
 }
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 // Roll the dice to decide whether to use the normal UI even when the preload
 // data indicates that quiet UI should be used. This creates a control group of
 // normal UI prompt impressions, which facilitates comparing acceptance rates,
@@ -127,6 +129,7 @@ bool ShouldHoldBackQuietUI(QuietUiReason quiet_ui_reason) {
   base::UmaHistogramBoolean("Permissions.CrowdDeny.DidHoldbackQuietUi", result);
   return result;
 }
+#endif
 
 }  // namespace
 
@@ -151,9 +154,11 @@ void ContextualNotificationPermissionUiSelector::SelectUiToUse(
 }
 
 void ContextualNotificationPermissionUiSelector::Cancel() {
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   // The computation either finishes synchronously above, or is waiting on the
   // Safe Browsing check.
   safe_browsing_request_.reset();
+#endif
 }
 
 bool ContextualNotificationPermissionUiSelector::IsPermissionRequestSupported(
@@ -183,9 +188,11 @@ void ContextualNotificationPermissionUiSelector::OnSiteReputationReady(
   // Browsing to verify; but do not ping if it is not warranted.
   if (!decision || (!decision->quiet_ui_reason && !decision->warning_reason)) {
     Notify(Decision::UseNormalUiAndShowNoWarning());
-    return;
+  } else {
+    Notify(decision.value());
   }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   DCHECK(!safe_browsing_request_);
   DCHECK(g_browser_process->safe_browsing_service());
 
@@ -197,11 +204,13 @@ void ContextualNotificationPermissionUiSelector::OnSiteReputationReady(
       base::BindOnce(&ContextualNotificationPermissionUiSelector::
                          OnSafeBrowsingVerdictReceived,
                      base::Unretained(this), *decision));
+#endif
 }
 
 void ContextualNotificationPermissionUiSelector::OnSafeBrowsingVerdictReceived(
     Decision candidate_decision,
     CrowdDenySafeBrowsingRequest::Verdict verdict) {
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   DCHECK(safe_browsing_request_);
   DCHECK(callback_);
 
@@ -219,6 +228,7 @@ void ContextualNotificationPermissionUiSelector::OnSafeBrowsingVerdictReceived(
       Notify(candidate_decision);
       break;
   }
+#endif
 }
 
 void ContextualNotificationPermissionUiSelector::Notify(

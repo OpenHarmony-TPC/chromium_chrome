@@ -48,10 +48,14 @@ KeyedService* AccuracyServiceFactory::BuildServiceInstanceFor(
     content::BrowserContext* browser_context) const {
   DCHECK(base::FeatureList::IsEnabled(safe_browsing::kAccuracyTipsFeature));
   Profile* profile = Profile::FromBrowserContext(browser_context);
+#if BUILDFLAG(IS_OHOS)
+  auto sb_database = nullptr;
+#else
   auto sb_database =
       g_browser_process->safe_browsing_service()
           ? g_browser_process->safe_browsing_service()->database_manager()
           : nullptr;
+#endif
   auto* history_service = HistoryServiceFactory::GetForProfile(
       profile, ServiceAccessType::IMPLICIT_ACCESS);
   auto delegate = std::make_unique<AccuracyServiceDelegate>(profile);

@@ -28,6 +28,10 @@
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "url/url_constants.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "components/safe_browsing/buildflags.h"
+#endif
+
 namespace {
 
 using security_state::SafetyTipStatus;
@@ -119,6 +123,7 @@ void ReputationService::GetReputationStatus(const GURL& url,
                                             ReputationCheckCallback callback) {
   DCHECK(url.SchemeIsHTTPOrHTTPS());
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   bool has_delayed_warning =
       !!safe_browsing::SafeBrowsingUserInteractionObserver::FromWebContents(
           web_contents);
@@ -136,6 +141,7 @@ void ReputationService::GetReputationStatus(const GURL& url,
   GetReputationStatusWithEngagedSites(url, has_delayed_warning,
                                       std::move(callback),
                                       service->GetLatestEngagedSites());
+#endif
 }
 
 bool ReputationService::IsIgnored(const GURL& url) const {

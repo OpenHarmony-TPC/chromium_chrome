@@ -206,6 +206,7 @@ class ChromePasswordManagerClient
   void AnnotateNavigationEntry(bool has_password_field) override;
   autofill::LanguageCode GetPageLanguage() const override;
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   safe_browsing::PasswordProtectionService* GetPasswordProtectionService()
       const override;
 
@@ -219,7 +220,8 @@ class ChromePasswordManagerClient
       const std::string& username,
       const std::vector<password_manager::MatchingReusedCredential>&
           matching_reused_credentials,
-      bool password_field_exists) override;
+      bool password_field_exists);
+#endif  // BUILDFLAG(FULL_SAFE_BROWSING)
 
   void LogPasswordReuseDetectedEvent() override;
 

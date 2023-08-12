@@ -625,6 +625,10 @@ ProfileNetworkContextService::CreateClientCertStore() {
   // TODO(crbug.com/1235293)
   NOTIMPLEMENTED_LOG_ONCE();
   return nullptr;
+#elif BUILDFLAG(IS_OHOS)
+  LOG(ERROR)
+      << "ProfileNetworkContextService::CreateClientCertStore TODO for OS_OHOS";
+  return nullptr;
 #else
 #error Unknown platform.
 #endif

@@ -25,14 +25,18 @@
 // complain as Chromecast doesn't use (or depend on) //components/dbus.
 // TODO(crbug.com/1215474): Eliminate //chrome being visible in the GN structure
 // on Chromecast and remove the nogncheck below.
+#if !BUILDFLAG(IS_OHOS)
 #include "components/dbus/thread_linux/dbus_thread_linux.h"  // nogncheck
+#endif
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/notification_observer.h"
 #include "content/public/browser/notification_registrar.h"
 #include "content/public/browser/notification_service.h"
+#if !BUILDFLAG(IS_OHOS)
 #include "dbus/bus.h"
 #include "dbus/message.h"
 #include "dbus/object_proxy.h"
+#endif
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
@@ -42,6 +46,7 @@ namespace platform_util {
 
 namespace {
 
+#if !BUILDFLAG(IS_OHOS)
 const char kMethodListActivatableNames[] = "ListActivatableNames";
 const char kMethodNameHasOwner[] = "NameHasOwner";
 
@@ -55,6 +60,7 @@ const char kFreedesktopPortalPath[] = "/org/freedesktop/portal/desktop";
 const char kFreedesktopPortalOpenURI[] = "org.freedesktop.portal.OpenURI";
 
 const char kMethodOpenDirectory[] = "OpenDirectory";
+#endif
 
 class ShowItemHelper : public content::NotificationObserver {
  public:
@@ -76,14 +82,17 @@ class ShowItemHelper : public content::NotificationObserver {
                const content::NotificationDetails& details) override {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     DCHECK_EQ(chrome::NOTIFICATION_APP_TERMINATING, type);
+#if !BUILDFLAG(IS_OHOS)
     // The browser process is about to exit. Clean up while we still can.
     if (bus_)
       bus_->ShutdownOnDBusThreadAndBlock();
     bus_.reset();
     object_proxy_ = nullptr;
+#endif
   }
 
   void ShowItemInFolder(Profile* profile, const base::FilePath& full_path) {
+#if !BUILDFLAG(IS_OHOS)
     if (!bus_) {
       // Sets up the D-Bus connection.
       dbus::Bus::Options bus_options;
@@ -109,9 +118,11 @@ class ShowItemHelper : public content::NotificationObserver {
     } else {
       CheckFileManagerRunning(profile, full_path);
     }
+#endif
   }
 
  private:
+#if !BUILDFLAG(IS_OHOS)
   void CheckFileManagerRunning(Profile* profile,
                                const base::FilePath& full_path) {
     dbus::MethodCall method_call(DBUS_INTERFACE_DBUS, kMethodNameHasOwner);
@@ -277,13 +288,13 @@ class ShowItemHelper : public content::NotificationObserver {
     OpenItem(profile, full_path.DirName(), OPEN_FOLDER,
              OpenOperationCallback());
   }
-
+#endif
   content::NotificationRegistrar registrar_;
-
+#if !BUILDFLAG(IS_OHOS)
   scoped_refptr<dbus::Bus> bus_;
   dbus::ObjectProxy* dbus_proxy_ = nullptr;
   dbus::ObjectProxy* object_proxy_ = nullptr;
-
+#endif
   absl::optional<bool> prefer_filemanager_interface_;
 
   base::WeakPtrFactory<ShowItemHelper> weak_ptr_factory_{this};

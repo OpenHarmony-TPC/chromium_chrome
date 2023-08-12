@@ -835,8 +835,10 @@ void ChromeMetricsServiceClient::RegisterMetricsServiceProviders() {
   metrics_service_->RegisterMetricsProvider(
       std::make_unique<HttpsEngagementMetricsProvider>());
 
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   metrics_service_->RegisterMetricsProvider(
       std::make_unique<CertificateReportingMetricsProvider>());
+#endif
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
   metrics_service_->RegisterMetricsProvider(
