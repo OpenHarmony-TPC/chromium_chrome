@@ -2430,6 +2430,15 @@ static_library("browser") {
     "//ui/webui/resources/js/browser_command:mojo_bindings",
   ]
 
+  if (is_ohos && !ohos_enable_media_router) {
+    allow_circular_includes_from -= [ "//chrome/browser/media/router" ]
+    deps -= [
+      "//chrome/browser/media/router",
+      "//chrome/browser/media/router:media_router_feature",
+      "//chrome/browser/media/router/discovery/access_code:access_code_cast_feature",
+    ]
+  }
+
   if (is_ohos && safe_browsing_mode == 0) {
     deps -= [
       "//chrome/browser/safe_browsing",
@@ -4571,6 +4580,12 @@ static_library("browser") {
       "//chrome/browser/web_applications/app_service",
     ]
 
+    if (is_ohos && !ohos_enable_media_router) {
+      allow_circular_includes_from -=
+          [ "//chrome/browser/media/router/discovery:discovery" ]
+      deps -= [ "//chrome/browser/media/router/discovery:discovery" ]
+    }
+
     if (!is_chromeos_ash) {
       sources += [
         "accessibility/soda_installer_impl.cc",
@@ -6215,7 +6230,7 @@ static_library("browser") {
     ]
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos || is_fuchsia || is_ohos) {
+  if (is_win || is_mac || is_linux || is_chromeos || is_fuchsia) {
     sources += [
       "media/cast_mirroring_service_host.cc",
       "media/cast_mirroring_service_host.h",
@@ -7986,7 +8001,7 @@ static_library("test_support") {
   }
 }
 
-if (!is_android) {
+if (!is_android && !is_ohos) {
   static_library("test_support_ui") {
     testonly = true
     configs += [ "//build/config:precompiled_headers" ]

@@ -44,7 +44,15 @@ enum class ProfileDestructionType {
 ProfileDestroyer::DestroyerSet* ProfileDestroyer::pending_destroyers_ = nullptr;
 
 // static
-void ProfileDestroyer::DestroyProfileWhenAppropriate(Profile* const profile) {
+void ProfileDestroyer::DestroyProfileWhenAppropriate(Profile* profile) {
+  DestroyProfileWhenAppropriateWithTimeout(profile,
+                                           base::Seconds(kTimerDelaySeconds));
+}
+
+// static
+void ProfileDestroyer::DestroyProfileWhenAppropriateWithTimeout(
+    Profile* profile,
+    base::TimeDelta timeout) {
   TRACE_EVENT("shutdown", "ProfileDestroyer::DestroyProfileWhenAppropriate",
               [&](perfetto::EventContext ctx) {
                 auto* proto =
@@ -73,11 +81,11 @@ void ProfileDestroyer::DestroyProfileWhenAppropriate(Profile* const profile) {
 
   // The instance will destroy itself once all (non-spare) render process
   // hosts referring to it are properly terminated.
-  new ProfileDestroyer(profile, &profile_hosts);
+  new ProfileDestroyer(profile, &profile_hosts, timeout);
 }
 
 // static
-void ProfileDestroyer::DestroyOffTheRecordProfileNow(Profile* const profile) {
+void ProfileDestroyer::DestroyOffTheRecordProfileNow(Profile* profile) {
   DCHECK(profile);
   DCHECK(profile->IsOffTheRecord());
   TRACE_EVENT(
@@ -88,12 +96,6 @@ void ProfileDestroyer::DestroyOffTheRecordProfileNow(Profile* const profile) {
         proto->set_profile_ptr(reinterpret_cast<uint64_t>(profile));
         proto->set_otr_profile_id(profile->GetOTRProfileID().ToString());
       });
-  if (ResetPendingDestroyers(profile)) {
-    // We want to signal this in debug builds so that we don't lose sight of
-    // these potential leaks, but we handle it in release so that we don't
-    // crash or corrupt profile data on disk.
-    NOTREACHED() << "A render process host wasn't destroyed early enough.";
-  }
   DCHECK(profile->GetOriginalProfile());
   profile->GetOriginalProfile()->DestroyOffTheRecordProfile(profile);
   UMA_HISTOGRAM_ENUMERATION("Profile.Destroyer.OffTheRecord",
@@ -101,7 +103,7 @@ void ProfileDestroyer::DestroyOffTheRecordProfileNow(Profile* const profile) {
 }
 
 // static
-void ProfileDestroyer::DestroyOriginalProfileNow(Profile* const profile) {
+void ProfileDestroyer::DestroyOriginalProfileNow(Profile* profile) {
   DCHECK(profile);
   DCHECK(!profile->IsOffTheRecord());
   TRACE_EVENT("shutdown", "ProfileDestroyer::DestroyOriginalProfileNow",
@@ -158,22 +160,11 @@ void ProfileDestroyer::DestroyOriginalProfileNow(Profile* const profile) {
 #endif  // DCHECK_IS_ON()
 }
 
-bool ProfileDestroyer::ResetPendingDestroyers(Profile* const profile) {
-  DCHECK(profile);
-  bool found = false;
-  if (pending_destroyers_) {
-    for (auto* i : *pending_destroyers_) {
-      if (i->profile_ == profile) {
-        i->profile_ = nullptr;
-        found = true;
-      }
-    }
-  }
-  return found;
-}
-
-ProfileDestroyer::ProfileDestroyer(Profile* const profile, HostSet* hosts)
-    : profile_(profile) {
+ProfileDestroyer::ProfileDestroyer(Profile* profile,
+                                   HostSet* hosts,
+                                   base::TimeDelta timeout)
+    : profile_(profile->GetWeakPtr()),
+      timeout_(timeout) {
   TRACE_EVENT("shutdown", "ProfileDestroyer::ProfileDestroyer",
               [&](perfetto::EventContext ctx) {
                 auto* proto =
@@ -190,7 +181,7 @@ ProfileDestroyer::ProfileDestroyer(Profile* const profile, HostSet* hosts)
   // If we are going to wait for render process hosts, we don't want to do it
   // for longer than kTimerDelaySeconds.
   if (observations_.IsObservingAnySource()) {
-    timer_.Start(FROM_HERE, base::Seconds(kTimerDelaySeconds),
+    timer_.Start(FROM_HERE, timeout,
                  base::BindOnce(&ProfileDestroyer::DestroyProfile,
                                 weak_ptr_factory_.GetWeakPtr()));
   }
@@ -202,7 +193,7 @@ ProfileDestroyer::~ProfileDestroyer() {
                 auto* proto =
                     ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>()
                         ->set_chrome_profile_destroyer();
-                proto->set_profile_ptr(reinterpret_cast<uint64_t>(profile_));
+                proto->set_profile_ptr(reinterpret_cast<uint64_t>(profile_.get()));
                 proto->set_host_count_at_destruction(
                     observations_.GetSourcesCount());
               });
@@ -210,7 +201,7 @@ ProfileDestroyer::~ProfileDestroyer() {
   // Check again, in case other render hosts were added while we were
   // waiting for the previous ones to go away...
   if (profile_)
-    DestroyProfileWhenAppropriate(profile_);
+    DestroyProfileWhenAppropriateWithTimeout(profile_.get(), timeout_);
 
   // Don't wait for pending registrations, if any, these hosts are buggy.
   // Note: this can happen, but if so, it's better to crash here than wait
@@ -240,7 +231,7 @@ void ProfileDestroyer::RenderProcessHostDestroyed(
       [&](perfetto::EventContext ctx) {
         auto* proto = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>()
                           ->set_chrome_profile_destroyer();
-        proto->set_profile_ptr(reinterpret_cast<uint64_t>(profile_));
+        proto->set_profile_ptr(reinterpret_cast<uint64_t>(profile_.get()));
         proto->set_render_process_host_ptr(reinterpret_cast<uint64_t>(host));
       });
   observations_.RemoveObservation(host);
@@ -262,7 +253,7 @@ void ProfileDestroyer::DestroyProfile() {
 
   DCHECK(profile_->IsOffTheRecord());
   DCHECK(profile_->GetOriginalProfile());
-  profile_->GetOriginalProfile()->DestroyOffTheRecordProfile(profile_);
+  profile_->GetOriginalProfile()->DestroyOffTheRecordProfile(profile_.get());
 
 #if BUILDFLAG(IS_ANDROID)
   // It is possible on Android platform that more than one destroyer
@@ -281,7 +272,7 @@ void ProfileDestroyer::DestroyProfile() {
 
 // static
 ProfileDestroyer::HostSet ProfileDestroyer::GetHostsForProfile(
-    void* const profile_ptr,
+    void* profile_ptr,
     bool include_spare_rph) {
   HostSet hosts;
   for (content::RenderProcessHost::iterator iter(

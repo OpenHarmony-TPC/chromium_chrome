@@ -28,6 +28,10 @@
 #include "chrome/app/packed_resources_integrity.h"  // nogncheck
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ui/base/buildflags.h"
+#endif
+
 namespace {
 
 bool CheckResourceIntegrityInternal(
@@ -109,8 +113,10 @@ void CheckPakFileIntegrity() {
       kSha256_resources_pak;
   base::span<const uint8_t, crypto::kSHA256Length> chrome_100_hash =
       kSha256_chrome_100_percent_pak;
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(ENABLE_HIDPI)
   base::span<const uint8_t, crypto::kSHA256Length> chrome_200_hash =
       kSha256_chrome_200_percent_pak;
+#endif
 #endif  // BUILDFLAG(IS_WIN)
 
   scoped_refptr<base::SequencedTaskRunner> task_runner =
@@ -126,9 +132,11 @@ void CheckPakFileIntegrity() {
       chrome_100_hash, task_runner,
       base::BindOnce(&ReportPakIntegrity,
                      "SafeBrowsing.PakIntegrity.Chrome100"));
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(ENABLE_HIDPI)
   CheckResourceIntegrity(
       resources_pack_path.DirName().AppendASCII("chrome_200_percent.pak"),
       chrome_200_hash, task_runner,
       base::BindOnce(&ReportPakIntegrity,
                      "SafeBrowsing.PakIntegrity.Chrome200"));
+#endif
 }

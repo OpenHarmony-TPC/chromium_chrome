@@ -31,7 +31,6 @@
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
-#include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_service.h"
@@ -105,8 +104,6 @@
 #include "components/find_in_page/find_tab_helper.h"
 #include "components/find_in_page/find_types.h"
 #include "components/google/core/common/google_util.h"
-#include "components/media_router/browser/media_router_dialog_controller.h"  // nogncheck
-#include "components/media_router/browser/media_router_metrics.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/prefs/pref_service.h"
 #include "components/reading_list/core/reading_list_entry.h"
@@ -173,6 +170,12 @@
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
 #include "chromeos/crosapi/mojom/task_manager.mojom.h"
 #include "chromeos/lacros/lacros_service.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
+#include "chrome/browser/media/router/media_router_feature.h"
+#include "components/media_router/browser/media_router_dialog_controller.h"  // nogncheck
+#include "components/media_router/browser/media_router_metrics.h"
 #endif
 
 namespace {
@@ -1402,13 +1405,18 @@ bool CanBasicPrint(Browser* browser) {
 #endif  // BUILDFLAG(ENABLE_PRINTING)
 
 bool CanRouteMedia(Browser* browser) {
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   // Do not allow user to open Media Router dialog when there is already an
   // active modal dialog. This avoids overlapping dialogs.
   return media_router::MediaRouterEnabled(browser->profile()) &&
          !IsShowingWebContentsModalDialog(browser);
+#else
+  return false;
+#endif
 }
 
 void RouteMediaInvokedFromAppMenu(Browser* browser) {
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   DCHECK(CanRouteMedia(browser));
 
   media_router::MediaRouterDialogController* dialog_controller =
@@ -1419,6 +1427,7 @@ void RouteMediaInvokedFromAppMenu(Browser* browser) {
 
   dialog_controller->ShowMediaRouterDialog(
       media_router::MediaRouterDialogOpenOrigin::APP_MENU);
+#endif
 }
 
 void CutCopyPaste(Browser* browser, int command_id) {

@@ -120,9 +120,7 @@
 #include "components/feed/buildflags.h"
 #include "components/feed/feed_feature_list.h"
 #else  // BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/webui/access_code_cast/access_code_cast_ui.h"
 #include "chrome/browser/ui/webui/app_service_internals/app_service_internals_ui.h"
 #include "chrome/browser/ui/webui/bookmarks/bookmarks_ui.h"
 #include "chrome/browser/ui/webui/commander/commander_ui.h"
@@ -135,7 +133,6 @@
 #include "chrome/browser/ui/webui/image_editor/image_editor_ui.h"
 #include "chrome/browser/ui/webui/inspect_ui.h"
 #include "chrome/browser/ui/webui/management/management_ui.h"
-#include "chrome/browser/ui/webui/media_router/media_router_internals_ui.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
 #include "chrome/browser/ui/webui/new_tab_page_third_party/new_tab_page_third_party_ui.h"
 #include "chrome/browser/ui/webui/ntp/new_tab_ui.h"
@@ -367,6 +364,12 @@
 #if BUILDFLAG(PLATFORM_CFM)
 #include "chrome/browser/ui/webui/chromeos/chromebox_for_meetings/network_settings_dialog.h"
 #endif  // BUILDFLAG(PLATFORM_CFM)
+
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
+#include "chrome/browser/media/router/media_router_feature.h"
+#include "chrome/browser/ui/webui/access_code_cast/access_code_cast_ui.h"
+#include "chrome/browser/ui/webui/media_router/media_router_internals_ui.h"
+#endif
 
 using content::WebUI;
 using content::WebUIController;
@@ -791,10 +794,12 @@ WebUIFactoryFunction GetWebUIFactoryFunction(WebUI* web_ui,
     return &NewWebUI<SyncFileSystemInternalsUI>;
   if (url.host_piece() == chrome::kChromeUISystemInfoHost)
     return &NewWebUI<SystemInfoUI>;
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   if (base::FeatureList::IsEnabled(features::kAccessCodeCastUI)) {
     if (url.host_piece() == chrome::kChromeUIAccessCodeCastHost)
       return &NewWebUI<AccessCodeCastUI>;
   }
+#endif
   if (base::FeatureList::IsEnabled(features::kSupportTool) &&
       url.host_piece() == chrome::kChromeUISupportToolHost)
     return &NewWebUI<SupportToolUI>;
@@ -1126,10 +1131,12 @@ WebUIFactoryFunction GetWebUIFactoryFunction(WebUI* web_ui,
       base::FeatureList::IsEnabled(features::kChromeWhatsNewUI)) {
     return &NewWebUI<WhatsNewUI>;
   }
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   if (url.host_piece() == chrome::kChromeUIMediaRouterInternalsHost &&
       media_router::MediaRouterEnabled(profile)) {
     return &NewWebUI<media_router::MediaRouterInternalsUI>;
   }
+#endif
 #endif
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
     BUILDFLAG(IS_ANDROID)

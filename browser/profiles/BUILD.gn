@@ -5,6 +5,10 @@
 import("//build/config/chromeos/ui_mode.gni")
 import("//extensions/buildflags/buildflags.gni")
 
+if (is_ohos) {
+  import("//media/media_options.gni")
+}
+
 # This target should be the default place for adding public interface things
 # (ie, non-factory, non-impl). There will likely need to be a :factory or :impl
 # target (maybe both) for those eventually.
@@ -59,6 +63,10 @@ source_set("profile") {
   }
   if (is_android) {
     deps += [ "//chrome/browser/profiles/android:jni_headers" ]
+  }
+
+  if (is_ohos && !ohos_enable_media_router) {
+    deps -= [ "//components/media_router/common" ]
   }
 }
 

@@ -28,6 +28,7 @@ namespace pdf_extension_util {
 
 namespace {
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(ENABLE_PLUGINS)
 // Tags in the manifest to be replaced.
 const char kNameTag[] = "<NAME>";
 
@@ -160,10 +161,12 @@ void AddPdfViewerStrings(base::Value* dict) {
   webui::SetLoadTimeDataDefaults(g_browser_process->GetApplicationLocale(),
                                  static_cast<base::DictionaryValue*>(dict));
 }
+#endif  // BUILDFLAG(IS_OHOS) && BUILDFLAG(ENABLE_PLUGINS)
 
 }  // namespace
 
 std::string GetManifest() {
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(ENABLE_PLUGINS)
   std::string manifest_contents(
       ui::ResourceBundle::GetSharedInstance().GetRawDataResource(
           IDR_PDF_MANIFEST));
@@ -173,9 +176,13 @@ std::string GetManifest() {
       ChromeContentClient::kPDFExtensionPluginName);
 
   return manifest_contents;
+#else
+  return "";
+#endif
 }
 
 void AddStrings(PdfViewerContext context, base::Value* dict) {
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(ENABLE_PLUGINS)
   AddCommonStrings(dict);
   if (context == PdfViewerContext::kPdfViewer ||
       context == PdfViewerContext::kAll) {
@@ -185,6 +192,7 @@ void AddStrings(PdfViewerContext context, base::Value* dict) {
       context == PdfViewerContext::kAll) {
     // Nothing to do yet, since there are no PrintPreview-only strings.
   }
+#endif
 }
 
 void AddAdditionalData(bool enable_annotations, base::Value* dict) {

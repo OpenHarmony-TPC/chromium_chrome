@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/live_caption/pref_names.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -60,6 +61,10 @@ void SpeechRecognitionClientBrowserInterface::
 
 void SpeechRecognitionClientBrowserInterface::OnSodaInstalled() {
   NotifyObservers(profile_prefs_->GetBoolean(prefs::kLiveCaptionEnabled));
+
+  if (base::FeatureList::IsEnabled(media::kLiveCaptionMultiLanguage)) {
+    OnSpeechRecognitionLanguageChanged();
+  }
 }
 
 void SpeechRecognitionClientBrowserInterface::

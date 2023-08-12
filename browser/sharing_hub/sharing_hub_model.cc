@@ -180,6 +180,7 @@ void SharingHubModel::PopulateFirstPartyActions() {
        &kQrcodeGeneratorIcon, true, gfx::ImageSkia(),
        "SharingHubDesktop.QRCodeSelected"});
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   if (media_router::MediaRouterEnabled(context_)) {
     first_party_action_list_.push_back(
         {IDC_ROUTE_MEDIA,
@@ -187,6 +188,7 @@ void SharingHubModel::PopulateFirstPartyActions() {
          &vector_icons::kMediaRouterIdleIcon, true, gfx::ImageSkia(),
          "SharingHubDesktop.CastSelected"});
   }
+#endif
 
   first_party_action_list_.push_back(
       {IDC_SAVE_PAGE,

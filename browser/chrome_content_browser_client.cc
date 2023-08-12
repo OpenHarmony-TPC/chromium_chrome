@@ -65,7 +65,6 @@
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/lookalikes/lookalike_url_navigation_throttle.h"
 #include "chrome/browser/media/audio_service_util.h"
-#include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/media/webrtc/audio_debug_recordings_handler.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/media/webrtc/webrtc_logging_controller.h"
@@ -199,8 +198,6 @@
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/language/core/browser/pref_names.h"
 #include "components/live_caption/caption_util.h"
-#include "components/media_router/browser/presentation/presentation_service_delegate_impl.h"
-#include "components/media_router/browser/presentation/receiver_presentation_service_delegate_impl.h"
 #include "components/metrics/client_info.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/net_log/chrome_net_log.h"
@@ -616,6 +613,12 @@
 #if defined(_WINDOWS_)  // Detect whether windows.h was included.
 #include "base/win/windows_h_disallowed.h"
 #endif  // defined(_WINDOWS_)
+
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
+#include "chrome/browser/media/router/media_router_feature.h"
+#include "components/media_router/browser/presentation/presentation_service_delegate_impl.h"
+#include "components/media_router/browser/presentation/receiver_presentation_service_delegate_impl.h"
+#endif
 
 using blink::mojom::EffectiveConnectionType;
 using blink::web_pref::WebPreferences;
@@ -4090,16 +4093,19 @@ void ChromeContentBrowserClient::OpenURL(
 content::ControllerPresentationServiceDelegate*
 ChromeContentBrowserClient::GetControllerPresentationServiceDelegate(
     content::WebContents* web_contents) {
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   if (media_router::MediaRouterEnabled(web_contents->GetBrowserContext())) {
     return media_router::PresentationServiceDelegateImpl::
         GetOrCreateForWebContents(web_contents);
   }
+#endif
   return nullptr;
 }
 
 content::ReceiverPresentationServiceDelegate*
 ChromeContentBrowserClient::GetReceiverPresentationServiceDelegate(
     content::WebContents* web_contents) {
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   if (media_router::MediaRouterEnabled(web_contents->GetBrowserContext())) {
     // ReceiverPresentationServiceDelegateImpl exists only for WebContents
     // created for offscreen presentations. The WebContents must belong to
@@ -4110,6 +4116,7 @@ ChromeContentBrowserClient::GetReceiverPresentationServiceDelegate(
       return impl;
     }
   }
+#endif
   return nullptr;
 }
 

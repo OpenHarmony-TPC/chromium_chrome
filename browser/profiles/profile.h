@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -501,6 +502,10 @@ class Profile : public content::BrowserContext {
   virtual bool IsSignedIn() = 0;
 
  private:
+  friend class ProfileDestroyer;
+
+  base::WeakPtr<Profile> GetWeakPtr();
+
   // Created on the UI thread, and returned by GetResourceContext(), but
   // otherwise lives on and is destroyed on the IO thread.
   //
@@ -523,6 +528,8 @@ class Profile : public content::BrowserContext {
 
   class ChromeVariationsClient;
   std::unique_ptr<variations::VariationsClient> chrome_variations_client_;
+
+  base::WeakPtrFactory<Profile> weak_factory_{this};
 };
 
 // The comparator for profile pointers as key in a map.

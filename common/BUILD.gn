@@ -249,6 +249,10 @@ static_library("common") {
     "//components/page_load_metrics/common:common",
   ]
 
+  if (is_ohos && !ohos_enable_media_router) {
+    public_deps -= [ "//components/cast_certificate" ]
+  }
+
   if (enable_pdf) {
     deps += [ "//components/pdf/common" ]
   }

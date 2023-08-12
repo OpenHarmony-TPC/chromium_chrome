@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 import("//extensions/buildflags/buildflags.gni")
+if (is_ohos) {
+  import("//media/media_options.gni")
+}
 
 assert(enable_extensions)
 
@@ -75,6 +78,10 @@ source_set("platform_apps") {
     "//services/preferences/public/cpp:cpp",
     "//ui/gfx",
   ]
+
+  if (is_ohos && !ohos_enable_media_router) {
+    deps -= [ "//chrome/browser/media/router/discovery" ]
+  }
 
   if (is_mac) {
     deps += [ "//chrome/browser/apps/app_shim" ]

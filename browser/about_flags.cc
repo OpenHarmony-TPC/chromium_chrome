@@ -224,7 +224,9 @@
 #include "components/power_scheduler/power_scheduler_features.h"
 #include "components/webapps/browser/android/features.h"
 #else  // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
 #include "chrome/browser/media/router/media_router_feature.h"
+#endif
 #include "chrome/browser/web_applications/preinstalled_app_install_features.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -3776,6 +3778,7 @@ const FeatureEntry kFeatureEntries[] = {
          switches::kSyncServiceURL,
          "https://chrome-sync.sandbox.google.com/chrome-sync/alpha")},
 #if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
     {"media-router-cast-allow-all-ips",
      flag_descriptions::kMediaRouterCastAllowAllIPsName,
      flag_descriptions::kMediaRouterCastAllowAllIPsDescription, kOsDesktop,
@@ -3790,6 +3793,7 @@ const FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kAllowAllSitesToInitiateMirroringDescription,
      kOsDesktop,
      FEATURE_VALUE_TYPE(media_router::kAllowAllSitesToInitiateMirroring)},
+#endif
     {"enable-migrate-default-chrome-app-to-web-apps-gsuite",
      flag_descriptions::kEnableMigrateDefaultChromeAppToWebAppsGSuiteName,
      flag_descriptions::
@@ -5111,11 +5115,13 @@ const FeatureEntry kFeatureEntries[] = {
          kEnableWebAuthenticationChromeOSAuthenticatorDescription,
      kOsCrOS, FEATURE_VALUE_TYPE(device::kWebAuthCrosPlatformAuthenticator)},
 #endif
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(ENABLE_PLUGINS)
 #if BUILDFLAG(ENABLE_PDF)
     {"accessible-pdf-form", flag_descriptions::kAccessiblePDFFormName,
      flag_descriptions::kAccessiblePDFFormDescription, kOsDesktop,
      FEATURE_VALUE_TYPE(chrome_pdf::features::kAccessiblePDFForm)},
 #endif  // BUILDFLAG(ENABLE_PDF)
+#endif
 
 #if BUILDFLAG(ENABLE_PRINTING)
 #if BUILDFLAG(IS_MAC)

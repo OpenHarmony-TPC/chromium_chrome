@@ -47,10 +47,7 @@
 #include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/top_container_background.h"
-#include "chrome/browser/ui/views/global_media_controls/media_toolbar_button_contextual_menu.h"
-#include "chrome/browser/ui/views/global_media_controls/media_toolbar_button_view.h"
 #include "chrome/browser/ui/views/location_bar/star_view.h"
-#include "chrome/browser/ui/views/media_router/cast_toolbar_button.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_container.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_controller.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_icon_view.h"
@@ -129,6 +126,12 @@
 #if BUILDFLAG(ENABLE_SIDE_SEARCH)
 #include "chrome/browser/ui/views/side_search/side_search_browser_controller.h"
 #endif  // BUILDFLAG(ENABLE_SIDE_SEARCH)
+
+#if !BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/views/media_router/cast_toolbar_button.h"
+#include "chrome/browser/ui/views/global_media_controls/media_toolbar_button_contextual_menu.h"
+#include "chrome/browser/ui/views/global_media_controls/media_toolbar_button_view.h"
+#endif
 
 using base::UserMetricsAction;
 using content::WebContents;
@@ -255,6 +258,7 @@ void ToolbarView::Init() {
     extensions_container =
         std::make_unique<ExtensionsToolbarContainer>(browser_);
   }
+#if !BUILDFLAG(IS_OHOS)
   std::unique_ptr<media_router::CastToolbarButton> cast;
   if (media_router::MediaRouterEnabled(browser_->profile()))
     cast = media_router::CastToolbarButton::Create(browser_);
@@ -264,6 +268,7 @@ void ToolbarView::Init() {
     media_button = std::make_unique<MediaToolbarButtonView>(
         browser_view_, MediaToolbarButtonContextualMenu::Create(browser_));
   }
+#endif
 
   std::unique_ptr<DownloadToolbarButtonView> download_button;
   if (base::FeatureList::IsEnabled(features::kDownloadBubble)) {
@@ -345,11 +350,13 @@ void ToolbarView::Init() {
     }
   }
 
+#if !BUILDFLAG(IS_OHOS)
   if (cast)
     cast_ = AddChildView(std::move(cast));
 
   if (media_button)
     media_button_ = AddChildView(std::move(media_button));
+#endif
 
   if (download_button)
     download_button_ = AddChildView(std::move(download_button));

@@ -118,8 +118,6 @@
 #include "components/guest_view/browser/guest_view_base.h"
 #include "components/language/core/browser/language_model_manager.h"
 #include "components/lens/lens_features.h"
-#include "components/media_router/browser/media_router_dialog_controller.h"
-#include "components/media_router/browser/media_router_metrics.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/password_manager/content/browser/content_password_manager_driver.h"
@@ -265,6 +263,11 @@
 #include "ui/aura/window.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
+#include "components/media_router/browser/media_router_dialog_controller.h"
+#include "components/media_router/browser/media_router_metrics.h"
+#endif
+
 using base::UserMetricsAction;
 using blink::ContextMenuData;
 using blink::ContextMenuDataEditFlags;
@@ -377,7 +380,9 @@ const std::map<int, int>& GetIdcToUmaMap(UmaEnumIdLookupType type) {
        {IDC_WRITING_DIRECTION_LTR, 64},
        {IDC_WRITING_DIRECTION_RTL, 65},
        {IDC_CONTENT_CONTEXT_LOAD_IMAGE, 66},
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
        {IDC_ROUTE_MEDIA, 68},
+#endif
        {IDC_CONTENT_CONTEXT_COPYLINKTEXT, 69},
        {IDC_CONTENT_CONTEXT_OPENLINKINPROFILE, 70},
        {IDC_OPEN_LINK_IN_PROFILE_FIRST, 71},
@@ -1820,10 +1825,12 @@ void RenderViewContextMenu::AppendPrintItem() {
 }
 
 void RenderViewContextMenu::AppendMediaRouterItem() {
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   if (media_router::MediaRouterEnabled(browser_context_)) {
     menu_model_.AddItemWithStringId(IDC_ROUTE_MEDIA,
                                     IDS_MEDIA_ROUTER_MENU_ITEM_TITLE);
   }
+#endif
 }
 
 void RenderViewContextMenu::AppendRotationItems() {
@@ -2392,8 +2399,10 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
     case IDC_CONTENT_CONTEXT_SHOWALLSAVEDPASSWORDS:
       return true;
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
     case IDC_ROUTE_MEDIA:
       return IsRouteMediaEnabled();
+#endif
 
     case IDC_CONTENT_CONTEXT_EXIT_FULLSCREEN:
       return true;
@@ -2653,9 +2662,11 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
       ExecPrint();
       break;
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
     case IDC_ROUTE_MEDIA:
       ExecRouteMedia();
       break;
+#endif
 
     case IDC_CONTENT_CONTEXT_EXIT_FULLSCREEN:
       ExecExitFullscreen();
@@ -3152,6 +3163,7 @@ RenderViewContextMenu::CreateDataEndpoint(bool notify_if_restricted) const {
   return nullptr;
 }
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
 bool RenderViewContextMenu::IsRouteMediaEnabled() const {
   if (!media_router::MediaRouterEnabled(browser_context_))
     return false;
@@ -3173,6 +3185,7 @@ bool RenderViewContextMenu::IsRouteMediaEnabled() const {
       web_modal::WebContentsModalDialogManager::FromWebContents(web_contents);
   return !manager || !manager->IsDialogActive();
 }
+#endif
 
 bool RenderViewContextMenu::IsOpenLinkOTREnabled() const {
   if (browser_context_->IsOffTheRecord() || !params_.link_url.is_valid())
@@ -3492,6 +3505,7 @@ void RenderViewContextMenu::ExecPrint() {
 #endif  // BUILDFLAG(ENABLE_PRINTING)
 }
 
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
 void RenderViewContextMenu::ExecRouteMedia() {
   media_router::MediaRouterDialogController* dialog_controller =
       media_router::MediaRouterDialogController::GetOrCreateForWebContents(
@@ -3504,6 +3518,7 @@ void RenderViewContextMenu::ExecRouteMedia() {
   media_router::MediaRouterMetrics::RecordMediaRouterDialogOrigin(
       media_router::MediaRouterDialogOpenOrigin::CONTEXTUAL_MENU);
 }
+#endif
 
 void RenderViewContextMenu::ExecTranslate() {
   ChromeTranslateClient* chrome_translate_client =

@@ -3044,6 +3044,7 @@ bool Browser::ShouldCreateBackgroundContents(
     content::SiteInstance* source_site_instance,
     const GURL& opener_url,
     const std::string& frame_name) {
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(ENABLE_BACKGROUND_CONTENTS)
   extensions::ExtensionSystem* extension_system =
       extensions::ExtensionSystem::Get(profile_);
 
@@ -3076,6 +3077,9 @@ bool Browser::ShouldCreateBackgroundContents(
   }
 
   return true;
+#else
+  return false;
+#endif
 }
 
 BackgroundContents* Browser::CreateBackgroundContents(
@@ -3087,6 +3091,7 @@ BackgroundContents* Browser::CreateBackgroundContents(
     const GURL& target_url,
     const content::StoragePartitionId& partition_id,
     content::SessionStorageNamespace* session_storage_namespace) {
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(ENABLE_BACKGROUND_CONTENTS)
   BackgroundContentsService* service =
       BackgroundContentsServiceFactory::GetForProfile(profile_);
   const Extension* extension = extensions::ExtensionRegistry::Get(profile_)
@@ -3130,4 +3135,7 @@ BackgroundContents* Browser::CreateBackgroundContents(
       std::string());  // No extra headers.
 
   return contents;
+#else
+  return nullptr;
+#endif
 }

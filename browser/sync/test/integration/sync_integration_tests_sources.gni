@@ -14,7 +14,7 @@ sync_integration_tests_sources = [
   "../browser/sync/test/integration/sync_exponential_backoff_test.cc",
 ]
 
-if (!is_android) {
+if (!is_android && !is_ohos) {
   sync_integration_tests_sources += [
     "../browser/sync/test/integration/enable_disable_test.cc",
     "../browser/sync/test/integration/local_sync_test.cc",

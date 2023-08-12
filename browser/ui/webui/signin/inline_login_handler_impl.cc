@@ -421,11 +421,13 @@ void InlineSigninHelper::OnClientOAuthSuccessAndBrowserOpened(
       // Display a confirmation dialog to the user.
       base::RecordAction(
           base::UserMetricsAction("Signin_Show_UntrustedSigninPrompt"));
+#if BUILDFLAG(IS_OHOS) && BUILDFLAG(ENABLE_ONE_CLICK_SIGNIN)
       Browser* browser = chrome::FindLastActiveWithProfile(profile_);
       browser->window()->ShowOneClickSigninConfirmation(
           base::UTF8ToUTF16(email_),
           base::BindOnce(&InlineSigninHelper::UntrustedSigninConfirmed,
                          base::Unretained(this), result.refresh_token));
+#endif
       return;
     }
     CreateSyncStarter(result.refresh_token);
