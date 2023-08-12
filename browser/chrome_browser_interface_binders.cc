@@ -620,6 +620,8 @@ void PopulateChromeFrameBinders(
 #endif  // BUILDFLAG(ENABLE_UNHANDLED_TAP)
 #endif  // BUILDFLAG(BUILD_CONTEXTUAL_SEARCH)
 
+#elif BUILDFLAG(IS_OHOS)
+  LOG(INFO) << "WebPayments not supported on OHOS";
 #else
   map->Add<blink::mojom::BadgeService>(
       base::BindRepeating(&badging::BadgeManager::BindFrameReceiver));

@@ -1185,7 +1185,9 @@ void ChromeBrowserMainParts::PreProfileInit() {
 #else
   InstallChromeJavaScriptAppModalDialogViewFactory();
 #endif
+#if !BUILDFLAG(IS_OHOS) || BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   media_router::ChromeMediaRouterFactory::DoPlatformInit();
+#endif
 }
 
 void ChromeBrowserMainParts::CallPostProfileInit(Profile* profile) {

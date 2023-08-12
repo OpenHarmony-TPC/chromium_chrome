@@ -851,8 +851,10 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
   // Media Remoting settings.
+#if !BUILDFLAG(IS_OHOS) || BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
   (*s_allowlist)[media_router::prefs::kMediaRouterMediaRemotingEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
+#endif
 
 #if BUILDFLAG(IS_WIN)
   // SwReporter settings.

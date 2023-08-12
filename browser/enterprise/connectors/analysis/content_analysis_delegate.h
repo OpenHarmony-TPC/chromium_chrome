@@ -395,7 +395,9 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
 
   // Owner of the FileOpeningJob responsible for opening files on parallel
   // threads. Always nullptr for non-file content scanning.
+#if !BUILDFLAG(IS_OHOS) || BUILDFLAG(FULL_SAFE_BROWSING)
   std::unique_ptr<safe_browsing::FileOpeningJob> file_opening_job_;
+#endif
 
   base::TimeTicks upload_start_time_;
 

@@ -5708,6 +5708,9 @@ bool ChromeContentBrowserClient::ShowPaymentHandlerWindow(
     base::OnceCallback<void(bool, int, int)> callback) {
 #if BUILDFLAG(IS_ANDROID)
   return false;
+#elif BUILDFLAG(IS_OHOS)
+  LOG(INFO) << "PaymentRequestDisplayManagerFactory not supported on OHOS";
+  return false;
 #else
   payments::PaymentRequestDisplayManagerFactory::GetInstance()
       ->GetForBrowserContext(browser_context)
