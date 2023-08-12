@@ -2831,6 +2831,20 @@ function testFindInMultipleWebViews() {
       });
 }
 
+function testFindAfterTerminate() {
+  let webview = new WebView();
+  webview.src = 'data:text/html,<body><iframe></iframe></body>';
+  webview.addEventListener('loadstop', () => {
+    webview.find('A');
+    webview.terminate();
+    webview.find('B', {'backward': true});
+    webview.find('B', {'backward': true}, (results) => {
+      embedder.test.succeed();
+    });
+  });
+  document.body.appendChild(webview);
+}
+
 function testLoadDataAPI() {
   var webview = new WebView();
   webview.src = 'about:blank';
@@ -3480,6 +3494,7 @@ embedder.test.testList = {
   'testFindAPI': testFindAPI,
   'testFindAPI_findupdate': testFindAPI_findupdate,
   'testFindInMultipleWebViews': testFindInMultipleWebViews,
+  'testFindAfterTerminate': testFindAfterTerminate,
   'testLoadDataAPI': testLoadDataAPI,
   'testLoadDataAPIAccessibleResources': testLoadDataAPIAccessibleResources,
   'testResizeEvents': testResizeEvents,

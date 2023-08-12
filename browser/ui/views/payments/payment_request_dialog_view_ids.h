@@ -86,6 +86,9 @@ enum class DialogViewID : int {
   // The following are the ids for the individual sheets.
   CONTACT_INFO_EDITOR_SHEET,
   CREDIT_CARD_EDITOR_SHEET,
+  ERROR_SHEET,
+  ORDER_SUMMARY_SHEET,
+  PAYMENT_REQUEST_SHEET,
   CVC_UNMASK_SHEET,
   SHIPPING_ADDRESS_EDITOR_SHEET,
 

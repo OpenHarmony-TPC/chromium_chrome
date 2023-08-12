@@ -806,7 +806,7 @@ void PrintViewManagerBase::OnDocDone(int job_id, PrintedDocument* document) {
         base::DoNothing());
   }
 #endif
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_OHOS)
   DCHECK_LE(number_pages(), kMaxPageCount);
   PdfWritingDone(base::checked_cast<int>(number_pages()));
 #endif
@@ -937,7 +937,7 @@ void PrintViewManagerBase::TerminatePrintJob(bool cancel) {
     // We don't need the metafile data anymore because the printing is canceled.
     print_job_->Cancel();
     quit_inner_loop_.Reset();
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_OHOS)
     PdfWritingDone(0);
 #endif
   } else {

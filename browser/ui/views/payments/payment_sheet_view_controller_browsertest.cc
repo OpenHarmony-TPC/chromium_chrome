@@ -63,6 +63,66 @@ IN_PROC_BROWSER_TEST_F(PaymentSheetViewControllerNoShippingTest,
   EXPECT_FALSE(IsPayButtonEnabled());
 }
 
+using PaymentSheetViewControllerTest = PaymentRequestBrowserTestBase;
+
+// The 'Continue' or 'Cancel' buttons should not be auto-focused; see
+// https://crbug.com/1403539
+IN_PROC_BROWSER_TEST_F(PaymentSheetViewControllerTest,
+                       ContinueIsNotAutoFocused) {
+  // Installs two apps so that the Payment Request UI will be shown.
+  std::string a_method_name;
+  InstallPaymentApp("a.com", "/payment_request_success_responder.js",
+                    &a_method_name);
+  std::string b_method_name;
+  InstallPaymentApp("b.com", "/payment_request_success_responder.js",
+                    &b_method_name);
+
+  NavigateTo("/payment_request_no_shipping_test.html");
+  InvokePaymentRequestUIWithJs(content::JsReplace(
+      "buyWithMethods([{supportedMethods:$1}, {supportedMethods:$2}]);",
+      a_method_name, b_method_name));
+
+  EXPECT_TRUE(IsViewVisible(DialogViewID::PAY_BUTTON));
+  EXPECT_TRUE(IsViewVisible(DialogViewID::CANCEL_BUTTON));
+  EXPECT_TRUE(IsPayButtonEnabled());
+
+  // Neither of the actionable buttons should receive default focus.
+  EXPECT_FALSE(dialog_view()
+                   ->GetViewByID(static_cast<int>(DialogViewID::PAY_BUTTON))
+                   ->HasFocus());
+  EXPECT_FALSE(dialog_view()
+                   ->GetViewByID(static_cast<int>(DialogViewID::CANCEL_BUTTON))
+                   ->HasFocus());
+}
+
+// The Enter key should not be accelerated for the main payment sheet; see
+// https://crbug.com/1403539
+IN_PROC_BROWSER_TEST_F(PaymentSheetViewControllerTest, EnterDoesNotContinue) {
+  // Installs two apps so that the Payment Request UI will be shown.
+  std::string a_method_name;
+  InstallPaymentApp("a.com", "/payment_request_success_responder.js",
+                    &a_method_name);
+  std::string b_method_name;
+  InstallPaymentApp("b.com", "/payment_request_success_responder.js",
+                    &b_method_name);
+
+  NavigateTo("/payment_request_no_shipping_test.html");
+  InvokePaymentRequestUIWithJs(content::JsReplace(
+      "buyWithMethods([{supportedMethods:$1}, {supportedMethods:$2}]);",
+      a_method_name, b_method_name));
+
+  EXPECT_TRUE(IsViewVisible(DialogViewID::PAY_BUTTON));
+  EXPECT_TRUE(IsViewVisible(DialogViewID::CANCEL_BUTTON));
+  EXPECT_TRUE(IsPayButtonEnabled());
+
+  // Trigger the 'Enter' accelerator - this should NOT be present and the
+  // dispatch should fail.
+  views::View* summary_sheet = dialog_view()->GetViewByID(
+      static_cast<int>(DialogViewID::PAYMENT_REQUEST_SHEET));
+  EXPECT_FALSE(summary_sheet->AcceleratorPressed(
+      ui::Accelerator(ui::VKEY_RETURN, ui::EF_NONE)));
+}
+
 // If shipping and contact info are not requested, their rows should not be
 // present.
 IN_PROC_BROWSER_TEST_F(PaymentSheetViewControllerNoShippingTest,
@@ -112,13 +172,18 @@ class PaymentSheetViewControllerNoShippingBasicCardDisabledTest
 IN_PROC_BROWSER_TEST_F(
     PaymentSheetViewControllerNoShippingBasicCardDisabledTest,
     NoShippingNoContactRows) {
-  std::string payment_method_name;
+  // Installs two apps so that the Payment Request UI will be shown.
+  std::string a_method_name;
   InstallPaymentApp("a.com", "payment_request_success_responder.js",
-                    &payment_method_name);
+                    &a_method_name);
+  std::string b_method_name;
+  InstallPaymentApp("b.com", "/payment_request_success_responder.js",
+                    &b_method_name);
 
   NavigateTo("/payment_request_no_shipping_test.html");
-  InvokePaymentRequestUIWithJs("buyWithMethods([{supportedMethods:'" +
-                               payment_method_name + "'}]);");
+  InvokePaymentRequestUIWithJs(content::JsReplace(
+      "buyWithMethods([{supportedMethods:$1}, {supportedMethods:$2}]);",
+      a_method_name, b_method_name));
 
   EXPECT_NE(nullptr, dialog_view()->GetViewByID(static_cast<int>(
                          DialogViewID::PAYMENT_SHEET_SUMMARY_SECTION)));
