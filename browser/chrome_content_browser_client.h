@@ -550,7 +550,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       override;
   void OnNetworkServiceCreated(
       network::mojom::NetworkService* network_service) override;
-  void ConfigureNetworkContextParams(
+  bool ConfigureNetworkContextParams(
       content::BrowserContext* context,
       bool in_memory,
       const base::FilePath& relative_partition_path,

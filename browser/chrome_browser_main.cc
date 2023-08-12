@@ -52,6 +52,7 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "cc/base/switches.h"
+#include "cef/libcef/features/runtime.h"
 #include "chrome/browser/about_flags.h"
 #include "chrome/browser/active_use_util.h"
 #include "chrome/browser/after_startup_task_utils.h"
@@ -1530,11 +1531,13 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
         browser_process_->local_state());
   }
 
+#if !BUILDFLAG(ENABLE_CEF)
   // Needs to be done before PostProfileInit, since login manager on CrOS is
   // called inside PostProfileInit.
   content::WebUIControllerFactory::RegisterFactory(
       ChromeWebUIControllerFactory::GetInstance());
   ChromeUntrustedWebUIControllerFactory::RegisterInstance();
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
   page_info::SetPageInfoClient(new ChromePageInfoClient());
@@ -1757,11 +1760,14 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
   // This step is costly and is already measured in
   // Startup.StartupBrowserCreator_Start.
   // See the comment above for an explanation of |process_command_line|.
+  // Bypass StartupBrowserCreator with CEF where |GetMainRunLoopInstance()| is
+  // nullptr.
   const bool started =
+      !GetMainRunLoopInstance() ||
       !process_command_line ||
       browser_creator_->Start(parsed_command_line(), base::FilePath(),
                               profile_info, last_opened_profiles);
-  if (started) {
+  if (started && GetMainRunLoopInstance()) {
 // TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
 // of lacros-chrome is complete.
 #if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS))
@@ -1789,8 +1795,10 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
 
     // Create the RunLoop for MainMessageLoopRun() to use and transfer
     // ownership of the browser's lifetime to the BrowserProcess.
+    // CEF with the Chrome runtime will create and manage its own RunLoop.
     DCHECK(!GetMainRunLoopInstance());
-    GetMainRunLoopInstance() = std::make_unique<base::RunLoop>();
+    if (!cef::IsChromeRuntimeEnabled())
+      GetMainRunLoopInstance() = std::make_unique<base::RunLoop>();
     browser_process_->SetQuitClosure(
         GetMainRunLoopInstance()->QuitWhenIdleClosure());
   }

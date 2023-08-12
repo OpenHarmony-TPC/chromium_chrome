@@ -18,6 +18,7 @@
 #include "base/task/task_runner_util.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
+#include "cef/libcef/features/runtime.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/plugins/chrome_plugin_service_filter.h"
@@ -52,6 +53,10 @@
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "url/gurl.h"
 #include "url/origin.h"
+
+#if BUILDFLAG(ENABLE_CEF)
+#include "cef/libcef/common/extensions/extensions_util.h"
+#endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "components/guest_view/browser/guest_view_base.h"
@@ -102,6 +107,9 @@ bool IsPluginLoadingAccessibleResourceInWebView(
     extensions::ExtensionRegistry* extension_registry,
     int process_id,
     const GURL& resource) {
+  if (!extension_registry)
+    return false;
+
   extensions::WebViewRendererState* renderer_state =
       extensions::WebViewRendererState::GetInstance();
   std::string partition_id;
@@ -130,14 +138,18 @@ bool IsPluginLoadingAccessibleResourceInWebView(
 
 PluginInfoHostImpl::Context::Context(int render_process_id, Profile* profile)
     : render_process_id_(render_process_id),
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-      extension_registry_(extensions::ExtensionRegistry::Get(profile)),
-#endif
       host_content_settings_map_(
           HostContentSettingsMapFactory::GetForProfile(profile)),
       plugin_prefs_(PluginPrefs::GetForProfile(profile)) {
   allow_outdated_plugins_.Init(prefs::kPluginsAllowOutdated,
                                profile->GetPrefs());
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_CEF)
+  if (!cef::IsAlloyRuntimeEnabled() || extensions::ExtensionsEnabled())
+#endif
+    extension_registry_ = extensions::ExtensionRegistry::Get(profile);
+#endif
 }
 
 PluginInfoHostImpl::Context::~Context() {}

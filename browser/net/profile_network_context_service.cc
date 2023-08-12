@@ -22,6 +22,7 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "cef/libcef/features/runtime.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
@@ -718,7 +719,19 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
 
   // Configure on-disk storage for non-OTR profiles. OTR profiles just use
   // default behavior (in memory storage, default sizes).
-  if (!in_memory) {
+  if (!in_memory && cef::IsAlloyRuntimeEnabled()) {
+    PrefService* prefs = profile_->GetPrefs();
+    // Configure the HTTP cache path and size.
+    const base::FilePath& base_cache_path =
+        prefs->GetFilePath(prefs::kDiskCacheDir);
+    DCHECK(!base_cache_path.empty());
+    network_context_params->http_cache_path =
+        base_cache_path.Append(chrome::kCacheDirname);
+    network_context_params->http_cache_max_size =
+        prefs->GetInteger(prefs::kDiskCacheSize);
+  }
+
+  if (!in_memory && !cef::IsAlloyRuntimeEnabled()) {
     PrefService* local_state = g_browser_process->local_state();
     // Configure the HTTP cache path and size.
     base::FilePath base_cache_path;
@@ -746,7 +759,9 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
       network_context_params->http_cache_max_size =
           local_state->GetInteger(prefs::kDiskCacheSize);
     }
+  }
 
+  if (!in_memory) {
     network_context_params->file_paths =
         ::network::mojom::NetworkContextFilePaths::New();
 

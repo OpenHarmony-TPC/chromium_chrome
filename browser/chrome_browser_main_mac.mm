@@ -16,6 +16,7 @@
 #include "base/path_service.h"
 #include "base/strings/sys_string_conversions.h"
 #include "build/branding_buildflags.h"
+#include "cef/libcef/features/features.h"
 #import "chrome/browser/app_controller_mac.h"
 #include "chrome/browser/apps/app_shim/app_shim_listener.h"
 #include "chrome/browser/browser_process.h"
@@ -111,6 +112,7 @@ void ChromeBrowserMainPartsMac::PreCreateMainMessageLoop() {
     }
   }
 
+#if !BUILDFLAG(ENABLE_CEF)
   // Create the app delegate. This object is intentionally leaked as a global
   // singleton. It is accessed through -[NSApp delegate].
   AppController* app_controller = [[AppController alloc] init];
@@ -119,6 +121,7 @@ void ChromeBrowserMainPartsMac::PreCreateMainMessageLoop() {
   chrome::BuildMainMenu(NSApp, app_controller,
                         l10n_util::GetStringUTF16(IDS_PRODUCT_NAME), false);
   [app_controller mainMenuCreated];
+#endif  // BUILDFLAG(ENABLE_CEF)
 
   chrome::DeveloperIDCertificateReauthorizeInApp();
 
@@ -180,7 +183,9 @@ void ChromeBrowserMainPartsMac::PostProfileInit(Profile* profile,
 }
 
 void ChromeBrowserMainPartsMac::DidEndMainMessageLoop() {
+#if !BUILDFLAG(ENABLE_CEF)
   AppController* appController =
       base::mac::ObjCCastStrict<AppController>([NSApp delegate]);
   [appController didEndMainMessageLoop];
+#endif
 }

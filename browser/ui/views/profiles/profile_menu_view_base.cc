@@ -513,7 +513,9 @@ void ProfileMenuViewBase::ShowBubble(profiles::BubbleViewMode view_mode,
 
   ProfileMenuViewBase* bubble = nullptr;
   if (view_mode == profiles::BUBBLE_VIEW_MODE_INCOGNITO) {
-    DCHECK(browser->profile()->IsIncognitoProfile());
+    DCHECK(browser->profile()->IsIncognitoProfile() ||
+           (browser->profile()->IsOffTheRecord() &&
+            browser->profile()->GetOTRProfileID().IsUniqueForCEF()));
     bubble = new IncognitoMenuView(anchor_button, browser);
   } else {
 #if BUILDFLAG(IS_CHROMEOS_ASH)

@@ -28,6 +28,7 @@
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "cef/libcef/features/features.h"
 #include "chrome/browser/accessibility/accessibility_labels_service.h"
 #include "chrome/browser/accessibility/accessibility_labels_service_factory.h"
 #include "chrome/browser/after_startup_task_utils.h"
@@ -3684,9 +3685,11 @@ void ChromeContentBrowserClient::BrowserURLHandlerCreated(
                           &search::HandleNewTabURLReverseRewrite);
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if !BUILDFLAG(ENABLE_CEF)
   // chrome: & friends.
   handler->AddHandlerPair(&ChromeContentBrowserClient::HandleWebUI,
                           &ChromeContentBrowserClient::HandleWebUIReverse);
+#endif
 }
 
 base::FilePath ChromeContentBrowserClient::GetDefaultDownloadDirectory() {
@@ -5338,7 +5341,7 @@ void ChromeContentBrowserClient::OnNetworkServiceCreated(
       network_service);
 }
 
-void ChromeContentBrowserClient::ConfigureNetworkContextParams(
+bool ChromeContentBrowserClient::ConfigureNetworkContextParams(
     content::BrowserContext* context,
     bool in_memory,
     const base::FilePath& relative_partition_path,
@@ -5356,6 +5359,8 @@ void ChromeContentBrowserClient::ConfigureNetworkContextParams(
     network_context_params->user_agent = GetUserAgentBasedOnPolicy(context);
     network_context_params->accept_language = GetApplicationLocale();
   }
+
+  return true;
 }
 
 std::vector<base::FilePath>

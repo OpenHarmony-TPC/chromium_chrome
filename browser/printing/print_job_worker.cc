@@ -136,6 +136,7 @@ PrintJobWorker::PrintJobWorker(int render_process_id, int render_frame_id)
                                   ShouldPrintingContextSkipSystemCalls())),
       thread_("Printing_Worker") {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  printing_context_->set_render_ids(render_process_id, render_frame_id);
 }
 
 PrintJobWorker::~PrintJobWorker() {
