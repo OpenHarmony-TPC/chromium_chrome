@@ -77,6 +77,10 @@
 #include "components/policy/core/common/policy_loader_lacros.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "components/policy/core/common/policy_loader_ohos.h"
+#endif
+
 namespace policy {
 namespace {
 bool command_line_enabled_for_testing = false;
@@ -261,6 +265,13 @@ ChromeBrowserPolicyConnector::CreatePlatformProvider() {
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),
       ManagementServiceFactory::GetForPlatform(), kRegistryChromePolicyKey));
+  return std::make_unique<AsyncPolicyProvider>(GetSchemaRegistry(),
+                                               std::move(loader));
+#elif BUILDFLAG(IS_OHOS)
+  std::unique_ptr<AsyncPolicyLoader> loader =
+      std::make_unique<PolicyLoaderOhos>(
+          base::ThreadPool::CreateSequencedTaskRunner(
+              {base::MayBlock(), base::TaskPriority::BEST_EFFORT}));
   return std::make_unique<AsyncPolicyProvider>(GetSchemaRegistry(),
                                                std::move(loader));
 #elif BUILDFLAG(IS_MAC)
