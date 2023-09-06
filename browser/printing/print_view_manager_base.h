@@ -41,7 +41,7 @@ class PrinterQuery;
 class PrintViewManagerBase : public PrintManager, public PrintJob::Observer {
  public:
   // An observer interface implemented by classes which are interested
-  // in `PrintViewManagerBase` events.
+  // in `PrintViewManagerBase` events..
   class Observer : public base::CheckedObserver {
    public:
     virtual void OnPrintNow(const content::RenderFrameHost* rfh) {}
