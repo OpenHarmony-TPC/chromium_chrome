@@ -70,16 +70,11 @@ used to filter file path.
                <policyitem type="compatibility" name="GPLStyleLicense" path=".*" desc="" />
                <policyitem type="compatibility" name="MIT" path=".*" desc="test/data/dromaeo.*" />
                <policyitem type="compatibility" name="LGPLStyleLicense" path=".*" desc="" />
-               <policyitem type="compatibility" name="Apple Inc" path=".*" desc="" />
-               <policyitem type="compatibility" name="BSD" path=".*" desc="" />
-               <policyitem type="compatibility" name="Academic" path=".*" desc="" />
-               <policyitem type="compatibility" name="Colin" path=".*" desc="" />
                <policyitem type="compatibility" name="Sibblingz" path=".*" desc="" />
                <policyitem type="compatibility" name="LLC" path=".*" desc="" />
-               <policyitem type="compatibility" name="Domain" path=".*" desc="" />
-               <policyitem type="compatibility" name="APPLE" path=".*" desc="" />
-               <policyitem type="compatibility" name="APPLE2" path=".*" desc="" />
-               <policyitem type="compatibility" name="MPL 1.1.1" path=".*" desc="" />
+               <policyitem type="compatibility" name="AFL-2.1" path="test/data/dromaeo/lib/dojo.js" desc="" />
+               <policyitem type="compatibility" name="Generic Bare Warranty Disclaimer" path=".*" desc="" />
+               <policyitem type="compatibility" name="BSD-2-Clause" path=".*" desc="" />
 
                 
             </policy>
@@ -87,13 +82,19 @@ used to filter file path.
         <filefilterlist>
             <filefilter name="defaultPolicyFilter"
                 desc="Filters for compatibility,license header policies">
-                <filteritem type="filepath" name="test/data/dromaeo.*js" desc="" />
+                <filteritem type="filepath" name=".*js" desc="" />
                 <filteritem type="filepath" name=".*chromium" desc="" />
-                <filteritem type="filepath" name=".*xml" desc="" />
+                <filteritem type="filepath" name=".*xml" desc="" /> 
                 <filteritem type="filepath" name="test/enterprise/e2e/infra/installer_data" desc="" />
                 <filteritem type="filepath" name="app/chromium_strings.grd" desc="" />
                 <filteritem type="filepath" name="test/data/third_party/spaceport/LICENSE" desc="" />
                 <filteritem type="filepath" name="browser/resources/chromeos/accessibility/chromevox/third_party/tamachiyomi/ja_phonetic_map.js" desc="" />
+                <filteritem type="filepath" name="test/data/dromaeo/lib/ext-core.js" desc="" />
+                <filteritem type="filepath" name="installer/mac/third_party/bsdiff/LICENSE" desc="" />
+                <filteritem type="filepath" name="installer/mac/third_party/bsdiff/bsdiff.1" desc="" />
+                <filteritem type="filepath" name="installer/mac/third_party/bsdiff/bspatch.1" desc="" />
+                <filteritem type="filepath" name="installer/mac/third_party/bsdiff/goobsdiff.c" desc="" />
+                <filteritem type="filepath" name="installer/mac/third_party/bsdiff/goobspatch.c" desc="" />
             </filefilter>
 
             <filefilter name="defaultFilter">
@@ -103,11 +104,8 @@ used to filter file path.
         </filefilterlist>
         <licensematcherlist>
          
-            <licensematcher name="Apple Inc" desc="">
+            <licensematcher name="BSD-2-Clause" desc="">
                 <licensetext name="
-                 Copyright (C) 2007 Apple Inc.  All rights reserved.
-                * Copyright (C) 2010 Mozilla Foundation
-                *
                 * Redistribution and use in source and binary forms, with or without
                 * modification, are permitted provided that the following conditions
                 * are met:
@@ -130,107 +128,37 @@ used to filter file path.
                 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
                 " desc =""/>
             </licensematcher>
+            
 
-            <licensematcher name="BSD" desc="">
-                <licensetext name="
-                Copyright (c) 2008, Yahoo! Inc. All rights reserved.
-                Code licensed under the BSD License:
-                http://developer.yahoo.net/yui/license.txt
-                version: 2.6.0
-                " desc =""/>
-            </licensematcher>
-            Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
-            Available via Academic Free License = 2.1 OR the modified BSD license.
-            see: http://dojotoolkit.org/license for details
 
             
-            <licensematcher name="Academic" desc="">
+            <licensematcher name="AFL-2.1" desc="">
                 <licensetext name="
-                Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
                 Available via Academic Free License = 2.1 OR the modified BSD license.
                 see: http://dojotoolkit.org/license for details
                 " desc =""/>
             </licensematcher>
 
-            <licensematcher name="Colin" desc="">
+                  
+            <licensematcher name="BSD-3-Clause" desc="">
                 <licensetext name="
-                Copyright 2003-2005 Colin Percival
-                * All rights reserved
-                *
-                * Redistribution and use in source and binary forms, with or without
-                * modification, are permitted providing that the following conditions
-                * are met:
-                * 1. Redistributions of source code must retain the above copyright
-                *    notice, this list of conditions and the following disclaimer.
-                * 2. Redistributions in binary form must reproduce the above copyright
-                *    notice, this list of conditions and the following disclaimer in the
-                *    documentation and/or other materials provided with the distribution.
-                *
-                * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-                * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-                * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-                * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-                * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-                * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-                * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-                * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-                * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-                * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-                * POSSIBILITY OF SUCH DAMAGE.
-                " desc =""/>
-            </licensematcher>
-     
-
-                        
-            <licensematcher name="Sibblingz" desc="">
-                <licensetext name="
-                * unrequire.js
-                *
-                * Copyright 2011 Sibblingz, Inc.
-                *
-                * Licensed under MIT
+                Code licensed under the BSD License:
+                http://developer.yahoo.net/yui/license.txt
+                version: 2.6.0
                 " desc =""/>
             </licensematcher>
 
+            <licensematcher name="Generic Bare Warranty Disclaimer" desc="">
+                <licensetext name="
+                No warranty expressed or implied. Use at your own risk.
 
-                                   
-            <licensematcher name="LLC" desc="">
-                <licensetext name="
-            
-                * Ext JS Library 2.2
-                * Copyright(c) 2006-2008, Ext JS, LLC.
-                * licensing@extjs.com
-                * 
-                * http://extjs.com/license
-                " desc =""/>
-            </licensematcher>
-       
-        
-
-            <licensematcher name="Domain" desc="">
-                <licensetext name="
-            
-                json2.js
-            2008-02-14
-        
-            Public Domain
-        
-            No warranty expressed or implied. Use at your own risk.
-        
-            See http://www.JSON.org/js.html
-                " desc =""/>
-            </licensematcher>
-            <licensematcher name="APPLE" desc="">
-                <licensetext name="
-                Copyright (C) 2007 Apple Inc.  All rights reserved.
+                See http://www.JSON.org/js.html
                 " desc =""/>
             </licensematcher>
 
-
-            <licensematcher name="APPLE2" desc="">
+            BSD-3-Clause
+            <licensematcher name="BSD-3-Clause" desc="">
                 <licensetext name="
-                * Copyright (C) 2007 Apple Inc.  All rights reserved.
-                *
                 * Redistribution and use in source and binary forms, with or without
                 * modification, are permitted provided that the following conditions
                 * are met:
@@ -239,16 +167,22 @@ used to filter file path.
                 * 2. Redistributions in binary form must reproduce the above copyright
                 *    notice, this list of conditions and the following disclaimer in the
                 *    documentation and/or other materials provided with the distribution.
+                *
+                * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. &quot;AS IS&quot; AND ANY
+                * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+                * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+                * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+                * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+                * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+                * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+                * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+                * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+                * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+                * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
                 " desc =""/>
             </licensematcher>
-
- <licensematcher name="MPL 1.1.1" desc="">
-    <licensetext name="
-    * Pixastic Lib - Desaturation filter - v0.1.1
- * Copyright (c) 2008 Jacob Seidelin, jseidelin@nihilogic.dk, http://blog.nihilogic.dk/
- * License: [http://www.pixastic.com/lib/license.txt] (MPL 1.1)
-    " desc =""/>
-</licensematcher>
+                                   
+            
         </licensematcherlist>
     </oatconfig>
 </configuration>
