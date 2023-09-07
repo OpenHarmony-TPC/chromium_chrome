@@ -716,7 +716,9 @@ void PrintViewManagerBase::ScriptedPrint(mojom::ScriptedPrintParamsPtr params,
                                 std::move(callback_wrapper), queue_, process_id,
                                 routing_id));
 }
-
+#if BUILDFLAG(IS_OHOS)
+void PrintViewManagerBase::PrintRequested(PrintRequestedCallback callback) {}
+#endif 
 void PrintViewManagerBase::PrintingFailed(int32_t cookie) {
   // Note: Not redundant with cookie checks in the same method in other parts of
   // the class hierarchy.
@@ -728,7 +730,6 @@ void PrintViewManagerBase::PrintingFailed(int32_t cookie) {
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
   ShowPrintErrorDialog();
 #endif
-
   ReleasePrinterQuery();
 }
 
