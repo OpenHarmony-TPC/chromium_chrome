@@ -41,7 +41,7 @@ class PrinterQuery;
 class PrintViewManagerBase : public PrintManager, public PrintJob::Observer {
  public:
   // An observer interface implemented by classes which are interested
-  // in `PrintViewManagerBase` events.
+  // in `PrintViewManagerBase` events..
   class Observer : public base::CheckedObserver {
    public:
     virtual void OnPrintNow(const content::RenderFrameHost* rfh) {}
@@ -104,6 +104,9 @@ class PrintViewManagerBase : public PrintManager, public PrintJob::Observer {
 #endif
   void ScriptedPrint(mojom::ScriptedPrintParamsPtr params,
                      ScriptedPrintCallback callback) override;
+#if BUILDFLAG(IS_OHOS)
+  void PrintRequested(PrintRequestedCallback callback) override;
+#endif
   void ShowInvalidPrinterSettingsError() override;
   void PrintingFailed(int32_t cookie) override;
 
