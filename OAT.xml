@@ -98,8 +98,18 @@ used to filter file path.
             </filefilter>
 
             <filefilter name="defaultFilter">
-                <filteritem type="filepath" name="README.OpenSource"
-                    desc="" />
+                <filteritem type="filepath" name="README.OpenSource" desc="" />
+                <filteritem type="filepath" name=".*png" desc="" />
+                <filteritem type="filepath" name=".*xtb" desc="" />
+                <filteritem type="filepath" name=".*ico" desc="" />
+                <filteritem type="filepath" name=".*wav" desc="" />
+                <filteritem type="filepath" name=".*ogg" desc="" />
+                <filteritem type="filepath" name=".*pdf" desc="" />
+                <filteritem type="filepath" name=".*bin" desc="" />
+                <filteritem type="filepath" name=".*gz" desc="" />
+                <filteritem type="filepath" name=".*pem" desc="" />
+                <filteritem type="filepath" name=".*crx" desc="" />
+                <filteritem type="filepath" name=".*emf" desc="" />
             </filefilter>
         </filefilterlist>
         <licensematcherlist>
@@ -156,7 +166,6 @@ used to filter file path.
                 " desc =""/>
             </licensematcher>
 
-            BSD-3-Clause
             <licensematcher name="BSD-3-Clause" desc="">
                 <licensetext name="
                 * Redistribution and use in source and binary forms, with or without
