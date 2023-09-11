@@ -95,7 +95,6 @@ used to filter file path.
                 <filteritem type="filepath" name="installer/mac/third_party/bsdiff/bspatch.1" desc="" />
                 <filteritem type="filepath" name="installer/mac/third_party/bsdiff/goobsdiff.c" desc="" />
                 <filteritem type="filepath" name="installer/mac/third_party/bsdiff/goobspatch.c" desc="" />
-                <filteritem type="filepath" name="tools/build/win/release.rules" desc="" />
             </filefilter>
 
             <filefilter name="defaultFilter">
@@ -171,6 +170,7 @@ used to filter file path.
                 <filteritem type="filepath" name=".*xls" desc="" />
                 <filteritem type="filepath" name=".*spc" desc="" />
                 <filteritem type="filepath" name=".*db" desc="" />
+                <filteritem type="filepath" name="tools/build/win/release.rules" desc="" />
                 <filteritem type="filepath" name="test/data/safe_browsing/mach_o.*" desc="" />
                 <filteritem type="filepath" name="test/data/page_cycler/cached_data_dir.*" desc="" />
                 <filteritem type="filepath" name="test/data/diagnostics/user/Default.*" desc="" />
