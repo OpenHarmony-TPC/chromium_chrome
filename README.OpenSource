@@ -2,7 +2,7 @@
     {
         "Name": "chromium_chrome",                   # 上游开源软件名全称
         "License": "MPL-1.1",    "GPLStyleLicense","MIT" ,"LGPLStyleLicense","Sibblingz" ,  "LLC","AFL-2.1","Generic Bare Warranty Disclaimer","BSD-2-Clause","BSD-3-Clause"   # 上游开源软件中包含的许可证信息
-        "License File": mac/third_party/bsdiff/LICENSE     # 许可证所在文件路径
+        "License File": LICENSE.chromium_os     # 许可证所在文件路径
         "Version Number": "99.0.4844.84",
         "Upstream URL": "https://chromium.googlesource.com/chromium@99.0.4844.84",   # 上游软件包发布地址
         "Description": "Chromium 浏览器实现"           # 开源软件功能描述
