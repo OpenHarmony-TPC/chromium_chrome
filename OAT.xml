@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <!-- Copyright (c) 2021 Huawei Device Co., Ltd.
 
      Licensed under the Apache License, Version 2.0 (the "License");
@@ -60,6 +59,7 @@ used to filter file path.
 
 <configuration>
     <oatconfig>
+        <licensefile>LICENSE.chromium_os</licensefile>
         <policylist>
             <policy name="projectPolicy" desc="">
                <policyitem type="compatibility" name="MPL-1.1" path="third_party/mozilla_security_manager.*" desc="" />
@@ -98,8 +98,87 @@ used to filter file path.
             </filefilter>
 
             <filefilter name="defaultFilter">
-                <filteritem type="filepath" name="README.OpenSource"
-                    desc="" />
+                <filteritem type="filepath" name="README.OpenSource" desc="" />
+                <filteritem type="filepath" name=".*png" desc="" />
+                <filteritem type="filepath" name=".*xtb" desc="" />
+                <filteritem type="filepath" name=".*ico" desc="" />
+                <filteritem type="filepath" name=".*wav" desc="" />
+                <filteritem type="filepath" name=".*ogg" desc="" />
+                <filteritem type="filepath" name=".*pdf" desc="" />
+                <filteritem type="filepath" name=".*bin" desc="" />
+                <filteritem type="filepath" name=".*gz" desc="" />
+                <filteritem type="filepath" name=".*pem" desc="" />
+                <filteritem type="filepath" name=".*crx" desc="" />
+                <filteritem type="filepath" name=".*emf" desc="" />
+                <filteritem type="filepath" name=".*lib" desc="" />
+                <filteritem type="filepath" name=".*jpg" desc="" />
+                <filteritem type="filepath" name=".*zip" desc="" />
+                <filteritem type="filepath" name=".*gif" desc="" />
+                <filteritem type="filepath" name=".*rar" desc="" />
+                <filteritem type="filepath" name=".*apk" desc="" />
+                <filteritem type="filepath" name=".*sha1" desc="" />
+                <filteritem type="filepath" name=".*xz" desc="" />
+                <filteritem type="filepath" name=".*mp4" desc="" />
+                <filteritem type="filepath" name=".*lnk" desc="" />
+                <filteritem type="filepath" name=".*mp3" desc="" />
+                <filteritem type="filepath" name=".*exe" desc="" />
+                <filteritem type="filepath" name=".*pol" desc="" />
+                <filteritem type="filepath" name=".*pb" desc="" />
+                <filteritem type="filepath" name=".*pfx" desc="" />
+                <filteritem type="filepath" name=".*doc" desc="" />
+                <filteritem type="filepath" name=".*webp" desc="" />
+                <filteritem type="filepath" name=".*ogv" desc="" />
+                <filteritem type="filepath" name=".*ai" desc="" />
+                <filteritem type="filepath" name=".*plist" desc="" />
+                <filteritem type="filepath" name=".*der" desc="" />
+                <filteritem type="filepath" name=".*ppt" desc="" />
+                <filteritem type="filepath" name=".*dmg" desc="" />
+                <filteritem type="filepath" name=".*bmp" desc="" />
+                <filteritem type="filepath" name=".*webm" desc="" />
+                <filteritem type="filepath" name=".*7z" desc="" />
+                <filteritem type="filepath" name=".*swf" desc="" />
+                <filteritem type="filepath" name=".*diff" desc="" />
+                <filteritem type="filepath" name=".*sqlite" desc="" />
+                <filteritem type="filepath" name=".*icns" desc="" />
+                <filteritem type="filepath" name=".*pwg" desc="" />
+                <filteritem type="filepath" name=".*dll" desc="" />
+                <filteritem type="filepath" name=".*pvk" desc="" />
+                <filteritem type="filepath" name=".*nib" desc="" />
+                <filteritem type="filepath" name=".*tsv" desc="" />
+                <filteritem type="filepath" name=".*mc" desc="" />
+                <filteritem type="filepath" name=".*pvk" desc="" />
+                <filteritem type="filepath" name=".*pk8" desc="" />
+                <filteritem type="filepath" name=".*com" desc="" />
+                <filteritem type="filepath" name=".*tar" desc="" />
+                <filteritem type="filepath" name=".*wasm" desc="" />
+                <filteritem type="filepath" name=".*ttf" desc="" />
+                <filteritem type="filepath" name=".*deb" desc="" />
+                <filteritem type="filepath" name=".*crx3" desc="" />
+                <filteritem type="filepath" name=".*jar" desc="" />
+                <filteritem type="filepath" name=".*jpeg" desc="" />
+                <filteritem type="filepath" name=".*har" desc="" />
+                <filteritem type="filepath" name=".*wbn" desc="" />
+                <filteritem type="filepath" name=".*nef" desc="" />
+                <filteritem type="filepath" name=".*orf" desc="" />
+                <filteritem type="filepath" name=".*EX_" desc="" />
+                <filteritem type="filepath" name=".*dat" desc="" />
+                <filteritem type="filepath" name=".*tiff" desc="" />
+                <filteritem type="filepath" name=".*docx" desc="" />
+                <filteritem type="filepath" name=".*db" desc="" />
+                <filteritem type="filepath" name=".*gpg" desc="" />
+                <filteritem type="filepath" name=".*ldb" desc="" />
+                <filteritem type="filepath" name=".*xls" desc="" />
+                <filteritem type="filepath" name=".*spc" desc="" />
+                <filteritem type="filepath" name=".*db" desc="" />
+                <filteritem type="filepath" name="tools/build/win/release.rules" desc="" />
+                <filteritem type="filepath" name="test/data/safe_browsing/mach_o.*" desc="" />
+                <filteritem type="filepath" name="test/data/page_cycler/cached_data_dir.*" desc="" />
+                <filteritem type="filepath" name="test/data/diagnostics/user/Default.*" desc="" />
+                <filteritem type="filepath" name="test/data/page_cycler/cached_data_dir.*" desc="" />
+                <filteritem type="filepath" name="test/data/page_cycler/cached_data_dir/Default/Cache.*" desc="" />
+                <filteritem type="filepath" name="test/data.*" desc="" />
+                <filteritem type="filepath" name="android/profiles/afdo.prof" desc="" />
+
             </filefilter>
         </filefilterlist>
         <licensematcherlist>
@@ -156,7 +235,6 @@ used to filter file path.
                 " desc =""/>
             </licensematcher>
 
-            BSD-3-Clause
             <licensematcher name="BSD-3-Clause" desc="">
                 <licensetext name="
                 * Redistribution and use in source and binary forms, with or without
