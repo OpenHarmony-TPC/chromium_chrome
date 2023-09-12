@@ -1,6 +1,6 @@
 [
     {
-        "Name": "chromium_chrome",                   # 上游开源软件名全称
+        "Name": "chrome",                   # 上游开源软件名全称
         "License": "MPL-1.1", # 上游开源软件中包含的许可证信息
         "License File": LICENSE.chromium_os     # 许可证所在文件路径
         "Version Number": "99.0.4844.84",
@@ -8,7 +8,7 @@
         "Description": "Chromium 浏览器实现"           # 开源软件功能描述
     },
     {
-        "Name": "chromium_chrome",                   # 上游开源软件名全称
+        "Name": "chrome",                   # 上游开源软件名全称
         "License": "GPLStyleLicense",
         "License File": LICENSE.chromium_os     # 许可证所在文件路径
         "Version Number": "99.0.4844.84",
@@ -16,7 +16,7 @@
         "Description": "Chromium 浏览器实现"           # 开源软件功能描述
     },
     {
-        "Name": "chromium_chrome",                   # 上游开源软件名全称
+        "Name": "chrome",                   # 上游开源软件名全称
         "License": "MIT",
         "License File": LICENSE.chromium_os     # 许可证所在文件路径
         "Version Number": "99.0.4844.84",
@@ -24,7 +24,7 @@
         "Description": "Chromium 浏览器实现"           # 开源软件功能描述
     },
     {
-        "Name": "chromium_chrome",                   # 上游开源软件名全称
+        "Name": "chrome",                   # 上游开源软件名全称
         "License": "LGPLStyleLicense",
         "License File": LICENSE.chromium_os     # 许可证所在文件路径
         "Version Number": "99.0.4844.84",
@@ -32,7 +32,7 @@
         "Description": "Chromium 浏览器实现"           # 开源软件功能描述
     },
     {
-        "Name": "chromium_chrome",                   # 上游开源软件名全称
+        "Name": "chrome",                   # 上游开源软件名全称
         "License": "Sibblingz",
         "License File": LICENSE.chromium_os     # 许可证所在文件路径
         "Version Number": "99.0.4844.84",
@@ -40,7 +40,7 @@
         "Description": "Chromium 浏览器实现"           # 开源软件功能描述
     },
     {
-        "Name": "chromium_chrome",                   # 上游开源软件名全称
+        "Name": "chrome",                   # 上游开源软件名全称
         "License": "LLC",
         "License File": LICENSE.chromium_os     # 许可证所在文件路径
         "Version Number": "99.0.4844.84",
@@ -48,7 +48,7 @@
         "Description": "Chromium 浏览器实现"           # 开源软件功能描述
     },
     {
-        "Name": "chromium_chrome",                   # 上游开源软件名全称
+        "Name": "chrome",                   # 上游开源软件名全称
         "License": "AFL-2.1",
         "License File": LICENSE.chromium_os     # 许可证所在文件路径
         "Version Number": "99.0.4844.84",
@@ -56,7 +56,7 @@
         "Description": "Chromium 浏览器实现"           # 开源软件功能描述
     },
     {
-        "Name": "chromium_chrome",                   # 上游开源软件名全称
+        "Name": "chrome",                   # 上游开源软件名全称
         "License": "Generic Bare Warranty Disclaimer",
         "License File": LICENSE.chromium_os     # 许可证所在文件路径
         "Version Number": "99.0.4844.84",
@@ -64,7 +64,7 @@
         "Description": "Chromium 浏览器实现"           # 开源软件功能描述
     },
     {
-        "Name": "chromium_chrome",                   # 上游开源软件名全称
+        "Name": "chrome",                   # 上游开源软件名全称
         "License": "BSD-2-Clause",
         "License File": LICENSE.chromium_os     # 许可证所在文件路径
         "Version Number": "99.0.4844.84",
@@ -72,7 +72,7 @@
         "Description": "Chromium 浏览器实现"           # 开源软件功能描述
     },
     {
-        "Name": "chromium_chrome",                   # 上游开源软件名全称
+        "Name": "chrome",                   # 上游开源软件名全称
         "License": "BSD-3-Clause",
         "License File": LICENSE.chromium_os     # 许可证所在文件路径
         "Version Number": "99.0.4844.84",
