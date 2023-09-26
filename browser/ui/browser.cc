@@ -512,7 +512,7 @@ Browser::Browser(const CreateParams& params)
 
   tab_strip_model_->AddObserver(this);
 
-#if BUILDFLAG(ENABLE_CEF)
+#if BUILDFLAG(ENABLE_CEF) && defined(OHOS_ENABLE_CEF_CHROME_RUNTIME)
   if (cef::IsChromeRuntimeEnabled()) {
     cef_browser_delegate_ =
         cef::BrowserDelegate::Create(this, params.cef_params);
