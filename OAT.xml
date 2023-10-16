@@ -67,8 +67,21 @@ used to filter file path.
                <policyitem type="compatibility" name="MPL-1.1" path="test/data/third_party/kraken.*" desc="经法务确认,涉及文件在render下进行了隔离" />
                <policyitem type="compatibility" name="MPL-1.1" path="browser/importer.*" desc="经法务确认,涉及文件在render下进行了隔离" />
                <policyitem type="compatibility" name="MPL-1.1" path="installer/mac.*" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="GPLStyleLicense" path=".*" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="LGPLStyleLicense" path=".*" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="LGPLStyleLicense" path="third_party/mozilla_security_manager/README.chromium" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="LGPLStyleLicense" path="installer/mac/third_party/xz/README.chromium" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="LGPLStyleLicense" path="test/data/dromaeo/lib/mootools.js" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="AFL-2.1" path="test/data/dromaeo/lib/dojo.js" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="Generic Bare Warranty Disclaimer" path="test/data/third_party/kraken/hosted/json2.js" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="Generic Bare Warranty Disclaimer" path="test/data/dromaeo/json.js" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="Generic Bare Warranty Disclaimer" path="test/data/json2.js" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="GPLStyleLicense" path="test/data/third_party/kraken/hosted/explanations/jquery-1.4.2.min.js" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="GPLStyleLicense" path="test/data/dromaeo/lib/jquery.js" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="GPLStyleLicense" path="test/data/third_party/kraken/hosted/explanations/jquery-ui-1.8.2.custom.min.js" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="GPLStyleLicense" path="test/data/dromaeo/jquery.js" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="GPL-3.0-only" path="test/data/README.chromium" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="AFL-2.1" path="test/data/dromaeo/lib/dojo.js" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="AFL-2.1" path="test/data/dromaeo/lib/dojo.js" desc="经法务确认,涉及文件在render下进行了隔离" />
+               <policyitem type="compatibility" name="AFL-2.1" path="test/data/dromaeo/lib/dojo.js" desc="经法务确认,涉及文件在render下进行了隔离" />
                
                <policyitem type="compatibility" name="BSD-2-Clause" path=".*" desc="经法务确认为宽松型许可证" />
                <policyitem type="compatibility" name="BSD-2-Clause" path="installer/mac/third_party/bsdiff/.*" desc="经法务确认为宽松型许可证" />
@@ -238,6 +251,39 @@ used to filter file path.
                 See http://www.JSON.org/js.html
                 " desc =""/>
             </licensematcher>
+            <licensematcher name="MIT" desc="">
+                <licensetext name="
+                    *  Prototype is freely distributable under the terms of an MIT-style license.
+                    *  For details, see the Prototype web site: http://www.prototypejs.org/
+
+                " desc =""/>
+                <licensetext name="
+                    // Use of this source code is governed by a MIT license that can be
+                    // found in the LICENSE file.
+
+                " desc =""/>
+                <licensetext name="
+                    * Licensed under MIT
+                " desc =""/>
+            </licensematcher>
+            <licensematcher name="GPL-3.0-only" desc="">
+                <licensetext name="
+                    Name: Test data
+                    URL: None
+                    License: Many, including (L)GPL v3
+                    License File: NOT_SHIPPED
+                    Security Critical: no
+
+                " desc =""/>
+            </licensematcher>
+            <licensematcher name="Apache-2.0" desc="">
+                <licensetext name="
+                    Name: Android FloatProperty
+                    URL: https://developer.android.com/reference/android/util/FloatProperty.html
+                    License: Apache 2.0
+
+                " desc =""/>
+            </licensematcher>
 
             <licensematcher name="BSD-3-Clause" desc="">
                 <licensetext name="
@@ -267,6 +313,21 @@ used to filter file path.
                 Code licensed under the BSD License:
                 http://developer.yahoo.net/yui/license.txt
                 version: 2.6.0
+                " desc =""/>
+                <licensetext name="
+                    Name: Test code
+                    URL: unknown
+                    License: BSD
+                    License File: NOT_SHIPPED
+                    Security Critical: no
+                " desc =""/>
+                <licensetext name="
+                    Name: BSDiff
+                    URL: http://www.daemonology.net/bsdiff/
+                    Source URL: http://www.daemonology.net/bsdiff/bsdiff-4.3.tar.gz
+                    Version: 4.3
+                    License: BSD
+                    License File: LICENSE
                 " desc =""/>
 
                 <licensetext name="
