@@ -718,7 +718,8 @@ void PrintViewManagerBase::ScriptedPrint(mojom::ScriptedPrintParamsPtr params,
 }
 #if BUILDFLAG(IS_OHOS)
 void PrintViewManagerBase::PrintRequested(PrintRequestedCallback callback) {}
-#endif 
+void PrintViewManagerBase::CheckCancel(CheckCancelCallback callback) {}
+#endif
 void PrintViewManagerBase::PrintingFailed(int32_t cookie) {
   // Note: Not redundant with cookie checks in the same method in other parts of
   // the class hierarchy.
