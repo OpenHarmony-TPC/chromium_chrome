@@ -98,7 +98,7 @@ used to filter file path.
                 <filteritem type="filepath" name="app/chromium_strings.grd" desc="chromium原生文件无license" /> 
                 <filteritem type="filepath" name="tools/build/win/release.rules" desc="chromium原生文件无license" /> 
                 <filteritem type="filepath" name="test/enterprise/e2e/infra/installer_data" desc="chromium原生文件无license" /> 
-                <filteritem type="filepath" name="test/data/README.chromium" desc="该文件涉及GPL-3.0-only，经确认不会使用" />
+                <filteritem type="filepath" name="test/data/README.chromium" desc="经确认，该文件不会使用" />
             </filefilter>
 
             <filefilter name="defaultFilter">
