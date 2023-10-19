@@ -106,6 +106,7 @@ class PrintViewManagerBase : public PrintManager, public PrintJob::Observer {
                      ScriptedPrintCallback callback) override;
 #if BUILDFLAG(IS_OHOS)
   void PrintRequested(PrintRequestedCallback callback) override;
+  void CheckCancel(CheckCancelCallback callback) override;
 #endif
   void ShowInvalidPrinterSettingsError() override;
   void PrintingFailed(int32_t cookie) override;
