@@ -107,8 +107,15 @@ void BrandcodeConfigFetcher::SetCallback(FetchCallback callback) {
 
 void BrandcodeConfigFetcher::OnSimpleLoaderComplete(
     std::unique_ptr<std::string> response_body) {
-  if (response_body && simple_url_loader_->ResponseInfo() &&
-      simple_url_loader_->ResponseInfo()->mime_type == "text/xml") {
+  const bool is_valid_response =
+      response_body && simple_url_loader_->ResponseInfo() &&
+      simple_url_loader_->ResponseInfo()->mime_type == "text/xml";
+
+  // Release resources before potentially running the callback.
+  simple_url_loader_.reset();
+  download_timer_.Stop();
+
+  if (is_valid_response) {
     data_decoder::DataDecoder::ParseXmlIsolated(
         *response_body,
         base::BindOnce(&BrandcodeConfigFetcher::OnXmlConfigParsed,
@@ -116,8 +123,8 @@ void BrandcodeConfigFetcher::OnSimpleLoaderComplete(
   } else {
     std::move(fetch_callback_).Run();
   }
-  simple_url_loader_.reset();
-  download_timer_.Stop();
+
+  // `this` may now be deleted from `fetch_callback_`.
 }
 
 void BrandcodeConfigFetcher::OnXmlConfigParsed(
