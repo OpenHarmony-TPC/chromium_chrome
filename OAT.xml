@@ -62,31 +62,7 @@ used to filter file path.
         <licensefile>LICENSE.chromium_os</licensefile>
         <policylist>
             <policy name="projectPolicy" desc="">
-               <policyitem type="compatibility" name="LGPLStyleLicense" path="third_party/mozilla_security_manager/README.chromium" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="LGPLStyleLicense" path="installer/mac/third_party/xz/README.chromium" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="LGPLStyleLicense" path="test/data/dromaeo/lib/mootools.js" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="GPLStyleLicense" path="test/data/third_party/kraken/hosted/explanations/jquery-1.4.2.min.js" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="GPLStyleLicense" path="test/data/dromaeo/lib/jquery.js" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="GPLStyleLicense" path="test/data/third_party/kraken/hosted/explanations/jquery-ui-1.8.2.custom.min.js" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="GPLStyleLicense" path="test/data/dromaeo/jquery.js" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="MPL-1.1" path="third_party/mozilla_security_manager.*" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="MPL-1.1" path="utility/importer.*" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="MPL-1.1" path="test/data/third_party/kraken.*" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="MPL-1.1" path="browser/importer.*" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="MPL-1.1" path="installer/mac.*" desc="经法务确认,涉及文件在render下进行了隔离" />
-               <policyitem type="compatibility" name="AFL-2.1" path="test/data/dromaeo/lib/dojo.js" desc="经法务确认为宽松型许可证" />
-               <policyitem type="compatibility" name="AFL-2.1" path="test/data/dromaeo/lib/dojo.js" desc="经法务确认为宽松型许可证" />
-               <policyitem type="compatibility" name="AFL-2.1" path="test/data/dromaeo/lib/dojo.js" desc="经法务确认为宽松型许可证" />
-               <policyitem type="compatibility" name="AFL-2.1" path="test/data/dromaeo/lib/dojo.js" desc="经法务确认为宽松型许可证" />
-               <policyitem type="compatibility" name="Generic Bare Warranty Disclaimer" path="test/data/third_party/kraken/hosted/json2.js" desc="经法务确认为宽松型许可证" />
-               <policyitem type="compatibility" name="Generic Bare Warranty Disclaimer" path="test/data/dromaeo/json.js" desc="经法务确认为宽松型许可证" />
-               <policyitem type="compatibility" name="Generic Bare Warranty Disclaimer" path="test/data/json2.js" desc="经法务确认为宽松型许可证" />
-               
-               <policyitem type="compatibility" name="BSD-2-Clause" path=".*" desc="经法务确认为宽松型许可证" />
                <policyitem type="compatibility" name="BSD-2-Clause" path="installer/mac/third_party/bsdiff/.*" desc="经法务确认为宽松型许可证" />
-
-
-                
             </policy>
         </policylist>
         <filefilterlist>
@@ -97,8 +73,15 @@ used to filter file path.
                 <filteritem type="filepath" name=".*xml" desc="chromium原生文件无license" /> 
                 <filteritem type="filepath" name="app/chromium_strings.grd" desc="chromium原生文件无license" /> 
                 <filteritem type="filepath" name="tools/build/win/release.rules" desc="chromium原生文件无license" /> 
-                <filteritem type="filepath" name="test/enterprise/e2e/infra/installer_data" desc="chromium原生文件无license" /> 
-                <filteritem type="filepath" name="test/data/README.chromium" desc="经确认，该文件不会使用" />
+                <filteritem type="filepath" name="test/.*" desc="经确认，该文件不会使用" />
+                <filteritem type="filepath" name="installer/mac/third_party/xz/README.chromium" desc="经确认，该文件不会使用" />
+                <filteritem type="filepath" name="installer/mac/pkg-dmg" desc="经确认，该文件不会使用" />
+
+                <filteritem type="filepath" name="third_party/mozilla_security_manager.*" desc="经确认，该文件不会使用" />
+                
+                <filteritem type="filepath" name="utility/importer.*" desc="经确认，该文件不会使用" />
+                <filteritem type="filepath" name="browser/importer.*" desc="经确认，该文件不会使用" />
+
             </filefilter>
 
             <filefilter name="defaultFilter">
