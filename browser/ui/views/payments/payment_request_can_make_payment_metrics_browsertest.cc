@@ -751,7 +751,7 @@ class PaymentRequestCanMakePaymentMetricsWithBasicCardDisabledTest
 
     // Choosing nickpay for its JIT installation support.
     nickpay_server_.ServeFilesFromSourceDirectory(
-        "components/test/data/payments/nickpay.com/");
+        "components/test/data/payments/");
 
     ASSERT_TRUE(nickpay_server_.Start());
   }
@@ -922,9 +922,9 @@ IN_PROC_BROWSER_TEST_F(
   base::HistogramTester histogram_tester;
 
   std::string nickpay_method_name =
-      nickpay_server_.GetURL("nickpay.com", "/pay").spec();
+      nickpay_server_.GetURL("nickpay.test", "/nickpay.test/pay").spec();
   std::string nickpay2_method_name =
-      nickpay_server_.GetURL("nickpay2.com", "/pay").spec();
+      nickpay_server_.GetURL("nickpay2.test", "/nickpay.test/pay").spec();
 
   ResetEventWaiterForSequence({DialogEvent::CAN_MAKE_PAYMENT_CALLED,
                                DialogEvent::CAN_MAKE_PAYMENT_RETURNED,
@@ -985,9 +985,9 @@ IN_PROC_BROWSER_TEST_F(
   base::HistogramTester histogram_tester;
 
   std::string nickpay_method_name =
-      nickpay_server_.GetURL("nickpay.com", "/pay").spec();
+      nickpay_server_.GetURL("nickpay.test", "/nickpay.test/pay").spec();
   std::string nickpay2_method_name =
-      nickpay_server_.GetURL("nickpay2.com", "/pay").spec();
+      nickpay_server_.GetURL("nickpay2.test", "/nickpay.test/pay").spec();
 
   ResetEventWaiterForSequence({DialogEvent::CAN_MAKE_PAYMENT_CALLED,
                                DialogEvent::CAN_MAKE_PAYMENT_RETURNED,
@@ -1053,9 +1053,9 @@ IN_PROC_BROWSER_TEST_F(
   base::HistogramTester histogram_tester;
 
   std::string nickpay_method_name =
-      nickpay_server_.GetURL("nickpay.com", "/pay").spec();
+      nickpay_server_.GetURL("nickpay.test", "/nickpay.test/pay").spec();
   std::string nickpay2_method_name =
-      nickpay_server_.GetURL("nickpay2.com", "/pay").spec();
+      nickpay_server_.GetURL("nickpay2.test", "/nickpay.test/pay").spec();
 
   ResetEventWaiterForSequence({DialogEvent::CAN_MAKE_PAYMENT_CALLED,
                                DialogEvent::CAN_MAKE_PAYMENT_RETURNED,
