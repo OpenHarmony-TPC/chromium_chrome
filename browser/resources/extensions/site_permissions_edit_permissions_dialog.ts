@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import 'chrome://resources/cr_elements/cr_radio_button/cr_radio_button.js';
-import 'chrome://resources/cr_elements/cr_radio_group/cr_radio_group.js';
-import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/cr_elements/md_select.css.js';
+import 'arkweb://resources/cr_elements/cr_button/cr_button.js';
+import 'arkweb://resources/cr_elements/cr_dialog/cr_dialog.js';
+import 'arkweb://resources/cr_elements/cr_radio_button/cr_radio_button.js';
+import 'arkweb://resources/cr_elements/cr_radio_group/cr_radio_group.js';
+import 'arkweb://resources/cr_elements/cr_shared_style.css.js';
+import 'arkweb://resources/cr_elements/md_select.css.js';
 import './strings.m.js';
 
-import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrButtonElement} from 'arkweb://resources/cr_elements/cr_button/cr_button.js';
+import {CrDialogElement} from 'arkweb://resources/cr_elements/cr_dialog/cr_dialog.js';
+import {I18nMixin} from 'arkweb://resources/cr_elements/i18n_mixin.js';
+import {assert} from 'arkweb://resources/js/assert_ts.js';
+import {loadTimeData} from 'arkweb://resources/js/load_time_data.js';
+import {DomRepeatEvent, PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './site_permissions_edit_permissions_dialog.html.js';
 import {SiteSettingsDelegate} from './site_settings_mixin.js';

@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
-import 'chrome://resources/cr_elements/icons.html.js';
-import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
+import 'arkweb://resources/cr_elements/cr_shared_style.css.js';
+import 'arkweb://resources/cr_elements/cr_shared_vars.css.js';
+import 'arkweb://resources/cr_elements/icons.html.js';
+import 'arkweb://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import './restricted_sites_dialog.js';
 import './toggle_row.js';
 import './shared_style.css.js';
 import './strings.m.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {assert} from 'arkweb://resources/js/assert_ts.js';
+import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './host_permissions_toggle_list.html.js';
 import {UserAction} from './item_util.js';

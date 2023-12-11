@@ -4,9 +4,9 @@
 
 import './manager.js';
 
-export {CrCheckboxElement} from 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
-export {getToastManager} from 'chrome://resources/cr_elements/cr_toast/cr_toast_manager.js';
-export {IronIconElement} from 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
+export {CrCheckboxElement} from 'arkweb://resources/cr_elements/cr_checkbox/cr_checkbox.js';
+export {getToastManager} from 'arkweb://resources/cr_elements/cr_toast/cr_toast_manager.js';
+export {IronIconElement} from 'arkweb://resources/polymer/v3_0/iron-icon/iron-icon.js';
 export {ActivityLogExtensionPlaceholder, ExtensionsActivityLogElement} from './activity_log/activity_log.js';
 export {ActivityLogHistoryElement, ActivityLogPageState} from './activity_log/activity_log_history.js';
 export {ActivityGroup, ActivityLogHistoryItemElement} from './activity_log/activity_log_history_item.js';

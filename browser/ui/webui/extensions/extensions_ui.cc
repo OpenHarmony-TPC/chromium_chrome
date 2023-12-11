@@ -440,6 +440,19 @@ ExtensionsUI::ExtensionsUI(content::WebUI* web_ui)
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ObjectSrc, "object-src 'self';");
 
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  // TODO: If chrome:// -> arkweb:// replaced completely, remove it
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::DefaultSrc,
+      "default-src 'self' 'unsafe-inline' arkweb://resources "
+      "arkweb://extensions  chrome://resources chrome://extensions "
+      "chrome://theme data:;");
+
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ScriptSrc,
+      "script-src 'self' 'unsafe-inline'  arkweb://resources "
+      "arkweb://extensions  chrome://resources chrome://extensions;");
+#endif
   content::URLDataSource::Add(
       profile, std::make_unique<FaviconSource>(
                    profile, chrome::FaviconUrlFormat::kFavicon2));

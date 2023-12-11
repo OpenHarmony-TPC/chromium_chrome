@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import 'chrome://resources/cr_elements/cr_search_field/cr_search_field.js';
+import 'arkweb://resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import 'arkweb://resources/cr_elements/cr_button/cr_button.js';
+import 'arkweb://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import 'arkweb://resources/cr_elements/cr_search_field/cr_search_field.js';
 import '../shared_style.css.js';
 import './activity_log_history_item.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {assert} from 'arkweb://resources/js/assert_ts.js';
+import {PromiseResolver} from 'arkweb://resources/js/promise_resolver.js';
+import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './activity_log_history.html.js';
 import {ActivityGroup} from './activity_log_history_item.js';

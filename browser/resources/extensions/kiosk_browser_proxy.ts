@@ -7,7 +7,7 @@
  * the browser.
  */
 
-import {sendWithPromise} from 'chrome://resources/js/cr.js';
+import {sendWithPromise} from 'arkweb://resources/js/cr.js';
 
 export interface KioskSettings {
   kioskEnabled: boolean;

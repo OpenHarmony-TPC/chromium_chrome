@@ -14,6 +14,10 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+#include "base/datashare_uri_utils.h"
+#include "chrome/browser/extensions/api/file_system/file_entry_picker.h"
+#endif
 
 namespace {
 
@@ -50,6 +54,15 @@ EntryPicker::EntryPicker(EntryPickerClient* client,
     return;
   }
 
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  const base::FilePath default_path;
+  new FileEntryPicker(
+      web_contents, default_path, info, picker_type,
+      base::BindOnce(&EntryPicker::FileSelectedFromPicker,
+                     base::Unretained(this)),
+      base::BindOnce(&EntryPicker::FileSelectionCanceledFromPicker,
+                     base::Unretained(this)));
+#else
   select_file_dialog_ = ui::SelectFileDialog::Create(
       this, std::make_unique<ChromeSelectFilePolicy>(web_contents));
 
@@ -65,6 +78,7 @@ EntryPicker::EntryPicker(EntryPickerClient* client,
                                   base::FilePath::StringType(),
                                   owning_window,
                                   nullptr);
+#endif
 }
 
 EntryPicker::~EntryPicker() {}
@@ -87,6 +101,22 @@ void EntryPicker::MultiFilesSelected(const std::vector<base::FilePath>& files,
   client_->FileSelectionCanceled();
   delete this;
 }
+
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+void EntryPicker::FileSelectedFromPicker(
+    const std::vector<base::FilePath>& paths) {
+  if (paths.empty()) {
+    return;
+  }
+  client_->FileSelected(paths[0].DirName());
+  delete this;
+}
+
+void EntryPicker::FileSelectionCanceledFromPicker() {
+  client_->FileSelectionCanceled();
+  delete this;
+}
+#endif
 
 // static
 void EntryPicker::SkipPickerAndAlwaysSelectPathForTest(

@@ -4,8 +4,8 @@
 
 import './strings.m.js';
 
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {assertNotReached} from 'arkweb://resources/js/assert_ts.js';
+import {loadTimeData} from 'arkweb://resources/js/load_time_data.js';
 
 export enum SourceType {
   WEBSTORE = 'webstore',

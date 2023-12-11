@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
+import 'arkweb://resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import 'arkweb://resources/cr_elements/cr_button/cr_button.js';
+import 'arkweb://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import 'arkweb://resources/cr_elements/cr_shared_style.css.js';
+import 'arkweb://resources/cr_elements/cr_shared_vars.css.js';
 import './strings.m.js';
 import './shared_style.css.js';
 import './shared_vars.css.js';
 import './site_permissions_edit_permissions_dialog.js';
 import './site_permissions_edit_url_dialog.js';
 
-import {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
-import {DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrActionMenuElement} from 'arkweb://resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import {CrButtonElement} from 'arkweb://resources/cr_elements/cr_button/cr_button.js';
+import {assert} from 'arkweb://resources/js/assert_ts.js';
+import {focusWithoutInk} from 'arkweb://resources/js/focus_without_ink.js';
+import {DomRepeatEvent, PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './site_permissions_list.html.js';
 import {SiteSettingsDelegate} from './site_settings_mixin.js';
