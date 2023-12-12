@@ -2,30 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import 'chrome://resources/cr_elements/cr_icons.css.js';
-import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
-import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
-import 'chrome://resources/cr_elements/icons.html.js';
-import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
-import 'chrome://resources/js/action_link.js';
-import 'chrome://resources/cr_elements/action_link.css.js';
+import 'arkweb://resources/cr_elements/cr_button/cr_button.js';
+import 'arkweb://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import 'arkweb://resources/cr_elements/cr_icons.css.js';
+import 'arkweb://resources/cr_elements/cr_toggle/cr_toggle.js';
+import 'arkweb://resources/cr_elements/cr_hidden_style.css.js';
+import 'arkweb://resources/cr_elements/icons.html.js';
+import 'arkweb://resources/cr_elements/cr_shared_style.css.js';
+import 'arkweb://resources/cr_elements/cr_shared_vars.css.js';
+import 'arkweb://resources/js/action_link.js';
+import 'arkweb://resources/cr_elements/action_link.css.js';
 import './icons.html.js';
 import './shared_style.css.js';
 import './shared_vars.css.js';
 import './strings.m.js';
-import 'chrome://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
-import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
-import 'chrome://resources/polymer/v3_0/paper-tooltip/paper-tooltip.js';
+import 'arkweb://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
+import 'arkweb://resources/polymer/v3_0/iron-icon/iron-icon.js';
+import 'arkweb://resources/polymer/v3_0/paper-tooltip/paper-tooltip.js';
 
 import {ChromeEvent} from '/tools/typescript/definitions/chrome_event.js';
-import {getToastManager} from 'chrome://resources/cr_elements/cr_toast/cr_toast_manager.js';
-import {CrToggleElement} from 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {flush, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {getToastManager} from 'arkweb://resources/cr_elements/cr_toast/cr_toast_manager.js';
+import {CrToggleElement} from 'arkweb://resources/cr_elements/cr_toggle/cr_toggle.js';
+import {I18nMixin} from 'arkweb://resources/cr_elements/i18n_mixin.js';
+import {assert, assertNotReached} from 'arkweb://resources/js/assert_ts.js';
+import {flush, PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './item.html.js';
 import {ItemMixin} from './item_mixin.js';

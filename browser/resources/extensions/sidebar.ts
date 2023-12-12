@@ -1,14 +1,14 @@
 // Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import 'chrome://resources/cr_elements/cr_icons.css.js';
-import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
-import 'chrome://resources/polymer/v3_0/iron-selector/iron-selector.js';
-import 'chrome://resources/polymer/v3_0/paper-ripple/paper-ripple.js';
-import 'chrome://resources/polymer/v3_0/paper-styles/color.js';
+import 'arkweb://resources/cr_elements/cr_icons.css.js';
+import 'arkweb://resources/cr_elements/cr_hidden_style.css.js';
+import 'arkweb://resources/polymer/v3_0/iron-selector/iron-selector.js';
+import 'arkweb://resources/polymer/v3_0/paper-ripple/paper-ripple.js';
+import 'arkweb://resources/polymer/v3_0/paper-styles/color.js';
 
-import {IronSelectorElement} from 'chrome://resources/polymer/v3_0/iron-selector/iron-selector.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {IronSelectorElement} from 'arkweb://resources/polymer/v3_0/iron-selector/iron-selector.js';
+import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {navigation, Page} from './navigation_helper.js';
 import {getTemplate} from './sidebar.html.js';

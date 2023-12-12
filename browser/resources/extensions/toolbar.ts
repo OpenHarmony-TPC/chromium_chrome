@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
-import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar.js';
-import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
-import 'chrome://resources/cr_elements/policy/cr_tooltip_icon.js';
-import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
-import 'chrome://resources/polymer/v3_0/paper-styles/color.js';
+import 'arkweb://resources/cr_elements/cr_button/cr_button.js';
+import 'arkweb://resources/cr_elements/cr_toggle/cr_toggle.js';
+import 'arkweb://resources/cr_elements/cr_toolbar/cr_toolbar.js';
+import 'arkweb://resources/cr_elements/cr_hidden_style.css.js';
+import 'arkweb://resources/cr_elements/policy/cr_tooltip_icon.js';
+import 'arkweb://resources/cr_elements/cr_shared_vars.css.js';
+import 'arkweb://resources/polymer/v3_0/paper-styles/color.js';
 import './pack_dialog.js';
 
-import {getToastManager} from 'chrome://resources/cr_elements/cr_toast/cr_toast_manager.js';
-import {CrToggleElement} from 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
-import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {listenOnce} from 'chrome://resources/js/util_ts.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {getToastManager} from 'arkweb://resources/cr_elements/cr_toast/cr_toast_manager.js';
+import {CrToggleElement} from 'arkweb://resources/cr_elements/cr_toggle/cr_toggle.js';
+import {I18nMixin} from 'arkweb://resources/cr_elements/i18n_mixin.js';
+import {listenOnce} from 'arkweb://resources/js/util_ts.js';
+import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './toolbar.html.js';
 

@@ -2,28 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import 'chrome://resources/cr_elements/cr_radio_group/cr_radio_group.js';
-import 'chrome://resources/cr_elements/cr_radio_button/cr_radio_button.js';
-import 'chrome://resources/cr_elements/icons.html.js';
-import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
-import 'chrome://resources/js/action_link.js';
-import 'chrome://resources/cr_elements/action_link.css.js';
-import 'chrome://resources/cr_elements/md_select.css.js';
-import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
+import 'arkweb://resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import 'arkweb://resources/cr_elements/cr_button/cr_button.js';
+import 'arkweb://resources/cr_elements/cr_dialog/cr_dialog.js';
+import 'arkweb://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import 'arkweb://resources/cr_elements/cr_radio_group/cr_radio_group.js';
+import 'arkweb://resources/cr_elements/cr_radio_button/cr_radio_button.js';
+import 'arkweb://resources/cr_elements/icons.html.js';
+import 'arkweb://resources/cr_elements/cr_shared_style.css.js';
+import 'arkweb://resources/cr_elements/cr_shared_vars.css.js';
+import 'arkweb://resources/js/action_link.js';
+import 'arkweb://resources/cr_elements/action_link.css.js';
+import 'arkweb://resources/cr_elements/md_select.css.js';
+import 'arkweb://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import './runtime_hosts_dialog.js';
 import './shared_style.css.js';
 import './strings.m.js';
 
-import {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
-import {DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrActionMenuElement} from 'arkweb://resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import {CrDialogElement} from 'arkweb://resources/cr_elements/cr_dialog/cr_dialog.js';
+import {assert} from 'arkweb://resources/js/assert_ts.js';
+import {focusWithoutInk} from 'arkweb://resources/js/focus_without_ink.js';
+import {DomRepeatEvent, PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {ItemDelegate} from './item.js';
 import {getTemplate} from './runtime_host_permissions.html.js';

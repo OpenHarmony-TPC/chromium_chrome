@@ -53,7 +53,10 @@ class EntryPicker : public ui::SelectFileDialog::Listener {
   void FileSelectionCanceled(void* params) override;
   void MultiFilesSelected(const std::vector<base::FilePath>& files,
                           void* params) override;
-
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  void FileSelectionCanceledFromPicker();
+  void FileSelectedFromPicker(const std::vector<base::FilePath>& paths);
+#endif
   scoped_refptr<ui::SelectFileDialog> select_file_dialog_;
   raw_ptr<EntryPickerClient> client_;
 };

@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_drawer/cr_drawer.js';
-import 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render.js';
-import 'chrome://resources/cr_elements/cr_toast/cr_toast_manager.js';
-import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar.js';
-import 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
-import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
-import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
+import 'arkweb://resources/cr_elements/cr_drawer/cr_drawer.js';
+import 'arkweb://resources/cr_elements/cr_lazy_render/cr_lazy_render.js';
+import 'arkweb://resources/cr_elements/cr_toast/cr_toast_manager.js';
+import 'arkweb://resources/cr_elements/cr_toolbar/cr_toolbar.js';
+import 'arkweb://resources/cr_elements/cr_view_manager/cr_view_manager.js';
+import 'arkweb://resources/cr_elements/cr_hidden_style.css.js';
+import 'arkweb://resources/cr_elements/cr_shared_vars.css.js';
 import './activity_log/activity_log.js';
 import './detail_view.js';
 import './drop_overlay.js';
@@ -28,11 +28,11 @@ import './kiosk_dialog.js';
 
 // </if>
 
-import {CrViewManagerElement} from 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrViewManagerElement} from 'arkweb://resources/cr_elements/cr_view_manager/cr_view_manager.js';
+import {assert, assertNotReached} from 'arkweb://resources/js/assert_ts.js';
+import {loadTimeData} from 'arkweb://resources/js/load_time_data.js';
+import {PromiseResolver} from 'arkweb://resources/js/promise_resolver.js';
+import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {ActivityLogExtensionPlaceholder} from './activity_log/activity_log.js';
 import {ExtensionsDetailViewElement} from './detail_view.js';
@@ -327,7 +327,7 @@ export class ExtensionsManagerElement extends PolymerElement {
 
   /**
    * Initializes the page to reflect what's specified in the url so that if
-   * the user visits chrome://extensions/?id=..., we land on the proper page.
+   * the user visits arkweb://extensions/?id=..., we land on the proper page.
    */
   private initPage_() {
     this.didInitPage_ = true;
@@ -411,7 +411,7 @@ export class ExtensionsManagerElement extends PolymerElement {
       case ExtensionType.SHARED_MODULE:
         return 'extensions_';
       case ExtensionType.THEME:
-        assertNotReached('Don\'t send themes to the chrome://extensions page');
+        assertNotReached('Don\'t send themes to the arkweb://extensions page');
       default:
         assertNotReached();
     }

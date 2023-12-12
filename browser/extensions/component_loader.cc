@@ -85,6 +85,11 @@
 #include "chrome/browser/defaults.h"
 #endif
 
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+#include "base/base_switches.h"
+#include "base/command_line.h"
+#endif
+
 using content::BrowserThread;
 
 namespace extensions {
@@ -148,8 +153,13 @@ ComponentLoader::ComponentExtensionInfo::ComponentExtensionInfo(
     const base::FilePath& directory)
     : manifest(std::move(manifest_param)), root_directory(directory) {
   if (!root_directory.IsAbsolute()) {
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+    root_directory = base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
+        ::switches::kBundleInstallationDir);
+#else
     CHECK(base::PathService::Get(chrome::DIR_RESOURCES, &root_directory));
     root_directory = root_directory.Append(directory);
+#endif
   }
   extension_id = GenerateId(manifest, root_directory);
 }
