@@ -251,6 +251,10 @@
 #include "chrome/renderer/media/chrome_key_systems.h"
 #endif
 
+#if defined(OHOS_PRINT)
+#include "libcef/renderer/extensions/ohos_print_render_frame_helper_delegate.h"
+#endif
+
 using autofill::AutofillAgent;
 using autofill::PasswordAutofillAgent;
 using autofill::PasswordGenerationAgent;
@@ -614,6 +618,12 @@ void ChromeContentRendererClient::RenderFrameCreated(
 #if BUILDFLAG(ENABLE_PRINTING)
   new printing::PrintRenderFrameHelper(
       render_frame, std::make_unique<ChromePrintRenderFrameHelperDelegate>());
+#endif
+
+#if defined(OHOS_PRINT)
+  new printing::PrintRenderFrameHelper(
+      render_frame,
+      base::WrapUnique(new extensions::OhosPrintRenderFrameHelperDelegate()));
 #endif
 
 #if BUILDFLAG(ENABLE_PAINT_PREVIEW)
