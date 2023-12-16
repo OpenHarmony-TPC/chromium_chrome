@@ -129,7 +129,6 @@ class PrintViewManagerBase : public PrintManager, public PrintJob::Observer {
 #if defined(OHOS_PRINT)
   void PrintRequested(PrintRequestedCallback callback) override;
   void CheckCancel(CheckCancelCallback callback) override;
-  void BeforePrintPdfRequested() override;
   void PrintPdfRequested() override;
 #endif // defined(OHOS_PRINT)
   void PrintingFailed(int32_t cookie,
