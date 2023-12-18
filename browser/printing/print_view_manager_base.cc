@@ -779,7 +779,6 @@ void PrintViewManagerBase::ScriptedPrint(mojom::ScriptedPrintParamsPtr params,
 #if defined(OHOS_PRINT)
 void PrintViewManagerBase::PrintRequested(PrintRequestedCallback callback) {}
 void PrintViewManagerBase::CheckCancel(CheckCancelCallback callback) {}
-void PrintViewManagerBase::BeforePrintPdfRequested() {}
 void PrintViewManagerBase::PrintPdfRequested() {}
 #endif // defined(OHOS_PRINT)
 void PrintViewManagerBase::PrintingFailed(int32_t cookie,
