@@ -4,8 +4,8 @@
 
 import './pdf-shared.css.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {assert} from 'arkweb://resources/js/assert_ts.js';
+import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {ChangePageOrigin} from './viewer-bookmark.js';
 import {getTemplate} from './viewer-thumbnail.html.js';

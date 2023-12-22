@@ -12,12 +12,12 @@ import './elements/viewer-properties-dialog.js';
 import './elements/viewer-toolbar.js';
 import './elements/shared-vars.css.js';
 import './pdf_viewer_shared_style.css.js';
-import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
-import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
+import 'arkweb://resources/cr_elements/cr_hidden_style.css.js';
+import 'arkweb://resources/cr_elements/cr_shared_vars.css.js';
 
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {listenOnce} from 'chrome://resources/js/util_ts.js';
+import {assert, assertNotReached} from 'arkweb://resources/js/assert_ts.js';
+import {loadTimeData} from 'arkweb://resources/js/load_time_data.js';
+import {listenOnce} from 'arkweb://resources/js/util_ts.js';
 
 import {Bookmark} from './bookmark_type.js';
 import {BrowserApi} from './browser_api.js';

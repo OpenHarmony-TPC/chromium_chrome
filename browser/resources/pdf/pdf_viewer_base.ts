@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {EventTracker} from 'chrome://resources/js/event_tracker.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {assert} from 'arkweb://resources/js/assert_ts.js';
+import {EventTracker} from 'arkweb://resources/js/event_tracker.js';
+import {loadTimeData} from 'arkweb://resources/js/load_time_data.js';
+import {PromiseResolver} from 'arkweb://resources/js/promise_resolver.js';
+import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {BrowserApi, ZoomBehavior} from './browser_api.js';
 import {FittingType, Point} from './constants.js';

@@ -4,11 +4,11 @@
 
 import './viewer-thumbnail.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {FocusOutlineManager} from 'chrome://resources/js/focus_outline_manager.js';
-import {EventTracker} from 'chrome://resources/js/event_tracker.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {assert} from 'arkweb://resources/js/assert_ts.js';
+import {EventTracker} from 'arkweb://resources/js/event_tracker.js';
+import {FocusOutlineManager} from 'arkweb://resources/js/focus_outline_manager.js';
+import {loadTimeData} from 'arkweb://resources/js/load_time_data.js';
+import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {PluginController, PluginControllerEventType} from '../controller.js';
 

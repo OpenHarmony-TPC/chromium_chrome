@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {isRTL} from 'chrome://resources/js/util_ts.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {assert} from 'arkweb://resources/js/assert_ts.js';
+import {isRTL} from 'arkweb://resources/js/util_ts.js';
+import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {Viewport} from '../viewport.js';
 

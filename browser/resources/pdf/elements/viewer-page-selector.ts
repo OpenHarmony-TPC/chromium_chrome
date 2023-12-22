@@ -4,7 +4,7 @@
 
 import './shared-vars.css.js';
 
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {ChangePageOrigin} from './viewer-bookmark.js';
 import {getTemplate} from './viewer-page-selector.html.js';

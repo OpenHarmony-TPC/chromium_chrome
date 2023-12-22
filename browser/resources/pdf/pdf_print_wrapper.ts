@@ -7,7 +7,7 @@ import './pdf_viewer_print.js';
 import './elements/viewer-zoom-button.js';
 import './elements/viewer-zoom-toolbar.js';
 
-export {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+export {CrIconButtonElement} from 'arkweb://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 export {BrowserApi} from './browser_api.js';
 export {FittingType} from './constants.js';
 export {ViewerPageIndicatorElement} from './elements/viewer-page-indicator.js';

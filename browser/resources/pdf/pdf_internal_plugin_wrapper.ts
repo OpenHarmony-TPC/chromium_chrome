@@ -20,7 +20,7 @@ const srcUrl = new URL(plugin.src);
 let parentOrigin = srcUrl.origin;
 if (parentOrigin === 'chrome-untrusted://print') {
   // Within Print Preview, the source origin differs from the parent origin.
-  parentOrigin = 'chrome://print';
+  parentOrigin = 'arkweb://print';
 }
 
 /**
@@ -111,7 +111,7 @@ channel.port1.onmessage = e => {
       // Snoop on "viewport" message to support real RTL scrolling in Print
       // Preview.
       // TODO(crbug.com/1158670): Support real RTL scrolling in the PDF viewer.
-      if (parentOrigin === 'chrome://print' && e.data.layoutOptions) {
+      if (parentOrigin === 'arkweb://print' && e.data.layoutOptions) {
         switch (e.data.layoutOptions.direction) {
           case 1:
             document.dir = 'rtl';
@@ -271,7 +271,7 @@ function hasCtrlModifier(e: KeyboardEvent): boolean {
   return hasModifier;
 }
 
-// TODO(crbug.com/1252096): Load from chrome://resources/js/util_ts.js instead.
+// TODO(crbug.com/1252096): Load from arkweb://resources/js/util_ts.js instead.
 function hasKeyModifiers(e: KeyboardEvent): boolean {
   return !!(e.altKey || e.ctrlKey || e.metaKey || e.shiftKey);
 }

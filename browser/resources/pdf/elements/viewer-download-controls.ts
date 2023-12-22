@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import 'chrome://resources/cr_elements/icons.html.js';
+import 'arkweb://resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import 'arkweb://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import 'arkweb://resources/cr_elements/icons.html.js';
 import './icons.html.js';
 import './pdf-shared.css.js';
 
-import {AnchorAlignment, CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {AnchorAlignment, CrActionMenuElement} from 'arkweb://resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import {CrIconButtonElement} from 'arkweb://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import {PromiseResolver} from 'arkweb://resources/js/promise_resolver.js';
+import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {SaveRequestType} from '../constants.js';
 
