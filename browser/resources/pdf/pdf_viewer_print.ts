@@ -7,8 +7,8 @@ import './elements/viewer-page-indicator.js';
 import './elements/viewer-zoom-toolbar.js';
 import './pdf_viewer_shared_style.css.js';
 
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {isRTL} from 'chrome://resources/js/util_ts.js';
+import {assert, assertNotReached} from 'arkweb://resources/js/assert_ts.js';
+import {isRTL} from 'arkweb://resources/js/util_ts.js';
 
 import {BrowserApi} from './browser_api.js';
 import {ExtendedKeyEvent, FittingType} from './constants.js';

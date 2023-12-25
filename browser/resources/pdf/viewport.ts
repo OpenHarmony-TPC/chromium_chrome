@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {EventTracker} from 'chrome://resources/js/event_tracker.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {hasKeyModifiers, isRTL} from 'chrome://resources/js/util_ts.js';
+import {getInstance as getAnnouncerInstance} from 'arkweb://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
+import {assert, assertNotReached} from 'arkweb://resources/js/assert_ts.js';
+import {EventTracker} from 'arkweb://resources/js/event_tracker.js';
+import {loadTimeData} from 'arkweb://resources/js/load_time_data.js';
+import {hasKeyModifiers, isRTL} from 'arkweb://resources/js/util_ts.js';
 
 import {ExtendedKeyEvent, FittingType, Point, Rect} from './constants.js';
 import {Gesture, GestureDetector, PinchEventDetail} from './gesture_detector.js';

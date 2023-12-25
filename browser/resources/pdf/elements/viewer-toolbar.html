@@ -59,6 +59,7 @@
     padding-inline-start: 20px;
     text-align: end;
     white-space: nowrap;
+    align-items: center;
   }
 
   .vertical-separator {
@@ -75,6 +76,10 @@
 
   #zoom-controls input::selection {
     background-color: var(--viewer-text-input-selection-color);
+  }
+
+  #end .vertical-separator {
+    margin:0 8px;
   }
 
   @media(max-width: 600px) {
@@ -235,7 +240,8 @@
           aria-label="$i18n{tooltipZoomIn}" on-click="onZoomInClick_">
       </cr-icon-button>
     </span>
-    <span class="vertical-separator"></span>
+  </div>
+  <div id="end">
     <cr-icon-button id="fit" iron-icon="[[fitToButtonIcon_]]"
         title="[[getFitToButtonTooltip_('$i18nPolymer{tooltipFitToPage}',
                                         '$i18nPolymer{tooltipFitToWidth}',
@@ -252,8 +258,7 @@
         aria-label="$i18n{tooltipRotateCCW}" title="$i18n{tooltipRotateCCW}"
         on-click="onRotateClick_">
     </cr-icon-button>
-  </div>
-  <div id="end">
+    <span class="vertical-separator"></span>
   <if expr="enable_ink">
     <template is="dom-if" if="[[pdfAnnotationsEnabled]]">
       <cr-icon-button id="annotate" iron-icon="cr:create"
@@ -320,7 +325,7 @@
 
   <hr>
 
-  <button id="present-button" class="dropdown-item" on-click="onPresentClick_">
+  <button id="present-button" hidden=true class="dropdown-item" on-click="onPresentClick_">
     <span class="check-container" aria-hidden="true"></span>
     $i18n{present}
   </button>
