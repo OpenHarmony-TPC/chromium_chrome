@@ -292,12 +292,12 @@ void FileSelectHelper::OnListDone(int error) {
     LaunchConfirmationDialog(entry->path_, std::move(selected_files));
   } else {
     std::vector<FileChooserFileInfoPtr> chooser_files;
-    std::u16string display_name = std::u16string();
     for (const auto& file_path : entry->results_) {
 #ifdef OHOS_FILE_UPLOAD
-    if (file_path.IsDataShareUri()) {
-      display_name = base::GetFileDisplayName(file_path);
-    }
+      std::u16string display_name = std::u16string();
+      if (file_path.IsDataShareUri()) {
+        display_name = base::GetFileDisplayName(file_path);
+      }
 #endif
       chooser_files.push_back(FileChooserFileInfo::NewNativeFile(
           blink::mojom::NativeFileInfo::New(file_path, display_name)));
@@ -338,10 +338,20 @@ void FileSelectHelper::ConvertToFileChooserFileInfoList(
 
   std::vector<FileChooserFileInfoPtr> chooser_files;
   for (const auto& file : files) {
+#ifdef OHOS_FILE_UPLOAD
+    std::u16string display_name = base::FilePath(file.display_name).AsUTF16Unsafe();
+    if (file.local_path.IsDataShareUri()) {
+      display_name = base::GetFileDisplayName(file.local_path);
+    }
+    chooser_files.push_back(
+         FileChooserFileInfo::NewNativeFile(blink::mojom::NativeFileInfo::New(
+             file.local_path, display_name)));
+#else
     chooser_files.push_back(
         FileChooserFileInfo::NewNativeFile(blink::mojom::NativeFileInfo::New(
             file.local_path,
             base::FilePath(file.display_name).AsUTF16Unsafe())));
+#endif
   }
 
   PerformContentAnalysisIfNeeded(std::move(chooser_files));
