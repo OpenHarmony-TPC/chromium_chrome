@@ -256,12 +256,12 @@ IconManager* TestingBrowserProcess::icon_manager() {
 GpuModeManager* TestingBrowserProcess::gpu_mode_manager() {
   return nullptr;
 }
-
+#if BUILDFLAG(ENABLE_BACKGROUND_MODE)
 BackgroundModeManager* TestingBrowserProcess::background_mode_manager() {
   return nullptr;
 }
 
-#if BUILDFLAG(ENABLE_BACKGROUND_MODE)
+
 void TestingBrowserProcess::set_background_mode_manager_for_test(
     std::unique_ptr<BackgroundModeManager> manager) {
   NOTREACHED();
@@ -271,11 +271,12 @@ void TestingBrowserProcess::set_background_mode_manager_for_test(
 StatusTray* TestingBrowserProcess::status_tray() {
   return nullptr;
 }
-
+ #if BUILDFLAG(FULL_SAFE_BROWSING)
 safe_browsing::SafeBrowsingService*
 TestingBrowserProcess::safe_browsing_service() {
   return sb_service_.get();
 }
+#endif
 
 subresource_filter::RulesetService*
 TestingBrowserProcess::subresource_filter_ruleset_service() {

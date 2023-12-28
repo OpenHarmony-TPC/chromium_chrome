@@ -247,6 +247,17 @@ class TestBrowserWindow : public BrowserWindow {
   }
   void set_is_active(bool active) { is_active_ = active; }
   void set_is_minimized(bool minimized) { is_minimized_ = minimized; }
+  void ShowHatsDialog(
+      const std::string& site_id,
+      base::OnceClosure success_callback,
+      base::OnceClosure failure_callback,
+      const SurveyBitsData& product_specific_bits_data,
+      const SurveyStringData& product_specific_string_data)override {};
+  // Shows an Incognito clear browsing data dialog.
+  void ShowIncognitoClearBrowsingDataDialog() override {};
+
+  // Shows an Incognito history disclaimer dialog.
+  void ShowIncognitoHistoryDisclaimerDialog() override {};
 
  protected:
   void DestroyBrowser() override {}
