@@ -96,10 +96,10 @@ class TestingBrowserProcess : public BrowserProcess {
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
   BackgroundModeManager* background_mode_manager() override;
   void set_background_mode_manager_for_test(
-      std::unique_ptr<BackgroundModeManager> manager) override;  
+      std::unique_ptr<BackgroundModeManager> manager) override;
 #endif
   StatusTray* status_tray() override;
-  #if BUILDFLAG(FULL_SAFE_BROWSING)
+#if BUILDFLAG(FULL_SAFE_BROWSING)
   // Returns the SafeBrowsing service.
   safe_browsing::SafeBrowsingService* safe_browsing_service() override;
 #endif

@@ -271,7 +271,7 @@ void TestingBrowserProcess::set_background_mode_manager_for_test(
 StatusTray* TestingBrowserProcess::status_tray() {
   return nullptr;
 }
- #if BUILDFLAG(FULL_SAFE_BROWSING)
+#if BUILDFLAG(FULL_SAFE_BROWSING)
 safe_browsing::SafeBrowsingService*
 TestingBrowserProcess::safe_browsing_service() {
   return sb_service_.get();
