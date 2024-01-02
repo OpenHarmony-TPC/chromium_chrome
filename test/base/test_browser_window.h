@@ -252,12 +252,12 @@ class TestBrowserWindow : public BrowserWindow {
       base::OnceClosure success_callback,
       base::OnceClosure failure_callback,
       const SurveyBitsData& product_specific_bits_data,
-      const SurveyStringData& product_specific_string_data)override {};
+      const SurveyStringData& product_specific_string_data) override {}
   // Shows an Incognito clear browsing data dialog.
-  void ShowIncognitoClearBrowsingDataDialog() override {};
+  void ShowIncognitoClearBrowsingDataDialog() override {}
 
   // Shows an Incognito history disclaimer dialog.
-  void ShowIncognitoHistoryDisclaimerDialog() override {};
+  void ShowIncognitoHistoryDisclaimerDialog() override {}
 
  protected:
   void DestroyBrowser() override {}
