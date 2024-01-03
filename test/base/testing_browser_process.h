@@ -93,13 +93,16 @@ class TestingBrowserProcess : public BrowserProcess {
   policy::PolicyService* policy_service() override;
   IconManager* icon_manager() override;
   GpuModeManager* gpu_mode_manager() override;
-  BackgroundModeManager* background_mode_manager() override;
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
+  BackgroundModeManager* background_mode_manager() override;
   void set_background_mode_manager_for_test(
       std::unique_ptr<BackgroundModeManager> manager) override;
 #endif
   StatusTray* status_tray() override;
+#if BUILDFLAG(FULL_SAFE_BROWSING)
+  // Returns the SafeBrowsing service.
   safe_browsing::SafeBrowsingService* safe_browsing_service() override;
+#endif
   subresource_filter::RulesetService* subresource_filter_ruleset_service()
       override;
   federated_learning::FlocSortingLshClustersService*
