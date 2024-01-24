@@ -466,6 +466,9 @@ export abstract class PdfViewerBaseElement extends PolymerElement {
         this.viewport_.setPosition(currentViewportPosition);
       }
       this.isUserInitiatedEvent = true;
+    } else if (screen.width < 500) {
+      this.viewport_.setFittingType(FittingType.FIT_TO_DEFAULT);
+      this.forceFit(FittingType.FIT_TO_DEFAULT);
     }
   }
 

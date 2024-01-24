@@ -930,6 +930,9 @@ export class Viewport implements ViewportInterface {
         assert(params);
         this.fitToBoundingBox_(params.page, params.boundingBox);
         return;
+      case FittingType.FIT_TO_DEFAULT:
+          this.fitToDefault();
+          return;
       case FittingType.NONE:
         this.fittingType_ = fittingType;
         return;
@@ -1023,6 +1026,40 @@ export class Viewport implements ViewportInterface {
    */
   fitToPage() {
     this.fitToPageInternal_(true);
+  }
+
+    /**
+   * Zoom the viewport so that a page consumes as much as possible of the it.
+   * @param scrollToTopOfPage Whether the viewport should be scrolled to the top
+   *     of the current page. If false, the viewport will remain at the current
+   *     scroll position.
+   */
+    private fitToDefaultInternal_(scrollToTopOfPage: boolean) {
+      this.mightZoom_(() => {
+        this.fittingType_ = FittingType.FIT_TO_PAGE;
+        if (!this.documentDimensions_) {
+          return;
+        }
+        const page = this.getMostVisiblePage();
+        // Fit to the current page's height and the widest page's width.
+        const dimensions = {
+          width: this.documentDimensions_.width + 15,
+          height: this.pageDimensions_[page].height,
+        };
+        this.setZoomInternal_(this.computeFittingZoom_(dimensions, true, true));
+        if (scrollToTopOfPage) {
+          this.setPosition({
+            x: 0,
+            y: this.pageDimensions_[page].y * this.getZoom(),
+          });
+        }
+        this.updateViewport_();
+      });
+    }
+
+  // /** Zoom the viewport so that the page height consumes the entire viewport. */
+  fitToDefault() {
+    this.fitToDefaultInternal_(true);
   }
 
   /** Zoom the viewport to the default zoom. */

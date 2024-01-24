@@ -83,14 +83,17 @@
   }
 
   @media(max-width: 600px) {
-    #title,
+    /* #title, */
     #zoom-controls input {
       display: none;
     }
   }
 
   @media(max-width: 500px) {
-    #start,
+    /* #start, */
+    #rotate,
+    #more,
+    #end .vertical-separator,
     #fit {
       display: none;
     }
@@ -208,6 +211,25 @@
     border: none;
     border-top: var(--cr-separator-line);
   }
+
+  @media(max-width: 500px) {
+    #toolbar {
+      padding: 0 8px;
+    }
+    #title {
+      font-size: 1.25rem;
+      margin-inline-start: 8px;
+    }
+    #start,
+    #end {
+      flex: auto;
+    }
+  }
+  @media(max-width: 850px) {
+    #print {
+      display: none;
+    }
+  }
 </style>
 <div id="toolbar">
   <div id="start">
@@ -251,7 +273,7 @@
                                              fittingType_)]]"
         on-click="onFitToButtonClick_">
     </cr-icon-button>
-    <cr-icon-button iron-icon="pdf:rotate-left" dir="ltr"
+    <cr-icon-button id="rotate" iron-icon="pdf:rotate-left" dir="ltr"
 <if expr="enable_ink">
         disabled="[[annotationMode]]"
 </if>

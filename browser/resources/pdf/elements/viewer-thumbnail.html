@@ -50,6 +50,27 @@
   #pageNumber {
     line-height: 1;
   }
+
+  @media(max-width: 500px) {
+    #thumbnail {
+      width: 75px;
+      height: 100px;
+      margin-bottom: 6px;
+      border-radius: 8px;
+    }
+    canvas {
+      border-radius: 8px;
+    }
+    :host([is-active]) #thumbnail {
+      --active-background-color: white;
+      background-color: var(--active-background-color);
+      box-shadow: 0 0 0 2px var(--focus-border-color);
+    }
+    :host([is-active]:focus-visible) #thumbnail {
+      box-shadow: 0 0 0 2px var(--focus-border-color);
+    }
+  }
+
 </style>
 <div id="thumbnail" on-click="onClick_" role="button"></div>
 <div id="pageNumber">[[pageNumber]]</div>

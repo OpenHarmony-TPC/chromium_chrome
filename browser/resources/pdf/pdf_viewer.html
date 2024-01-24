@@ -7,6 +7,18 @@
     width: 100%;
   }
 
+  @media(max-width: 500px) {
+    :host {
+      --viewer-pdf-sidenav-width: 110px;
+    }
+  }
+
+  @media(min-width: 500px) and (max-width: 1000px) {
+    :host {
+      --viewer-pdf-sidenav-width: 200px;
+    }
+  }
+
   viewer-pdf-sidenav,
   viewer-toolbar {
     --pdf-toolbar-text-color: rgb(241, 241, 241);
@@ -50,7 +62,7 @@
     transform: translateX(100%);
   }
 
-  @media(max-width: 500px),
+  @media(max-width: 300px),
   (max-height: 250px) {
     #sidenav-container {
       display: none;
@@ -126,6 +138,12 @@
   #scroller:fullscreen {
     overflow: hidden;
   }
+
+  @media(max-width: 500px) {
+    #container {
+      padding-top: 6px;
+    }
+  }
 </style>
 
 <viewer-toolbar id="toolbar" annotation-mode="[[annotationMode_]]"
@@ -174,7 +192,7 @@
   <div id="main">
     <div id="scroller">
       <div id="sizer"></div>
-      <div id="content"></div>
+      <div id="content" on-click="onSidenavToggleHidden_"></div>
     </div>
     <div id="content-focus-rectangle" hidden$="[[!documentHasFocus_]]"></div>
   </div>

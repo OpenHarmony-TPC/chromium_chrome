@@ -36,6 +36,7 @@ export enum FittingType {
   FIT_TO_WIDTH = 'fit-to-width',
   FIT_TO_HEIGHT = 'fit-to-height',
   FIT_TO_BOUNDING_BOX = 'fit-to-bounding-box',
+  FIT_TO_DEFAULT = 'fit-to-default',
 }
 
 export interface NamedDestinationMessageData {

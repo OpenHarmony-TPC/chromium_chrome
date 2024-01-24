@@ -67,8 +67,15 @@ export class ViewerThumbnailElement extends PolymerElement {
 
       this.$.thumbnail.appendChild(canvas);
     }
-
+    
     canvas.width = imageData.width;
+    if (screen.width < 500) {
+      // --viewer-pdf-sidenav-width=110px
+      // #thumbnails padding-inline-start/end 5px
+      // so the max width of canvas is 110-5-5=100px;
+      let maxCanvasWidth = 100 * window.devicePixelRatio;
+      canvas.width = imageData.width > maxCanvasWidth ? maxCanvasWidth : imageData.width;
+    }
     canvas.height = imageData.height;
 
     this.styleCanvas_();

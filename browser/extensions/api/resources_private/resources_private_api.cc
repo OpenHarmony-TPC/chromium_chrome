@@ -28,6 +28,11 @@
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 #endif  // BUILDFLAG(ENABLE_PDF)
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/command_line.h"
+#include "content/public/common/content_switches.h"
+#endif
+
 // To add a new component to this API, simply:
 // 1. Add your component to the Component enum in
 //      chrome/common/extensions/api/resources_private.idl
@@ -85,6 +90,13 @@ ExtensionFunction::ResponseAction ResourcesPrivateGetStringsFunction::Run() {
       Profile* profile = Profile::FromBrowserContext(browser_context());
       enable_printing = IsUserProfile(profile);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_OHOS)
+      std::string device_type =
+          base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+              switches::kOhosDeviceType);
+      // The printing service is temporarily not supported on mobile device.
+      enable_printing = !(device_type == ::switches::kOhosMobileDevice);
+#endif
 
       pdf_extension_util::AddAdditionalData(
           enable_printing, IsPdfAnnotationsEnabled(browser_context()), &dict);
