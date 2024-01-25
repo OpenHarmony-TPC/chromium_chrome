@@ -33,6 +33,12 @@
       cr-icon-button:active {
         box-shadow: var(--cr-elevation-5);
       }
+
+      @media(max-width: 500px) {
+        cr-icon-button {
+          --cr-icon-button-icon-size: 23px;
+        }
+      }
     </style>
     <cr-icon-button iron-icon="[[visibleIcon_]]" on-click="fireClick_"
         aria-label$="[[visibleTooltip_]]" title="[[visibleTooltip_]]"

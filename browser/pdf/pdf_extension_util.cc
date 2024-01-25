@@ -207,7 +207,7 @@ void AddAdditionalData(bool enable_printing,
   // above instead.
   bool printing_enabled = true;
   bool annotations_enabled = false;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_OHOS)
   printing_enabled = enable_printing;
   annotations_enabled = enable_annotations;
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)

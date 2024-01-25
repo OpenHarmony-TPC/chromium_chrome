@@ -13,9 +13,18 @@ cr-icon-button {
   margin: 0;
 }
 
-cr-icon-button:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
+@media(min-width: 850px) {
+  cr-icon-button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+  }
+}
+
+@media(max-width: 850px) {
+  cr-icon-button:active {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+  }
 }
 
 /* Dark mode styles copied from

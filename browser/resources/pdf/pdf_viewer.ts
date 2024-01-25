@@ -286,11 +286,14 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   constructor() {
     super();
 
+    const collapsedValue = LocalStorageProxyImpl.getInstance().getItem(
+      LOCAL_STORAGE_SIDENAV_COLLAPSED_KEY);
     // TODO(dpapad): Add tests after crbug.com/1111459 is fixed.
-    this.sidenavCollapsed_ = Boolean(Number.parseInt(
-        LocalStorageProxyImpl.getInstance().getItem(
-            LOCAL_STORAGE_SIDENAV_COLLAPSED_KEY)!,
-        10));
+    this.sidenavCollapsed_ = Boolean(Number.parseInt(collapsedValue!, 10));
+    
+    if (screen.width < 500) {
+      this.sidenavCollapsed_ = true;
+    }
   }
 
   getBackgroundColor(): number {
@@ -975,13 +978,29 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     if (!this.sidenavCollapsed_) {
       container.classList.add('floating');
       container.addEventListener('transitionend', () => {
-        container.classList.remove('floating');
+        if (screen.width > 500) {
+          container.classList.remove('floating');
+        }
       }, {once: true});
     }
 
-    LocalStorageProxyImpl.getInstance().setItem(
+    if (screen.width > 500) {
+      LocalStorageProxyImpl.getInstance().setItem(
         LOCAL_STORAGE_SIDENAV_COLLAPSED_KEY,
         (this.sidenavCollapsed_ ? 1 : 0).toString());
+    }
+  }
+
+  private onSidenavToggleHidden_() {
+    console.warn("onSidenavToggleHidden_ sidenavCollapsed_:" + this.sidenavCollapsed_);
+    if (screen.width > 500) {
+      return;
+    }
+    if (!this.sidenavCollapsed_) {
+      const container = this.shadowRoot!.querySelector('#sidenav-container')!;
+      container.classList.add('floating');
+      this.sidenavCollapsed_ = true;
+    }
   }
 
   /**
