@@ -838,7 +838,7 @@ void FileSelectHelper::RunFileChooserOnUIThread(
   gfx::NativeWindow owning_window =
       platform_util::GetTopLevel(web_contents_->GetNativeView());
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_OHOS)
   // Android needs the original MIME types and an additional capture value.
   std::pair<std::vector<std::u16string>, bool> accept_types =
       std::make_pair(params->accept_types, params->use_media_capture);
