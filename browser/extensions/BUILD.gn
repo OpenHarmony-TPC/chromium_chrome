@@ -731,6 +731,13 @@ static_library("extensions") {
     "window_controller_list_observer.h",
   ]
 
+  if (defined(ohos_asan) && ohos_asan) {
+    sources -= [
+      "api/networking_private/networking_private_ui_delegate_factory_impl.cc",
+      "api/networking_private/networking_private_ui_delegate_factory_impl.h",
+    ]
+  }
+
   # Chrome OS does not support Native Messaging policies.
   if (!is_chromeos) {
     sources += [

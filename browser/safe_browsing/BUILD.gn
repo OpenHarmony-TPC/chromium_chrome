@@ -23,6 +23,13 @@ static_library("safe_browsing") {
     ]
   }
 
+  if (defined(ohos_asan) && ohos_asan) {
+    sources -= [
+      "url_checker_delegate_impl.cc",
+      "url_checker_delegate_impl.h",
+    ]
+  }
+
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   public_deps = []
