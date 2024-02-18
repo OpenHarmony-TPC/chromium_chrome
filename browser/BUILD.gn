@@ -4408,6 +4408,13 @@ static_library("browser") {
         sources -= [
           "enterprise/connectors/analysis/page_print_analysis_request.cc",
           "enterprise/connectors/analysis/page_print_analysis_request.h",
+          "enterprise/connectors/analysis/files_request_handler.cc",
+          "enterprise/connectors/analysis/files_request_handler.h",
+          "enterprise/connectors/analysis/content_analysis_delegate.cc",
+          "enterprise/connectors/analysis/content_analysis_delegate.h",
+        ]
+        sources += [
+          "enterprise/connectors/analysis/asan_stub.cc"
         ]
       }
       sources -= [
@@ -6317,6 +6324,13 @@ static_library("browser") {
     ]
 
     deps += [ "//chrome/common:chrome_features" ]
+  }
+
+  if (defined(ohos_asan) && ohos_asan) {
+    sources -= [
+      "chrome_browser_main_linux.cc",
+      "chrome_browser_main_linux.h",
+    ]
   }
 
   if (is_linux || is_chromeos_lacros || is_ohos) {
