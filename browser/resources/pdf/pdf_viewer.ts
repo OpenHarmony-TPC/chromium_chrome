@@ -21,7 +21,7 @@ import {listenOnce} from 'arkweb://resources/js/util_ts.js';
 
 import {Bookmark} from './bookmark_type.js';
 import {BrowserApi} from './browser_api.js';
-import {Attachment, DocumentMetadata, ExtendedKeyEvent, FittingType, Point, SaveRequestType} from './constants.js';
+import {Attachment, DocumentMetadata, ExtendedKeyEvent, FittingType, Point, SaveRequestType, ScreenWidth} from './constants.js';
 import {MessageData, PluginController} from './controller.js';
 // <if expr="enable_ink">
 import {ContentController} from './controller.js';
@@ -291,7 +291,7 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     // TODO(dpapad): Add tests after crbug.com/1111459 is fixed.
     this.sidenavCollapsed_ = Boolean(Number.parseInt(collapsedValue!, 10));
     
-    if (screen.width < 500) {
+    if (screen.width < ScreenWidth.PHONE_500) {
       this.sidenavCollapsed_ = true;
     }
   }
@@ -978,13 +978,13 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     if (!this.sidenavCollapsed_) {
       container.classList.add('floating');
       container.addEventListener('transitionend', () => {
-        if (screen.width > 500) {
+        if (screen.width > ScreenWidth.PHONE_500) {
           container.classList.remove('floating');
         }
       }, {once: true});
     }
 
-    if (screen.width > 500) {
+    if (screen.width > ScreenWidth.PHONE_500) {
       LocalStorageProxyImpl.getInstance().setItem(
         LOCAL_STORAGE_SIDENAV_COLLAPSED_KEY,
         (this.sidenavCollapsed_ ? 1 : 0).toString());
@@ -993,7 +993,7 @@ export class PdfViewerElement extends PdfViewerBaseElement {
 
   private onSidenavToggleHidden_() {
     console.warn("onSidenavToggleHidden_ sidenavCollapsed_:" + this.sidenavCollapsed_);
-    if (screen.width > 500) {
+    if (screen.width > ScreenWidth.PHONE_500) {
       return;
     }
     if (!this.sidenavCollapsed_) {

@@ -99,7 +99,7 @@ build_webui("build") {
 
   icons_html_files = [ "elements/icons.html" ]
 
-  # OHOS_ARKWEB_EXTENSIONS
+  # OHOS_PDF
   html_to_wrapper_scheme = "arkweb"
 
   # TypeScript Compiler parameters

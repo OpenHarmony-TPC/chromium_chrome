@@ -9,13 +9,13 @@ import {PromiseResolver} from 'arkweb://resources/js/promise_resolver.js';
 import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {BrowserApi, ZoomBehavior} from './browser_api.js';
-import {FittingType, Point} from './constants.js';
+import {FittingType, Point, ScreenWidth} from './constants.js';
 import {ContentController, MessageData, PluginController, PluginControllerEventType} from './controller.js';
 import {record, recordFitTo, UserAction} from './metrics.js';
 import {OpenPdfParams, OpenPdfParamsParser} from './open_pdf_params_parser.js';
 import {LoadState, SerializedKeyEvent} from './pdf_scripting_api.js';
 import {DocumentDimensionsMessageData} from './pdf_viewer_utils.js';
-import {Viewport} from './viewport.js';
+import {Viewport, LayoutOptions} from './viewport.js';
 import {ViewportScroller} from './viewport_scroller.js';
 import {ZoomManager} from './zoom_manager.js';
 
@@ -157,7 +157,12 @@ export abstract class PdfViewerBaseElement extends PolymerElement {
 
     this.viewport_ = new Viewport(
         scroller, sizer, content, getScrollbarWidth(), defaultZoom);
-    this.viewport_!.setViewportChangedCallback(() => this.viewportChanged_());
+    this.viewport_!.setViewportChangedCallback(() => {
+      this.viewportChanged_();
+      // #if defined(OHOS_PDF)
+      this.currentController!.viewportChanged2();
+      // #endif // OHOS_PDF
+    });
     this.viewport_!.setBeforeZoomCallback(
         () => this.currentController!.beforeZoom());
     this.viewport_!.setAfterZoomCallback(() => {
@@ -291,7 +296,12 @@ export abstract class PdfViewerBaseElement extends PolymerElement {
         this.viewport_!.getPageScreenRect(visiblePage);
     const size = this.viewport_!.size;
     this.paramsParser!.setViewportDimensions(size);
-
+    // #if defined(OHOS_PDF)
+    if (screen.width < ScreenWidth.PHONE_500) {
+        this.documentDimensions.layoutOptions = this.viewport_!.defaultLayoutOptions();
+        this.viewport_!.updateDocumentDimensions(this.documentDimensions);
+    }
+    // #endif // OHOS_PDF
     this.sendScriptingMessage({
       type: 'viewport',
       pageX: visiblePageDimensions.x,
@@ -466,7 +476,7 @@ export abstract class PdfViewerBaseElement extends PolymerElement {
         this.viewport_.setPosition(currentViewportPosition);
       }
       this.isUserInitiatedEvent = true;
-    } else if (screen.width < 500) {
+    } else if (screen.width < ScreenWidth.PHONE_500) {
       this.viewport_.setFittingType(FittingType.FIT_TO_DEFAULT);
       this.forceFit(FittingType.FIT_TO_DEFAULT);
     }

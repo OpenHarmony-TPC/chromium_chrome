@@ -71,3 +71,10 @@ export type ExtendedKeyEvent = KeyboardEvent&{
   fromScriptingAPI?: boolean,
   fromPlugin?: boolean,
 };
+
+/**
+ * Enumeration of screen's width for different devices.
+ */
+export enum ScreenWidth {
+  PHONE_500 = 500,
+}

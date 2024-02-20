@@ -5,9 +5,9 @@
 import {assert} from 'arkweb://resources/js/assert_ts.js';
 import {PromiseResolver} from 'arkweb://resources/js/promise_resolver.js';
 
-import {NamedDestinationMessageData, Rect, SaveRequestType} from './constants.js';
+import {NamedDestinationMessageData, Rect, SaveRequestType, ScreenWidth} from './constants.js';
 import {PdfPluginElement} from './internal_plugin.js';
-import {PinchPhase, Viewport} from './viewport.js';
+import {PinchPhase, Viewport, LayoutOptions} from './viewport.js';
 
 export interface MessageData {
   type: string;
@@ -57,6 +57,9 @@ export interface ContentController {
   beforeZoom(): void;
   afterZoom(): void;
   viewportChanged(): void;
+  // #if defined(OHOS_PDF)
+  viewportChanged2(): void;
+  // #endif OHOS_PDF
   rotateClockwise(): void;
   rotateCounterclockwise(): void;
   setDisplayAnnotations(displayAnnotations: boolean): void;
@@ -170,6 +173,17 @@ export class PluginController implements ContentController {
 
   viewportChanged() {}
 
+  // #if defined(OHOS_PDF)
+  viewportChanged2() {
+    if (screen.width > ScreenWidth.PHONE_500) return;
+
+    this.postMessage_({
+      type: 'viewport',
+      layoutOptions: this.viewport_.defaultLayoutOptions(),
+    });
+  }
+  // #endif // OHOS_PDF
+
   redo() {}
 
   undo() {}
@@ -185,7 +199,8 @@ export class PluginController implements ContentController {
       const position = this.viewport_.position;
       const zoom = this.viewport_.getZoom();
       const pinchPhase = this.viewport_.pinchPhase;
-      const layoutOptions = this.viewport_.getLayoutOptions();
+      const layoutOptions = screen.width > ScreenWidth.PHONE_500 ? // OHOS_PDF
+              this.viewport_.getLayoutOptions() : this.viewport_.defaultLayoutOptions();
       this.postMessage_({
         type: 'viewport',
         userInitiated: true,
@@ -205,11 +220,11 @@ export class PluginController implements ContentController {
   afterZoom() {
     const position = this.viewport_.position;
     const zoom = this.viewport_.getZoom();
-    const layoutOptions = this.viewport_.getLayoutOptions();
+    const layoutOptions = screen.width > ScreenWidth.PHONE_500 ? // OHOS_PDF
+              this.viewport_.getLayoutOptions() : this.viewport_.defaultLayoutOptions();
     const pinchVector = this.viewport_.pinchPanVector || {x: 0, y: 0};
     const pinchCenter = this.viewport_.pinchCenter || {x: 0, y: 0};
     const pinchPhase = this.viewport_.pinchPhase;
-
     this.postMessage_({
       type: 'viewport',
       userInitiated: this.getIsUserInitiatedCallback_(),

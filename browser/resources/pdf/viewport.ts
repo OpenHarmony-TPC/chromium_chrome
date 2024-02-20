@@ -1664,6 +1664,21 @@ export class Viewport implements ViewportInterface {
   enableFullscreenForTesting() {
     this.fullscreenForTesting_ = true;
   }
+
+  // #if defined(OHOS_PDF)
+  updateDocumentDimensions(documentDimensions: DocumentDimensions) {
+    this.documentDimensions_ = documentDimensions;
+  }
+
+  defaultLayoutOptions(): LayoutOptions {
+    var layoutOptions:LayoutOptions = {
+      'direction': 2,
+      'defaultPageOrientation': 0,
+      'twoUpViewEnabled': false
+    };
+    return layoutOptions;
+  }
+  // #endif // OHOS_PDF
 }
 
 /**
