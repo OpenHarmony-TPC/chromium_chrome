@@ -76,7 +76,7 @@ class DemoModeAppIntegrationTestBase : public ash::SystemWebAppIntegrationTest {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_TRUE(component_dir_.CreateUniqueTempDir());
     content::WebUIConfigMap::GetInstance().RemoveConfig(
-        GURL(ash::kChromeUntrustedUIDemoModeAppURL));
+        url::Origin::Create(GURL(ash::kChromeUntrustedUIDemoModeAppURL)));
     content::WebUIConfigMap::GetInstance().AddUntrustedWebUIConfig(
         std::make_unique<ash::DemoModeAppUntrustedUIConfig>(
             base::BindLambdaForTesting(
