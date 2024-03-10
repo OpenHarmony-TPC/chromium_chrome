@@ -29,7 +29,8 @@
 #endif  // BUILDFLAG(ENABLE_PDF)
 
 #if BUILDFLAG(IS_OHOS)
-#include "base/ohos/sys_info_utils.h"
+#include "base/command_line.h"
+#include "content/public/common/content_switches.h"
 #endif
 
 // To add a new component to this API, simply:
@@ -91,7 +92,8 @@ ExtensionFunction::ResponseAction ResourcesPrivateGetStringsFunction::Run() {
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 #if BUILDFLAG(IS_OHOS)
       // The printing service is temporarily not supported on mobile device.
-      enable_printing = !base::ohos::IsMobileDevice();
+      enable_printing = (*base::CommandLine::ForCurrentProcess())
+                            .HasSwitch(switches::kEnablePrinting);
 #endif
 
       pdf_extension_util::AddAdditionalData(
