@@ -374,6 +374,10 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       const GURL& request_url,
       bool is_primary_main_frame_request,
       bool strict_enforcement,
+#ifdef OHOS_NETWORK_LOAD
+      const GURL& origin_url,
+      const std::string& referrer,
+#endif
       base::OnceCallback<void(content::CertificateRequestResultType)> callback)
       override;
 #if !BUILDFLAG(IS_ANDROID)
