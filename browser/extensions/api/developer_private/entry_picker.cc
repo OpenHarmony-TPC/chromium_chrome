@@ -108,7 +108,7 @@ void EntryPicker::FileSelectedFromPicker(
   if (paths.empty()) {
     return;
   }
-  client_->FileSelected(base::GetRealPath(paths[0]));
+  client_->FileSelected(base::FilePath(base::GetRealPath(paths[0])));
   delete this;
 }
 
