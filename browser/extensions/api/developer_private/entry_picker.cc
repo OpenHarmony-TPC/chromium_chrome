@@ -108,7 +108,7 @@ void EntryPicker::FileSelectedFromPicker(
   if (paths.empty()) {
     return;
   }
-  client_->FileSelected(paths[0].DirName());
+  client_->FileSelected(base::FilePath(base::GetRealPath(paths[0])));
   delete this;
 }
 
