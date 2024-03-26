@@ -185,7 +185,11 @@ void FileSelectHelper::FileSelectedWithExtraInfo(
 
   const base::FilePath& path = file.local_path;
   if (dialog_type_ == ui::SelectFileDialog::SELECT_UPLOAD_FOLDER) {
+#ifdef OHOS_FILE_UPLOAD
+    PerformContentAnalysisForFolderUploadIfNeeded(base::FilePath(base::GetRealPath(path)));
+#else
     PerformContentAnalysisForFolderUploadIfNeeded(path);
+#endif
     return;
   }
 
