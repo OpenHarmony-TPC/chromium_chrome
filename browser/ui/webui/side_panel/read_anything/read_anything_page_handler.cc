@@ -30,7 +30,7 @@ ReadAnythingPageHandler::ReadAnythingPageHandler(
     mojo::PendingRemote<Page> page,
     mojo::PendingReceiver<PageHandler> receiver,
     content::WebUI* web_ui)
-    : browser_(chrome::FindLastActive()),
+    : browser_(chrome::FindLastActive()->AsWeakPtr()),
       web_ui_(web_ui),
       receiver_(this, std::move(receiver)),
       page_(std::move(page)) {
@@ -39,7 +39,7 @@ ReadAnythingPageHandler::ReadAnythingPageHandler(
   ax_action_handler_observer_.Observe(
       ui::AXActionHandlerRegistry::GetInstance());
 
-  coordinator_ = ReadAnythingCoordinator::FromBrowser(browser_);
+  coordinator_ = ReadAnythingCoordinator::FromBrowser(browser_.get());
   if (coordinator_) {
     coordinator_->AddObserver(this);
     coordinator_->AddModelObserver(this);
@@ -175,7 +175,8 @@ void ReadAnythingPageHandler::StateChanged(
   DCHECK(features::IsReadAnythingWithScreen2xEnabled());
   // If Screen AI library is downloaded but not initialized yet, ensure it is
   // loadable and initializes without any problems.
-  if (state == screen_ai::ScreenAIInstallState::State::kDownloaded) {
+  if (state == screen_ai::ScreenAIInstallState::State::kDownloaded &&
+      browser_) {
     screen_ai::ScreenAIServiceRouterFactory::GetForBrowserContext(
         browser_->profile())
         ->LaunchIfNotRunning();
@@ -234,7 +235,7 @@ void ReadAnythingPageHandler::OnActiveWebContentsChanged() {
   // 2. Set an AXContext on the web contents with web contents only mode
   //    enabled.
   content::WebContents* web_contents = nullptr;
-  if (active_) {
+  if (active_ && browser_) {
     web_contents = browser_->tab_strip_model()->GetActiveWebContents();
   }
   Observe(web_contents);
