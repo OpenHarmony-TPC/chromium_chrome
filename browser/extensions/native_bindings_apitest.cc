@@ -237,7 +237,7 @@ IN_PROC_BROWSER_TEST_F(NativeBindingsApiTest, ContextMenusTest) {
       browser()->tab_strip_model()->GetActiveWebContents();
   std::unique_ptr<TestRenderViewContextMenu> menu(
       TestRenderViewContextMenu::Create(
-          web_contents, GURL("https://www.example.com"), GURL(), GURL()));
+          web_contents, GURL("https://www.example.com")));
 
   ExtensionTestMessageListener listener("clicked");
   int command_id = ContextMenuMatcher::ConvertToExtensionsCustomCommandId(0);

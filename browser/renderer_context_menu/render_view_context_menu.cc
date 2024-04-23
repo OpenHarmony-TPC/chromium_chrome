@@ -607,13 +607,9 @@ bool ExtensionPatternMatch(const extensions::URLPatternSet& patterns,
   return patterns.MatchesURL(url);
 }
 
-const GURL& GetDocumentURL(const content::ContextMenuParams& params) {
-  return params.frame_url.is_empty() ? params.page_url : params.frame_url;
-}
-
 content::Referrer CreateReferrer(const GURL& url,
                                  const content::ContextMenuParams& params) {
-  const GURL& referring_url = GetDocumentURL(params);
+  const GURL& referring_url = params.frame_url;
   return content::Referrer::SanitizeForRequest(
       url,
       content::Referrer(referring_url.GetAsReferrer(), params.referrer_policy));
@@ -819,13 +815,14 @@ bool RenderViewContextMenu::ExtensionContextAndPatternMatch(
     const extensions::URLPatternSet& target_url_patterns) {
   const bool has_link = !params.link_url.is_empty();
   const bool has_selection = !params.selection_text.empty();
-  const bool in_frame = !params.frame_url.is_empty();
+  const bool in_subframe = params.is_subframe;
 
   if (contexts.Contains(MenuItem::ALL) ||
       (has_selection && contexts.Contains(MenuItem::SELECTION)) ||
       (params.is_editable && contexts.Contains(MenuItem::EDITABLE)) ||
-      (in_frame && contexts.Contains(MenuItem::FRAME)))
+      (in_subframe && contexts.Contains(MenuItem::FRAME))) {
     return true;
+  }
 
   if (has_link && contexts.Contains(MenuItem::LINK) &&
       ExtensionPatternMatch(target_url_patterns, params.link_url))
@@ -874,8 +871,7 @@ bool RenderViewContextMenu::MenuItemMatchesParams(
   if (!match)
     return false;
 
-  const GURL& document_url = GetDocumentURL(params);
-  return ExtensionPatternMatch(item->document_url_patterns(), document_url);
+  return ExtensionPatternMatch(item->document_url_patterns(), params.frame_url);
 }
 
 void RenderViewContextMenu::AppendAllExtensionItems() {
@@ -1295,7 +1291,7 @@ void RenderViewContextMenu::RecordUsedItem(int id) {
       IsCommandForOpenLink(id) &&
       // Ignore using right click + open in new tab for internal links.
       !params_.link_url.SchemeIs(content::kChromeUIScheme)) {
-    const GURL doc_url = GetDocumentURL(params_);
+    const GURL doc_url = params_.frame_url;
     const GURL history_url = GURL(chrome::kChromeUIHistoryURL);
     if (doc_url == history_url.Resolve(chrome::kChromeUIHistorySyncedTabs)) {
       UMA_HISTOGRAM_ENUMERATION(
@@ -2517,7 +2513,7 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
       return IsSavePageEnabled();
 
     case IDC_CONTENT_CONTEXT_RELOADFRAME:
-      return params_.frame_url.is_valid() &&
+      return params_.is_subframe &&
              params_.frame_url.DeprecatedGetOriginAsURL() !=
                  chrome::kChromeUIPrintURL;
 
@@ -2725,9 +2721,9 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
       }
 
       OpenURLParams params = GetOpenURLParamsWithExtraHeaders(
-          params_.link_url, GetDocumentURL(params_), new_tab_disposition,
-          ui::PAGE_TRANSITION_LINK, /*extra_headers=*/std::string(),
-          /*started_from_context_menu=*/true);
+          params_.link_url, params_.frame_url, params_.frame_origin,
+	  new_tab_disposition, ui::PAGE_TRANSITION_LINK, 
+	  /*extra_headers=*/std::string(), /*started_from_context_menu=*/true);
 
       if (browser) {
         browser->OpenURL(params);
@@ -2739,7 +2735,7 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
 
     case IDC_CONTENT_CONTEXT_OPENLINKNEWWINDOW:
       DCHECK(!IsInProgressiveWebApp());
-      OpenURLWithExtraHeaders(params_.link_url, GetDocumentURL(params_),
+      OpenURLWithExtraHeaders(params_.link_url, params_.frame_url,params_.frame_origin,
                               WindowOpenDisposition::NEW_WINDOW,
                               ui::PAGE_TRANSITION_LINK,
                               /*extra_headers=*/std::string(),
@@ -2751,7 +2747,7 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
       // that this won't and shouldn't be sent via the referrer header.
       // Note that PWA app windows are never incognito, we always open an
       // incognito browser tab.
-      OpenURLWithExtraHeaders(params_.link_url, GetDocumentURL(params_),
+      OpenURLWithExtraHeaders(params_.link_url, params_.frame_url, params_.frame_origin,
                               WindowOpenDisposition::OFF_THE_RECORD,
                               ui::PAGE_TRANSITION_LINK,
                               /*extra_headers=*/std::string(),
@@ -2822,7 +2818,8 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
       break;
 
     case IDC_CONTENT_CONTEXT_OPEN_ORIGINAL_IMAGE_NEW_TAB:
-      OpenURLWithExtraHeaders(params_.src_url, GetDocumentURL(params_),
+      OpenURLWithExtraHeaders(params_.src_url, params_.frame_url,
+		              params_.frame_origin,
                               WindowOpenDisposition::NEW_BACKGROUND_TAB,
                               ui::PAGE_TRANSITION_LINK, std::string(), false);
       break;
@@ -2833,7 +2830,7 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
 
     case IDC_CONTENT_CONTEXT_OPENIMAGENEWTAB:
     case IDC_CONTENT_CONTEXT_OPENAVNEWTAB:
-      OpenURL(params_.src_url, GetDocumentURL(params_),
+      OpenURL(params_.src_url, params_.frame_url, params_.frame_origin,
               WindowOpenDisposition::NEW_BACKGROUND_TAB,
               ui::PAGE_TRANSITION_LINK);
       break;
@@ -3026,7 +3023,7 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
         break;
       }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-      OpenURL(selection_navigation_url_, GURL(), disposition,
+      OpenURL(selection_navigation_url_, GURL(), {}, disposition,
               ui::PAGE_TRANSITION_LINK);
       break;
     }
@@ -3475,7 +3472,7 @@ bool RenderViewContextMenu::IsRegionSearchEnabled() const {
       provider->image_url_ref().IsValid(service->search_terms_data());
   return base::FeatureList::IsEnabled(lens::features::kLensStandalone) &&
          provider_supports_image_search &&
-         !GetDocumentURL(params_).SchemeIs(content::kChromeUIScheme) &&
+         !params_.frame_url.SchemeIs(content::kChromeUIScheme) &&
          GetPrefs(browser_context_)
              ->GetBoolean(prefs::kLensRegionSearchEnabled);
 #else
@@ -3637,7 +3634,7 @@ void RenderViewContextMenu::ExecProtocolHandler(int event_flags,
   WindowOpenDisposition disposition = ui::DispositionFromEventFlags(
       event_flags, WindowOpenDisposition::NEW_FOREGROUND_TAB);
   OpenURL(handlers[handler_index].TranslateUrl(params_.link_url),
-          GetDocumentURL(params_), disposition, ui::PAGE_TRANSITION_LINK);
+          params_.frame_url, params_.frame_origin, disposition, ui::PAGE_TRANSITION_LINK);
 }
 
 void RenderViewContextMenu::ExecOpenLinkInProfile(int profile_index) {
@@ -3703,7 +3700,9 @@ void RenderViewContextMenu::ExecSaveLinkAs() {
   dl_params->set_referrer_policy(
       content::Referrer::ReferrerPolicyForUrlRequest(referrer.policy));
   dl_params->set_referrer_encoding(params_.frame_charset);
-  dl_params->set_initiator(url::Origin::Create(GetDocumentURL(params_)));
+  // TODO(https://crbug.com/1457702): use the actual origin here rather than
+  // pulling it out of the frame url.
+  dl_params->set_initiator(url::Origin::Create(params_.frame_url));
   dl_params->set_suggested_name(params_.suggested_filename);
   dl_params->set_prompt(true);
   dl_params->set_download_source(download::DownloadSource::CONTEXT_MENU);
@@ -4015,7 +4014,7 @@ void RenderViewContextMenu::ExecLanguageSettings(int event_flags) {
   WindowOpenDisposition disposition = ui::DispositionFromEventFlags(
       event_flags, WindowOpenDisposition::NEW_FOREGROUND_TAB);
   GURL url = chrome::GetSettingsUrl(chrome::kLanguageOptionsSubPage);
-  OpenURL(url, GURL(), disposition, ui::PAGE_TRANSITION_LINK);
+  OpenURL(url, GURL(), {}, disposition, ui::PAGE_TRANSITION_LINK);
 }
 
 void RenderViewContextMenu::ExecProtocolHandlerSettings(int event_flags) {
@@ -4024,7 +4023,7 @@ void RenderViewContextMenu::ExecProtocolHandlerSettings(int event_flags) {
   WindowOpenDisposition disposition = ui::DispositionFromEventFlags(
       event_flags, WindowOpenDisposition::NEW_FOREGROUND_TAB);
   GURL url = chrome::GetSettingsUrl(chrome::kHandlerSettingsSubPage);
-  OpenURL(url, GURL(), disposition, ui::PAGE_TRANSITION_LINK);
+  OpenURL(url, GURL(), {}, disposition, ui::PAGE_TRANSITION_LINK);
 }
 
 void RenderViewContextMenu::ExecPictureInPicture() {
