@@ -56,6 +56,9 @@ class CacheAliasSearchPrefetchURLLoader
 
   // network::mojom::URLLoaderClient
   void OnReceiveEarlyHints(network::mojom::EarlyHintsPtr early_hints) override;
+#if BUILDFLAG(IS_OHOS)
+  void OnTransferDataWithSharedMemory(base::ReadOnlySharedMemoryRegion region, uint64_t buffer_size) override {}
+#endif
   void OnReceiveResponse(
       network::mojom::URLResponseHeadPtr head,
       mojo::ScopedDataPipeConsumerHandle body,

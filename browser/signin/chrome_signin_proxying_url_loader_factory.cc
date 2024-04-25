@@ -156,6 +156,9 @@ class ProxyingURLLoaderFactory::InProgressRequest
       network::mojom::URLResponseHeadPtr head,
       mojo::ScopedDataPipeConsumerHandle body,
       absl::optional<mojo_base::BigBuffer> cached_metadata) override;
+#if BUILDFLAG(IS_OHOS)
+  void OnTransferDataWithSharedMemory(base::ReadOnlySharedMemoryRegion region, uint64_t buffer_size) override {}
+#endif
   void OnReceiveRedirect(const net::RedirectInfo& redirect_info,
                          network::mojom::URLResponseHeadPtr head) override;
 
