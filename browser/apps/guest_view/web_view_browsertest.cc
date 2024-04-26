@@ -2817,8 +2817,7 @@ IN_PROC_BROWSER_TEST_F(WebViewTest, ContextMenuLanguageSettings) {
 
   GURL page_url("http://www.google.com");
   std::unique_ptr<TestRenderViewContextMenu> menu(
-      TestRenderViewContextMenu::Create(GetGuestRenderFrameHost(), page_url,
-                                        GURL(), GURL()));
+      TestRenderViewContextMenu::Create(GetGuestRenderFrameHost(), page_url));
   menu->ExecuteCommand(IDC_CONTENT_CONTEXT_LANGUAGE_SETTINGS, 0);
 
   content::WebContents* new_contents =
@@ -2848,8 +2847,7 @@ IN_PROC_BROWSER_TEST_F(WebViewTest, ContextMenusAPI_Basic) {
   GURL page_url("http://www.google.com");
   // Create and build our test context menu.
   std::unique_ptr<TestRenderViewContextMenu> menu(
-      TestRenderViewContextMenu::Create(GetGuestRenderFrameHost(), page_url,
-                                        GURL(), GURL()));
+      TestRenderViewContextMenu::Create(GetGuestRenderFrameHost(), page_url));
   // Look for the extension item in the menu, and execute it.
   int command_id = ContextMenuMatcher::ConvertToExtensionsCustomCommandId(0);
   ASSERT_TRUE(menu->IsCommandIdEnabled(command_id));
