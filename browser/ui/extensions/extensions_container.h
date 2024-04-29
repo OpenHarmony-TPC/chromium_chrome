@@ -81,6 +81,10 @@ class ExtensionsContainer {
 
   // Whether there are any Extensions registered with the ExtensionsContainer.
   virtual bool HasAnyExtensions() const = 0;
+
+  // Whether there is any security UI in the browser window that would
+  // overlap with the extensions popup.
+  virtual bool HasBlockingSecurityUI() const = 0;
 };
 
 #endif  // CHROME_BROWSER_UI_EXTENSIONS_EXTENSIONS_CONTAINER_H_
