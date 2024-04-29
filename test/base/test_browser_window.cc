@@ -10,6 +10,7 @@
 #include "chrome/browser/ui/find_bar/find_bar.h"
 #include "chrome/browser/ui/user_education/feature_promo_controller.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/gfx/geometry/rect.h"
 
 #if BUILDFLAG(ENABLE_SIDE_SEARCH)
@@ -114,6 +115,10 @@ ui::NativeTheme* TestBrowserWindow::GetNativeTheme() {
 
 const ui::ColorProvider* TestBrowserWindow::GetColorProvider() const {
   return nullptr;
+}
+
+ui::ElementContext TestBrowserWindow::GetElementContext() {
+  return ui::ElementContext();
 }
 
 int TestBrowserWindow::GetTopControlsHeight() const {
