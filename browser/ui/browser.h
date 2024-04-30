@@ -914,10 +914,14 @@ class Browser : public TabStripModelObserver,
       content::WebContents* portal_web_contents) override;
   void WebContentsBecamePortal(
       content::WebContents* portal_web_contents) override;
-  void RendererUnresponsive(
-      content::WebContents* source,
-      content::RenderWidgetHost* render_widget_host,
-      base::RepeatingClosure hang_monitor_restarter) override;
+  void RendererUnresponsive(content::WebContents* source,
+                            content::RenderWidgetHost* render_widget_host,
+                            base::RepeatingClosure hang_monitor_restarter
+#if defined(OHOS_RENDERER_ANR_DUMP)
+                            ,
+                            content::RenderProcessNotRespondingReason
+#endif
+                            ) override;
   void RendererResponsive(
       content::WebContents* source,
       content::RenderWidgetHost* render_widget_host) override;

@@ -2010,7 +2010,12 @@ void Browser::WebContentsBecamePortal(WebContents* portal_web_contents) {
 void Browser::RendererUnresponsive(
     WebContents* source,
     content::RenderWidgetHost* render_widget_host,
-    base::RepeatingClosure hang_monitor_restarter) {
+    base::RepeatingClosure hang_monitor_restarter
+#if defined(OHOS_RENDERER_ANR_DUMP)
+    ,
+    content::RenderProcessNotRespondingReason
+#endif
+) {
   // Don't show the page hung dialog when a HTML popup hangs because
   // the dialog will take the focus and immediately close the popup.
   RenderWidgetHostView* view = render_widget_host->GetView();
