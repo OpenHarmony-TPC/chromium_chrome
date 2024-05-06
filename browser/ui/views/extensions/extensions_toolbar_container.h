@@ -151,6 +151,7 @@ class ExtensionsToolbarContainer : public ToolbarIconContainerView,
       std::unique_ptr<ToolbarActionsBarBubbleDelegate> bubble) override;
   void ToggleExtensionsMenu() override;
   bool HasAnyExtensions() const override;
+  bool HasBlockingSecurityUI() const override;
 
   // ToolbarActionView::Delegate:
   content::WebContents* GetCurrentWebContents() override;

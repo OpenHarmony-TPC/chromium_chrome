@@ -409,6 +409,7 @@ class BrowserView : public BrowserWindow,
       const content::WebContents* contents) const override;
   ui::NativeTheme* GetNativeTheme() override;
   const ui::ColorProvider* GetColorProvider() const override;
+  ui::ElementContext GetElementContext() override;
   int GetTopControlsHeight() const override;
   void SetTopControlsGestureScrollInProgress(bool in_progress) override;
   StatusBubble* GetStatusBubble() override;

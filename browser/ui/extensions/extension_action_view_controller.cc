@@ -413,6 +413,12 @@ bool ExtensionActionViewController::TriggerPopupWithUrl(
   // Only one popup should be visible at a time.
   extensions_container_->HideActivePopup();
 
+  // Skip popup if there is an open security UI that would be covered by it,
+  // mitigation occlusion/spoofing risks.
+  if (extensions_container_->HasBlockingSecurityUI()){
+    return false;
+  }
+
   std::unique_ptr<extensions::ExtensionViewHost> host =
       extensions::ExtensionViewHostFactory::CreatePopupHost(popup_url,
                                                             browser_);

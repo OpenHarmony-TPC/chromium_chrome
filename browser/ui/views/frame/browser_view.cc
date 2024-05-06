@@ -218,6 +218,7 @@
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/focus/external_focus_tracker.h"
+#include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/layout/grid_layout.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/widget/native_widget.h"
@@ -1191,6 +1192,10 @@ ui::NativeTheme* BrowserView::GetNativeTheme() {
 
 const ui::ColorProvider* BrowserView::GetColorProvider() const {
   return views::ClientView::GetColorProvider();
+}
+
+ui::ElementContext BrowserView::GetElementContext() {
+  return views::ElementTrackerViews::GetContextForView(this);
 }
 
 int BrowserView::GetTopControlsHeight() const {
