@@ -189,6 +189,11 @@ class BrowserProcessImpl : public BrowserProcess,
   subresource_filter::RulesetService* subresource_filter_ruleset_service()
       override;
 
+#ifdef OHOS_ARKWEB_ADBLOCK
+  subresource_filter::UserRulesetService*
+  subresource_filter_user_ruleset_service() override;
+#endif
+
   StartupData* startup_data() override;
 
 // TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
@@ -239,6 +244,11 @@ class BrowserProcessImpl : public BrowserProcess,
   void CreateSafeBrowsingService();
 #endif
   void CreateSubresourceFilterRulesetService();
+
+#ifdef OHOS_ARKWEB_ADBLOCK
+  void CreateSubresourceFilterUserRulesetService();
+#endif
+
   void CreateOptimizationGuideService();
   void CreateStatusTray();
   void CreateBackgroundModeManager();
@@ -345,6 +355,12 @@ class BrowserProcessImpl : public BrowserProcess,
   bool created_subresource_filter_ruleset_service_ = false;
   std::unique_ptr<subresource_filter::RulesetService>
       subresource_filter_ruleset_service_;
+
+#ifdef OHOS_ARKWEB_ADBLOCK
+  bool created_subresource_filter_user_ruleset_service_ = false;
+  std::unique_ptr<subresource_filter::UserRulesetService>
+      subresource_filter_user_ruleset_service_;
+#endif
 
   bool shutting_down_ = false;
 
