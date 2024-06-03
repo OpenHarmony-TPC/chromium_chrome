@@ -112,6 +112,9 @@
 #include "components/safe_browsing/content/browser/safe_browsing_service_interface.h"
 #include "components/sessions/core/session_id_generator.h"
 #include "components/subresource_filter/content/browser/ruleset_service.h"
+#ifdef OHOS_ARKWEB_ADBLOCK
+#include "components/subresource_filter/content/browser/user_ruleset_service.h"
+#endif
 #include "components/translate/core/browser/translate_download_manager.h"
 #include "components/ukm/ukm_service.h"
 #include "components/update_client/update_query_params.h"
@@ -1084,6 +1087,16 @@ BrowserProcessImpl::subresource_filter_ruleset_service() {
   return subresource_filter_ruleset_service_.get();
 }
 
+#ifdef OHOS_ARKWEB_ADBLOCK
+subresource_filter::UserRulesetService*
+BrowserProcessImpl::subresource_filter_user_ruleset_service() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!created_subresource_filter_user_ruleset_service_)
+    CreateSubresourceFilterUserRulesetService();
+  return subresource_filter_user_ruleset_service_.get();
+}
+#endif
+
 StartupData* BrowserProcessImpl::startup_data() {
   return startup_data_;
 }
@@ -1336,8 +1349,26 @@ void BrowserProcessImpl::CreateSubresourceFilterRulesetService() {
   base::FilePath user_data_dir;
   base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
   subresource_filter_ruleset_service_ =
-      subresource_filter::RulesetService::Create(local_state(), user_data_dir);
+      subresource_filter::RulesetService::Create(local_state(), user_data_dir
+#ifdef OHOS_ARKWEB_ADBLOCK
+                                                 ,
+                                                 nullptr
+#endif
+      );
 }
+
+#ifdef OHOS_ARKWEB_ADBLOCK
+void BrowserProcessImpl::CreateSubresourceFilterUserRulesetService() {
+  DCHECK(!subresource_filter_user_ruleset_service_);
+  created_subresource_filter_user_ruleset_service_ = true;
+
+  base::FilePath user_data_dir;
+  base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
+  subresource_filter_user_ruleset_service_ =
+      subresource_filter::UserRulesetService::Create(local_state(),
+                                                     user_data_dir, nullptr);
+}
+#endif
 
 #if !BUILDFLAG(IS_ANDROID)
 // Android's GCMDriver currently makes the assumption that it's a singleton.

@@ -731,6 +731,7 @@ void ChromeContentRendererClient::RenderFrameCreated(
         new subresource_filter::SubresourceFilterAgent(
             render_frame, subresource_filter_ruleset_dealer_.get(),
             std::move(ad_resource_tracker));
+
     subresource_filter_agent->Initialize();
   }
 

@@ -62,6 +62,9 @@ class SafeBrowsingService;
 
 namespace subresource_filter {
 class RulesetService;
+#ifdef OHOS_ARKWEB_ADBLOCK
+class UserRulesetService;
+#endif
 }
 
 namespace variations {
@@ -228,6 +231,13 @@ class BrowserProcess {
   // Browsing subresource filter.
   virtual subresource_filter::RulesetService*
   subresource_filter_ruleset_service() = 0;
+
+#ifdef OHOS_ARKWEB_ADBLOCK
+  // Returns the service providing versioned storage for user rules used by the
+  // Safe Browsing subresource filter.
+  virtual subresource_filter::UserRulesetService*
+  subresource_filter_user_ruleset_service() = 0;
+#endif
 
   // Returns the StartupData which owns any pre-created objects in //chrome
   // before the full browser starts.
