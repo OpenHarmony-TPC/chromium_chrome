@@ -48,7 +48,7 @@ TabGroup* TabGroupModel::GetTabGroup(const tab_groups::TabGroupId& id) const {
 }
 
 void TabGroupModel::RemoveTabGroup(const tab_groups::TabGroupId& id) {
-  DCHECK(ContainsTabGroup(id));
+  CHECK(ContainsTabGroup(id));
   groups_.erase(id);
 }
 
