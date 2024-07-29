@@ -231,6 +231,11 @@ class FakePasswordAutofillAgent
   void AnnotateFieldsWithParsingResult(
       const autofill::ParsingResult& parsing_result) override {}
 
+#if defined(OHOS_PASSWORD_AUTOFILL)
+  void SetParsedPasswordForm(
+      const autofill::PasswordFormFillData& form_data) override {}
+#endif
+
   void SetLoggingState(bool active) override {
     called_set_logging_state_ = true;
     logging_state_active_ = active;
