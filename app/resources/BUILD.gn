@@ -14,6 +14,13 @@ grit("locale_settings") {
   source = "locale_settings.grd"
   defines = chrome_grit_defines
   output_dir = "$root_gen_dir/chrome"
+
+  #ifdef ohos_i18n
+  if (is_ohos && ohos_i18n) {
+    all_chrome_locales += extra_locales
+  }
+
+  #endif
   outputs =
       [ "grit/locale_settings.h" ] +
       process_file_template(all_chrome_locales,
@@ -37,6 +44,13 @@ grit("platform_locale_settings") {
   }
 
   defines = chrome_grit_defines
+
+  #ifdef ohos_i18n
+  if (is_ohos && ohos_i18n) {
+    locales_with_pseudolocales += extra_locales
+  }
+
+  #endif
   outputs = [ "grit/platform_locale_settings.h" ] +
             process_file_template(
                 locales_with_pseudolocales,

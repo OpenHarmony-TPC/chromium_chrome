@@ -116,6 +116,12 @@ grit("generated_resources") {
   source = "generated_resources.grd"
   defines = chrome_grit_defines + [ "is_cfm=${is_cfm}" ]
   output_dir = "$root_gen_dir/chrome"
+  #ifdef ohos_i18n
+  if (ohos_i18n) {
+    all_chrome_locales += extra_locales
+  }
+
+  #endif
   outputs =
       [ "grit/generated_resources.h" ] +
       process_file_template(all_chrome_locales,
@@ -161,6 +167,13 @@ grit("chromium_strings") {
   source = "chromium_strings.grd"
   defines = chrome_grit_defines
   output_dir = "$root_gen_dir/chrome"
+
+  #ifdef ohos_i18n
+  if (is_ohos && ohos_i18n) {
+    all_chrome_locales += extra_locales
+  }
+
+  #endif
   outputs =
       [ "grit/chromium_strings.h" ] +
       process_file_template(all_chrome_locales,
