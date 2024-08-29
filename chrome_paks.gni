@@ -157,7 +157,6 @@ template("chrome_extra_paks") {
       sources += [ "$root_gen_dir/ohos_nweb_ex/overrides/ui/resources/ohos_nweb_ex_resources.pak" ]
       deps += [ "//ohos_nweb_ex/overrides/ui/resources" ]
     }
-
     if (!is_android) {
       # New paks should be added here by default.
       sources += [
@@ -605,11 +604,18 @@ template("chrome_paks") {
       repack_allowlist = invoker.repack_allowlist
     }
 
-    input_locales = platform_pak_locales
+    if (ohos_i18n) {
+      input_locales = locales_for_ohos
+    } else {
+      input_locales = platform_pak_locales
+    }
+
     output_dir = "${invoker.output_dir}/locales"
 
     if (is_mac) {
       output_locales = locales_as_apple_outputs
+    } else if (is_ohos && ohos_i18n) {
+      output_locales = locales_for_ohos
     } else {
       output_locales = platform_pak_locales
     }
