@@ -87,10 +87,8 @@ void AddContentNodesToVector(const ui::AXNode* node,
 }  // namespace
 
 AXTreeDistiller::AXTreeDistiller(
-    content::RenderFrame* render_frame,
     OnAXTreeDistilledCallback on_ax_tree_distilled_callback)
-    : render_frame_(render_frame),
-      on_ax_tree_distilled_callback_(on_ax_tree_distilled_callback) {}
+    : on_ax_tree_distilled_callback_(on_ax_tree_distilled_callback) {}
 
 AXTreeDistiller::~AXTreeDistiller() = default;
 
@@ -152,11 +150,11 @@ void AXTreeDistiller::ProcessScreen2xResult(
   // the selected nodes.
 }
 
-void AXTreeDistiller::ScreenAIServiceReady() {
-  if (main_content_extractor_.is_bound()) {
+void AXTreeDistiller::ScreenAIServiceReady(content::RenderFrame* render_frame) {
+  if (main_content_extractor_.is_bound() || !render_frame) {
     return;
   }
-  render_frame_->GetBrowserInterfaceBroker()->GetInterface(
+  render_frame->GetBrowserInterfaceBroker()->GetInterface(
       main_content_extractor_.BindNewPipeAndPassReceiver());
   main_content_extractor_.set_disconnect_handler(
       base::BindOnce(&AXTreeDistiller::OnMainContentExtractorDisconnected,
