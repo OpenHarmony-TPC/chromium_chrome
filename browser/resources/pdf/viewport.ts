@@ -8,7 +8,7 @@ import {EventTracker} from 'arkweb://resources/js/event_tracker.js';
 import {loadTimeData} from 'arkweb://resources/js/load_time_data.js';
 import {hasKeyModifiers, isRTL} from 'arkweb://resources/js/util_ts.js';
 
-import {ExtendedKeyEvent, FittingType, Point, Rect} from './constants.js';
+import {ExtendedKeyEvent, FittingType, Point, Rect, ScreenWidth} from './constants.js';
 import {Gesture, GestureDetector, PinchEventDetail} from './gesture_detector.js';
 import {PdfPluginElement} from './internal_plugin.js';
 import {SwipeDetector, SwipeDirection} from './swipe_detector.js';
@@ -438,7 +438,12 @@ export class Viewport implements ViewportInterface {
     } else if (this.internalZoom_ === 0) {
       this.fitToNone();
     } else {
-      this.updateViewport_();
+      if (screen.width < ScreenWidth.PHONE_500) {
+        this.fitToWidth();
+        console.log("FittingType updateViewport fitToWidth.");
+      } else {
+        this.updateViewport_();
+      }
     }
   }
 
@@ -1312,7 +1317,7 @@ export class Viewport implements ViewportInterface {
   goToPageAndXy(page: number, x: number|undefined, y: number|undefined) {
     this.mightZoom_(() => {
       if (this.pageDimensions_.length === 0) {
-        return;
+      return;
       }
       if (page < 0) {
         page = 0;
@@ -1664,21 +1669,6 @@ export class Viewport implements ViewportInterface {
   enableFullscreenForTesting() {
     this.fullscreenForTesting_ = true;
   }
-
-  // #if defined(OHOS_PDF)
-  updateDocumentDimensions(documentDimensions: DocumentDimensions) {
-    this.documentDimensions_ = documentDimensions;
-  }
-
-  defaultLayoutOptions(): LayoutOptions {
-    var layoutOptions:LayoutOptions = {
-      'direction': 2,
-      'defaultPageOrientation': 0,
-      'twoUpViewEnabled': false
-    };
-    return layoutOptions;
-  }
-  // #endif // OHOS_PDF
 }
 
 /**

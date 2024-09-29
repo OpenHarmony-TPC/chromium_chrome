@@ -157,12 +157,7 @@ export abstract class PdfViewerBaseElement extends PolymerElement {
 
     this.viewport_ = new Viewport(
         scroller, sizer, content, getScrollbarWidth(), defaultZoom);
-    this.viewport_!.setViewportChangedCallback(() => {
-      this.viewportChanged_();
-      // #if defined(OHOS_PDF)
-      this.currentController!.viewportChanged2();
-      // #endif // OHOS_PDF
-    });
+    this.viewport_!.setViewportChangedCallback(() => { this.viewportChanged_(); });
     this.viewport_!.setBeforeZoomCallback(
         () => this.currentController!.beforeZoom());
     this.viewport_!.setAfterZoomCallback(() => {
@@ -296,12 +291,6 @@ export abstract class PdfViewerBaseElement extends PolymerElement {
         this.viewport_!.getPageScreenRect(visiblePage);
     const size = this.viewport_!.size;
     this.paramsParser!.setViewportDimensions(size);
-    // #if defined(OHOS_PDF)
-    if (screen.width < ScreenWidth.PHONE_500) {
-        this.documentDimensions.layoutOptions = this.viewport_!.defaultLayoutOptions();
-        this.viewport_!.updateDocumentDimensions(this.documentDimensions);
-    }
-    // #endif // OHOS_PDF
     this.sendScriptingMessage({
       type: 'viewport',
       pageX: visiblePageDimensions.x,

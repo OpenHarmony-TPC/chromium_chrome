@@ -57,9 +57,6 @@ export interface ContentController {
   beforeZoom(): void;
   afterZoom(): void;
   viewportChanged(): void;
-  // #if defined(OHOS_PDF)
-  viewportChanged2(): void;
-  // #endif OHOS_PDF
   rotateClockwise(): void;
   rotateCounterclockwise(): void;
   setDisplayAnnotations(displayAnnotations: boolean): void;
@@ -173,17 +170,6 @@ export class PluginController implements ContentController {
 
   viewportChanged() {}
 
-  // #if defined(OHOS_PDF)
-  viewportChanged2() {
-    if (screen.width > ScreenWidth.PHONE_500) return;
-
-    this.postMessage_({
-      type: 'viewport',
-      layoutOptions: this.viewport_.defaultLayoutOptions(),
-    });
-  }
-  // #endif // OHOS_PDF
-
   redo() {}
 
   undo() {}
@@ -199,8 +185,7 @@ export class PluginController implements ContentController {
       const position = this.viewport_.position;
       const zoom = this.viewport_.getZoom();
       const pinchPhase = this.viewport_.pinchPhase;
-      const layoutOptions = screen.width > ScreenWidth.PHONE_500 ? // OHOS_PDF
-              this.viewport_.getLayoutOptions() : this.viewport_.defaultLayoutOptions();
+      const layoutOptions = this.viewport_.getLayoutOptions();
       this.postMessage_({
         type: 'viewport',
         userInitiated: true,
@@ -220,8 +205,7 @@ export class PluginController implements ContentController {
   afterZoom() {
     const position = this.viewport_.position;
     const zoom = this.viewport_.getZoom();
-    const layoutOptions = screen.width > ScreenWidth.PHONE_500 ? // OHOS_PDF
-              this.viewport_.getLayoutOptions() : this.viewport_.defaultLayoutOptions();
+    const layoutOptions = this.viewport_.getLayoutOptions();
     const pinchVector = this.viewport_.pinchPanVector || {x: 0, y: 0};
     const pinchCenter = this.viewport_.pinchCenter || {x: 0, y: 0};
     const pinchPhase = this.viewport_.pinchPhase;

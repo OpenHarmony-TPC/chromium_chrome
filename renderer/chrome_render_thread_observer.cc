@@ -187,6 +187,10 @@ void ChromeRenderThreadObserver::SetConfiguration(
   dynamic_params_ = std::move(params);
 }
 
+#if defined(OHOS_EX_EXCEPTION_LIST)
+void ChromeRenderThreadObserver::SetContentSettingRules(const ::RendererContentSettingRules& rules) {}
+#endif  // defined(OHOS_EX_EXCEPTION_LIST)
+
 void ChromeRenderThreadObserver::OnRendererConfigurationAssociatedRequest(
     mojo::PendingAssociatedReceiver<chrome::mojom::RendererConfiguration>
         receiver) {

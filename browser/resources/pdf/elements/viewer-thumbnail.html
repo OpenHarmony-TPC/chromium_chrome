@@ -1,6 +1,7 @@
 <style>
   :host {
-    --focus-border-color: var(--google-blue-300);
+    /* --focus-border-color: var(--google-blue-300); */
+    --focus-border-color: #5291FF; /* OHOS_PDF */
     display: block;
   }
 
@@ -17,12 +18,13 @@
     margin-inline-end: auto;
     margin-inline-start: auto;
     width: 108px;
+    border-radius: 8px;
   }
 
   :host([is-active]) #thumbnail {
     --active-background-color: white;
     background-color: var(--active-background-color);
-    box-shadow: 0 0 0 6px var(--focus-border-color);
+    box-shadow: 0 0 0 4px var(--focus-border-color);
   }
 
   :host(:focus-visible) #thumbnail {
@@ -30,12 +32,13 @@
   }
 
   :host([is-active]:focus-visible) #thumbnail {
-    box-shadow: 0 0 0 8px var(--focus-border-color);
+    box-shadow: 0 0 0 6px var(--focus-border-color);
   }
 
   canvas {
     display: block;
     opacity: 0.5;
+    border-radius: 8px;
   }
 
   :host([is-active]) canvas {
@@ -56,10 +59,6 @@
       width: 75px;
       height: 100px;
       margin-bottom: 6px;
-      border-radius: 8px;
-    }
-    canvas {
-      border-radius: 8px;
     }
     :host([is-active]) #thumbnail {
       --active-background-color: white;

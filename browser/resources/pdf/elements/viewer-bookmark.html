@@ -1,19 +1,26 @@
     <style include="pdf-shared">
       #item {
         align-items: flex-start;
-        cursor: pointer;
+        cursor: auto;
         display: flex;
-        padding: 5px 0;
+        padding: 8px 0;
         position: relative;
         transition: background-color 100ms ease-out;
+        font-size: 16px;
       }
 
       #item:hover {
-        background-color: var(--cr-menu-background-focus-color);
+        /* background-color: var(--cr-menu-background-focus-color); */
+        background-color: #317af726;
+        border-radius: 8px;
+        color: #5291ff;
       }
 
       #item:active {
-        background-color: rgba(255, 255, 255, 0.25);
+        /* background-color: rgba(255, 255, 255, 0.25); */
+        background-color: #317af726;
+        border-radius: 8px;
+        color: #5291ff;
       }
 
       #title {
@@ -24,6 +31,7 @@
 
       #title:focus-visible {
         outline: auto -webkit-focus-ring-color;
+        border-radius: 8px;
       }
 
       #expand-container {

@@ -9,6 +9,7 @@ import {PolymerElement} from 'arkweb://resources/polymer/v3_0/polymer/polymer_bu
 
 import {ChangePageOrigin} from './viewer-bookmark.js';
 import {getTemplate} from './viewer-thumbnail.html.js';
+import {ScreenWidth} from '../constants.js';
 
 // The maximum widths of thumbnails for each layout (px).
 // These constants should be kept in sync with `kMaxWidthPortraitPx` and
@@ -68,8 +69,9 @@ export class ViewerThumbnailElement extends PolymerElement {
       this.$.thumbnail.appendChild(canvas);
     }
     
+    //
     canvas.width = imageData.width;
-    if (screen.width < 500) {
+    if (screen.width < ScreenWidth.PHONE_500) {
       // --viewer-pdf-sidenav-width=110px
       // #thumbnails padding-inline-start/end 5px
       // so the max width of canvas is 110-5-5=100px;

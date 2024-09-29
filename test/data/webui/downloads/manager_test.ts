@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 import 'chrome://webui-test/mojo_webui_test_support.js';
-import {stringToMojoString16, stringToMojoUrl} from 'chrome://resources/js/mojo_type_util.js';
+
 import {BrowserProxy, CrToastManagerElement, DangerType, DownloadsManagerElement, loadTimeData, PageRemote, States} from 'chrome://downloads/downloads.js';
+import {stringToMojoString16, stringToMojoUrl} from 'chrome://resources/js/mojo_type_util.js';
 import {isMac} from 'chrome://resources/js/platform.js';
 import {keyDownOn} from 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';

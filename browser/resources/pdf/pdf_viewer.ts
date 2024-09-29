@@ -22,9 +22,7 @@ import {listenOnce} from 'arkweb://resources/js/util_ts.js';
 import {Bookmark} from './bookmark_type.js';
 import {BrowserApi} from './browser_api.js';
 import {Attachment, DocumentMetadata, ExtendedKeyEvent, FittingType, Point, SaveRequestType, ScreenWidth} from './constants.js';
-import {MessageData, PluginController} from './controller.js';
-// <if expr="enable_ink">
-import {ContentController} from './controller.js';
+import {ContentController, MessageData, PluginController} from './controller.js';
 // </if>
 import {ChangePageAndXyDetail, ChangePageDetail, ChangePageOrigin, NavigateDetail} from './elements/viewer-bookmark.js';
 import {ViewerErrorDialogElement} from './elements/viewer-error-dialog.js';
@@ -667,8 +665,15 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     this.clockwiseRotations_ = this.viewport.getClockwiseRotations();
     this.pageNo_ = this.viewport.getMostVisiblePage() + 1;
     this.twoUpViewEnabled_ = this.viewport.twoUpViewEnabled();
-
+    // #if defined(OHOS_PDF)
     assert(this.currentController);
+    if (screen.width < ScreenWidth.PHONE_500) {
+      if (this.twoUpViewEnabled_) {
+        this.currentController.setTwoUpView(false);
+      }
+    }
+    // #endif
+
     this.currentController.viewportChanged();
   }
 
@@ -860,6 +865,8 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   private setDocumentMetadata_(metadata: DocumentMetadata) {
     this.documentMetadata_ = metadata;
     this.title_ = this.documentMetadata_.title || this.fileName_;
+    // OHOS_PDF
+    this.printingEnabled_ &&= this.documentMetadata_.canPrint;
     document.title = this.title_;
     this.canSerializeDocument_ = this.documentMetadata_.canSerializeDocument;
   }

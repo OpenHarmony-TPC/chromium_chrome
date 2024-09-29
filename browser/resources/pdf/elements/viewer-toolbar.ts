@@ -261,6 +261,11 @@ export class ViewerToolbarElement extends PolymerElement {
     return this.sidenavCollapsed ? 'false' : 'true';
   }
 
+  // OHOS_PDF
+  private computePrintSytle(): string {
+    return this.printingEnabled ? '' : 'display: none;'
+  }
+
   private toggleTwoPageViewClick_() {
     const newTwoUpViewEnabled = !this.twoUpViewEnabled;
     this.dispatchEvent(

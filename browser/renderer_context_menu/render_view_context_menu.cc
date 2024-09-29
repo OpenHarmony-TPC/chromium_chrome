@@ -609,7 +609,7 @@ bool ExtensionPatternMatch(const extensions::URLPatternSet& patterns,
 
 content::Referrer CreateReferrer(const GURL& url,
                                  const content::ContextMenuParams& params) {
-  const GURL& referring_url = params.frame_url;
+  const GURL& referring_url = params.frame_url;;
   return content::Referrer::SanitizeForRequest(
       url,
       content::Referrer(referring_url.GetAsReferrer(), params.referrer_policy));
@@ -820,10 +820,9 @@ bool RenderViewContextMenu::ExtensionContextAndPatternMatch(
   if (contexts.Contains(MenuItem::ALL) ||
       (has_selection && contexts.Contains(MenuItem::SELECTION)) ||
       (params.is_editable && contexts.Contains(MenuItem::EDITABLE)) ||
-      (in_subframe && contexts.Contains(MenuItem::FRAME))) {
+      (in_subframe && contexts.Contains(MenuItem::FRAME))){
     return true;
   }
-
   if (has_link && contexts.Contains(MenuItem::LINK) &&
       ExtensionPatternMatch(target_url_patterns, params.link_url))
     return true;
@@ -2722,8 +2721,8 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
 
       OpenURLParams params = GetOpenURLParamsWithExtraHeaders(
           params_.link_url, params_.frame_url, params_.frame_origin,
-	  new_tab_disposition, ui::PAGE_TRANSITION_LINK, 
-	  /*extra_headers=*/std::string(), /*started_from_context_menu=*/true);
+          new_tab_disposition, ui::PAGE_TRANSITION_LINK,
+          /*extra_headers=*/std::string(), /*started_from_context_menu=*/true);
 
       if (browser) {
         browser->OpenURL(params);
@@ -2735,11 +2734,11 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
 
     case IDC_CONTENT_CONTEXT_OPENLINKNEWWINDOW:
       DCHECK(!IsInProgressiveWebApp());
-      OpenURLWithExtraHeaders(params_.link_url, params_.frame_url,params_.frame_origin,
-                              WindowOpenDisposition::NEW_WINDOW,
-                              ui::PAGE_TRANSITION_LINK,
-                              /*extra_headers=*/std::string(),
-                              /*started_from_context_menu=*/true);
+      OpenURLWithExtraHeaders(
+          params_.link_url, params_.frame_url, params_.frame_origin,
+          WindowOpenDisposition::NEW_WINDOW, ui::PAGE_TRANSITION_LINK,
+          /*extra_headers=*/std::string(),
+          /*started_from_context_menu=*/true);
       break;
 
     case IDC_CONTENT_CONTEXT_OPENLINKOFFTHERECORD:
@@ -2747,11 +2746,11 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
       // that this won't and shouldn't be sent via the referrer header.
       // Note that PWA app windows are never incognito, we always open an
       // incognito browser tab.
-      OpenURLWithExtraHeaders(params_.link_url, params_.frame_url, params_.frame_origin,
-                              WindowOpenDisposition::OFF_THE_RECORD,
-                              ui::PAGE_TRANSITION_LINK,
-                              /*extra_headers=*/std::string(),
-                              /*started_from_context_menu=*/true);
+      OpenURLWithExtraHeaders(
+          params_.link_url, params_.frame_url, params_.frame_origin,
+          WindowOpenDisposition::NEW_WINDOW, ui::PAGE_TRANSITION_LINK,
+          /*extra_headers=*/std::string(),
+          /*started_from_context_menu=*/true);
       base::UmaHistogramEnumeration(kOpenLinkAsProfileHistogram,
                                     OpenLinkAs::kOpenLinkAsIncognitoClicked);
       break;
@@ -2819,7 +2818,7 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
 
     case IDC_CONTENT_CONTEXT_OPEN_ORIGINAL_IMAGE_NEW_TAB:
       OpenURLWithExtraHeaders(params_.src_url, params_.frame_url,
-		              params_.frame_origin,
+		                      params_.frame_origin,
                               WindowOpenDisposition::NEW_BACKGROUND_TAB,
                               ui::PAGE_TRANSITION_LINK, std::string(), false);
       break;

@@ -297,8 +297,8 @@ void FileSelectHelper::OnListDone(int error) {
   } else {
     std::vector<FileChooserFileInfoPtr> chooser_files;
     for (const auto& file_path : entry->results_) {
-#ifdef OHOS_FILE_UPLOAD
       std::u16string display_name = std::u16string();
+#ifdef OHOS_FILE_UPLOAD
       if (file_path.IsDataShareUri()) {
         display_name = base::GetFileDisplayName(file_path);
       }
@@ -348,8 +348,8 @@ void FileSelectHelper::ConvertToFileChooserFileInfoList(
       display_name = base::GetFileDisplayName(file.local_path);
     }
     chooser_files.push_back(
-         FileChooserFileInfo::NewNativeFile(blink::mojom::NativeFileInfo::New(
-             file.local_path, display_name)));
+        FileChooserFileInfo::NewNativeFile(blink::mojom::NativeFileInfo::New(
+            file.local_path, display_name)));
 #else
     chooser_files.push_back(
         FileChooserFileInfo::NewNativeFile(blink::mojom::NativeFileInfo::New(

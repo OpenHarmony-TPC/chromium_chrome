@@ -535,7 +535,7 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
     if (this.isDangerous_) {
       removeFileUrlLinks();
       this.useFileIcon_ = false;
-          return;
+      return;
     }
     if (OVERRIDDEN_ICON_TYPES.includes(this.data.dangerType as DangerType)) {
       this.useFileIcon_ = false;

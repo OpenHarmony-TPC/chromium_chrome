@@ -27,6 +27,8 @@ export interface DocumentMetadata {
   subject: string;
   title: string;
   version: string;
+  // OHOS_PDF
+  canPrint: boolean;
 }
 
 /** Enumeration of page fitting types and bounding box fitting types. */

@@ -131,9 +131,7 @@ class TabSlotController {
   // Continues dragging a Tab. May enter a nested event loop - returns
   // Liveness::kDeleted if `this` was destroyed during this nested event loop,
   // and Liveness::kAlive if `this` is still alive.
-  virtual Liveness ContinueDrag(
-      views::View* view,
-      const ui::LocatedEvent& event) = 0;
+  virtual Liveness ContinueDrag(views::View* view, const ui::LocatedEvent& event) = 0;
 
   // Ends dragging a Tab. Returns whether the tab has been destroyed.
   virtual bool EndDrag(EndDragReason reason) = 0;
