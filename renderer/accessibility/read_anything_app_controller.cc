@@ -300,7 +300,7 @@ ReadAnythingAppController* ReadAnythingAppController::Install(
 
 ReadAnythingAppController::ReadAnythingAppController(
     content::RenderFrame* render_frame)
-    : render_frame_(render_frame) {
+    : render_frame_id_(render_frame->GetRoutingID()) {
   distiller_ = std::make_unique<AXTreeDistiller>(
       base::BindRepeating(&ReadAnythingAppController::OnAXTreeDistilled,
                           weak_ptr_factory_.GetWeakPtr()));
@@ -326,6 +326,17 @@ void ReadAnythingAppController::AccessibilityEventReceived(
   }
 }
 
+void ReadAnythingAppController::ExecuteJavaScript(std::string script) {
+  content::RenderFrame* render_frame =
+      content::RenderFrame::FromRoutingID(render_frame_id_);
+  if (!render_frame) {
+    return;
+  }
+  // TODO(b/1266555): Use v8::Function rather than javascript. If possible,
+  // replace this function call with firing an event.
+  render_frame->ExecuteJavaScript(base::ASCIIToUTF16(script));
+}
+
 void ReadAnythingAppController::OnActiveAXTreeIDChanged(
     const ui::AXTreeID& tree_id,
     ukm::SourceId ukm_source_id) {
@@ -342,8 +353,7 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
 
   // TODO(b/1266555): Use v8::Function rather than javascript. If possible,
   // replace this function call with firing an event.
-  std::string script = "chrome.readAnything.showLoading();";
-  render_frame_->ExecuteJavaScript(base::ASCIIToUTF16(script));
+  ExecuteJavaScript("chrome.readAnything.showLoading();");
   model_.SetLoading(true);
 
   // When the UI first constructs, this function may be called before tree_id
@@ -455,16 +465,14 @@ void ReadAnythingAppController::PostProcessSelection() {
 void ReadAnythingAppController::Draw() {
   // TODO(abigailbklein): Use v8::Function rather than javascript. If possible,
   // replace this function call with firing an event.
-  std::string script = "chrome.readAnything.updateContent();";
-  render_frame_->ExecuteJavaScript(base::ASCIIToUTF16(script));
+  ExecuteJavaScript("chrome.readAnything.updateContent();");
   model_.SetLoading(false);
 }
 
 void ReadAnythingAppController::DrawSelection() {
   // TODO(abigailbklein): Use v8::Function rather than javascript. If possible,
   // replace this function call with firing an event.
-  std::string script = "chrome.readAnything.updateSelection();";
-  render_frame_->ExecuteJavaScript(base::ASCIIToUTF16(script));
+  ExecuteJavaScript("chrome.readAnything.updateSelection();");
 }
 
 void ReadAnythingAppController::OnThemeChanged(ReadAnythingThemePtr new_theme) {
@@ -472,8 +480,7 @@ void ReadAnythingAppController::OnThemeChanged(ReadAnythingThemePtr new_theme) {
 
   // TODO(abigailbklein): Use v8::Function rather than javascript. If possible,
   // replace this function call with firing an event.
-  std::string script = "chrome.readAnything.updateTheme();";
-  render_frame_->ExecuteJavaScript(base::ASCIIToUTF16(script));
+  ExecuteJavaScript("chrome.readAnything.updateTheme();");
 }
 
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
@@ -666,7 +673,12 @@ void ReadAnythingAppController::OnConnected() {
   page_handler_factory_->CreatePageHandler(
       receiver_.BindNewPipeAndPassRemote(),
       page_handler_.BindNewPipeAndPassReceiver());
-  render_frame_->GetBrowserInterfaceBroker()->GetInterface(
+  content::RenderFrame* render_frame =
+      content::RenderFrame::FromRoutingID(render_frame_id_);
+  if (!render_frame) {
+    return;
+  }
+  render_frame->GetBrowserInterfaceBroker()->GetInterface(
       std::move(page_handler_factory_receiver));
 }
 
