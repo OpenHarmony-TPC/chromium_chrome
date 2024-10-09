@@ -7157,6 +7157,10 @@ test("unit_tests") {
       "../renderer/extensions/tabs_hooks_delegate_unittest.cc",
     ]
 
+    if (use_aura) {
+      sources += [ "../browser/extensions/extension_install_prompt_show_params_unittest.cc" ]
+    }
+
     if (is_linux || is_mac || is_win) {
       sources += [ "../common/extensions/api/system_indicator/system_indicator_handler_unittest.cc" ]
     }
