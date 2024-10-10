@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "ui/gfx/native_widget_types.h"
 
 class NativeWindowTracker;
@@ -21,6 +22,10 @@ class WebContents;
 // - The dialog's parent window
 // - The browser window to use to open a new tab if a user clicks a link in the
 //   dialog.
+//
+// This can either be created with a content::WebContents or a
+// gfx::NativeWindow. If this is created for WebContents, GetParentWindow() will
+// return the outermost window hosting the WebContents.
 class ExtensionInstallPromptShowParams {
  public:
   explicit ExtensionInstallPromptShowParams(content::WebContents* web_contents);
@@ -53,18 +58,30 @@ class ExtensionInstallPromptShowParams {
   bool WasParentDestroyed();
 
  private:
-  void WebContentsDestroyed();
+  // Returns trues if the current object was configured for WebContents.
+  bool WasConfiguredForWebContents();
 
   raw_ptr<Profile> profile_;
-  raw_ptr<content::WebContents> parent_web_contents_;
-  bool parent_web_contents_destroyed_;
+
+  // Only one of these will be non-null.
+  base::WeakPtr<content::WebContents> parent_web_contents_;
   gfx::NativeWindow parent_window_;
 
-  class WebContentsDestructionObserver;
-  std::unique_ptr<WebContentsDestructionObserver>
-      web_contents_destruction_observer_;
-
+  // Used to track the parent_window_'s lifetime. We need to explicitly track it
+  // because aura::Window does not expose a WeakPtr like WebContents.
   std::unique_ptr<NativeWindowTracker> native_window_tracker_;
 };
+
+namespace test {
+
+// Unit test may use this to disable root window checking in
+// ExtensionInstallPromptShowParams.
+class ScopedDisableRootChecking {
+ public:
+  ScopedDisableRootChecking();
+  ~ScopedDisableRootChecking();
+};
+
+}  // namespace test
 
 #endif  // CHROME_BROWSER_EXTENSIONS_EXTENSION_INSTALL_PROMPT_SHOW_PARAMS_H_

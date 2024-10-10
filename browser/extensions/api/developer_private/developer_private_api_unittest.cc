@@ -15,6 +15,7 @@
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/error_console/error_console.h"
 #include "chrome/browser/extensions/extension_function_test_utils.h"
+#include "chrome/browser/extensions/extension_install_prompt_show_params.h"
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/extension_management_test_util.h"
 #include "chrome/browser/extensions/extension_service.h"
@@ -178,6 +179,11 @@ class DeveloperPrivateApiUnitTest : public ExtensionServiceTestWithInstall {
   // ExtensionServiceTestBase:
   void SetUp() override;
   void TearDown() override;
+
+  // This test does not create a root window. Because of this,
+  // ScopedDisableRootChecking needs to be used (which disables the root window
+  // check).
+  test::ScopedDisableRootChecking disable_root_checking_;
 
   // The browser (and accompanying window).
   std::unique_ptr<TestBrowserWindow> browser_window_;

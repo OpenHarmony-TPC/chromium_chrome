@@ -650,6 +650,7 @@ class Browser : public TabStripModelObserver,
   void TabStripEmpty() override;
 
   // Overridden from content::WebContentsDelegate:
+  void ActivateContents(content::WebContents* contents) override;
   void SetTopControlsShownRatio(content::WebContents* web_contents,
                                 float ratio) override;
   int GetTopControlsHeight() override;
@@ -812,7 +813,6 @@ class Browser : public TabStripModelObserver,
                       const gfx::Rect& initial_rect,
                       bool user_gesture,
                       bool* was_blocked) override;
-  void ActivateContents(content::WebContents* contents) override;
   void LoadingStateChanged(content::WebContents* source,
                            bool should_show_loading_ui) override;
   void CloseContents(content::WebContents* source) override;
