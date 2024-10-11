@@ -612,6 +612,9 @@ const char kUnlimitedStorage[] = "unlimited-storage";
 // all of its state.
 const char kUserDataDir[] = "user-data-dir";
 
+// Specifies the user cache directory
+const char kUserCacheDir[] = "user-cache-dir";
+
 // Uses WinHttp to resolve proxies instead of using Chromium's normal proxy
 // resolution logic. This is only supported in Windows.
 //
