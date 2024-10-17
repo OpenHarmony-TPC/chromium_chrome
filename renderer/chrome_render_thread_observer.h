@@ -125,6 +125,9 @@ class ChromeRenderThreadObserver : public content::RenderThreadObserver,
   void OnRendererConfigurationAssociatedRequest(
       mojo::PendingAssociatedReceiver<chrome::mojom::RendererConfiguration>
           receiver);
+#if defined(OHOS_EX_EXCEPTION_LIST)
+  void SetContentSettingRules(const ::RendererContentSettingRules& rules) override;
+#endif  // defined(OHOS_EX_EXCEPTION_LIST)
 
   static bool is_incognito_process_;
   mojo::Remote<content_settings::mojom::ContentSettingsManager>

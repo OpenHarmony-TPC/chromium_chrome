@@ -10,13 +10,13 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.UnownedUserData;
 import org.chromium.base.UnownedUserDataKey;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.NativeMethods;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.components.security_state.SecurityStateModel;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.url.GURL;
 
 /**
  * Provides a trusted CDN publisher URL for the current web contents in a Tab.
@@ -73,11 +73,6 @@ public class TrustedCdn extends TabWebContentsUserData {
     }
 
     /**
-     * The publisher URL for pages hosted on a trusted CDN, or null otherwise.
-     */
-    private String mPublisherUrl;
-
-    /**
      *  @return The publisher URL if the current page is hosted on a trusted CDN, or null otherwise
      */
     @Nullable
@@ -111,8 +106,8 @@ public class TrustedCdn extends TabWebContentsUserData {
     }
 
     @VisibleForTesting
-    public static void setPublisherUrlForTesting(@NonNull Tab tab, @Nullable String publisherUrl) {
-        from(tab).setPublisherUrl(publisherUrl);
+    public static void initForTesting(@NonNull Tab tab) {
+        from(tab);
     }
 
     private static TrustedCdn get(@Nullable Tab tab) {
@@ -133,7 +128,6 @@ public class TrustedCdn extends TabWebContentsUserData {
     @Override
     public void cleanupWebContents(WebContents webContents) {
         TrustedCdnJni.get().resetWebContents(mNativeTrustedCdn, TrustedCdn.this);
-        mPublisherUrl = null;
     }
 
     @Override
@@ -155,12 +149,9 @@ public class TrustedCdn extends TabWebContentsUserData {
             return null;
         }
         int level = SecurityStateModel.getSecurityLevelForWebContents(mTab.getWebContents());
-        return level != ConnectionSecurityLevel.DANGEROUS ? mPublisherUrl : null;
-    }
-
-    @CalledByNative
-    private void setPublisherUrl(@Nullable String url) {
-        mPublisherUrl = url;
+        if (level == ConnectionSecurityLevel.DANGEROUS) return null;
+        GURL publisherUrl = TrustedCdnJni.get().getPublisherUrl(mNativeTrustedCdn);
+        return publisherUrl.isValid() ? publisherUrl.getSpec() : null;
     }
 
     @NativeMethods
@@ -169,5 +160,6 @@ public class TrustedCdn extends TabWebContentsUserData {
         void onDestroyed(long nativeTrustedCdn, TrustedCdn caller);
         void setWebContents(long nativeTrustedCdn, TrustedCdn caller, WebContents webContents);
         void resetWebContents(long nativeTrustedCdn, TrustedCdn caller);
+        GURL getPublisherUrl(long nativeTrustedCdn);
     }
 }

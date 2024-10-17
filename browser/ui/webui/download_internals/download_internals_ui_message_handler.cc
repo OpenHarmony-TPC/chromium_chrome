@@ -115,7 +115,7 @@ void DownloadInternalsUIMessageHandler::HandleStartDownload(
     LOG(WARNING) << "Can't parse download URL, try to enter a valid URL.";
     return;
   }
-  
+
   Profile* profile = Profile::FromWebUI(web_ui());
   PolicyBlocklistService* service =
       PolicyBlocklistFactory::GetForBrowserContext(profile);

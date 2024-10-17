@@ -11,7 +11,7 @@ const assertTrue = chrome.test.assertTrue;
 var testUrl = 'http://www.a.com:PORT' +
     '/extensions/api_test/page_capture/google.html';
 
-function verifyPageCapture(data, isFile) {
+    function verifyPageCapture(data, isFile) {
   assertEq(undefined, chrome.runtime.lastError);
   assertTrue(data != null);
   // It should contain few KBs of data.

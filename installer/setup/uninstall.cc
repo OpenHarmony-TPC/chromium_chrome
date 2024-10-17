@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <windows.h>
 
+#include <shlobj.h>
+
 #include <initializer_list>
 #include <memory>
 #include <string>
@@ -1103,7 +1105,8 @@ bool MoveSetupOutOfInstallFolder(const base::FilePath& setup_exe) {
 
   base::FilePath tmp_dir;
   base::FilePath temp_file;
-  if (!base::PathService::Get(base::DIR_TEMP, &tmp_dir)) {
+  if (!(::IsUserAnAdmin() ? base::GetSecureSystemTemp(&tmp_dir)
+                          : base::PathService::Get(base::DIR_TEMP, &tmp_dir))) {
     NOTREACHED();
     return false;
   }

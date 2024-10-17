@@ -32,4 +32,3 @@ suite('MojoTypeUtilTest', () => {
         {url: 'file:///home/test/test.pdf'});
   });
 });
-

@@ -40,6 +40,7 @@ std::unique_ptr<TestRenderViewContextMenu> TestRenderViewContextMenu::Create(
     const GURL& link_url,
     bool is_subframe) {
   content::ContextMenuParams params;
+  params.page_url = frame_url;
   params.frame_url = frame_url;
   params.link_url = link_url;
   params.is_subframe = is_subframe;

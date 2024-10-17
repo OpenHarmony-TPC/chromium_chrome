@@ -90,3 +90,9 @@ BASE_FEATURE(kDisallowManagedProfileSignout,
 // Makes the profile creation flow use the "promo" flow version of the Gaia
 // sign-in page instead of one that mentions the Chrome sync benefits.
 BASE_FEATURE(kPromoGaiaFlow, "PromoGaiaFlow", base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(ENABLE_MIRROR)
+BASE_FEATURE(kVerifyRequestInitiatorForMirrorHeaders,
+             "VerifyRequestInitiatorForMirrorHeaders",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_MIRROR)

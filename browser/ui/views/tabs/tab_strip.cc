@@ -309,8 +309,7 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
       std::move(drag_controller_set_callback_).Run(drag_controller_.get());
   }
 
-  Liveness ContinueDrag(views::View* view,
-                                      const ui::LocatedEvent& event) {
+  Liveness ContinueDrag(views::View* view, const ui::LocatedEvent& event) {
     if (!drag_controller_.get() ||
         drag_controller_->event_source() != EventSourceFromEvent(event)) {
       return Liveness::kAlive;

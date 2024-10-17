@@ -24,12 +24,13 @@
   }
 
   #title {
-    font-size: 0.87rem;
+    font-size: 1.25rem;
     font-weight: 500;
     margin-inline-start: 16px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: #FFFFFFDB;
   }
 
   #actionMenuTrigger {
@@ -125,7 +126,7 @@
     background: rgba(0, 0, 0, 0.5);
     border: none;
     caret-color: currentColor;
-    color: inherit;
+    /* color: inherit; */
     font-family: inherit;
     line-height: inherit;
     margin: 0 4px;
@@ -133,6 +134,8 @@
     padding: 0 4px;
     text-align: center;
     width: 5ch;
+    font-size: 16px;
+    color: #FFFFFFDB;
   }
 
   #fit {
@@ -212,12 +215,20 @@
     border-top: var(--cr-separator-line);
   }
 
+  cr-action-menu button {
+    font-size: 16px;
+  }
+
+  cr-action-menu button:hover {
+    border-radius: 8px;
+    border: 4px;
+  }
+  
   @media(max-width: 500px) {
     #toolbar {
       padding: 0 8px;
     }
     #title {
-      font-size: 1.25rem;
       margin-inline-start: 8px;
     }
     #start,
@@ -225,7 +236,7 @@
       flex: auto;
     }
   }
-  @media(max-width: 850px) {
+  @media(max-width: 1000px) {
     #print {
       display: none;
     }
@@ -296,7 +307,7 @@
         is-form-field-focused="[[isFormFieldFocused]]">
     </viewer-download-controls>
     <cr-icon-button id="print" iron-icon="cr:print"
-        hidden="[[!printingEnabled]]" title="$i18n{tooltipPrint}"
+        style$="[[computePrintSytle(printingEnabled)]]" title="$i18n{tooltipPrint}"
         aria-label="$i18n{tooltipPrint}" on-click="onPrintClick_">
     </cr-icon-button>
     <cr-icon-button id="more" iron-icon="cr:more-vert"

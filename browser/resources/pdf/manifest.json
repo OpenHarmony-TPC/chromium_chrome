@@ -16,7 +16,11 @@
     "pdfViewerPrivate",
     "resourcesPrivate",
     "tabs",
-    {"fileSystem": ["write"]}
+    {
+      "fileSystem": [
+        "write"
+      ]
+    }
   ],
   "mime_types": [
     "application/pdf"

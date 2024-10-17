@@ -146,9 +146,7 @@ class SidePanelContentSwappingContainer : public views::View {
     SetID(kSidePanelContentWrapperViewId);
   }
 
-  ~SidePanelContentSwappingContainer() override {
-    ResetLoadingEntryIfNecessary();
-  }
+  ~SidePanelContentSwappingContainer() override { loading_entry_ = nullptr; }
 
   void RequestEntry(SidePanelEntry* entry, PopulateSidePanelCallback callback) {
     DCHECK(entry);
@@ -183,6 +181,11 @@ class SidePanelContentSwappingContainer : public views::View {
 
  private:
   void RunLoadedCallback() {
+    // |loading_entry_| could be a nullptr here if it has been reset during
+    // SidePanelContentSwappingContainer destruction.
+    if (!loading_entry_) {
+      return;
+    }
     DCHECK(!loaded_callback_.is_null());
     SidePanelEntry* entry = loading_entry_;
     loading_entry_ = nullptr;

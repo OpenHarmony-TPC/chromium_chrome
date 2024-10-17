@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 import 'chrome://webui-test/mojo_webui_test_support.js';
-import {stringToMojoString16, stringToMojoUrl} from 'chrome://resources/js/mojo_type_util.js';
+
 import {BrowserProxy, CrToastManagerElement, DangerType, DownloadsItemElement, IconLoaderImpl, loadTimeData, States} from 'chrome://downloads/downloads.js';
+import {stringToMojoString16, stringToMojoUrl} from 'chrome://resources/js/mojo_type_util.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
@@ -45,6 +46,7 @@ suite('item tests', function() {
     assertFalse(item.$.url.hasAttribute('href'));
     assertFalse(item.$['file-link'].hasAttribute('href'));
   });
+
   test('downloads without original url in data aren\'t linkable', () => {
     const displayUrl = 'https://test.test';
     item.set('data', createDownload({
@@ -57,6 +59,24 @@ suite('item tests', function() {
 
     assertFalse(item.$.url.hasAttribute('href'));
     assertFalse(item.$['file-link'].hasAttribute('href'));
+    assertEquals(displayUrl, item.$.url.text);
+  });
+
+  test('url display string is a link to the original url', () => {
+    const url = 'https://' +
+        'a'.repeat(1000) + '.com/document.pdf';
+    const displayUrl = 'https://' +
+        '啊'.repeat(1000) + '.com/document.pdf';
+    item.set('data', createDownload({
+               hideDate: false,
+               state: States.COMPLETE,
+               url: stringToMojoUrl(url),
+               displayUrl: stringToMojoString16(displayUrl),
+             }));
+    flush();
+
+    assertEquals(url, item.$.url.href);
+    assertEquals(url, item.$['file-link'].href);
     assertEquals(displayUrl, item.$.url.text);
   });
 

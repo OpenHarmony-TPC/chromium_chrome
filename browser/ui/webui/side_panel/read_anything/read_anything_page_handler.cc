@@ -175,8 +175,7 @@ void ReadAnythingPageHandler::StateChanged(
   DCHECK(features::IsReadAnythingWithScreen2xEnabled());
   // If Screen AI library is downloaded but not initialized yet, ensure it is
   // loadable and initializes without any problems.
-  if (state == screen_ai::ScreenAIInstallState::State::kDownloaded &&
-      browser_) {
+  if (state == screen_ai::ScreenAIInstallState::State::kDownloaded && browser_) {
     screen_ai::ScreenAIServiceRouterFactory::GetForBrowserContext(
         browser_->profile())
         ->LaunchIfNotRunning();

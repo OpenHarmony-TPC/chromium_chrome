@@ -469,4 +469,11 @@ bool ExtensionSystemImpl::FinishDelayedInstallationIfReady(
                                                    install_immediately);
 }
 
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+void ExtensionSystemImpl::NotifyExtensionLoadedFromInternal(
+    const Extension* extension) {}
+void ExtensionSystemImpl::NotifyExtensionUnLoadedFromInternal(
+    const Extension* extension) {}
+#endif
+
 }  // namespace extensions

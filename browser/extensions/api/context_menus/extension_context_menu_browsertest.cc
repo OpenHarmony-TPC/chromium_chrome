@@ -576,10 +576,10 @@ IN_PROC_BROWSER_TEST_P(ExtensionContextMenuLazyTest, Patterns) {
 
   // Now check with a non-matching url.
   GURL test_url("http://www.test.com");
-  ASSERT_FALSE(
-      MenuHasItemWithLabel(test_url, GURL(), false, std::string("test_item1")));
-  ASSERT_FALSE(
-      MenuHasItemWithLabel(test_url, GURL(), false, std::string("test_item2")));
+  ASSERT_FALSE(MenuHasItemWithLabel(test_url, GURL(), false,
+                                    std::string("test_item1")));
+  ASSERT_FALSE(MenuHasItemWithLabel(test_url, GURL(), false,
+                                    std::string("test_item2")));
 }
 
 // Tests registering an item with a very long title that should get truncated in
@@ -736,7 +736,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionContextMenuPersistentTest, Separators) {
 
   GURL url("http://www.google.com/");
   std::unique_ptr<TestRenderViewContextMenu> menu(
-      TestRenderViewContextMenu::Create(GetWebContents(), url));
+      TestRenderViewContextMenu::Create(GetWebContents(), url,));
 
   // The top-level item should be an "automagic parent" with the extension's
   // name.

@@ -2855,7 +2855,7 @@ static std::string BuildCrossOriginChildFrameHTML(const GURL& link) {
       </html>
   )";
 
-    constexpr char kCrossOriginChildFrameSource[] = R"(
+  constexpr char kCrossOriginChildFrameSource[] = R"(
     <html>
       <head>
         <style>

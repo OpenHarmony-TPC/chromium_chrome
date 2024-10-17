@@ -91,7 +91,7 @@ ExtensionFunction::ResponseAction ResourcesPrivateGetStringsFunction::Run() {
       enable_printing = IsUserProfile(profile);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 #if BUILDFLAG(IS_OHOS)
-      // The printing service is temporarily not supported on mobile device.
+      // The printing service is temporarily supported on pc device.
       enable_printing = (*base::CommandLine::ForCurrentProcess())
                             .HasSwitch(switches::kEnablePrinting);
 #endif
