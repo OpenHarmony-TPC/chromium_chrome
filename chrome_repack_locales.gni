@@ -76,6 +76,11 @@ template("chrome_repack_locales") {
       deps += [ "//ohos_nweb_ex/overrides/ui/strings" ]
     }
 
+    if (defined(ohos_i18n) && ohos_i18n) {
+      source_patterns += [ "${root_gen_dir}/ohos_resources/components/string/ohos_components_strings_" ]
+      deps += [ "//ohos_resources/components/string" ]
+    }
+
     if (is_chromeos_ash) {
       source_patterns += [
         "${root_gen_dir}/ash/shortcut_viewer/strings/shortcut_viewer_strings_",
