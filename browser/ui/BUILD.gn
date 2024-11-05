@@ -4742,6 +4742,8 @@ static_library("ui") {
       "views/extensions/extensions_toolbar_controls.cc",
       "views/extensions/extensions_toolbar_controls.h",
       "views/extensions/reload_page_dialog.cc",
+      "views/extensions/security_dialog_tracker.cc",
+      "views/extensions/security_dialog_tracker.h",
       "views/extensions/site_settings_expand_button.cc",
       "views/extensions/site_settings_expand_button.h",
       "views/file_system_access/file_system_access_dangerous_file_dialog.cc",
