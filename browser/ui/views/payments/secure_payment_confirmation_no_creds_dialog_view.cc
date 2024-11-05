@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/payments/secure_payment_confirmation_no_creds_dialog_view.h"
 
+#include "chrome/browser/ui/views/extensions/security_dialog_tracker.h"
 #include "chrome/browser/ui/views/payments/secure_payment_confirmation_views_util.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/payments/content/payment_ui_observer.h"
@@ -70,7 +71,9 @@ void SecurePaymentConfirmationNoCredsDialogView::ShowDialog(
 
   SetModalType(ui::MODAL_TYPE_CHILD);
 
-  constrained_window::ShowWebModalDialogViews(this, web_contents);
+  views::Widget* widget =
+      constrained_window::ShowWebModalDialogViews(this, web_contents);
+  extensions::SecurityDialogTracker::GetInstance()->AddSecurityDialog(widget);
 }
 
 void SecurePaymentConfirmationNoCredsDialogView::HideDialog() {
