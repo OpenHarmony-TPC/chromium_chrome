@@ -32,6 +32,7 @@ class ExtensionsMenuTestUtil : public ExtensionActionTestHelper {
   int VisibleBrowserActions() override;
   bool HasAction(const extensions::ExtensionId& id) override;
   void InspectPopup(const extensions::ExtensionId& id) override;
+  void TriggerPopupForAPI(const extensions::ExtensionId& id) override;
   bool HasIcon(const extensions::ExtensionId& id) override;
   gfx::Image GetIcon(const extensions::ExtensionId& id) override;
   void Press(const extensions::ExtensionId& id) override;

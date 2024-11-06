@@ -167,7 +167,6 @@ class ExtensionsToolbarContainer
       std::unique_ptr<ToolbarActionsBarBubbleDelegate> bubble) override;
   void ToggleExtensionsMenu() override;
   bool HasAnyExtensions() const override;
-  bool HasBlockingSecurityUI() const override;
   void UpdateToolbarActionHoverCard(
       ToolbarActionView* action_view,
       ToolbarActionHoverCardUpdateType update_type) override;
