@@ -10,6 +10,8 @@
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/extensions/extension_view_host.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/views/extensions/extensions_dialogs_utils.h"
+#include "chrome/browser/ui/views/extensions/security_dialog_tracker.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/devtools_agent_host.h"
@@ -347,6 +349,14 @@ ExtensionPopup::ExtensionPopup(
 }
 
 void ExtensionPopup::ShowBubble() {
+  // Don't show the popup if there are visible security dialogs. This protects
+  // the security dialogs from spoofing.
+  if (extensions::SecurityDialogTracker::GetInstance()
+          ->BrowserHasVisibleSecurityDialogs(host_->GetBrowser())) {
+    CloseDeferredIfNecessary();
+    return;
+  }
+
   GetWidget()->Show();
   if (!base::FeatureList::IsEnabled(views::features::kWidgetLayering)) {
     // StackAboveWidget() stacks this widget *directly* above the anchor view
