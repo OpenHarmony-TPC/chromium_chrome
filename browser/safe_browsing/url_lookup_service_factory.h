@@ -15,6 +15,10 @@ namespace content {
 class BrowserContext;
 }
 
+namespace variations {
+class VariationsService;
+}
+
 namespace safe_browsing {
 
 class RealTimeUrlLookupService;
@@ -45,6 +49,8 @@ class RealTimeUrlLookupServiceFactory : public ProfileKeyedServiceFactory {
   // BrowserContextKeyedServiceFactory:
   KeyedService* BuildServiceInstanceFor(
       content::BrowserContext* context) const override;
+
+  static variations::VariationsService* GetVariationsService();
 };
 
 }  // namespace safe_browsing
