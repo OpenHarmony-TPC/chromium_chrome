@@ -31,7 +31,8 @@ class Window;
 namespace arc {
 class AXTreeSourceArcTest;
 
-using AXTreeArcSerializer = ui::AXTreeSerializer<AccessibilityInfoDataWrapper*>;
+using AXTreeAndroidSerializer =ui::AXTreeSerializer<AccessibilityInfoDataWrapper*,
+                                                    std::vector<AccessibilityInfoDataWrapper*>>;
 
 // This class represents the accessibility tree from the focused ARC window.
 class AXTreeSourceArc : public ui::AXTreeSource<AccessibilityInfoDataWrapper*>,
