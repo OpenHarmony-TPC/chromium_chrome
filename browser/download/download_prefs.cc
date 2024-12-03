@@ -57,10 +57,6 @@
 #include "chrome/common/chrome_paths_lacros.h"
 #endif
 
-#if BUILDFLAG(IS_WIN)
-#include "chrome/browser/ui/pdf/adobe_reader_info_win.h"
-#endif
-
 #if BUILDFLAG(ENABLE_CEF)
 #include "cef/libcef/browser/alloy/alloy_download_util.h"
 #endif
@@ -514,12 +510,6 @@ void DownloadPrefs::SetShouldOpenPdfInSystemReader(bool should_open) {
 }
 
 bool DownloadPrefs::ShouldOpenPdfInSystemReader() const {
-#if BUILDFLAG(IS_WIN)
-  if (IsAdobeReaderDefaultPDFViewer() &&
-      !DownloadTargetDeterminer::IsAdobeReaderUpToDate()) {
-      return false;
-  }
-#endif
   return should_open_pdf_in_system_reader_;
 }
 #endif
