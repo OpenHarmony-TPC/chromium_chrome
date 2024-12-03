@@ -85,13 +85,6 @@ class DownloadTargetDeterminer : public download::DownloadItem::Observer {
   // Returns a .crdownload intermediate path for the |suggested_path|.
   static base::FilePath GetCrDownloadPath(const base::FilePath& suggested_path);
 
-#if BUILDFLAG(IS_WIN)
-  // Returns true if Adobe Reader is up to date. This information refreshed
-  // only when Start() gets called for a PDF and Adobe Reader is the default
-  // System PDF viewer.
-  static bool IsAdobeReaderUpToDate();
-#endif
-
   // Determine if the file type can be handled safely by the browser if it were
   // to be opened via a file:// URL. Execute the callback with the determined
   // value.
@@ -123,7 +116,6 @@ class DownloadTargetDeterminer : public download::DownloadItem::Observer {
     STATE_DETERMINE_LOCAL_PATH,
     STATE_DETERMINE_MIME_TYPE,
     STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER,
-    STATE_DETERMINE_IF_ADOBE_READER_UP_TO_DATE,
     STATE_CHECK_DOWNLOAD_URL,
     STATE_CHECK_VISITED_REFERRER_BEFORE,
     STATE_DETERMINE_INTERMEDIATE_PATH,
@@ -264,24 +256,12 @@ class DownloadTargetDeterminer : public download::DownloadItem::Observer {
   // Determine if the file type can be handled safely by the browser if it were
   // to be opened via a file:// URL.
   // Next state:
-  // - STATE_DETERMINE_IF_ADOBE_READER_UP_TO_DATE.
+  // - STATE_CHECK_DOWNLOAD_URL.
   Result DoDetermineIfHandledSafely();
 
   // Callback invoked when a decision is available about whether the file type
   // can be handled safely by the browser.
   void DetermineIfHandledSafelyDone(bool is_handled_safely);
-
-  // Determine if Adobe Reader is up to date. Only do the check on Windows for
-  // .pdf file targets.
-  // Next state:
-  // - STATE_CHECK_DOWNLOAD_URL.
-  Result DoDetermineIfAdobeReaderUpToDate();
-
-#if BUILDFLAG(IS_WIN)
-  // Callback invoked when a decision is available about whether Adobe Reader
-  // is up to date.
-  void DetermineIfAdobeReaderUpToDateDone(bool adobe_reader_up_to_date);
-#endif
 
   // Checks whether the downloaded URL is malicious. Invokes the
   // DownloadProtectionService via the delegate.
