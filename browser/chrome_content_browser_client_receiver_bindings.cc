@@ -93,6 +93,11 @@
 #include "chrome/browser/media/android/cdm/media_drm_storage_factory.h"
 #endif
 
+#if BUILDFLAG(ENABLE_MOJO_CDM) && \
+    BUILDFLAG(IS_OHOS) && defined(OHOS_ENABLE_CDM)
+#include "chrome/browser/media/ohos/cdm/media_drm_storage_factory.h"
+#endif
+
 #if BUILDFLAG(ENABLE_SPELLCHECK)
 #include "chrome/browser/spellchecker/spell_check_host_chrome_impl.h"
 #include "components/spellcheck/common/spellcheck.mojom.h"
@@ -390,7 +395,8 @@ void ChromeContentBrowserClient::BindMediaServiceReceiver(
   }
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(ENABLE_MOJO_CDM) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_MOJO_CDM) && (BUILDFLAG(IS_ANDROID) || \
+    (BUILDFLAG(IS_OHOS) && defined(OHOS_ENABLE_CDM)))
   if (auto r = receiver.As<media::mojom::MediaDrmStorage>()) {
     CreateMediaDrmStorage(render_frame_host, std::move(r));
     return;
