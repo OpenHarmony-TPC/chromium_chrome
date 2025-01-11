@@ -138,16 +138,6 @@ class MediaDrmProvisionHelper {
   friend class base::RefCounted<MediaDrmProvisionHelper>;
   ~MediaDrmProvisionHelper() {}
 
-  void ProvisionLevel1(bool L3_success) {}
-
-  void ProvisionDone(bool L3_success, bool L1_success) {
-    const bool success = L1_success || L3_success;
-    LOG_IF(WARNING, !success) << "Failed to provision origin ID";
-    std::move(complete_callback_)
-        .Run(success ? absl::make_optional(origin_id_) : absl::nullopt);
-    delete this;
-  }
-
   media::CreateFetcherCB create_fetcher_cb_;
   ProvisionedOriginIdCB complete_callback_;
   base::UnguessableToken origin_id_;
