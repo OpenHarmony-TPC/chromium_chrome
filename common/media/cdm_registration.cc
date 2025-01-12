@@ -160,6 +160,12 @@ void AddSoftwareSecureWidevine(std::vector<content::CdmInfo>* cdms) {
       /*supports_sub_key_systems=*/false, kWidevineCdmDisplayName,
       kWidevineCdmType, base::Version(), base::FilePath());
 
+#elif BUILDFLAG(IS_OHOS) && defined(OHOS_ENABLE_CDM)
+  LOG(INFO) << "[DRM]" << __func__;
+  cdms->emplace_back(
+      kWidevineKeySystem, Robustness::kSoftwareSecure, absl::nullopt,
+      /*supports_sub_key_systems=*/false, kWidevineCdmDisplayName,
+      kWidevineCdmType, base::Version(), base::FilePath());
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #if defined(WIDEVINE_CDM_MIN_GLIBC_VERSION)
   base::Version glibc_version(gnu_get_libc_version());
