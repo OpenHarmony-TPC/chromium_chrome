@@ -219,7 +219,9 @@ export class Service implements ServiceInterface {
   }
 
   openUrl(url: string): void {
-    window.open(url);
+    // window.open(url);
+    // #ifdef OHOS_ARKWEB_EXTENSIONS
+    chrome.developerPrivate.openUrl(url);
   }
 
   reloadItem(id: string): Promise<void> {

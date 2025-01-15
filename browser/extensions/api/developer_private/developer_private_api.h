@@ -976,6 +976,23 @@ class DeveloperPrivateUpdateSiteAccessFunction
   void OnSiteSettingsUpdated();
 };
 
+#ifdef OHOS_ARKWEB_EXTENSIONS
+class DeveloperPrivateOpenUrlFunction
+    : public DeveloperPrivateAPIFunction {
+  DECLARE_EXTENSION_FUNCTION("developerPrivate.openUrl",
+                             DEVELOPERPRIVATE_OPENURL)
+  DeveloperPrivateOpenUrlFunction();
+
+  DeveloperPrivateOpenUrlFunction(
+      const DeveloperPrivateOpenUrlFunction&) = delete;
+  DeveloperPrivateOpenUrlFunction& operator=(
+      const DeveloperPrivateOpenUrlFunction&) = delete;
+private:
+ ~DeveloperPrivateOpenUrlFunction() override;
+
+ ResponseAction Run() override;
+};
+#endif // OHOS_ARKWEB_EXTENSIONS
 }  // namespace api
 
 }  // namespace extensions
