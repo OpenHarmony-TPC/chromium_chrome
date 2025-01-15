@@ -90,6 +90,10 @@ IdentityManagerFactory::~IdentityManagerFactory() {
 // static
 signin::IdentityManager* IdentityManagerFactory::GetForProfile(
     Profile* profile) {
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  if (cef::IsAlloyRuntimeEnabled())
+    return nullptr;
+#endif
   DCHECK(!cef::IsAlloyRuntimeEnabled());
   return static_cast<signin::IdentityManager*>(
       GetInstance()->GetServiceForBrowserContext(profile, true));

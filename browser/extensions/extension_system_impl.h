@@ -83,6 +83,12 @@ class ExtensionSystemImpl : public ExtensionSystem {
       const base::Value& attributes) override;
   bool FinishDelayedInstallationIfReady(const std::string& extension_id,
                                         bool install_immediately) override;
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  void NotifyExtensionLoadedFromInternal(
+      const Extension* extension) override;
+  void NotifyExtensionUnLoadedFromInternal(
+      const Extension* extension) override;
+#endif
 
  private:
   friend class ExtensionSystemSharedFactory;

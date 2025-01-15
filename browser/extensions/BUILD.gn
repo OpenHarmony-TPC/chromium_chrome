@@ -990,6 +990,12 @@ static_library("extensions") {
     "//url",
   ]
 
+  if (is_ohos) {
+    deps += [
+      "//components/services/unzip:in_process",
+    ]
+  }
+ 
   if (is_linux || is_mac || is_win) {
     sources += [
       "api/system_indicator/system_indicator_api.cc",
