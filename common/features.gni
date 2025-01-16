@@ -65,8 +65,10 @@ declare_args() {
   enable_session_service = !is_android
 
   # Enables usage of the system-provided notification center.
+  #ifdef OHOS_NOTIFICATION
   enable_system_notifications =
-      is_android || is_mac || is_win || (is_linux && use_dbus) || is_chromeos
+      is_android || is_mac || is_win || (is_linux && use_dbus) || is_chromeos || is_ohos
+  #endif // OHOS_NOTIFICATION
 
   # Indicates if Wayland display server support is enabled.
   enable_wayland_server = is_chromeos_ash

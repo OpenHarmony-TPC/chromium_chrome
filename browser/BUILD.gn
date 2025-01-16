@@ -6379,10 +6379,20 @@ static_library("browser") {
       ]
 
       if (enable_system_notifications) {
-        sources += [
-          "notifications/notification_platform_bridge_linux.cc",
-          "notifications/notification_platform_bridge_linux.h",
-        ]
+        #ifdef OHOS_NOTIFICATION
+        if (is_linux) {
+          sources += [
+            "notifications/notification_platform_bridge_linux.cc",
+            "notifications/notification_platform_bridge_linux.h",
+          ]
+        }
+        if (is_ohos) {
+          sources += [
+            "notifications/notification_platform_bridge_ohos.cc",
+            "notifications/notification_platform_bridge_ohos.h",
+          ]
+        }
+        #endif // OHOS_NOTIFICATION
       }
     }
 
