@@ -909,11 +909,15 @@ void MediaRouterMojoImpl::RecordPresentationRequestUrlBySink(
   PresentationUrlBySink value = PresentationUrlBySink::kUnknown;
   // URLs that can be rendered in offscreen tabs (for cloud or Chromecast
   // sinks), or on a wired display.
-  bool is_normal_url = source.url().SchemeIs(url::kHttpsScheme) ||
+  bool is_normal_url =
+      source.url().SchemeIs(url::kHttpsScheme) ||
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-                       source.url().SchemeIs(extensions::kExtensionScheme) ||
+      source.url().SchemeIs(extensions::kExtensionScheme) ||
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      source.url().SchemeIs(extensions::kArkwebExtensionScheme) ||
+#endif
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-                       source.url().SchemeIs(url::kFileScheme);
+      source.url().SchemeIs(url::kFileScheme);
   switch (provider_id) {
     case mojom::MediaRouteProviderId::WIRED_DISPLAY:
       if (is_normal_url) {

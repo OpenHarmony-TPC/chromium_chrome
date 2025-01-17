@@ -242,7 +242,11 @@ base::OnceClosure ShowDeviceChooserDialog(
   }
 
   auto origin = owner->GetMainFrame()->GetLastCommittedOrigin();
-  if (origin.scheme() == extensions::kExtensionScheme) {
+  if (origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+  ) {
     const auto* extension =
         extensions::ExtensionRegistry::Get(browser_context)
             ->GetExtensionById(origin.host(),

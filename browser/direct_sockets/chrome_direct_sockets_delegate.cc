@@ -14,7 +14,11 @@
 namespace {
 
 bool IsLockedToExtension(const GURL& lock_url) {
-  return lock_url.SchemeIs(extensions::kExtensionScheme);
+  return lock_url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+         || lock_url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+      ;
 }
 
 const extensions::Extension* GetExtensionByLockUrl(

@@ -193,6 +193,9 @@ bool LocationIconView::GetShowText() const {
   const GURL& url = location_bar_model->GetURL();
   if (url.SchemeIs(content::kChromeUIScheme) ||
       url.SchemeIs(extensions::kExtensionScheme) ||
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      url.SchemeIs(extensions::kArkwebExtensionScheme) ||
+#endif
       url.SchemeIs(url::kFileScheme) ||
       url.SchemeIs(dom_distiller::kDomDistillerScheme)) {
     return true;

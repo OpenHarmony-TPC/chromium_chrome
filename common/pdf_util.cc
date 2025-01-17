@@ -41,7 +41,11 @@ std::string GetPDFPlaceholderHTML(const GURL& pdf_url) {
 
 bool IsPdfExtensionOrigin(const url::Origin& origin) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  return origin.scheme() == extensions::kExtensionScheme &&
+  return (origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+          || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+          ) &&
          origin.host() == extension_misc::kPdfExtensionId;
 #else
   return false;

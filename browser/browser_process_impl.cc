@@ -1163,6 +1163,10 @@ void BrowserProcessImpl::PreCreateThreads() {
   // commit (including in iframes) in extension processes.
   ChildProcessSecurityPolicy::GetInstance()->RegisterWebSafeIsolatedScheme(
       extensions::kExtensionScheme, true);
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  ChildProcessSecurityPolicy::GetInstance()->RegisterWebSafeIsolatedScheme(
+      extensions::kArkwebExtensionScheme, true);
+#endif
 #endif
 
   battery_metrics_ = std::make_unique<BatteryMetrics>();

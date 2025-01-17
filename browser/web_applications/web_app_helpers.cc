@@ -120,6 +120,10 @@ bool IsValidWebAppUrl(const GURL& app_url) {
   return app_url.SchemeIs(url::kHttpScheme) ||
          app_url.SchemeIs(url::kHttpsScheme) ||
          app_url.SchemeIs("chrome-extension") ||
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+         app_url.SchemeIs("arkweb-extension") ||
+#endif
+
          (app_url.SchemeIs("chrome") &&
           (app_url.host() == password_manager::kChromeUIPasswordManagerHost));
 }

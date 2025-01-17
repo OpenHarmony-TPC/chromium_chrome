@@ -46,7 +46,11 @@ bool FrameNavigationState::IsValidUrl(const GURL& url) {
   // Allow about:blank and about:srcdoc.
   if (url.IsAboutBlank() || url.IsAboutSrcdoc())
     return true;
-  return allow_extension_scheme_ && url.scheme() == kExtensionScheme;
+  return allow_extension_scheme_ && (url.scheme() == kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+                                     || url.scheme() == kArkwebExtensionScheme
+#endif
+                                    );
 }
 
 bool FrameNavigationState::CanSendEvents() const {

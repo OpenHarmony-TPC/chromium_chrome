@@ -36,7 +36,12 @@ bool ShouldCloseTabOnExtensionUnload(const Extension* extension,
       web_contents->GetPrimaryMainFrame()
           ->GetLastCommittedOrigin()
           .GetTupleOrPrecursorTupleIfOpaque();
-  if (tuple_or_precursor_tuple.scheme() == extensions::kExtensionScheme &&
+  if ((tuple_or_precursor_tuple.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       ||
+       tuple_or_precursor_tuple.scheme() == extensions::kArkwebExtensionScheme
+#endif
+       ) &&
       tuple_or_precursor_tuple.host() == extension->id()) {
     // Edge-case: Chrome URL overrides (such as NTP overrides) are handled
     // differently (reloaded), and managed by ExtensionWebUI. Ignore them.

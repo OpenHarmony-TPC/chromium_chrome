@@ -95,7 +95,11 @@ ContentSetting NotificationPermissionContext::GetPermissionStatusInternal(
 ContentSetting NotificationPermissionContext::GetPermissionStatusForExtension(
     const GURL& origin) const {
   constexpr ContentSetting kDefaultSetting = CONTENT_SETTING_ASK;
-  if (!origin.SchemeIs(extensions::kExtensionScheme))
+  if (!origin.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !origin.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  )
     return kDefaultSetting;
 
   const extensions::Extension* extension =

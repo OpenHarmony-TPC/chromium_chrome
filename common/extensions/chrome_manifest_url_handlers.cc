@@ -67,8 +67,12 @@ bool DevToolsPageHandler::Parse(Extension* extension, std::u16string* error) {
     return false;
   }
   GURL url = extension->GetResourceURL(*devtools_str);
-  const bool is_extension_url =
-      url.SchemeIs(kExtensionScheme) && url.host_piece() == extension->id();
+  const bool is_extension_url = (url.SchemeIs(kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+                                 || url.SchemeIs(kArkwebExtensionScheme)
+#endif
+                                     ) &&
+                                url.host_piece() == extension->id();
   // TODO(caseq): using http(s) is unsupported and will be disabled in m83.
   if (!is_extension_url && !url.SchemeIsHTTPOrHTTPS()) {
     *error = errors::kInvalidDevToolsPage;

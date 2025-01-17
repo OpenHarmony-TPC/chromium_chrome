@@ -74,7 +74,11 @@ bool ResourceRequestPolicy::CanRequestResource(
     blink::WebLocalFrame* frame,
     ui::PageTransition transition_type,
     const absl::optional<url::Origin>& initiator_origin) {
-  CHECK(resource_url.SchemeIs(kExtensionScheme));
+  CHECK(resource_url.SchemeIs(kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+        || resource_url.SchemeIs(kArkwebExtensionScheme)
+#endif
+  );
 
   GURL frame_url = frame->GetDocument().Url();
   url::Origin frame_origin = frame->GetDocument().GetSecurityOrigin();

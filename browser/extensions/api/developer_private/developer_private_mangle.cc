@@ -101,7 +101,11 @@ api::developer_private::ItemInfo MangleExtensionInfo(
   for (const api::developer_private::ExtensionView& view : info.views) {
     api::developer_private::ItemInspectView view_copy;
     GURL url(view.url);
-    if (url.scheme() == kExtensionScheme) {
+    if (url.scheme() == kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+        || url.scheme() == kArkwebExtensionScheme
+#endif
+    ) {
       // No leading slash.
       view_copy.path = url.path().substr(1);
     } else {

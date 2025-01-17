@@ -1098,7 +1098,11 @@ class CertificateReportingServiceCertReporter : public SSLCertReporter {
 AppLoadedInTabSource ClassifyAppLoadedInTabSource(
     const GURL& opener_url,
     const extensions::Extension* target_platform_app) {
-  if (!opener_url.SchemeIs(extensions::kExtensionScheme)) {
+  if (!opener_url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !opener_url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     // The forbidden app URL was being opened by a non-extension page (e.g.
     // http).
     return APP_LOADED_IN_TAB_SOURCE_OTHER;
@@ -1879,7 +1883,11 @@ ChromeContentBrowserClient::GetStoragePartitionConfigForSite(
   // In general, those use cases aren't considered part of the user's normal
   // browsing activity.
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  if (site.SchemeIs(extensions::kExtensionScheme)) {
+  if (site.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || site.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     // The host in an extension site URL is the extension_id.
     CHECK(site.has_host());
     return extensions::util::GetStoragePartitionConfigForExtensionId(
@@ -2131,7 +2139,11 @@ bool ChromeContentBrowserClient::ShouldTreatURLSchemeAsFirstPartyWhenTopLevel(
   if (is_embedded_origin_secure && scheme == content::kChromeUIScheme)
     return true;
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  return scheme == extensions::kExtensionScheme;
+  return scheme == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+         || scheme == extensions::kArkwebExtensionScheme
+#endif
+      ;
 #else
   return false;
 #endif
@@ -2155,7 +2167,11 @@ std::string ChromeContentBrowserClient::GetSiteDisplayNameForCdmProcess(
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // If |site_url| wraps a chrome extension ID, we can display the extension
   // name instead, which is more human-readable.
-  if (site_url.SchemeIs(extensions::kExtensionScheme)) {
+  if (site_url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || site_url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     const extensions::Extension* extension =
         extensions::ExtensionRegistry::Get(browser_context)
             ->enabled_extensions()
@@ -2207,6 +2223,9 @@ void ChromeContentBrowserClient::GetAdditionalViewSourceSchemes(
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   additional_schemes->push_back(extensions::kExtensionScheme);
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  additional_schemes->push_back(extensions::kArkwebExtensionScheme);
+#endif
 #endif
 }
 
@@ -2217,7 +2236,11 @@ ChromeContentBrowserClient::DetermineAddressSpaceFromURL(const GURL& url) {
   if (url.SchemeIs(dom_distiller::kDomDistillerScheme))
     return network::mojom::IPAddressSpace::kPublic;
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  if (url.SchemeIs(extensions::kExtensionScheme))
+  if (url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  )
     return network::mojom::IPAddressSpace::kLoopback;
 #endif
 
@@ -2371,7 +2394,11 @@ ChromeContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
 #if !BUILDFLAG(IS_ANDROID)
   // Extensions are exempt from manifest policy enforcement and retain the
   // default frame permissions policy.
-  if (app_origin.scheme() == extensions::kExtensionScheme) {
+  if (app_origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || app_origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+  ) {
     return absl::nullopt;
   }
 
@@ -3198,7 +3225,11 @@ bool ChromeContentBrowserClient::DoesSchemeAllowCrossOriginSharedWorker(
     const std::string& scheme) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Extensions are allowed to start cross-origin shared workers.
-  if (scheme == extensions::kExtensionScheme)
+  if (scheme == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || scheme == extensions::kArkwebExtensionScheme
+#endif
+  )
     return true;
 #endif
 
@@ -3920,7 +3951,11 @@ bool ChromeContentBrowserClient::CanCreateWindow(
     return true;
   }
 
-  if (target_url.SchemeIs(extensions::kExtensionScheme)) {
+  if (target_url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || target_url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     // Intentionally duplicating |registry| code from above because we want to
     // reduce calls to retrieve them as this function is a SYNC IPC handler.
     auto* registry = extensions::ExtensionRegistry::Get(profile);
@@ -5698,6 +5733,13 @@ void ChromeContentBrowserClient::RegisterNonNetworkNavigationURLLoaderFactories(
         extensions::CreateExtensionNavigationURLLoaderFactory(
             browser_context, ukm_source_id,
             !!extensions::WebViewGuest::FromWebContents(web_contents)));
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+    factories->emplace(
+        extensions::kArkwebExtensionScheme,
+        extensions::CreateExtensionNavigationURLLoaderFactory(
+            browser_context, ukm_source_id,
+            !!extensions::WebViewGuest::FromWebContents(web_contents)));
+#endif
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -5742,6 +5784,12 @@ void ChromeContentBrowserClient::
       extensions::kExtensionScheme,
       extensions::CreateExtensionWorkerMainResourceURLLoaderFactory(
           browser_context));
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  factories->emplace(
+      extensions::kArkwebExtensionScheme,
+      extensions::CreateExtensionWorkerMainResourceURLLoaderFactory(
+          browser_context));
+#endif
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 }
 
@@ -5773,6 +5821,12 @@ void ChromeContentBrowserClient::
       extensions::kExtensionScheme,
       extensions::CreateExtensionServiceWorkerScriptURLLoaderFactory(
           browser_context));
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  factories->emplace(
+      extensions::kArkwebExtensionScheme,
+      extensions::CreateExtensionServiceWorkerScriptURLLoaderFactory(
+          browser_context));
+#endif
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 }
 
@@ -6027,6 +6081,12 @@ void ChromeContentBrowserClient::
   factories->emplace(extensions::kExtensionScheme,
                      extensions::CreateExtensionURLLoaderFactory(
                          render_process_id, render_frame_id));
+
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  factories->emplace(extensions::kArkwebExtensionScheme,
+                     extensions::CreateExtensionURLLoaderFactory(
+                         render_process_id, render_frame_id));
+#endif
 
   const extensions::Extension* extension = nullptr;
   if (request_initiator_origin != absl::nullopt) {
@@ -6320,7 +6380,11 @@ bool ChromeContentBrowserClient::WillCreateRestrictedCookieManager(
     mojo::PendingReceiver<network::mojom::RestrictedCookieManager>* receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  if (origin.scheme() == extensions::kExtensionScheme) {
+  if (origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+  ) {
     DCHECK_EQ(network::mojom::RestrictedCookieManagerRole::SCRIPT, role);
     extensions::ChromeExtensionCookies::Get(browser_context)
         ->CreateRestrictedCookieManager(origin, isolation_info,
@@ -7193,7 +7257,11 @@ bool ChromeContentBrowserClient::IsClipboardPasteAllowed(
   const GURL& url =
       render_frame_host->GetMainFrame()->GetLastCommittedOrigin().GetURL();
   auto* registry = extensions::ExtensionRegistry::Get(profile);
-  if (url.SchemeIs(extensions::kExtensionScheme)) {
+  if (url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     return URLHasExtensionPermission(extensions::ProcessMap::Get(profile),
                                      registry, url,
                                      render_frame_host->GetProcess()->GetID(),
@@ -7304,7 +7372,11 @@ void ChromeContentBrowserClient::BindBrowserControlInterface(
 bool ChromeContentBrowserClient::
     ShouldInheritCrossOriginEmbedderPolicyImplicitly(const GURL& url) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  return url.SchemeIs(extensions::kExtensionScheme);
+  return url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+         || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+      ;
 #else
   return false;
 #endif
@@ -7316,7 +7388,11 @@ bool ChromeContentBrowserClient::
     return true;
   }
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  return url.SchemeIs(extensions::kExtensionScheme);
+  return url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+         || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+      ;
 #else
   return false;
 #endif
@@ -7775,7 +7851,11 @@ bool ChromeContentBrowserClient::ShouldSendOutermostOriginToRenderer(
   // extensions though this is required for the way content injection API
   // works. We do not want one extension injecting content into the context
   // of another extension.
-  return outermost_origin.scheme() == extensions::kExtensionScheme;
+  return outermost_origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+         || outermost_origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+      ;
 #else
   return false;
 #endif
@@ -7793,7 +7873,11 @@ bool ChromeContentBrowserClient::IsFileSystemURLNavigationAllowed(
   // scheme() is chrome-extension: (filesystem: is automatically discarded)
   // host() is the extension-id
   const url::Origin origin = url::Origin::Create(url);
-  if (origin.scheme() == extensions::kExtensionScheme) {
+  if (origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+  ) {
     const Extension* extension =
         extensions::ExtensionRegistry::Get(browser_context)
             ->enabled_extensions()
@@ -7860,7 +7944,11 @@ std::string ChromeContentBrowserClient::GetChildProcessSuffix(int child_flags) {
 bool ChromeContentBrowserClient::ShouldUseFirstPartyStorageKey(
     const url::Origin& origin) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  return origin.scheme() == extensions::kExtensionScheme;
+  return origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+         || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+      ;
 #else
   return false;
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
