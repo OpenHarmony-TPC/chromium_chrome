@@ -69,7 +69,11 @@ bool UnloadController::RunUnloadEventsHelper(content::WebContents* contents) {
   // be killed if they make any network requests, and the extension shouldn't
   // be doing any work if it's removed.
   GURL url = contents->GetLastCommittedURL();
-  if (url.SchemeIs(extensions::kExtensionScheme) &&
+  if ((url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+           ) &&
       !extensions::ExtensionRegistry::Get(browser_->profile())
            ->enabled_extensions()
            .GetExtensionOrAppByURL(url)) {

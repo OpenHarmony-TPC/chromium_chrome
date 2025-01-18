@@ -306,6 +306,9 @@ std::string GetDisplayNameForPattern(Profile* profile,
                                      const ContentSettingsPattern& pattern) {
   GURL url(pattern.ToString());
   if (url.SchemeIs(extensions::kExtensionScheme) ||
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      url.SchemeIs(extensions::kArkwebExtensionScheme) ||
+#endif
       url.SchemeIs(chrome::kIsolatedAppScheme)) {
     return GetDisplayNameForGURL(profile, url, /*hostname_only=*/false);
   }
@@ -934,7 +937,11 @@ base::Value::Dict CreateChooserExceptionObject(
     // Set the |site_display_name| to the extension's name which is more clear
     // to the user if the |origin| is for an extension and the extension name
     // can be found in the |profile|.
-    if (origin.SchemeIs(extensions::kExtensionScheme)) {
+    if (origin.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+        || origin.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+    ) {
       DCHECK(profile);
       const auto* extension_registry =
           extensions::ExtensionRegistry::Get(profile);
@@ -1038,7 +1045,11 @@ base::Value::List GetChooserExceptionListFromProfile(
 
 absl::optional<std::string> GetExtensionDisplayName(Profile* profile,
                                                     GURL url) {
-  if (!url.SchemeIs(extensions::kExtensionScheme)) {
+  if (!url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     return {};
   }
   auto* extension_registry = extensions::ExtensionRegistry::Get(profile);

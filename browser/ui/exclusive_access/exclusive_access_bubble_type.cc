@@ -48,7 +48,11 @@ std::u16string GetLabelTextForType(ExclusiveAccessBubbleType type,
         registry->enabled_extensions().GetExtensionOrAppByURL(url);
     if (extension) {
       host = base::UTF8ToUTF16(extension->name());
-    } else if (url.SchemeIs(extensions::kExtensionScheme)) {
+    } else if (url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+               || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+    ) {
       // In this case, |host| is set to an extension ID.
       // We are not going to show it because it's human-unreadable.
       host.clear();

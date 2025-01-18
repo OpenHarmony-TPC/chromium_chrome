@@ -18,7 +18,12 @@ namespace {
 bool HostsExtension(content::WebContents* web_contents) {
   DCHECK(web_contents);
   return web_contents->GetLastCommittedURL().SchemeIs(
-      extensions::kExtensionScheme);
+             extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+         || web_contents->GetLastCommittedURL().SchemeIs(
+                extensions::kArkwebExtensionScheme)
+#endif
+      ;
 }
 
 }  // namespace

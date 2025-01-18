@@ -43,6 +43,10 @@ ChromeExtensionCookies::ChromeExtensionCookies(Profile* profile)
     creation_config->crypto_delegate = cookie_config::GetCookieCryptoDelegate();
   }
   creation_config->cookieable_schemes.push_back(extensions::kExtensionScheme);
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  creation_config->cookieable_schemes.push_back(
+      extensions::kArkwebExtensionScheme);
+#endif
 
   network::mojom::CookieManagerParamsPtr initial_settings =
       ProfileNetworkContextService::CreateCookieManagerParams(

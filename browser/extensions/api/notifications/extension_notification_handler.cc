@@ -50,7 +50,11 @@ ExtensionNotificationHandler::~ExtensionNotificationHandler() = default;
 
 // static
 std::string ExtensionNotificationHandler::GetExtensionId(const GURL& url) {
-  if (!url.is_valid() || !url.SchemeIs(extensions::kExtensionScheme))
+  if (!url.is_valid() || (!url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+                          && !url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+                              ))
     return "";
   return std::string(url.DeprecatedGetOriginAsURL().host_piece());
 }

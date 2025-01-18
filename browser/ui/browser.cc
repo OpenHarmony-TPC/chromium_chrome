@@ -339,7 +339,11 @@ const extensions::Extension* GetExtensionForOrigin(
     Profile* profile,
     const GURL& security_origin) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  if (!security_origin.SchemeIs(extensions::kExtensionScheme))
+  if (!security_origin.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !security_origin.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  )
     return nullptr;
 
   const extensions::Extension* extension =

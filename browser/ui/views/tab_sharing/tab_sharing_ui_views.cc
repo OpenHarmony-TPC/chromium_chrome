@@ -146,8 +146,13 @@ TabSharingUIViews::TabSharingUIViews(
     : capture_session_id_(next_capture_session_id_++),
       capturer_(capturer),
       capturer_origin_(GetOriginFromId(capturer)),
-      can_focus_capturer_(GetOriginFromId(capturer).scheme() !=
-                          extensions::kExtensionScheme),
+      can_focus_capturer_(
+          (GetOriginFromId(capturer).scheme() != extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+          && (GetOriginFromId(capturer).scheme() !=
+              extensions::kArkwebExtensionScheme)
+#endif
+              ),
       capturer_restricted_to_same_origin_(
           CapturerRestrictedToSameOrigin(capturer)),
       shared_tab_media_id_(media_id),
