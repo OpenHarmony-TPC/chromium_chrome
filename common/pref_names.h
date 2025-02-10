@@ -1297,6 +1297,10 @@ extern const char kOutOfProcessSystemDnsResolutionEnabled[];
 extern const char kHttpAllowlist[];
 extern const char kHttpsUpgradesEnabled[];
 
+#if BUILDFLAG(IS_OHOS)
+extern const char kBrowserPolicyVersion[];
+#endif
+
 }  // namespace prefs
 
 #endif  // CHROME_COMMON_PREF_NAMES_H_

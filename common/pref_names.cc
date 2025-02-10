@@ -3651,4 +3651,8 @@ const char kHttpAllowlist[] = "https_upgrades.policy.http_allowlist";
 // `HttpsUpgradesEnabled` enterprise policy.
 const char kHttpsUpgradesEnabled[] = "https_upgrades.policy.upgrades_enabled";
 
+#if BUILDFLAG(IS_OHOS)
+const char kBrowserPolicyVersion[] = "policy.browser_policy_version";
+#endif
+
 }  // namespace prefs
