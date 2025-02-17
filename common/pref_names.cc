@@ -3652,6 +3652,7 @@ const char kHttpAllowlist[] = "https_upgrades.policy.http_allowlist";
 const char kHttpsUpgradesEnabled[] = "https_upgrades.policy.upgrades_enabled";
 
 #if BUILDFLAG(IS_OHOS)
+const char kBrowserPolicy[] = "policy.browser_policy";
 const char kBrowserPolicyVersion[] = "policy.browser_policy_version";
 #endif
 
