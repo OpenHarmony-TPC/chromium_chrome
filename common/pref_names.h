@@ -1298,6 +1298,7 @@ extern const char kHttpAllowlist[];
 extern const char kHttpsUpgradesEnabled[];
 
 #if BUILDFLAG(IS_OHOS)
+extern const char kBrowserPolicy[];
 extern const char kBrowserPolicyVersion[];
 #endif
 
