@@ -242,7 +242,7 @@ extern int NaClMain(content::MainFunctionParams);
 
 const char* const ChromeMainDelegate::kNonWildcardDomainNonPortSchemes[] = {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-    extensions::kExtensionScheme,
+    extensions::kExtensionScheme,      extensions::kArkwebExtensionScheme,
 #endif
     chrome::kChromeSearchScheme,       chrome::kIsolatedAppScheme,
     content::kChromeDevToolsScheme,    content::kChromeUIScheme,

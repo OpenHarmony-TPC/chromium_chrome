@@ -123,7 +123,11 @@ RenderProcessHostPrivilege GetPrivilegeRequiredByUrl(
   if (!url.is_valid())
     return PRIV_NORMAL;
 
-  if (!url.SchemeIs(kExtensionScheme))
+  if (!url.SchemeIs(kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !url.SchemeIs(kArkwebExtensionScheme)
+#endif
+  )
     return PRIV_NORMAL;
 
   const Extension* extension =
@@ -154,7 +158,11 @@ RenderProcessHostPrivilege GetProcessPrivilege(
 
 const Extension* GetEnabledExtensionFromSiteURL(BrowserContext* context,
                                                 const GURL& site_url) {
-  if (!site_url.SchemeIs(kExtensionScheme))
+  if (!site_url.SchemeIs(kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !site_url.SchemeIs(kArkwebExtensionScheme)
+#endif
+  )
     return nullptr;
 
   ExtensionRegistry* registry = ExtensionRegistry::Get(context);
@@ -263,7 +271,11 @@ GURL ChromeContentBrowserClientExtensionsPart::GetEffectiveURL(
   // hosting a disabled extension URL from incorrectly getting reused after
   // re-enabling the extension, which would lead to renderer kills
   // (https://crbug.com/1197360).
-  if (url.SchemeIs(extensions::kExtensionScheme) &&
+  if ((url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+           ) &&
       !registry->enabled_extensions().GetExtensionOrAppByURL(url)) {
     return GURL(chrome::kExtensionInvalidRequestURL);
   }
@@ -341,7 +353,11 @@ bool ChromeContentBrowserClientExtensionsPart::ShouldUseSpareRenderProcessHost(
   // command-line flag (switches::kExtensionProcess) to the renderer process
   // when it launches. A spare process is launched earlier, before it is known
   // which navigation will use it, so it lacks this flag.
-  return !site_url.SchemeIs(kExtensionScheme);
+  return !site_url.SchemeIs(kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+         && !site_url.SchemeIs(kArkwebExtensionScheme)
+#endif
+      ;
 }
 
 // static
@@ -570,7 +586,11 @@ bool ChromeContentBrowserClientExtensionsPart::AllowServiceWorker(
     const GURL& script_url,
     content::BrowserContext* context) {
   // We only care about extension urls.
-  if (!first_party_url.SchemeIs(kExtensionScheme))
+  if (!first_party_url.SchemeIs(kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !first_party_url.SchemeIs(kArkwebExtensionScheme)
+#endif
+  )
     return true;
 
   const Extension* extension = ExtensionRegistry::Get(context)
@@ -584,7 +604,11 @@ bool ChromeContentBrowserClientExtensionsPart::
         const GURL& scope,
         content::BrowserContext* browser_context) {
   // We only care about extension urls.
-  if (!scope.SchemeIs(kExtensionScheme)) {
+  if (!scope.SchemeIs(kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !scope.SchemeIs(kArkwebExtensionScheme)
+#endif
+  ) {
     return true;
   }
 
@@ -669,7 +693,11 @@ void ChromeContentBrowserClientExtensionsPart::OverrideURLLoaderFactoryParams(
 bool ChromeContentBrowserClientExtensionsPart::IsBuiltinComponent(
     content::BrowserContext* browser_context,
     const url::Origin& origin) {
-  if (origin.scheme() != extensions::kExtensionScheme)
+  if (origin.scheme() != extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && origin.scheme() != extensions::kArkwebExtensionScheme
+#endif
+  )
     return false;
 
   const auto& extension_id = origin.host();
@@ -756,7 +784,11 @@ bool ChromeContentBrowserClientExtensionsPart::
   // this case.
   const GURL& site_url =
       web_contents->GetPrimaryMainFrame()->GetSiteInstance()->GetSiteURL();
-  if (!site_url.SchemeIs(kExtensionScheme))
+  if (!site_url.SchemeIs(kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !site_url.SchemeIs(kArkwebExtensionScheme)
+#endif
+  )
     return false;
 
   // If a webview navigates to a webview accessible resource, extension
@@ -793,6 +825,9 @@ void ChromeContentBrowserClientExtensionsPart::
     GetAdditionalAllowedSchemesForFileSystem(
         std::vector<std::string>* additional_allowed_schemes) {
   additional_allowed_schemes->push_back(kExtensionScheme);
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  additional_allowed_schemes->push_back(kArkwebExtensionScheme);
+#endif
 }
 
 void ChromeContentBrowserClientExtensionsPart::GetURLRequestAutoMountHandlers(

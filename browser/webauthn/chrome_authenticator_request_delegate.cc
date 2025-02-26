@@ -183,7 +183,11 @@ bool ChromeWebAuthenticationDelegate::
   // Allow chrome-extensions:// origins to make WebAuthn requests.
   // `MaybeGetRelyingPartyId` will override the RP ID to use when processing
   // requests from extensions.
-  return caller_origin.scheme() == extensions::kExtensionScheme &&
+  return (caller_origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+          || caller_origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+          ) &&
          caller_origin.host() == relying_party_id;
 }
 
@@ -244,7 +248,11 @@ bool ChromeWebAuthenticationDelegate::IsSecurityLevelAcceptableForWebAuthn(
           webauthn::pref_names::kAllowWithBrokenCerts)) {
     return true;
   }
-  if (caller_origin.scheme() == extensions::kExtensionScheme) {
+  if (caller_origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || caller_origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+  ) {
     return true;
   }
   if (net::IsLocalhost(caller_origin.GetURL())) {
@@ -269,7 +277,11 @@ ChromeWebAuthenticationDelegate::MaybeGetRelyingPartyIdOverride(
     const url::Origin& caller_origin) {
   // Otherwise, allow extensions to use WebAuthn and map their origins
   // directly to RP IDs.
-  if (caller_origin.scheme() == extensions::kExtensionScheme) {
+  if (caller_origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || caller_origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+  ) {
     // `OverrideCallerOriginAndRelyingPartyIdValidation' ensures an extension
     // must only use the extension identifier as the RP ID, no flexibility is
     // permitted. When interacting with authenticators, however, we use the

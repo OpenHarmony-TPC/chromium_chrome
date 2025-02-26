@@ -68,7 +68,11 @@ void ChromeContentSettingsAgentDelegate::AllowPluginTemporarily(
 bool ChromeContentSettingsAgentDelegate::IsSchemeAllowlisted(
     const std::string& scheme) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  return scheme == extensions::kExtensionScheme;
+  return scheme == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+         || scheme == extensions::kArkwebExtensionScheme
+#endif
+      ;
 #else
   return false;
 #endif
@@ -158,7 +162,11 @@ bool ChromeContentSettingsAgentDelegate::IsAllowListedSystemWebApp() {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 const extensions::Extension* ChromeContentSettingsAgentDelegate::GetExtension(
     const blink::WebSecurityOrigin& origin) const {
-  if (origin.Protocol().Ascii() != extensions::kExtensionScheme)
+  if (origin.Protocol().Ascii() != extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && origin.Protocol().Ascii() != extensions::kArkwebExtensionScheme
+#endif
+  )
     return nullptr;
 
   const std::string extension_id = origin.Host().Utf8().data();

@@ -406,7 +406,11 @@ void ChromeContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   const GURL& site = render_frame_host->GetSiteInstance()->GetSiteURL();
-  if (!site.SchemeIs(extensions::kExtensionScheme))
+  if (!site.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !site.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  )
     return;
 
   content::BrowserContext* browser_context =

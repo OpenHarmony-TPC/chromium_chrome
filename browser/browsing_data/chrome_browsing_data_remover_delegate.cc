@@ -224,7 +224,11 @@ bool DoesOriginMatchEmbedderMask(uint64_t origin_type_mask,
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Packaged apps and extensions match iff EXTENSION.
-  if ((origin.scheme() == extensions::kExtensionScheme) &&
+  if ((origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+       ) &&
       (origin_type_mask & constants::ORIGIN_TYPE_EXTENSION)) {
     return true;
   }

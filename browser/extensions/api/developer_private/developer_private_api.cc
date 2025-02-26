@@ -129,6 +129,10 @@
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 #endif
 
+#ifdef OHOS_ARKWEB_EXTENSIONS
+#include "extensions/browser/extension_registry_info_manager.h"
+#endif // OHOS_ARKWEB_EXTENSIONS
+
 namespace extensions {
 
 namespace developer = api::developer_private;
@@ -2670,6 +2674,24 @@ DeveloperPrivateUpdateSiteAccessFunction::Run() {
 void DeveloperPrivateUpdateSiteAccessFunction::OnSiteSettingsUpdated() {
   Respond(NoArguments());
 }
+
+#ifdef OHOS_ARKWEB_EXTENSIONS
+DeveloperPrivateOpenUrlFunction::
+    DeveloperPrivateOpenUrlFunction() = default;
+
+DeveloperPrivateOpenUrlFunction::
+    ~DeveloperPrivateOpenUrlFunction() = default;
+
+ExtensionFunction::ResponseAction
+DeveloperPrivateOpenUrlFunction::Run() {
+  absl::optional<developer::OpenUrl::Params> params =
+      api::developer_private::OpenUrl::Params::Create(args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+
+  ExtensionRegistryInfoManager::OnExtensionOpenUrlCallBack(params->url);
+  return RespondNow(NoArguments());
+}
+#endif // OHOS_ARKWEB_EXTENSIONS
 
 }  // namespace api
 

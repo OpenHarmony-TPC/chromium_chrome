@@ -50,6 +50,15 @@
 #include "ui/gfx/image/image_skia.h"
 #include "url/origin.h"
 
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+#include "base/command_line.h"
+#include "base/logging.h"
+#include "content/public/common/content_switches.h"
+#include "ohos_nweb/src/capi/web_extension_tab_items.h"
+#include "cef/libcef/browser/extensions/tab_extensions_util.h"
+#include "ohos_nweb/src/cef_delegate/nweb_extension_action_cef_delegate.h"
+#endif
+
 using content::WebContents;
 
 namespace extensions {
@@ -260,6 +269,25 @@ void ExtensionActionAPI::DispatchExtensionActionClicked(
   }
 }
 
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+void ExtensionActionAPI::DispatchExtensionActionClickedWithCustomArgs(
+    content::WebContents* web_contents,
+    std::string extension_id,
+    const NWebExtensionTab* custom_tab) {
+  LOG(DEBUG) << "ExtensionActionAPI "
+                "DispatchExtensionActionClickedWithCustomArgs called";
+  events::HistogramValue histogram_value = events::ACTION_ON_CLICKED;
+  const char* event_name = "action.onClicked";
+  base::Value::List args;
+
+  args.Append(GetTabValue(*custom_tab));
+
+  DispatchEventToExtension(web_contents->GetBrowserContext(),
+                            extension_id, histogram_value,
+                            event_name, std::move(args));
+}
+#endif  // defined(OHOS_ARKWEB_EXTENSIONS)
+
 void ExtensionActionAPI::ClearAllValuesForTab(
     content::WebContents* web_contents) {
   DCHECK(web_contents);
@@ -463,6 +491,12 @@ ExtensionActionSetIconFunction::RunExtensionAction() {
       return RespondNow(Error("Icon not sufficiently visible."));
 
     extension_action_->SetIcon(tab_id_, icon_image);
+
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+    LOG(INFO) << "ExtensionActionSetIconFunction::RunExtensionAction";
+    OHOS::NWeb::NWebExtensionActionCefDelegate::OnSetIcon(extension()->id(),
+                                                          icon_image, tab_id_);
+#endif
   } else if (details_->FindInt("iconIndex")) {
     // Obsolete argument: ignore it.
     return RespondNow(NoArguments());

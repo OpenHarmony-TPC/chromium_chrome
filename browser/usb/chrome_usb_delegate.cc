@@ -72,7 +72,11 @@ bool IsDevicePermissionAutoGranted(
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Note: The `DeviceHasInterfaceWithClass()` call is made after checking the
   // origin, since that method call is expensive.
-  if (origin.scheme() == extensions::kExtensionScheme &&
+  if ((origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+       ) &&
       base::Contains(kSmartCardPrivilegedExtensionIds, origin.host()) &&
       DeviceHasInterfaceWithClass(device_info,
                                   device::mojom::kUsbSmartCardClass)) {
@@ -175,7 +179,11 @@ void ChromeUsbDelegate::AdjustProtectedInterfaceClasses(
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Don't enforce protected interface classes for Chrome Apps since the
   // chrome.usb API has no such restriction.
-  if (origin.scheme() == extensions::kExtensionScheme) {
+  if (origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+  ) {
     auto* extension_registry =
         extensions::ExtensionRegistry::Get(browser_context);
     if (extension_registry) {
@@ -230,13 +238,21 @@ void ChromeUsbDelegate::AdjustProtectedInterfaceClasses(
           "moklfjoegmpoolceggbebbmgbddlhdgp",
       });
 
-  if (origin.scheme() == extensions::kExtensionScheme &&
+  if ((origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+  ) &&
       base::Contains(kHidPrivilegedExtensionIds, origin.host())) {
     base::Erase(classes, device::mojom::kUsbHidClass);
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-  if (origin.scheme() == extensions::kExtensionScheme &&
+  if ((origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+       ) &&
       base::Contains(kSmartCardPrivilegedExtensionIds, origin.host())) {
     base::Erase(classes, device::mojom::kUsbSmartCardClass);
   }
@@ -325,7 +341,11 @@ bool ChromeUsbDelegate::IsServiceWorkerAllowedForOrigin(
   // WebUSB is only available on extension service workers for now.
   if (base::FeatureList::IsEnabled(
           features::kEnableWebUsbOnExtensionServiceWorker) &&
-      origin.scheme() == extensions::kExtensionScheme) {
+      (origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+       )) {
     return true;
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)

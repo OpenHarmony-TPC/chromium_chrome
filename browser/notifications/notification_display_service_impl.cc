@@ -227,10 +227,11 @@ void NotificationDisplayServiceImpl::Display(
     bridge_delegator_->Display(notification_type, notification,
                                std::move(metadata));
   }
-
+#ifndef OHOS_NOTIFICATION
   NotificationHandler* handler = GetNotificationHandler(notification_type);
   if (handler)
     handler->OnShow(profile_, notification.id());
+#endif
 }
 
 void NotificationDisplayServiceImpl::Close(

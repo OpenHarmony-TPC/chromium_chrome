@@ -19,6 +19,9 @@
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/extension_host_registry.h"
 #include "third_party/skia/include/core/SkColor.h"
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+#include "ohos_nweb/src/capi/web_extension_tab_items.h"
+#endif
 
 namespace content {
 class BrowserContext;
@@ -79,7 +82,6 @@ class ExtensionActionAPI : public BrowserContextKeyedAPI {
   void DispatchExtensionActionClicked(const ExtensionAction& extension_action,
                                       content::WebContents* web_contents,
                                       const Extension* extension);
-
   // Clears the values for all ExtensionActions for the tab associated with the
   // given |web_contents| (and signals that page actions changed).
   void ClearAllValuesForTab(content::WebContents* web_contents);
@@ -88,6 +90,12 @@ class ExtensionActionAPI : public BrowserContextKeyedAPI {
     extension_prefs_ = prefs;
   }
 
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  void DispatchExtensionActionClickedWithCustomArgs(
+      content::WebContents* web_contents,
+      std::string extension_id,
+      const NWebExtensionTab* custom_tab);
+#endif
  private:
   friend class BrowserContextKeyedAPIFactory<ExtensionActionAPI>;
 
