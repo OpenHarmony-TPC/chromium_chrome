@@ -77,7 +77,11 @@ void NavigationObserver::PromptToEnableExtensionIfNecessary(
   // the item enabled, we won't show anything.
   // TODO(devlin): While true, I still wonder how useful this is. We should get
   // metrics.
-  if (!url.SchemeIs(kExtensionScheme))
+  if (!url.SchemeIs(kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !url.SchemeIs(kArkwebExtensionScheme)
+#endif
+  )
     return;
 
   const Extension* extension = ExtensionRegistry::Get(profile_)

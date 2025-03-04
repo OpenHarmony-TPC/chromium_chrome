@@ -284,8 +284,9 @@ export class ExtensionsDetailViewElement extends
   }
 
   private onSiteSettingsClick_() {
+    // #ifdef OHOS_ARKWEB_EXTENSIONS
     this.delegate.openUrl(
-        `arkweb://settings/content/siteDetails?site=chrome-extension://${
+        `arkweb://settings/websiteSettings?site=arkweb-extension://${
             this.data.id}`);
   }
 

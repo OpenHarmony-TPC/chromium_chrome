@@ -140,7 +140,11 @@ bool ShouldOverrideUrlLoading(const GURL& previous_url,
   // Check the scheme for both |previous_url| and |current_url| since an
   // extension could have referred us (e.g. Google Docs).
   if (!current_url.SchemeIsHTTPOrHTTPS() ||
-      previous_url.SchemeIs(extensions::kExtensionScheme)) {
+      previous_url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || previous_url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     return false;
   }
 

@@ -112,7 +112,11 @@ void ChromeExtensionsRendererClient::OnExtensionUnloaded(
 bool ChromeExtensionsRendererClient::ExtensionAPIEnabledForServiceWorkerScript(
     const GURL& scope,
     const GURL& script_url) const {
-  if (!script_url.SchemeIs(extensions::kExtensionScheme))
+  if (!script_url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !script_url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  )
     return false;
 
   const Extension* extension =
@@ -241,10 +245,18 @@ void ChromeExtensionsRendererClient::WillSendRequest(
     GURL* new_url) {
   std::string extension_id;
   if (initiator_origin &&
-      initiator_origin->scheme() == extensions::kExtensionScheme) {
+      (initiator_origin->scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       || initiator_origin->scheme() == extensions::kArkwebExtensionScheme
+#endif
+       )) {
     extension_id = initiator_origin->host();
   } else {
-    if (site_for_cookies.scheme() == extensions::kExtensionScheme) {
+    if (site_for_cookies.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+        || site_for_cookies.scheme() == extensions::kArkwebExtensionScheme
+#endif
+    ) {
       extension_id = site_for_cookies.registrable_domain();
     }
   }
@@ -264,11 +276,19 @@ void ChromeExtensionsRendererClient::WillSendRequest(
 
   // The rest of this method is only concerned with extensions URLs.
   if (base::FeatureList::IsEnabled(base::features::kOptimizeDataUrls) &&
-      !url.ProtocolIs(extensions::kExtensionScheme)) {
+      !url.ProtocolIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      && !url.ProtocolIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     return;
   }
 
-  if (url.ProtocolIs(extensions::kExtensionScheme) &&
+  if ((url.ProtocolIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       || url.ProtocolIs(extensions::kArkwebExtensionScheme)
+#endif
+           ) &&
       !resource_request_policy_->CanRequestResource(
           GURL(url), frame, transition_type,
           base::OptionalFromPtr(initiator_origin))) {
@@ -277,7 +297,11 @@ void ChromeExtensionsRendererClient::WillSendRequest(
 
   // TODO(https://crbug.com/588766): Remove metrics after bug is fixed.
   GURL request_url(url);
-  if (url.ProtocolIs(extensions::kExtensionScheme) &&
+  if ((url.ProtocolIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       || url.ProtocolIs(extensions::kArkwebExtensionScheme)
+#endif
+           ) &&
       request_url.host_piece() == extension_misc::kDocsOfflineExtensionId) {
     if (!ukm_recorder_) {
       mojo::Remote<ukm::mojom::UkmRecorderFactory> factory;

@@ -567,7 +567,11 @@ std::u16string PlatformNotificationServiceImpl::DisplayNameForContextMessage(
     const GURL& origin) const {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // If the source is an extension, lookup the display name.
-  if (origin.SchemeIs(extensions::kExtensionScheme)) {
+  if (origin.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || origin.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     const extensions::Extension* extension =
         extensions::ExtensionRegistry::Get(profile_)->GetExtensionById(
             origin.host(), extensions::ExtensionRegistry::EVERYTHING);

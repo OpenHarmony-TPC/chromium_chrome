@@ -580,6 +580,10 @@ ProfileNetworkContextService::CreateCookieManagerParams(
   // matching_scheme_cookies_allowed_schemes.
   out->third_party_cookies_allowed_schemes.push_back(
       extensions::kExtensionScheme);
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  out->third_party_cookies_allowed_schemes.push_back(
+      extensions::kArkwebExtensionScheme);
+#endif
 #endif
 
   ContentSettingsForOneType settings;

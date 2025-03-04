@@ -330,7 +330,11 @@ bool PopupMayExceedContentAreaBounds(content::WebContents* web_contents) {
   // Extensions may want to show <datalist> form controls whose popups cannot be
   // rendered within the bounds of an extension popup. For that reason they are
   // allow-listed to draw popups outside the boundary of the extension popup.
-  if (url.SchemeIs(extensions::kExtensionScheme)) {
+  if (url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     views::Widget* widget = views::Widget::GetTopLevelWidgetForNativeView(
         web_contents->GetContentNativeView());
     return widget && widget->GetName() == ExtensionPopup::kViewClassName;

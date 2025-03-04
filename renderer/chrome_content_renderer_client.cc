@@ -429,6 +429,10 @@ void ChromeContentRendererClient::RenderThreadStarted() {
   ChromeExtensionsRendererClient::GetInstance()->RenderThreadStarted();
   WebSecurityPolicy::RegisterURLSchemeAsExtension(
       WebString::FromASCII(extensions::kExtensionScheme));
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  WebSecurityPolicy::RegisterURLSchemeAsExtension(
+      WebString::FromASCII(extensions::kArkwebExtensionScheme));
+#endif
 #endif
 
 #if BUILDFLAG(ENABLE_SPELLCHECK)
@@ -1243,7 +1247,12 @@ bool ChromeContentRendererClient::IsNativeNaClAllowed(
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   bool is_extension_from_webstore = extension && extension->from_webstore();
 
-  bool is_invoked_by_extension = app_url.SchemeIs(extensions::kExtensionScheme);
+  bool is_invoked_by_extension =
+      (app_url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       || app_url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+      );
   bool is_invoked_by_hosted_app = extension && extension->is_hosted_app() &&
                                   extension->web_extent().MatchesURL(app_url);
 
@@ -1668,7 +1677,11 @@ void ChromeContentRendererClient::
 bool ChromeContentRendererClient::AllowScriptExtensionForServiceWorker(
     const url::Origin& script_origin) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  return script_origin.scheme() == extensions::kExtensionScheme;
+  return script_origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+         || script_origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+      ;
 #else
   return false;
 #endif
@@ -1769,7 +1782,11 @@ blink::WebFrame* ChromeContentRendererClient::FindFrame(
 bool ChromeContentRendererClient::IsSafeRedirectTarget(const GURL& from_url,
                                                        const GURL& to_url) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  if (to_url.SchemeIs(extensions::kExtensionScheme)) {
+  if (to_url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || to_url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     const extensions::Extension* extension =
         extensions::RendererExtensionRegistry::Get()->GetByID(to_url.host());
     if (!extension)

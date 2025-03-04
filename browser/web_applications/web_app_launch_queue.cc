@@ -99,7 +99,11 @@ class EntriesBuilder {
 // TODO(crbug.com/1179530): Consider adding an {extension, pwa} enum to
 // `launch_params` instead of checking the scheme specifically for extensions?
 bool IsExtensionURL(const GURL& gurl) {
-  return gurl.SchemeIs(extensions::kExtensionScheme);
+  return gurl.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+         || gurl.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+      ;
 }
 
 }  // namespace

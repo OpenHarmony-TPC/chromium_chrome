@@ -38,7 +38,11 @@ ChromeFaviconClient::~ChromeFaviconClient() {
 
 bool ChromeFaviconClient::IsNativeApplicationURL(const GURL& url) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  if (url.SchemeIs(extensions::kExtensionScheme))
+  if (url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  )
     return true;
 #endif
 

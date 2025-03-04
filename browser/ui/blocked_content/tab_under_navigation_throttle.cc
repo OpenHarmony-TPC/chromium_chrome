@@ -134,7 +134,12 @@ bool TabUnderNavigationThrottle::IsSuspiciousClientRedirect() const {
   // round-trip a page through an extension URL in order to perform arbitrary
   // redirections with content scripts.
   if (target_url.SchemeIs(extensions::kExtensionScheme) ||
-      previous_main_frame_url.SchemeIs(extensions::kExtensionScheme)) {
+      previous_main_frame_url.SchemeIs(extensions::kExtensionScheme)
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+      || target_url.SchemeIs(extensions::kArkwebExtensionScheme) ||
+      previous_main_frame_url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     return false;
   }
 #endif

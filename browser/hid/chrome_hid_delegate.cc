@@ -224,7 +224,11 @@ bool ChromeHidDelegate::IsServiceWorkerAllowedForOrigin(
   // enabled for now.
   if (base::FeatureList::IsEnabled(
           features::kEnableWebHidOnExtensionServiceWorker) &&
-      origin.scheme() == extensions::kExtensionScheme)
+      (origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+       ))
     return true;
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
   return false;
@@ -247,7 +251,11 @@ void ChromeHidDelegate::IncrementConnectionCount(
   // isn't made by an extension origin.
   if (!base::FeatureList::IsEnabled(
           features::kEnableWebHidOnExtensionServiceWorker) ||
-      origin.scheme() != extensions::kExtensionScheme) {
+      (origin.scheme() != extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       && origin.scheme() != extensions::kArkwebExtensionScheme
+#endif
+       )) {
     return;
   }
 
@@ -265,7 +273,11 @@ void ChromeHidDelegate::DecrementConnectionCount(
   // isn't made by an extension origin.
   if (!base::FeatureList::IsEnabled(
           features::kEnableWebHidOnExtensionServiceWorker) ||
-      origin.scheme() != extensions::kExtensionScheme) {
+      (origin.scheme() != extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+       && origin.scheme() != extensions::kArkwebExtensionScheme
+#endif
+       )) {
     return;
   }
   auto* hid_connection_tracker =

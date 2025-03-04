@@ -33,7 +33,11 @@ std::u16string GetMessageLabel(HidConnectionTracker* connection_tracker) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   std::vector<std::u16string> extension_names;
   for (const auto& [origin, state] : connection_tracker->origins()) {
-    CHECK_EQ(origin.scheme(), extensions::kExtensionScheme);
+    CHECK(origin.scheme() == extensions::kExtensionScheme
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+          || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+    );
     extension_names.push_back(base::UTF8ToUTF16(state.name));
   }
   CHECK(!extension_names.empty());
