@@ -51,6 +51,10 @@
 #include "media/base/android/media_drm_bridge.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if defined(OHOS_ENABLE_WISEPLAY)
+#include "media/cdm/wiseplay_cdm_common.h"
+#endif
+
 namespace {
 
 using Robustness = content::CdmInfo::Robustness;
@@ -291,6 +295,21 @@ void AddWidevine(std::vector<content::CdmInfo>* cdms) {
 }
 #endif  // BUILDFLAG(ENABLE_WIDEVINE)
 
+#if defined(OHOS_ENABLE_WISEPLAY)
+void AddSoftwareSecureWiseplay(std::vector<content::CdmInfo>* cdms) {
+  LOG(INFO) << "[DRM]" << __func__;
+  cdms->emplace_back(
+      media::kWiseplayKeySystem, Robustness::kSoftwareSecure, absl::nullopt,
+      false, media::kWiseplayCdmDisplayName,
+      media::kWiseplayCdmType, base::Version(), base::FilePath());
+}
+
+void AddWiseplay(std::vector<content::CdmInfo>* cdms) {
+  LOG(INFO) << "[DRM]" << __func__;
+  AddSoftwareSecureWiseplay(cdms);
+}
+#endif
+
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
 void AddExternalClearKey(std::vector<content::CdmInfo>* cdms) {
   // Register Clear Key CDM if specified in command line.
@@ -391,6 +410,10 @@ void RegisterCdmInfo(std::vector<content::CdmInfo>* cdms) {
 
 #if BUILDFLAG(ENABLE_WIDEVINE)
   AddWidevine(cdms);
+#endif
+
+#if defined(OHOS_ENABLE_WISEPLAY)
+  AddWiseplay(cdms);
 #endif
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
