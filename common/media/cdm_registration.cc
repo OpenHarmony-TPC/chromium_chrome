@@ -304,18 +304,9 @@ void AddSoftwareSecureWiseplay(std::vector<content::CdmInfo>* cdms) {
       media::kWiseplayCdmType, base::Version(), base::FilePath());
 }
 
-void AddHardwareSecureWiseplay(std::vector<content::CdmInfo>* cdms) {
-  LOG(INFO) << "[DRM]" << __func__;
-  cdms->emplace_back(
-      media::kWiseplayKeySystem, Robustness::kHardwareSecure, absl::nullopt,
-      false, media::kWiseplayCdmDisplayName,
-      media::kWiseplayCdmType, base::Version(), base::FilePath());
-}
-
 void AddWiseplay(std::vector<content::CdmInfo>* cdms) {
   LOG(INFO) << "[DRM]" << __func__;
   AddSoftwareSecureWiseplay(cdms);
-  AddHardwareSecureWiseplay(cdms);
 }
 #endif
 
