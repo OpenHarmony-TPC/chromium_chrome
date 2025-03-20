@@ -119,7 +119,12 @@ std::u16string GetManagedUiWebUILabel(Profile* profile) {
 
   int string_id = IDS_MANAGED_WITH_HYPERLINK;
   std::vector<std::u16string> replacements;
+#ifdef OHOS_ARKWEB_EXTENSIONS
+  // management UI not supported
+  replacements.push_back(base::UTF8ToUTF16("#"));
+#else
   replacements.push_back(base::UTF8ToUTF16(chrome::kChromeUIManagementURL));
+#endif // OHOS_ARKWEB_EXTENSIONS
   if (manager && !manager->empty()) {
     string_id = IDS_MANAGED_BY_WITH_HYPERLINK;
     replacements.push_back(base::UTF8ToUTF16(*manager));

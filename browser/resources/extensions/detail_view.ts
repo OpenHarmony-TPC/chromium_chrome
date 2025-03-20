@@ -219,7 +219,8 @@ export class ExtensionsDetailViewElement extends
   }
 
   private shouldShowIncognitoOption_(): boolean {
-    return this.data.incognitoAccess.isEnabled && this.incognitoAvailable;
+    // #ifdef OHOS_ARKWEB_EXTENSIONS
+    return false;
   }
 
   private onEnableToggleChange_() {
