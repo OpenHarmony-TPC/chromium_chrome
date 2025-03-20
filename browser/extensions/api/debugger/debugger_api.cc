@@ -98,8 +98,10 @@ bool ExtensionMayAttachToTargetProfile(Profile* extension_profile,
       Profile::FromBrowserContext(agent_host.GetBrowserContext());
   if (!profile)
     return false;
+#if !defined(OHOS_ARKWEB_EXTENSIONS)
   if (!extension_profile->IsSameOrParent(profile))
     return false;
+#endif // OHOS_ARKWEB_EXTENSIONS
   return profile == extension_profile || allow_incognito_access;
 }
 
