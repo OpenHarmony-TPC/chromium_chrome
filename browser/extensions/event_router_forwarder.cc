@@ -34,9 +34,16 @@ void EventRouterForwarder::BroadcastEventToRenderers(
     const std::string& event_name,
     base::Value::List event_args,
     const GURL& event_url,
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+    bool dispatch_to_off_the_record_profiles,
+    void* profile) {
+  HandleEvent(std::string(), histogram_value, event_name, std::move(event_args),
+              profile, true, event_url, dispatch_to_off_the_record_profiles);
+#else
     bool dispatch_to_off_the_record_profiles) {
   HandleEvent(std::string(), histogram_value, event_name, std::move(event_args),
               nullptr, true, event_url, dispatch_to_off_the_record_profiles);
+#endif
 }
 
 void EventRouterForwarder::DispatchEventToRenderers(
