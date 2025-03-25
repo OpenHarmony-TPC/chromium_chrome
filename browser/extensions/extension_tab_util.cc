@@ -16,6 +16,9 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+#include "cef/libcef/browser/extensions/contents_extensions_util.h"
+#endif // OHOS_ARKWEB_EXTENSIONS
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/api/tab_groups/tab_groups_util.h"
 #include "chrome/browser/extensions/api/tabs/tabs_constants.h"
@@ -730,6 +733,14 @@ bool ExtensionTabUtil::GetTabById(int tab_id,
       }
     }
   }
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+  *contents = extensions::GetWebContentByTabId(tab_id);
+  if (*contents) {
+    // tab_id is tied to a specific Browser window
+    // which doesn't exist for an Alloy style browser.
+    return true;
+  }
+#endif // OHOS_ARKWEB_EXTENSIONS
   return false;
 }
 
