@@ -1334,7 +1334,7 @@ static_library("extensions") {
       "setupapi.lib",
       "propsys.lib",
     ]
-  } else if (use_aura && !is_chromeos) {
+  } else if (use_aura && !is_chromeos && !is_ohos) {
     sources += [
       "system_display/display_info_provider_aura.cc",
       "system_display/display_info_provider_aura.h",

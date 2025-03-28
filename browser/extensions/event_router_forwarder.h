@@ -41,7 +41,12 @@ class EventRouterForwarder
                                  const std::string& event_name,
                                  base::Value::List event_args,
                                  const GURL& event_url,
+#if defined(OHOS_ARKWEB_EXTENSIONS)
+                                 bool dispatch_to_off_the_record_profiles,
+                                 void* profile = nullptr);
+#else
                                  bool dispatch_to_off_the_record_profiles);
+#endif
 
   // Calls
   //   DispatchEventToRenderers(event_name, event_args,
