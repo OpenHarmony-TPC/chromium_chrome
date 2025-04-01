@@ -2,40 +2,62 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <initializer_list>
+#include <map>
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "base/check.h"
+#include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/path_service.h"
-#include "base/test/bind.h"
+#include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/metrics/user_action_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/banners/test_app_banner_manager_desktop.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/shortcuts/shortcut_icon_generator.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
-#include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
+#include "chrome/browser/ui/web_applications/web_app_dialogs.h"
+#include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
 #include "chrome/browser/web_applications/test/web_app_test_observers.h"
+#include "chrome/browser/web_applications/test/web_app_test_utils.h"
+#include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
-#include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_icon_generator.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
-#include "chrome/browser/web_applications/web_app_id.h"
-#include "chrome/browser/web_applications/web_app_prefs_utils.h"
+#include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/common/chrome_paths.h"
+#include "components/webapps/browser/features.h"
+#include "components/webapps/browser/installable/installable_metrics.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/common/extension.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
+#include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/mojom/manifest/manifest.mojom-shared.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/skia_util.h"
 #include "url/gurl.h"
+
+#if !BUILDFLAG(IS_CHROMEOS)
+#include "chrome/common/chrome_features.h"
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 namespace {
 
@@ -51,16 +73,32 @@ std::string LoadExtension(Profile* profile, const base::FilePath& path) {
 
 namespace web_app {
 
-class CreateShortcutBrowserTest : public WebAppControllerBrowserTest {
+// TODO(crbug.com/344912771): Remove once ShortcutsNotApps launches to 100%
+// Stable.
+class CreateShortcutBrowserTest : public WebAppBrowserTestBase {
  public:
-  AppId InstallShortcutAppForCurrentUrl(bool open_as_window = false) {
-    chrome::SetAutoAcceptWebAppDialogForTesting(true, open_as_window);
+  CreateShortcutBrowserTest() {
+#if !BUILDFLAG(IS_CHROMEOS)
+    scoped_feature_list_.InitAndDisableFeature(features::kShortcutsNotApps);
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+  }
+  webapps::AppId InstallShortcutAppForCurrentUrl(bool open_as_window = false) {
+    SetAutoAcceptWebAppDialogForTesting(true, open_as_window);
     WebAppTestInstallObserver observer(profile());
     observer.BeginListening();
     CHECK(chrome::ExecuteCommand(browser(), IDC_CREATE_SHORTCUT));
-    AppId app_id = observer.Wait();
-    chrome::SetAutoAcceptWebAppDialogForTesting(false, false);
+    webapps::AppId app_id = observer.Wait();
+    SetAutoAcceptWebAppDialogForTesting(false, false);
     return app_id;
+  }
+
+  // Start URL points to `PageWithDifferentStartUrlManifestStartUrl`.
+  GURL PageWithDifferentStartUrl() {
+    return https_server()->GetURL("/web_apps/different_start_url.html");
+  }
+
+  GURL PageWithDifferentStartUrlManifestStartUrl() {
+    return https_server()->GetURL("/web_apps/basic.html");
   }
 
   WebAppRegistrar& registrar() {
@@ -74,14 +112,18 @@ class CreateShortcutBrowserTest : public WebAppControllerBrowserTest {
     CHECK(provider);
     return provider->sync_bridge_unsafe();
   }
+
+#if !BUILDFLAG(IS_CHROMEOS)
+  base::test::ScopedFeatureList scoped_feature_list_;
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 };
 
 IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
                        CreateShortcutForInstallableSite) {
   base::UserActionTester user_action_tester;
-  NavigateToURLAndWait(browser(), GetInstallableAppURL());
+  NavigateViaLinkClickToURLAndWait(browser(), GetInstallableAppURL());
 
-  AppId app_id = InstallShortcutAppForCurrentUrl();
+  webapps::AppId app_id = InstallShortcutAppForCurrentUrl();
   EXPECT_EQ(registrar().GetAppShortName(app_id), GetInstallableAppName());
   // Shortcut apps to PWAs should launch in a tab.
   EXPECT_EQ(registrar().GetAppUserDisplayMode(app_id),
@@ -91,7 +133,13 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
   EXPECT_EQ(1, user_action_tester.GetActionCount("CreateShortcut"));
 }
 
-IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest, InstallSourceRecorded) {
+// TODO(crbug.com/40269598): flaky on Mac11 Tests builder.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_InstallSourceRecorded DISABLED_InstallSourceRecorded
+#else
+#define MAYBE_InstallSourceRecorded InstallSourceRecorded
+#endif
+IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest, MAYBE_InstallSourceRecorded) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // LatestWebAppInstallSource should be correctly set and reported to UMA for
@@ -101,8 +149,8 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest, InstallSourceRecorded) {
         embedded_test_server()->GetURL(
             "/web_apps/get_manifest.html?theme_color_only.json")}) {
     base::HistogramTester histogram_tester;
-    NavigateToURLAndWait(browser(), url);
-    AppId app_id = InstallShortcutAppForCurrentUrl();
+    NavigateViaLinkClickToURLAndWait(browser(), url);
+    webapps::AppId app_id = InstallShortcutAppForCurrentUrl();
 
     EXPECT_EQ(webapps::WebappInstallSource::MENU_CREATE_SHORTCUT,
               *registrar().GetLatestAppInstallSource(app_id));
@@ -115,7 +163,7 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest, InstallSourceRecorded) {
 
 IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
                        CanInstallOverTabShortcutApp) {
-  NavigateToURLAndWait(browser(), GetInstallableAppURL());
+  NavigateViaLinkClickToURLAndWait(browser(), GetInstallableAppURL());
   InstallShortcutAppForCurrentUrl();
 
   Browser* new_browser =
@@ -129,12 +177,11 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
                        CannotInstallOverWindowShortcutApp) {
-  NavigateToURLAndWait(browser(), GetInstallableAppURL());
-  AppId app_id = InstallShortcutAppForCurrentUrl();
+  NavigateViaLinkClickToURLAndWait(browser(), GetInstallableAppURL());
+  webapps::AppId app_id = InstallShortcutAppForCurrentUrl();
   // Change launch container to open in window.
-  sync_bridge().SetAppUserDisplayMode(app_id,
-                                      mojom::UserDisplayMode::kStandalone,
-                                      /*is_user_action=*/false);
+  sync_bridge().SetAppUserDisplayModeForTesting(
+      app_id, mojom::UserDisplayMode::kStandalone);
 
   Browser* new_browser =
       NavigateInNewWindowAndAwaitInstallabilityCheck(GetInstallableAppURL());
@@ -150,7 +197,7 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
 // within an extension, then added it as a shortcut app.
 // Regression test for https://crbug.com/828233.
 //
-// TODO(crbug.com/1253234): Remove chrome-extension scheme for web apps.
+// TODO(crbug.com/40793595): Remove chrome-extension scheme for web apps.
 IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
                        ShouldShowCustomTabBarForExtensionPage) {
   // This involves the creation of a regular (non-app) extension with a popup
@@ -170,12 +217,13 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
   // Install the shortcut app that links to the extension's popup page.
   const GURL popup_url("chrome-extension://" + extension_id + "/popup.html");
 
-  NavigateToURLAndWait(browser(), popup_url);
+  NavigateViaLinkClickToURLAndWait(browser(), popup_url);
 
-  // TODO(crbug.com/1253234): IDC_CREATE_SHORTCUT command must become disabled.
+  // TODO(crbug.com/40793595): IDC_CREATE_SHORTCUT command must become disabled.
   ASSERT_TRUE(chrome::IsCommandEnabled(browser(), IDC_CREATE_SHORTCUT));
 
-  const AppId app_id = InstallShortcutAppForCurrentUrl();
+  const webapps::AppId app_id = InstallShortcutAppForCurrentUrl();
+  ASSERT_FALSE(app_id.empty());
   Browser* const app_browser = LaunchWebAppBrowserAndWait(app_id);
   CHECK(app_browser);
   CHECK(app_browser != browser());
@@ -189,8 +237,9 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
 // iframe load. Context: crbug.com/1046883
 IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest, WorksAfterDelayedIFrameLoad) {
   ASSERT_TRUE(embedded_test_server()->Start());
-  NavigateToURLAndWait(browser(), embedded_test_server()->GetURL(
-                                      "/favicon/page_with_favicon.html"));
+  NavigateViaLinkClickToURLAndWait(
+      browser(),
+      embedded_test_server()->GetURL("/favicon/page_with_favicon.html"));
 
   // Append an iframe and wait for it to finish loading.
   const char script[] = R"(
@@ -214,10 +263,10 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest, WorksAfterDelayedIFrameLoad) {
 IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
                        UseNonPromotableManifestData) {
   ASSERT_TRUE(embedded_test_server()->Start());
-  NavigateToURLAndWait(
+  NavigateViaLinkClickToURLAndWait(
       browser(), embedded_test_server()->GetURL(
                      "/web_apps/get_manifest.html?theme_color_only.json"));
-  AppId app_id = InstallShortcutAppForCurrentUrl();
+  webapps::AppId app_id = InstallShortcutAppForCurrentUrl();
   EXPECT_EQ(registrar().GetAppThemeColor(app_id),
             SkColorSetRGB(0x12, 0x34, 0x56));
 }
@@ -227,26 +276,26 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest, IgnoreInvalidManifestData) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url = embedded_test_server()->GetURL(
       "/web_apps/get_manifest.html?invalid_start_url.json");
-  NavigateToURLAndWait(browser(), url);
-  AppId app_id = InstallShortcutAppForCurrentUrl();
+  NavigateViaLinkClickToURLAndWait(browser(), url);
+  webapps::AppId app_id = InstallShortcutAppForCurrentUrl();
   EXPECT_EQ(registrar().GetAppStartUrl(app_id), url);
 }
 
-// TODO(crbug.com/1400778): Un-flake and re-enable this test.
+// TODO(crbug.com/40883914): Un-flake and re-enable this test.
 IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
                        DISABLED_CreateShortcutAgainOverwriteUserDisplayMode) {
   base::UserActionTester user_action_tester;
-  NavigateToURLAndWait(browser(), GetInstallableAppURL());
+  NavigateViaLinkClickToURLAndWait(browser(), GetInstallableAppURL());
 
-  AppId app_id = InstallShortcutAppForCurrentUrl();
+  webapps::AppId app_id = InstallShortcutAppForCurrentUrl();
   EXPECT_EQ(registrar().GetAppShortName(app_id), GetInstallableAppName());
   // Shortcut apps to PWAs should launch in a tab.
   EXPECT_EQ(registrar().GetAppUserDisplayMode(app_id),
             mojom::UserDisplayMode::kBrowser);
-  // TODO(crbug.com/1275945): We need to wait a bit longer for the
+  // TODO(crbug.com/40808578): We need to wait a bit longer for the
   // WebAppInstallTask to complete before starting another install.
   // Move the install/update/uninstall events out of
-  // AppRegistrarObserver and into a WebAppInstallManagerObserver
+  // WebAppRegistrarObserver and into a WebAppInstallManagerObserver
   // interface so they can be guaranteed to fire after the
   // WebAppInstallTask's lifetime has ended.
   base::RunLoop().RunUntilIdle();
@@ -257,11 +306,11 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
             mojom::UserDisplayMode::kStandalone);
 }
 
-// TODO(crbug.com/1439209): Re-enable this test
+// TODO(crbug.com/40908616): Re-enable this test
 IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
                        DISABLED_OpenShortcutWindowOnlyOnce) {
   base::UserActionTester user_action_tester;
-  NavigateToURLAndWait(browser(), GetInstallableAppURL());
+  NavigateViaLinkClickToURLAndWait(browser(), GetInstallableAppURL());
 
   WebAppTestInstallObserver observer(profile());
   // The "Create shortcut" call is executed twice, but the dialog
@@ -276,9 +325,9 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
 // letter icon correctly and does not use the "H" letter from the "https"
 // scheme.
 IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest, UseHostWhenTitleIsUrl) {
-  NavigateToURLAndWait(browser(),
-                       https_server()->GetURL("example.com", "/empty.html"));
-  AppId app_id = InstallShortcutAppForCurrentUrl();
+  NavigateViaLinkClickToURLAndWait(
+      browser(), https_server()->GetURL("example.com", "/empty.html"));
+  webapps::AppId app_id = InstallShortcutAppForCurrentUrl();
 
   base::test::TestFuture<std::map<SquareSizePx, SkBitmap>> future;
   WebAppProvider::GetForTest(profile())->icon_manager().ReadIcons(
@@ -291,8 +340,47 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest, UseHostWhenTitleIsUrl) {
   // The letter for https://example.com should be the first letter of the host,
   // which is "E".
   SkBitmap generated_icon_bitmap =
-      GenerateBitmap(icon_size::k128, static_cast<char32_t>('E'));
+      shortcuts::GenerateBitmap(icon_size::k128, static_cast<char32_t>('E'));
   EXPECT_TRUE(gfx::BitmapsAreEqual(bitmap, generated_icon_bitmap));
+}
+
+IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
+                       InstallableSiteDifferentStartUrl) {
+  NavigateViaLinkClickToURLAndWait(browser(), PageWithDifferentStartUrl());
+  webapps::AppId app_id = InstallShortcutAppForCurrentUrl();
+
+  EXPECT_EQ(registrar().GetAppUserDisplayMode(app_id),
+            mojom::UserDisplayMode::kBrowser);
+
+  // Using the manifest makes it a non-shortcut.
+  EXPECT_EQ(registrar().IsShortcutApp(app_id), false);
+
+  // Title from manifest.
+  EXPECT_EQ(registrar().GetAppShortName(app_id), "Basic web app");
+
+  // Start URL from manifest.
+  EXPECT_EQ(registrar().GetAppById(app_id)->start_url(),
+            PageWithDifferentStartUrlManifestStartUrl());
+}
+
+IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest, InstallOverTabShortcutApp) {
+  NavigateViaLinkClickToURLAndWait(browser(), GetInstallableAppURL());
+  webapps::AppId shortcut_app_id = InstallShortcutAppForCurrentUrl();
+
+  EXPECT_FALSE(registrar().IsShortcutApp(shortcut_app_id));
+
+  Browser* new_browser =
+      NavigateInNewWindowAndAwaitInstallabilityCheck(GetInstallableAppURL());
+
+  EXPECT_EQ(GetAppMenuCommandState(IDC_CREATE_SHORTCUT, new_browser), kEnabled);
+  EXPECT_EQ(GetAppMenuCommandState(IDC_INSTALL_PWA, new_browser), kEnabled);
+  EXPECT_EQ(GetAppMenuCommandState(IDC_OPEN_IN_PWA_WINDOW, new_browser),
+            kNotPresent);
+
+  webapps::AppId web_app_id = test::InstallPwaForCurrentUrl(new_browser);
+
+  EXPECT_EQ(shortcut_app_id, web_app_id);
+  EXPECT_FALSE(registrar().IsShortcutApp(web_app_id));
 }
 
 }  // namespace web_app

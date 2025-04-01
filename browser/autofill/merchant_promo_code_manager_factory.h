@@ -9,7 +9,7 @@
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }
 
 class Profile;
@@ -30,13 +30,13 @@ class MerchantPromoCodeManagerFactory : public ProfileKeyedServiceFactory {
   static MerchantPromoCodeManagerFactory* GetInstance();
 
  private:
-  friend struct base::DefaultSingletonTraits<MerchantPromoCodeManagerFactory>;
+  friend base::NoDestructor<MerchantPromoCodeManagerFactory>;
 
   MerchantPromoCodeManagerFactory();
   ~MerchantPromoCodeManagerFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* profile) const override;
 };
 

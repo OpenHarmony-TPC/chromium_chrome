@@ -8,6 +8,8 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
+#include "chrome/browser/ash/arc/session/arc_session_manager_observer.h"
 #include "media/media_buildflags.h"
 
 #if BUILDFLAG(USE_ARC_PROTECTED_MEDIA)
@@ -102,7 +104,7 @@ class ArcServiceLauncher {
   std::unique_ptr<ArcVmDataMigrationNotifier> arc_vm_data_migration_notifier_;
 
   // |scheduler_configuration_manager_| outlives |this|.
-  const raw_ptr<ash::SchedulerConfigurationManagerBase, ExperimentalAsh>
+  const raw_ptr<ash::SchedulerConfigurationManagerBase>
       scheduler_configuration_manager_;
 
 #if BUILDFLAG(USE_ARC_PROTECTED_MEDIA)

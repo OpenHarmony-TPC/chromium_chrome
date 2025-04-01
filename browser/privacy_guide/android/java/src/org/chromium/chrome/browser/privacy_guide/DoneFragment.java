@@ -13,30 +13,29 @@ import android.provider.Browser;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.browser.customtabs.CustomTabsIntent;
-import androidx.fragment.app.Fragment;
 
 import org.chromium.base.IntentUtils;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.privacy_guide.PrivacyGuideUtils.CustomTabIntentHelper;
 import org.chromium.chrome.browser.privacy_sandbox.PrivacySandboxReferrer;
 import org.chromium.chrome.browser.privacy_sandbox.PrivacySandboxSettingsBaseFragment;
-import org.chromium.components.browser_ui.settings.SettingsLauncher;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.ui.widget.ChromeImageButton;
 
-/**
- * Last privacy guide page.
- */
-public class DoneFragment extends Fragment {
+/** Last privacy guide page. */
+public class DoneFragment extends PrivacyGuideBasePage {
     private CustomTabIntentHelper mCustomTabIntentHelper;
-    private SettingsLauncher mSettingsLauncher;
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+    public View onCreateView(
+            @NonNull LayoutInflater inflater,
+            @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.privacy_guide_done, container, false);
     }
@@ -45,10 +44,23 @@ public class DoneFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        ChromeImageButton psButton = view.findViewById(R.id.ps_button);
-        psButton.setOnClickListener(this::onPsButtonClick);
+        if (!getPrivacySandboxBridge().isPrivacySandboxRestricted()
+                || getPrivacySandboxBridge().isRestrictedNoticeEnabled()) {
+            ChromeImageButton psButton = view.findViewById(R.id.ps_button);
+            psButton.setOnClickListener(this::onPsButtonClick);
 
-        if (isUserSignedIn()) {
+            if (ChromeFeatureList.isEnabled(
+                    ChromeFeatureList.PRIVACY_SANDBOX_PRIVACY_GUIDE_AD_TOPICS)) {
+                TextView privacy_sandbox_description = view.findViewById(R.id.ps_description);
+                privacy_sandbox_description.setText(
+                        R.string.privacy_guide_privacy_sandbox_description_ad_topics);
+            }
+        } else {
+            view.findViewById(R.id.ps_heading).setVisibility(View.GONE);
+            view.findViewById(R.id.ps_explanation).setVisibility(View.GONE);
+        }
+
+        if (isUserSignedIn(getProfile())) {
             ChromeImageButton waaButton = view.findViewById(R.id.waa_button);
             waaButton.setOnClickListener(this::onWaaButtonClick);
         } else {
@@ -71,18 +83,15 @@ public class DoneFragment extends Fragment {
         mCustomTabIntentHelper = customTabIntentHelper;
     }
 
-    void setSettingsLauncher(SettingsLauncher settingsLauncher) {
-        mSettingsLauncher = settingsLauncher;
-    }
-
     private void openUrlInCct(String url) {
         assert (mCustomTabIntentHelper != null)
-            : "CCT helpers must be set on DoneFragment before opening a link";
+                : "CCT helpers must be set on DoneFragment before opening a link";
         CustomTabsIntent customTabIntent =
                 new CustomTabsIntent.Builder().setShowTitle(true).build();
         customTabIntent.intent.setData(Uri.parse(url));
-        Intent intent = mCustomTabIntentHelper.createCustomTabActivityIntent(
-                getContext(), customTabIntent.intent);
+        Intent intent =
+                mCustomTabIntentHelper.createCustomTabActivityIntent(
+                        getContext(), customTabIntent.intent);
         intent.setPackage(getContext().getPackageName());
         intent.putExtra(Browser.EXTRA_APPLICATION_ID, getContext().getPackageName());
         IntentUtils.addTrustedIntentExtras(intent);
@@ -90,9 +99,7 @@ public class DoneFragment extends Fragment {
     }
 
     private void launchPrivacySandboxSettings() {
-        assert (mSettingsLauncher != null)
-            : "SettingsLauncher must be set on DoneFragment before opening another page";
         PrivacySandboxSettingsBaseFragment.launchPrivacySandboxSettings(
-                getContext(), mSettingsLauncher, PrivacySandboxReferrer.PRIVACY_SETTINGS);
+                getContext(), PrivacySandboxReferrer.PRIVACY_SETTINGS);
     }
 }

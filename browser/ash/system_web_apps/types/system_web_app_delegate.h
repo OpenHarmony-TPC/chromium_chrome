@@ -14,25 +14,25 @@
 #include "base/memory/raw_ptr.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/ash/system_web_apps/types/system_web_app_background_task_info.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
 class Browser;
 class Profile;
-struct WebAppInstallInfo;
 
 namespace apps {
 struct AppLaunchParams;
-}
+}  // namespace apps
 
 namespace gfx {
 class Rect;
-}
+}  // namespace gfx
 
 namespace web_app {
+struct WebAppInstallInfo;
 class WebAppProvider;
-}
+}  // namespace web_app
 
 namespace ash {
 
@@ -79,7 +79,7 @@ class SystemWebAppDelegate {
   const GURL& GetInstallUrl() const { return install_url_; }
 
   // Returns a WebAppInstallInfo struct to complete installation.
-  virtual std::unique_ptr<WebAppInstallInfo> GetWebAppInfo() const = 0;
+  virtual std::unique_ptr<web_app::WebAppInstallInfo> GetWebAppInfo() const = 0;
 
   // Returns a vector of AppIDs. Each app_id (a string id) may correspond to any
   // ChromeOS app: ChromeApp, WebApp, Arc++ etc. The apps specified will have
@@ -128,12 +128,17 @@ class SystemWebAppDelegate {
   // the order in go/default-apps.
   virtual bool ShouldShowInLauncher() const;
 
-  // If false, this app will be hidden from the Chrome OS search.
-  virtual bool ShouldShowInSearch() const;
+  // If false, this app will be hidden from both the Chrome OS search and shelf.
+  // If true, this app will be shown in both the ChromeOS search and shelf.
+  virtual bool ShouldShowInSearchAndShelf() const;
 
-  // If true, navigations (e.g. Omnibox URL, anchor link) to this app
-  // will open in the app's window instead of the navigation's context (e.g.
-  // browser tab).
+  // If true, in Ash browser, navigations (e.g. Omnibox URL, anchor link) to
+  // this app will open in the app's window instead of the navigation's context
+  // (e.g. browser tab).
+  //
+  // This feature isn't applicable to Lacros browser. If you need navigations in
+  // Lacros to launch the app, use crosapi URL handler by adding the app's URL
+  // to `ChromeWebUIControllerFactory::GetListOfAcceptableURLs()`.
   virtual bool ShouldCaptureNavigations() const;
 
   // If false, the app will non-resizeable.
@@ -142,8 +147,15 @@ class SystemWebAppDelegate {
   // If false, the surface of app will can be non-maximizable.
   virtual bool ShouldAllowMaximize() const;
 
+  // If false, the surface of the app can not enter fullscreen.
+  virtual bool ShouldAllowFullscreen() const;
+
   // If true, the App's window will have a tab-strip.
   virtual bool ShouldHaveTabStrip() const;
+
+  // If true, the new-tab button on the tab-strip will be hidden. Only
+  // applicable if the app's window has a tab-strip.
+  virtual bool ShouldHideNewTabButton() const;
 
   // If false, the app will not have the reload button in minimal ui
   // mode.
@@ -157,7 +169,7 @@ class SystemWebAppDelegate {
   virtual bool ShouldHandleFileOpenIntents() const;
 
   // Setup information to drive a background task.
-  virtual absl::optional<SystemWebAppBackgroundTaskInfo> GetTimerInfo() const;
+  virtual std::optional<SystemWebAppBackgroundTaskInfo> GetTimerInfo() const;
 
   // Default window bounds of the application.
   virtual gfx::Rect GetDefaultBounds(Browser* browser) const;
@@ -203,10 +215,6 @@ class SystemWebAppDelegate {
   // Whether |url| which is outside the normal Navigation Scope should be
   // considered part of this System App.
   virtual bool IsUrlInSystemAppScope(const GURL& url) const;
-
-  // Whether it is preferred to resolve background color from the manifest,
-  // as opposed to resolving background color from web contents.
-  virtual bool PreferManifestBackgroundColor() const;
 
   // Whether theme color should be inferred from ChromeOS system theme. If
   // true, theme_color is the first available from:

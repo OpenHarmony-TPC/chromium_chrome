@@ -68,8 +68,10 @@ extern void InitializeLocalState(
 
 // Initializes the shared instance of ResourceBundle and returns the application
 // locale. An empty |actual_locale| value indicates failure.
-std::string InitResourceBundleAndDetermineLocale(PrefService* local_state,
-                                                 bool is_running_tests) {
+std::string InitResourceBundleAndDetermineLocale(
+    PrefService* local_state,
+    ui::ResourceBundle::Delegate* resource_bundle_delegate,
+    bool is_running_tests) {
 #if BUILDFLAG(IS_ANDROID)
   // In order for SetLoadSecondaryLocalePaks() to work ResourceBundle must
   // not have been created yet.
@@ -82,16 +84,8 @@ std::string InitResourceBundleAndDetermineLocale(PrefService* local_state,
            .empty());
 #endif
 
-  std::string preferred_locale;
-#if BUILDFLAG(IS_MAC)
-  // TODO(markusheintz): Read preference pref::kApplicationLocale in order
-  // to enforce the application locale.
-  // Tests always get en-US.
-  preferred_locale = is_running_tests ? "en-US" : std::string();
-#else
-  preferred_locale =
+  std::string preferred_locale =
       local_state->GetString(language::prefs::kApplicationLocale);
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   ui::ResourceBundle::SetLottieParsingFunctions(
@@ -103,7 +97,8 @@ std::string InitResourceBundleAndDetermineLocale(PrefService* local_state,
   // On a POSIX OS other than ChromeOS, the parameter that is passed to the
   // method InitSharedInstance is ignored.
   std::string actual_locale = ui::ResourceBundle::InitSharedInstanceWithLocale(
-      preferred_locale, nullptr, ui::ResourceBundle::LOAD_COMMON_RESOURCES);
+      preferred_locale, resource_bundle_delegate,
+      ui::ResourceBundle::LOAD_COMMON_RESOURCES);
   CHECK(!actual_locale.empty())
       << "Locale could not be found for " << preferred_locale;
 
@@ -119,25 +114,6 @@ std::string InitResourceBundleAndDetermineLocale(PrefService* local_state,
 
     // Avoid loading DFM native resources here, to keep startup lean. These
     // resources are loaded on-use, when an already-installed DFM loads.
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(switches::kEnableResourcesFileSharing)) {
-      // If LacrosResourcesFileSharing feature is enabled, Lacros refers to ash
-      // resources pak file.
-      base::FilePath ash_resources_pack_path;
-      base::PathService::Get(chrome::FILE_ASH_RESOURCES_PACK,
-                             &ash_resources_pack_path);
-      base::FilePath shared_resources_pack_path;
-      base::PathService::Get(chrome::FILE_RESOURCES_FOR_SHARING_PACK,
-                             &shared_resources_pack_path);
-      ui::ResourceBundle::GetSharedInstance()
-          .AddDataPackFromPathWithAshResources(
-              shared_resources_pack_path, ash_resources_pack_path,
-              resources_pack_path, ui::kScaleFactorNone);
-    } else {
-      ui::ResourceBundle::GetSharedInstance().AddDataPackFromPath(
-          resources_pack_path, ui::kScaleFactorNone);
-    }
 #else
     ui::ResourceBundle::GetSharedInstance().AddDataPackFromPath(
         resources_pack_path, ui::kScaleFactorNone);
@@ -155,6 +131,7 @@ std::string InitResourceBundleAndDetermineLocale(PrefService* local_state,
 
 std::string LoadLocalState(
     ChromeFeatureListCreator* chrome_feature_list_creator,
+    ui::ResourceBundle::Delegate* resource_bundle_delegate,
     bool is_running_tests) {
   base::FilePath user_data_dir;
   if (!base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir))
@@ -166,5 +143,6 @@ std::string LoadLocalState(
       new ChromeCommandLinePrefStore(base::CommandLine::ForCurrentProcess()));
 
   return InitResourceBundleAndDetermineLocale(
-      chrome_feature_list_creator->local_state(), is_running_tests);
+      chrome_feature_list_creator->local_state(), resource_bundle_delegate,
+      is_running_tests);
 }

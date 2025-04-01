@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {BookmarksApiProxyImpl, getDisplayedList, SelectFolderAction, StartSearchAction, Store} from 'chrome://bookmarks/bookmarks.js';
+import type {SelectFolderAction, StartSearchAction} from 'chrome://bookmarks/bookmarks.js';
+import {BookmarksApiProxyImpl, CrRouter, getDisplayedList, Store} from 'chrome://bookmarks/bookmarks.js';
 import {assertDeepEquals, assertEquals} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
@@ -15,7 +16,7 @@ suite('<bookmarks-router>', function() {
 
   function navigateTo(route: string) {
     window.history.replaceState({}, '', route);
-    window.dispatchEvent(new CustomEvent('location-changed'));
+    window.dispatchEvent(new CustomEvent('popstate'));
   }
 
   setup(function() {
@@ -101,6 +102,7 @@ suite('URL preload', function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     Store.setInstance(new Store());
     window.history.replaceState({}, '', url);
+    CrRouter.resetForTesting();
 
     testBookmarksApiProxy.setGetTree([
       createFolder(

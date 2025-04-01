@@ -4,6 +4,8 @@
 
 #include "chrome/browser/media/webrtc/current_tab_desktop_media_list.h"
 
+#include <vector>
+
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -13,6 +15,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/media/webrtc/desktop_media_list.h"
+#include "chrome/browser/media/webrtc/tab_desktop_media_list_mock_observer.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_switches.h"
@@ -31,8 +34,11 @@
 #include "testing/gmock/include/gmock/gmock.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/login/users/scoped_test_user_manager.h"
+#include "chrome/browser/ash/login/users/user_manager_delegate_impl.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
+#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/user_manager_impl.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 using content::WebContents;
@@ -43,18 +49,6 @@ using testing::StrictMock;
 namespace {
 
 const base::TimeDelta kUpdatePeriod = base::Milliseconds(1000);
-
-class MockObserver : public DesktopMediaListObserver {
- public:
-  MOCK_METHOD1(OnSourceAdded, void(int index));
-  MOCK_METHOD1(OnSourceRemoved, void(int index));
-  MOCK_METHOD2(OnSourceMoved, void(int old_index, int new_index));
-  MOCK_METHOD1(OnSourceNameChanged, void(int index));
-  MOCK_METHOD1(OnSourceThumbnailChanged, void(int index));
-  MOCK_METHOD1(OnSourcePreviewChanged, void(size_t index));
-  MOCK_METHOD0(OnDelegatedSourceListSelection, void());
-  MOCK_METHOD0(OnDelegatedSourceListDismissed, void());
-};
 
 }  // namespace
 
@@ -102,9 +96,9 @@ class CurrentTabDesktopMediaListTest : public testing::Test {
   void TearDown() override {
     list_.reset();
 
-    // TODO(crbug.com/832879): Tearing down the TabStripModel should just delete
-    // all its owned WebContents. Then |manually_added_web_contents_| won't be
-    // necessary.
+    // TODO(crbug.com/40571733): Tearing down the TabStripModel should just
+    // delete all its owned WebContents. Then |manually_added_web_contents_|
+    // won't be necessary.
     TabStripModel* tab_strip_model = browser_->tab_strip_model();
     for (WebContents* contents : all_web_contents_) {
       tab_strip_model->DetachAndDeleteWebContentsAt(
@@ -146,9 +140,7 @@ class CurrentTabDesktopMediaListTest : public testing::Test {
     TabStripModel* tab_strip_model = browser_->tab_strip_model();
     tab_strip_model->DetachAndDeleteWebContentsAt(
         tab_strip_model->GetIndexOfWebContents(web_contents));
-    all_web_contents_.erase(std::remove(all_web_contents_.begin(),
-                                        all_web_contents_.end(), web_contents),
-                            all_web_contents_.end());
+    std::erase(all_web_contents_, web_contents);
   }
 
   void Wait() {
@@ -165,13 +157,13 @@ class CurrentTabDesktopMediaListTest : public testing::Test {
   ScopedTestingLocalState local_state_;
 
   std::unique_ptr<content::RenderViewHostTestEnabler> rvh_test_enabler_;
-  raw_ptr<Profile> profile_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
   std::unique_ptr<Browser> browser_;
 
-  StrictMock<MockObserver> observer_;
+  StrictMock<DesktopMediaListMockObserver> observer_;
   std::unique_ptr<CurrentTabDesktopMediaList> list_;
 
-  std::vector<WebContents*> all_web_contents_;
+  std::vector<raw_ptr<WebContents, VectorExperimental>> all_web_contents_;
 
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
@@ -180,7 +172,11 @@ class CurrentTabDesktopMediaListTest : public testing::Test {
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   ash::ScopedCrosSettingsTestHelper cros_settings_test_helper_;
-  ash::ScopedTestUserManager test_user_manager_;
+  user_manager::ScopedUserManager user_manager_{
+      std::make_unique<user_manager::UserManagerImpl>(
+          std::make_unique<ash::UserManagerDelegateImpl>(),
+          local_state_.Get(),
+          ash::CrosSettings::Get())};
 #endif
 };
 
@@ -280,4 +276,4 @@ TEST_F(CurrentTabDesktopMediaListTest, CallingRefreshAfterTabFreedIsSafe) {
   RefreshList();
 }
 
-// TODO(crbug.com/1136942): Test rescaling of the thumbnails.
+// TODO(crbug.com/40724504): Test rescaling of the thumbnails.

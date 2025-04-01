@@ -9,8 +9,8 @@
 #include "base/scoped_observation.h"
 #include "base/values.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_service_observer.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_service_observer.h"
 #include "content/public/browser/web_ui_message_handler.h"
 
 class Profile;
@@ -60,6 +60,20 @@ class SyncHandler : public content::WebUIMessageHandler,
   // Handles the request for the primary account information.
   void HandleGetAccountInfo(const base::Value::List& args);
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  // Opens the Batch Upload Dialog.
+  void HandleOpenBatchUploadDialog(const base::Value::List& args);
+#endif
+
+  // Handles getitng the local password count from the `syncer::SyncService`
+  // API.
+  void HandleGetLocalPasswordCount(const base::Value::List& args);
+  void FireOnGetLocalDataDescriptionReceived(
+      std::map<syncer::DataType, syncer::LocalDataDescription> data);
+  void HandleOnGetLocalDataDescriptionReceived(
+      base::Value callback_id,
+      std::map<syncer::DataType, syncer::LocalDataDescription> data);
+
   // syncer::SyncServiceObserver implementation.
   void OnStateChanged(syncer::SyncService* sync_service) override;
 
@@ -70,7 +84,7 @@ class SyncHandler : public content::WebUIMessageHandler,
   syncer::SyncService* GetSyncService() const;
 
   // Weak pointer.
-  raw_ptr<Profile> profile_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
 
   base::ScopedObservation<syncer::SyncService, syncer::SyncServiceObserver>
       sync_service_observation_{this};

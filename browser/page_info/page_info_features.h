@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,22 +12,13 @@ namespace page_info {
 // enabled.
 bool IsAboutThisSiteFeatureEnabled();
 
-// Returns true if `kPageInfoAboutThisSiteNewIcon` and dependent features are
+// Returns true if kAboutThisSiteAsyncFetching and dependent features are
 // enabled.
-bool IsAboutThisSiteNewIconFeatureEnabled();
+bool IsAboutThisSiteAsyncFetchingEnabled();
 
-#if !BUILDFLAG(IS_ANDROID)
-// Returns true if kAboutThisSitePersistentSidePanelEntry and dependent
-// features are enabled.
-bool IsPersistentSidePanelEntryFeatureEnabled();
-
-// Enables the persistent "About this site" entry in the side panel.
-BASE_DECLARE_FEATURE(kAboutThisSitePersistentSidePanelEntry);
-
-// Returns true if kPageInfoAboutThisSiteKeepSidePanelOnSameTabNavs and
-// dependent features are enabled.
-bool IsKeepSidePanelOnSameTabNavsFeatureEnabled();
-#endif
+// Enables usage of the async fetching method for cacao and caching fetched
+// metadata in a TabHelper.
+BASE_DECLARE_FEATURE(kAboutThisSiteAsyncFetching);
 
 }  // namespace page_info
 

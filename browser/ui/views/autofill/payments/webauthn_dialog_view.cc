@@ -7,6 +7,7 @@
 #include "chrome/browser/ui/autofill/payments/webauthn_dialog_controller.h"
 #include "chrome/browser/ui/autofill/payments/webauthn_dialog_model.h"
 #include "chrome/browser/ui/autofill/payments/webauthn_dialog_state.h"
+#include "chrome/browser/ui/tabs/public/tab_interface.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/webauthn/authenticator_request_sheet_view.h"
 #include "chrome/browser/ui/views/webauthn/sheet_view_factory.h"
@@ -15,8 +16,9 @@
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "components/web_modal/web_contents_modal_dialog_manager_delegate.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/views/controls/button/label_button.h"
-#include "ui/views/layout/fill_layout.h"
 
 namespace autofill {
 
@@ -24,7 +26,7 @@ WebauthnDialogView::WebauthnDialogView(WebauthnDialogController* controller,
                                        WebauthnDialogState dialog_state)
     : controller_(controller) {
   SetShowTitle(false);
-  SetLayoutManager(std::make_unique<views::FillLayout>());
+  SetUseDefaultFillLayout(true);
   std::unique_ptr<WebauthnDialogModel> model =
       std::make_unique<WebauthnDialogModel>(dialog_state);
   model_ = model.get();
@@ -33,16 +35,18 @@ WebauthnDialogView::WebauthnDialogView(WebauthnDialogController* controller,
       AddChildView(CreateSheetViewForAutofillWebAuthn(std::move(model)));
   sheet_view_->ReInitChildViews();
 
-  SetModalType(ui::MODAL_TYPE_CHILD);
+  SetModalType(ui::mojom::ModalType::kChild);
   SetShowCloseButton(false);
   set_fixed_width(views::LayoutProvider::Get()->GetDistanceMetric(
       views::DISTANCE_MODAL_DIALOG_PREFERRED_WIDTH));
 
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, model_->GetAcceptButtonLabel());
-  SetButtonLabel(ui::DIALOG_BUTTON_CANCEL, model_->GetCancelButtonLabel());
+  SetButtonLabel(ui::mojom::DialogButton::kOk, model_->GetAcceptButtonLabel());
+  SetButtonLabel(ui::mojom::DialogButton::kCancel,
+                 model_->GetCancelButtonLabel());
   SetButtons(model_->IsAcceptButtonVisible()
-                 ? ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL
-                 : ui::DIALOG_BUTTON_CANCEL);
+                 ? static_cast<int>(ui::mojom::DialogButton::kOk) |
+                       static_cast<int>(ui::mojom::DialogButton::kCancel)
+                 : static_cast<int>(ui::mojom::DialogButton::kCancel));
 }
 
 WebauthnDialogView::~WebauthnDialogView() {
@@ -57,10 +61,11 @@ WebauthnDialogView::~WebauthnDialogView() {
 WebauthnDialog* WebauthnDialog::CreateAndShow(
     WebauthnDialogController* controller,
     WebauthnDialogState dialog_state) {
-  WebauthnDialogView* dialog = new WebauthnDialogView(controller, dialog_state);
-  constrained_window::ShowWebModalDialogViews(dialog,
-                                              controller->GetWebContents());
-  return dialog;
+  auto* dialog_delegate = new WebauthnDialogView(controller, dialog_state);
+  tabs::TabInterface* tab_interface =
+      tabs::TabInterface::GetFromContents(controller->GetWebContents());
+  tab_interface->CreateAndShowTabScopedWidget(dialog_delegate).release();
+  return dialog_delegate;
 }
 
 WebauthnDialogModel* WebauthnDialogView::GetDialogModel() const {
@@ -79,7 +84,7 @@ void WebauthnDialogView::OnDialogStateChanged() {
       break;
     case WebauthnDialogState::kUnknown:
     case WebauthnDialogState::kOffer:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 }
 
@@ -99,9 +104,11 @@ bool WebauthnDialogView::Cancel() {
   return true;
 }
 
-bool WebauthnDialogView::IsDialogButtonEnabled(ui::DialogButton button) const {
-  return button == ui::DIALOG_BUTTON_OK ? model_->IsAcceptButtonEnabled()
-                                        : true;
+bool WebauthnDialogView::IsDialogButtonEnabled(
+    ui::mojom::DialogButton button) const {
+  return button == ui::mojom::DialogButton::kOk
+             ? model_->IsAcceptButtonEnabled()
+             : true;
 }
 
 std::u16string WebauthnDialogView::GetWindowTitle() const {
@@ -122,15 +129,17 @@ void WebauthnDialogView::Hide() {
 void WebauthnDialogView::RefreshContent() {
   sheet_view_->ReInitChildViews();
   sheet_view_->InvalidateLayout();
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, model_->GetAcceptButtonLabel());
-  SetButtonLabel(ui::DIALOG_BUTTON_CANCEL, model_->GetCancelButtonLabel());
+  SetButtonLabel(ui::mojom::DialogButton::kOk, model_->GetAcceptButtonLabel());
+  SetButtonLabel(ui::mojom::DialogButton::kCancel,
+                 model_->GetCancelButtonLabel());
   DCHECK(model_->IsCancelButtonVisible());
   SetButtons(model_->IsAcceptButtonVisible()
-                 ? ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL
-                 : ui::DIALOG_BUTTON_CANCEL);
+                 ? static_cast<int>(ui::mojom::DialogButton::kOk) |
+                       static_cast<int>(ui::mojom::DialogButton::kCancel)
+                 : static_cast<int>(ui::mojom::DialogButton::kCancel));
 
   DialogModelChanged();
-  Layout();
+  DeprecatedLayoutImmediately();
 
   // Update the dialog's size.
   if (GetWidget() && controller_->GetWebContents()) {
@@ -142,7 +151,7 @@ void WebauthnDialogView::RefreshContent() {
   }
 }
 
-BEGIN_METADATA(WebauthnDialogView, views::DialogDelegateView)
+BEGIN_METADATA(WebauthnDialogView)
 END_METADATA
 
 }  // namespace autofill

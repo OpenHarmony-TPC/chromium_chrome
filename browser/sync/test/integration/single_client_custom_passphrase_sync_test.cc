@@ -13,10 +13,10 @@
 #include "chrome/browser/sync/test/integration/sync_test.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/sync/base/passphrase_enums.h"
-#include "components/sync/driver/sync_service_impl.h"
 #include "components/sync/engine/nigori/key_derivation_params.h"
 #include "components/sync/engine/nigori/nigori.h"
 #include "components/sync/nigori/cryptographer_impl.h"
+#include "components/sync/service/sync_service_impl.h"
 #include "components/sync/test/fake_server_nigori_helper.h"
 #include "components/sync/test/nigori_test_utils.h"
 #include "content/public/test/browser_test.h"
@@ -35,11 +35,11 @@ using fake_server::SetNigoriInFakeServer;
 using sync_pb::NigoriSpecifics;
 using syncer::BuildCustomPassphraseNigoriSpecifics;
 using syncer::Cryptographer;
+using syncer::DataTypeSet;
 using syncer::GetEncryptedBookmarkEntitySpecifics;
 using syncer::InitCustomPassphraseCryptographerFromNigori;
 using syncer::KeyParamsForTesting;
 using syncer::LoopbackServerEntity;
-using syncer::ModelTypeSet;
 using syncer::PassphraseType;
 using syncer::Pbkdf2PassphraseKeyParamsForTesting;
 using syncer::ProtoPassphraseInt32ToEnum;
@@ -59,12 +59,11 @@ class CommittedBookmarkEntityNameObserver : public FakeServer::Observer {
     fake_server_->RemoveObserver(this);
   }
 
-  void OnCommit(const std::string& committer_invalidator_client_id,
-                ModelTypeSet committed_model_types) override {
+  void OnCommit(DataTypeSet committed_data_types) override {
     sync_pb::ClientToServerMessage message;
     fake_server_->GetLastCommitMessage(&message);
     for (const sync_pb::SyncEntity& entity : message.commit().entries()) {
-      if (syncer::GetModelTypeFromSpecifics(entity.specifics()) ==
+      if (syncer::GetDataTypeFromSpecifics(entity.specifics()) ==
           syncer::BOOKMARKS) {
         committed_names_.insert(entity.name());
       }
@@ -308,7 +307,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientCustomPassphraseSyncTest,
   ASSERT_TRUE(AddURL(/*profile=*/0, title, page_url));
 
   // Mimic custom passphrase being set during initial sync setup.
-  ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount());
+  ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount(signin::ConsentLevel::kSync));
   ASSERT_TRUE(GetClient(0)->AwaitEngineInitialization());
   GetSyncService()->SetSyncFeatureRequested();
   GetSyncService()->GetUserSettings()->SetEncryptionPassphrase("hunter2");

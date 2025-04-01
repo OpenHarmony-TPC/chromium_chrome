@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stdint.h>
 
 #include <memory>
@@ -534,7 +539,7 @@ TEST_F(LocalFileSyncServiceTest, ProcessLocalChange_MultipleChanges) {
 
 TEST_F(LocalFileSyncServiceTest, ProcessLocalChange_GetLocalMetadata) {
   const FileSystemURL kURL(file_system_->URL("foo"));
-  const base::Time kTime = base::Time::FromDoubleT(333);
+  const base::Time kTime = base::Time::FromSecondsSinceUnixEpoch(333);
   const int kSize = 555;
 
   base::RunLoop run_loop;

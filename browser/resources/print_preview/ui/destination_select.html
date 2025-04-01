@@ -2,12 +2,12 @@
     cr-hidden-style">
 </style>
 <print-preview-settings-section>
-  <span slot="title">$i18n{destinationLabel}</span>
+  <span id="destination-label" slot="title">$i18n{destinationLabel}</span>
   <div slot="controls">
     <div class="throbber-container" hidden$="[[loaded]]">
       <div class="throbber"></div>
     </div>
-    <select class="md-select" aria-label$="[[i18n(destinationLabel)]]"
+    <select class="md-select" aria-labelledby="destination-label"
         hidden$="[[!loaded]]"
         style="background-image:
             [[getBackgroundImages_(selectedValue, destination,
@@ -24,9 +24,16 @@
               hidden$="[[!noDestinations]]" selected$="[[noDestinations]]">
         $i18n{noDestinationsMessage}
       </option>
+<if expr="not is_ohos">
       <option value="seeMore" aria-label$="[[i18n(seeMoreDestinationsLabel)]]">
         $i18n{seeMore}
       </option>
+</if>
+<if expr="is_ohos">
+      <option value="systemPrint" aria-label$="[[i18n(systemPrint)]]">
+        $i18n{systemPrint}
+      </option>
+</if>
     </select>
   </div>
 </print-preview-settings-section>

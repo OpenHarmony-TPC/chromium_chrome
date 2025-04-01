@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ash/policy/reporting/arc_app_install_event_log_manager.h"
 
 #include <iterator>
@@ -301,10 +306,8 @@ class ArcAppInstallEventLogManagerTest : public testing::Test {
   std::unique_ptr<base::ScopedMockTimeMessageLoopTaskRunner>
       scoped_main_task_runner_;
 
-  raw_ptr<base::TestSimpleTaskRunner, ExperimentalAsh> log_task_runner_ =
-      nullptr;
-  raw_ptr<base::TestMockTimeTaskRunner, ExperimentalAsh> main_task_runner_ =
-      nullptr;
+  raw_ptr<base::TestSimpleTaskRunner> log_task_runner_ = nullptr;
+  raw_ptr<base::TestMockTimeTaskRunner> main_task_runner_ = nullptr;
 
   const base::FilePath log_file_path_;
   const std::set<std::string> packages_;

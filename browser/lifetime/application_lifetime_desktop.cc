@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
-#include "chrome/browser/lifetime/application_lifetime.h"
+
+#include <optional>
 
 #include "base/callback_list.h"
 #include "base/functional/bind.h"
@@ -17,6 +18,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/download/download_core_service.h"
+#include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/lifetime/browser_close_manager.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/lifetime/termination_notification.h"
@@ -33,18 +35,16 @@
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/notification_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/boot_times_recorder.h"
+#include "chrome/browser/ash/boot_times_recorder/boot_times_recorder.h"
 #include "chrome/browser/lifetime/application_lifetime_chromeos.h"
 #else  // !BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/crosapi/mojom/crosapi.mojom.h"
+#include "chromeos/crosapi/mojom/browser_service.mojom.h"
 #include "chromeos/lacros/lacros_service.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
@@ -72,14 +72,15 @@ using IgnoreUnloadHandlers =
 
 void AttemptRestartInternal(IgnoreUnloadHandlers ignore_unload_handlers) {
   // TODO(beng): Can this use ProfileManager::GetLoadedProfiles instead?
-  // TODO(crbug.com/1205798): Unset SaveSessionState if the restart fails.
-  for (auto* browser : *BrowserList::GetInstance()) {
+  // TODO(crbug.com/40180622): Unset SaveSessionState if the restart fails.
+  for (Browser* browser : *BrowserList::GetInstance()) {
     browser->profile()->SaveSessionState();
 #if BUILDFLAG(ENABLE_SESSION_SERVICE)
     auto* session_data_service =
         SessionDataServiceFactory::GetForProfile(browser->profile());
-    if (session_data_service)
+    if (session_data_service) {
       session_data_service->SetForceKeepSessionState();
+    }
 #endif  // BUILDFLAG(ENABLE_SESSION_SERVICE)
   }
 
@@ -113,8 +114,8 @@ void AttemptRestartInternal(IgnoreUnloadHandlers ignore_unload_handlers) {
   // does not work on Lacros.
   auto* lacros_service = chromeos::LacrosService::Get();
   if (lacros_service->IsAvailable<crosapi::mojom::BrowserServiceHost>() &&
-      lacros_service->GetInterfaceVersion(
-          crosapi::mojom::BrowserServiceHost::Uuid_) >=
+      lacros_service
+              ->GetInterfaceVersion<crosapi::mojom::BrowserServiceHost>() >=
           static_cast<int>(
               crosapi::mojom::BrowserServiceHost::kRequestRelaunchMinVersion)) {
     lacros_service->GetRemote<crosapi::mojom::BrowserServiceHost>()
@@ -124,16 +125,18 @@ void AttemptRestartInternal(IgnoreUnloadHandlers ignore_unload_handlers) {
   // Set the flag to restore state after the restart.
   pref_service->SetBoolean(prefs::kRestartLastSessionOnShutdown, true);
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-  if (ignore_unload_handlers)
+  if (ignore_unload_handlers) {
     ExitIgnoreUnloadHandlers();
-  else
+  } else {
     AttemptExit();
+  }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 }
 
 void ShutdownIfNoBrowsers() {
-  if (GetTotalBrowserCount() > 0)
+  if (GetTotalBrowserCount() > 0) {
     return;
+  }
 
   // Tell everyone that we are shutting down.
   browser_shutdown::SetTryingToQuit(true);
@@ -196,8 +199,7 @@ void SessionEnding() {
   static bool already_ended = false;
   // We may get called in the middle of shutdown, e.g. https://crbug.com/70852
   // and https://crbug.com/1187418.  In this case, do nothing.
-  if (already_ended || !content::NotificationService::current() ||
-      !g_browser_process) {
+  if (already_ended || !g_browser_process) {
     return;
   }
   already_ended = true;
@@ -209,11 +211,12 @@ void SessionEnding() {
 
   // Two different types of hang detection cannot attempt to upload crashes at
   // the same time or they would interfere with each other.
-  absl::optional<ShutdownWatcherHelper> shutdown_watcher;
-  absl::optional<base::WatchHangsInScope> watch_hangs_scope;
+  std::optional<ShutdownWatcherHelper> shutdown_watcher;
+  std::optional<base::WatchHangsInScope> watch_hangs_scope;
   if (base::HangWatcher::IsCrashReportingEnabled()) {
-    // TODO(crbug.com/1327000): Migrate away from ShutdownWatcher and its old
+    // TODO(crbug.com/40840897): Migrate away from ShutdownWatcher and its old
     // timing.
+    base::HangWatcher::SetShuttingDown();
     constexpr base::TimeDelta kShutdownHangDelay{base::Seconds(30)};
     watch_hangs_scope.emplace(kShutdownHangDelay);
   } else {
@@ -240,6 +243,10 @@ void SessionEnding() {
   // Write important data first.
   g_browser_process->EndSession();
 
+  // Emit the shutdown metric for the end-session case. The process will exit
+  // after this point.
+  browser_shutdown::RecordShutdownMetrics();
+
 #if BUILDFLAG(IS_WIN)
   base::win::SetShouldCrashOnProcessDetach(false);
 #endif  // BUILDFLAG(IS_WIN)
@@ -252,16 +259,18 @@ void SessionEnding() {
 }
 
 void ShutdownIfNeeded() {
-  if (browser_shutdown::IsTryingToQuit())
+  if (browser_shutdown::IsTryingToQuit()) {
     return;
+  }
 
   ShutdownIfNoBrowsers();
 }
 
 void OnAppExiting() {
   static bool notified = false;
-  if (notified)
+  if (notified) {
     return;
+  }
   notified = true;
   HandleAppExitingForPlatform();
 }
@@ -283,7 +292,7 @@ void MarkAsCleanShutdown() {
   std::set<Profile*> pending_profiles;
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     if (ExitTypeService* exit_type_service =
             ExitTypeService::GetInstanceForProfile(browser->profile())) {
       exit_type_service->SetCurrentSessionExitType(ExitType::kClean);
@@ -303,18 +312,21 @@ void MarkAsCleanShutdown() {
 }
 
 bool AreAllBrowsersCloseable() {
-  if (BrowserList::GetInstance()->empty())
+  if (BrowserList::GetInstance()->empty()) {
     return true;
+  }
 
   // If there are any downloads active, all browsers are not closeable.
   // However, this does not block for malicious downloads.
-  if (DownloadCoreService::NonMaliciousDownloadCountAllProfiles() > 0)
+  if (DownloadCoreService::BlockingShutdownCountAllProfiles() > 0) {
     return false;
+  }
 
   // Check TabsNeedBeforeUnloadFired().
-  for (auto* browser : *BrowserList::GetInstance()) {
-    if (browser->TabsNeedBeforeUnloadFired())
+  for (Browser* browser : *BrowserList::GetInstance()) {
+    if (browser->TabsNeedBeforeUnloadFired()) {
       return false;
+    }
   }
   return true;
 }

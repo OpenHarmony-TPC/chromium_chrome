@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/welcome/welcome_ui.h"
 
 #include "base/functional/bind.h"
@@ -19,8 +24,8 @@
 #include "chrome/browser/ui/webui/welcome/set_as_default_handler.h"
 #include "chrome/browser/ui/webui/welcome/welcome_handler.h"
 #include "chrome/common/pref_names.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/chrome_unscaled_resources.h"
-#include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/welcome_resources.h"
 #include "chrome/grit/welcome_resources_map.h"
@@ -111,6 +116,17 @@ void AddStrings(content::WebUIDataSource* html_source) {
 }
 
 }  // namespace
+
+bool WelcomeUIConfig::IsWebUIEnabled(content::BrowserContext* browser_context) {
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+  return welcome::IsEnabled(profile);
+}
+
+std::unique_ptr<content::WebUIController>
+WelcomeUIConfig::CreateWebUIController(content::WebUI* web_ui,
+                                       const GURL& url) {
+  return std::make_unique<WelcomeUI>(web_ui, url);
+}
 
 WelcomeUI::WelcomeUI(content::WebUI* web_ui, const GURL& url)
     : content::WebUIController(web_ui) {

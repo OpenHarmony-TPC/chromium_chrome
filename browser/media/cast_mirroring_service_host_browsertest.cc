@@ -6,12 +6,15 @@
 
 #include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
+#include "base/json/json_reader.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/test/test_timeouts.h"
 #include "build/build_config.h"
 #include "chrome/browser/media/router/discovery/access_code/access_code_cast_feature.h"
+#include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
@@ -20,6 +23,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/tabs/tab_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/media_router/common/pref_names.h"
 #include "components/mirroring/mojom/cast_message_channel.mojom.h"
 #include "components/mirroring/mojom/session_observer.mojom.h"
 #include "components/mirroring/mojom/session_parameters.mojom.h"
@@ -92,6 +96,7 @@ class MockVideoCaptureObserver final
   MOCK_METHOD1(OnBufferDestroyedCall, void(int buffer_id));
   MOCK_METHOD1(OnStateChangedCall, void(media::mojom::VideoCaptureState state));
   MOCK_METHOD1(OnVideoCaptureErrorCall, void(media::VideoCaptureError error));
+  MOCK_METHOD1(OnFrameDropped, void(media::VideoCaptureFrameDropReason reason));
 
   // media::mojom::VideoCaptureObserver implementation.
   void OnNewBuffer(int32_t buffer_id,
@@ -102,9 +107,7 @@ class MockVideoCaptureObserver final
     OnBufferCreatedCall(buffer_id);
   }
 
-  void OnBufferReady(
-      media::mojom::ReadyBufferPtr buffer,
-      std::vector<media::mojom::ReadyBufferPtr> scaled_buffer) override {
+  void OnBufferReady(media::mojom::ReadyBufferPtr buffer) override {
     EXPECT_TRUE(buffers_.find(buffer->buffer_id) != buffers_.end());
     EXPECT_EQ(frame_infos_.find(buffer->buffer_id), frame_infos_.end());
     frame_infos_[buffer->buffer_id] = std::move(buffer->info);
@@ -121,7 +124,8 @@ class MockVideoCaptureObserver final
     OnBufferDestroyedCall(buffer_id);
   }
 
-  void OnNewCropVersion(uint32_t crop_version) override {}
+  void OnNewSubCaptureTargetVersion(
+      uint32_t sub_capture_target_version) override {}
 
   void OnStateChanged(media::mojom::VideoCaptureResultPtr result) override {
     if (result->which() == media::mojom::VideoCaptureResult::Tag::kState)
@@ -146,6 +150,19 @@ class MockVideoCaptureObserver final
   base::flat_map<int, media::mojom::VideoFrameInfoPtr> frame_infos_;
   const base::UnguessableToken device_id_ = base::UnguessableToken::Create();
   const base::UnguessableToken session_id_ = base::UnguessableToken::Create();
+};
+
+class MockCastMessageChannel : public mojom::CastMessageChannel {
+ public:
+  // mojom::CastMessageChannel mock implementation (outbound messages).
+  MOCK_METHOD(void, OnMessage, (mojom::CastMessagePtr));
+
+  mojo::Receiver<mojom::CastMessageChannel>* GetChannelReceiver() {
+    return &channel_receiver_;
+  }
+
+ private:
+  mojo::Receiver<mojom::CastMessageChannel> channel_receiver_{this};
 };
 
 }  // namespace
@@ -176,13 +193,68 @@ class CastMirroringServiceHostBrowserTest
     mojo::PendingRemote<mojom::SessionObserver> observer;
     observer_receiver_.Bind(observer.InitWithNewPipeAndPassReceiver());
     mojo::PendingRemote<mojom::CastMessageChannel> outbound_channel;
-    outbound_channel_receiver_.Bind(
+    outbound_channel_receiver_ = std::make_unique<MockCastMessageChannel>();
+    outbound_channel_receiver_->GetChannelReceiver()->Bind(
         outbound_channel.InitWithNewPipeAndPassReceiver());
     auto session_params = mojom::SessionParameters::New();
     session_params->source_id = "SourceID";
     host_->Start(std::move(session_params), std::move(observer),
                  std::move(outbound_channel),
                  inbound_channel_.BindNewPipeAndPassReceiver(), "Sink Name");
+  }
+
+  // Starts a tab mirroring session, and sets a target playout delay.
+  // `media_source_delay` simulates the mirroring delay that is set from a media
+  // source when starting a mirroring session, i.e. set by a site-initiated
+  // mirroring source. `feature_delay` is the value that media_router_feature's
+  // `GetCastMirroringPlayoutDelay` is expected to return.
+  void StartTabMirroringWithTargetPlayoutDelay(
+      base::TimeDelta media_source_delay) {
+    int expected_delay_ms = media_source_delay.InMilliseconds();
+    content::WebContents* web_contents =
+        browser()->tab_strip_model()->GetActiveWebContents();
+    ASSERT_TRUE(web_contents);
+    host_ = std::make_unique<CastMirroringServiceHost>(
+        BuildMediaIdForTabMirroring(web_contents));
+    mojo::PendingRemote<mojom::SessionObserver> observer;
+    observer_receiver_.Bind(observer.InitWithNewPipeAndPassReceiver());
+    mojo::PendingRemote<mojom::CastMessageChannel> outbound_channel;
+    outbound_channel_receiver_ = std::make_unique<MockCastMessageChannel>();
+    outbound_channel_receiver_->GetChannelReceiver()->Bind(
+        outbound_channel.InitWithNewPipeAndPassReceiver());
+    auto session_params = mojom::SessionParameters::New();
+    session_params->source_id = "SourceID";
+    session_params->target_playout_delay = media_source_delay;
+
+    base::RunLoop run_loop;
+    EXPECT_CALL(*outbound_channel_receiver_, OnMessage(_))
+        .WillOnce(
+            testing::Invoke([expected_delay_ms, &run_loop](
+                                mirroring::mojom::CastMessagePtr message) {
+              const std::optional<base::Value> root_or_error =
+                  base::JSONReader::Read(message->json_format_data);
+              ASSERT_TRUE(root_or_error);
+              const base::Value::Dict& root = root_or_error->GetDict();
+              const std::string* type = root.FindString("type");
+              ASSERT_TRUE(type);
+              if (*type == "OFFER") {
+                const base::Value::Dict* offer = root.FindDict("offer");
+                EXPECT_TRUE(offer);
+                const base::Value::List* streams =
+                    offer->FindList("supportedStreams");
+                for (auto& stream : *streams) {
+                  const base::Value::Dict& stream_dict = stream.GetDict();
+                  const int stream_target_delay =
+                      stream_dict.FindInt("targetDelay").value();
+                  EXPECT_EQ(stream_target_delay, expected_delay_ms);
+                }
+              }
+              run_loop.Quit();
+            }));
+    host_->Start(std::move(session_params), std::move(observer),
+                 std::move(outbound_channel),
+                 inbound_channel_.BindNewPipeAndPassReceiver(), "Sink Name");
+    run_loop.Run();
   }
 
   void EnableAccessCodeCast() {
@@ -200,12 +272,13 @@ class CastMirroringServiceHostBrowserTest
     content::WebContents* web_contents =
         browser()->tab_strip_model()->GetActiveWebContents();
     ASSERT_TRUE(web_contents);
-    int web_contents_source_tab_id =
+    content::FrameTreeNodeId web_contents_source_tab_id =
         web_contents->GetPrimaryMainFrame()->GetFrameTreeNodeId();
 
     ASSERT_NE(host_->GetTabSourceId(), web_contents_source_tab_id);
     ASSERT_NE(host_->web_contents(), web_contents);
-    host_->SwitchMirroringSourceTab(BuildMediaIdForTabMirroring(web_contents));
+    host_->SwitchMirroringSourceTab(BuildMediaIdForTabMirroring(web_contents),
+                                    /*captured_surface_control_active=*/false);
     ASSERT_EQ(host_->web_contents(), web_contents);
     ASSERT_EQ(host_->GetTabSourceId(), web_contents_source_tab_id);
   }
@@ -305,12 +378,12 @@ class CastMirroringServiceHostBrowserTest
   }
 
   mojo::Receiver<mojom::SessionObserver> observer_receiver_{this};
-  mojo::Receiver<mojom::CastMessageChannel> outbound_channel_receiver_{this};
   mojo::Receiver<mojom::AudioStreamCreatorClient> audio_client_receiver_{this};
   mojo::Remote<mojom::CastMessageChannel> inbound_channel_;
 
   std::unique_ptr<CastMirroringServiceHost> host_;
   std::unique_ptr<MockVideoCaptureObserver> video_frame_receiver_;
+  std::unique_ptr<MockCastMessageChannel> outbound_channel_receiver_;
 };
 
 IN_PROC_BROWSER_TEST_F(CastMirroringServiceHostBrowserTest, CaptureTabVideo) {
@@ -330,8 +403,7 @@ IN_PROC_BROWSER_TEST_F(CastMirroringServiceHostBrowserTest, CaptureTabAudio) {
 IN_PROC_BROWSER_TEST_F(CastMirroringServiceHostBrowserTest, TabIndicator) {
   content::WebContents* const contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_THAT(chrome::GetTabAlertStatesForContents(contents),
-              ::testing::IsEmpty());
+  ASSERT_THAT(GetTabAlertStatesForContents(contents), ::testing::IsEmpty());
 
   // A TabStripModelObserver that quits the MessageLoop whenever the
   // UI's model is sent an event that might change the indicator status.
@@ -359,17 +431,16 @@ IN_PROC_BROWSER_TEST_F(CastMirroringServiceHostBrowserTest, TabIndicator) {
   };
 
   IndicatorChangeObserver observer(browser());
-  ASSERT_THAT(chrome::GetTabAlertStatesForContents(contents),
-              ::testing::IsEmpty());
+  ASSERT_THAT(GetTabAlertStatesForContents(contents), ::testing::IsEmpty());
   StartTabMirroring();
 
   // Run the browser until the indicator turns on.
   const base::TimeTicks start_time = base::TimeTicks::Now();
-  while (!base::Contains(chrome::GetTabAlertStatesForContents(contents),
+  while (!base::Contains(GetTabAlertStatesForContents(contents),
                          TabAlertState::TAB_CAPTURING)) {
     if (base::TimeTicks::Now() - start_time >
         TestTimeouts::action_max_timeout()) {
-      EXPECT_THAT(chrome::GetTabAlertStatesForContents(contents),
+      EXPECT_THAT(GetTabAlertStatesForContents(contents),
                   ::testing::Contains(TabAlertState::TAB_CAPTURING));
       return;
     }
@@ -388,20 +459,21 @@ IN_PROC_BROWSER_TEST_F(CastMirroringServiceHostBrowserTest, PauseSession) {
   StopMirroring();
 }
 
+IN_PROC_BROWSER_TEST_F(CastMirroringServiceHostBrowserTest,
+                       TabMirrorWithPresetPlayoutDelay) {
+  StartTabMirroringWithTargetPlayoutDelay(base::Milliseconds(200));
+  GetVideoCaptureHost();
+  StartVideoCapturing();
+  RequestRefreshFrame();
+  StopMirroring();
+}
+
 class CastMirroringServiceHostBrowserTestTabSwitcher
-    : public CastMirroringServiceHostBrowserTest,
-      public ::testing::WithParamInterface<bool> {
+    : public CastMirroringServiceHostBrowserTest {
  public:
-  CastMirroringServiceHostBrowserTestTabSwitcher()
-      : enable_openscreen_session_(GetParam()) {
-    if (enable_openscreen_session_) {
-      feature_list_.InitWithFeatures({features::kAccessCodeCastTabSwitchingUI,
-                                      media::kOpenscreenCastStreamingSession},
-                                     {});
-    } else {
-      feature_list_.InitWithFeatures({features::kAccessCodeCastTabSwitchingUI},
-                                     {media::kOpenscreenCastStreamingSession});
-    }
+  CastMirroringServiceHostBrowserTestTabSwitcher() {
+    feature_list_.InitWithFeatures({features::kAccessCodeCastTabSwitchingUI},
+                                   {});
   }
 
   CastMirroringServiceHostBrowserTestTabSwitcher(
@@ -414,27 +486,13 @@ class CastMirroringServiceHostBrowserTestTabSwitcher
   void VerifyEnabledFeatures() {
     ASSERT_TRUE(
         base::FeatureList::IsEnabled(features::kAccessCodeCastTabSwitchingUI));
-
-    if (enable_openscreen_session_) {
-      ASSERT_TRUE(
-          base::FeatureList::IsEnabled(media::kOpenscreenCastStreamingSession));
-    } else {
-      ASSERT_FALSE(
-          base::FeatureList::IsEnabled(media::kOpenscreenCastStreamingSession));
-    }
   }
 
  private:
   base::test::ScopedFeatureList feature_list_;
-  const bool enable_openscreen_session_;
 };
 
-// Templatize test on whether OpenscreenCastStreamingSession is enabled or not.
-INSTANTIATE_TEST_SUITE_P(All,
-                         CastMirroringServiceHostBrowserTestTabSwitcher,
-                         ::testing::Bool());
-
-IN_PROC_BROWSER_TEST_P(CastMirroringServiceHostBrowserTestTabSwitcher,
+IN_PROC_BROWSER_TEST_F(CastMirroringServiceHostBrowserTestTabSwitcher,
                        SwitchTabSource) {
   VerifyEnabledFeatures();
   EnableAccessCodeCast();

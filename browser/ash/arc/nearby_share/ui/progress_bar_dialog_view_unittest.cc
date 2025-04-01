@@ -19,7 +19,8 @@ class ProgressBarDialogViewTest : public CompatModeTestBase {
   // CompatModeTestBase:
   void SetUp() override {
     CompatModeTestBase::SetUp();
-    widget_ = CreateTestWidget();
+    widget_ =
+        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
     dialog_view_ = widget_->SetContentsView(
         std::make_unique<ProgressBarDialogView>(/*is_multiple_files=*/false));
     widget_->Show();
@@ -32,7 +33,7 @@ class ProgressBarDialogViewTest : public CompatModeTestBase {
   }
 
  protected:
-  raw_ptr<ProgressBarDialogView, ExperimentalAsh> dialog_view_;
+  raw_ptr<ProgressBarDialogView, DanglingUntriaged> dialog_view_;
   std::unique_ptr<views::Widget> widget_;
 };
 

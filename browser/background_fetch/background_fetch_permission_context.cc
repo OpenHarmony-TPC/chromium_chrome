@@ -4,7 +4,6 @@
 
 #include "chrome/browser/background_fetch/background_fetch_permission_context.h"
 
-#include "cef/libcef/features/runtime.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/download/download_request_limiter.h"
@@ -26,8 +25,7 @@ ContentSetting BackgroundFetchPermissionContext::GetPermissionStatusInternal(
     const GURL& embedding_origin) const {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  if (!cef::IsAlloyRuntimeEnabled() &&
-      render_frame_host && !render_frame_host->GetParent()) {
+  if (render_frame_host && !render_frame_host->GetParent()) {
     DownloadRequestLimiter* limiter =
         g_browser_process->download_request_limiter();
     DCHECK(limiter);
@@ -71,10 +69,7 @@ ContentSetting BackgroundFetchPermissionContext::GetPermissionStatusInternal(
 }
 
 void BackgroundFetchPermissionContext::DecidePermission(
-    const permissions::PermissionRequestID& id,
-    const GURL& requesting_origin,
-    const GURL& embedding_origin,
-    bool user_gesture,
+    permissions::PermissionRequestData request_data,
     permissions::BrowserPermissionCallback callback) {
   // The user should never be prompted to authorize Background Fetch
   // from BackgroundFetchPermissionContext.

@@ -32,7 +32,7 @@
 #include "net/base/network_change_notifier.h"
 
 namespace offline_internals {
-// TODO(crbug.com/1424920): Remove all prefetch references from the internals
+// TODO(crbug.com/40260641): Remove all prefetch references from the internals
 // page.
 
 namespace {
@@ -52,7 +52,6 @@ std::string GetStringFromDeletePageResult(
       return "Not found";
   }
   NOTREACHED();
-  return "Unknown";
 }
 
 std::string GetStringFromDeleteRequestResults(
@@ -148,10 +147,12 @@ void OfflineInternalsUIMessageHandler::HandleStoredPagesCallback(
     offline_page.Set("onlineUrl", page.url.spec());
     offline_page.Set("namespace", page.client_id.name_space);
     offline_page.Set("size", static_cast<int>(page.file_size));
-    offline_page.Set("id", std::to_string(page.offline_id));
+    offline_page.Set("id", base::NumberToString(page.offline_id));
     offline_page.Set("filePath", page.file_path.MaybeAsASCII());
-    offline_page.Set("creationTime", page.creation_time.ToJsTime());
-    offline_page.Set("lastAccessTime", page.last_access_time.ToJsTime());
+    offline_page.Set("creationTime",
+                     page.creation_time.InMillisecondsFSinceUnixEpoch());
+    offline_page.Set("lastAccessTime",
+                     page.last_access_time.InMillisecondsFSinceUnixEpoch());
     offline_page.Set("accessCount", page.access_count);
     offline_page.Set("originalUrl", page.original_url_if_different.spec());
     offline_page.Set("requestOrigin", page.request_origin);
@@ -173,11 +174,14 @@ void OfflineInternalsUIMessageHandler::HandleRequestQueueCallback(
   for (const auto& request : requests) {
     base::Value::Dict save_page_request;
     save_page_request.Set("onlineUrl", request->url().spec());
-    save_page_request.Set("creationTime", request->creation_time().ToJsTime());
+    save_page_request.Set(
+        "creationTime",
+        request->creation_time().InMillisecondsFSinceUnixEpoch());
     save_page_request.Set("status", GetStringFromSavePageStatus());
     save_page_request.Set("namespace", request->client_id().name_space);
-    save_page_request.Set("lastAttemptTime",
-                          request->last_attempt_time().ToJsTime());
+    save_page_request.Set(
+        "lastAttemptTime",
+        request->last_attempt_time().InMillisecondsFSinceUnixEpoch());
     save_page_request.Set("id", base::NumberToString(request->request_id()));
     save_page_request.Set("originalUrl", request->original_url().spec());
     save_page_request.Set("requestOrigin", request->request_origin());

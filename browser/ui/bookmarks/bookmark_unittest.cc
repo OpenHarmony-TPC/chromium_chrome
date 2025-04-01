@@ -18,8 +18,9 @@
 class BookmarkTest : public BrowserWithTestWindowTest {
  public:
   TestingProfile::TestingFactories GetTestingFactories() override {
-    return {{BookmarkModelFactory::GetInstance(),
-             BookmarkModelFactory::GetDefaultFactory()}};
+    return {TestingProfile::TestingFactory{
+        BookmarkModelFactory::GetInstance(),
+        BookmarkModelFactory::GetDefaultFactory()}};
   }
 };
 
@@ -97,14 +98,13 @@ TEST_F(BookmarkTest, NoTabsInGroups) {
   base::flat_map<int, chrome::TabGroupData> groups_by_index;
   for (int i = 0; i < 6; i++) {
     tab_entries.push_back(test_url);
-    groups_by_index.emplace(i, std::make_pair(absl::nullopt, u""));
+    groups_by_index.emplace(i, std::make_pair(std::nullopt, u""));
   }
 
   chrome::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
                                          tab_entries, groups_by_index);
 
-  EXPECT_EQ(details.bookmark_data.children.size(),
-            absl::string_view::size_type(6));
+  EXPECT_EQ(details.bookmark_data.children.size(), 6u);
   for (auto child : details.bookmark_data.children) {
     EXPECT_EQ(child.url.has_value(), true);
   }
@@ -122,17 +122,15 @@ TEST_F(BookmarkTest, AllTabsInOneGroup) {
   for (int i = 0; i < 6; i++) {
     tab_entries.push_back(test_url);
     groups_by_index.emplace(i,
-                            std::make_pair(absl::make_optional(group_id), u""));
+                            std::make_pair(std::make_optional(group_id), u""));
   }
 
   chrome::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
                                          tab_entries, groups_by_index);
 
-  EXPECT_EQ(details.bookmark_data.children.size(),
-            absl::string_view::size_type(1));
+  EXPECT_EQ(details.bookmark_data.children.size(), 1u);
   EXPECT_EQ(details.bookmark_data.children.begin()->url.has_value(), false);
-  EXPECT_EQ(details.bookmark_data.children.begin()->children.size(),
-            absl::string_view::size_type(6));
+  EXPECT_EQ(details.bookmark_data.children.begin()->children.size(), 6u);
 }
 
 TEST_F(BookmarkTest, AllTabsInMultipleGroups) {
@@ -146,19 +144,17 @@ TEST_F(BookmarkTest, AllTabsInMultipleGroups) {
   for (int i = 0; i < 6; i++) {
     tab_entries.push_back(test_url);
     groups_by_index.emplace(
-        i,
-        std::make_pair(
-            absl::make_optional(tab_groups::TabGroupId::GenerateNew()), u""));
+        i, std::make_pair(
+               std::make_optional(tab_groups::TabGroupId::GenerateNew()), u""));
   }
 
   chrome::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
                                          tab_entries, groups_by_index);
 
-  EXPECT_EQ(details.bookmark_data.children.size(),
-            absl::string_view::size_type(6));
+  EXPECT_EQ(details.bookmark_data.children.size(), 6u);
   for (auto child : details.bookmark_data.children) {
     EXPECT_EQ(child.url.has_value(), false);
-    EXPECT_EQ(child.children.size(), absl::string_view::size_type(1));
+    EXPECT_EQ(child.children.size(), 1u);
   }
 }
 
@@ -175,20 +171,19 @@ TEST_F(BookmarkTest, SomeTabsInOneGroup) {
     tab_entries.push_back(test_url);
     groups_by_index.emplace(
         i, std::make_pair(
-               i >= 1 && i <= 3 ? absl::make_optional(group_id) : absl::nullopt,
+               i >= 1 && i <= 3 ? std::make_optional(group_id) : std::nullopt,
                u""));
   }
 
   chrome::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
                                          tab_entries, groups_by_index);
 
-  EXPECT_EQ(details.bookmark_data.children.size(),
-            absl::string_view::size_type(4));
+  EXPECT_EQ(details.bookmark_data.children.size(), 4u);
   for (size_t i = 0; i < details.bookmark_data.children.size(); i++) {
     auto child = details.bookmark_data.children.at(i);
     if (i == 1) {
       EXPECT_EQ(child.url.has_value(), false);
-      EXPECT_EQ(child.children.size(), absl::string_view::size_type(3));
+      EXPECT_EQ(child.children.size(), 3u);
     } else {
       EXPECT_EQ(child.url.has_value(), true);
     }
@@ -208,21 +203,20 @@ TEST_F(BookmarkTest, SomeTabsInMultipleGroups) {
     groups_by_index.emplace(
         i, std::make_pair(
                i % 2 == 0
-                   ? absl::make_optional(tab_groups::TabGroupId::GenerateNew())
-                   : absl::nullopt,
+                   ? std::make_optional(tab_groups::TabGroupId::GenerateNew())
+                   : std::nullopt,
                u""));
   }
 
   chrome::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
                                          tab_entries, groups_by_index);
 
-  EXPECT_EQ(details.bookmark_data.children.size(),
-            absl::string_view::size_type(6));
+  EXPECT_EQ(details.bookmark_data.children.size(), 6u);
   for (size_t i = 0; i < details.bookmark_data.children.size(); i++) {
     auto child = details.bookmark_data.children.at(i);
     if (i % 2 == 0) {
       EXPECT_EQ(child.url.has_value(), false);
-      EXPECT_EQ(child.children.size(), absl::string_view::size_type(1));
+      EXPECT_EQ(child.children.size(), 1u);
     } else {
       EXPECT_EQ(child.url.has_value(), true);
     }

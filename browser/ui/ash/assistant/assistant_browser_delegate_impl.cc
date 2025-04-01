@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/assistant/assistant_interface_binder.h"
 #include "ash/public/cpp/assistant/controller/assistant_interaction_controller.h"
@@ -15,13 +16,11 @@
 #include "base/strings/string_util.h"
 #include "chrome/browser/ash/assistant/assistant_util.h"
 #include "chrome/browser/ash/crosapi/browser_util.h"
-#include "chrome/browser/ash/crosapi/url_handler_ash.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/ash/assistant/assistant_setup.h"
 #include "chrome/browser/ui/ash/assistant/device_actions_delegate_impl.h"
-#include "chrome/browser/ui/webui/chrome_web_ui_controller_factory.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chromeos/ash/services/assistant/public/cpp/features.h"
 #include "chromeos/ash/services/assistant/public/mojom/assistant_audio_decoder.mojom.h"
@@ -81,7 +80,7 @@ void AssistantBrowserDelegateImpl::MaybeInit(Profile* profile) {
 
   service_ = std::make_unique<ash::assistant::Service>(
       profile->GetURLLoaderFactory()->Clone(),
-      IdentityManagerFactory::GetForProfile(profile));
+      IdentityManagerFactory::GetForProfile(profile), profile->GetPrefs());
   service_->Init();
 
   assistant_setup_ = std::make_unique<AssistantSetup>();
@@ -156,20 +155,15 @@ void AssistantBrowserDelegateImpl::RequestNetworkConfig(
 }
 
 void AssistantBrowserDelegateImpl::OpenUrl(GURL url) {
-  if (crosapi::browser_util::IsLacrosPrimaryBrowser() &&
-      ChromeWebUIControllerFactory::GetInstance()->CanHandleUrl(url)) {
-    crosapi::UrlHandlerAsh().OpenUrl(url);
-  } else {
-    // The new tab should be opened with a user activation since the user
-    // interacted with the Assistant to open the url. |in_background| describes
-    // the relationship between |url| and Assistant UI, not the browser. As
-    // such, the browser will always be instructed to open |url| in a new
-    // browser tab and Assistant UI state will be updated downstream to respect
-    // |in_background|.
-    ash::NewWindowDelegate::GetPrimary()->OpenUrl(
-        url, ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,
-        ash::NewWindowDelegate::Disposition::kNewForegroundTab);
-  }
+  // The new tab should be opened with a user activation since the user
+  // interacted with the Assistant to open the url. |in_background| describes
+  // the relationship between |url| and Assistant UI, not the browser. As
+  // such, the browser will always be instructed to open |url| in a new
+  // browser tab and Assistant UI state will be updated downstream to respect
+  // |in_background|.
+  ash::NewWindowDelegate::GetPrimary()->OpenUrl(
+      url, ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,
+      ash::NewWindowDelegate::Disposition::kNewForegroundTab);
 }
 
 #if BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
@@ -201,6 +195,10 @@ void AssistantBrowserDelegateImpl::OnUserProfileLoaded(
 }
 
 void AssistantBrowserDelegateImpl::OnUserSessionStarted(bool is_primary_user) {
+  if (ash::features::IsOobeSkipAssistantEnabled()) {
+    return;
+  }
+
   // Disable the handling for browser tests to prevent the Assistant being
   // enabled unexpectedly.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();

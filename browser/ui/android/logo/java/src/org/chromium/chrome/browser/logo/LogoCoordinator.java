@@ -9,6 +9,7 @@ import android.view.View.MeasureSpec;
 
 import org.chromium.base.Callback;
 import org.chromium.chrome.browser.logo.LogoBridge.Logo;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -34,49 +35,60 @@ public class LogoCoordinator {
      * @param context Used to load colors and resources.
      * @param logoClickedCallback Supplies the StartSurface's parent tab.
      * @param logoView The view that shows the search provider logo.
-     * @param shouldFetchDoodle Whether to fetch doodle if there is.
      * @param onLogoAvailableCallback The callback for when logo is available.
-     * @param onCachedLogoRevalidatedRunnable The runnable for when cached logo is revalidated.
-     * @param isParentSurfaceShown Whether Start surface homepage or NTP is shown. This value
-     *                             is true when this class is used by NTP; while used by Start,
-     *                             it's only true on Start homepage.
      * @param visibilityObserver Observer object monitoring logo visibility.
+     * @param isLogoPolishFlagEnabled True if logo polish flag is enabled.
      */
-    public LogoCoordinator(Context context, Callback<LoadUrlParams> logoClickedCallback,
-            LogoView logoView, boolean shouldFetchDoodle, Callback<Logo> onLogoAvailableCallback,
-            Runnable onCachedLogoRevalidatedRunnable, boolean isParentSurfaceShown,
-            VisibilityObserver visibilityObserver) {
-        // TODO(crbug.com/1394983): This is weird that we're passing in our view,
+    public LogoCoordinator(
+            Context context,
+            Callback<LoadUrlParams> logoClickedCallback,
+            LogoView logoView,
+            Callback<Logo> onLogoAvailableCallback,
+            VisibilityObserver visibilityObserver,
+            boolean isLogoPolishFlagEnabled) {
+        // TODO(crbug.com/40881870): This is weird that we're passing in our view,
         //  and we have to expose our view via getView. We shouldn't only have to do one of these.
         mLogoModel = new PropertyModel(LogoProperties.ALL_KEYS);
         mLogoView = logoView;
         PropertyModelChangeProcessor.create(mLogoModel, mLogoView, new LogoViewBinder());
-        mMediator = new LogoMediator(context, logoClickedCallback, mLogoModel, shouldFetchDoodle,
-                onLogoAvailableCallback, onCachedLogoRevalidatedRunnable, isParentSurfaceShown,
-                visibilityObserver, sDefaultGoogleLogo);
+        mLogoModel.set(LogoProperties.LOGO_POLISH_FLAG_ENABLED, isLogoPolishFlagEnabled);
+        mMediator =
+                new LogoMediator(
+                        context,
+                        logoClickedCallback,
+                        mLogoModel,
+                        onLogoAvailableCallback,
+                        visibilityObserver,
+                        sDefaultGoogleLogo);
     }
 
-    /** @see LogoMediator#initWithNative */
-    public void initWithNative() {
-        // TODO(crbug.com/1394983): Would be more elegant if we were given an
+    /**
+     * @see LogoMediator#initWithNative(Profile)
+     */
+    public void initWithNative(Profile profile) {
+        // TODO(crbug.com/40881870): Would be more elegant if we were given an
         //  onNativeInitializedObserver and didn't rely on the good will of outside callers to
         //  invoke this.
-        mMediator.initWithNative();
+        mMediator.initWithNative(profile);
     }
 
-    /** @see LogoMediator#loadSearchProviderLogoWithAnimation */
+    /**
+     * @see LogoMediator#loadSearchProviderLogoWithAnimation
+     */
     public void loadSearchProviderLogoWithAnimation() {
         mMediator.loadSearchProviderLogoWithAnimation();
     }
 
-    /** @see LogoMediator#updateVisibilityAndMaybeCleanUp */
-    public void updateVisibilityAndMaybeCleanUp(
-            boolean isParentSurfaceShown, boolean shouldDestroyBridge, boolean animationEnabled) {
-        mMediator.updateVisibilityAndMaybeCleanUp(
-                isParentSurfaceShown, shouldDestroyBridge, animationEnabled);
+    /**
+     * @see LogoMediator#updateVisibility
+     */
+    public void updateVisibility(boolean animationEnabled) {
+        mMediator.updateVisibility(animationEnabled);
     }
 
-    /** @see LogoMediator#destroy */
+    /**
+     * @see LogoMediator#destroy
+     */
     public void destroy() {
         mMediator.destroy();
         mLogoView.destroy();
@@ -88,7 +100,8 @@ public class LogoCoordinator {
      * given dimensions (in pixels) with MeasureSpec.EXACTLY.
      */
     public void measureExactlyLogoView(int widthPx) {
-        mLogoView.measure(MeasureSpec.makeMeasureSpec(widthPx, MeasureSpec.EXACTLY),
+        mLogoView.measure(
+                MeasureSpec.makeMeasureSpec(widthPx, MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(mLogoView.getMeasuredHeight(), MeasureSpec.EXACTLY));
     }
 
@@ -124,13 +137,27 @@ public class LogoCoordinator {
         mLogoModel.set(LogoProperties.LOGO_BOTTOM_MARGIN, bottomMargin);
     }
 
-    /** @see LogoMediator#isLogoVisible */
+    /**
+     * Updates the logo size to use when logo polish is enabled.
+     *
+     * @param logoSizeForLogoPolish The logo size to use when logo polish is enabled.
+     */
+    public void setLogoSizeForLogoPolish(int logoSizeForLogoPolish) {
+        mLogoModel.set(LogoProperties.LOGO_SIZE_FOR_LOGO_POLISH, logoSizeForLogoPolish);
+    }
+
+    /**
+     * @see LogoMediator#isLogoVisible
+     */
     public boolean isLogoVisible() {
         return mMediator.isLogoVisible();
     }
 
-    /** @see LogoMediator#onTemplateURLServiceChanged */
+    /**
+     * @see LogoMediator#onTemplateURLServiceChanged
+     */
     public void onTemplateURLServiceChangedForTesting() {
+        mMediator.resetSearchEngineKeywordForTesting(); // IN-TEST
         mMediator.onTemplateURLServiceChanged();
     }
 

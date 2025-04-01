@@ -21,6 +21,7 @@
 #include "chrome/common/pepper_permission_util.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "extensions/buildflags/buildflags.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
@@ -130,12 +131,13 @@ ChromeContentBrowserClientPluginsPart::ChromeContentBrowserClientPluginsPart() =
 ChromeContentBrowserClientPluginsPart::
     ~ChromeContentBrowserClientPluginsPart() = default;
 
-void ChromeContentBrowserClientPluginsPart::ExposeInterfacesToRenderer(
-    service_manager::BinderRegistry* registry,
-    blink::AssociatedInterfaceRegistry* associated_registry,
-    content::RenderProcessHost* host) {
-  associated_registry->AddInterface<chrome::mojom::PluginInfoHost>(
-      base::BindRepeating(&BindPluginInfoHost, host->GetID()));
+void ChromeContentBrowserClientPluginsPart::
+    ExposeInterfacesToRendererForRenderFrameHost(
+        content::RenderFrameHost& render_frame_host,
+        blink::AssociatedInterfaceRegistry& associated_registry) {
+  associated_registry.AddInterface<chrome::mojom::PluginInfoHost>(
+      base::BindRepeating(&BindPluginInfoHost,
+                          render_frame_host.GetProcess()->GetID()));
 }
 
 bool ChromeContentBrowserClientPluginsPart::
@@ -189,7 +191,12 @@ bool ChromeContentBrowserClientPluginsPart::AllowPepperSocketAPI(
 #endif
   } else {
     // Access to public socket APIs is controlled by extension permissions.
-    if (url.is_valid() && url.SchemeIs(extensions::kExtensionScheme) &&
+    if (url.is_valid() &&
+        (url.SchemeIs(extensions::kExtensionScheme)
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+         || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+             ) &&
         extension_set) {
       const extensions::Extension* extension =
           extension_set->GetByID(url.host());
@@ -233,7 +240,11 @@ bool ChromeContentBrowserClientPluginsPart::IsPepperVpnProviderAPIAllowed(
     return false;
 
   // Access to the vpnProvider API is controlled by extension permissions.
-  if (url.is_valid() && url.SchemeIs(extensions::kExtensionScheme)) {
+  if (url.is_valid() && (url.SchemeIs(extensions::kExtensionScheme)
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+                         || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+                             )) {
     const extensions::Extension* extension = extension_set->GetByID(url.host());
     if (extension) {
       if (extension->permissions_data()->HasAPIPermission(

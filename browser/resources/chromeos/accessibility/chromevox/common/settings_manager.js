@@ -12,9 +12,10 @@
  * services).
  *
  */
-import {LocalStorage} from '../../common/local_storage.js';
-import {Settings} from '../../common/settings.js';
-import {StringUtil} from '../../common/string_util.js';
+import {LocalStorage} from '/common/local_storage.js';
+import {Settings} from '/common/settings.js';
+import {StringUtil} from '/common/string_util.js';
+import {TestImportManager} from '/common/testing/test_import_manager.js';
 
 const PrefObject = chrome.settingsPrivate.PrefObject;
 
@@ -241,7 +242,10 @@ SettingsManager.PREFS = [
 SettingsManager.EVENT_STREAM_FILTERS = [
   'activedescendantchanged',
   'alert',
-  'ariaAttributeChanged',
+  // TODO(crbug.com/1464633) Fully remove ariaAttributeChangedDeprecated
+  // starting in 122, because although it was removed in 118, it is still
+  // present in earlier versions of LaCros.
+  'ariaAttributeChangedDeprecated',
   'autocorrectionOccured',
   'blur',
   'checkedStateChanged',
@@ -266,7 +270,7 @@ SettingsManager.EVENT_STREAM_FILTERS = [
   'mediaStoppedPlaying',
   'menuEnd',
   'menuItemSelected',
-  'menuListValueChanged',
+  'menuListValueChangedDeprecated',
   'menuPopupEnd',
   'menuPopupStart',
   'menuStart',
@@ -291,3 +295,5 @@ SettingsManager.EVENT_STREAM_FILTERS = [
   'treeChanged',
   'valueInTextFieldChanged',
 ];
+
+TestImportManager.exportForTesting(SettingsManager);

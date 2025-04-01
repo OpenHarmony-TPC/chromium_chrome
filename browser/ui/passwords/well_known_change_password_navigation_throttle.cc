@@ -7,16 +7,13 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
-#include "chrome/browser/password_manager/affiliation_service_factory.h"
+#include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
-#include "components/password_manager/content/browser/password_change_success_tracker_factory.h"
-#include "components/password_manager/core/browser/affiliation/affiliation_service.h"
-#include "components/password_manager/core/browser/password_change_success_tracker.h"
-#include "components/password_manager/core/browser/well_known_change_password_state.h"
-#include "components/password_manager/core/browser/well_known_change_password_util.h"
-#include "components/password_manager/core/common/password_manager_features.h"
+#include "components/affiliations/core/browser/affiliation_service.h"
+#include "components/password_manager/core/browser/well_known_change_password/well_known_change_password_state.h"
+#include "components/password_manager/core/browser/well_known_change_password/well_known_change_password_util.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/page_navigator.h"
@@ -37,7 +34,6 @@ using content::NavigationHandle;
 using content::NavigationThrottle;
 using content::WebContents;
 using password_manager::IsWellKnownChangePasswordUrl;
-using password_manager::PasswordChangeSuccessTracker;
 using password_manager::WellKnownChangePasswordResult;
 using password_manager::WellKnownChangePasswordState;
 
@@ -46,8 +42,9 @@ bool IsTriggeredByGoogleOwnedUI(NavigationHandle* handle) {
   // `PAGE_TRANSITION_FROM_API` covers cases where Chrome is opened as a CCT.
   // This happens on Android if Chrome is opened from the Password Check(up) in
   // Chrome settings or the Google Password Manager app.
-  if (page_transition & ui::PAGE_TRANSITION_FROM_API)
+  if (page_transition & ui::PAGE_TRANSITION_FROM_API) {
     return true;
+  }
 
   // In case where the user clicked on a link, we require that the origin is
   // either chrome://settings or https://passwords.google.com.
@@ -78,7 +75,7 @@ WellKnownChangePasswordNavigationThrottle::MaybeCreateThrottleFor(
   }
 
   // Don't handle navigations in subframes or main frames that are in a nested
-  // frame tree (e.g. portals, fenced frames)
+  // frame tree (e.g. fenced frames)
   if (handle->IsInOutermostMainFrame() &&
       IsWellKnownChangePasswordUrl(handle->GetURL()) &&
       IsTriggeredByGoogleOwnedUI(handle)) {
@@ -97,8 +94,9 @@ WellKnownChangePasswordNavigationThrottle::
                      ->GetPageUkmSourceId()) {
   // If this is a prerender navigation, we're only constructing the throttle
   // so it can cancel the prerender.
-  if (handle->IsInPrerenderedMainFrame())
+  if (handle->IsInPrerenderedMainFrame()) {
     return;
+  }
 
   affiliation_service_ =
       AffiliationServiceFactory::GetForProfile(Profile::FromBrowserContext(
@@ -131,7 +129,7 @@ WellKnownChangePasswordNavigationThrottle::WillStartRequest() {
   // across redirects, we need to set both the initiator origin and network
   // isolation key when fetching the well-known non-existing resource.
   // See the discussion in blink-dev/UN1BRg4qTbs for more details.
-  // TODO(crbug.com/1127520): Confirm that this works correctly within
+  // TODO(crbug.com/40053332): Confirm that this works correctly within
   // redirects.
   network::ResourceRequest::TrustedParams trusted_params;
 
@@ -177,35 +175,19 @@ void WellKnownChangePasswordNavigationThrottle::OnProcessingFinished(
     bool is_supported) {
   GURL redirect_url = affiliation_service_->GetChangePasswordURL(request_url_);
 
-  // Extend the information of precisely what kind of flow the manual
-  // password change flow is.
-  raw_ptr<PasswordChangeSuccessTracker> password_change_success_tracker =
-      password_manager::PasswordChangeSuccessTrackerFactory::
-          GetForBrowserContext(
-              navigation_handle()->GetWebContents()->GetBrowserContext());
-
   // If affiliation service returns .well-known/change-password as change
   // password url - show it even if Chrome doesn't detect it as supported.
   if (is_supported || redirect_url == request_url_) {
     RecordMetric(WellKnownChangePasswordResult::kUsedWellKnownChangePassword);
-    password_change_success_tracker->OnChangePasswordFlowModified(
-        request_url_,
-        PasswordChangeSuccessTracker::StartEvent::kManualWellKnownUrlFlow);
     Resume();
     return;
   }
 
   if (redirect_url.is_valid()) {
     RecordMetric(WellKnownChangePasswordResult::kFallbackToOverrideUrl);
-    password_change_success_tracker->OnChangePasswordFlowModified(
-        request_url_,
-        PasswordChangeSuccessTracker::StartEvent::kManualChangePasswordUrlFlow);
     Redirect(redirect_url);
   } else {
     RecordMetric(WellKnownChangePasswordResult::kFallbackToOriginUrl);
-    password_change_success_tracker->OnChangePasswordFlowModified(
-        request_url_,
-        PasswordChangeSuccessTracker::StartEvent::kManualHomepageFlow);
     Redirect(request_url_.DeprecatedGetOriginAsURL());
   }
   CancelDeferredNavigation(NavigationThrottle::CANCEL);
@@ -218,16 +200,19 @@ void WellKnownChangePasswordNavigationThrottle::Redirect(const GURL& url) {
   params.transition = ui::PAGE_TRANSITION_CLIENT_REDIRECT;
 
   WebContents* web_contents = navigation_handle()->GetWebContents();
-  if (!web_contents)
+  if (!web_contents) {
     return;
+  }
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(
                      [](base::WeakPtr<content::WebContents> web_contents,
                         const content::OpenURLParams& params) {
-                       if (!web_contents)
+                       if (!web_contents) {
                          return;
-                       web_contents->OpenURL(params);
+                       }
+                       web_contents->OpenURL(params,
+                                             /*navigation_handle_callback=*/{});
                      },
                      web_contents->GetWeakPtr(), std::move(params)));
 }

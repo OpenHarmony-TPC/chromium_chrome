@@ -8,6 +8,7 @@
 
 #include <memory.h>
 
+#include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/ash/child_accounts/time_limit_consistency_test/consistency_golden_converter.h"
@@ -33,10 +34,10 @@ TEST_P(TimeLimitConsistencyTest, OutputMatchesGolden) {
   std::unique_ptr<icu::TimeZone> timezone(
       icu::TimeZone::createTimeZone(current_state.timezone().c_str()));
   base::Time current_time =
-      base::Time::FromJavaTime(current_state.time_millis());
-  base::Time usage_timestamp =
-      base::Time::FromJavaTime(current_state.usage_timestamp());
-  absl::optional<usage_time_limit::State> previous_state =
+      base::Time::FromMillisecondsSinceUnixEpoch(current_state.time_millis());
+  base::Time usage_timestamp = base::Time::FromMillisecondsSinceUnixEpoch(
+      current_state.usage_timestamp());
+  std::optional<usage_time_limit::State> previous_state =
       GenerateUnlockUsageLimitOverrideStateFromInput(golden_case.input());
 
   base::Value::Dict policy =
@@ -55,7 +56,7 @@ TEST_P(TimeLimitConsistencyTest, OutputMatchesGolden) {
 static std::string GetTestCaseName(
     testing::TestParamInfo<GoldenParam> param_info) {
   return param_info.param.suite_name + "_" +
-         std::to_string(param_info.param.index);
+         base::NumberToString(param_info.param.index);
 }
 
 // Instantiate the test suite, creating one test case for each golden case

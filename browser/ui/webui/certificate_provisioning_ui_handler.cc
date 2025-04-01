@@ -7,8 +7,10 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/webui/certificate_provisioning_ui_handler.h"
 
+#include "base/check_is_test.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
+#include "base/i18n/time_formatting.h"
 #include "base/time/time.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
@@ -20,11 +22,6 @@
 #include "content/public/browser/web_ui.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/l10n/time_format.h"
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chrome/browser/profiles/profile.h"
-#include "chromeos/lacros/lacros_service.h"
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/crosapi/cert_provisioning_ash.h"
@@ -41,15 +38,6 @@ namespace {
 
 crosapi::mojom::CertProvisioning* GetCertProvisioningInterface(
     Profile* profile) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  chromeos::LacrosService* service = chromeos::LacrosService::Get();
-  if (!profile->IsMainProfile() || !service ||
-      !service->IsAvailable<crosapi::mojom::CertProvisioning>()) {
-    return nullptr;
-  }
-  return service->GetRemote<crosapi::mojom::CertProvisioning>().get();
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   if (!ash::ProfileHelper::IsPrimaryProfile(profile)) {
     return nullptr;
@@ -117,7 +105,7 @@ std::u16string StateToText(CertProvisioningProcessState state) {
 std::u16string MakeStatusMessage(
     bool did_fail,
     CertProvisioningProcessState state,
-    const absl::optional<std::string>& failure_message) {
+    const std::optional<std::string>& failure_message) {
   if (!did_fail) {
     return StateToText(state);
   }
@@ -191,6 +179,11 @@ void CertificateProvisioningUiHandler::RegisterMessages() {
       base::BindRepeating(&CertificateProvisioningUiHandler::
                               HandleTriggerCertificateProvisioningProcessUpdate,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "triggerCertificateProvisioningProcessReset",
+      base::BindRepeating(&CertificateProvisioningUiHandler::
+                              HandleTriggerCertificateProvisioningProcessReset,
+                          base::Unretained(this)));
 }
 
 void CertificateProvisioningUiHandler::OnStateChanged() {
@@ -228,6 +221,20 @@ void CertificateProvisioningUiHandler::
 
   if (cert_provisioning_interface_) {
     cert_provisioning_interface_->UpdateOneProcess(cert_profile_id.GetString());
+  }
+}
+
+void CertificateProvisioningUiHandler::
+    HandleTriggerCertificateProvisioningProcessReset(
+        const base::Value::List& args) {
+  CHECK_EQ(1U, args.size());
+  const base::Value& cert_profile_id = args[0];
+  if (!cert_profile_id.is_string()) {
+    return;
+  }
+
+  if (cert_provisioning_interface_) {
+    cert_provisioning_interface_->ResetOneProcess(cert_profile_id.GetString());
   }
 }
 

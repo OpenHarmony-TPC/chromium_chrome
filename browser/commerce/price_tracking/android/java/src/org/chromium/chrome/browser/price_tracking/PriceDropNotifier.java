@@ -43,8 +43,13 @@ public class PriceDropNotifier {
     public static final String NOTIFICATION_TAG = "price_drop";
 
     static class NotificationData {
-        public NotificationData(CharSequence title, CharSequence text, String iconUrl,
-                String destinationUrl, String offerId, String productClusterId,
+        public NotificationData(
+                CharSequence title,
+                CharSequence text,
+                String iconUrl,
+                String destinationUrl,
+                String offerId,
+                String productClusterId,
                 List<ActionData> actions) {
             this.title = title;
             this.text = text;
@@ -55,13 +60,10 @@ public class PriceDropNotifier {
             this.actions = actions;
         }
 
-        /**
-         * Title of the notification. The displayable product name or title.
-         */
+        /** Title of the notification. The displayable product name or title. */
         public final CharSequence title;
-        /**
-         * Content text of the notification. Could be product description.
-         */
+
+        /** Content text of the notification. Could be product description. */
         public final CharSequence text;
 
         /**
@@ -69,21 +71,17 @@ public class PriceDropNotifier {
          * large icon and the image in the expanded view.
          */
         public final String iconUrl;
-        /**
-         * The URL that leads to the shopping item.
-         */
+
+        /** The URL that leads to the shopping item. */
         public final String destinationUrl;
-        /**
-         * Associated offer ID.
-         */
+
+        /** Associated offer ID. */
         public final String offerId;
-        /**
-         * Associated cluster ID.
-         */
+
+        /** Associated cluster ID. */
         public final String productClusterId;
-        /**
-         * A list of button actions.
-         */
+
+        /** A list of button actions. */
         public final List<ActionData> actions;
     }
 
@@ -92,44 +90,57 @@ public class PriceDropNotifier {
             this.actionId = actionId;
             this.text = text;
         }
+
         public final String actionId;
         public final CharSequence text;
     }
 
     private final Context mContext;
+    private final Profile mProfile;
     private ImageFetcher mImageFetcher;
     private final NotificationManagerProxy mNotificationManagerProxy;
     private PriceDropNotificationManager mPriceDropNotificationManager;
 
     /**
      * Creates a {@link PriceDropNotifier} instance.
+     *
      * @param context The Android context.
+     * @param profile The {@link Profile} associated with price drop registration.
      */
-    public static PriceDropNotifier create(Context context) {
-        return new PriceDropNotifier(context, new NotificationManagerProxyImpl(context));
+    public static PriceDropNotifier create(Context context, Profile profile) {
+        return new PriceDropNotifier(context, profile, new NotificationManagerProxyImpl(context));
     }
 
     @VisibleForTesting
-    PriceDropNotifier(Context context, NotificationManagerProxy notificationManager) {
+    PriceDropNotifier(
+            Context context, Profile profile, NotificationManagerProxy notificationManager) {
         mContext = context;
+        mProfile = profile;
         mNotificationManagerProxy = notificationManager;
         mPriceDropNotificationManager =
-                PriceDropNotificationManagerFactory.create(mContext, mNotificationManagerProxy);
+                PriceDropNotificationManagerFactory.create(
+                        mContext, mProfile, mNotificationManagerProxy);
     }
 
     /**
      * Shows a price drop notification.
+     *
      * @param notificationData Information about the notification contents.
      */
     public void showNotification(final NotificationData notificationData) {
-        maybeFetchIcon(notificationData, bitmap -> { showWithIcon(notificationData, bitmap); });
+        maybeFetchIcon(
+                notificationData,
+                bitmap -> {
+                    showWithIcon(notificationData, bitmap);
+                });
     }
 
     @VisibleForTesting
     protected ImageFetcher getImageFetcher() {
         if (mImageFetcher == null) {
-            mImageFetcher = ImageFetcherFactory.createImageFetcher(ImageFetcherConfig.NETWORK_ONLY,
-                    Profile.getLastUsedRegularProfile().getProfileKey());
+            mImageFetcher =
+                    ImageFetcherFactory.createImageFetcher(
+                            ImageFetcherConfig.NETWORK_ONLY, mProfile.getProfileKey());
         }
         return mImageFetcher;
     }
@@ -149,18 +160,24 @@ public class PriceDropNotifier {
             return;
         }
 
-        ImageFetcher.Params params = ImageFetcher.Params.create(
-                notificationData.iconUrl, ImageFetcher.PRICE_DROP_NOTIFICATION);
-        getImageFetcher().fetchImage(params, bitmap -> { callback.onResult(bitmap); });
+        ImageFetcher.Params params =
+                ImageFetcher.Params.create(
+                        notificationData.iconUrl, ImageFetcher.PRICE_DROP_NOTIFICATION);
+        getImageFetcher()
+                .fetchImage(
+                        params,
+                        bitmap -> {
+                            callback.onResult(bitmap);
+                        });
     }
 
     private void showWithIcon(NotificationData notificationData, @Nullable Bitmap icon) {
         int notificationId = getNotificationId(notificationData.offerId);
-        @SystemNotificationType
-        int notificationType = getUmaNotificationType(notificationData);
+        @SystemNotificationType int notificationType = getUmaNotificationType(notificationData);
         if (mPriceDropNotificationManager.hasReachedMaxAllowedNotificationNumber(
-                    notificationType)) {
-            Log.e(TAG,
+                notificationType)) {
+            Log.e(
+                    TAG,
                     "Unable to show this notification"
                             + " because we have reached the max allowed number.");
             return;
@@ -182,17 +199,24 @@ public class PriceDropNotifier {
         notificationBuilder.setAutoCancel(true);
         if (notificationData.actions != null) {
             for (ActionData action : notificationData.actions) {
-                PendingIntentProvider actionClickIntentProvider = createClickIntent(action.actionId,
-                        notificationData.destinationUrl, notificationData.offerId,
-                        notificationData.productClusterId, notificationId);
-                notificationBuilder.addAction(0, action.text, actionClickIntentProvider,
+                PendingIntentProvider actionClickIntentProvider =
+                        createClickIntent(
+                                action.actionId,
+                                notificationData.destinationUrl,
+                                notificationData.offerId,
+                                notificationData.productClusterId,
+                                notificationId);
+                notificationBuilder.addAction(
+                        0,
+                        action.text,
+                        actionClickIntentProvider,
                         actionIdToUmaActionType(action.actionId));
             }
         }
         NotificationWrapper notificationWrapper = notificationBuilder.buildNotificationWrapper();
         mNotificationManagerProxy.notify(notificationWrapper);
-        NotificationUmaTracker.getInstance().onNotificationShown(
-                notificationType, notificationWrapper.getNotification());
+        NotificationUmaTracker.getInstance()
+                .onNotificationShown(notificationType, notificationWrapper.getNotification());
         mPriceDropNotificationManager.updateNotificationTimestamps(notificationType, true);
     }
 
@@ -207,16 +231,18 @@ public class PriceDropNotifier {
     }
 
     private PendingIntentProvider createContentIntent(String destinationUrl, int notificationId) {
-        Intent intent = mPriceDropNotificationManager.getNotificationClickIntent(
-                destinationUrl, notificationId);
+        Intent intent =
+                mPriceDropNotificationManager.getNotificationClickIntent(
+                        destinationUrl, notificationId);
         return PendingIntentProvider.getActivity(
                 mContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     private PendingIntentProvider createClickIntent(
             String actionId, String url, String offerId, String clusterId, int notificationId) {
-        Intent intent = mPriceDropNotificationManager.getNotificationActionClickIntent(
-                actionId, url, offerId, clusterId, notificationId);
+        Intent intent =
+                mPriceDropNotificationManager.getNotificationActionClickIntent(
+                        actionId, url, offerId, clusterId, notificationId);
         return PendingIntentProvider.getActivity(
                 mContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
     }
@@ -232,7 +258,6 @@ public class PriceDropNotifier {
                 : SystemNotificationType.PRICE_DROP_ALERTS_USER_MANAGED;
     }
 
-    @VisibleForTesting
     void setPriceDropNotificationManagerForTesting(PriceDropNotificationManager manager) {
         mPriceDropNotificationManager = manager;
     }

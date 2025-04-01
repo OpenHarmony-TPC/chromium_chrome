@@ -6,15 +6,14 @@ package org.chromium.chrome.browser;
 
 import com.google.android.gms.common.GoogleApiAvailability;
 
+import org.jni_zero.CalledByNative;
+
 import org.chromium.base.PackageUtils;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.components.externalauth.ExternalAuthUtils;
 
 import java.util.Locale;
 
-/**
- * A utility class for querying information about Play Services Version.
- */
+/** A utility class for querying information about Play Services Version. */
 public class PlayServicesVersionInfo {
     /**
      * Returns info about the Google Play services setup for Chrome and the device.
@@ -28,24 +27,25 @@ public class PlayServicesVersionInfo {
         final long installedGmsVersion = getApkVersionNumber();
 
         final String accessType;
-        ExternalAuthUtils externalAuthUtils = ExternalAuthUtils.getInstance();
-        if (externalAuthUtils.canUseFirstPartyGooglePlayServices()) {
+        if (ExternalAuthUtils.getInstance().canUseFirstPartyGooglePlayServices()) {
             accessType = "1p";
-        } else if (externalAuthUtils.canUseGooglePlayServices()) {
+        } else if (ExternalAuthUtils.getInstance().canUseGooglePlayServices()) {
             accessType = "3p";
         } else {
             accessType = "none";
         }
 
-        return String.format(Locale.US, "SDK=%s; Installed=%s; Access=%s", sdkVersion,
-                installedGmsVersion, accessType);
+        return String.format(
+                Locale.US,
+                "SDK=%s; Installed=%s; Access=%s",
+                sdkVersion,
+                installedGmsVersion,
+                accessType);
     }
 
     /**
-     *
-     * @param context A Context with which to retrieve the PackageManager.
      * @return The version code for the Google Play Services installed on the device or -1 if the
-     *         package is not found.
+     *     package is not found.
      */
     public static int getApkVersionNumber() {
         int ret =

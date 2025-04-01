@@ -20,12 +20,13 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/crash/core/app/crashpad.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/controls/button/checkbox.h"
 #include "ui/views/controls/link.h"
 #include "ui/views/layout/box_layout.h"
@@ -74,7 +75,7 @@ FirstRunDialog::FirstRunDialog(base::RepeatingClosure learn_more_callback,
                                base::RepeatingClosure quit_runloop)
     : quit_runloop_(quit_runloop) {
   SetTitle(l10n_util::GetStringUTF16(IDS_FIRST_RUN_DIALOG_WINDOW_TITLE));
-  SetButtons(ui::DIALOG_BUTTON_OK);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk));
   SetExtraView(
       std::make_unique<views::Link>(l10n_util::GetStringUTF16(IDS_LEARN_MORE)))
       ->SetCallback(std::move(learn_more_callback));
@@ -94,7 +95,7 @@ FirstRunDialog::FirstRunDialog(base::RepeatingClosure learn_more_callback,
   report_crashes_ = AddChildView(std::make_unique<views::Checkbox>(
       l10n_util::GetStringUTF16(IDS_FR_ENABLE_LOGGING)));
   // Having this box checked means the user has to opt-out of metrics recording.
-  report_crashes_->SetChecked(!first_run::IsMetricsReportingOptIn());
+  report_crashes_->SetChecked(true);
 }
 
 FirstRunDialog::~FirstRunDialog() {
@@ -127,5 +128,5 @@ void FirstRunDialog::WindowClosing() {
   Done();
 }
 
-BEGIN_METADATA(FirstRunDialog, views::DialogDelegateView)
+BEGIN_METADATA(FirstRunDialog)
 END_METADATA

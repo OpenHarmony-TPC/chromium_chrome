@@ -22,7 +22,8 @@ UsersPrivateDelegate* UsersPrivateDelegateFactory::GetForBrowserContext(
 
 // static
 UsersPrivateDelegateFactory* UsersPrivateDelegateFactory::GetInstance() {
-  return base::Singleton<UsersPrivateDelegateFactory>::get();
+  static base::NoDestructor<UsersPrivateDelegateFactory> instance;
+  return instance.get();
 }
 
 UsersPrivateDelegateFactory::UsersPrivateDelegateFactory()
@@ -30,16 +31,20 @@ UsersPrivateDelegateFactory::UsersPrivateDelegateFactory()
           "UsersPrivateDelegate",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {}
 
 UsersPrivateDelegateFactory::~UsersPrivateDelegateFactory() = default;
 
-KeyedService* UsersPrivateDelegateFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+UsersPrivateDelegateFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* profile) const {
-  return new UsersPrivateDelegate(static_cast<Profile*>(profile));
+  return std::make_unique<UsersPrivateDelegate>(static_cast<Profile*>(profile));
 }
 
 }  // namespace extensions

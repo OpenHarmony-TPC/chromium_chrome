@@ -412,6 +412,9 @@
   <message desc="The instructions for ChromeVox Learn Mode.  The keyboard explorer voices the name of each key when the user presses it. * These instructions describe how to use the keyboard explorer." name="IDS_CHROMEVOX_KBEXPLORER_INSTRUCTIONS">
     Press any key to learn its name. Ctrl+W will close learn mode.
   </message>
+  <message desc="Hint text spoken on pressing 'escape' in ChromeVox learn mode, informing the user that pressing it again will close Learn Mode." name="IDS_CHROMEVOX_LEARN_MODE_ESCAPE_TO_EXIT" is_accessibility_with_no_ui="true">
+    Press escape again to exit Learn Mode
+  </message>
   <message desc="Spoken when a new Chrome tab named 'title' is opened." name="IDS_CHROMEVOX_CHROME_TAB_CREATED">
     tab created
   </message>
@@ -1894,13 +1897,13 @@
   <message desc="Backslash (\) character description." name="IDS_CHROMEVOX_BACKSLASH">
     {COUNT, plural, =1 {backslash}other {# backslashes}}
   </message>
-  <message desc="BULLET (•) character description." name="IDS_CHROMEVOX_BULLET">
+  <message desc="BULLET (•) character description announced by ChromeVox screen reader." name="IDS_CHROMEVOX_BULLET">
     {COUNT, plural, =1 {bullet}other {# bullets}}
   </message>
-  <message desc="Second level bullet (◦) character description." name="IDS_CHROMEVOX_WHITE_BULLET">
+  <message desc="Second level bullet (◦) character description announced by ChromeVox screen reader." name="IDS_CHROMEVOX_WHITE_BULLET">
     {COUNT, plural, =1 {white bullet}other {# white bullets}}
   </message>
-  <message desc="Third level bullet (■) character description." name="IDS_CHROMEVOX_SQUARE_BULLET">
+  <message desc="Third level bullet (■) character description announced by ChromeVox screen reader." name="IDS_CHROMEVOX_SQUARE_BULLET">
     {COUNT, plural, =1 {square bullet}other {# square bullets}}
   </message>
   <message desc="Describes the braille click command. Displayed in the options page." name="IDS_CHROMEVOX_BRAILLE_ROUTING">
@@ -1960,6 +1963,9 @@
   <message desc="Describes the pass through key command. Shown in options page." name="IDS_CHROMEVOX_PASS_THROUGH_KEY_DESCRIPTION">
     Pass through key
   </message>
+  <message desc="Spoken after pressing the pass through key command while sticky mode is enabled." name="IDS_CHROMEVOX_PASS_THROUGH_UNAVAILABLE_WITH_STICKY_MODE" is_accessibility_with_no_ui="true">
+    Pass through is unavailable with sticky mode on
+  </message>
   <message desc="Describes the show context menu command. Shown in options page." name="IDS_CHROMEVOX_SHOW_CONTEXT_MENU">
     Show context menu
   </message>
@@ -1984,8 +1990,8 @@
   <message desc="Describes the key to toggle full screen  in the ChromeVox keyboard explorer." name="IDS_CHROMEVOX_TOGGLE_FULL_SCREEN_KEY">
     toggle full screen
   </message>
-  <message desc="Describes the key to toggle window overview in the ChromeVox keyboard explorer." name="IDS_CHROMEVOX_WINDOW_OVERVIEW_KEY">
-    window overview
+  <message desc="Describes the key to toggle show windows in the ChromeVox keyboard explorer." name="IDS_CHROMEVOX_WINDOW_OVERVIEW_KEY">
+    show windows
   </message>
   <message desc="Describes the brightness down key in the ChromeVox keyboard explorer." name="IDS_CHROMEVOX_BRIGHTNESS_DOWN_KEY">
     Brightness down
@@ -2138,7 +2144,7 @@
     To open the Chrome browser menu, press Alt+F.
   </message>
   <message desc="Part of the ChromeVox tutorial, explains a keyboard shortcut to press on Chromebook keyboards" name="IDS_CHROMEVOX_TUTORIAL_CHROMEBOOK_CTRL_FORWARD">
-    To jump to other parts of the screen, like toolbars or the system tray, press Control+Forward. On a Chromebook, the Forward key is immediately above the number 2 key.
+    To jump to other parts of the screen, like toolbars or the system tray, press Control+F1. F1 is the first key to the right of the escape key.
   </message>
   <message desc="Heading for a section of the ChromeVox tutorial where the user can learn more" name="IDS_CHROMEVOX_TUTORIAL_LEARN_MORE_HEADING">
     Learn More
@@ -3386,5 +3392,8 @@
   </message>
   <message desc="Spoken message notifying users that using TalkBack on Chromebook is no longer supported and keyboard shortcut are no longer customized for Chromebooks." name="IDS_CHROMEVOX_ANNOUNCE_TALKBACK_DEPRECATION" is_accessibility_with_no_ui="true">
     TalkBack no longer provides customization for Chromebooks. You can still use it, but use TalkBack default keyboard shortcuts. Press Search+A, then K to see available shortcuts. If you still want to use TalkBack, press the command again.
+  </message>
+  <message desc="Short message spoken by ChromeVox screen reader when a user adds, deletes, or moves a cursor caret across a character in a password field." name="IDS_CHROMEVOX_PASSWORD_CHAR" is_accessibility_with_no_ui="true">
+    bullet
   </message>
 </grit-part>

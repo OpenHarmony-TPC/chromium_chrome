@@ -16,7 +16,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/scoped_observation.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
@@ -102,8 +101,6 @@ std::u16string GetActivationErrorMessage(MobileActivator::ActivationError error,
           kNoCellularServiceError, ui::GetChromeOSDeviceName(), nullptr);
   }
   NOTREACHED() << "Unexpected activation error";
-  return GetActivationErrorMessage(
-      MobileActivator::ActivationError::kActivationFailed, carrier);
 }
 
 void DataRequestFailed(const std::string& service_path,

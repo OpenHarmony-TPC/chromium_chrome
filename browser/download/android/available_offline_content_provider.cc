@@ -70,7 +70,7 @@ int ContentTypePriority(AvailableContentType type) {
 }
 
 AvailableContentType ContentType(const OfflineItem& item) {
-  // TODO(crbug.com/1033985): Make provider namespace a reusable constant.
+  // TODO(crbug.com/40111585): Make provider namespace a reusable constant.
   if (item.is_transient || item.is_off_the_record ||
       item.state != OfflineItemState::COMPLETE || item.is_dangerous ||
       item.id.name_space == "content_index") {
@@ -174,9 +174,7 @@ class ThumbnailFetch {
     scoped_refptr<base::RefCountedMemory> data = image.As1xPNGBytes();
     if (!data || data->size() == 0)
       return GURL();
-    std::string png_base64;
-    base::Base64Encode(base::StringPiece(data->front_as<char>(), data->size()),
-                       &png_base64);
+    std::string png_base64 = base::Base64Encode(*data);
     return GURL(base::StrCat({"data:image/png;base64,", png_base64}));
   }
 

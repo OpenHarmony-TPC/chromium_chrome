@@ -11,10 +11,13 @@
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/web_applications/os_integration/os_integration_test_override.h"
 #include "chrome/browser/web_applications/os_integration/web_app_file_handler_registration.h"
+#include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
+#include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
@@ -85,33 +88,30 @@ std::set<std::string> GetMimeTypesFromFileHandlingProto(
 
 FileHandlingSubManager::FileHandlingSubManager(
     const base::FilePath& profile_path,
-    WebAppRegistrar& registrar,
-    WebAppSyncBridge& sync_bridge)
-    : profile_path_(profile_path),
-      registrar_(registrar),
-      sync_bridge_(sync_bridge) {}
+    WebAppProvider& provider)
+    : profile_path_(profile_path), provider_(provider) {}
 
 FileHandlingSubManager::~FileHandlingSubManager() = default;
 
 void FileHandlingSubManager::Configure(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     proto::WebAppOsIntegrationState& desired_state,
     base::OnceClosure configure_done) {
   DCHECK(!desired_state.has_file_handling());
 
-  if (!registrar_->IsLocallyInstalled(app_id) ||
-      registrar_->GetAppFileHandlerApprovalState(app_id) ==
-          ApiApprovalState::kDisallowed ||
-      !ShouldRegisterFileHandlersWithOs()) {
+  if (provider_->registrar_unsafe().GetInstallState(app_id) !=
+          proto::INSTALLED_WITH_OS_INTEGRATION ||
+      provider_->registrar_unsafe().GetAppFileHandlerApprovalState(app_id) ==
+          ApiApprovalState::kDisallowed) {
     std::move(configure_done).Run();
     return;
   }
 
   proto::FileHandling* os_file_handling = desired_state.mutable_file_handling();
-
-  // GetAppFileHandlers should never return a nullptr because of the registrar
+  // GetAppFileHandlers should never return a nullptr because of the provider
   // checks above.
-  for (const auto& file_handler : *registrar_->GetAppFileHandlers(app_id)) {
+  for (const auto& file_handler :
+       *provider_->registrar_unsafe().GetAppFileHandlers(app_id)) {
     proto::FileHandling::FileHandler* file_handler_proto =
         os_file_handling->add_file_handlers();
     DCHECK(file_handler.action.is_valid());
@@ -129,26 +129,20 @@ void FileHandlingSubManager::Configure(
     }
   }
 
-#if BUILDFLAG(IS_MAC)
-  if (AreSubManagersExecuteEnabled()) {
-    // Save file handlers data on `AppShimRegistry` to be used during
-    // `ShortcutSubManager::Execute`.
-    AppShimRegistry::Get()->SaveFileHandlersForAppAndProfile(
-        app_id, profile_path_,
-        GetFileExtensionsFromFileHandlingProto(desired_state.file_handling()),
-        GetMimeTypesFromFileHandlingProto(desired_state.file_handling()));
-  }
-#endif
-
   std::move(configure_done).Run();
 }
 
 void FileHandlingSubManager::Execute(
-    const AppId& app_id,
-    const absl::optional<SynchronizeOsOptions>& synchronize_options,
+    const webapps::AppId& app_id,
+    const std::optional<SynchronizeOsOptions>& synchronize_options,
     const proto::WebAppOsIntegrationState& desired_state,
     const proto::WebAppOsIntegrationState& current_state,
     base::OnceClosure callback) {
+  if (!ShouldRegisterFileHandlersWithOs()) {
+    std::move(callback).Run();
+    return;
+  }
+
   if (!HasFileHandling(desired_state) && !HasFileHandling(current_state)) {
     std::move(callback).Run();
     return;
@@ -161,6 +155,8 @@ void FileHandlingSubManager::Execute(
     return;
   }
 
+  CHECK_OS_INTEGRATION_ALLOWED();
+
   // All changes are generalized by first unregistering any existing file
   // handlers and then registering any desired file handlers.
   Unregister(app_id, desired_state, current_state,
@@ -169,14 +165,25 @@ void FileHandlingSubManager::Execute(
                             desired_state, std::move(callback)));
 }
 
-// TODO(b/279068663): Implement if needed.
-void FileHandlingSubManager::ForceUnregister(const AppId& app_id,
+void FileHandlingSubManager::ForceUnregister(const webapps::AppId& app_id,
                                              base::OnceClosure callback) {
-  std::move(callback).Run();
+  if (!ShouldRegisterFileHandlersWithOs()) {
+    std::move(callback).Run();
+    return;
+  }
+
+  ResultCallback metrics_callback =
+      base::BindOnce([](Result result) {
+        base::UmaHistogramBoolean("WebApp.FileHandlersUnregistration.Result",
+                                  (result == Result::kOk));
+      }).Then(std::move(callback));
+
+  UnregisterFileHandlersWithOs(app_id, profile_path_,
+                               std::move(metrics_callback));
 }
 
 void FileHandlingSubManager::Unregister(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const proto::WebAppOsIntegrationState& desired_state,
     const proto::WebAppOsIntegrationState& current_state,
     base::OnceClosure callback) {
@@ -191,20 +198,12 @@ void FileHandlingSubManager::Unregister(
                                   (result == Result::kOk));
       }).Then(std::move(callback));
 
-  // TODO(https://crbug.com/1295044): remove after fully deprecate old
-  // `InstallOsHooks/UninstallOsHooks` paths.
-  if (!HasFileHandling(desired_state)) {
-    ScopedRegistryUpdate update(&sync_bridge_.get());
-    update->UpdateApp(app_id)->SetFileHandlerOsIntegrationState(
-        OsIntegrationState::kDisabled);
-  }
-
   UnregisterFileHandlersWithOs(app_id, profile_path_,
                                std::move(metrics_callback));
 }
 
 void FileHandlingSubManager::Register(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const proto::WebAppOsIntegrationState& desired_state,
     base::OnceClosure callback) {
   if (!HasFileHandling(desired_state)) {
@@ -218,16 +217,9 @@ void FileHandlingSubManager::Register(
                                   (result == Result::kOk));
       }).Then(std::move(callback));
 
-  // TODO(https://crbug.com/1295044): remove after fully deprecate old
-  // `InstallOsHooks/UninstallOsHooks` paths.
-  {
-    ScopedRegistryUpdate update(&sync_bridge_.get());
-    update->UpdateApp(app_id)->SetFileHandlerOsIntegrationState(
-        OsIntegrationState::kEnabled);
-  }
-
   RegisterFileHandlersWithOs(
-      app_id, registrar_->GetAppShortName(app_id), profile_path_,
+      app_id, provider_->registrar_unsafe().GetAppShortName(app_id),
+      profile_path_,
       ConvertFileHandlingProtoToFileHandlers(desired_state.file_handling()),
       std::move(metrics_callback));
 }

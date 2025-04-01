@@ -25,6 +25,10 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/browser/web_ui_message_handler.h"
 
+GCMInternalsUIConfig::GCMInternalsUIConfig()
+    : DefaultWebUIConfig(content::kChromeUIScheme,
+                         chrome::kChromeUIGCMInternalsHost) {}
+
 namespace {
 
 // Class acting as a controller of the chrome://gcm-internals WebUI.
@@ -81,7 +85,6 @@ void GcmInternalsUIMessageHandler::RequestAllInfo(
   AllowJavascript();
   if (list.size() != 1) {
     NOTREACHED();
-    return;
   }
   const bool clear_logs = list[0].GetBool();
 
@@ -106,7 +109,6 @@ void GcmInternalsUIMessageHandler::RequestAllInfo(
 void GcmInternalsUIMessageHandler::SetRecording(const base::Value::List& list) {
   if (list.size() != 1) {
     NOTREACHED();
-    return;
   }
   const bool recording = list[0].GetBool();
 

@@ -25,7 +25,8 @@ class TabStripScrollContainerTest : public ChromeViewsTestBase {
 
     tab_strip_ = tab_strip.get();
     controller_->set_tab_strip(tab_strip_);
-    root_widget_ = CreateTestWidget();
+    root_widget_ =
+        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
     root_widget_->Show();
 
     // root_widget_ takes ownership of the content_view
@@ -41,17 +42,18 @@ class TabStripScrollContainerTest : public ChromeViewsTestBase {
   ~TabStripScrollContainerTest() override = default;
 
  protected:
-  raw_ptr<FakeBaseTabStripController> controller_ = nullptr;
-  raw_ptr<TabStripScrollContainer> tab_strip_scroll_container_ = nullptr;
-  raw_ptr<TabStrip> tab_strip_ = nullptr;
+  raw_ptr<FakeBaseTabStripController, DanglingUntriaged> controller_ = nullptr;
+  raw_ptr<TabStripScrollContainer, DanglingUntriaged>
+      tab_strip_scroll_container_ = nullptr;
+  raw_ptr<TabStrip, DanglingUntriaged> tab_strip_ = nullptr;
   std::unique_ptr<views::Widget> root_widget_;
 };
 
 TEST_F(TabStripScrollContainerTest, AnchoredWidgetHidesOnScroll) {
   // set up the child widget
   views::Widget::InitParams params =
-      CreateParams(views::Widget::InitParams::TYPE_BUBBLE);
-  params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
+      CreateParams(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+                   views::Widget::InitParams::TYPE_BUBBLE);
   params.bounds = gfx::Rect(0, 0, 400, 400);
   params.delegate = new views::BubbleDialogDelegate(
       tab_strip_, views::BubbleBorder::Arrow::LEFT_TOP);

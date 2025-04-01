@@ -12,6 +12,7 @@
 #include "ui/events/test/event_generator.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/widget/widget_utils.h"
 
@@ -69,10 +70,12 @@ class TestPageActionIconView : public PageActionIconView {
                            parent_delegate,
                            delegate,
                            "TestName",
+                           0,
+                           nullptr,
                            true,
                            font_list) {
     SetUpForInOutAnimation();
-    SetAccessibilityProperties(/*role*/ absl::nullopt, u"TestTooltip");
+    GetViewAccessibility().SetName(u"TestTooltip");
   }
 
   views::BubbleDialogDelegate* GetBubble() const override { return nullptr; }
@@ -119,7 +122,8 @@ class PageActionIconViewTest : public ChromeViewsTestBase {
   void SetUp() override {
     ChromeViewsTestBase::SetUp();
 
-    widget_ = CreateTestWidget();
+    widget_ =
+        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
     delegate_ = TestPageActionIconDelegate();
     view_ = widget_->SetContentsView(std::make_unique<TestPageActionIconView>(
         /*command_updater=*/nullptr,
@@ -128,9 +132,12 @@ class PageActionIconViewTest : public ChromeViewsTestBase {
     widget_->Show();
   }
   void TearDown() override {
+    ClearView();
     widget_.reset();
     ChromeViewsTestBase::TearDown();
   }
+
+  void ClearView() { view_ = nullptr; }
 
   TestPageActionIconView* view() { return view_; }
   views::Widget* widget() { return widget_.get(); }
@@ -138,12 +145,12 @@ class PageActionIconViewTest : public ChromeViewsTestBase {
 
  private:
   TestPageActionIconDelegate delegate_;
-  raw_ptr<TestPageActionIconView> view_;
+  raw_ptr<TestPageActionIconView> view_ = nullptr;
   std::unique_ptr<views::Widget> widget_;
 };
 
 TEST_F(PageActionIconViewTest, ShouldResetSlideAnimationWhenHideIcons) {
-  view()->AnimateIn(absl::nullopt);
+  view()->AnimateIn(std::nullopt);
   EXPECT_TRUE(view()->IsLabelVisible());
   EXPECT_TRUE(view()->is_animating_label());
 
@@ -156,7 +163,7 @@ TEST_F(PageActionIconViewTest, ShouldResetSlideAnimationWhenHideIcons) {
 
 TEST_F(PageActionIconViewTest, ShouldNotResetSlideAnimationWhenShowIcons) {
   delegate()->set_should_hide_page_action_icons(true);
-  view()->AnimateIn(absl::nullopt);
+  view()->AnimateIn(std::nullopt);
   EXPECT_TRUE(view()->IsLabelVisible());
   EXPECT_TRUE(view()->is_animating_label());
 
@@ -169,6 +176,11 @@ TEST_F(PageActionIconViewTest, ShouldNotResetSlideAnimationWhenShowIcons) {
 
 TEST_F(PageActionIconViewTest, UsesIconImageIfAvailable) {
   auto delegate = TestPageActionIconDelegate();
+
+  // We're about to reset the 'ContentsView' of the Widget. As such
+  // we need to clear the reference to |view_| beforehand, otherwise
+  // it will become dangling.
+  ClearView();
   auto* icon_view = widget()->SetContentsView(
       std::make_unique<TestPageActionIconViewWithIconImage>(
           /*command_updater=*/nullptr,
@@ -194,6 +206,6 @@ TEST_F(PageActionIconViewTest, UsesIconImageIfAvailable) {
 }
 
 TEST_F(PageActionIconViewTest, IconViewAccessibleName) {
-  EXPECT_EQ(view()->GetAccessibleName(),
+  EXPECT_EQ(view()->GetViewAccessibility().GetCachedName(),
             view()->GetTextForTooltipAndAccessibleName());
 }

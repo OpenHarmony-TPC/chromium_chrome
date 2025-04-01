@@ -5,13 +5,18 @@
 #include "chrome/browser/tracing/chrome_background_tracing_metrics_provider.h"
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
-#include "base/strings/string_piece.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/common/channel_info.h"
 #include "components/metrics/field_trials_provider.h"
+#include "components/metrics/metrics_log.h"
 #include "components/metrics/metrics_service.h"
+#include "components/metrics/version_utils.h"
+#include "components/tracing/common/background_tracing_utils.h"
+#include "services/tracing/public/cpp/trace_startup_config.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "chrome/browser/metrics/antivirus_metrics_provider_win.h"
@@ -32,9 +37,10 @@ ChromeBackgroundTracingMetricsProvider::ChromeBackgroundTracingMetricsProvider(
 ChromeBackgroundTracingMetricsProvider::
     ~ChromeBackgroundTracingMetricsProvider() = default;
 
-void ChromeBackgroundTracingMetricsProvider::Init() {
-  BackgroundTracingMetricsProvider::Init();
-  // TODO(ssid): SetupBackgroundTracingFieldTrial() should be called here.
+void ChromeBackgroundTracingMetricsProvider::DoInit() {
+  tracing::TraceStartupConfig::GetInstance().SetBackgroundStartupTracingEnabled(
+      tracing::ShouldTraceStartup());
+  SetupFieldTracingFromFieldTrial();
 
 #if BUILDFLAG(IS_WIN)
   // AV metrics provider is initialized asynchronously. It might not be
@@ -60,7 +66,7 @@ void ChromeBackgroundTracingMetricsProvider::Init() {
         g_browser_process->metrics_service()->GetSyntheticTrialRegistry();
     system_profile_providers_.emplace_back(
         std::make_unique<variations::FieldTrialsProvider>(registry,
-                                                          base::StringPiece()));
+                                                          std::string_view()));
   }
 }
 
@@ -71,6 +77,16 @@ void ChromeBackgroundTracingMetricsProvider::AsyncInit(
 #else
   std::move(done_callback).Run();
 #endif
+}
+
+void ChromeBackgroundTracingMetricsProvider::RecordCoreSystemProfileMetrics(
+    metrics::SystemProfileProto* system_profile_proto) {
+  metrics::MetricsLog::RecordCoreSystemProfile(
+      metrics::GetVersionString(),
+      metrics::AsProtobufChannel(chrome::GetChannel()),
+      chrome::IsExtendedStableChannel(),
+      g_browser_process->GetApplicationLocale(), metrics::GetAppPackageName(),
+      system_profile_proto);
 }
 
 }  // namespace tracing

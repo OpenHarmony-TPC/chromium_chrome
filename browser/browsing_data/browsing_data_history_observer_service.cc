@@ -7,6 +7,7 @@
 #include <tuple>
 
 #include "base/functional/callback_helpers.h"
+#include "base/memory/singleton.h"
 #include "build/build_config.h"
 #include "chrome/browser/browsing_data/navigation_entry_remover.h"
 #include "chrome/browser/history/history_service_factory.h"
@@ -61,7 +62,7 @@ void DeleteTemplateUrlsForTimeRange(TemplateURLService* keywords_model,
                                     base::Time delete_begin,
                                     base::Time delete_end) {
   if (!keywords_model->loaded()) {
-    // TODO(https://crbug.com/1288724): Ignoring the return value here is
+    // TODO(crbug.com/40211652): Ignoring the return value here is
     // probably a bug.
     std::ignore = keywords_model->RegisterOnLoadedCallback(
         base::BindOnce(&DeleteTemplateUrlsForTimeRange, keywords_model,
@@ -76,7 +77,7 @@ void DeleteTemplateUrlsForTimeRange(TemplateURLService* keywords_model,
 void DeleteTemplateUrlsForDeletedOrigins(TemplateURLService* keywords_model,
                                          base::flat_set<GURL> deleted_origins) {
   if (!keywords_model->loaded()) {
-    // TODO(https://crbug.com/1288724): Ignoring the return value here is
+    // TODO(crbug.com/40211652): Ignoring the return value here is
     // probably a bug.
     std::ignore = keywords_model->RegisterOnLoadedCallback(
         base::BindOnce(&DeleteTemplateUrlsForDeletedOrigins, keywords_model,
@@ -123,7 +124,7 @@ BrowsingDataHistoryObserverService::BrowsingDataHistoryObserverService(
 
 BrowsingDataHistoryObserverService::~BrowsingDataHistoryObserverService() {}
 
-void BrowsingDataHistoryObserverService::OnURLsDeleted(
+void BrowsingDataHistoryObserverService::OnHistoryDeletions(
     history::HistoryService* history_service,
     const history::DeletionInfo& deletion_info) {
   if (!deletion_info.is_from_expiration())
@@ -168,10 +169,14 @@ BrowsingDataHistoryObserverService::Factory::GetInstance() {
 }
 
 BrowsingDataHistoryObserverService::Factory::Factory()
-    : ProfileKeyedServiceFactory("BrowsingDataHistoryObserverService",
-                                 ProfileSelections::Builder()
-                                     .WithGuest(ProfileSelection::kNone)
-                                     .Build()) {
+    : ProfileKeyedServiceFactory(
+          "BrowsingDataHistoryObserverService",
+          ProfileSelections::Builder()
+              .WithGuest(ProfileSelection::kNone)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
+              .Build()) {
   DependsOn(HistoryServiceFactory::GetInstance());
   DependsOn(TabRestoreServiceFactory::GetInstance());
 #if BUILDFLAG(ENABLE_SESSION_SERVICE)
@@ -184,11 +189,11 @@ BrowsingDataHistoryObserverService::Factory::Factory()
 #endif
 }
 
-KeyedService*
-BrowsingDataHistoryObserverService::Factory::BuildServiceInstanceFor(
-    content::BrowserContext* context) const {
+std::unique_ptr<KeyedService> BrowsingDataHistoryObserverService::Factory::
+    BuildServiceInstanceForBrowserContext(
+        content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
-  return new BrowsingDataHistoryObserverService(profile);
+  return std::make_unique<BrowsingDataHistoryObserverService>(profile);
 }
 
 bool BrowsingDataHistoryObserverService::Factory::

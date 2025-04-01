@@ -61,17 +61,15 @@ class ArcVmDataMigrationNotifierTest : public ash::AshTestBase {
         CreateTestArcSessionManager(std::make_unique<ArcSessionRunner>(
             base::BindRepeating(FakeArcSession::Create)));
 
+    fake_user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
     profile_manager_ = std::make_unique<TestingProfileManager>(
         TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(profile_manager_->SetUp());
     testing_profile_ = profile_manager_->CreateTestingProfile(kProfileName);
     const AccountId account_id = AccountId::FromUserEmailGaiaId(
         testing_profile_->GetProfileUserName(), kGaiaId);
-    auto fake_user_manager = std::make_unique<ash::FakeChromeUserManager>();
-    fake_user_manager->AddUser(account_id);
-    fake_user_manager->LoginUser(account_id);
-    user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::move(fake_user_manager));
+    fake_user_manager_->AddUser(account_id);
+    fake_user_manager_->LoginUser(account_id);
     DCHECK(ash::ProfileHelper::IsPrimaryProfile(testing_profile_));
 
     notification_tester_ =
@@ -86,10 +84,10 @@ class ArcVmDataMigrationNotifierTest : public ash::AshTestBase {
   void TearDown() override {
     arc_session_manager_->Shutdown();
     notification_tester_.reset();
-    user_manager_.reset();
     profile_manager_->DeleteTestingProfile(kProfileName);
     testing_profile_ = nullptr;
     profile_manager_.reset();
+    fake_user_manager_.Reset();
     arc_vm_data_migration_notifier_.reset();
     arc_session_manager_.reset();
     ash::ConciergeClient::Shutdown();
@@ -109,10 +107,11 @@ class ArcVmDataMigrationNotifierTest : public ash::AshTestBase {
  private:
   std::unique_ptr<ArcSessionManager> arc_session_manager_;
   std::unique_ptr<ArcVmDataMigrationNotifier> arc_vm_data_migration_notifier_;
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
   std::unique_ptr<TestingProfileManager> profile_manager_;
-  raw_ptr<TestingProfile, ExperimentalAsh> testing_profile_ =
+  raw_ptr<TestingProfile, DanglingUntriaged> testing_profile_ =
       nullptr;  // Owned by |profile_manager_|.
-  std::unique_ptr<user_manager::ScopedUserManager> user_manager_;
   std::unique_ptr<NotificationDisplayServiceTester> notification_tester_;
 };
 
@@ -132,8 +131,8 @@ TEST_F(ArcVmDataMigrationNotifierTest, MigrationDisabled) {
 }
 
 // Tests that no notification is shown for managed users even when the migration
-// is enabled via the feature.
-TEST_F(ArcVmDataMigrationNotifierTest, AccountManaged) {
+// is enabled via the feature and when the policy is not set.
+TEST_F(ArcVmDataMigrationNotifierTest, AccountManagedDefault) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(kEnableArcVmDataMigration);
   profile()->GetProfilePolicyConnector()->OverrideIsManagedForTesting(true);
@@ -142,6 +141,76 @@ TEST_F(ArcVmDataMigrationNotifierTest, AccountManaged) {
   EXPECT_FALSE(notification_tester()->GetNotification(kNotificationId));
   EXPECT_EQ(GetArcVmDataMigrationStatus(profile()->GetPrefs()),
             ArcVmDataMigrationStatus::kUnnotified);
+}
+
+// Tests that no notification is shown for managed users when the migration is
+// enabled via the featuer and when the policy is set to not prompt.
+TEST_F(ArcVmDataMigrationNotifierTest, AccountManagedDoNotPrompt) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kEnableArcVmDataMigration);
+  profile()->GetProfilePolicyConnector()->OverrideIsManagedForTesting(true);
+  profile()->GetPrefs()->SetInteger(
+      prefs::kArcVmDataMigrationStrategy,
+      static_cast<int>(ArcVmDataMigrationStrategy::kDoNotPrompt));
+
+  arc_session_manager()->StartArcForTesting();
+  EXPECT_FALSE(notification_tester()->GetNotification(kNotificationId));
+  EXPECT_EQ(GetArcVmDataMigrationStatus(profile()->GetPrefs()),
+            ArcVmDataMigrationStatus::kUnnotified);
+}
+
+// Tests that no notification is shown for managed users when the migration is
+// enabled via the featuer and when the policy is set to not prompt and already
+// started.
+TEST_F(ArcVmDataMigrationNotifierTest, AccountManagedPromptAndStarted) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kEnableArcVmDataMigration);
+  profile()->GetProfilePolicyConnector()->OverrideIsManagedForTesting(true);
+  auto* prefs = profile()->GetPrefs();
+  SetArcVmDataMigrationStatus(prefs, ArcVmDataMigrationStatus::kStarted);
+  profile()->GetPrefs()->SetInteger(
+      prefs::kArcVmDataMigrationStrategy,
+      static_cast<int>(ArcVmDataMigrationStrategy::kPrompt));
+
+  arc_session_manager()->StartArcForTesting();
+  EXPECT_FALSE(notification_tester()->GetNotification(kNotificationId));
+  EXPECT_EQ(GetArcVmDataMigrationStatus(profile()->GetPrefs()),
+            ArcVmDataMigrationStatus::kStarted);
+}
+
+// Tests that no notification is shown for managed users when the migration is
+// enabled via the featuer and when the policy is set to not prompti and
+// already finished.
+TEST_F(ArcVmDataMigrationNotifierTest, AccountManagedPromptAndFinished) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kEnableArcVmDataMigration);
+  profile()->GetProfilePolicyConnector()->OverrideIsManagedForTesting(true);
+  auto* prefs = profile()->GetPrefs();
+  SetArcVmDataMigrationStatus(prefs, ArcVmDataMigrationStatus::kFinished);
+  profile()->GetPrefs()->SetInteger(
+      prefs::kArcVmDataMigrationStrategy,
+      static_cast<int>(ArcVmDataMigrationStrategy::kPrompt));
+
+  arc_session_manager()->StartArcForTesting();
+  EXPECT_FALSE(notification_tester()->GetNotification(kNotificationId));
+  EXPECT_EQ(GetArcVmDataMigrationStatus(profile()->GetPrefs()),
+            ArcVmDataMigrationStatus::kFinished);
+}
+
+// Tests that notification is shown for managed users when the migration is
+// enabled via the feature and when the policy is set to prompt.
+TEST_F(ArcVmDataMigrationNotifierTest, AccountManagedPrompt) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kEnableArcVmDataMigration);
+  profile()->GetProfilePolicyConnector()->OverrideIsManagedForTesting(true);
+  profile()->GetPrefs()->SetInteger(
+      prefs::kArcVmDataMigrationStrategy,
+      static_cast<int>(ArcVmDataMigrationStrategy::kPrompt));
+
+  arc_session_manager()->StartArcForTesting();
+  EXPECT_TRUE(notification_tester()->GetNotification(kNotificationId));
+  EXPECT_EQ(GetArcVmDataMigrationStatus(profile()->GetPrefs()),
+            ArcVmDataMigrationStatus::kNotified);
 }
 
 // Tests that a notification is shown when the migration is enabled but not

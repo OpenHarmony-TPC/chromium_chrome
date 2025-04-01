@@ -5,39 +5,37 @@
 #include "chrome/browser/ui/views/frame/system_menu_model_builder.h"
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/accelerators/accelerator.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "ash/public/cpp/multi_user_window_manager.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
+#include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
 #include "chromeos/ui/frame/desks/move_to_desks_menu_delegate.h"
 #include "chromeos/ui/frame/desks/move_to_desks_menu_model.h"
 #include "components/account_id/account_id.h"
-#include "components/user_manager/user_info.h"
+#include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/views/widget/widget.h"
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "ash/public/cpp/multi_user_window_manager.h"
-#include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
-#include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
 #endif
 
 #if BUILDFLAG(IS_OZONE) && !BUILDFLAG(IS_CHROMEOS)
@@ -69,14 +67,11 @@ void SystemMenuModelBuilder::BuildMenu(ui::SimpleMenuModel* model) {
     BuildSystemMenuForBrowserWindow(model);
   else
     BuildSystemMenuForAppOrPopupWindow(model);
-  AddFrameToggleItems(model);
 }
 
 void SystemMenuModelBuilder::BuildSystemMenuForBrowserWindow(
     ui::SimpleMenuModel* model) {
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
   model->AddItemWithStringId(IDC_MINIMIZE_WINDOW, IDS_MINIMIZE_WINDOW_MENU);
   model->AddItemWithStringId(IDC_MAXIMIZE_WINDOW, IDS_MAXIMIZE_WINDOW_MENU);
   model->AddItemWithStringId(IDC_RESTORE_WINDOW, IDS_RESTORE_WINDOW_MENU);
@@ -86,13 +81,15 @@ void SystemMenuModelBuilder::BuildSystemMenuForBrowserWindow(
   model->AddItemWithStringId(IDC_RESTORE_TAB, IDS_RESTORE_TAB);
   model->AddItemWithStringId(IDC_BOOKMARK_ALL_TABS, IDS_BOOKMARK_ALL_TABS);
   model->AddItemWithStringId(IDC_NAME_WINDOW, IDS_NAME_WINDOW);
+  if (base::FeatureList::IsEnabled(features::kCompactMode)) {
+    model->AddSeparator(ui::NORMAL_SEPARATOR);
+    model->AddItemWithStringId(IDC_COMPACT_MODE, IDS_COMPACT_MODE);
+  }
   if (chrome::CanOpenTaskManager()) {
     model->AddSeparator(ui::NORMAL_SEPARATOR);
     model->AddItemWithStringId(IDC_TASK_MANAGER, IDS_TASK_MANAGER);
   }
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
   model->AddSeparator(ui::NORMAL_SEPARATOR);
   bool supports_server_side_decorations = true;
 #if BUILDFLAG(IS_OZONE) && !BUILDFLAG(IS_CHROMEOS)
@@ -122,11 +119,19 @@ void SystemMenuModelBuilder::BuildSystemMenuForAppOrPopupWindow(
   model->AddItemWithStringId(IDC_FORWARD, IDS_CONTENT_CONTEXT_FORWARD);
   model->AddItemWithStringId(IDC_RELOAD, IDS_APP_MENU_RELOAD);
   if (!web_app::AppBrowserController::IsWebApp(browser())) {
-    model->AddSeparator(ui::NORMAL_SEPARATOR);
-    if (browser()->is_type_app() || browser()->is_type_app_popup()) {
-      model->AddItemWithStringId(IDC_NEW_TAB, IDS_APP_MENU_NEW_WEB_PAGE);
-    } else {
-      model->AddItemWithStringId(IDC_SHOW_AS_TAB, IDS_SHOW_AS_TAB);
+    bool is_captive_portal_signin = false;
+#if BUILDFLAG(IS_CHROMEOS)
+    is_captive_portal_signin =
+        browser()->profile()->IsOffTheRecord() &&
+        browser()->profile()->GetOTRProfileID().IsCaptivePortal();
+#endif
+    if (!is_captive_portal_signin) {
+      model->AddSeparator(ui::NORMAL_SEPARATOR);
+      if (browser()->is_type_app() || browser()->is_type_app_popup()) {
+        model->AddItemWithStringId(IDC_NEW_TAB, IDS_APP_MENU_NEW_WEB_PAGE);
+      } else {
+        model->AddItemWithStringId(IDC_SHOW_AS_TAB, IDS_SHOW_AS_TAB);
+      }
     }
     model->AddSeparator(ui::NORMAL_SEPARATOR);
     model->AddItemWithStringId(IDC_CUT, IDS_CUT);
@@ -135,12 +140,26 @@ void SystemMenuModelBuilder::BuildSystemMenuForAppOrPopupWindow(
     model->AddSeparator(ui::NORMAL_SEPARATOR);
     model->AddItemWithStringId(IDC_FIND, IDS_FIND);
     model->AddItemWithStringId(IDC_PRINT, IDS_PRINT);
-    zoom_menu_contents_ = std::make_unique<ZoomMenuModel>(&menu_delegate_);
+    zoom_menu_contents_ =
+        std::make_unique<ui::SimpleMenuModel>(&menu_delegate_);
+    zoom_menu_contents_->AddItemWithStringId(IDC_ZOOM_PLUS, IDS_ZOOM_PLUS);
+    zoom_menu_contents_->AddItemWithStringId(IDC_ZOOM_NORMAL, IDS_ZOOM_NORMAL);
+    zoom_menu_contents_->AddItemWithStringId(IDC_ZOOM_MINUS, IDS_ZOOM_MINUS);
     model->AddSubMenuWithStringId(IDC_ZOOM_MENU, IDS_ZOOM_MENU,
                                   zoom_menu_contents_.get());
   }
-  if ((browser()->is_type_app() || browser()->is_type_app_popup()) &&
-      chrome::CanOpenTaskManager()) {
+
+  bool should_show_task_manager =
+      (browser()->is_type_app() || browser()->is_type_app_popup()) &&
+      chrome::CanOpenTaskManager();
+#if BUILDFLAG(IS_CHROMEOS)
+  // Hide TaskManager option for the app if it is locked for OnTask. Only
+  // relevant for non-web browser scenarios.
+  if (browser()->IsLockedForOnTask()) {
+    should_show_task_manager = false;
+  }
+#endif
+  if (should_show_task_manager) {
     model->AddSeparator(ui::NORMAL_SEPARATOR);
     model->AddItemWithStringId(IDC_TASK_MANAGER, IDS_TASK_MANAGER);
   }
@@ -152,14 +171,6 @@ void SystemMenuModelBuilder::BuildSystemMenuForAppOrPopupWindow(
   AppendMoveToDesksMenu(model);
 #endif
   AppendTeleportMenu(model);
-}
-
-void SystemMenuModelBuilder::AddFrameToggleItems(ui::SimpleMenuModel* model) {
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kDebugEnableFrameToggle)) {
-    model->AddSeparator(ui::NORMAL_SEPARATOR);
-    model->AddItem(IDC_DEBUG_FRAME_TOGGLE, u"Toggle Frame Type");
-  }
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -180,7 +191,7 @@ void SystemMenuModelBuilder::AppendMoveToDesksMenu(ui::SimpleMenuModel* model) {
 #endif
 
 void SystemMenuModelBuilder::AppendTeleportMenu(ui::SimpleMenuModel* model) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   DCHECK(browser()->window());
 
   // Avoid appending the teleport menu for the settings window.  This window's
@@ -221,7 +232,7 @@ void SystemMenuModelBuilder::AppendTeleportMenu(ui::SimpleMenuModel* model) {
     if (command_id > IDC_VISIT_DESKTOP_OF_LRU_USER_LAST) {
       break;
     }
-    const user_manager::UserInfo* user_info = logged_in_users[user_index];
+    const user_manager::User* user_info = logged_in_users[user_index];
     model->AddItem(
         command_id,
         l10n_util::GetStringFUTF16(

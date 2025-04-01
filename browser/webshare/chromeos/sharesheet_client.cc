@@ -13,7 +13,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/no_destructor.h"
 #include "base/rand_util.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "build/chromeos_buildflags.h"
@@ -124,11 +123,11 @@ crosapi::mojom::IntentPtr CreateCrosapiShareIntentFromFiles(
   }
 
   // Always share text and/or files.
-  absl::optional<std::string> share_text;
+  std::optional<std::string> share_text;
   if (!text.empty() || file_paths.empty())
     share_text = text;
 
-  absl::optional<std::string> share_title;
+  std::optional<std::string> share_title;
   if (!title.empty())
     share_title = title;
 
@@ -139,7 +138,7 @@ crosapi::mojom::IntentPtr CreateCrosapiShareIntentFromFiles(
                               ? "text/plain"
                               : apps_util::CalculateCommonMimeType(mime_types);
   return crosapi::mojom::Intent::New(action,
-                                     /*url=*/absl::nullopt, mime_type,
+                                     /*url=*/std::nullopt, mime_type,
                                      share_text, share_title, std::move(files));
 }
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -262,7 +261,7 @@ void SharesheetClient::OnPrepareDirectory(blink::mojom::ShareError error) {
 
   if (!web_contents() || error != blink::mojom::ShareError::OK) {
     std::move(current_share_->callback).Run(error);
-    current_share_ = absl::nullopt;
+    current_share_ = std::nullopt;
     return;
   }
 
@@ -288,7 +287,7 @@ void SharesheetClient::OnPrepareSubdirectory(blink::mojom::ShareError error) {
 
   if (!web_contents() || error != blink::mojom::ShareError::OK) {
     std::move(current_share_->callback).Run(error);
-    current_share_ = absl::nullopt;
+    current_share_ = std::nullopt;
     return;
   }
 
@@ -312,7 +311,7 @@ void SharesheetClient::OnStoreFiles(blink::mojom::ShareError error) {
     std::move(current_share_->callback).Run(error);
     ScheduleSharedFileDirectoryDeletion(std::move(current_share_->file_paths),
                                         base::Minutes(0));
-    current_share_ = absl::nullopt;
+    current_share_ = std::nullopt;
     return;
   }
 
@@ -331,7 +330,7 @@ void SharesheetClient::OnShowSharesheet(sharesheet::SharesheetResult result) {
   ScheduleSharedFileDirectoryDeletion(
       std::move(current_share_->file_paths),
       PrepareDirectoryTask::kSharedFileLifetime);
-  current_share_ = absl::nullopt;
+  current_share_ = std::nullopt;
 }
 
 // static
@@ -395,7 +394,7 @@ SharesheetClient::GetSharesheetCallback() {
 }
 
 void SharesheetClient::WebContentsDestroyed() {
-  current_share_ = absl::nullopt;
+  current_share_ = std::nullopt;
 }
 
 }  // namespace webshare

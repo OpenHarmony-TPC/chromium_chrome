@@ -16,8 +16,6 @@ WebUsbChooserDesktop::~WebUsbChooserDesktop() = default;
 void WebUsbChooserDesktop::ShowChooser(
     content::RenderFrameHost* render_frame_host,
     std::unique_ptr<UsbChooserController> controller) {
-#if !BUILDFLAG(IS_OHOS)
   closure_runner_.ReplaceClosure(chrome::ShowDeviceChooserDialog(
       render_frame_host, std::move(controller)));
-#endif
 }

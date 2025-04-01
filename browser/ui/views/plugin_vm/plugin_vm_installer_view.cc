@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/plugin_vm/plugin_vm_installer_view.h"
 
 #include <memory>
+#include <optional>
 
 #include "ash/public/cpp/shelf_types.h"
 #include "ash/public/cpp/window_properties.h"
@@ -23,11 +24,11 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/browser_thread.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/aura/window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/text/bytes_formatting.h"
 #include "ui/chromeos/devicetype_utils.h"
@@ -72,7 +73,7 @@ int HttpErrorFailureReasonToInt(
   using Reason = plugin_vm::PluginVmInstaller::FailureReason;
   switch (reason) {
     default:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
     case Reason::DOWNLOAD_FAILED_401:
       return 401;
     case Reason::DOWNLOAD_FAILED_403:
@@ -175,7 +176,8 @@ PluginVmInstallerView::PluginVmInstallerView(Profile* profile)
   learn_more_link_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   message_container_view->AddChildView(learn_more_link_.get());
 
-  progress_bar_ = new views::ProgressBar(kProgressBarHeight);
+  progress_bar_ = new views::ProgressBar();
+  progress_bar_->SetPreferredHeight(kProgressBarHeight);
   progress_bar_->SetProperty(
       views::kMarginsKey,
       gfx::Insets::TLBR(kProgressBarTopMargin - kProgressBarHeight, 0, 0, 0));
@@ -241,7 +243,8 @@ bool PluginVmInstallerView::Cancel() {
   return true;
 }
 
-gfx::Size PluginVmInstallerView::CalculatePreferredSize() const {
+gfx::Size PluginVmInstallerView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   return gfx::Size(kWindowWidth, kWindowHeight);
 }
 
@@ -360,7 +363,7 @@ std::u16string PluginVmInstallerView::GetMessage() const {
     case State::kInstalling:
       switch (installing_state_) {
         case InstallingState::kInactive:
-          NOTREACHED_NORETURN();
+          NOTREACHED();
         case InstallingState::kCheckingLicense:
         case InstallingState::kCheckingForExistingVm:
         case InstallingState::kCheckingDiskSpace:
@@ -478,42 +481,47 @@ PluginVmInstallerView::~PluginVmInstallerView() {
 int PluginVmInstallerView::GetCurrentDialogButtons() const {
   switch (state_) {
     case State::kInstalling:
-      return ui::DIALOG_BUTTON_CANCEL;
+      return static_cast<int>(ui::mojom::DialogButton::kCancel);
     case State::kConfirmInstall:
     case State::kImported:
     case State::kCreated:
-      return ui::DIALOG_BUTTON_CANCEL | ui::DIALOG_BUTTON_OK;
+      return static_cast<int>(ui::mojom::DialogButton::kCancel) |
+             static_cast<int>(ui::mojom::DialogButton::kOk);
     case State::kError:
       DCHECK(reason_);
       if (ShowRetryButton(*reason_))
-        return ui::DIALOG_BUTTON_CANCEL | ui::DIALOG_BUTTON_OK;
-      return ui::DIALOG_BUTTON_CANCEL;
+        return static_cast<int>(ui::mojom::DialogButton::kCancel) |
+               static_cast<int>(ui::mojom::DialogButton::kOk);
+      return static_cast<int>(ui::mojom::DialogButton::kCancel);
   }
 }
 
 std::u16string PluginVmInstallerView::GetCurrentDialogButtonLabel(
-    ui::DialogButton button) const {
+    ui::mojom::DialogButton button) const {
   switch (state_) {
     case State::kConfirmInstall:
       return l10n_util::GetStringUTF16(
-          button == ui::DIALOG_BUTTON_OK
+          button == ui::mojom::DialogButton::kOk
               ? IDS_PLUGIN_VM_INSTALLER_INSTALL_BUTTON
               : IDS_APP_CANCEL);
     case State::kInstalling:
-      DCHECK_EQ(button, ui::DIALOG_BUTTON_CANCEL);
+      DCHECK_EQ(button, ui::mojom::DialogButton::kCancel);
       return l10n_util::GetStringUTF16(IDS_APP_CANCEL);
     case State::kCreated:
     case State::kImported: {
       return l10n_util::GetStringUTF16(
-          button == ui::DIALOG_BUTTON_OK ? IDS_PLUGIN_VM_INSTALLER_LAUNCH_BUTTON
-                                         : IDS_APP_CLOSE);
+          button == ui::mojom::DialogButton::kOk
+              ? IDS_PLUGIN_VM_INSTALLER_LAUNCH_BUTTON
+              : IDS_APP_CLOSE);
     }
     case State::kError: {
       DCHECK(reason_);
-      DCHECK(ShowRetryButton(*reason_) || button == ui::DIALOG_BUTTON_CANCEL);
+      DCHECK(ShowRetryButton(*reason_) ||
+             button == ui::mojom::DialogButton::kCancel);
       return l10n_util::GetStringUTF16(
-          button == ui::DIALOG_BUTTON_OK ? IDS_PLUGIN_VM_INSTALLER_RETRY_BUTTON
-                                         : IDS_APP_CANCEL);
+          button == ui::mojom::DialogButton::kOk
+              ? IDS_PLUGIN_VM_INSTALLER_RETRY_BUTTON
+              : IDS_APP_CANCEL);
     }
   }
 }
@@ -539,13 +547,14 @@ void PluginVmInstallerView::OnStateUpdated() {
 
   int buttons = GetCurrentDialogButtons();
   SetButtons(buttons);
-  if (buttons & ui::DIALOG_BUTTON_OK) {
-    SetButtonLabel(ui::DIALOG_BUTTON_OK,
-                   GetCurrentDialogButtonLabel(ui::DIALOG_BUTTON_OK));
+  if (buttons & static_cast<int>(ui::mojom::DialogButton::kOk)) {
+    SetButtonLabel(ui::mojom::DialogButton::kOk,
+                   GetCurrentDialogButtonLabel(ui::mojom::DialogButton::kOk));
   }
-  if (buttons & ui::DIALOG_BUTTON_CANCEL) {
-    SetButtonLabel(ui::DIALOG_BUTTON_CANCEL,
-                   GetCurrentDialogButtonLabel(ui::DIALOG_BUTTON_CANCEL));
+  if (buttons & static_cast<int>(ui::mojom::DialogButton::kCancel)) {
+    SetButtonLabel(
+        ui::mojom::DialogButton::kCancel,
+        GetCurrentDialogButtonLabel(ui::mojom::DialogButton::kCancel));
   }
 
   const bool progress_bar_visible = state_ == State::kInstalling;
@@ -557,7 +566,7 @@ void PluginVmInstallerView::OnStateUpdated() {
       download_progress_message_label_visible);
 
   DialogModelChanged();
-  GetWidget()->GetRootView()->Layout();
+  GetWidget()->GetRootView()->DeprecatedLayoutImmediately();
 
   if (state_ == State::kCreated || state_ == State::kImported ||
       state_ == State::kError) {
@@ -580,10 +589,8 @@ std::u16string PluginVmInstallerView::GetDownloadProgressMessage(
         ui::FormatBytesWithUnits(content_length, ui::DATA_UNITS_GIBIBYTE,
                                  /*show_units=*/true));
   } else {
-    return l10n_util::GetStringFUTF16(
-        IDS_PLUGIN_VM_INSTALLER_DOWNLOAD_PROGRESS_WITHOUT_DOWNLOAD_SIZE_MESSAGE,
-        ui::FormatBytesWithUnits(bytes_downloaded, ui::DATA_UNITS_GIBIBYTE,
-                                 /*show_units=*/true));
+    return ui::FormatBytesWithUnits(bytes_downloaded, ui::DATA_UNITS_GIBIBYTE,
+                                    /*show_units=*/true);
   }
 }
 
@@ -629,13 +636,13 @@ void PluginVmInstallerView::StartInstallation() {
   OnStateUpdated();
 
   plugin_vm_installer_->SetObserver(this);
-  absl::optional<plugin_vm::PluginVmInstaller::FailureReason> failure_reason =
+  std::optional<plugin_vm::PluginVmInstaller::FailureReason> failure_reason =
       plugin_vm_installer_->Start();
   if (failure_reason)
     OnError(failure_reason.value());
 }
 
-BEGIN_METADATA(PluginVmInstallerView, views::BubbleDialogDelegateView)
+BEGIN_METADATA(PluginVmInstallerView)
 ADD_READONLY_PROPERTY_METADATA(std::u16string, Title)
 ADD_READONLY_PROPERTY_METADATA(std::u16string, Message)
 END_METADATA

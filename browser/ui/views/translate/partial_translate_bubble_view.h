@@ -21,7 +21,8 @@
 #include "components/translate/core/common/translate_errors.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "ui/base/interaction/element_identifier.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/menus/simple_menu_model.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/menu/menu_runner.h"
@@ -39,6 +40,8 @@ class View;
 class PartialTranslateBubbleView : public LocationBarBubbleDelegateView,
                                    public ui::SimpleMenuModel::Delegate,
                                    public views::TabbedPaneListener {
+  METADATA_HEADER(PartialTranslateBubbleView, LocationBarBubbleDelegateView)
+
  public:
   // Item IDs for the option button's menu.
   enum OptionsMenuItem { CHANGE_TARGET_LANGUAGE, CHANGE_SOURCE_LANGUAGE };
@@ -77,7 +80,8 @@ class PartialTranslateBubbleView : public LocationBarBubbleDelegateView,
   bool ShouldShowWindowTitle() const override;
   void WindowClosing() override;
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   void OnWidgetDestroying(views::Widget* widget) override;
 
   // ui::SimpleMenuModel::Delegate:

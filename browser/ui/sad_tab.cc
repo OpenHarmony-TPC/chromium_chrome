@@ -10,12 +10,11 @@
 #include "base/time/time.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
+#include "chrome/browser/feedback/show_feedback_page.h"
 #include "chrome/browser/net/referrer.h"
-#include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
@@ -28,6 +27,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/memory/oom_memory_details.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #endif
 
 namespace {
@@ -63,7 +63,7 @@ bool IsRepeatedlyCrashing() {
 
 bool AreOtherTabsOpen() {
   size_t tab_count = 0;
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     tab_count += browser->tab_strip_model()->count();
     if (tab_count > 1U)
       break;
@@ -97,7 +97,6 @@ bool SadTab::ShouldShow(base::TerminationStatus status) {
       return false;
   }
   NOTREACHED();
-  return false;
 }
 
 int SadTab::GetTitle() {
@@ -117,7 +116,6 @@ int SadTab::GetTitle() {
       return IDS_SAD_TAB_RELOAD_TITLE;
   }
   NOTREACHED();
-  return 0;
 }
 
 int SadTab::GetErrorCodeFormatString() {
@@ -141,7 +139,6 @@ int SadTab::GetInfoMessage() {
                                      : IDS_SAD_TAB_MESSAGE;
   }
   NOTREACHED();
-  return 0;
 }
 
 int SadTab::GetButtonTitle() {
@@ -174,10 +171,8 @@ std::vector<int> SadTab::GetSubMessages() {
       std::vector<int> message_ids = {IDS_SAD_TAB_RELOAD_RESTART_BROWSER,
                                       IDS_SAD_TAB_RELOAD_RESTART_DEVICE};
       // Only show Incognito suggestion if not already in Incognito mode.
-#if !BUILDFLAG(IS_OHOS)
       if (!web_contents_->GetBrowserContext()->IsOffTheRecord())
         message_ids.insert(message_ids.begin(), IDS_SAD_TAB_RELOAD_INCOGNITO);
-#endif  // !BUILDFLAG(IS_OHOS)
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
       // Note: on macOS, Linux and ChromeOS, the first bullet is either one of
       // IDS_SAD_TAB_RELOAD_CLOSE_TABS or IDS_SAD_TAB_RELOAD_CLOSE_NOTABS
@@ -189,7 +184,6 @@ std::vector<int> SadTab::GetSubMessages() {
       return message_ids;
   }
   NOTREACHED();
-  return std::vector<int>();
 }
 
 int SadTab::GetCrashedErrorCode() {
@@ -210,9 +204,9 @@ void SadTab::PerformAction(SadTab::Action action) {
       RecordEvent(show_feedback_button_,
                   ui_metrics::SadTabEvent::BUTTON_CLICKED);
       if (show_feedback_button_) {
-        ShowFeedbackPage(
-            chrome::FindBrowserWithWebContents(web_contents_),
-            chrome::kFeedbackSourceSadTabPage,
+        chrome::ShowFeedbackPage(
+            chrome::FindBrowserWithTab(web_contents_),
+            feedback::kFeedbackSourceSadTabPage,
             std::string() /* description_template */,
             l10n_util::GetStringUTF8(kind_ == SAD_TAB_KIND_CRASHED
                                          ? IDS_CRASHED_TAB_FEEDBACK_MESSAGE
@@ -229,7 +223,7 @@ void SadTab::PerformAction(SadTab::Action action) {
       content::OpenURLParams params(GURL(GetHelpLinkURL()), content::Referrer(),
                                     WindowOpenDisposition::CURRENT_TAB,
                                     ui::PAGE_TRANSITION_LINK, false);
-      web_contents_->OpenURL(params);
+      web_contents_->OpenURL(params, /*navigation_handle_callback=*/{});
       break;
   }
 }
@@ -240,13 +234,6 @@ SadTab::SadTab(content::WebContents* web_contents, SadTabKind kind)
       is_repeatedly_crashing_(IsRepeatedlyCrashing()),
       show_feedback_button_(false),
       recorded_paint_(false) {
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  // Only Google Chrome-branded browsers may show the Feedback button.
-  // Sending feedback is not allowed in the ChromeOS Kiosk mode.
-  if (!profiles::IsKioskSession())
-    show_feedback_button_ = is_repeatedly_crashing_;
-#endif
-
   switch (kind) {
     case SAD_TAB_KIND_CRASHED:
     case SAD_TAB_KIND_OOM:
@@ -265,4 +252,16 @@ SadTab::SadTab(content::WebContents* web_contents, SadTabKind kind)
                    << web_contents->GetURL().DeprecatedGetOriginAsURL().spec();
       break;
   }
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Sending feedback is not allowed in the ChromeOS Kiosk mode.
+  if (chromeos::IsKioskSession()) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  // Only Google Chrome-branded browsers may show the Feedback button.
+  show_feedback_button_ = is_repeatedly_crashing_;
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 }

@@ -11,6 +11,7 @@
 #include "base/test/test_future.h"
 #include "base/values.h"
 #include "chrome/browser/extensions/api/browsing_data/browsing_data_api.h"
+#include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/account_reconcilor_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -23,17 +24,19 @@
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_user_settings.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/api_test_utils.h"
+#include "extensions/test/test_extension_dir.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_inclusion_status.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/dom_storage/storage_area.mojom.h"
 #include "url/gurl.h"
 
@@ -75,7 +78,7 @@ bool SetGaiaCookieForProfile(Profile* profile) {
       "SAPISID", std::string(), "." + google_url.host(), "/", base::Time(),
       base::Time(), base::Time(), base::Time(),
       /*secure=*/true, false, net::CookieSameSite::NO_RESTRICTION,
-      net::COOKIE_PRIORITY_DEFAULT, false);
+      net::COOKIE_PRIORITY_DEFAULT);
 
   base::test::TestFuture<net::CookieAccessResult> set_cookie_future;
   network::mojom::CookieManager* cookie_manager =
@@ -114,7 +117,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionBrowsingDataTest, Syncing) {
   syncer::SyncService* sync_service =
       SyncServiceFactory::GetForProfile(profile);
   sync_service->SetSyncFeatureRequested();
-  sync_service->GetUserSettings()->SetFirstSetupComplete(
+  sync_service->GetUserSettings()->SetInitialSyncFeatureSetupComplete(
       syncer::SyncFirstSetupCompleteSource::BASIC_FLOW);
 
   ASSERT_EQ(SyncStatusMessageType::kSynced, GetSyncStatusMessageType(profile));
@@ -196,7 +199,7 @@ void CreateLocalStorageForKey(Profile* profile, const blink::StorageKey& key) {
                                          area.BindNewPipeAndPassReceiver());
   {
     base::test::TestFuture<bool> put_future;
-    area->Put({'k', 'e', 'y'}, {'v', 'a', 'l', 'u', 'e'}, absl::nullopt,
+    area->Put({'k', 'e', 'y'}, {'v', 'a', 'l', 'u', 'e'}, std::nullopt,
               "source", put_future.GetCallback());
     ASSERT_TRUE(put_future.Get());
   }
@@ -380,4 +383,41 @@ IN_PROC_BROWSER_TEST_F(ExtensionBrowsingDataTestWithStoragePartitioning,
   EXPECT_TRUE(UsageInfosHasStorageKey(usage_infos, key6));
   EXPECT_FALSE(UsageInfosHasStorageKey(usage_infos, key7));
   EXPECT_FALSE(UsageInfosHasStorageKey(usage_infos, key8));
+}
+
+class BrowsingDataApiTest : public extensions::ExtensionApiTest {};
+
+IN_PROC_BROWSER_TEST_F(BrowsingDataApiTest, ValidateFilters) {
+  static constexpr char kManifest[] =
+      R"({
+           "name": "Test",
+           "manifest_version": 3,
+           "version": "0.1",
+           "background": {"service_worker": "background.js"},
+           "permissions": ["browsingData"]
+         })";
+
+  static constexpr char kBackgroundJs[] = R"(chrome.test.runTests([
+      async function originFilter() {
+          await chrome.browsingData.remove(
+              {'origins': ['https://example.com']},
+              {'cookies': true});
+          chrome.test.succeed();
+      },
+      async function emptyOriginsFilter() {
+          const expectedError = new RegExp(
+              '.* Array must have at least 1 items; found 0.');
+          chrome.test.assertThrows(
+              chrome.browsingData.remove,
+              chrome.browsingData,
+              [{'origins': []}, {'cookies': true}],
+              expectedError);
+          chrome.test.succeed();
+      },
+  ]);)";
+
+  extensions::TestExtensionDir test_dir;
+  test_dir.WriteManifest(kManifest);
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), kBackgroundJs);
+  ASSERT_TRUE(RunExtensionTest(test_dir.UnpackedPath(), {}, {})) << message_;
 }

@@ -24,7 +24,7 @@
 #include "components/sessions/core/tab_restore_service.h"
 #include "components/sessions/core/tab_restore_service_observer.h"
 #include "ui/aura/window_tree_host.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 namespace ui {
 class Accelerator;
@@ -72,7 +72,7 @@ class DbusAppmenu : public AvatarMenuObserver,
 
   // Creates a HistoryItem from the data in |entry|.
   std::unique_ptr<HistoryItem> HistoryItemForTab(
-      const sessions::TabRestoreService::Tab& entry);
+      const sessions::tab_restore::Tab& entry);
 
   // Creates a menu item form |item| and inserts it in |menu| at |index|.
   void AddHistoryItemToMenu(std::unique_ptr<HistoryItem> item,
@@ -86,8 +86,7 @@ class DbusAppmenu : public AvatarMenuObserver,
       SessionID id,
       std::u16string title,
       int index,
-      const std::vector<std::unique_ptr<sessions::TabRestoreService::Tab>>&
-          tabs);
+      const std::vector<std::unique_ptr<sessions::tab_restore::Tab>>& tabs);
 
   // Sends a message off to History for data.
   void GetTopSitesData();

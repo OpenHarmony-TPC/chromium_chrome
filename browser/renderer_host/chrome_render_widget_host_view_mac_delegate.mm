@@ -7,7 +7,6 @@
 #include <cmath>
 
 #include "base/auto_reset.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/strings/sys_string_conversions.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/profiles/profile.h"
@@ -15,6 +14,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/webui/top_chrome/webui_url_utils.h"
 #include "chrome/common/url_constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/spellcheck/browser/pref_names.h"
@@ -45,7 +45,7 @@
   int32_t _widgetRoutingId;
 
   // Responsible for 2-finger swipes history navigation.
-  base::scoped_nsobject<HistorySwiper> _historySwiper;
+  HistorySwiper* __strong _historySwiper;
 
   // A boolean set to true while resigning first responder status, to avoid
   // infinite recursion in the case of reentrance.
@@ -58,14 +58,13 @@
   if (self) {
     _widgetProcessId = renderWidgetHost->GetProcess()->GetID();
     _widgetRoutingId = renderWidgetHost->GetRoutingID();
-    _historySwiper.reset([[HistorySwiper alloc] initWithDelegate:self]);
+    _historySwiper = [[HistorySwiper alloc] initWithDelegate:self];
   }
   return self;
 }
 
 - (void)dealloc {
   [_historySwiper setDelegate:nil];
-  [super dealloc];
 }
 
 - (content::WebContents*)webContents {
@@ -409,6 +408,23 @@
   if (view.window.firstResponder == view) {
     [self makeAnyDialogKey];
   }
+}
+
+- (AcceptMouseEventsOption)acceptsMouseEventsOption {
+  content::WebContents* webContents = self.webContents;
+  if (!webContents) {
+    return kAcceptMouseEventsInActiveWindow;
+  }
+
+  // For Top Chrome WebUIs, allows inactive windows to accept
+  // mouse events as long as the application is active. This
+  // mimics the behavior of views UI.
+  if (IsTopChromeWebUIURL(webContents->GetVisibleURL()) ||
+      IsTopChromeUntrustedWebUIURL(webContents->GetVisibleURL())) {
+    return kAcceptMouseEventsInActiveApp;
+  }
+
+  return kAcceptMouseEventsInActiveWindow;
 }
 
 @end

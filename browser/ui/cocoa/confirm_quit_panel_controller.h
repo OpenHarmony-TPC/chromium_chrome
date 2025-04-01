@@ -11,15 +11,14 @@
 
 // The ConfirmQuitPanelController manages the black HUD window that tells users
 // to "Hold Cmd+Q to Quit".
-@interface ConfirmQuitPanelController : NSWindowController<NSWindowDelegate> {
- @private
-  // The content view of the window that this controller manages.
-  ConfirmQuitFrameView* _contentView;  // Weak, owned by the window.
-}
+@interface ConfirmQuitPanelController : NSWindowController <NSWindowDelegate>
 
-// Returns a singleton instance of the Controller. This will create one if it
+// Returns the singleton instance of the Controller. This will create one if it
 // does not currently exist.
-+ (ConfirmQuitPanelController*)sharedController;
+@property(class, readonly) ConfirmQuitPanelController* sharedController;
+
+// Returns a string representation fit for display.
+@property(class, readonly) NSString* keyCommandString;
 
 // Runs a modal loop that brings up the panel and handles the logic for if and
 // when to terminate. Returns YES if the quit should continue.
@@ -32,13 +31,6 @@
 // instructions on how to quit.
 - (void)dismissPanel;
 
-// Returns a string representation fit for display.
-+ (NSString*)keyCommandString;
-
-@end
-
-@interface ConfirmQuitPanelController (UnitTesting)
-+ (NSString*)keyCombinationForMenuItem:(NSMenuItem*)item;
 @end
 
 #endif  // CHROME_BROWSER_UI_COCOA_CONFIRM_QUIT_PANEL_CONTROLLER_H_

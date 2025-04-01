@@ -6,23 +6,23 @@ package org.chromium.chrome.browser.firstrun;
 
 import android.app.Activity;
 
-/**
- * This interface is implemented by FRE fragments.
- */
+import androidx.annotation.Nullable;
+
+/** This interface is implemented by FRE fragments. */
 public interface FirstRunFragment {
     /**
      * Notifies that the object returned by {@link #getPageDelegate()} and its dependencies have
      * been fully initialized, including native initialization.
      *
-     * TODO(https://crbug.com/1346301): Remove this method.
+     * <p>TODO(crbug.com/40232440): Remove this method.
+     *
      * @deprecated Use {@link FirstRunPageDelegate#getNativeInitializationPromise()} instead.
      */
     @Deprecated
     default void onNativeInitialized() {}
 
-    /**
-     * @see Fragment#getActivity().
-     */
+    /** @see androidx.fragment.app.Fragment#getActivity(). */
+    @Nullable
     Activity getActivity();
 
     /**
@@ -38,9 +38,10 @@ public interface FirstRunFragment {
     void setInitialA11yFocus();
 
     /**
-     * Convenience method to get {@link FirstRunPageDelegate}.
+     * Convenience method to get {@link FirstRunPageDelegate}. Be carefully calling this in response
+     * to async events, as once this fragment is detached, this will return null.
      */
-    default FirstRunPageDelegate getPageDelegate() {
+    default @Nullable FirstRunPageDelegate getPageDelegate() {
         return (FirstRunPageDelegate) getActivity();
     }
 

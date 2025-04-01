@@ -37,14 +37,13 @@
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/policy/active_directory/active_directory_policy_manager.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_manager_ash.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_store_ash.h"
 #include "chrome/browser/ash/policy/core/device_local_account.h"
 #include "chrome/browser/ash/policy/core/device_local_account_policy_service.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
@@ -91,7 +90,7 @@ ChromePolicyConversionsClient::ChromePolicyConversionsClient(
     content::BrowserContext* context) {
   DCHECK(context);
   profile_ = Profile::FromBrowserContext(
-      chrome::GetBrowserContextRedirectedInIncognito(context));
+      GetBrowserContextRedirectedInIncognito(context));
 }
 
 ChromePolicyConversionsClient::~ChromePolicyConversionsClient() = default;
@@ -126,8 +125,9 @@ Value::List ChromePolicyConversionsClient::GetExtensionPolicies(
   const bool for_signin_screen =
       policy_domain == POLICY_DOMAIN_SIGNIN_EXTENSIONS;
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  Profile* extension_profile =
-      for_signin_screen ? ash::ProfileHelper::GetSigninProfile() : profile_;
+  Profile* extension_profile = for_signin_screen
+                                   ? ash::ProfileHelper::GetSigninProfile()
+                                   : profile_.get();
 #else   // BUILDFLAG(IS_CHROMEOS_ASH)
   Profile* extension_profile = profile_;
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
@@ -274,14 +274,6 @@ Value::Dict ChromePolicyConversionsClient::GetIdentityFields() {
   if (connector->IsDeviceEnterpriseManaged()) {
     identity_fields.Set("enrollment_domain",
                         connector->GetEnterpriseEnrollmentDomain());
-
-    if (connector->IsActiveDirectoryManaged()) {
-      Value::Dict active_directory_info = GetIdentityFieldsFromPolicy(
-          connector->GetDeviceActiveDirectoryPolicyManager()
-              ->store()
-              ->policy());
-      identity_fields.Merge(std::move(active_directory_info));
-    }
 
     if (connector->IsCloudManaged()) {
       Value::Dict cloud_info = GetIdentityFieldsFromPolicy(

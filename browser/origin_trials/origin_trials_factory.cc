@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -42,7 +42,7 @@ OriginTrialsFactory::OriginTrialsFactory()
           "OriginTrials",
           ProfileSelections::Builder()
               // Do not use for system and internal profiles
-              // TODO(crbug.com/1392695): May need to enable Guest in the
+              // TODO(crbug.com/40247867): May need to enable Guest in the
               // future.
               .WithGuest(ProfileSelection::kNone)
               .WithSystem(ProfileSelection::kNone)
@@ -51,10 +51,11 @@ OriginTrialsFactory::OriginTrialsFactory()
 
 OriginTrialsFactory::~OriginTrialsFactory() noexcept = default;
 
-KeyedService* OriginTrialsFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+OriginTrialsFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  return new origin_trials::OriginTrials(
+  return std::make_unique<origin_trials::OriginTrials>(
       std::make_unique<origin_trials::LevelDbPersistenceProvider>(
           context->GetPath(),
           context->GetDefaultStoragePartition()->GetProtoDatabaseProvider()),

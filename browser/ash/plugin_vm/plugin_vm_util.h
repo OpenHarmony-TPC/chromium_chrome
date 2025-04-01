@@ -6,15 +6,15 @@
 #define CHROME_BROWSER_ASH_PLUGIN_VM_PLUGIN_VM_UTIL_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list_types.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace aura {
 class Window;
@@ -81,7 +81,7 @@ std::string GetPluginVmUserIdForProfile(const Profile* profile);
 // will still be used by the PluginVmService. This function also makes the
 // installer skip its license check.
 // This sets global state, not per-profile state.
-// TODO(crbug.com/1025136): Set policy directly from tast instead of using a
+// TODO(crbug.com/40107731): Set policy directly from tast instead of using a
 // test helper function.
 void SetFakePluginVmPolicy(Profile* profile,
                            const std::string& image_path,
@@ -95,7 +95,7 @@ std::string GetFakeLicenseKey();
 void RemoveDriveDownloadDirectoryIfExists();
 
 // Returns nullopt if not a drive URL.
-absl::optional<std::string> GetIdFromDriveUrl(const GURL& url);
+std::optional<std::string> GetIdFromDriveUrl(const GURL& url);
 
 // Returns true if window is PluginVM.
 bool IsPluginvmWindowId(const std::string& window_id);
@@ -120,7 +120,7 @@ class PluginVmAvailabilitySubscription {
   void OnPolicyChanged();
   void OnImageExistsChanged();
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
 
   // Whether Plugin VM was previously allowed for the profile.
   bool is_allowed_;

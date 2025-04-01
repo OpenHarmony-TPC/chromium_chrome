@@ -10,8 +10,8 @@
 
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
-#include "base/time/time.h"
 #include "build/build_config.h"
+#include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_member.h"
 
@@ -39,15 +39,6 @@ class PrefRegistrySyncable;
 // Stores all download-related preferences.
 class DownloadPrefs {
  public:
-  enum class DownloadRestriction {
-    NONE = 0,
-    DANGEROUS_FILES = 1,
-    POTENTIALLY_DANGEROUS_FILES = 2,
-    ALL_FILES = 3,
-    // MALICIOUS_FILES has a stricter definition of harmful file than
-    // DANGEROUS_FILES and does not block based on file extension.
-    MALICIOUS_FILES = 4,
-  };
   explicit DownloadPrefs(Profile* profile);
 
   DownloadPrefs(const DownloadPrefs&) = delete;
@@ -73,16 +64,18 @@ class DownloadPrefs {
   // Identify whether the downloaded item was downloaded from a trusted source.
   bool IsFromTrustedSource(const download::DownloadItem& item);
 
+#if BUILDFLAG(IS_OHOS)
+  void ResetDownloadPath();
+  bool IsShouldCancel();
+#endif
   base::FilePath DownloadPath() const;
   void SetDownloadPath(const base::FilePath& path);
   base::FilePath SaveFilePath() const;
   void SetSaveFilePath(const base::FilePath& path);
   int save_file_type() const { return *save_file_type_; }
   void SetSaveFileType(int type);
-  base::Time GetLastCompleteTime();
-  void SetLastCompleteTime(const base::Time& last_complete_time);
-  DownloadRestriction download_restriction() const {
-    return static_cast<DownloadRestriction>(*download_restriction_);
+  policy::DownloadRestriction download_restriction() const {
+    return static_cast<policy::DownloadRestriction>(*download_restriction_);
   }
   bool safebrowsing_for_trusted_sources_enabled() const {
     return *safebrowsing_for_trusted_sources_enabled_;
@@ -118,7 +111,7 @@ class DownloadPrefs {
   void DisableAutoOpenByUserBasedOnExtension(const base::FilePath& file_name);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_MAC)
+    BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
   // Store the user preference to disk. If |should_open| is true, also disable
   // the built-in PDF plugin. If |should_open| is false, enable the PDF plugin.
   void SetShouldOpenPdfInSystemReader(bool should_open);
@@ -134,10 +127,10 @@ class DownloadPrefs {
   // forward - whatever has been passed to SetDownloadPath will be used.
   void SkipSanitizeDownloadTargetPathForTesting();
 
-  // Returns true if the download_duplicate_file_prompt_enabled pref is set and
-  // the new download bubble UI is enabled. Returns false on Android.
-  bool PromptForDuplicateFile() const;
-
+#if BUILDFLAG(IS_ANDROID)
+  // Returns whether downloaded pdf from external apps should be auto-opened.
+  bool IsAutoOpenPdfEnabled();
+#endif
  private:
   void SaveAutoOpenState();
   bool CanPlatformEnableAutoOpenForPdf() const;
@@ -155,14 +148,20 @@ class DownloadPrefs {
   BooleanPrefMember prompt_for_download_;
 #if BUILDFLAG(IS_ANDROID)
   IntegerPrefMember prompt_for_download_android_;
+  BooleanPrefMember auto_open_pdf_enabled_;
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  BooleanPrefMember prompt_for_download_ohos_;
+  BooleanPrefMember prompt_for_download_ohos_confirmed_;
+  base::FilePath download_path_ohos_;
+  bool is_should_cancel_ = false;
 #endif
 
   FilePathPrefMember download_path_;
   FilePathPrefMember save_file_path_;
   IntegerPrefMember save_file_type_;
   IntegerPrefMember download_restriction_;
-  BooleanPrefMember download_bubble_enabled_;
-  BooleanPrefMember prompt_for_duplicate_file_;
   BooleanPrefMember safebrowsing_for_trusted_sources_enabled_;
 
   PrefChangeRegistrar pref_change_registrar_;
@@ -183,7 +182,7 @@ class DownloadPrefs {
   std::unique_ptr<policy::URLBlocklist> auto_open_allowed_by_urls_;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_MAC)
+    BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
   bool should_open_pdf_in_system_reader_;
 #endif
 

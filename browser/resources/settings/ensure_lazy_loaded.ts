@@ -18,11 +18,10 @@ export function ensureLazyLoaded(): Promise<void> {
         Promise
             .all([
               'settings-appearance-page', 'settings-autofill-section',
-              'settings-password-check', 'passwords-section',
               'settings-payments-section',
               'settings-clear-browsing-data-dialog',
               'settings-search-engines-page',
-              // <if expr="use_nss_certs">
+              // <if expr="use_nss_certs or is_ohos">
               'certificate-manager',
               // </if>
               'settings-a11y-page', 'settings-downloads-page',

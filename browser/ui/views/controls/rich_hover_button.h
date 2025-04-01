@@ -27,9 +27,9 @@ class View;
 // 'RichHoverButton' inherits the interaction behavior from 'HoverButton'
 // but sets up its own layout and content.
 class RichHoverButton : public HoverButton {
- public:
-  METADATA_HEADER(RichHoverButton);
+  METADATA_HEADER(RichHoverButton, HoverButton)
 
+ public:
   // Creates a hoverable button that displays the string given by
   // |title_text| and |secondary_text| and displays the latter part in the
   // secondary text color. Optional |action_image_icon| is shown on right side.
@@ -47,8 +47,8 @@ class RichHoverButton : public HoverButton {
       const std::u16string& secondary_text,
       const std::u16string& tooltip_text,
       const std::u16string& subtitle_text,
-      absl::optional<ui::ImageModel> action_image_icon = absl::nullopt,
-      absl::optional<ui::ImageModel> state_icon = absl::nullopt);
+      std::optional<ui::ImageModel> action_image_icon = std::nullopt,
+      std::optional<ui::ImageModel> state_icon = std::nullopt);
 
   RichHoverButton(const RichHoverButton&) = delete;
   RichHoverButton& operator=(const RichHoverButton&) = delete;
@@ -63,7 +63,9 @@ class RichHoverButton : public HoverButton {
 
   void SetSubtitleMultiline(bool is_multiline);
 
+  views::Label* title() { return title_; }
   views::Label* secondary_label() { return secondary_label_; }
+  views::Label* subtitle() { return subtitle_; }
 
   const views::Label* GetTitleViewForTesting() const;
   const views::Label* GetSubTitleViewForTesting() const;
@@ -72,8 +74,8 @@ class RichHoverButton : public HoverButton {
   // HoverButton:
   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
   views::View* GetTooltipHandlerForPoint(const gfx::Point& point) override;
-  gfx::Size CalculatePreferredSize() const override;
-  int GetHeightForWidth(int w) const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
 
  private:
   void UpdateAccessibleName();

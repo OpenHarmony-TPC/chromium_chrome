@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -22,8 +23,10 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/blocklist.h"
 #include "chrome/browser/extensions/corrupted_extension_reinstaller.h"
+#include "chrome/browser/extensions/cws_info_service.h"
 #include "chrome/browser/extensions/extension_allowlist.h"
 #include "chrome/browser/extensions/extension_management.h"
+#include "chrome/browser/extensions/extension_telemetry_service_verdict_handler.h"
 #include "chrome/browser/extensions/forced_extensions/force_installed_metrics.h"
 #include "chrome/browser/extensions/forced_extensions/force_installed_tracker.h"
 #include "chrome/browser/extensions/install_gate.h"
@@ -32,11 +35,9 @@
 #include "chrome/browser/extensions/safe_browsing_verdict_handler.h"
 #include "chrome/browser/profiles/profile_manager_observer.h"
 #include "chrome/browser/upgrade_detector/upgrade_observer.h"
-#include "components/safe_browsing/buildflags.h"
 #include "components/sync/model/string_ordinal.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_process_host_creation_observer.h"
-#include "extensions/browser/api/declarative_net_request/ruleset_install_pref.h"
 #include "extensions/browser/crx_file_info.h"
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_host_registry.h"
@@ -51,15 +52,8 @@
 #include "extensions/common/extension_id.h"
 #include "extensions/common/extension_set.h"
 #include "extensions/common/manifest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-#if !BUILDFLAG(ENABLE_EXTENSIONS)
-#error "Extensions must be enabled"
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/extensions/ash_extension_keeplist_manager.h"
-#endif
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS));
 
 class BlocklistedExtensionSyncServiceTest;
 class Profile;
@@ -90,7 +84,7 @@ enum class UnloadedExtensionReason;
 // various classes have on ExtensionService. This allows easy mocking.
 class ExtensionServiceInterface {
  public:
-  virtual ~ExtensionServiceInterface() {}
+  virtual ~ExtensionServiceInterface() = default;
 
   // Gets the object managing the set of pending extensions.
   virtual PendingExtensionManager* pending_extension_manager() = 0;
@@ -174,6 +168,7 @@ class ExtensionService : public ExtensionServiceInterface,
                          public content::RenderProcessHostCreationObserver,
                          public content::RenderProcessHostObserver,
                          public Blocklist::Observer,
+                         public CWSInfoService::Observer,
                          public ExtensionManagement::Observer,
                          public UpgradeObserver,
                          public ExtensionRegistrar::Delegate,
@@ -312,11 +307,14 @@ class ExtensionService : public ExtensionServiceInterface,
   void RemoveDisableReasonAndMaybeEnable(const std::string& extension_id,
                                          disable_reason::DisableReason reason);
 
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   // Performs action based on Omaha attributes for the extension.
   void PerformActionBasedOnOmahaAttributes(const std::string& extension_id,
-                                           const base::Value& attributes);
-#endif
+                                           const base::Value::Dict& attributes);
+
+  // Performs action based on verdicts received from the Extension Telemetry
+  // server. Currently, these verdicts are limited to off-store extensions.
+  void PerformActionBasedOnExtensionTelemetryServiceVerdicts(
+      const Blocklist::BlocklistStateMap& blocklist_state_map);
 
   // Disables the extension. If the extension is already disabled, just adds
   // the |disable_reasons| (a bitmask of disable_reason::DisableReason - there
@@ -374,8 +372,7 @@ class ExtensionService : public ExtensionServiceInterface,
   void OnExtensionInstalled(const Extension* extension,
                             const syncer::StringOrdinal& page_ordinal,
                             int install_flags,
-                            const declarative_net_request::RulesetInstallPrefs&
-                                ruleset_install_prefs = {});
+                            base::Value::Dict ruleset_install_prefs = {});
   void OnExtensionInstalled(const Extension* extension,
                             const syncer::StringOrdinal& page_ordinal) {
     OnExtensionInstalled(extension, page_ordinal,
@@ -479,6 +476,10 @@ class ExtensionService : public ExtensionServiceInterface,
   // Simulate an extension being blocklisted for tests.
   void BlocklistExtensionForTest(const std::string& extension_id);
 
+  // Simulate an extension being greylisted for tests.
+  void GreylistExtensionForTest(const std::string& extension_id,
+                                const BitMapBlocklistState& state);
+
 #if defined(UNIT_TEST)
   void FinishInstallationForTest(const Extension* extension) {
     FinishInstallation(extension);
@@ -508,7 +509,7 @@ class ExtensionService : public ExtensionServiceInterface,
  private:
   // Loads extensions specified via a command line flag/switch.
   void LoadExtensionsFromCommandLineFlag(const char* switch_name);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void LoadSigninProfileTestExtension(const std::string& path);
 #endif
 
@@ -527,6 +528,9 @@ class ExtensionService : public ExtensionServiceInterface,
 
   // Blocklist::Observer implementation.
   void OnBlocklistUpdated() override;
+
+  // CWSInfoService::Observer implementation.
+  void OnCWSInfoChanged() override;
 
   // UpgradeObserver implementation.
   void OnUpgradeRecommended() override;
@@ -575,14 +579,12 @@ class ExtensionService : public ExtensionServiceInterface,
   // pages; and perform other extension install tasks before calling
   // AddExtension.
   // |install_flags| is a bitmask of InstallFlags.
-  void AddNewOrUpdatedExtension(
-      const Extension* extension,
-      Extension::State initial_state,
-      int install_flags,
-      const syncer::StringOrdinal& page_ordinal,
-      const std::string& install_parameter,
-      const declarative_net_request::RulesetInstallPrefs&
-          ruleset_install_prefs);
+  void AddNewOrUpdatedExtension(const Extension* extension,
+                                Extension::State initial_state,
+                                int install_flags,
+                                const syncer::StringOrdinal& page_ordinal,
+                                const std::string& install_parameter,
+                                base::Value::Dict ruleset_install_prefs);
 
   // Common helper to finish installing the given extension.
   void FinishInstallation(const Extension* extension);
@@ -648,7 +650,13 @@ class ExtensionService : public ExtensionServiceInterface,
   // the manager and retried later.
   void InstallationFromExternalFileFinished(
       const std::string& extension_id,
-      const absl::optional<CrxInstallError>& error);
+      const std::optional<CrxInstallError>& error);
+
+  // Called when the Developer Mode preference is changed:
+  // - Disables unpacked extensions if developer mode is OFF.
+  // - Re-enables unpacked extensions if developer mode is ON and there are no
+  // other disable reasons associated with them.
+  void OnDeveloperModePrefChanged();
 
   raw_ptr<const base::CommandLine, DanglingUntriaged> command_line_ = nullptr;
 
@@ -656,7 +664,7 @@ class ExtensionService : public ExtensionServiceInterface,
   raw_ptr<Profile> profile_ = nullptr;
 
   // The ExtensionSystem for the profile above.
-  raw_ptr<ExtensionSystem, DanglingUntriaged> system_ = nullptr;
+  raw_ptr<ExtensionSystem, AcrossTasksDanglingUntriaged> system_ = nullptr;
 
   // Preferences for the owning profile.
   raw_ptr<ExtensionPrefs, DanglingUntriaged> extension_prefs_ = nullptr;
@@ -669,6 +677,9 @@ class ExtensionService : public ExtensionServiceInterface,
   SafeBrowsingVerdictHandler safe_browsing_verdict_handler_;
 
   OmahaAttributesHandler omaha_attributes_handler_;
+
+  ExtensionTelemetryServiceVerdictHandler
+      extension_telemetry_service_verdict_handler_;
 
   // Sets of enabled/disabled/terminated/blocklisted extensions. Not owned.
   raw_ptr<ExtensionRegistry, DanglingUntriaged> registry_ = nullptr;
@@ -776,13 +787,14 @@ class ExtensionService : public ExtensionServiceInterface,
                           ExtensionHostRegistry::Observer>
       host_registry_observation_{this};
 
-  using InstallGateRegistry =
-      std::map<ExtensionPrefs::DelayReason, InstallGate*>;
+  base::ScopedObservation<CWSInfoService, CWSInfoService::Observer>
+      cws_info_service_observation_{this};
+
+  using InstallGateRegistry = std::map<ExtensionPrefs::DelayReason,
+                                       raw_ptr<InstallGate, CtnExperimental>>;
   InstallGateRegistry install_delayer_registry_;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  AshExtensionKeeplistManager ash_keeplist_manager_;
-#endif
+  PrefChangeRegistrar pref_change_registrar_;
 
   base::WeakPtrFactory<ExtensionService> weak_ptr_factory_{this};
 
@@ -811,8 +823,6 @@ class ExtensionService : public ExtensionServiceInterface,
                            ExtensionsNotAllowlistedThenBlocklisted);
   FRIEND_TEST_ALL_PREFIXES(ExtensionAllowlistUnitTest,
                            ExtensionsBlocklistedThenNotAllowlisted);
-  FRIEND_TEST_ALL_PREFIXES(OmahaAttributesHandlerUnitTest,
-                           NoUnsetBlocklistWhenSBBlocklistPolicyDisabled);
   FRIEND_TEST_ALL_PREFIXES(SafeBrowsingVerdictHandlerUnitTest,
                            GreylistedExtensionDisabled);
   FRIEND_TEST_ALL_PREFIXES(SafeBrowsingVerdictHandlerUnitTest,
@@ -835,8 +845,6 @@ class ExtensionService : public ExtensionServiceInterface,
                            ExtensionUninstalledWhenBlocklisted);
   FRIEND_TEST_ALL_PREFIXES(SafeBrowsingVerdictHandlerUnitTest,
                            ExtensionUninstalledWhenBlocklistFetching);
-  FRIEND_TEST_ALL_PREFIXES(SafeBrowsingVerdictHandlerUnitTest,
-                           ReloadBlocklistedExtensionWhenPolicyDisabled);
   friend class ::BlocklistedExtensionSyncServiceTest;
   friend class SafeBrowsingVerdictHandlerUnitTest;
   friend class BlocklistStatesInteractionUnitTest;

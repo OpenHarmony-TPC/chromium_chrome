@@ -6,8 +6,11 @@ package org.chromium.chrome.browser.commerce;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.base.ResettersForTesting;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.commerce.core.ShoppingService;
 
@@ -31,13 +34,14 @@ public final class ShoppingServiceFactory {
         return ShoppingServiceFactoryJni.get().getForProfile(profile);
     }
 
-    @VisibleForTesting
     public static void setShoppingServiceForTesting(ShoppingService shoppingService) {
         sShoppingServiceForTesting = shoppingService;
+        ResettersForTesting.register(() -> sShoppingServiceForTesting = null);
     }
 
     @NativeMethods
-    interface Natives {
-        ShoppingService getForProfile(Profile profile);
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+    public interface Natives {
+        ShoppingService getForProfile(@JniType("Profile*") Profile profile);
     }
 }

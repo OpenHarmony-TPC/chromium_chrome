@@ -216,7 +216,7 @@ class FingerprintUnlockTest : public InProcessBrowserTest {
   }
 
  protected:
-  raw_ptr<FakeBiodClient, ExperimentalAsh> biod_;  // Non-owning pointer.
+  raw_ptr<FakeBiodClient, DanglingUntriaged> biod_;  // Non-owning pointer.
   std::unique_ptr<base::SimpleTestClock> test_clock_;
   std::unique_ptr<base::SimpleTestTickClock> test_tick_clock_;
 
@@ -232,7 +232,7 @@ class FingerprintUnlockTest : public InProcessBrowserTest {
 
   base::OnceClosure fingerprint_session_callback_;
 
-  raw_ptr<QuickUnlockStorage, ExperimentalAsh> quick_unlock_storage_;
+  raw_ptr<QuickUnlockStorage, DanglingUntriaged> quick_unlock_storage_;
 
   std::unique_ptr<ui::ScopedAnimationDurationScaleMode> zero_duration_mode_;
   std::unique_ptr<quick_unlock::TestApi> test_api_;
@@ -307,6 +307,7 @@ IN_PROC_BROWSER_TEST_F(FingerprintUnlockTest, BiodFailsBeforeLockScreenReady) {
   EXPECT_FALSE(tester.IsLocked());
 }
 
+// TODO(crbug.com/361782081): Fix and re-enable this test.
 IN_PROC_BROWSER_TEST_F(FingerprintUnlockEnrollTest,
                        ExceedAttemptsAndBiodRestart) {
   ScreenLockerTester tester;

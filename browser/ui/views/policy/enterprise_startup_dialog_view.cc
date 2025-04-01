@@ -16,12 +16,14 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/headless/headless_mode_util.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/color_palette.h"
@@ -70,7 +72,7 @@ std::unique_ptr<views::Label> CreateText(const std::u16string& message) {
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 class LogoView : public views::ImageView {
-  METADATA_HEADER(LogoView);
+  METADATA_HEADER(LogoView, views::ImageView)
 
  public:
   LogoView() {
@@ -92,7 +94,7 @@ class LogoView : public views::ImageView {
   }
 };
 
-BEGIN_METADATA(LogoView, views::ImageView)
+BEGIN_METADATA(LogoView)
 END_METADATA
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
@@ -126,7 +128,7 @@ class HeadlessEnterpriseStartupDialogImpl : public EnterpriseStartupDialog {
 
   void DisplayErrorMessage(
       const std::u16string& error_message,
-      const absl::optional<std::u16string>& accept_button) override {
+      const std::optional<std::u16string>& accept_button) override {
     if (callback_) {
       // In headless mode the dialog is invisible, therefore there is
       // no one to accept or dismiss it. So just dismiss the dialog
@@ -160,12 +162,12 @@ EnterpriseStartupDialogView::EnterpriseStartupDialogView(
           views::DISTANCE_TEXTFIELD_HORIZONTAL_TEXT_PADDING));
 
   set_draggable(true);
-  SetButtons(ui::DIALOG_BUTTON_OK);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk));
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // Show Google Chrome Enterprise logo only for official build.
   SetExtraView(std::make_unique<LogoView>());
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  SetModalType(ui::MODAL_TYPE_NONE);
+  SetModalType(ui::mojom::ModalType::kNone);
   SetAcceptCallback(
       base::BindOnce(&EnterpriseStartupDialogView::RunDialogCallback,
                      base::Unretained(this), true));
@@ -201,7 +203,7 @@ void EnterpriseStartupDialogView::DisplayLaunchingInformationWithThrobber(
 
 void EnterpriseStartupDialogView::DisplayErrorMessage(
     const std::u16string& error_message,
-    const absl::optional<std::u16string>& accept_button) {
+    const std::optional<std::u16string>& accept_button) {
   ResetDialog(accept_button.has_value());
   std::unique_ptr<views::Label> text = CreateText(error_message);
   auto error_icon =
@@ -259,7 +261,8 @@ bool EnterpriseStartupDialogView::ShouldShowWindowTitle() const {
   return false;
 }
 
-gfx::Size EnterpriseStartupDialogView::CalculatePreferredSize() const {
+gfx::Size EnterpriseStartupDialogView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   return gfx::Size(kDialogContentWidth, kDialogContentHeight);
 }
 
@@ -279,11 +282,11 @@ void EnterpriseStartupDialogView::AddContent(
   // TODO(weili): The child views are added after the dialog shows. So it
   // requires relayout and repaint. Consider a refactoring to add content
   // before showing.
-  GetWidget()->GetRootView()->Layout();
+  GetWidget()->GetRootView()->DeprecatedLayoutImmediately();
   GetWidget()->GetRootView()->SchedulePaint();
 }
 
-BEGIN_METADATA(EnterpriseStartupDialogView, views::DialogDelegateView)
+BEGIN_METADATA(EnterpriseStartupDialogView)
 END_METADATA
 
 /*
@@ -312,7 +315,7 @@ void EnterpriseStartupDialogImpl::DisplayLaunchingInformationWithThrobber(
 
 void EnterpriseStartupDialogImpl::DisplayErrorMessage(
     const std::u16string& error_message,
-    const absl::optional<std::u16string>& accept_button) {
+    const std::optional<std::u16string>& accept_button) {
   if (dialog_view_)
     dialog_view_->DisplayErrorMessage(error_message, accept_button);
 }

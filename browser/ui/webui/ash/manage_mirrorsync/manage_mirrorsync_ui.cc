@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/ash/manage_mirrorsync/manage_mirrorsync_ui.h"
 
 #include "ash/constants/ash_features.h"
@@ -28,7 +33,6 @@ ManageMirrorSyncUI::ManageMirrorSyncUI(content::WebUI* web_ui)
                               base::make_span(kManageMirrorsyncResources,
                                               kManageMirrorsyncResourcesSize),
                               IDR_MANAGE_MIRRORSYNC_INDEX_HTML);
-  source->DisableTrustedTypesCSP();
 }
 
 ManageMirrorSyncUI::~ManageMirrorSyncUI() = default;

@@ -8,8 +8,10 @@
  * that is built into Chrome OS to do the actual text editing.
  */
 
-import {EventGenerator} from '../../../common/event_generator.js';
-import {StringUtil} from '../../../common/string_util.js';
+import {EventGenerator} from '/common/event_generator.js';
+import {StringUtil} from '/common/string_util.js';
+import {TestImportManager} from '/common/testing/test_import_manager.js';
+
 import {BrailleKeyCommand, BrailleKeyEvent} from '../../common/braille/braille_key_types.js';
 import {Spannable} from '../../common/spannable.js';
 
@@ -389,19 +391,15 @@ export class BrailleInputHandler {
    * @private
    */
   sendKeyEventPair_(event) {
-    chrome.virtualKeyboardPrivate.getKeyboardConfig(function(config) {
-      // Use the virtual keyboard API instead of the IME key event API
-      // so that these keys work even if the Braille IME is not active.
-      const keyName = /** @type {string} */ (event.standardKeyCode);
-      const numericCode = BrailleKeyEvent.keyCodeToLegacyCode(keyName);
-      if (!numericCode) {
-        throw Error('Unknown key code in event: ' + JSON.stringify(event));
-      }
-      EventGenerator.sendKeyPress(numericCode, {
-        shift: Boolean(event.shiftKey),
-        ctrl: Boolean(event.ctrlKey),
-        alt: Boolean(event.altKey),
-      });
+    const keyName = /** @type {string} */ (event.standardKeyCode);
+    const numericCode = BrailleKeyEvent.keyCodeToLegacyCode(keyName);
+    if (!numericCode) {
+      throw Error('Unknown key code in event: ' + JSON.stringify(event));
+    }
+    EventGenerator.sendKeyPress(numericCode, {
+      shift: Boolean(event.shiftKey),
+      ctrl: Boolean(event.ctrlKey),
+      alt: Boolean(event.altKey),
     });
   }
 }
@@ -682,3 +680,5 @@ BrailleInputHandler.LateCommitEntryState_ =
 
 /** @type {BrailleInputHandler} */
 BrailleInputHandler.instance;
+
+TestImportManager.exportForTesting(BrailleInputHandler);

@@ -4,26 +4,32 @@
 
 #include "chrome/browser/ui/webui/settings/search_engines_handler.h"
 
-#include <algorithm>
 #include <string>
 #include <utility>
 
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/user_metrics.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search_engine_choice/search_engine_choice_service_factory.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/search_engines/ui_thread_search_terms_data.h"
 #include "chrome/browser/ui/search_engines/template_url_table_model.h"
+#include "chrome/browser/ui/webui/search_engine_choice/icon_utils.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
+#include "components/search_engines/search_engine_choice/search_engine_choice_service.h"
+#include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
+#include "components/search_engines/search_engines_pref_names.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_service.h"
 #include "content/public/browser/web_ui.h"
@@ -65,6 +71,10 @@ void SearchEnginesHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "getSearchEnginesList",
       base::BindRepeating(&SearchEnginesHandler::HandleGetSearchEnginesList,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getSaveGuestChoice",
+      base::BindRepeating(&SearchEnginesHandler::HandleGetSaveGuestChoice,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "setDefaultSearchEngine",
@@ -119,7 +129,7 @@ base::Value::Dict SearchEnginesHandler::GetSearchEnginesList() {
   // Find the default engine.
   const TemplateURL* default_engine =
       list_controller_.GetDefaultSearchProvider();
-  absl::optional<size_t> default_index =
+  std::optional<size_t> default_index =
       list_controller_.table_model()->IndexOfTemplateURL(default_engine);
 
   // Build the first list (default search engines).
@@ -132,8 +142,7 @@ base::Value::Dict SearchEnginesHandler::GetSearchEnginesList() {
     defaults.Append(CreateDictionaryForEngine(i, i == default_index));
   }
 
-  // Build the second list (active search engines). This will not have any
-  // entries if the new Search Engines page is not enabled.
+  // Build the second list (active search engines).
   base::Value::List actives;
   size_t last_active_engine_index =
       list_controller_.table_model()->last_active_engine_index();
@@ -145,7 +154,7 @@ base::Value::Dict SearchEnginesHandler::GetSearchEnginesList() {
     actives.Append(CreateDictionaryForEngine(i, i == default_index));
   }
 
-  // Build the second list (other search engines).
+  // Build the third list (other search engines).
   base::Value::List others;
   size_t last_other_engine_index =
       list_controller_.table_model()->last_other_engine_index();
@@ -213,8 +222,7 @@ base::Value::Dict SearchEnginesHandler::CreateDictionaryForEngine(
   dict.Set("displayName",
            table_model->GetText(index,
                                 IDS_SEARCH_ENGINES_EDITOR_DESCRIPTION_COLUMN));
-  dict.Set("keyword", table_model->GetText(
-                          index, IDS_SEARCH_ENGINES_EDITOR_KEYWORD_COLUMN));
+  dict.Set("keyword", table_model->GetKeywordToDisplay(index));
   Profile* profile = Profile::FromWebUI(web_ui());
   dict.Set("url",
            template_url->url_ref().DisplayURL(UIThreadSearchTermsData()));
@@ -223,6 +231,26 @@ base::Value::Dict SearchEnginesHandler::CreateDictionaryForEngine(
   GURL icon_url = template_url->favicon_url();
   if (icon_url.is_valid())
     dict.Set("iconURL", icon_url.spec());
+
+  // The icons that are used for search engines in the EEA region are bundled
+  // with Chrome. We use the favicon service for countries outside the EEA
+  // region to guarantee having icons for all search engines.
+  search_engines::SearchEngineChoiceService* search_engine_choice_service =
+      search_engines::SearchEngineChoiceServiceFactory::GetForProfile(profile);
+  const bool is_eea_region = search_engines::IsEeaChoiceCountry(
+      search_engine_choice_service->GetCountryId());
+  if (is_eea_region && template_url->prepopulate_id() != 0) {
+    std::string_view icon_path =
+        GetSearchEngineGeneratedIconPath(template_url->keyword());
+    if (!icon_path.empty()) {
+      // The search engine icon path are 24px, but displayed at 16px, or 32px on
+      // HiDPI screens. Use the 2x version (48px) for a large enough icon.
+      // Note that this icon path is used in `site-favicon` which does not
+      // support `image-set`.
+      dict.Set("iconPath", base::StrCat({icon_path, "@2x"}));
+    }
+  }
+
   dict.Set("modelIndex", base::checked_cast<int>(index));
 
   dict.Set("canBeRemoved", list_controller_.CanRemove(template_url));
@@ -233,8 +261,11 @@ base::Value::Dict SearchEnginesHandler::CreateDictionaryForEngine(
   dict.Set("canBeDeactivated", list_controller_.CanDeactivate(template_url));
   dict.Set("shouldConfirmDeletion",
            list_controller_.ShouldConfirmDeletion(template_url));
+  dict.Set("isManaged", list_controller_.IsManaged(template_url));
   TemplateURL::Type type = template_url->type();
   dict.Set("isOmniboxExtension", type == TemplateURL::OMNIBOX_API_EXTENSION);
+  dict.Set("isPrepopulated", template_url->prepopulate_id() > 0);
+  dict.Set("isStarterPack", template_url->starter_pack_id() > 0);
   if (type == TemplateURL::NORMAL_CONTROLLED_BY_EXTENSION ||
       type == TemplateURL::OMNIBOX_API_EXTENSION) {
     const extensions::Extension* extension =
@@ -264,16 +295,60 @@ void SearchEnginesHandler::HandleGetSearchEnginesList(
 
 void SearchEnginesHandler::HandleSetDefaultSearchEngine(
     const base::Value::List& args) {
-  CHECK_EQ(1U, args.size());
+  CHECK_EQ(3U, args.size());
   int index = args[0].GetInt();
   if (index < 0 || static_cast<size_t>(index) >=
                        list_controller_.table_model()->RowCount()) {
     return;
   }
 
-  list_controller_.MakeDefaultTemplateURL(index);
-
+  search_engines::ChoiceMadeLocation choice_made_location =
+      static_cast<search_engines::ChoiceMadeLocation>(args[1].GetInt());
+  CHECK(choice_made_location ==
+            search_engines::ChoiceMadeLocation::kSearchSettings ||
+        choice_made_location ==
+            search_engines::ChoiceMadeLocation::kSearchEngineSettings);
+  list_controller_.MakeDefaultTemplateURL(index, choice_made_location);
   base::RecordAction(base::UserMetricsAction("Options_SearchEngineSetDefault"));
+
+  auto* choice_service =
+      search_engines::SearchEngineChoiceServiceFactory::GetForProfile(profile_);
+  if (!choice_service->IsProfileEligibleForDseGuestPropagation()) {
+    return;
+  }
+
+  if (args[2].is_none()) {
+    return;
+  }
+
+  bool saveGuestChoice = args[2].GetBool();
+  if (!saveGuestChoice) {
+    choice_service->SetSavedSearchEngineBetweenGuestSessions(std::nullopt);
+    return;
+  }
+
+  int prepopulate_id =
+      list_controller_.GetDefaultSearchProvider()->prepopulate_id();
+  if (prepopulate_id > 0 &&
+      prepopulate_id <= TemplateURLPrepopulateData::kMaxPrepopulatedEngineID) {
+    choice_service->SetSavedSearchEngineBetweenGuestSessions(prepopulate_id);
+  }
+}
+
+void SearchEnginesHandler::HandleGetSaveGuestChoice(
+    const base::Value::List& args) {
+  CHECK_EQ(1U, args.size());
+  const base::Value& callback_id = args[0];
+  AllowJavascript();
+
+  base::Value save_guest_choice;
+  auto* choice_service =
+      search_engines::SearchEngineChoiceServiceFactory::GetForProfile(profile_);
+  if (choice_service->IsProfileEligibleForDseGuestPropagation()) {
+    save_guest_choice = base::Value(
+        choice_service->GetSavedSearchEngineBetweenGuestSessions().has_value());
+  }
+  ResolveJavascriptCallback(callback_id, std::move(save_guest_choice));
 }
 
 void SearchEnginesHandler::HandleSetIsActiveSearchEngine(
@@ -352,14 +427,15 @@ bool SearchEnginesHandler::CheckFieldValidity(const std::string& field_name,
     return false;
 
   bool is_valid = false;
-  if (field_name.compare(kSearchEngineField) == 0)
+  if (field_name.compare(kSearchEngineField) == 0) {
     is_valid = edit_controller_->IsTitleValid(base::UTF8ToUTF16(field_value));
-  else if (field_name.compare(kKeywordField) == 0)
+  } else if (field_name.compare(kKeywordField) == 0) {
     is_valid = edit_controller_->IsKeywordValid(base::UTF8ToUTF16(field_value));
-  else if (field_name.compare(kQueryUrlField) == 0)
+  } else if (field_name.compare(kQueryUrlField) == 0) {
     is_valid = edit_controller_->IsURLValid(field_value);
-  else
+  } else {
     NOTREACHED();
+  }
 
   return is_valid;
 }

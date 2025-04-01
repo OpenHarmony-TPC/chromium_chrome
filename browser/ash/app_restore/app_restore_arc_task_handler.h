@@ -48,18 +48,14 @@ class AppRestoreArcTaskHandler : public KeyedService,
                                  public ArcAppListPrefs::Observer,
                                  public arc::ArcSessionManagerObserver {
  public:
-  static AppRestoreArcTaskHandler* GetForProfile(Profile* profile);
-
   explicit AppRestoreArcTaskHandler(Profile* profile);
   AppRestoreArcTaskHandler(const AppRestoreArcTaskHandler&) = delete;
   AppRestoreArcTaskHandler& operator=(const AppRestoreArcTaskHandler&) = delete;
   ~AppRestoreArcTaskHandler() override;
 
-#if BUILDFLAG(ENABLE_WAYLAND_SERVER)
   full_restore::ArcGhostWindowHandler* window_handler() {
     return window_handler_.get();
   }
-#endif
 
   // Check if the AppId existed in any arc app launch handler restore queue.
   // When different launch handler which corresponding to different restore
@@ -120,9 +116,7 @@ class AppRestoreArcTaskHandler : public KeyedService,
   base::ScopedObservation<ArcAppListPrefs, ArcAppListPrefs::Observer>
       arc_prefs_observer_{this};
 
-#if BUILDFLAG(ENABLE_WAYLAND_SERVER)
   std::unique_ptr<full_restore::ArcGhostWindowHandler> window_handler_;
-#endif
 
   // Maps LauncherTag to ArcAppQueueRestoreHandlers. Currently FullRestore
   // and DeskTemplate use it.

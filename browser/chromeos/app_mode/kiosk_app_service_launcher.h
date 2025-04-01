@@ -5,28 +5,35 @@
 #ifndef CHROME_BROWSER_CHROMEOS_APP_MODE_KIOSK_APP_SERVICE_LAUNCHER_H_
 #define CHROME_BROWSER_CHROMEOS_APP_MODE_KIOSK_APP_SERVICE_LAUNCHER_H_
 
+#include <optional>
 #include <string>
+#include <vector>
+
+#include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "build/buildflag.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/services/app_service/public/cpp/app.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/app_update.h"
+#include "components/services/app_service/public/cpp/instance_update.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "components/services/app_service/public/cpp/instance_registry.h"
 #endif
 
-namespace ash {
+namespace chromeos {
 
 // This class launches a Kiosk app with the following steps:
 // 1. Checks if the app is ready to be launched. If not then observes the
 //    registry cache until the app is ready.
-// 2. Starts the app using |AppServiceProxy::LaunchAppWithParams()| interface
+// 2. Starts the app using `AppServiceProxy::LaunchAppWithParams()` interface
 //    and waits for the launch to complete.
 class KioskAppServiceLauncher :
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -36,7 +43,7 @@ class KioskAppServiceLauncher :
  public:
   // Callback when the app is launched by App Service. App window instance is
   // not active at this point. If called with false then the app launch has
-  // failed. Corresponds to |KioskLaunchController::OnAppLaunched()|.
+  // failed. Corresponds to `KioskLaunchController::OnAppLaunched()`.
   using AppLaunchedCallback = base::OnceCallback<void(bool)>;
 
   // Histogram to log the app readiness while launching app.
@@ -57,17 +64,18 @@ class KioskAppServiceLauncher :
                               AppLaunchedCallback app_launched_callback);
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  // Ensures that |app_type| is initialized in App Service.
+  // Ensures that `app_type` is initialized in App Service.
   void EnsureAppTypeInitialized(
       apps::AppType app_type,
       base::OnceClosure app_type_initialized_callback);
 
-  // Same as the other |CheckAndMaybeLaunchApp|, but also waits for app window
-  // to be visible by observing |apps::InstanceRegistry|. Only works in Ash.
+  // Same as the other `CheckAndMaybeLaunchApp`, but also waits for app window
+  // to be visible by observing `apps::InstanceRegistry`. Only works in Ash.
   void CheckAndMaybeLaunchApp(const std::string& app_id,
                               AppLaunchedCallback app_launched_callback,
                               base::OnceClosure app_visible_callback);
 #endif
+  void SetLaunchUrl(const GURL& launch_url);
 
  private:
   void LaunchAppInternal();
@@ -76,7 +84,8 @@ class KioskAppServiceLauncher :
 
   // apps::AppRegistryCache::Observer:
   void OnAppUpdate(const apps::AppUpdate& update) override;
-  void OnAppTypeInitialized(apps::AppType app_type) override;
+  void OnAppTypePublishing(const std::vector<apps::AppPtr>& deltas,
+                           apps::AppType app_type) override;
   void OnAppRegistryCacheWillBeDestroyed(
       apps::AppRegistryCache* cache) override;
 
@@ -94,16 +103,17 @@ class KioskAppServiceLauncher :
   // A keyed service. Not owned by this class.
   raw_ptr<apps::AppServiceProxy> app_service_;
 
-  absl::optional<base::OnceClosure> app_type_initialized_callback_;
+  base::OnceClosure app_type_initialized_callback_;
 
-  absl::optional<AppLaunchedCallback> app_launched_callback_;
+  AppLaunchedCallback app_launched_callback_;
+  std::optional<GURL> launch_url_;
 
   base::ScopedObservation<apps::AppRegistryCache,
                           apps::AppRegistryCache::Observer>
       app_registry_observation_{this};
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  absl::optional<base::OnceClosure> app_visible_callback_;
+  base::OnceClosure app_visible_callback_;
 
   base::ScopedObservation<apps::InstanceRegistry,
                           apps::InstanceRegistry::Observer>
@@ -113,6 +123,6 @@ class KioskAppServiceLauncher :
   base::WeakPtrFactory<KioskAppServiceLauncher> weak_ptr_factory_{this};
 };
 
-}  // namespace ash
+}  // namespace chromeos
 
 #endif  // CHROME_BROWSER_CHROMEOS_APP_MODE_KIOSK_APP_SERVICE_LAUNCHER_H_

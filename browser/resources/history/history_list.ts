@@ -10,22 +10,22 @@ import './shared_style.css.js';
 import './history_item.js';
 
 import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
-import {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import {CrLazyRenderElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+import type {CrLazyRenderElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {getDeepActiveElement} from 'chrome://resources/js/util_ts.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
-import {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
-import {IronScrollThresholdElement} from 'chrome://resources/polymer/v3_0/iron-scroll-threshold/iron-scroll-threshold.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {getDeepActiveElement} from 'chrome://resources/js/util.js';
+import type {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
+import type {IronScrollThresholdElement} from 'chrome://resources/polymer/v3_0/iron-scroll-threshold/iron-scroll-threshold.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {BrowserServiceImpl} from './browser_service.js';
 import {BROWSING_GAP_TIME} from './constants.js';
-import {HistoryEntry, HistoryQuery, QueryState} from './externs.js';
-import {HistoryItemElement, searchResultsTitle} from './history_item.js';
+import type {HistoryEntry, HistoryQuery, QueryState} from './externs.js';
+import type {HistoryItemElement} from './history_item.js';
 import {getTemplate} from './history_list.html.js';
 
 export interface ActionMenuModel {
@@ -104,6 +104,18 @@ export class HistoryListElement extends HistoryListElementBase {
       queryState: Object,
 
       actionMenuModel_: Object,
+
+      scrollTarget: {
+        type: Object,
+        observer: 'onScrollTargetChanged_',
+      },
+      scrollOffset: Number,
+
+      isEmpty: {
+        type: Boolean,
+        reflectToAttribute: true,
+        computed: 'computeIsEmpty_(historyData_.length)',
+      },
     };
   }
 
@@ -112,23 +124,18 @@ export class HistoryListElement extends HistoryListElementBase {
       loadTimeData.getBoolean('allowDeletingHistory');
   private actionMenuModel_: ActionMenuModel|null = null;
   private resultLoadingDisabled_: boolean = false;
+  isEmpty: boolean;
   searchedTerm: string = '';
   selectedItems: Set<number> = new Set();
   pendingDelete: boolean = false;
   lastSelectedIndex: number;
   queryState: QueryState;
+  scrollTarget: HTMLElement = document.documentElement;
+  scrollOffset: number = 0;
 
   override connectedCallback() {
     super.connectedCallback();
-
-    // It is possible (eg, when middle clicking the reload button) for all other
-    // resize events to fire before the list is attached and can be measured.
-    // Adding another resize here ensures it will get sized correctly.
-    this.$['infinite-list'].notifyResize();
-    this.$['infinite-list'].scrollTarget = this;
-    this.$['scroll-threshold'].scrollTarget = this;
     this.setAttribute('aria-roledescription', this.i18n('ariaRoleDescription'));
-
     this.addWebUiListener('history-deleted', () => this.onHistoryDeleted_());
   }
 
@@ -160,8 +167,21 @@ export class HistoryListElement extends HistoryListElementBase {
     this.closeMenu_();
 
     if (info.term && !this.queryState.incremental) {
-      getAnnouncerInstance().announce(
-          searchResultsTitle(results.length, info.term));
+      let resultsLabelId;
+      if (loadTimeData.getBoolean('enableHistoryEmbeddings')) {
+        // Differentiate screen reader messages if embeddings are enabled so
+        // that the messages specify these are results for exact matches not
+        // embeddings results.
+        resultsLabelId = results.length === 1 ? 'searchResultExactMatch' :
+                                                'searchResultExactMatches';
+      } else {
+        resultsLabelId =
+            results.length === 1 ? 'searchResult' : 'searchResults';
+      }
+      const message = loadTimeData.getStringF(
+          'foundSearchResults', results.length,
+          loadTimeData.getString(resultsLabelId), info.term);
+      getAnnouncerInstance().announce(message);
     }
 
     this.addNewResults(results, this.queryState.incremental, info.finished);
@@ -267,7 +287,15 @@ export class HistoryListElement extends HistoryListElementBase {
     this.$.dialog.get().showModal();
 
     // TODO(dbeam): remove focus flicker caused by showModal() + focus().
-    (this.shadowRoot!.querySelector('.action-button') as HTMLElement).focus();
+    const button =
+        this.shadowRoot!.querySelector<HTMLElement>('.action-button');
+    assert(button);
+    button.focus();
+  }
+
+  // Notifies the iron-list of this element being potentially resized.
+  notifyResize() {
+    this.$['infinite-list'].notifyResize();
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -601,6 +629,26 @@ export class HistoryListElement extends HistoryListElementBase {
    */
   private onHistoryDataChanged_() {
     this.$['infinite-list'].fire('iron-resize');
+  }
+
+  private getHistoryEmbeddingsMatches_(): HistoryEntry[] {
+    return this.historyData_.slice(0, 3);
+  }
+
+  private showHistoryEmbeddings_(): boolean {
+    return loadTimeData.getBoolean('enableHistoryEmbeddings') &&
+        !!this.searchedTerm && this.historyData_?.length > 0;
+  }
+
+  private onScrollTargetChanged_() {
+    // It is possible (eg, when middle clicking the reload button) for all other
+    // resize events to fire before the list is attached and can be measured.
+    // Adding another resize here ensures it will get sized correctly.
+    this.$['infinite-list'].notifyResize();
+  }
+
+  private computeIsEmpty_() {
+    return this.historyData_.length === 0;
   }
 }
 

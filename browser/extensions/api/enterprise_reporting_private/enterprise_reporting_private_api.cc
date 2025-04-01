@@ -2,11 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/extensions/api/enterprise_reporting_private/enterprise_reporting_private_api.h"
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/strings/stringprintf.h"
@@ -15,7 +22,10 @@
 #include "base/task/thread_pool.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
+#include "chrome/browser/enterprise/connectors/reporting/realtime_reporting_client.h"
+#include "chrome/browser/enterprise/connectors/reporting/realtime_reporting_client_factory.h"
 #include "chrome/browser/enterprise/signals/device_info_fetcher.h"
 #include "chrome/browser/enterprise/signals/signals_common.h"
 #include "chrome/browser/enterprise/util/affiliation.h"
@@ -33,6 +43,8 @@
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#include <optional>
+
 #include "base/strings/string_util.h"
 #include "chrome/browser/enterprise/signals/signals_aggregator_factory.h"
 #include "chrome/browser/extensions/api/enterprise_reporting_private/conversion_utils.h"
@@ -41,7 +53,6 @@
 #include "components/device_signals/core/browser/signals_types.h"
 #include "components/device_signals/core/browser/user_context.h"
 #include "components/device_signals/core/common/signals_features.h"  // nogncheck
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #include "components/content_settings/core/common/pref_names.h"
@@ -62,11 +73,11 @@ api::enterprise_reporting_private::SettingValue ToInfoSettingValue(
     enterprise_signals::SettingValue value) {
   switch (value) {
     case enterprise_signals::SettingValue::UNKNOWN:
-      return api::enterprise_reporting_private::SETTING_VALUE_UNKNOWN;
+      return api::enterprise_reporting_private::SettingValue::kUnknown;
     case enterprise_signals::SettingValue::DISABLED:
-      return api::enterprise_reporting_private::SETTING_VALUE_DISABLED;
+      return api::enterprise_reporting_private::SettingValue::kDisabled;
     case enterprise_signals::SettingValue::ENABLED:
-      return api::enterprise_reporting_private::SETTING_VALUE_ENABLED;
+      return api::enterprise_reporting_private::SettingValue::kEnabled;
   }
 }
 
@@ -91,68 +102,74 @@ api::enterprise_reporting_private::ContextInfo ToContextInfo(
   info.third_party_blocking_enabled = signals.third_party_blocking_enabled;
   info.os_firewall = ToInfoSettingValue(signals.os_firewall);
   info.system_dns_servers = std::move(signals.system_dns_servers);
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   switch (signals.realtime_url_check_mode) {
-    case safe_browsing::REAL_TIME_CHECK_DISABLED:
-#endif
+    case enterprise_connectors::REAL_TIME_CHECK_DISABLED:
       info.realtime_url_check_mode = extensions::api::
-          enterprise_reporting_private::REALTIME_URL_CHECK_MODE_DISABLED;
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+          enterprise_reporting_private::RealtimeUrlCheckMode::kDisabled;
       break;
-    case safe_browsing::REAL_TIME_CHECK_FOR_MAINFRAME_ENABLED:
-      info.realtime_url_check_mode =
-          extensions::api::enterprise_reporting_private::
-              REALTIME_URL_CHECK_MODE_ENABLED_MAIN_FRAME;
+    case enterprise_connectors::REAL_TIME_CHECK_FOR_MAINFRAME_ENABLED:
+      info.realtime_url_check_mode = extensions::api::
+          enterprise_reporting_private::RealtimeUrlCheckMode::kEnabledMainFrame;
       break;
   }
-#endif
   info.browser_version = std::move(signals.browser_version);
   info.built_in_dns_client_enabled = signals.built_in_dns_client_enabled;
   info.enterprise_profile_id = signals.enterprise_profile_id;
 
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   switch (signals.safe_browsing_protection_level) {
     case safe_browsing::SafeBrowsingState::NO_SAFE_BROWSING:
       info.safe_browsing_protection_level = extensions::api::
-          enterprise_reporting_private::SAFE_BROWSING_LEVEL_DISABLED;
+          enterprise_reporting_private::SafeBrowsingLevel::kDisabled;
       break;
     case safe_browsing::SafeBrowsingState::STANDARD_PROTECTION:
       info.safe_browsing_protection_level = extensions::api::
-          enterprise_reporting_private::SAFE_BROWSING_LEVEL_STANDARD;
+          enterprise_reporting_private::SafeBrowsingLevel::kStandard;
       break;
     case safe_browsing::SafeBrowsingState::ENHANCED_PROTECTION:
       info.safe_browsing_protection_level = extensions::api::
-          enterprise_reporting_private::SAFE_BROWSING_LEVEL_ENHANCED;
+          enterprise_reporting_private::SafeBrowsingLevel::kEnhanced;
       break;
   }
   if (!signals.password_protection_warning_trigger.has_value()) {
     info.password_protection_warning_trigger = extensions::api::
-        enterprise_reporting_private::PASSWORD_PROTECTION_TRIGGER_POLICY_UNSET;
+        enterprise_reporting_private::PasswordProtectionTrigger::kPolicyUnset;
   } else {
     switch (signals.password_protection_warning_trigger.value()) {
       case safe_browsing::PASSWORD_PROTECTION_OFF:
         info.password_protection_warning_trigger =
             extensions::api::enterprise_reporting_private::
-                PASSWORD_PROTECTION_TRIGGER_PASSWORD_PROTECTION_OFF;
+                PasswordProtectionTrigger::kPasswordProtectionOff;
         break;
       case safe_browsing::PASSWORD_REUSE:
         info.password_protection_warning_trigger =
             extensions::api::enterprise_reporting_private::
-                PASSWORD_PROTECTION_TRIGGER_PASSWORD_REUSE;
+                PasswordProtectionTrigger::kPasswordReuse;
         break;
       case safe_browsing::PHISHING_REUSE:
         info.password_protection_warning_trigger =
             extensions::api::enterprise_reporting_private::
-                PASSWORD_PROTECTION_TRIGGER_PHISHING_REUSE;
+                PasswordProtectionTrigger::kPhishingReuse;
         break;
       case safe_browsing::PASSWORD_PROTECTION_TRIGGER_MAX:
         NOTREACHED();
-        break;
     }
   }
-#endif
 
   return info;
+}
+
+bool AllowClientCertificateReportingForUsers() {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  return base::FeatureList::IsEnabled(
+      enterprise_signals::features::kAllowClientCertificateReportingForUsers);
+#else
+  return false;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+}
+
+bool IsProfilePrefManaged(Profile* profile, std::string_view pref_name) {
+  const auto* pref = profile->GetPrefs()->FindPreference(pref_name);
+  return pref && pref->IsManaged();
 }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -206,8 +223,9 @@ ExtensionFunction::ResponseAction
 EnterpriseReportingPrivateGetDeviceIdFunction::Run() {
   std::string client_id =
       policy::BrowserDMTokenStorage::Get()->RetrieveClientId();
-  if (client_id.empty())
+  if (client_id.empty()) {
     return RespondNow(Error(enterprise_reporting::kDeviceIdNotFound));
+  }
   return RespondNow(WithArguments(client_id));
 }
 
@@ -225,7 +243,7 @@ EnterpriseReportingPrivateGetPersistentSecretFunction::
 
 ExtensionFunction::ResponseAction
 EnterpriseReportingPrivateGetPersistentSecretFunction::Run() {
-  absl::optional<api::enterprise_reporting_private::GetPersistentSecret::Params>
+  std::optional<api::enterprise_reporting_private::GetPersistentSecret::Params>
       params = api::enterprise_reporting_private::GetPersistentSecret::Params::
           Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -278,7 +296,7 @@ EnterpriseReportingPrivateGetDeviceDataFunction::
 
 ExtensionFunction::ResponseAction
 EnterpriseReportingPrivateGetDeviceDataFunction::Run() {
-  absl::optional<api::enterprise_reporting_private::GetDeviceData::Params>
+  std::optional<api::enterprise_reporting_private::GetDeviceData::Params>
       params = api::enterprise_reporting_private::GetDeviceData::Params::Create(
           args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -334,7 +352,7 @@ EnterpriseReportingPrivateSetDeviceDataFunction::
 
 ExtensionFunction::ResponseAction
 EnterpriseReportingPrivateSetDeviceDataFunction::Run() {
-  absl::optional<api::enterprise_reporting_private::SetDeviceData::Params>
+  std::optional<api::enterprise_reporting_private::SetDeviceData::Params>
       params = api::enterprise_reporting_private::SetDeviceData::Params::Create(
           args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -474,20 +492,32 @@ EnterpriseReportingPrivateGetCertificateFunction::
 
 ExtensionFunction::ResponseAction
 EnterpriseReportingPrivateGetCertificateFunction::Run() {
-  absl::optional<api::enterprise_reporting_private::GetCertificate::Params>
+  std::optional<api::enterprise_reporting_private::GetCertificate::Params>
       params =
           api::enterprise_reporting_private::GetCertificate::Params::Create(
               args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
-  // If AutoSelectCertificateForUrl is not set at the machine level, this
-  // operation is not supported and should return immediately with the
-  // appropriate status field value.
-  if (!chrome::enterprise_util::IsMachinePolicyPref(
-          prefs::kManagedAutoSelectCertificateForUrls)) {
+  auto* profile = Profile::FromBrowserContext(browser_context());
+  if (AllowClientCertificateReportingForUsers()) {
+    if (!IsProfilePrefManaged(profile,
+                              prefs::kManagedAutoSelectCertificateForUrls)) {
+      // If the policy is not set, then fail fast as the policy is required to
+      // select which certificate to report.
+      api::enterprise_reporting_private::Certificate ret;
+      ret.status = extensions::api::enterprise_reporting_private::
+          CertificateStatus::kPolicyUnset;
+      return RespondNow(WithArguments(ret.ToValue()));
+    }
+  } else if (!enterprise_util::IsMachinePolicyPref(
+                 prefs::kManagedAutoSelectCertificateForUrls)) {
+    // If certificate reporting is not enabled for the user and
+    // AutoSelectCertificateForUrl is not set at the machine level, this
+    // operation is not supported and should return immediately with the
+    // appropriate status field value.
     api::enterprise_reporting_private::Certificate ret;
     ret.status = extensions::api::enterprise_reporting_private::
-        CERTIFICATE_STATUS_POLICY_UNSET;
+        CertificateStatus::kPolicyUnset;
     return RespondNow(WithArguments(ret.ToValue()));
   }
 
@@ -509,9 +539,9 @@ void EnterpriseReportingPrivateGetCertificateFunction::OnClientCertFetched(
   // Getting here means the status is always OK, but the |encoded_certificate|
   // field is only set if there actually was a certificate selected.
   ret.status =
-      extensions::api::enterprise_reporting_private::CERTIFICATE_STATUS_OK;
+      extensions::api::enterprise_reporting_private::CertificateStatus::kOk;
   if (cert) {
-    base::StringPiece der_cert = net::x509_util::CryptoBufferAsStringPiece(
+    std::string_view der_cert = net::x509_util::CryptoBufferAsStringPiece(
         cert->certificate()->cert_buffer());
     ret.encoded_certificate.emplace(der_cert.begin(), der_cert.end());
   }
@@ -538,7 +568,7 @@ EnterpriseReportingPrivateEnqueueRecordFunction::Run() {
     return RespondNow(Error(kErrorProfileNotAffiliated));
   }
 
-  absl::optional<api::enterprise_reporting_private::EnqueueRecord::Params>
+  std::optional<api::enterprise_reporting_private::EnqueueRecord::Params>
       params = api::enterprise_reporting_private::EnqueueRecord::Params::Create(
           args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -567,7 +597,7 @@ EnterpriseReportingPrivateEnqueueRecordFunction::Run() {
 }
 
 bool EnterpriseReportingPrivateEnqueueRecordFunction::TryParseParams(
-    absl::optional<api::enterprise_reporting_private::EnqueueRecord::Params>
+    std::optional<api::enterprise_reporting_private::EnqueueRecord::Params>
         params,
     ::reporting::Record& record,
     ::reporting::Priority& priority) {
@@ -601,8 +631,7 @@ bool EnterpriseReportingPrivateEnqueueRecordFunction::TryParseParams(
 bool EnterpriseReportingPrivateEnqueueRecordFunction::TryAttachDMTokenToRecord(
     ::reporting::Record& record,
     api::enterprise_reporting_private::EventType event_type) {
-  if (event_type ==
-      api::enterprise_reporting_private::EventType::EVENT_TYPE_DEVICE) {
+  if (event_type == api::enterprise_reporting_private::EventType::kDevice) {
     // Device DM tokens are automatically appended during uploads, so we need
     // not specify them with the record.
     return true;
@@ -634,7 +663,7 @@ bool EnterpriseReportingPrivateEnqueueRecordFunction::IsProfileAffiliated(
   if (profile_is_affiliated_for_testing_) {
     return true;
   }
-  return chrome::enterprise_util::IsProfileAffiliated(profile);
+  return enterprise_util::IsProfileAffiliated(profile);
 }
 
 void EnterpriseReportingPrivateEnqueueRecordFunction::
@@ -660,7 +689,7 @@ EnterpriseReportingPrivateGetFileSystemInfoFunction::Run() {
         device_signals::SignalCollectionError::kUnsupported)));
   }
 
-  absl::optional<api::enterprise_reporting_private::GetFileSystemInfo::Params>
+  std::optional<api::enterprise_reporting_private::GetFileSystemInfo::Params>
       params =
           api::enterprise_reporting_private::GetFileSystemInfo::Params::Create(
               args());
@@ -740,9 +769,8 @@ EnterpriseReportingPrivateGetSettingsFunction::Run() {
         device_signals::SignalCollectionError::kUnsupported)));
   }
 
-  absl::optional<api::enterprise_reporting_private::GetSettings::Params>
-      params = api::enterprise_reporting_private::GetSettings::Params::Create(
-          args());
+  std::optional<api::enterprise_reporting_private::GetSettings::Params> params =
+      api::enterprise_reporting_private::GetSettings::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
   // Verify that all paths strings are UTF8.
@@ -818,7 +846,7 @@ EnterpriseReportingPrivateGetAvInfoFunction::Run() {
         device_signals::SignalCollectionError::kUnsupported)));
   }
 
-  absl::optional<api::enterprise_reporting_private::GetAvInfo::Params> params =
+  std::optional<api::enterprise_reporting_private::GetAvInfo::Params> params =
       api::enterprise_reporting_private::GetAvInfo::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -870,9 +898,8 @@ EnterpriseReportingPrivateGetHotfixesFunction::Run() {
         device_signals::SignalCollectionError::kUnsupported)));
   }
 
-  absl::optional<api::enterprise_reporting_private::GetHotfixes::Params>
-      params = api::enterprise_reporting_private::GetHotfixes::Params::Create(
-          args());
+  std::optional<api::enterprise_reporting_private::GetHotfixes::Params> params =
+      api::enterprise_reporting_private::GetHotfixes::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
   StartSignalCollection(
@@ -910,5 +937,25 @@ void EnterpriseReportingPrivateGetHotfixesFunction::OnSignalRetrieved(
 }
 
 #endif  // BUILDFLAG(IS_WIN)
+
+// reportDataMaskingEvent
+
+EnterpriseReportingPrivateReportDataMaskingEventFunction::
+    EnterpriseReportingPrivateReportDataMaskingEventFunction() = default;
+EnterpriseReportingPrivateReportDataMaskingEventFunction::
+    ~EnterpriseReportingPrivateReportDataMaskingEventFunction() = default;
+
+ExtensionFunction::ResponseAction
+EnterpriseReportingPrivateReportDataMaskingEventFunction::Run() {
+  auto params =
+      api::enterprise_reporting_private::ReportDataMaskingEvent::Params::Create(
+          args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+
+  enterprise_connectors::ReportDataMaskingEvent(browser_context(),
+                                                std::move(params->event));
+
+  return RespondNow(NoArguments());
+}
 
 }  // namespace extensions

@@ -10,14 +10,15 @@ import androidx.annotation.NonNull;
  * A public API which can be used by other non re-auth clients to get information about the
  * Incognito re-authentication.
  *
- * TODO(crbug.com/1227656): Move this to a separate incognito public_api target and add tests for
- * this public interface.
+ * <p>TODO(crbug.com/40056462): Move this to a separate incognito public_api target and add tests
+ * for this public interface.
  */
 public interface IncognitoReauthController {
     /**
      * @return True if the Incognito re-auth page is currently being shown, false otherwise.
      */
     boolean isReauthPageShowing();
+
     /**
      * @return True if the Incognito re-auth is pending, false otherwise.
      */
@@ -42,7 +43,7 @@ public interface IncognitoReauthController {
             @NonNull IncognitoReauthManager.IncognitoReauthCallback incognitoReauthCallback);
 
     /**
-     * TODO(crbug.com/1227656): This method is ill-placed. Find a better design to restrict
+     * TODO(crbug.com/40056462): This method is ill-placed. Find a better design to restrict
      * non-intended clients to call this method.
      */
     void destroy();

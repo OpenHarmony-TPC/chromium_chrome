@@ -7,7 +7,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "build/branding_buildflags.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 class Browser;
 namespace global_media_controls {
@@ -46,7 +46,8 @@ class MediaToolbarButtonContextualMenu : public ui::SimpleMenuModel::Delegate {
   void ReportIssue();
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
-  const raw_ptr<Browser> browser_;
-  const raw_ptr<global_media_controls::MediaItemManager> item_manager_;
+  const raw_ptr<Browser, DanglingUntriaged> browser_;
+  const raw_ptr<global_media_controls::MediaItemManager, DanglingUntriaged>
+      item_manager_;
 };
 #endif  // CHROME_BROWSER_UI_VIEWS_GLOBAL_MEDIA_CONTROLS_MEDIA_TOOLBAR_BUTTON_CONTEXTUAL_MENU_H_

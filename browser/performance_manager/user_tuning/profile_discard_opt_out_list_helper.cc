@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "base/feature_list.h"
+#include "base/not_fatal_until.h"
 #include "base/ranges/algorithm.h"
 #include "base/values.h"
 #include "chrome/browser/performance_manager/policies/page_discarding_helper.h"
@@ -64,7 +65,7 @@ ProfileDiscardOptOutListHelper::ProfileDiscardOptOutTracker::
   pref_change_registrar_.Init(pref_service);
 
   pref_change_registrar_.Add(
-      performance_manager::user_tuning::prefs::kTabDiscardingExceptions,
+      performance_manager::user_tuning::prefs::kTabDiscardingExceptionsWithTime,
       base::BindRepeating(&ProfileDiscardOptOutListHelper::
                               ProfileDiscardOptOutTracker::OnOptOutListChanged,
                           base::Unretained(this)));
@@ -84,22 +85,24 @@ ProfileDiscardOptOutListHelper::ProfileDiscardOptOutTracker::
 
 void ProfileDiscardOptOutListHelper::ProfileDiscardOptOutTracker::
     OnOptOutListChanged() {
-  const base::Value::List& user_value_list =
-      pref_change_registrar_.prefs()->GetList(
-          performance_manager::user_tuning::prefs::kTabDiscardingExceptions);
+  const base::Value::Dict& user_value_map =
+      pref_change_registrar_.prefs()->GetDict(
+          performance_manager::user_tuning::prefs::
+              kTabDiscardingExceptionsWithTime);
   const base::Value::List& managed_value_list =
       pref_change_registrar_.prefs()->GetList(
           performance_manager::user_tuning::prefs::
               kManagedTabDiscardingExceptions);
 
   std::vector<std::string> patterns;
-  patterns.reserve(user_value_list.size() + managed_value_list.size());
+  patterns.reserve(user_value_map.size() + managed_value_list.size());
 
   // Merge the two lists so that the PageDiscardingHelper only sees a single
   // list of patterns to exclude from discarding.
   base::ranges::transform(
-      user_value_list, std::back_inserter(patterns),
-      [](const auto& user_value) { return user_value.GetString(); });
+      user_value_map.begin(), user_value_map.end(),
+      std::back_inserter(patterns),
+      [](const auto& user_value) { return user_value.first; });
   base::ranges::transform(
       managed_value_list, std::back_inserter(patterns),
       [](const auto& managed_value) { return managed_value.GetString(); });
@@ -134,7 +137,7 @@ void ProfileDiscardOptOutListHelper::OnProfileAddedImpl(
 void ProfileDiscardOptOutListHelper::OnProfileWillBeRemovedImpl(
     const std::string& browser_context_id) {
   auto it = discard_opt_out_trackers_.find(browser_context_id);
-  DCHECK(it != discard_opt_out_trackers_.end());
+  CHECK(it != discard_opt_out_trackers_.end(), base::NotFatalUntil::M130);
   discard_opt_out_trackers_.erase(it);
 }
 

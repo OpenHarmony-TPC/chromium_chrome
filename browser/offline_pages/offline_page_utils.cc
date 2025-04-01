@@ -12,7 +12,6 @@
 #include "base/location.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -111,7 +110,6 @@ void DoCalculateSizeBetween(
   std::move(callback).Run(total_size);
 }
 
-#if defined(OS_ANDROID)
 content::WebContents* GetWebContentsByFrameID(int render_process_id,
                                               int render_frame_id) {
   content::RenderFrameHost* render_frame_host =
@@ -120,15 +118,13 @@ content::WebContents* GetWebContentsByFrameID(int render_process_id,
     return NULL;
   return content::WebContents::FromRenderFrameHost(render_frame_host);
 }
-#endif
 
-#if defined(OS_ANDROID)
 content::WebContents::Getter GetWebContentsGetter(
     content::WebContents* web_contents) {
   // The FrameTreeNode ID should be used to access the WebContents.
-  int frame_tree_node_id =
+  content::FrameTreeNodeId frame_tree_node_id =
       web_contents->GetPrimaryMainFrame()->GetFrameTreeNodeId();
-  if (frame_tree_node_id != content::RenderFrameHost::kNoFrameTreeNodeId) {
+  if (frame_tree_node_id) {
     return base::BindRepeating(content::WebContents::FromFrameTreeNodeId,
                                frame_tree_node_id);
   }
@@ -140,7 +136,6 @@ content::WebContents::Getter GetWebContentsGetter(
       web_contents->GetPrimaryMainFrame()->GetProcess()->GetID(),
       web_contents->GetPrimaryMainFrame()->GetRoutingID());
 }
-#endif
 
 void AcquireFileAccessPermissionDoneForScheduleDownload(
     const content::WebContents::Getter& wc_getter,

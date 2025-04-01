@@ -8,14 +8,23 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/task_manager/task_manager_metrics_recorder.h"
 #include "chrome/browser/ui/task_manager/task_manager_table_model.h"
+#include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "ui/base/metadata/metadata_header_macros.h"
-#include "ui/base/models/simple_menu_model.h"
 #include "ui/base/models/table_model.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
+#include "ui/menus/simple_menu_model.h"
 #include "ui/views/context_menu_controller.h"
+#include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/menu/menu_runner.h"
+#include "ui/views/controls/separator.h"
+#include "ui/views/controls/tabbed_pane/tabbed_pane.h"
+#include "ui/views/controls/tabbed_pane/tabbed_pane_listener.h"
 #include "ui/views/controls/table/table_grouper.h"
 #include "ui/views/controls/table/table_view_observer.h"
+#include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/window/dialog_delegate.h"
 
 class Browser;
@@ -27,18 +36,30 @@ class View;
 
 namespace task_manager {
 
+enum class FilterCategory : uint8_t { kTabs = 0, kExtensions = 1, kSystem = 2 };
+
 // The new task manager UI container.
 class TaskManagerView : public TableViewDelegate,
                         public views::DialogDelegateView,
+                        public views::TabbedPaneListener,
                         public views::TableGrouper,
                         public views::TableViewObserver,
                         public views::ContextMenuController,
                         public ui::SimpleMenuModel::Delegate {
+  METADATA_HEADER(TaskManagerView, views::DialogDelegateView)
+
  public:
-  METADATA_HEADER(TaskManagerView);
+  struct FilterTab {
+    int title_id;
+    FilterCategory associated_category;
+  };
+
   TaskManagerView(const TaskManagerView&) = delete;
   TaskManagerView& operator=(const TaskManagerView&) = delete;
   ~TaskManagerView() override;
+
+  static constexpr size_t kTaskManagerHeaderWidth = 250;
+  static constexpr size_t kTaskManagerHeaderHeight = 32;
 
   // Shows the Task Manager window, or re-activates an existing one.
   static task_manager::TaskManagerTableModel* Show(Browser* browser);
@@ -48,13 +69,15 @@ class TaskManagerView : public TableViewDelegate,
 
   // task_manager::TableViewDelegate:
   bool IsColumnVisible(int column_id) const override;
-  void SetColumnVisibility(int column_id, bool new_visibility) override;
+  bool SetColumnVisibility(int column_id, bool new_visibility) override;
   bool IsTableSorted() const override;
   TableSortDescriptor GetSortDescriptor() const override;
   void SetSortDescriptor(const TableSortDescriptor& descriptor) override;
+  void MaybeHighlightActiveTask() override;
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
 
   // views::DialogDelegateView:
@@ -63,7 +86,7 @@ class TaskManagerView : public TableViewDelegate,
   ui::ImageModel GetWindowIcon() override;
   std::string GetWindowName() const override;
   bool Accept() override;
-  bool IsDialogButtonEnabled(ui::DialogButton button) const override;
+  bool IsDialogButtonEnabled(ui::mojom::DialogButton button) const override;
   void WindowClosing() override;
 
   // views::TableGrouper:
@@ -75,9 +98,10 @@ class TaskManagerView : public TableViewDelegate,
   void OnKeyDown(ui::KeyboardCode keycode) override;
 
   // views::ContextMenuController:
-  void ShowContextMenuForViewImpl(views::View* source,
-                                  const gfx::Point& point,
-                                  ui::MenuSourceType source_type) override;
+  void ShowContextMenuForViewImpl(
+      views::View* source,
+      const gfx::Point& point,
+      ui::mojom::MenuSourceType source_type) override;
 
   // ui::SimpleMenuModel::Delegate:
   bool IsCommandIdChecked(int id) const override;
@@ -85,14 +109,34 @@ class TaskManagerView : public TableViewDelegate,
   void ExecuteCommand(int id, int event_flags) override;
   void MenuClosed(ui::SimpleMenuModel* source) override;
 
+  views::TableView* tab_table_for_testing() { return tab_table_; }
+
+  static TaskManagerView* GetInstanceForTests();
+
  private:
   friend class TaskManagerViewTest;
 
   TaskManagerView();
 
-  static TaskManagerView* GetInstanceForTests();
+  // Creates the header for the view.
+  void CreateHeader(const ChromeLayoutProvider* provider);
 
-  // Creates the child controls.
+  // Requests that the sorted_task_ids_ returned by TaskManagerTableModel are
+  // filtered by a FilterCategory.
+  void PerformFilter(FilterCategory category);
+
+  // Creates all corresponding subcomponents for the header.
+  std::unique_ptr<views::View> CreateTabbedPane();
+  std::unique_ptr<views::Textfield> CreateSearchBar(const gfx::Insets& margins);
+  std::unique_ptr<views::MdTextButton> CreateEndProcessButton(
+      const gfx::Insets& margins);
+  std::unique_ptr<views::Separator> CreateSeparator(const gfx::Insets& margins);
+  std::unique_ptr<views::ScrollView> CreateProcessView(
+      std::unique_ptr<views::TableView> tab_table,
+      bool table_has_border,
+      bool layout_refresh);
+
+  // Creates the child controls (header, table, etc).
   void Init();
 
   // Initializes the state of the always-on-top setting as the window is shown.
@@ -107,6 +151,12 @@ class TaskManagerView : public TableViewDelegate,
   // Restores saved "always on top" state from a previous session.
   void RetrieveSavedAlwaysOnTopState();
 
+  void EndSelectedProcess();
+  bool IsEndProcessButtonEnabled() const;
+
+  // views::TabbedPaneListener:
+  void TabSelectedAt(int index) override;
+
   std::unique_ptr<TaskManagerTableModel> table_model_;
 
   std::unique_ptr<ui::SimpleMenuModel> menu_model_;
@@ -118,11 +168,21 @@ class TaskManagerView : public TableViewDelegate,
   raw_ptr<views::TableView, DanglingUntriaged> tab_table_;
   raw_ptr<views::View, DanglingUntriaged> tab_table_parent_;
 
-  // all possible columns, not necessarily visible
+  // all possible columns, not necessarily visible.
   std::vector<ui::TableColumn> columns_;
+
+  // This button is not the same as the dialog button. It is only non-null if
+  // task manager refresh is enabled.
+  raw_ptr<views::MdTextButton> end_process_btn_;
+
+  // The first time this instance of the task manager was initialized.
+  const base::TimeTicks start_time_ = base::TimeTicks::Now();
 
   // True when the Task Manager window should be shown on top of other windows.
   bool is_always_on_top_;
+
+  // An array of FilterTabs, populated when CreateTabbedPane() is called.
+  base::WeakPtrFactory<TaskManagerView> weak_factory_{this};
 };
 
 }  // namespace task_manager

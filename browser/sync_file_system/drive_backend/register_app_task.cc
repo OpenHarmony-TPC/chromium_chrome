@@ -128,7 +128,6 @@ bool RegisterAppTask::FilterCandidates(const TrackerIDSet& trackers,
     if (!metadata_database()->FindTrackerByTrackerID(
             *itr, tracker.get())) {
       NOTREACHED();
-      continue;
     }
 
     FileMetadata file;
@@ -136,12 +135,11 @@ bool RegisterAppTask::FilterCandidates(const TrackerIDSet& trackers,
     DCHECK(tracker->has_synced_details());
 
     if (!metadata_database()->FindFileByFileID(tracker->file_id(), &file)) {
-      NOTREACHED();
       // The parent folder is sync-root, whose contents are fetched in
       // initialization sequence.
       // So at this point, direct children of sync-root should have
       // FileMetadata.
-      continue;
+      NOTREACHED();
     }
 
     if (file.details().file_kind() != FILE_KIND_FOLDER)

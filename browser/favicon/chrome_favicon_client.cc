@@ -38,8 +38,18 @@ ChromeFaviconClient::~ChromeFaviconClient() {
 
 bool ChromeFaviconClient::IsNativeApplicationURL(const GURL& url) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  if (url.SchemeIs(extensions::kExtensionScheme))
+  if (url.SchemeIs(extensions::kExtensionScheme)
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  )
     return true;
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (url.SchemeIs(chrome::kIsolatedAppScheme)) {
+    return true;
+  }
 #endif
 
   return url.SchemeIs(content::kChromeUIScheme);

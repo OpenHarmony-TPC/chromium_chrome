@@ -42,7 +42,7 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/common/webui_url_constants.h"
 #endif
 
@@ -119,7 +119,11 @@ ExtensionSpecialStoragePolicy::~ExtensionSpecialStoragePolicy() {
 }
 
 bool ExtensionSpecialStoragePolicy::IsStorageProtected(const GURL& origin) {
-  if (origin.SchemeIs(extensions::kExtensionScheme)) {
+  if (origin.SchemeIs(extensions::kExtensionScheme)
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      || origin.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     return true;
   }
   base::AutoLock locker(lock_);
@@ -137,7 +141,7 @@ bool ExtensionSpecialStoragePolicy::IsStorageUnlimited(const GURL& origin) {
     return true;
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // chrome-untrusted://terminal/ runs the SSH extension code which can store
   // SSH known_hosts, config, and Identity keys. Use unlimitedStorage to match
   // extension config.
@@ -168,7 +172,7 @@ bool ExtensionSpecialStoragePolicy::HasSessionOnlyOrigins() {
   if (!cookie_settings_) {
     return false;
   }
-  if (cookie_settings_->GetDefaultCookieSetting(nullptr) ==
+  if (cookie_settings_->GetDefaultCookieSetting() ==
       CONTENT_SETTING_SESSION_ONLY) {
     return true;
   }

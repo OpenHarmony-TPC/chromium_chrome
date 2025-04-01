@@ -14,7 +14,7 @@
 #include "chrome/common/url_constants.h"
 
 #if !BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
 
 LoginUIService::LoginUIService(Profile* profile)
@@ -61,7 +61,7 @@ void LoginUIService::DisplayLoginResult(Browser* browser,
   NOTREACHED();
 #else
   last_login_error_ = error;
-  // TODO(crbug.com/1326904): Check if the condition should be `!error.IsOk()`
+  // TODO(crbug.com/40225985): Check if the condition should be `!error.IsOk()`
   if (!error.message().empty()) {
     if (browser) {
       browser->signin_view_controller()->ShowModalSigninErrorDialog();

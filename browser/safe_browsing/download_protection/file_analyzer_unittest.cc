@@ -36,9 +36,7 @@ using ::testing::StrEq;
 
 class FileAnalyzerTest : public testing::Test {
  public:
-  FileAnalyzerTest() {
-    scoped_feature_list_.InitAndEnableFeature(kSevenZipEvaluationEnabled);
-  }
+  FileAnalyzerTest() = default;
   void DoneCallback(base::OnceCallback<void()> quit_callback,
                     FileAnalyzer::Results result) {
     result_ = result;
@@ -60,7 +58,6 @@ class FileAnalyzerTest : public testing::Test {
   base::ScopedTempDir temp_dir_;
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_;
   content::BrowserTaskEnvironment task_environment_;
   content::InProcessUtilityThreadHelper in_process_utility_thread_helper_;
 };
@@ -80,7 +77,7 @@ TEST_F(FileAnalyzerTest, TypeWinExecutable) {
       .WillRepeatedly(Return(true));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -104,7 +101,7 @@ TEST_F(FileAnalyzerTest, TypeChromeExtension) {
       .WillRepeatedly(Return(true));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -128,7 +125,7 @@ TEST_F(FileAnalyzerTest, TypeAndroidApk) {
       .WillRepeatedly(Return(true));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -157,7 +154,7 @@ TEST_F(FileAnalyzerTest, TypeZippedExecutable) {
                        /* include_hidden_files= */ false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -181,7 +178,7 @@ TEST_F(FileAnalyzerTest, TypeMacExecutable) {
       .WillRepeatedly(Return(true));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -210,7 +207,7 @@ TEST_F(FileAnalyzerTest, TypeZippedArchive) {
                        /* include_hidden_files= */ false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -233,7 +230,7 @@ TEST_F(FileAnalyzerTest, TypeInvalidZip) {
   ASSERT_TRUE(base::WriteFile(tmp_path, file_contents));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -261,7 +258,7 @@ TEST_F(FileAnalyzerTest, TypeInvalidDmg) {
   ASSERT_TRUE(base::WriteFile(tmp_path, file_contents));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -295,7 +292,7 @@ TEST_F(FileAnalyzerTest, ArchiveIsValidSetForValidArchive) {
                        /* include_hidden_files= */ false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -319,7 +316,7 @@ TEST_F(FileAnalyzerTest, ArchiveIsValidSetForInvalidArchive) {
   ASSERT_TRUE(base::WriteFile(tmp_path, file_contents));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -349,7 +346,7 @@ TEST_F(FileAnalyzerTest, ArchivedExecutableSetForZipWithExecutable) {
                        /* include_hidden_files= */ false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -378,7 +375,7 @@ TEST_F(FileAnalyzerTest, ArchivedExecutableFalseForZipNoExecutable) {
                        /* include_hidden_files= */ false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -407,7 +404,7 @@ TEST_F(FileAnalyzerTest, ArchivedArchiveSetForZipWithArchive) {
                        /* include_hidden_files= */ false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -436,7 +433,7 @@ TEST_F(FileAnalyzerTest, ArchivedArchiveSetForZipNoArchive) {
                        /* include_hidden_files= */ false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -468,7 +465,7 @@ TEST_F(FileAnalyzerTest, ArchivedBinariesHasArchiveAndExecutable) {
                        /* include_hidden_files= */ false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -497,7 +494,7 @@ TEST_F(FileAnalyzerTest, ArchivedBinariesSkipsSafeFiles) {
                        /* include_hidden_files= */ false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -536,7 +533,7 @@ TEST_F(FileAnalyzerTest, ArchivedBinariesRespectsPolicyMaximum) {
                        /* include_hidden_files= */ false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -564,7 +561,7 @@ TEST_F(FileAnalyzerTest, ExtractsFileSignatureForExe) {
       .WillRepeatedly(Return(true));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -591,7 +588,7 @@ TEST_F(FileAnalyzerTest, ExtractsImageHeadersForExe) {
       .WillRepeatedly(DoAll(SetArgPointee<2>(image_headers), Return(true)));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -617,7 +614,7 @@ TEST_F(FileAnalyzerTest, ExtractsSignatureForDmg) {
                    .AppendASCII("signed-archive.dmg");
 
   analyzer.Start(
-      target_path, signed_dmg,
+      target_path, signed_dmg, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -654,7 +651,7 @@ TEST_F(FileAnalyzerTest, TypeSniffsDmgWithoutExtension) {
                          .AppendASCII("mach_o_in_dmg.txt");
 
   analyzer.Start(
-      target_path, dmg_no_extension,
+      target_path, dmg_no_extension, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -682,7 +679,7 @@ TEST_F(FileAnalyzerTest, SmallRarHasContentInspection) {
 
   // Analyze the RAR with default size limit
   analyzer.Start(
-      target_path, rar_path,
+      target_path, rar_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -697,7 +694,7 @@ TEST_F(FileAnalyzerTest, SmallRarHasContentInspection) {
   EXPECT_FALSE(result_.archived_binaries.Get(0).digests().sha256().empty());
 }
 
-// TODO(crbug.com/949399): The test is flaky (fail, timeout) on all platforms.
+// TODO(crbug.com/41451079): The test is flaky (fail, timeout) on all platforms.
 TEST_F(FileAnalyzerTest, LargeRarSkipsContentInspection) {
   scoped_refptr<MockBinaryFeatureExtractor> extractor =
       new testing::StrictMock<MockBinaryFeatureExtractor>();
@@ -723,7 +720,7 @@ TEST_F(FileAnalyzerTest, LargeRarSkipsContentInspection) {
                  .AppendASCII("has_exe.rar");
 
   analyzer.Start(
-      target_path, rar_path,
+      target_path, rar_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -756,7 +753,7 @@ TEST_F(FileAnalyzerTest, ZipFilesGetFileCount) {
                        false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -785,7 +782,7 @@ TEST_F(FileAnalyzerTest, ZipFilesGetDirectoryCount) {
                        false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -809,7 +806,7 @@ TEST_F(FileAnalyzerTest, RarFilesGetFileCount) {
                  .AppendASCII("has_exe.rar");
 
   analyzer.Start(
-      target_path, rar_path,
+      target_path, rar_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -833,7 +830,7 @@ TEST_F(FileAnalyzerTest, RarFilesGetDirectoryCount) {
                  .AppendASCII("has_folder.rar");
 
   analyzer.Start(
-      target_path, rar_path,
+      target_path, rar_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -874,7 +871,7 @@ TEST_F(FileAnalyzerTest, LargeZipSkipsContentInspection) {
                        /* include_hidden_files= */ false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -907,7 +904,7 @@ TEST_F(FileAnalyzerTest, ZipAnalysisResultMetric) {
                        /* include_hidden_files= */ false));
 
   analyzer.Start(
-      target_path, tmp_path,
+      target_path, tmp_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -933,7 +930,7 @@ TEST_F(FileAnalyzerTest, RarAnalysisResultMetric) {
                  .AppendASCII("has_exe.rar");
 
   analyzer.Start(
-      target_path, rar_path,
+      target_path, rar_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
 
@@ -961,7 +958,7 @@ TEST_F(FileAnalyzerTest, DmgAnalysisResultMetric) {
                    .AppendASCII("signed-archive.dmg");
 
   analyzer.Start(
-      target_path, signed_dmg,
+      target_path, signed_dmg, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
 
@@ -988,7 +985,7 @@ TEST_F(FileAnalyzerTest, EncryptedEntriesDoNotHaveHashOrLength) {
                  .AppendASCII("encrypted.zip");
 
   analyzer.Start(
-      target_path, zip_path,
+      target_path, zip_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -1014,7 +1011,7 @@ TEST_F(FileAnalyzerTest, RarDirectoriesNotReported) {
                  .AppendASCII("file_and_folder.rar");
 
   analyzer.Start(
-      target_path, rar_path,
+      target_path, rar_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -1040,7 +1037,7 @@ TEST_F(FileAnalyzerTest, ZeroLengthSevenZipEntriesSupported) {
                     .AppendASCII("file_and_empty.7z");
 
   analyzer.Start(
-      target_path, sevenz_path,
+      target_path, sevenz_path, /*password=*/std::nullopt,
       base::BindOnce(&FileAnalyzerTest::DoneCallback, base::Unretained(this),
                      run_loop.QuitClosure()));
   run_loop.Run();

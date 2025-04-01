@@ -15,12 +15,12 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "ash/components/arc/arc_browser_context_keyed_service_factory_base.h"
 #include "ash/components/arc/arc_util.h"
 #include "ash/components/arc/mojom/process.mojom.h"
 #include "ash/components/arc/session/arc_bridge_service.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/containers/flat_set.h"
 #include "base/containers/queue.h"
 #include "base/functional/bind.h"
@@ -33,7 +33,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
-#include "chrome/browser/ash/process_snapshot_server.h"
+#include "chromeos/ash/components/process_snapshot/process_snapshot_server.h"
 #include "content/public/browser/browser_thread.h"
 
 namespace arc {
@@ -252,7 +252,7 @@ std::vector<mojom::ArcMemoryDumpPtr> UpdateAndReturnMemoryInfo(
       auto it = pid_map.find(proc->pid);
       proc->pid = it == pid_map.end() ? kNullProcessId : it->second;
     }
-    base::EraseIf(process_dumps,
+    std::erase_if(process_dumps,
                   [](const auto& proc) { return proc->pid == kNullProcessId; });
   }
   return process_dumps;
@@ -476,14 +476,14 @@ void ArcProcessService::ContinueAppProcessListRequest(
   // but the user has not opted into ARC. This redundant check avoids that
   // logspam.
   if (!connection_ready_) {
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 
   mojom::ProcessInstance* process_instance = ARC_GET_INSTANCE_FOR_METHOD(
       arc_bridge_service_->process(), RequestProcessList);
   if (!process_instance) {
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 

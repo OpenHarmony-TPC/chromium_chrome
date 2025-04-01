@@ -38,7 +38,8 @@ class LenientMockPageDiscarder
   void DiscardPageNodes(
       const std::vector<const PageNode*>& page_nodes,
       ::mojom::LifecycleUnitDiscardReason discard_reason,
-      base::OnceCallback<void(bool)> post_discard_cb) override;
+      base::OnceCallback<void(const std::vector<DiscardEvent>&)>
+          post_discard_cb) override;
 };
 using MockPageDiscarder = ::testing::StrictMock<LenientMockPageDiscarder>;
 
@@ -57,6 +58,9 @@ class GraphTestHarnessWithMockDiscarder : public GraphTestHarness {
   void TearDown() override;
 
  protected:
+  // Deletes and recreates page/process/frame nodes.
+  void RecreateNodes();
+
   PageNodeImpl* page_node() { return page_node_.get(); }
   ProcessNodeImpl* process_node() { return process_node_.get(); }
   FrameNodeImpl* frame_node() { return main_frame_node_.get(); }

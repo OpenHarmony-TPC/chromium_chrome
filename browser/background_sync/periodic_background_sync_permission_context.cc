@@ -6,11 +6,10 @@
 
 #include "base/feature_list.h"
 #include "build/build_config.h"
-#include "cef/libcef/features/runtime.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/installable/installable_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "chrome/browser/webapps/installable/installable_utils.h"
 #include "chrome/common/chrome_features.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/search_engines/template_url.h"
@@ -90,10 +89,6 @@ PeriodicBackgroundSyncPermissionContext::GetPermissionStatusInternal(
     return CONTENT_SETTING_ALLOW;
 #endif
 
-  if (cef::IsAlloyRuntimeEnabled()) {
-    return CONTENT_SETTING_BLOCK;
-  }
-
   bool can_bypass_install_requirement =
       base::FeatureList::IsEnabled(
           features::kPeriodicSyncPermissionForDefaultSearchEngine) &&
@@ -119,10 +114,7 @@ PeriodicBackgroundSyncPermissionContext::GetPermissionStatusInternal(
 }
 
 void PeriodicBackgroundSyncPermissionContext::DecidePermission(
-    const permissions::PermissionRequestID& id,
-    const GURL& requesting_origin,
-    const GURL& embedding_origin,
-    bool user_gesture,
+    permissions::PermissionRequestData request_data,
     permissions::BrowserPermissionCallback callback) {
   // The user should never be prompted to authorize Periodic Background Sync
   // from PeriodicBackgroundSyncPermissionContext.

@@ -87,12 +87,13 @@ void PageLiveStateDecoratorHelperTest::EndToEndStreamPropertyTest(
   device.display_media_info = std::move(display_media_info);
 
   blink::mojom::StreamDevices devices;
-  if (blink::IsAudioInputMediaType(device.type))
+  if (blink::IsAudioInputMediaType(device.type)) {
     devices.audio_device = device;
-  else if (blink::IsVideoInputMediaType(device.type))
+  } else if (blink::IsVideoInputMediaType(device.type)) {
     devices.video_device = device;
-  else
+  } else {
     NOTREACHED();
+  }
 
   std::unique_ptr<content::MediaStreamUI> ui =
       indicator()->RegisterMediaStream(web_contents(), devices);
@@ -147,7 +148,8 @@ TEST_F(PageLiveStateDecoratorHelperTest, OnIsCapturingDisplayChanged) {
       media::mojom::DisplayMediaInformation::New(
           media::mojom::DisplayCaptureSurfaceType::MONITOR,
           /*logical_surface=*/true, media::mojom::CursorCaptureType::NEVER,
-          /*capture_handle=*/nullptr),
+          /*capture_handle=*/nullptr,
+          /*initial_zoom_level=*/100),
       &PageLiveStateDecorator::Data::IsCapturingDisplay);
 }
 
@@ -168,101 +170,39 @@ TEST_F(PageLiveStateDecoratorHelperTest, IsConnectedToBluetoothDevice) {
 }
 
 TEST_F(PageLiveStateDecoratorHelperTest, IsConnectedToUsbDevice) {
-  EXPECT_FALSE(web_contents()->IsConnectedToUsbDevice());
+  EXPECT_FALSE(web_contents()->IsCapabilityActive(
+      content::WebContents::CapabilityType::kUSB));
   testing::TestPageNodePropertyOnPMSequence(
       web_contents(), &PageLiveStateDecorator::Data::GetOrCreateForPageNode,
       &PageLiveStateDecorator::Data::IsConnectedToUSBDevice, false);
   content::WebContentsTester::For(web_contents())
       ->TestIncrementUsbActiveFrameCount();
-  EXPECT_TRUE(web_contents()->IsConnectedToUsbDevice());
+  EXPECT_TRUE(web_contents()->IsCapabilityActive(
+      content::WebContents::CapabilityType::kUSB));
   testing::TestPageNodePropertyOnPMSequence(
       web_contents(), &PageLiveStateDecorator::Data::GetOrCreateForPageNode,
       &PageLiveStateDecorator::Data::IsConnectedToUSBDevice, true);
   content::WebContentsTester::For(web_contents())
       ->TestIncrementUsbActiveFrameCount();
-  EXPECT_TRUE(web_contents()->IsConnectedToUsbDevice());
+  EXPECT_TRUE(web_contents()->IsCapabilityActive(
+      content::WebContents::CapabilityType::kUSB));
   testing::TestPageNodePropertyOnPMSequence(
       web_contents(), &PageLiveStateDecorator::Data::GetOrCreateForPageNode,
       &PageLiveStateDecorator::Data::IsConnectedToUSBDevice, true);
   content::WebContentsTester::For(web_contents())
       ->TestDecrementUsbActiveFrameCount();
-  EXPECT_TRUE(web_contents()->IsConnectedToUsbDevice());
+  EXPECT_TRUE(web_contents()->IsCapabilityActive(
+      content::WebContents::CapabilityType::kUSB));
   testing::TestPageNodePropertyOnPMSequence(
       web_contents(), &PageLiveStateDecorator::Data::GetOrCreateForPageNode,
       &PageLiveStateDecorator::Data::IsConnectedToUSBDevice, true);
   content::WebContentsTester::For(web_contents())
       ->TestDecrementUsbActiveFrameCount();
-  EXPECT_FALSE(web_contents()->IsConnectedToUsbDevice());
+  EXPECT_FALSE(web_contents()->IsCapabilityActive(
+      content::WebContents::CapabilityType::kUSB));
   testing::TestPageNodePropertyOnPMSequence(
       web_contents(), &PageLiveStateDecorator::Data::GetOrCreateForPageNode,
       &PageLiveStateDecorator::Data::IsConnectedToUSBDevice, false);
-}
-
-TEST_F(PageLiveStateDecoratorHelperTest, ContentSettingsChanged) {
-  base::WeakPtr<PageNode> node =
-      PerformanceManager::GetPrimaryPageNodeForWebContents(web_contents());
-  content::WebContentsTester::For(web_contents())
-      ->NavigateAndCommit(GURL("https://www.example.com/path"));
-
-  {
-    base::RunLoop run_loop;
-    PerformanceManager::CallOnGraph(
-        FROM_HERE, base::BindLambdaForTesting([&]() {
-          ASSERT_TRUE(node);
-          const PageLiveStateDecorator::Data* data =
-              PageLiveStateDecorator::Data::FromPageNode(node.get());
-          ASSERT_TRUE(data);
-          EXPECT_EQ(data->IsContentSettingTypeAllowed(
-                        ContentSettingsType::NOTIFICATIONS),
-                    false);
-          run_loop.Quit();
-        }));
-    run_loop.Run();
-  }
-
-  HostContentSettingsMap* host_content_settings_map =
-      HostContentSettingsMapFactory::GetForProfile(
-          web_contents()->GetBrowserContext());
-  host_content_settings_map->SetContentSettingDefaultScope(
-      GURL("https://www.example.com/"), GURL(),
-      ContentSettingsType::NOTIFICATIONS, CONTENT_SETTING_ALLOW);
-
-  {
-    base::RunLoop run_loop;
-    PerformanceManager::CallOnGraph(
-        FROM_HERE, base::BindLambdaForTesting([&]() {
-          ASSERT_TRUE(node);
-          const PageLiveStateDecorator::Data* data =
-              PageLiveStateDecorator::Data::FromPageNode(node.get());
-          ASSERT_TRUE(data);
-          EXPECT_EQ(data->IsContentSettingTypeAllowed(
-                        ContentSettingsType::NOTIFICATIONS),
-                    true);
-          run_loop.Quit();
-        }));
-    run_loop.Run();
-  }
-
-  // Changing content settings for a different URL doesn't affect this one.
-  host_content_settings_map->SetContentSettingDefaultScope(
-      GURL("https://other.url.com/"), GURL(),
-      ContentSettingsType::NOTIFICATIONS, CONTENT_SETTING_BLOCK);
-
-  {
-    base::RunLoop run_loop;
-    PerformanceManager::CallOnGraph(
-        FROM_HERE, base::BindLambdaForTesting([&]() {
-          ASSERT_TRUE(node);
-          const PageLiveStateDecorator::Data* data =
-              PageLiveStateDecorator::Data::FromPageNode(node.get());
-          ASSERT_TRUE(data);
-          EXPECT_EQ(data->IsContentSettingTypeAllowed(
-                        ContentSettingsType::NOTIFICATIONS),
-                    true);
-          run_loop.Quit();
-        }));
-    run_loop.Run();
-  }
 }
 
 // Create many WebContents to exercice the code that maintains the linked list

@@ -26,8 +26,11 @@ std::string FullyCanonicalize(const std::string& email) {
 
 }  // namespace
 
-ReportingUserTracker::ReportingUserTracker(PrefService* local_state)
-    : local_state_(local_state) {}
+ReportingUserTracker::ReportingUserTracker(
+    user_manager::UserManager* user_manager)
+    : local_state_(user_manager->GetLocalState()) {
+  observation_.Observe(user_manager);
+}
 
 ReportingUserTracker::~ReportingUserTracker() = default;
 
@@ -53,7 +56,7 @@ void ReportingUserTracker::OnUserAffiliationUpdated(
     return;
   }
 
-  if (user.GetType() != user_manager::USER_TYPE_REGULAR) {
+  if (user.GetType() != user_manager::UserType::kRegular) {
     return;
   }
 
@@ -80,8 +83,7 @@ void ReportingUserTracker::OnUserRemoved(
 
 void ReportingUserTracker::AddReportingUser(const AccountId& account_id) {
   ScopedListPrefUpdate users_update(local_state_, ::prefs::kReportingUsers);
-  // TODO(b/267685577): Email should be canonicalized.
-  base::Value email_value(account_id.GetUserEmail());
+  base::Value email_value(FullyCanonicalize(account_id.GetUserEmail()));
   if (!base::Contains(users_update.Get(), email_value)) {
     users_update->Append(std::move(email_value));
   }

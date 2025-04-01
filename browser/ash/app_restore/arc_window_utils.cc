@@ -18,23 +18,6 @@
 #include "ui/display/screen.h"
 #include "ui/views/window/caption_button_layout_constants.h"
 
-namespace {
-
-void ScaleToRoundedRectWithHeightInsets(absl::optional<gfx::Rect>& rect,
-                                        double scale_factor,
-                                        int height) {
-  if (!rect.has_value())
-    return;
-
-  gfx::Rect bounds =
-      gfx::Rect(rect->x(), rect->y(), rect->width(), rect->height());
-  if (height)
-    bounds.Inset(gfx::Insets::TLBR(height, 0, 0, 0));
-  rect = gfx::ScaleToRoundedRect(bounds, scale_factor);
-}
-
-}  // namespace
-
 namespace ash {
 namespace full_restore {
 
@@ -54,7 +37,7 @@ bool IsArcGhostWindowEnabled() {
   return profile->GetPrefs()->GetBoolean(kGhostWindowEnabled);
 }
 
-absl::optional<double> GetDisplayScaleFactor(int64_t display_id) {
+std::optional<double> GetDisplayScaleFactor(int64_t display_id) {
   // The `kDefaultDisplayId` should not be a valid parameter. Here replace it to
   // primary display id to keep it as the same semantics with Android, since the
   // ARC app window will not be shown on chromium default display (placeholder
@@ -66,7 +49,7 @@ absl::optional<double> GetDisplayScaleFactor(int64_t display_id) {
                                                             &display)) {
     return display.device_scale_factor();
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 apps::WindowInfoPtr HandleArcWindowInfo(apps::WindowInfoPtr window_info) {
@@ -85,17 +68,10 @@ apps::WindowInfoPtr HandleArcWindowInfo(apps::WindowInfoPtr window_info) {
     return window_info;
   }
 
-  // For ARC P, the window bounds in launch parameters should minus caption
-  // height.
-  int extra_caption_height = 0;
-  if (arc::GetArcAndroidSdkVersionAsInt() == arc::kArcVersionP) {
-    extra_caption_height =
-        views::GetCaptionButtonLayoutSize(
-            views::CaptionButtonLayoutSize::kNonBrowserCaption)
-            .height();
+  if (window_info->bounds) {
+    window_info->bounds = gfx::ScaleToRoundedRect(window_info->bounds.value(),
+                                                  scale_factor.value());
   }
-  ScaleToRoundedRectWithHeightInsets(window_info->bounds, scale_factor.value(),
-                                     extra_caption_height);
   return window_info;
 }
 

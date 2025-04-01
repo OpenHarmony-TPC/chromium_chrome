@@ -2,20 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/enterprise/connectors/analysis/content_analysis_dialog.h"
+
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/enterprise/connectors/analysis/content_analysis_dialog.h"
+#include "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate.h"
 #include "chrome/browser/enterprise/connectors/analysis/content_analysis_downloads_delegate.h"
-#include "chrome/browser/enterprise/connectors/analysis/fake_content_analysis_delegate.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_browsertest_base.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_test_utils.h"
+#include "chrome/browser/enterprise/connectors/analysis/content_analysis_features.h"
+#include "chrome/browser/enterprise/connectors/test/deep_scanning_browsertest_base.h"
+#include "chrome/browser/enterprise/connectors/test/deep_scanning_test_utils.h"
+#include "chrome/browser/enterprise/connectors/test/fake_content_analysis_delegate.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
@@ -24,15 +28,19 @@
 #include "components/download/public/common/mock_download_item.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/textarea/textarea.h"
 #include "ui/views/controls/throbber.h"
 #include "ui/views/test/ax_event_counter.h"
+#include "ui/views/test/views_test_utils.h"
 
 namespace enterprise_connectors {
 
@@ -95,7 +103,7 @@ std::string text() {
 //   observer.
 // - It sends accessibility events correctly.
 class ContentAnalysisDialogBehaviorBrowserTest
-    : public safe_browsing::DeepScanningBrowserTestBase,
+    : public test::DeepScanningBrowserTestBase,
       public ContentAnalysisDialog::TestObserver,
       public testing::WithParamInterface<
           std::tuple<bool, bool, base::TimeDelta>> {
@@ -138,7 +146,8 @@ class ContentAnalysisDialogBehaviorBrowserTest
     }
 
     // The dialog's buttons should be Cancel in the pending and fail case.
-    EXPECT_EQ(dialog_->GetDialogButtons(), ui::DIALOG_BUTTON_CANCEL);
+    EXPECT_EQ(dialog_->buttons(),
+              static_cast<int>(ui::mojom::DialogButton::kCancel));
 
     // Record the number of AX events until now to check if the text update adds
     // one later.
@@ -182,16 +191,16 @@ class ContentAnalysisDialogBehaviorBrowserTest
 
     // The dialog's buttons should be Cancel in the fail case and nothing in the
     // success case.
-    ui::DialogButton expected_buttons = dialog_->is_success()
-                                            ? ui::DIALOG_BUTTON_NONE
-                                            : ui::DIALOG_BUTTON_CANCEL;
-    EXPECT_EQ(expected_buttons, dialog_->GetDialogButtons());
+    ui::mojom::DialogButton expected_buttons =
+        dialog_->is_success() ? ui::mojom::DialogButton::kNone
+                              : ui::mojom::DialogButton::kCancel;
+    EXPECT_EQ(static_cast<int>(expected_buttons), dialog_->buttons());
 
     // The dialog should only be updated once some time after being shown.
     EXPECT_TRUE(dialog_first_shown_);
     EXPECT_FALSE(dialog_updated_);
 
-    // TODO(crbug/1131565): Re-enable this for Mac.
+    // TODO(crbug.com/40150258): Re-enable this for Mac.
 #if !BUILDFLAG(IS_MAC)
     // The dialog being updated implies an accessibility alert is sent.
     EXPECT_EQ(ax_events_count_when_first_shown_ + 1,
@@ -214,6 +223,17 @@ class ContentAnalysisDialogBehaviorBrowserTest
     dialog_updated_ = true;
   }
 
+  void CancelDialogAndDeleteCalled(ContentAnalysisDialog* dialog,
+                                   FinalContentAnalysisResult result) override {
+    EXPECT_EQ(dialog_, dialog);
+    EXPECT_NE(result, FinalContentAnalysisResult::FAIL_CLOSED);
+
+    if (dialog_->is_cloud()) {
+      EXPECT_FALSE(dialog_->is_failure());
+      EXPECT_FALSE(dialog_->is_warning());
+    }
+  }
+
   void DestructorCalled(ContentAnalysisDialog* dialog) override {
     dtor_called_timestamp_ = base::TimeTicks::Now();
 
@@ -233,9 +253,11 @@ class ContentAnalysisDialogBehaviorBrowserTest
             dtor_called_timestamp_ - dialog_updated_timestamp_;
         EXPECT_GE(delay, ContentAnalysisDialog::GetSuccessDialogTimeout());
 
-        EXPECT_EQ(ui::DIALOG_BUTTON_NONE, dialog_->GetDialogButtons());
+        EXPECT_EQ(static_cast<int>(ui::mojom::DialogButton::kNone),
+                  dialog_->buttons());
       } else {
-        EXPECT_EQ(ui::DIALOG_BUTTON_CANCEL, dialog_->GetDialogButtons());
+        EXPECT_EQ(static_cast<int>(ui::mojom::DialogButton::kCancel),
+                  dialog_->buttons());
       }
     } else {
       // Ensure the dialog update didn't occur if no dialog was shown.
@@ -277,7 +299,7 @@ class ContentAnalysisDialogBehaviorBrowserTest
 // - It returns a negative verdict on the scanned content.
 // - The "CancelledByUser" metrics are recorded.
 class ContentAnalysisDialogCancelPendingScanBrowserTest
-    : public safe_browsing::DeepScanningBrowserTestBase,
+    : public test::DeepScanningBrowserTestBase,
       public ContentAnalysisDialog::TestObserver {
  public:
   ContentAnalysisDialogCancelPendingScanBrowserTest() {
@@ -319,7 +341,7 @@ class ContentAnalysisDialogCancelPendingScanBrowserTest
 // - It calls the appropriate methods when the user bypasses/respects the
 //   warning.
 class ContentAnalysisDialogWarningBrowserTest
-    : public safe_browsing::DeepScanningBrowserTestBase,
+    : public test::DeepScanningBrowserTestBase,
       public ContentAnalysisDialog::TestObserver,
       public testing::WithParamInterface<bool> {
  public:
@@ -332,7 +354,8 @@ class ContentAnalysisDialogWarningBrowserTest
     // The dialog is first shown in the pending state.
     ASSERT_TRUE(dialog->is_pending());
 
-    ASSERT_EQ(dialog->GetDialogButtons(), ui::DIALOG_BUTTON_CANCEL);
+    ASSERT_EQ(dialog->buttons(),
+              static_cast<int>(ui::mojom::DialogButton::kCancel));
   }
 
   void DialogUpdated(ContentAnalysisDialog* dialog,
@@ -340,8 +363,9 @@ class ContentAnalysisDialogWarningBrowserTest
     ASSERT_TRUE(dialog->is_warning());
 
     // The dialog's buttons should be Ok and Cancel.
-    ASSERT_EQ(ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL,
-              dialog->GetDialogButtons());
+    ASSERT_EQ(static_cast<int>(ui::mojom::DialogButton::kOk) |
+                  static_cast<int>(ui::mojom::DialogButton::kCancel),
+              dialog->buttons());
 
     SimulateClickAndEndTest(dialog);
   }
@@ -365,10 +389,13 @@ class ContentAnalysisDialogWarningBrowserTest
 //   type.
 // - It shows the appropriate spinner depending on its state.
 class ContentAnalysisDialogAppearanceBrowserTest
-    : public safe_browsing::DeepScanningBrowserTestBase,
+    : public test::DeepScanningBrowserTestBase,
       public ContentAnalysisDialog::TestObserver,
       public testing::WithParamInterface<
-          std::tuple<bool, bool, safe_browsing::DeepScanAccessPoint>> {
+          std::tuple<bool,
+                     bool,
+                     safe_browsing::DeepScanAccessPoint,
+                     bool>> {
  public:
   ContentAnalysisDialogAppearanceBrowserTest() {
     ContentAnalysisDialog::SetObserverForTesting(this);
@@ -460,14 +487,49 @@ class ContentAnalysisDialogAppearanceBrowserTest
   safe_browsing::DeepScanAccessPoint access_point() const {
     return std::get<2>(GetParam());
   }
+
+  bool has_custom_rule_message() { return std::get<3>(GetParam()); }
 };
 
 // Tests the behavior of the dialog in the same way as
-// ContentAnalysisDialogAppearanceBrowserTest but with a custom message set by
-// the admin.
-class ContentAnalysisDialogCustomMessageAppearanceBrowserTest
+// ContentAnalysisDialogAppearanceBrowserTest but with a custom
+// message set by the admin.
+class ContentAnalysisDialogCustomMessageBrowserTest
     : public ContentAnalysisDialogAppearanceBrowserTest {
  private:
+  void DialogUpdated(ContentAnalysisDialog* dialog,
+                     FinalContentAnalysisResult result) override {
+    // The dialog shows the failure or success message for the appropriate
+    // access point and scan type.
+    views::StyledLabel* final_message = dialog->GetMessageForTesting();
+    ASSERT_TRUE(final_message);
+
+    if ((dialog->is_failure() || dialog->is_warning()) &&
+        has_custom_rule_message()) {
+      // Run layout to get children.
+      views::test::RunScheduledLayout(final_message);
+      final_message->SetBounds(0, 0, 1000, 1000);
+
+      // Three children as we insert the custom message in the middle of
+      // IDS_DEEP_SCANNING_DIALOG_CUSTOM_MESSAGE.
+      ASSERT_EQ(3u, final_message->children().size());
+
+      ASSERT_EQ(u"Custom rule message",
+                final_message->GetFirstLinkForTesting()->GetText());
+      ASSERT_EQ(
+          gfx::Font::UNDERLINE,
+          final_message->GetFirstLinkForTesting()->font_list().GetFontStyle());
+
+      // Click on link and check if correct page opens in new tab.
+      content::WebContentsAddedObserver new_tab_observer;
+      final_message->ClickFirstLinkForTesting();
+      ASSERT_EQ(GURL("http://example.com"),
+                new_tab_observer.GetWebContents()->GetVisibleURL());
+    } else {
+      std::u16string expected_message = GetExpectedMessage();
+      ASSERT_EQ(final_message->GetText(), expected_message);
+    }
+  }
   std::u16string GetExpectedMessage() override {
     if (access_point() == safe_browsing::DeepScanAccessPoint::PRINT) {
       return success() ? l10n_util::GetStringUTF16(
@@ -495,15 +557,15 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDialogBehaviorBrowserTest, Test) {
 
   // Setup policies to enable deep scanning, its UI and the responses to be
   // simulated.
-  safe_browsing::SetAnalysisConnector(browser()->profile()->GetPrefs(),
-                                      FILE_ATTACHED,
-                                      kBlockingScansForDlpAndMalware);
+  enterprise_connectors::test::SetAnalysisConnector(
+      browser()->profile()->GetPrefs(), FILE_ATTACHED,
+      kBlockingScansForDlpAndMalware);
   SetStatusCallbackResponse(
       safe_browsing::SimpleContentAnalysisResponseForTesting(
-          dlp_success(), malware_success()));
+          dlp_success(), malware_success(), /*has_custom_rule_message=*/false));
 
   // Set up delegate test values.
-  FakeContentAnalysisDelegate::SetResponseDelay(response_delay());
+  test::FakeContentAnalysisDelegate::SetResponseDelay(response_delay());
   SetUpDelegate();
 
   bool called = false;
@@ -558,15 +620,16 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogCancelPendingScanBrowserTest,
 
   // Setup policies to enable deep scanning, its UI and the responses to be
   // simulated.
-  safe_browsing::SetAnalysisConnector(browser()->profile()->GetPrefs(),
-                                      FILE_ATTACHED, kBlockingScansForDlp);
+  enterprise_connectors::test::SetAnalysisConnector(
+      browser()->profile()->GetPrefs(), FILE_ATTACHED, kBlockingScansForDlp);
   SetStatusCallbackResponse(
       safe_browsing::SimpleContentAnalysisResponseForTesting(
-          /*dlp=*/true, /*malware=*/absl::nullopt));
+          /*dlp=*/true, /*malware=*/std::nullopt,
+          /*has_custom_rule_message=*/false));
 
   // Set up delegate test values. An unresponsive delegate is set up to avoid
   // a race between the file responses and the "Cancel" button being clicked.
-  FakeContentAnalysisDelegate::SetResponseDelay(kSmallDelay);
+  test::FakeContentAnalysisDelegate::SetResponseDelay(kSmallDelay);
   SetUpUnresponsiveDelegate();
 
   bool called = false;
@@ -601,8 +664,8 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDialogWarningBrowserTest, Test) {
   base::ScopedAllowBlockingForTesting allow_blocking;
 
   // Setup policies.
-  safe_browsing::SetAnalysisConnector(browser()->profile()->GetPrefs(),
-                                      FILE_ATTACHED, kBlockingScansForDlp);
+  enterprise_connectors::test::SetAnalysisConnector(
+      browser()->profile()->GetPrefs(), FILE_ATTACHED, kBlockingScansForDlp);
 
   // Setup the DLP warning response.
   enterprise_connectors::ContentAnalysisResponse response;
@@ -659,16 +722,16 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDialogAppearanceBrowserTest, Test) {
 
   // Setup policies to enable deep scanning, its UI and the responses to be
   // simulated.
-  safe_browsing::SetAnalysisConnector(browser()->profile()->GetPrefs(),
-                                      FILE_ATTACHED,
-                                      kBlockingScansForDlpAndMalware);
+  enterprise_connectors::test::SetAnalysisConnector(
+      browser()->profile()->GetPrefs(), FILE_ATTACHED,
+      kBlockingScansForDlpAndMalware);
 
   SetStatusCallbackResponse(
-      safe_browsing::SimpleContentAnalysisResponseForTesting(success(),
-                                                             success()));
+      safe_browsing::SimpleContentAnalysisResponseForTesting(
+          success(), success(), /*has_custom_rule_message=*/false));
 
   // Set up delegate test values.
-  FakeContentAnalysisDelegate::SetResponseDelay(kSmallDelay);
+  test::FakeContentAnalysisDelegate::SetResponseDelay(kSmallDelay);
   SetUpDelegate();
 
   bool called = false;
@@ -711,24 +774,24 @@ INSTANTIATE_TEST_SUITE_P(
         testing::Values(safe_browsing::DeepScanAccessPoint::UPLOAD,
                         safe_browsing::DeepScanAccessPoint::DRAG_AND_DROP,
                         safe_browsing::DeepScanAccessPoint::PASTE,
-                        safe_browsing::DeepScanAccessPoint::PRINT)));
+                        safe_browsing::DeepScanAccessPoint::PRINT),
+        /*has_custom_rule_message=*/testing::Bool()));
 
-IN_PROC_BROWSER_TEST_P(ContentAnalysisDialogCustomMessageAppearanceBrowserTest,
-                       Test) {
+IN_PROC_BROWSER_TEST_P(ContentAnalysisDialogCustomMessageBrowserTest, Test) {
   base::ScopedAllowBlockingForTesting allow_blocking;
 
   // Setup policies to enable deep scanning, its UI and the responses to be
   // simulated.
-  safe_browsing::SetAnalysisConnector(
+  enterprise_connectors::test::SetAnalysisConnector(
       browser()->profile()->GetPrefs(), FILE_ATTACHED,
       kBlockingScansForDlpAndMalwareWithCustomMessage);
 
   SetStatusCallbackResponse(
-      safe_browsing::SimpleContentAnalysisResponseForTesting(success(),
-                                                             success()));
+      safe_browsing::SimpleContentAnalysisResponseForTesting(
+          success(), success(), has_custom_rule_message()));
 
   // Set up delegate test values.
-  FakeContentAnalysisDelegate::SetResponseDelay(kSmallDelay);
+  test::FakeContentAnalysisDelegate::SetResponseDelay(kSmallDelay);
   SetUpDelegate();
 
   bool called = false;
@@ -739,10 +802,11 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDialogCustomMessageAppearanceBrowserTest,
 
   // Use a file path or text to validate the appearance of the dialog for both
   // types of scans.
-  if (file_scan())
+  if (file_scan()) {
     CreateFilesForTest({"foo.doc"}, {"content"}, &data);
-  else
+  } else {
     data.text.emplace_back(text());
+  }
   ASSERT_TRUE(ContentAnalysisDelegate::IsEnabled(
       browser()->profile(), GURL(kTestUrl), &data,
       enterprise_connectors::AnalysisConnector::FILE_ATTACHED));
@@ -752,8 +816,9 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDialogCustomMessageAppearanceBrowserTest,
       base::BindLambdaForTesting(
           [this, &called](const ContentAnalysisDelegate::Data& data,
                           ContentAnalysisDelegate::Result& result) {
-            for (bool paths_result : result.paths_results)
+            for (bool paths_result : result.paths_results) {
               ASSERT_EQ(paths_result, success());
+            }
             called = true;
           }),
       access_point());
@@ -763,7 +828,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDialogCustomMessageAppearanceBrowserTest,
 
 INSTANTIATE_TEST_SUITE_P(
     ,
-    ContentAnalysisDialogCustomMessageAppearanceBrowserTest,
+    ContentAnalysisDialogCustomMessageBrowserTest,
     testing::Combine(
         /*file_scan=*/testing::Bool(),
         /*success=*/testing::Bool(),
@@ -771,14 +836,15 @@ INSTANTIATE_TEST_SUITE_P(
         testing::Values(safe_browsing::DeepScanAccessPoint::UPLOAD,
                         safe_browsing::DeepScanAccessPoint::DRAG_AND_DROP,
                         safe_browsing::DeepScanAccessPoint::PASTE,
-                        safe_browsing::DeepScanAccessPoint::PRINT)));
+                        safe_browsing::DeepScanAccessPoint::PRINT),
+        /*has_custom_rule_message=*/testing::Bool()));
 
 class ContentAnalysisDialogPlainTests : public InProcessBrowserTest {
  public:
   ContentAnalysisDialogPlainTests() {
-    scoped_feature_list_.InitAndEnableFeature(kBypassJustificationEnabled);
     ContentAnalysisDialog::SetShowDialogDelayForTesting(kNoDelay);
   }
+
   void OpenCallback() { ++times_open_called_; }
 
   void DiscardCallback() { ++times_discard_called_; }
@@ -788,15 +854,20 @@ class ContentAnalysisDialogPlainTests : public InProcessBrowserTest {
    public:
     ~MockDelegate() override = default;
     void BypassWarnings(
-        absl::optional<std::u16string> user_justification) override {}
+        std::optional<std::u16string> user_justification) override {}
     void Cancel(bool warning) override {}
 
-    absl::optional<std::u16string> GetCustomMessage() const override {
-      return absl::nullopt;
+    std::optional<std::u16string> GetCustomMessage() const override {
+      return std::nullopt;
     }
 
-    absl::optional<GURL> GetCustomLearnMoreUrl() const override {
-      return absl::nullopt;
+    std::optional<GURL> GetCustomLearnMoreUrl() const override {
+      return std::nullopt;
+    }
+
+    std::optional<std::vector<std::pair<gfx::Range, GURL>>>
+    GetCustomRuleMessageRanges() const override {
+      return std::nullopt;
     }
 
     bool BypassRequiresJustification() const override {
@@ -807,8 +878,8 @@ class ContentAnalysisDialogPlainTests : public InProcessBrowserTest {
       return u"MOCK_BYPASS_JUSTIFICATION_LABEL";
     }
 
-    absl::optional<std::u16string> OverrideCancelButtonText() const override {
-      return absl::nullopt;
+    std::optional<std::u16string> OverrideCancelButtonText() const override {
+      return std::nullopt;
     }
 
     void SetBypassRequiresJustification(bool value) {
@@ -823,19 +894,28 @@ class ContentAnalysisDialogPlainTests : public InProcessBrowserTest {
    public:
     MockCustomMessageDelegate(const std::u16string& message, const GURL& url)
         : custom_message_(message), learn_more_url_(url) {}
+    MockCustomMessageDelegate(
+        const std::u16string& message,
+        const std::vector<std::pair<gfx::Range, GURL>>& ranges)
+        : custom_message_(message), custom_rule_message_ranges_(ranges) {}
 
     ~MockCustomMessageDelegate() override = default;
 
     void BypassWarnings(
-        absl::optional<std::u16string> user_justification) override {}
+        std::optional<std::u16string> user_justification) override {}
     void Cancel(bool warning) override {}
 
-    absl::optional<std::u16string> GetCustomMessage() const override {
+    std::optional<std::u16string> GetCustomMessage() const override {
       return custom_message_;
     }
 
-    absl::optional<GURL> GetCustomLearnMoreUrl() const override {
+    std::optional<GURL> GetCustomLearnMoreUrl() const override {
       return learn_more_url_;
+    }
+
+    std::optional<std::vector<std::pair<gfx::Range, GURL>>>
+    GetCustomRuleMessageRanges() const override {
+      return custom_rule_message_ranges_;
     }
 
     bool BypassRequiresJustification() const override { return false; }
@@ -843,13 +923,14 @@ class ContentAnalysisDialogPlainTests : public InProcessBrowserTest {
       return u"MOCK_BYPASS_JUSTIFICATION_LABEL";
     }
 
-    absl::optional<std::u16string> OverrideCancelButtonText() const override {
-      return absl::nullopt;
+    std::optional<std::u16string> OverrideCancelButtonText() const override {
+      return std::nullopt;
     }
 
    private:
     std::u16string custom_message_;
     GURL learn_more_url_;
+    std::vector<std::pair<gfx::Range, GURL>> custom_rule_message_ranges_;
   };
 
   ContentAnalysisDialog* dialog() { return dialog_; }
@@ -873,7 +954,6 @@ class ContentAnalysisDialogPlainTests : public InProcessBrowserTest {
 
  private:
   raw_ptr<ContentAnalysisDialog, DanglingUntriaged> dialog_;
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests, TestCustomMessage) {
@@ -887,7 +967,23 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests, TestCustomMessage) {
       std::move(delegate), FinalContentAnalysisResult::SUCCESS);
   dialog->ShowResult(FinalContentAnalysisResult::WARNING);
 
-  EXPECT_TRUE(dialog->IsDialogButtonEnabled(ui::DIALOG_BUTTON_OK));
+  EXPECT_TRUE(dialog->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+  EXPECT_EQ(dialog->GetMessageForTesting()->GetText(), u"Test");
+}
+
+IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests, TestCustomRuleMessage) {
+  enterprise_connectors::ContentAnalysisDialog::
+      SetMinimumPendingDialogTimeForTesting(base::Milliseconds(0));
+
+  std::unique_ptr<MockCustomMessageDelegate> delegate =
+      std::make_unique<MockCustomMessageDelegate>(
+          u"Test", std::vector{std::pair{gfx::Range(0, 3),
+                                         GURL("https://www.example.com")}});
+  ContentAnalysisDialog* dialog = CreateContentAnalysisDialog(
+      std::move(delegate), FinalContentAnalysisResult::SUCCESS);
+  dialog->ShowResult(FinalContentAnalysisResult::WARNING);
+
+  EXPECT_TRUE(dialog->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
   EXPECT_EQ(dialog->GetMessageForTesting()->GetText(), u"Test");
 }
 
@@ -902,10 +998,10 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests,
       std::move(delegate), FinalContentAnalysisResult::SUCCESS);
   dialog->ShowResult(FinalContentAnalysisResult::WARNING);
 
-  EXPECT_FALSE(dialog->IsDialogButtonEnabled(ui::DIALOG_BUTTON_OK));
+  EXPECT_FALSE(dialog->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
   dialog->GetBypassJustificationTextareaForTesting()->InsertOrReplaceText(
       u"test");
-  EXPECT_TRUE(dialog->IsDialogButtonEnabled(ui::DIALOG_BUTTON_OK));
+  EXPECT_TRUE(dialog->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
 }
 
 IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests,
@@ -919,14 +1015,14 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests,
       std::move(delegate), FinalContentAnalysisResult::SUCCESS);
   dialog->ShowResult(FinalContentAnalysisResult::WARNING);
 
-  EXPECT_FALSE(dialog->IsDialogButtonEnabled(ui::DIALOG_BUTTON_OK));
+  EXPECT_FALSE(dialog->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
   dialog->GetBypassJustificationTextareaForTesting()->InsertOrReplaceText(
       u"This is a very long string. In fact, it is over two hundred characters "
       u"long because that is the maximum length of a bypass justification that "
       u"can be entered by a user. When the justification is this long, the "
       u"user will not be able to submit it. The maximum length just happens to "
       u"be the same as a popular bird-based service's character limit.");
-  EXPECT_FALSE(dialog->IsDialogButtonEnabled(ui::DIALOG_BUTTON_OK));
+  EXPECT_FALSE(dialog->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
 }
 
 IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests,
@@ -961,6 +1057,16 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests, TestOpenInBlockState) {
 }
 
 IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests,
+                       TestOpenInFailClosedState) {
+  ContentAnalysisDialog* dialog =
+      CreateContentAnalysisDialog(std::make_unique<MockDelegate>(),
+                                  FinalContentAnalysisResult::FAIL_CLOSED);
+  EXPECT_EQ(nullptr, dialog->GetSideIconSpinnerForTesting());
+  EXPECT_EQ(dialog->GetMessageForTesting()->GetText(),
+            u"Scan failed. This action is blocked by your administrator.");
+}
+
+IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests,
                        TestOpenInLargeFilesState) {
   ContentAnalysisDialog* dialog =
       CreateContentAnalysisDialog(std::make_unique<MockDelegate>(),
@@ -991,7 +1097,8 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests,
                          base::Unretained(this)),
           base::BindOnce(&ContentAnalysisDialogPlainTests::DiscardCallback,
                          base::Unretained(this)),
-          &mock_download_item),
+          &mock_download_item,
+          ContentAnalysisResponse::Result::TriggeredRule::CustomRuleMessage()),
       FinalContentAnalysisResult::WARNING);
 
   EXPECT_EQ(0, times_open_called_);
@@ -1020,7 +1127,8 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests,
                          base::Unretained(this)),
           base::BindOnce(&ContentAnalysisDialogPlainTests::DiscardCallback,
                          base::Unretained(this)),
-          nullptr),
+          nullptr,
+          ContentAnalysisResponse::Result::TriggeredRule::CustomRuleMessage()),
       FinalContentAnalysisResult::WARNING);
 
   EXPECT_EQ(0, times_open_called_);
@@ -1040,7 +1148,8 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests,
                          base::Unretained(this)),
           base::BindOnce(&ContentAnalysisDialogPlainTests::DiscardCallback,
                          base::Unretained(this)),
-          nullptr),
+          nullptr,
+          ContentAnalysisResponse::Result::TriggeredRule::CustomRuleMessage()),
       FinalContentAnalysisResult::FAILURE);
 
   EXPECT_EQ(0, times_open_called_);
@@ -1074,10 +1183,11 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests,
   ui::AXNodeData textarea_data;
   textarea->GetViewAccessibility().GetAccessibleNodeData(&textarea_data);
   EXPECT_EQ(textarea_data.role, ax::mojom::Role::kTextField);
-  EXPECT_EQ(textarea->GetAccessibleRole(), ax::mojom::Role::kTextField);
+  EXPECT_EQ(textarea->GetViewAccessibility().GetCachedRole(),
+            ax::mojom::Role::kTextField);
   EXPECT_EQ(
       textarea_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
-      label->GetAccessibleName());
+      label->GetViewAccessibility().GetCachedName());
   EXPECT_EQ(textarea_data.GetNameFrom(), ax::mojom::NameFrom::kRelatedElement);
   EXPECT_EQ(textarea_data.GetIntListAttribute(
                 ax::mojom::IntListAttribute::kLabelledbyIds)[0],
@@ -1088,18 +1198,18 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogPlainTests,
             ax::mojom::DefaultActionVerb::kActivate);
 }
 
-class ContentAnalysysDialogUiTest
+class ContentAnalysisDialogUiTest
     : public DialogBrowserTest,
       public testing::WithParamInterface<std::tuple<bool, bool, bool>> {
  public:
-  ContentAnalysysDialogUiTest() {
+  ContentAnalysisDialogUiTest() {
     ContentAnalysisDialog::SetShowDialogDelayForTesting(kNoDelay);
   }
 
-  ContentAnalysysDialogUiTest(const ContentAnalysysDialogUiTest&) = delete;
-  ContentAnalysysDialogUiTest& operator=(const ContentAnalysysDialogUiTest&) =
+  ContentAnalysisDialogUiTest(const ContentAnalysisDialogUiTest&) = delete;
+  ContentAnalysisDialogUiTest& operator=(const ContentAnalysisDialogUiTest&) =
       delete;
-  ~ContentAnalysysDialogUiTest() override = default;
+  ~ContentAnalysisDialogUiTest() override = default;
 
   bool custom_message_provided() const { return std::get<0>(GetParam()); }
   bool custom_url_provided() const { return std::get<1>(GetParam()); }
@@ -1118,7 +1228,8 @@ class ContentAnalysysDialogUiTest
     auto delegate = std::make_unique<ContentAnalysisDownloadsDelegate>(
         u"File Name", get_custom_message(), get_custom_url(),
         bypass_justification_enabled(), base::DoNothing(), base::DoNothing(),
-        nullptr);
+        nullptr,
+        ContentAnalysisResponse::Result::TriggeredRule::CustomRuleMessage());
 
     // This ctor ends up calling into constrained_window to show itself, in a
     // way that relinquishes its ownership. Because of this, new it here and
@@ -1131,22 +1242,65 @@ class ContentAnalysysDialogUiTest
   }
 };
 
-IN_PROC_BROWSER_TEST_P(ContentAnalysysDialogUiTest, InvokeUi_default) {
+IN_PROC_BROWSER_TEST_P(ContentAnalysisDialogUiTest, InvokeUi_default) {
   ShowAndVerifyUi();
 }
 
 INSTANTIATE_TEST_SUITE_P(,
-                         ContentAnalysysDialogUiTest,
+                         ContentAnalysisDialogUiTest,
                          testing::Combine(
                              /*custom_message_exists*/ testing::Bool(),
                              /*custom_url_exists*/ testing::Bool(),
                              /*bypass_justification_enabled*/ testing::Bool()));
 
-class ContentAnalysysDialogDownloadObserverTest
-    : public safe_browsing::DeepScanningBrowserTestBase,
+class ContentAnalysisDialogCustomRuleMessageUiTest
+    : public ContentAnalysisDialogUiTest {
+ public:
+  ContentAnalysisDialogCustomRuleMessageUiTest() {
+    ContentAnalysisDialog::SetShowDialogDelayForTesting(kNoDelay);
+  }
+
+  // DialogBrowserTest:
+  void ShowUi(const std::string& name) override {
+    ContentAnalysisResponse::Result::TriggeredRule::CustomRuleMessage
+        custom_rule_message = CreateSampleCustomRuleMessage(
+            u"Admin rule message", get_custom_url().GetContent());
+    auto delegate = std::make_unique<ContentAnalysisDownloadsDelegate>(
+        u"File Name", get_custom_message(), get_custom_url(),
+        bypass_justification_enabled(), base::DoNothing(), base::DoNothing(),
+        nullptr, custom_rule_message);
+
+    // This ctor ends up calling into constrained_window to show itself, in a
+    // way that relinquishes its ownership. Because of this, new it here and
+    // let it be deleted by the constrained_window code.
+    new ContentAnalysisDialog(
+        std::move(delegate), true,
+        browser()->tab_strip_model()->GetActiveWebContents(),
+        safe_browsing::DeepScanAccessPoint::DOWNLOAD, 1,
+        FinalContentAnalysisResult::WARNING);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_features;
+};
+
+IN_PROC_BROWSER_TEST_P(ContentAnalysisDialogCustomRuleMessageUiTest,
+                       InvokeUi_default) {
+  ShowAndVerifyUi();
+}
+
+INSTANTIATE_TEST_SUITE_P(,
+                         ContentAnalysisDialogCustomRuleMessageUiTest,
+                         testing::Combine(
+                             /*custom_message_exists*/ testing::Bool(),
+                             /*custom_url_exists*/ testing::Bool(),
+                             /*bypass_justification_enabled*/ testing::Bool()));
+
+class ContentAnalysisDialogDownloadObserverTest
+    : public test::DeepScanningBrowserTestBase,
       public ContentAnalysisDialog::TestObserver {
  public:
-  ContentAnalysysDialogDownloadObserverTest() {
+  ContentAnalysisDialogDownloadObserverTest() {
     ContentAnalysisDialog::SetObserverForTesting(this);
   }
 
@@ -1170,7 +1324,7 @@ class ContentAnalysysDialogDownloadObserverTest
   base::OnceClosure dtor_called_closure_;
 };
 
-IN_PROC_BROWSER_TEST_F(ContentAnalysysDialogDownloadObserverTest,
+IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogDownloadObserverTest,
                        DownloadOpened) {
   download::MockDownloadItem mock_download_item;
   base::RunLoop show_run_loop;
@@ -1180,7 +1334,8 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysysDialogDownloadObserverTest,
       std::make_unique<ContentAnalysisDownloadsDelegate>(
           u"", u"", GURL(), true,
           /* open_file_callback */ base::DoNothing(),
-          /* discard_callback */ base::DoNothing(), &mock_download_item),
+          /* discard_callback */ base::DoNothing(), &mock_download_item,
+          ContentAnalysisResponse::Result::TriggeredRule::CustomRuleMessage()),
       true, browser()->tab_strip_model()->GetActiveWebContents(),
       safe_browsing::DeepScanAccessPoint::DOWNLOAD, /* file_count */ 1,
       FinalContentAnalysisResult::WARNING, &mock_download_item);
@@ -1196,7 +1351,7 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysysDialogDownloadObserverTest,
   dtor_run_loop.Run();
 }
 
-IN_PROC_BROWSER_TEST_F(ContentAnalysysDialogDownloadObserverTest,
+IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogDownloadObserverTest,
                        DownloadUpdated) {
   download::MockDownloadItem mock_download_item;
   base::RunLoop show_run_loop;
@@ -1206,7 +1361,8 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysysDialogDownloadObserverTest,
       std::make_unique<ContentAnalysisDownloadsDelegate>(
           u"", u"", GURL(), true,
           /* open_file_callback */ base::DoNothing(),
-          /* discard_callback */ base::DoNothing(), &mock_download_item),
+          /* discard_callback */ base::DoNothing(), &mock_download_item,
+          ContentAnalysisResponse::Result::TriggeredRule::CustomRuleMessage()),
       true, browser()->tab_strip_model()->GetActiveWebContents(),
       safe_browsing::DeepScanAccessPoint::DOWNLOAD, /* file_count */ 1,
       FinalContentAnalysisResult::WARNING, &mock_download_item);
@@ -1231,7 +1387,7 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysysDialogDownloadObserverTest,
   dtor_run_loop.Run();
 }
 
-IN_PROC_BROWSER_TEST_F(ContentAnalysysDialogDownloadObserverTest,
+IN_PROC_BROWSER_TEST_F(ContentAnalysisDialogDownloadObserverTest,
                        DownloadDestroyed) {
   auto mock_download_item = std::make_unique<download::MockDownloadItem>();
   base::RunLoop show_run_loop;
@@ -1241,7 +1397,8 @@ IN_PROC_BROWSER_TEST_F(ContentAnalysysDialogDownloadObserverTest,
       std::make_unique<ContentAnalysisDownloadsDelegate>(
           u"", u"", GURL(), true,
           /* open_file_callback */ base::DoNothing(),
-          /* discard_callback */ base::DoNothing(), mock_download_item.get()),
+          /* discard_callback */ base::DoNothing(), mock_download_item.get(),
+          ContentAnalysisResponse::Result::TriggeredRule::CustomRuleMessage()),
       true, browser()->tab_strip_model()->GetActiveWebContents(),
       safe_browsing::DeepScanAccessPoint::DOWNLOAD, /* file_count */ 1,
       FinalContentAnalysisResult::WARNING, mock_download_item.get());

@@ -2,8 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/signin/profile_picker_ui.h"
 
+#include "base/feature_list.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/buildflag.h"
@@ -16,17 +22,17 @@
 #include "chrome/browser/profiles/profile_shortcut_manager.h"
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/signin/account_consistency_mode_manager.h"
-#include "chrome/browser/signin/signin_features.h"
 #include "chrome/browser/signin/signin_util.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/managed_ui.h"
-#include "chrome/browser/ui/profile_picker.h"
-#include "chrome/browser/ui/webui/signin/profile_creation_customize_themes_handler.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/browser/ui/webui/signin/profile_picker_handler.h"
+#include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/browser_resources.h"
-#include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/profile_picker_resources.h"
 #include "chrome/grit/profile_picker_resources_map.h"
@@ -43,7 +49,6 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/base/webui/web_ui_util.h"
-#include "ui/webui/mojo_web_ui_controller.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -79,13 +84,13 @@ bool IsBrowserSigninAllowed() {
 
 std::string GetManagedDeviceDisclaimer() {
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-  absl::optional<std::string> manager = chrome::GetSessionManagerIdentity();
+  std::optional<std::string> manager = chrome::GetSessionManagerIdentity();
   int managed_id =
       IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_SESSION_MANAGED_DESCRIPTION;
   int managed_by_id =
       IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_SESSION_MANAGED_BY_DESCRIPTION;
 #else
-  absl::optional<std::string> manager = chrome::GetDeviceManagerIdentity();
+  std::optional<std::string> manager = chrome::GetDeviceManagerIdentity();
   int managed_id =
       IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_DEVICE_MANAGED_DESCRIPTION;
   int managed_by_id =
@@ -109,101 +114,64 @@ int GetMainViewTitleId() {
 }
 
 void AddStrings(content::WebUIDataSource* html_source) {
-  static constexpr webui::LocalizedString kLocalizedStrings[] = {
-    {"mainViewSubtitle",
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-     IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_LACROS
+  int profile_type_choice_subtitle =
+      IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_SUBTITLE_LACROS;
 #else
-     IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE
+  int profile_type_choice_subtitle =
+      base::FeatureList::IsEnabled(switches::kExplicitBrowserSigninUIOnDesktop)
+          ? IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_SUBTITLE_UNO
+          : IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_SUBTITLE;
 #endif
-    },
-    {"addSpaceButton", IDS_PROFILE_PICKER_ADD_SPACE_BUTTON},
-    {"askOnStartupCheckboxText", IDS_PROFILE_PICKER_ASK_ON_STARTUP},
-    {"browseAsGuestButton", IDS_PROFILE_PICKER_BROWSE_AS_GUEST_BUTTON},
-    {"needsSigninPrompt", IDS_PROFILE_PICKER_PROFILE_CARD_NEEDS_SIGNIN_PROMPT},
-    {"profileCardButtonLabel", IDS_PROFILE_PICKER_PROFILE_CARD_LABEL},
-    {"profileCardInputLabel", IDS_PROFILE_PICKER_PROFILE_CARD_INPUT_LABEL},
-    {"menu", IDS_MENU},
-    {"cancel", IDS_CANCEL},
-    {"profileMenuName", IDS_SETTINGS_MORE_ACTIONS},
-    {"profileMenuAriaLabel",
-     IDS_PROFILE_PICKER_PROFILE_MORE_ACTIONS_ARIA_LABEL},
-    {"profileMenuRemoveText", IDS_PROFILE_PICKER_PROFILE_MENU_REMOVE_TEXT},
-    {"profileMenuCustomizeText",
-     IDS_PROFILE_PICKER_PROFILE_MENU_CUSTOMIZE_TEXT},
-    {"removeWarningLocalProfileTitle",
-     IDS_PROFILE_PICKER_REMOVE_WARNING_LOCAL_PROFILE_TITLE},
-    {"removeWarningSignedInProfileTitle",
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-     IDS_PROFILE_PICKER_REMOVE_WARNING_SIGNED_IN_PROFILE_TITLE_LACROS
-#else
-     IDS_PROFILE_PICKER_REMOVE_WARNING_SIGNED_IN_PROFILE_TITLE
-#endif
-    },
-    {"removeWarningHistory", IDS_PROFILE_PICKER_REMOVE_WARNING_HISTORY},
-    {"removeWarningPasswords", IDS_PROFILE_PICKER_REMOVE_WARNING_PASSWORDS},
-    {"removeWarningBookmarks", IDS_PROFILE_PICKER_REMOVE_WARNING_BOOKMARKS},
-    {"removeWarningAutofill", IDS_PROFILE_PICKER_REMOVE_WARNING_AUTOFILL},
-    {"removeWarningCalculating", IDS_PROFILE_PICKER_REMOVE_WARNING_CALCULATING},
-    {"backButtonAriaLabel", IDS_PROFILE_PICKER_BACK_BUTTON_ARIA_LABEL},
-    {"profileTypeChoiceTitle",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_TITLE},
-    {"profileTypeChoiceSubtitle",
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_SUBTITLE_LACROS
-#else
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_SUBTITLE
-#endif
-    },
-    {"notNowButtonLabel",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_NOT_NOW_BUTTON_LABEL},
-    {"localProfileCreationTitle",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_LOCAL_PROFILE_CREATION_TITLE},
-    {"localProfileCreationCustomizeAvatarLabel",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_LOCAL_PROFILE_CREATION_CUSTOMIZE_AVATAR_BUTTON_LABEL},
-    {"localProfileCreationThemeText",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_LOCAL_PROFILE_CREATION_THEME_TEXT},
-    {"createProfileNamePlaceholder",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_LOCAL_PROFILE_CREATION_INPUT_NAME},
-    {"createDesktopShortcutLabel",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_LOCAL_PROFILE_CREATION_SHORTCUT_TEXT},
-    {"createProfileConfirm",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_LOCAL_PROFILE_CREATION_DONE},
-    {"defaultAvatarLabel", IDS_DEFAULT_AVATAR_LABEL_26},
-    {"selectAnAvatarDialogTitle",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_LOCAL_PROFILE_CREATION_AVATAR_TEXT},
-    {"selectAvatarDoneButtonLabel",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_LOCAL_PROFILE_CREATION_AVATAR_DONE},
-    {"profileSwitchTitle", IDS_PROFILE_PICKER_PROFILE_SWITCH_TITLE},
-    {"profileSwitchSubtitle", IDS_PROFILE_PICKER_PROFILE_SWITCH_SUBTITLE},
-    {"switchButtonLabel",
-     IDS_PROFILE_PICKER_PROFILE_SWITCH_SWITCH_BUTTON_LABEL},
 
-    // Color picker.
-    {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
-    {"defaultThemeLabel", IDS_NTP_CUSTOMIZE_DEFAULT_LABEL},
-    {"themesContainerLabel",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_LOCAL_PROFILE_CREATION_THEME_TEXT},
-    {"thirdPartyThemeDescription", IDS_NTP_CUSTOMIZE_3PT_THEME_DESC},
-    {"uninstallThirdPartyThemeButton", IDS_NTP_CUSTOMIZE_3PT_THEME_UNINSTALL},
-
+  static webui::LocalizedString kLocalizedStrings[] = {
+      {"mainViewSubtitle",
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-    {"accountSelectionLacrosTitle",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_ACCOUNT_SELECTION_LACROS_TITLE},
-    {"accountSelectionLacrosOtherAccountButtonLabel",
-     IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_ACCOUNT_SELECTION_LACROS_OTHER_ACCOUNT_BUTTON_LABEL},
-    {"lacrosPrimaryProfileDeletionWarningTitle",
-     IDS_PROFILE_PICKER_LACROS_PRIMARY_PROFILE_DELETION_WARNING_TITLE},
-    {"lacrosPrimaryProfileDeletionWarning",
-     IDS_PROFILE_PICKER_LACROS_PRIMARY_PROFILE_DELETION_WARNING},
-    {"lacrosPrimaryProfileDeletionWarningConfirmation",
-     IDS_PROFILE_PICKER_LACROS_PRIMARY_PROFILE_DELETION_WARNING_CONFIRMATION},
+       IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_LACROS
 #else
-    {"removeWarningLocalProfile",
-     IDS_PROFILE_PICKER_REMOVE_WARNING_LOCAL_PROFILE},
-    {"removeWarningSignedInProfile",
-     IDS_PROFILE_PICKER_REMOVE_WARNING_SIGNED_IN_PROFILE},
+       IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE
 #endif
+      },
+      {"addSpaceButton", IDS_PROFILE_PICKER_ADD_SPACE_BUTTON},
+      {"askOnStartupCheckboxText", IDS_PROFILE_PICKER_ASK_ON_STARTUP},
+      {"browseAsGuestButton", IDS_PROFILE_PICKER_BROWSE_AS_GUEST_BUTTON},
+      {"needsSigninPrompt",
+       IDS_PROFILE_PICKER_PROFILE_CARD_NEEDS_SIGNIN_PROMPT},
+      {"profileCardButtonLabel", IDS_PROFILE_PICKER_PROFILE_CARD_LABEL},
+      {"profileCardInputLabel", IDS_PROFILE_PICKER_PROFILE_CARD_INPUT_LABEL},
+      {"menu", IDS_MENU},
+      {"cancel", IDS_CANCEL},
+      {"profileMenuName", IDS_SETTINGS_MORE_ACTIONS},
+      {"profileMenuAriaLabel",
+       IDS_PROFILE_PICKER_PROFILE_MORE_ACTIONS_ARIA_LABEL},
+      {"profileMenuRemoveText", IDS_PROFILE_PICKER_PROFILE_MENU_REMOVE_TEXT},
+      {"profileMenuCustomizeText",
+       IDS_PROFILE_PICKER_PROFILE_MENU_CUSTOMIZE_TEXT},
+      {"removeWarningLocalProfileTitle",
+       IDS_PROFILE_PICKER_REMOVE_WARNING_LOCAL_PROFILE_TITLE},
+      {"removeWarningSignedInProfileTitle",
+       IDS_PROFILE_PICKER_REMOVE_WARNING_SIGNED_IN_PROFILE_TITLE},
+      {"removeWarningHistory", IDS_PROFILE_PICKER_REMOVE_WARNING_HISTORY},
+      {"removeWarningPasswords", IDS_PROFILE_PICKER_REMOVE_WARNING_PASSWORDS},
+      {"removeWarningBookmarks", IDS_PROFILE_PICKER_REMOVE_WARNING_BOOKMARKS},
+      {"removeWarningAutofill", IDS_PROFILE_PICKER_REMOVE_WARNING_AUTOFILL},
+      {"removeWarningCalculating",
+       IDS_PROFILE_PICKER_REMOVE_WARNING_CALCULATING},
+      {"backButtonAriaLabel", IDS_PROFILE_PICKER_BACK_BUTTON_ARIA_LABEL},
+      {"profileTypeChoiceTitle",
+       IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_TITLE},
+      {"profileTypeChoiceSubtitle", profile_type_choice_subtitle},
+      {"notNowButtonLabel",
+       IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_NOT_NOW_BUTTON_LABEL},
+      {"profileSwitchTitle", IDS_PROFILE_PICKER_PROFILE_SWITCH_TITLE},
+      {"profileSwitchSubtitle", IDS_PROFILE_PICKER_PROFILE_SWITCH_SUBTITLE},
+      {"switchButtonLabel",
+       IDS_PROFILE_PICKER_PROFILE_SWITCH_SWITCH_BUTTON_LABEL},
+      {"removeWarningLocalProfile",
+       IDS_PROFILE_PICKER_REMOVE_WARNING_LOCAL_PROFILE},
+      {"removeWarningSignedInProfile",
+       IDS_PROFILE_PICKER_REMOVE_WARNING_SIGNED_IN_PROFILE},
+      {"ok", IDS_OK},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
 
@@ -222,6 +190,8 @@ void AddStrings(content::WebUIDataSource* html_source) {
   html_source->AddBoolean("askOnStartup",
                           g_browser_process->local_state()->GetBoolean(
                               prefs::kBrowserShowProfilePickerOnStartup));
+  html_source->AddBoolean("profilesReorderingEnabled",
+                          base::FeatureList::IsEnabled(kProfilesReordering));
   html_source->AddBoolean("signInProfileCreationFlowSupported",
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
                           AccountConsistencyModeManager::IsDiceSignInAllowed());
@@ -237,8 +207,6 @@ void AddStrings(content::WebUIDataSource* html_source) {
 
   html_source->AddString("managedDeviceDisclaimer",
                          GetManagedDeviceDisclaimer());
-
-  webui::SetupChromeRefresh2023(html_source);
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
   std::string remove_warning_profile = l10n_util::GetStringFUTF8(
@@ -277,31 +245,21 @@ void AddStrings(content::WebUIDataSource* html_source) {
   html_source->AddBoolean("profileShortcutsEnabled",
                           ProfileShortcutManager::IsFeatureEnabled());
   html_source->AddBoolean("isAskOnStartupAllowed", ask_on_startup_allowed);
-  html_source->AddBoolean(
-      "isLocalProfileCreationDialogEnabled",
-      base::FeatureList::IsEnabled(kSyncPromoAfterSigninIntercept));
 
-  html_source->AddBoolean(
-      "isTangibleSyncEnabled",
-      base::FeatureList::IsEnabled(switches::kTangibleSync));
-
-  html_source->AddResourcePath("images/tangible_sync_style_left_banner.svg",
+  html_source->AddResourcePath("images/left_banner.svg",
                                IDR_SIGNIN_IMAGES_SHARED_LEFT_BANNER_SVG);
-  html_source->AddResourcePath(
-      "images/tangible_sync_style_left_banner_dark.svg",
-      IDR_SIGNIN_IMAGES_SHARED_LEFT_BANNER_DARK_SVG);
-  html_source->AddResourcePath("images/tangible_sync_style_right_banner.svg",
+  html_source->AddResourcePath("images/left_banner_dark.svg",
+                               IDR_SIGNIN_IMAGES_SHARED_LEFT_BANNER_DARK_SVG);
+  html_source->AddResourcePath("images/right_banner.svg",
                                IDR_SIGNIN_IMAGES_SHARED_RIGHT_BANNER_SVG);
-  html_source->AddResourcePath(
-      "images/tangible_sync_style_right_banner_dark.svg",
-      IDR_SIGNIN_IMAGES_SHARED_RIGHT_BANNER_DARK_SVG);
+  html_source->AddResourcePath("images/right_banner_dark.svg",
+                               IDR_SIGNIN_IMAGES_SHARED_RIGHT_BANNER_DARK_SVG);
 }
 
 }  // namespace
 
 ProfilePickerUI::ProfilePickerUI(content::WebUI* web_ui)
-    : ui::MojoWebUIController(web_ui, /*enable_chrome_send=*/true),
-      customize_themes_factory_receiver_(this) {
+    : TopChromeWebUIController(web_ui, /*enable_chrome_send=*/true) {
   Profile* profile = Profile::FromWebUI(web_ui);
   content::WebUIDataSource* html_source =
       content::WebUIDataSource::CreateAndAdd(
@@ -334,33 +292,36 @@ ProfilePickerUI::ProfilePickerUI(content::WebUI* web_ui)
 
 ProfilePickerUI::~ProfilePickerUI() = default;
 
-// static
-gfx::Size ProfilePickerUI::GetMinimumSize() {
-  return gfx::Size(kMinimumPickerSizePx, kMinimumPickerSizePx);
+void ProfilePickerUI::CreateHelpBubbleHandler(
+    mojo::PendingRemote<help_bubble::mojom::HelpBubbleClient> client,
+    mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandler> handler) {
+  help_bubble_handler_ = std::make_unique<user_education::HelpBubbleHandler>(
+      std::move(handler), std::move(client), this,
+      std::vector<ui::ElementIdentifier>{});
 }
 
 void ProfilePickerUI::BindInterface(
-    mojo::PendingReceiver<
-        customize_themes::mojom::CustomizeThemesHandlerFactory>
+    mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandlerFactory>
         pending_receiver) {
-  if (customize_themes_factory_receiver_.is_bound()) {
-    customize_themes_factory_receiver_.reset();
+  if (help_bubble_handler_factory_receiver_.is_bound()) {
+    help_bubble_handler_factory_receiver_.reset();
   }
-  customize_themes_factory_receiver_.Bind(std::move(pending_receiver));
+  help_bubble_handler_factory_receiver_.Bind(std::move(pending_receiver));
+}
+
+// static
+gfx::Size ProfilePickerUI::GetMinimumSize() {
+  return gfx::Size(kMinimumPickerSizePx, kMinimumPickerSizePx);
 }
 
 ProfilePickerHandler* ProfilePickerUI::GetProfilePickerHandlerForTesting() {
   return profile_picker_handler_;
 }
 
-void ProfilePickerUI::CreateCustomizeThemesHandler(
-    mojo::PendingRemote<customize_themes::mojom::CustomizeThemesClient>
-        pending_client,
-    mojo::PendingReceiver<customize_themes::mojom::CustomizeThemesHandler>
-        pending_handler) {
-  customize_themes_handler_ =
-      std::make_unique<ProfileCreationCustomizeThemesHandler>(
-          std::move(pending_client), std::move(pending_handler));
+void ProfilePickerUI::ShowForceSigninErrorDialog(
+    const ForceSigninUIError& error) {
+  profile_picker_handler_->DisplayForceSigninErrorDialog(base::FilePath(),
+                                                         error);
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(ProfilePickerUI)

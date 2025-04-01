@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,26 +27,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Unit tests for {@link SignalAccumulator}
- */
+/** Unit tests for {@link SignalAccumulator} */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class SignalAccumulatorTest {
-    @Mock
-    private Tab mMockTab;
+    @Mock private Tab mMockTab;
 
-    @Mock
-    private Handler mHandler;
+    @Mock private Handler mHandler;
 
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        Mockito.doAnswer(invocation -> {
-                   Runnable runnable = invocation.getArgument(0);
-                   runnable.run();
-                   return null;
-               })
+        Mockito.doAnswer(
+                        invocation -> {
+                            Runnable runnable = invocation.getArgument(0);
+                            runnable.run();
+                            return null;
+                        })
                 .when(mHandler)
                 .postDelayed(any(), anyLong());
     }
@@ -54,11 +51,14 @@ public class SignalAccumulatorTest {
     @Test
     public void testAllSignalsBeforeTimeout() throws TimeoutException {
         List<ActionProvider> actionProviders = new ArrayList<>();
-        ActionProvider dummyProvider = (tab, accumulator) -> {
-            accumulator.setHasPriceTracking(true);
-            accumulator.setHasReaderMode(false);
-        };
-        actionProviders.add(dummyProvider);
+        ActionProvider actionProvider =
+                (tab, accumulator) -> {
+                    accumulator.setHasPriceTracking(true);
+                    accumulator.setHasReaderMode(false);
+                    accumulator.setHasPriceInsights(true);
+                    accumulator.setHasDiscounts(true);
+                };
+        actionProviders.add(actionProvider);
         final CallbackHelper callbackHelper = new CallbackHelper();
         int callCount = callbackHelper.getCallCount();
         SignalAccumulator accumulator = new SignalAccumulator(mHandler, mMockTab, actionProviders);
@@ -66,6 +66,8 @@ public class SignalAccumulatorTest {
         callbackHelper.waitForCallback(callCount);
         Assert.assertTrue(accumulator.hasPriceTracking());
         Assert.assertFalse(accumulator.hasReaderMode());
+        Assert.assertTrue(accumulator.hasPriceInsights());
+        Assert.assertTrue(accumulator.hasDiscounts());
     }
 
     @Test
@@ -78,5 +80,7 @@ public class SignalAccumulatorTest {
         callbackHelper.waitForCallback(callCount);
         Assert.assertFalse(accumulator.hasPriceTracking());
         Assert.assertFalse(accumulator.hasReaderMode());
+        Assert.assertFalse(accumulator.hasPriceInsights());
+        Assert.assertFalse(accumulator.hasDiscounts());
     }
 }

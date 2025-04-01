@@ -5,7 +5,6 @@
 #include "chrome/browser/ui/views/frame/system_menu_model_delegate.h"
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/command_updater.h"
 #include "chrome/browser/profiles/profile.h"
@@ -21,9 +20,7 @@
 #include "chromeos/ui/frame/desks/move_to_desks_menu_model.h"
 #endif
 
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #endif
@@ -38,9 +35,7 @@ SystemMenuModelDelegate::SystemMenuModelDelegate(
 SystemMenuModelDelegate::~SystemMenuModelDelegate() {}
 
 bool SystemMenuModelDelegate::IsCommandIdChecked(int command_id) const {
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
   if (command_id == IDC_USE_SYSTEM_TITLE_BAR) {
     PrefService* prefs = browser_->profile()->GetPrefs();
     return !prefs->GetBoolean(prefs::kUseCustomChromeFrame);
@@ -60,9 +55,7 @@ bool SystemMenuModelDelegate::IsCommandIdEnabled(int command_id) const {
 }
 
 bool SystemMenuModelDelegate::IsCommandIdVisible(int command_id) const {
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
   bool is_maximized = browser_->window()->IsMaximized();
   switch (command_id) {
     case IDC_MAXIMIZE_WINDOW:
@@ -101,10 +94,10 @@ std::u16string SystemMenuModelDelegate::GetLabelForCommandId(
     DCHECK(trs);
     trs->LoadTabsFromLastSession();
     if (!trs->entries().empty()) {
-      if (trs->entries().front()->type == sessions::TabRestoreService::WINDOW) {
+      if (trs->entries().front()->type == sessions::tab_restore::Type::WINDOW) {
         string_id = IDS_REOPEN_WINDOW;
       } else if (trs->entries().front()->type ==
-                 sessions::TabRestoreService::GROUP) {
+                 sessions::tab_restore::Type::GROUP) {
         string_id = IDS_REOPEN_GROUP;
       }
     }

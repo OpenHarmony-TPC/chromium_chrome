@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "cef/libcef/features/runtime.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/chrome_no_state_prefetch_contents_delegate.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_contents.h"
@@ -17,21 +16,26 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_stream_manager.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/common/manifest_handlers/mime_types_handler.h"
+#include "pdf/buildflags.h"
 
-#if BUILDFLAG(ENABLE_CEF)
-#include "cef/libcef/browser/extensions/alloy_extensions_util.h"
-#endif
+#if BUILDFLAG(ENABLE_PDF)
+#include "chrome/browser/pdf/pdf_viewer_stream_manager.h"
+#include "extensions/common/constants.h"
+#include "pdf/pdf_features.h"
+#endif  // BUILDFLAG(ENABLE_PDF)
 
 namespace extensions {
 
 void StreamsPrivateAPI::SendExecuteMimeTypeHandlerEvent(
-    const std::string& extension_id,
+    const ExtensionId& extension_id,
     const std::string& stream_id,
     bool embedded,
-    int frame_tree_node_id,
+    content::FrameTreeNodeId frame_tree_node_id,
     blink::mojom::TransferrableURLLoaderPtr transferrable_loader,
-    const GURL& original_url) {
+    const GURL& original_url,
+    const std::string& internal_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   content::WebContents* web_contents =
@@ -39,7 +43,6 @@ void StreamsPrivateAPI::SendExecuteMimeTypeHandlerEvent(
   if (!web_contents)
     return;
 
-  if (!cef::IsAlloyRuntimeEnabled()) {
   // If the request was for NoStatePrefetch, abort the prefetcher and do not
   // continue. This is because plugins cancel NoStatePrefetch, see
   // http://crbug.com/343590.
@@ -49,7 +52,6 @@ void StreamsPrivateAPI::SendExecuteMimeTypeHandlerEvent(
   if (no_state_prefetch_contents) {
     no_state_prefetch_contents->Destroy(prerender::FINAL_STATUS_DOWNLOAD);
     return;
-  }
   }
 
   auto* browser_context = web_contents->GetBrowserContext();
@@ -69,30 +71,22 @@ void StreamsPrivateAPI::SendExecuteMimeTypeHandlerEvent(
   GURL handler_url(Extension::GetBaseURLFromExtensionId(extension_id).spec() +
                    handler->handler_url());
 
-  // If this is an inner contents, then (a) it's a guest view and doesn't have a
-  // tab id anyway, or (b) it's a portal. In the portal case, providing a
-  // distinct tab id breaks the pdf viewer / extension APIs. For now we just
-  // indicate that a portal contents has no tab id. Unfortunately, this will
-  // still be broken in subtle ways once the portal is activated (e.g. some
-  // forms of zooming won't work).
-  // TODO(1042323): Present a coherent representation of a tab id for portal
-  // contents.
-  int tab_id;
-  if (web_contents->GetOuterWebContents()) {
-    tab_id = SessionID::InvalidValue().id();
-  } else
-#if BUILDFLAG(ENABLE_CEF)
-  if (cef::IsAlloyRuntimeEnabled()) {
-    tab_id = alloy::GetTabIdForWebContents(web_contents);
-  } else
-#endif  // BUILDFLAG(ENABLE_CEF)
-  {
-    tab_id = ExtensionTabUtil::GetTabId(web_contents);
-  }
-
+  int tab_id = ExtensionTabUtil::GetTabId(web_contents);
   std::unique_ptr<StreamContainer> stream_container(
       new StreamContainer(tab_id, embedded, handler_url, extension_id,
                           std::move(transferrable_loader), original_url));
+
+#if BUILDFLAG(ENABLE_PDF)
+  if (chrome_pdf::features::IsOopifPdfEnabled() &&
+      extension_id == extension_misc::kPdfExtensionId) {
+    pdf::PdfViewerStreamManager::Create(web_contents);
+    pdf::PdfViewerStreamManager::FromWebContents(web_contents)
+        ->AddStreamContainer(frame_tree_node_id, internal_id,
+                             std::move(stream_container));
+    return;
+  }
+#endif  // BUILDFLAG(ENABLE_PDF)
+
   MimeHandlerStreamManager::Get(browser_context)
       ->AddStream(stream_id, std::move(stream_container), frame_tree_node_id);
 }

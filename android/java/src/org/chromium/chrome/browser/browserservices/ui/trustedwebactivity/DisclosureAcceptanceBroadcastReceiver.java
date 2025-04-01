@@ -13,9 +13,8 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.chrome.browser.browserservices.BrowserServicesStore;
 import org.chromium.chrome.browser.browserservices.ui.view.DisclosureNotification;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
-import org.chromium.components.browser_ui.notifications.NotificationManagerProxy;
-import org.chromium.components.browser_ui.notifications.NotificationManagerProxyImpl;
+import org.chromium.components.browser_ui.notifications.BaseNotificationManagerProxy;
+import org.chromium.components.browser_ui.notifications.BaseNotificationManagerProxyFactory;
 import org.chromium.components.browser_ui.notifications.PendingIntentProvider;
 
 /**
@@ -36,25 +35,23 @@ public class DisclosureAcceptanceBroadcastReceiver extends BroadcastReceiver {
     private static final String ID_EXTRA = "TWADisclosureResp.id_extra";
     private static final String PACKAGE_EXTRA = "TWADisclosureResp.package_extra";
 
-    private final NotificationManagerProxy mNotificationManager;
-    private final BrowserServicesStore mStore;
+    private final BaseNotificationManagerProxy mNotificationManager;
 
     /** Constructor used by the Android framework. */
     public DisclosureAcceptanceBroadcastReceiver() {
-        this(new NotificationManagerProxyImpl(ContextUtils.getApplicationContext()),
-                new BrowserServicesStore(SharedPreferencesManager.getInstance()));
+        this(BaseNotificationManagerProxyFactory.create(ContextUtils.getApplicationContext()));
     }
 
     /** Constructor that allows dependency injection for use in tests. */
-    public DisclosureAcceptanceBroadcastReceiver(
-            NotificationManagerProxy notificationManager, BrowserServicesStore store) {
+    public DisclosureAcceptanceBroadcastReceiver(BaseNotificationManagerProxy notificationManager) {
         mNotificationManager = notificationManager;
-        mStore = store;
     }
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        if (intent == null || !intent.hasExtra(TAG_EXTRA) || !intent.hasExtra(ID_EXTRA)
+        if (intent == null
+                || !intent.hasExtra(TAG_EXTRA)
+                || !intent.hasExtra(ID_EXTRA)
                 || !intent.hasExtra(PACKAGE_EXTRA)) {
             Log.w(TAG, "Started with null or incomplete Intent.");
             return;
@@ -65,7 +62,7 @@ public class DisclosureAcceptanceBroadcastReceiver extends BroadcastReceiver {
         String packageName = intent.getStringExtra(PACKAGE_EXTRA);
 
         mNotificationManager.cancel(tag, id);
-        mStore.setUserAcceptedTwaDisclosureForPackage(packageName);
+        BrowserServicesStore.setUserAcceptedTwaDisclosureForPackage(packageName);
     }
 
     public static PendingIntentProvider createPendingIntent(

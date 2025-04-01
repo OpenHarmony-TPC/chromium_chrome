@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/views/frame/dbus_appmenu.h"
 
 #include <dlfcn.h>
@@ -16,6 +21,7 @@
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -32,7 +38,7 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_live_tab_context.h"
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/dbus_appmenu_registrar.h"
@@ -203,7 +209,7 @@ struct DbusAppmenu::HistoryItem {
   // that this is a list of weak references. DbusAppmenu::history_items_
   // is the owner of all items. If it is not a window, then the entry is a
   // single page and the vector will be empty.
-  std::vector<HistoryItem*> tabs;
+  std::vector<raw_ptr<HistoryItem, VectorExperimental>> tabs;
 };
 
 DbusAppmenu::DbusAppmenu(BrowserView* browser_view, uint32_t browser_frame_id)
@@ -320,7 +326,7 @@ ui::SimpleMenuModel* DbusAppmenu::BuildStaticMenu(
 }
 
 std::unique_ptr<DbusAppmenu::HistoryItem> DbusAppmenu::HistoryItemForTab(
-    const sessions::TabRestoreService::Tab& entry) {
+    const sessions::tab_restore::Tab& entry) {
   const sessions::SerializedNavigationEntry& current_navigation =
       entry.navigations.at(entry.current_navigation_index);
   auto item = std::make_unique<HistoryItem>();
@@ -349,8 +355,7 @@ void DbusAppmenu::AddEntryToHistoryMenu(
     SessionID id,
     std::u16string title,
     int index,
-    const std::vector<std::unique_ptr<sessions::TabRestoreService::Tab>>&
-        tabs) {
+    const std::vector<std::unique_ptr<sessions::tab_restore::Tab>>& tabs) {
   // Create the item for the parent/window.
   auto item = std::make_unique<HistoryItem>();
   item->session_id = id;
@@ -501,11 +506,11 @@ void DbusAppmenu::TabRestoreServiceChanged(
   unsigned int added_count = 0;
   for (auto it = entries.begin();
        it != entries.end() && added_count < kRecentlyClosedCount; ++it) {
-    sessions::TabRestoreService::Entry* entry = it->get();
+    sessions::tab_restore::Entry* entry = it->get();
 
-    if (entry->type == sessions::TabRestoreService::WINDOW) {
-      sessions::TabRestoreService::Window* window =
-          static_cast<sessions::TabRestoreService::Window*>(entry);
+    if (entry->type == sessions::tab_restore::Type::WINDOW) {
+      sessions::tab_restore::Window* window =
+          static_cast<sessions::tab_restore::Window*>(entry);
 
       auto& tabs = window->tabs;
       if (tabs.empty())
@@ -516,14 +521,14 @@ void DbusAppmenu::TabRestoreServiceChanged(
 
       AddEntryToHistoryMenu(window->id, title, index++, tabs);
       ++added_count;
-    } else if (entry->type == sessions::TabRestoreService::TAB) {
-      sessions::TabRestoreService::Tab* tab =
-          static_cast<sessions::TabRestoreService::Tab*>(entry);
+    } else if (entry->type == sessions::tab_restore::Type::TAB) {
+      sessions::tab_restore::Tab* tab =
+          static_cast<sessions::tab_restore::Tab*>(entry);
       AddHistoryItemToMenu(HistoryItemForTab(*tab), history_menu_, index++);
       ++added_count;
-    } else if (entry->type == sessions::TabRestoreService::GROUP) {
-      sessions::TabRestoreService::Group* group =
-          static_cast<sessions::TabRestoreService::Group*>(entry);
+    } else if (entry->type == sessions::tab_restore::Type::GROUP) {
+      sessions::tab_restore::Group* group =
+          static_cast<sessions::tab_restore::Group*>(entry);
 
       auto& tabs = group->tabs;
       if (tabs.empty())
@@ -595,7 +600,8 @@ void DbusAppmenu::ExecuteCommand(int command_id, int event_flags) {
       browser_->OpenURL(
           content::OpenURLParams(item->url, content::Referrer(),
                                  WindowOpenDisposition::NEW_FOREGROUND_TAB,
-                                 ui::PAGE_TRANSITION_AUTO_BOOKMARK, false));
+                                 ui::PAGE_TRANSITION_AUTO_BOOKMARK, false),
+          /*navigation_handle_callback=*/{});
     }
   } else if (base::Contains(profile_commands_, command_id)) {
     avatar_menu_->SwitchToProfile(profile_commands_[command_id], false);

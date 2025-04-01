@@ -9,9 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "base/strings/string_piece_forward.h"
 #include "base/strings/stringprintf.h"
-#include "base/template_util.h"
 #include "base/values.h"
 #include "chrome/test/interaction/interaction_test_util_browser.h"
 #include "chrome/test/interaction/tracked_element_webcontents.h"
@@ -37,6 +35,7 @@ class InteractiveBrowserTestPrivate
   ~InteractiveBrowserTestPrivate() override;
 
   // views::test::internal::InteractiveViewsTestPrivate:
+  void DoTestSetUp() override;
   void DoTestTearDown() override;
 
   // Starts code coverage if the proper configuration is present.
@@ -45,6 +44,8 @@ class InteractiveBrowserTestPrivate
   void AddInstrumentedWebContents(
       std::unique_ptr<WebContentsInteractionTestUtil>
           instrumented_web_contents);
+
+  bool IsInstrumentedWebContents(ui::ElementIdentifier element_id) const;
 
   static std::string DeepQueryToString(
       const WebContentsInteractionTestUtil::DeepQuery& deep_query);
@@ -55,6 +56,8 @@ class InteractiveBrowserTestPrivate
       ui::TrackedElement* el) const override;
   gfx::NativeWindow GetNativeWindowFromContext(
       ui::ElementContext context) const override;
+  std::string DebugDescribeContext(ui::ElementContext context) const override;
+  DebugTreeNode DebugDumpElement(const ui::TrackedElement* el) const override;
 
  private:
   friend InteractiveBrowserTestApi;
@@ -116,7 +119,7 @@ struct JsValueExtractor<std::string> {
 //
 template <typename T>
 struct JsResultChecker {
-  using V = base::remove_cvref_t<T>;
+  using V = std::remove_cvref_t<T>;
   using M = testing::Matcher<V>;
   static ui::InteractionSequence::StepBuilder CheckJsResult(
       ui::ElementIdentifier webcontents_id,
@@ -164,7 +167,7 @@ struct JsResultChecker<const char*> : public JsResultChecker<std::string> {};
 //
 template <template <typename...> typename M, typename T>
 struct JsResultChecker<M<T>> {
-  using E = JsValueExtractor<base::remove_cvref_t<T>>;
+  using E = JsValueExtractor<std::remove_cvref_t<T>>;
 
   static ui::InteractionSequence::StepBuilder CheckJsResult(
       ui::ElementIdentifier webcontents_id,
@@ -177,10 +180,16 @@ struct JsResultChecker<M<T>> {
     builder.SetStartCallback(base::BindOnce(
         [](std::string function, testing::Matcher<T> matcher,
            ui::InteractionSequence* seq, ui::TrackedElement* el) {
+          std::string error_msg;
           base::Value result =
-              el->AsA<TrackedElementWebContents>()->owner()->Evaluate(function);
-          if (!ui::test::internal::MatchAndExplain(
-                  "CheckJsResult()", matcher, E::Extract(std::move(result)))) {
+              el->AsA<TrackedElementWebContents>()->owner()->Evaluate(
+                  function, &error_msg);
+          if (!error_msg.empty()) {
+            LOG(ERROR) << "CheckJsResult() failed: " << error_msg;
+            seq->FailForTesting();
+          } else if (!ui::test::internal::MatchAndExplain(
+                         "CheckJsResult()", matcher,
+                         E::Extract(std::move(result)))) {
             seq->FailForTesting();
           }
         },
@@ -203,12 +212,26 @@ struct JsResultChecker<M<T>> {
         [](WebContentsInteractionTestUtil::DeepQuery where,
            std::string function, testing::Matcher<T> matcher,
            ui::InteractionSequence* seq, ui::TrackedElement* el) {
+          const auto full_function = base::StringPrintf(
+              R"(
+              (el, err) => {
+                if (err) {
+                  throw err;
+                }
+                return (%s)(el);
+              }
+            )",
+              function.c_str());
+          std::string error_msg;
           base::Value result =
               el->AsA<TrackedElementWebContents>()->owner()->EvaluateAt(
-                  where, function);
-          if (!ui::test::internal::MatchAndExplain(
-                  "CheckJsResultAt()", matcher,
-                  E::Extract(std::move(result)))) {
+                  where, full_function, &error_msg);
+          if (!error_msg.empty()) {
+            LOG(ERROR) << "CheckJsResult() failed: " << error_msg;
+            seq->FailForTesting();
+          } else if (!ui::test::internal::MatchAndExplain(
+                         "CheckJsResultAt()", matcher,
+                         E::Extract(std::move(result)))) {
             seq->FailForTesting();
           }
         },

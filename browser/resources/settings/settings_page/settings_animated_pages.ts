@@ -14,22 +14,23 @@
  *    </settings-animated-pages>
  */
 
-import '//resources/polymer/v3_0/iron-pages/iron-pages.js';
+import '//resources/cr_elements/cr_page_selector/cr_page_selector.js';
 
-import {assert} from '//resources/js/assert_ts.js';
+import type {CrPageSelectorElement} from '//resources/cr_elements/cr_page_selector/cr_page_selector.js';
+import {assert} from '//resources/js/assert.js';
 import {focusWithoutInk} from '//resources/js/focus_without_ink.js';
-import {IronPagesElement} from '//resources/polymer/v3_0/iron-pages/iron-pages.js';
 import {DomIf, FlattenedNodesObserver, microTask, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {FocusConfig} from '../focus_config.js';
-import {Route, RouteObserverMixin, Router} from '../router.js';
+import type {FocusConfig} from '../focus_config.js';
+import type {Route} from '../router.js';
+import {RouteObserverMixin, Router} from '../router.js';
 
 import {getTemplate} from './settings_animated_pages.html.js';
-import {SettingsSubpageElement} from './settings_subpage.js';
+import type {SettingsSubpageElement} from './settings_subpage.js';
 
 interface SettingsAnimatedPagesElement {
   $: {
-    animatedPages: IronPagesElement,
+    animatedPages: CrPageSelectorElement,
   };
 }
 
@@ -86,12 +87,14 @@ class SettingsAnimatedPagesElement extends SettingsAnimatedPagesElementBase {
     this.previousRoute_ = null;
   }
 
-  private onIronSelect_(e: Event) {
+  private async onIronSelect_(e: Event) {
     // Ignore bubbling 'iron-select' events not originating from
     // |animatedPages| itself.
     if (e.target !== this.$.animatedPages) {
       return;
     }
+
+    await this.$.animatedPages.updateComplete;
 
     // Call focusBackButton() on the selected subpage, only if:
     //  1) Not a direct navigation (such that the search box stays focused), and
@@ -100,7 +103,7 @@ class SettingsAnimatedPagesElement extends SettingsAnimatedPagesElementBase {
     if (this.previousRoute_ &&
         !Router.getInstance().lastRouteChangeWasPopstate()) {
       const subpage = this.querySelector<SettingsSubpageElement>(
-          'settings-subpage.iron-selected');
+          'settings-subpage.selected');
       if (subpage) {
         subpage.focusBackButton();
         return;
@@ -187,7 +190,7 @@ class SettingsAnimatedPagesElement extends SettingsAnimatedPagesElementBase {
   /**
    * Selects the subpage specified by |newRoute|.
    */
-  private switchToSubpage_(newRoute: Route, oldRoute: Route|undefined) {
+  private async switchToSubpage_(newRoute: Route, oldRoute: Route|undefined) {
     // Don't manipulate the light DOM until it's ready.
     if (!this.lightDomReady_) {
       this.queuedRouteChange_ = this.queuedRouteChange_ || {oldRoute, newRoute};
@@ -196,6 +199,7 @@ class SettingsAnimatedPagesElement extends SettingsAnimatedPagesElementBase {
     }
 
     this.ensureSubpageInstance_();
+    await this.$.animatedPages.updateComplete;
     this.$.animatedPages.selected = newRoute.path;
   }
 

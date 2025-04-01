@@ -4,8 +4,11 @@
 
 #include <stddef.h>
 
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/memory/raw_ptr.h"
 #include "base/ranges/algorithm.h"
+#include "base/run_loop.h"
+#include "base/test/test_future.h"
 #include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
@@ -20,8 +23,6 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
-#include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
@@ -57,6 +58,12 @@ class SettingsWindowManagerTest : public InProcessBrowserTest {
     // Install the Settings App.
     ash::SystemWebAppManager::GetForTest(browser()->profile())
         ->InstallSystemAppsForTesting();
+
+    base::test::TestFuture<void> synchronized;
+    ash::SystemWebAppManager::GetForTest(browser()->profile())
+        ->on_apps_synchronized()
+        .Post(FROM_HERE, synchronized.GetCallback());
+    ASSERT_TRUE(synchronized.Wait());
   }
 
   SettingsWindowManagerTest(const SettingsWindowManagerTest&) = delete;
@@ -67,7 +74,7 @@ class SettingsWindowManagerTest : public InProcessBrowserTest {
 
   void CloseNonDefaultBrowsers() {
     std::list<Browser*> browsers_to_close;
-    for (auto* b : *BrowserList::GetInstance()) {
+    for (Browser* b : *BrowserList::GetInstance()) {
       if (b != browser())
         browsers_to_close.push_back(b);
     }
@@ -85,7 +92,7 @@ class SettingsWindowManagerTest : public InProcessBrowserTest {
   }
 
  protected:
-  raw_ptr<chrome::SettingsWindowManager, ExperimentalAsh> settings_manager_;
+  raw_ptr<chrome::SettingsWindowManager> settings_manager_;
 };
 
 IN_PROC_BROWSER_TEST_F(SettingsWindowManagerTest, OpenSettingsWindow) {
@@ -99,12 +106,15 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowManagerTest, OpenSettingsWindow) {
 
   // Open the settings again: no new window.
   settings_manager_->ShowOSSettings(browser()->profile());
+  // TODO(crbug.com/41490117): Remove this once we can wait for the
+  // ShowOSSettings call correctly.
+  base::RunLoop().RunUntilIdle();
   EXPECT_EQ(settings_browser,
             settings_manager_->FindBrowserForProfile(browser()->profile()));
   EXPECT_EQ(1u, GetNumberOfSettingsWindows());
 
   // Launching via LaunchService should also de-dupe to the same browser.
-  web_app::AppId settings_app_id = *ash::GetAppIdForSystemWebApp(
+  webapps::AppId settings_app_id = *ash::GetAppIdForSystemWebApp(
       browser()->profile(), ash::SystemWebAppType::SETTINGS);
   content::WebContents* contents =
       apps::AppServiceProxyFactory::GetForProfile(browser()->profile())

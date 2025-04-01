@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/containers/span.h"
 #include "base/debug/stack_trace.h"
@@ -21,12 +22,15 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/trace_event/trace_event.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_loader.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
+#include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/grit/app_icon_resources.h"
+#include "components/services/app_service/public/cpp/icon_effects.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/constants.h"
@@ -36,8 +40,8 @@
 #include "services/data_decoder/public/mojom/image_decoder.mojom.h"
 #include "skia/ext/image_operations.h"
 #include "third_party/skia/include/core/SkBitmap.h"
-#include "ui/base/layout.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/geometry/size.h"
@@ -189,6 +193,7 @@ std::map<std::pair<int, int>, gfx::ImageSkia>& GetResourceIconCache() {
 
 gfx::ImageSkia CreateResizedResourceImage(int icon_resource,
                                           int32_t size_in_dip) {
+  TRACE_EVENT0("ui", "apps::CreateResizedResourceImage");
   // Get the ImageSkia for the resource `icon_resource`. The
   // ui::ResourceBundle shared instance already caches ImageSkia's, but caches
   // the unscaled versions. The `cache` here caches scaled versions, keyed by
@@ -211,6 +216,7 @@ gfx::ImageSkia CreateResizedResourceImage(int icon_resource,
 }
 
 apps::ScaleToSize GetScaleToSize(const gfx::ImageSkia& image_skia) {
+  TRACE_EVENT0("ui", "apps::GetScaleToSize");
   apps::ScaleToSize scale_to_size;
   if (image_skia.image_reps().empty()) {
     scale_to_size[1.0f] = image_skia.size().width();
@@ -225,6 +231,7 @@ apps::ScaleToSize GetScaleToSize(const gfx::ImageSkia& image_skia) {
 void CompressedDataToSkBitmap(
     base::span<const uint8_t> compressed_data,
     base::OnceCallback<void(const SkBitmap&)> callback) {
+  TRACE_EVENT0("ui", "apps::CompressedDataToSkBitmap");
   if (compressed_data.empty()) {
     std::move(callback).Run(SkBitmap());
     return;
@@ -259,6 +266,7 @@ CompressedDataToImageSkiaCallback(
   return base::BindOnce(
       [](base::OnceCallback<void(gfx::ImageSkia)> inner_callback,
          float icon_scale, std::vector<uint8_t> compressed_data) {
+        TRACE_EVENT0("ui", "apps::CompressedDataToImageSkiaCallback::Run");
         CompressedDataToImageSkia(compressed_data, icon_scale,
                                   std::move(inner_callback));
       },
@@ -271,33 +279,30 @@ gfx::ImageSkia SkBitmapToImageSkia(const SkBitmap& bitmap, float icon_scale) {
 
 std::vector<uint8_t> EncodeImageToPngBytes(const gfx::ImageSkia image,
                                            float rep_icon_scale) {
+  TRACE_EVENT0("ui", "apps::EncodeImageToPngBytes");
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
-
-  std::vector<uint8_t> image_data;
 
   const gfx::ImageSkiaRep& image_skia_rep =
       image.GetRepresentation(rep_icon_scale);
   if (image_skia_rep.scale() != rep_icon_scale) {
-    return image_data;
+    return std::vector<uint8_t>();
   }
 
   const SkBitmap& bitmap = image_skia_rep.GetBitmap();
   if (bitmap.drawsNothing()) {
-    return image_data;
+    return std::vector<uint8_t>();
   }
 
   base::AssertLongCPUWorkAllowed();
-  constexpr bool discard_transparency = false;
-  bool success = gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, discard_transparency,
-                                                   &image_data);
-  if (!success) {
-    return std::vector<uint8_t>();
-  }
-  return image_data;
+  constexpr bool kDiscardTransparency = false;
+  std::optional<std::vector<uint8_t>> image_data =
+      gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, kDiscardTransparency);
+  return image_data.value_or(std::vector<uint8_t>());
 }
 
 gfx::ImageSkia LoadMaskImage(const ScaleToSize& scale_to_size) {
+  TRACE_EVENT0("ui", "apps::LoadMaskImage");
   gfx::ImageSkia mask_image;
   for (const auto& it : scale_to_size) {
     float scale = it.first;
@@ -310,8 +315,10 @@ gfx::ImageSkia LoadMaskImage(const ScaleToSize& scale_to_size) {
 }
 
 gfx::ImageSkia ApplyBackgroundAndMask(const gfx::ImageSkia& image) {
-  if (image.isNull())
+  TRACE_EVENT0("ui", "apps::ApplyBackgroundAndMask");
+  if (image.isNull()) {
     return gfx::ImageSkia();
+  }
   return gfx::ImageSkiaOperations::CreateButtonBackground(
       SK_ColorWHITE, image, LoadMaskImage(GetScaleToSize(image)));
 }
@@ -320,6 +327,7 @@ gfx::ImageSkia ApplyBackgroundAndMask(const gfx::ImageSkia& image) {
 gfx::ImageSkia CompositeImagesAndApplyMask(
     const gfx::ImageSkia& foreground_image,
     const gfx::ImageSkia& background_image) {
+  TRACE_EVENT0("ui", "apps::CompositeImagesAndApplyMask");
   bool should_extract_subset_foreground = ShouldExtractSubset(foreground_image);
   bool should_extract_subset_background = ShouldExtractSubset(background_image);
 
@@ -348,6 +356,7 @@ void ArcRawIconPngDataToImageSkia(
     arc::mojom::RawIconPngDataPtr icon,
     int size_hint_in_dip,
     base::OnceCallback<void(const gfx::ImageSkia& icon)> callback) {
+  TRACE_EVENT0("ui", "apps::ArcRawIconPngDataToImageSkia");
   if (!icon) {
     std::move(callback).Run(gfx::ImageSkia());
     return;
@@ -389,6 +398,7 @@ void ArcActivityIconsToImageSkias(
     const std::vector<arc::mojom::ActivityIconPtr>& icons,
     base::OnceCallback<void(const std::vector<gfx::ImageSkia>& icons)>
         callback) {
+  TRACE_EVENT0("ui", "apps::ArcActivityIconsToImageSkias");
   if (icons.empty()) {
     std::move(callback).Run(std::vector<gfx::ImageSkia>{});
     return;
@@ -400,9 +410,10 @@ void ArcActivityIconsToImageSkias(
 }
 
 gfx::ImageSkia ConvertSquareBitmapsToImageSkia(
-    const std::map<SquareSizePx, SkBitmap>& icon_bitmaps,
+    const std::map<web_app::SquareSizePx, SkBitmap>& icon_bitmaps,
     IconEffects icon_effects,
     int size_hint_in_dip) {
+  TRACE_EVENT0("ui", "apps::ConvertSquareBitmapsToImageSkia");
   auto image_skia =
       ConvertIconBitmapsToImageSkia(icon_bitmaps, size_hint_in_dip);
 
@@ -420,8 +431,9 @@ gfx::ImageSkia ConvertSquareBitmapsToImageSkia(
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 gfx::ImageSkia ConvertIconBitmapsToImageSkia(
-    const std::map<SquareSizePx, SkBitmap>& icon_bitmaps,
+    const std::map<web_app::SquareSizePx, SkBitmap>& icon_bitmaps,
     int size_hint_in_dip) {
+  TRACE_EVENT0("ui", "apps::ConvertIconBitmapsToImageSkia");
   if (icon_bitmaps.empty()) {
     return gfx::ImageSkia{};
   }
@@ -429,11 +441,10 @@ gfx::ImageSkia ConvertIconBitmapsToImageSkia(
   gfx::ImageSkia image_skia;
   auto it = icon_bitmaps.begin();
 
-  for (ui::ResourceScaleFactor scale_factor :
-       ui::GetSupportedResourceScaleFactors()) {
+  for (const auto scale_factor : ui::GetSupportedResourceScaleFactors()) {
     float icon_scale = ui::GetScaleForResourceScaleFactor(scale_factor);
 
-    SquareSizePx icon_size_in_px =
+    web_app::SquareSizePx icon_size_in_px =
         gfx::ScaleToFlooredSize(gfx::Size(size_hint_in_dip, size_hint_in_dip),
                                 icon_scale)
             .width();
@@ -449,7 +460,7 @@ gfx::ImageSkia ConvertIconBitmapsToImageSkia(
     SkBitmap bitmap = it->second;
     // Resize |bitmap| to match |icon_scale|.
     //
-    // TODO(crbug.com/1189994): All conversions in app_icon_factory.cc must
+    // TODO(crbug.com/40755741): All conversions in app_icon_factory.cc must
     // perform CPU-heavy operations off the Browser UI thread.
     if (bitmap.width() != icon_size_in_px) {
       bitmap = skia::ImageOperations::Resize(
@@ -469,19 +480,23 @@ gfx::ImageSkia ConvertIconBitmapsToImageSkia(
   return image_skia;
 }
 
-void ApplyIconEffects(IconEffects icon_effects,
+void ApplyIconEffects(Profile* profile,
+                      const std::optional<std::string>& app_id,
+                      IconEffects icon_effects,
                       int size_hint_in_dip,
                       IconValuePtr iv,
                       LoadIconCallback callback) {
+  TRACE_EVENT0("ui", "apps::ApplyIconEffects");
   scoped_refptr<AppIconLoader> icon_loader =
-      base::MakeRefCounted<AppIconLoader>(size_hint_in_dip,
+      base::MakeRefCounted<AppIconLoader>(profile, size_hint_in_dip,
                                           std::move(callback));
-  icon_loader->ApplyIconEffects(icon_effects, std::move(iv));
+  icon_loader->ApplyIconEffects(icon_effects, app_id, std::move(iv));
 }
 
 void ConvertUncompressedIconToCompressedIconWithScale(float rep_icon_scale,
                                                       LoadIconCallback callback,
                                                       IconValuePtr iv) {
+  TRACE_EVENT0("ui", "apps::ConvertUncompressedIconToCompressedIconWithScale");
   if (!iv) {
     std::move(callback).Run(std::make_unique<apps::IconValue>());
     return;
@@ -507,13 +522,15 @@ void LoadIconFromExtension(IconType icon_type,
                            const std::string& extension_id,
                            IconEffects icon_effects,
                            LoadIconCallback callback) {
+  TRACE_EVENT0("ui", "apps::LoadIconFromExtension");
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   constexpr bool is_placeholder_icon = false;
   scoped_refptr<AppIconLoader> icon_loader =
       base::MakeRefCounted<AppIconLoader>(
-          profile, icon_type, size_hint_in_dip, is_placeholder_icon,
-          icon_effects, IDR_APP_DEFAULT_ICON, std::move(callback));
+          profile, /*app_id=*/std::nullopt, icon_type, size_hint_in_dip,
+          is_placeholder_icon, icon_effects, IDR_APP_DEFAULT_ICON,
+          std::move(callback));
   icon_loader->LoadExtensionIcon(
       extensions::ExtensionRegistry::Get(profile)->GetInstalledExtension(
           extension_id));
@@ -525,6 +542,7 @@ void LoadIconFromWebApp(Profile* profile,
                         const std::string& web_app_id,
                         IconEffects icon_effects,
                         LoadIconCallback callback) {
+  TRACE_EVENT0("ui", "apps::LoadIconFromWebApp");
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   CHECK(profile);
   web_app::WebAppProvider* web_app_provider =
@@ -534,8 +552,9 @@ void LoadIconFromWebApp(Profile* profile,
   constexpr bool is_placeholder_icon = false;
   scoped_refptr<AppIconLoader> icon_loader =
       base::MakeRefCounted<AppIconLoader>(
-          profile, icon_type, size_hint_in_dip, is_placeholder_icon,
-          icon_effects, IDR_APP_DEFAULT_ICON, std::move(callback));
+          profile, /*app_id=*/std::nullopt, icon_type, size_hint_in_dip,
+          is_placeholder_icon, icon_effects, IDR_APP_DEFAULT_ICON,
+          std::move(callback));
   icon_loader->LoadWebAppIcon(
       web_app_id,
       web_app_provider->registrar_unsafe().GetAppStartUrl(web_app_id),
@@ -548,6 +567,7 @@ void GetWebAppCompressedIconData(Profile* profile,
                                  int size_in_dip,
                                  ui::ResourceScaleFactor scale_factor,
                                  LoadIconCallback callback) {
+  TRACE_EVENT0("ui", "apps::GetWebAppCompressedIconData");
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   CHECK(profile);
   web_app::WebAppProvider* web_app_provider =
@@ -556,7 +576,7 @@ void GetWebAppCompressedIconData(Profile* profile,
   DCHECK(web_app_provider);
   scoped_refptr<AppIconLoader> icon_loader =
       base::MakeRefCounted<AppIconLoader>(
-          profile, IconType::kCompressed, size_in_dip,
+          profile, /*app_id=*/std::nullopt, IconType::kCompressed, size_in_dip,
           /*is_placeholder_icon=*/false, IconEffects::kNone,
           kInvalidIconResource, std::move(callback));
   icon_loader->GetWebAppCompressedIconData(web_app_id, scale_factor,
@@ -568,13 +588,14 @@ void GetChromeAppCompressedIconData(Profile* profile,
                                     int size_in_dip,
                                     ui::ResourceScaleFactor scale_factor,
                                     LoadIconCallback callback) {
+  TRACE_EVENT0("ui", "apps::GetChromeAppCompressedIconData");
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   scoped_refptr<AppIconLoader> icon_loader =
       base::MakeRefCounted<AppIconLoader>(
-          profile, IconType::kCompressed, size_in_dip,
+          profile, /*app_id=*/std::nullopt, IconType::kCompressed, size_in_dip,
           /*is_placeholder_icon=*/false, IconEffects::kNone,
-          kInvalidIconResource, std::move(callback));
+          IDR_APP_DEFAULT_ICON, std::move(callback));
   icon_loader->GetChromeAppCompressedIconData(
       extensions::ExtensionRegistry::Get(profile)->GetInstalledExtension(
           extension_id),
@@ -588,6 +609,7 @@ void GetArcAppCompressedIconData(Profile* profile,
                                  int size_in_dip,
                                  ui::ResourceScaleFactor scale_factor,
                                  LoadIconCallback callback) {
+  TRACE_EVENT0("ui", "apps::GetArcAppCompressedIconData");
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   CHECK(profile);
 
@@ -599,7 +621,7 @@ void GetArcAppCompressedIconData(Profile* profile,
 
   scoped_refptr<AppIconLoader> icon_loader =
       base::MakeRefCounted<AppIconLoader>(
-          profile, IconType::kCompressed, size_in_dip,
+          profile, app_id, IconType::kCompressed, size_in_dip,
           /*is_placeholder_icon=*/false, IconEffects::kNone,
           kInvalidIconResource, std::move(callback));
   icon_loader->GetArcAppCompressedIconData(app_id, prefs, scale_factor);
@@ -610,12 +632,13 @@ void GetGuestOSAppCompressedIconData(Profile* profile,
                                      int size_in_dip,
                                      ui::ResourceScaleFactor scale_factor,
                                      LoadIconCallback callback) {
+  TRACE_EVENT0("ui", "apps::GetGuestOSAppCompressedIconData");
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   CHECK(profile);
 
   scoped_refptr<AppIconLoader> icon_loader =
       base::MakeRefCounted<AppIconLoader>(
-          profile, IconType::kCompressed, size_in_dip,
+          profile, app_id, IconType::kCompressed, size_in_dip,
           /*is_placeholder_icon=*/false, IconEffects::kNone,
           kInvalidIconResource, std::move(callback));
   icon_loader->GetGuestOSAppCompressedIconData(app_id, scale_factor);
@@ -630,14 +653,15 @@ void LoadIconFromFileWithFallback(
     IconEffects icon_effects,
     LoadIconCallback callback,
     base::OnceCallback<void(LoadIconCallback)> fallback) {
+  TRACE_EVENT0("ui", "apps::LoadIconFromFileWithFallback");
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   constexpr bool is_placeholder_icon = false;
 
   scoped_refptr<AppIconLoader> icon_loader =
       base::MakeRefCounted<AppIconLoader>(
-          /*profile=*/nullptr, icon_type, size_hint_in_dip, is_placeholder_icon,
-          icon_effects, kInvalidIconResource, std::move(fallback),
-          std::move(callback));
+          /*profile=*/nullptr, /*app_id=*/std::nullopt, icon_type,
+          size_hint_in_dip, is_placeholder_icon, icon_effects,
+          kInvalidIconResource, std::move(fallback), std::move(callback));
   icon_loader->LoadCompressedIconFromFile(path);
 }
 
@@ -646,31 +670,36 @@ void LoadIconFromCompressedData(IconType icon_type,
                                 IconEffects icon_effects,
                                 const std::string& compressed_icon_data,
                                 LoadIconCallback callback) {
+  TRACE_EVENT0("ui", "apps::LoadIconFromCompressedData");
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   constexpr bool is_placeholder_icon = false;
 
   scoped_refptr<AppIconLoader> icon_loader =
       base::MakeRefCounted<AppIconLoader>(
-          /*profile=*/nullptr, icon_type, size_hint_in_dip, is_placeholder_icon,
-          icon_effects, kInvalidIconResource, std::move(callback));
+          /*profile=*/nullptr, /*app_id=*/std::nullopt, icon_type,
+          size_hint_in_dip, is_placeholder_icon, icon_effects,
+          kInvalidIconResource, std::move(callback));
   icon_loader->LoadIconFromCompressedData(compressed_icon_data);
 }
 
-void LoadIconFromResource(IconType icon_type,
+void LoadIconFromResource(Profile* profile,
+                          std::optional<std::string> app_id,
+                          IconType icon_type,
                           int size_hint_in_dip,
                           int resource_id,
                           bool is_placeholder_icon,
                           IconEffects icon_effects,
                           LoadIconCallback callback) {
+  TRACE_EVENT0("ui", "apps::LoadIconFromResource");
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   // There is no fallback icon for a resource.
   constexpr int fallback_icon_resource = 0;
 
   scoped_refptr<AppIconLoader> icon_loader =
       base::MakeRefCounted<AppIconLoader>(
-          /*profile=*/nullptr, icon_type, size_hint_in_dip, is_placeholder_icon,
+          profile, app_id, icon_type, size_hint_in_dip, is_placeholder_icon,
           icon_effects, fallback_icon_resource, std::move(callback));
+
   icon_loader->LoadIconFromResource(resource_id);
 }
-
 }  // namespace apps

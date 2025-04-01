@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -13,15 +14,16 @@
 #include "base/logging.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
-#include "chrome/android/test_support_jni_headers/FakeServerHelper_jni.h"
+#include "base/uuid.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/sync/sync_service_factory.h"
-#include "components/sync/base/model_type.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/base/time.h"
-#include "components/sync/driver/sync_service_impl.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/sync_entity.pb.h"
+#include "components/sync/protocol/sync_enums.pb.h"
+#include "components/sync/service/sync_service_impl.h"
 #include "components/sync/test/bookmark_entity_builder.h"
 #include "components/sync/test/entity_builder_factory.h"
 #include "components/sync/test/fake_server.h"
@@ -29,10 +31,13 @@
 #include "components/sync/test/fake_server_nigori_helper.h"
 #include "components/sync/test/fake_server_verifier.h"
 #include "components/sync/test/nigori_test_utils.h"
+#include "components/sync_device_info/device_info_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/android/gurl_android.h"
 #include "url/gurl.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/test_support_jni_headers/FakeServerHelper_jni.h"
 
 using base::android::JavaParamRef;
 
@@ -65,18 +70,19 @@ std::unique_ptr<syncer::LoopbackServerEntity> CreateBookmarkEntity(
     JNIEnv* env,
     jstring title,
     const base::android::JavaRef<jobject>& url,
-    absl::optional<jstring> guid,
+    std::optional<jstring> guid,
     jstring parent_id,
     jstring parent_guid) {
-  GURL gurl = *url::GURLAndroid::ToNativeGURL(env, url);
+  GURL gurl = url::GURLAndroid::ToNativeGURL(env, url);
   DCHECK(gurl.is_valid()) << "The given string ("
                           << gurl.possibly_invalid_spec()
                           << ") is not a valid URL.";
 
   fake_server::EntityBuilderFactory entity_builder_factory;
-  absl::optional<std::string> converted_guid = absl::nullopt;
+  base::Uuid converted_guid = base::Uuid::GenerateRandomV4();
   if (guid) {
-    converted_guid = base::android::ConvertJavaStringToUTF8(env, guid.value());
+    converted_guid = base::Uuid::ParseCaseInsensitive(
+        base::android::ConvertJavaStringToUTF8(env, guid.value()));
   }
   fake_server::BookmarkEntityBuilder bookmark_builder =
       entity_builder_factory.NewBookmarkEntityBuilder(
@@ -115,14 +121,14 @@ static jboolean JNI_FakeServerHelper_VerifyEntityCountByTypeAndName(
     JNIEnv* env,
     jlong fake_server,
     jint count,
-    jint model_type,
+    jint data_type,
     const JavaParamRef<jstring>& name) {
   fake_server::FakeServer* fake_server_ptr =
       reinterpret_cast<fake_server::FakeServer*>(fake_server);
   fake_server::FakeServerVerifier fake_server_verifier(fake_server_ptr);
   testing::AssertionResult result =
       fake_server_verifier.VerifyEntityCountByTypeAndName(
-          count, static_cast<syncer::ModelType>(model_type),
+          count, static_cast<syncer::DataType>(data_type),
           base::android::ConvertJavaStringToUTF8(env, name));
 
   if (!result)
@@ -155,14 +161,14 @@ static jboolean JNI_FakeServerHelper_VerifySessions(
 }
 
 static base::android::ScopedJavaLocalRef<jobjectArray>
-JNI_FakeServerHelper_GetSyncEntitiesByModelType(JNIEnv* env,
-                                                jlong fake_server,
-                                                jint model_type) {
+JNI_FakeServerHelper_GetSyncEntitiesByDataType(JNIEnv* env,
+                                               jlong fake_server,
+                                               jint data_type) {
   fake_server::FakeServer* fake_server_ptr =
       reinterpret_cast<fake_server::FakeServer*>(fake_server);
   std::vector<sync_pb::SyncEntity> entities =
-      fake_server_ptr->GetSyncEntitiesByModelType(
-          static_cast<syncer::ModelType>(model_type));
+      fake_server_ptr->GetSyncEntitiesByDataType(
+          static_cast<syncer::DataType>(data_type));
 
   std::vector<std::string> entity_strings;
   for (const sync_pb::SyncEntity& entity : entities) {
@@ -223,6 +229,50 @@ static void JNI_FakeServerHelper_ModifyEntitySpecifics(
       base::android::ConvertJavaStringToUTF8(env, id), entity_specifics);
 }
 
+static void JNI_FakeServerHelper_InjectDeviceInfoEntity(
+    JNIEnv* env,
+    jlong fake_server,
+    const JavaParamRef<jstring>& cache_guid,
+    const JavaParamRef<jstring>& client_name,
+    jlong creation_timestamp,
+    jlong last_updated_timestamp) {
+  CHECK_LE(creation_timestamp, last_updated_timestamp);
+
+  sync_pb::EntitySpecifics entity_specifics;
+  sync_pb::DeviceInfoSpecifics* specifics =
+      entity_specifics.mutable_device_info();
+  specifics->set_cache_guid(
+      base::android::ConvertJavaStringToUTF8(env, cache_guid));
+  specifics->set_client_name(
+      base::android::ConvertJavaStringToUTF8(env, client_name));
+  specifics->set_last_updated_timestamp(syncer::TimeToProtoTime(
+      base::Time::FromMillisecondsSinceUnixEpoch(last_updated_timestamp)));
+  // Every client supports send-tab-to-self these days.
+  specifics->mutable_feature_fields()->set_send_tab_to_self_receiving_enabled(
+      true);
+  specifics->mutable_feature_fields()->set_send_tab_to_self_receiving_type(
+      sync_pb::
+          SyncEnums_SendTabReceivingType_SEND_TAB_RECEIVING_TYPE_CHROME_OR_UNSPECIFIED);
+  specifics->set_device_type(
+      sync_pb::SyncEnums::DeviceType::SyncEnums_DeviceType_TYPE_PHONE);
+  specifics->set_sync_user_agent("UserAgent");
+  specifics->set_chrome_version("1.0");
+  specifics->set_signin_scoped_device_id("id");
+
+  reinterpret_cast<fake_server::FakeServer*>(fake_server)
+      ->InjectEntity(
+          syncer::PersistentUniqueClientEntity::CreateFromSpecificsForTesting(
+              /*non_unique_name=*/specifics->client_name(),
+              syncer::DeviceInfoUtil::SpecificsToTag(*specifics),
+              entity_specifics,
+              syncer::TimeToProtoTime(
+                  base::Time::FromMillisecondsSinceUnixEpoch(
+                      creation_timestamp)),
+              syncer::TimeToProtoTime(
+                  base::Time::FromMillisecondsSinceUnixEpoch(
+                      last_updated_timestamp))));
+}
+
 static void JNI_FakeServerHelper_InjectBookmarkEntity(
     JNIEnv* env,
     jlong fake_server,
@@ -233,7 +283,7 @@ static void JNI_FakeServerHelper_InjectBookmarkEntity(
   fake_server::FakeServer* fake_server_ptr =
       reinterpret_cast<fake_server::FakeServer*>(fake_server);
   fake_server_ptr->InjectEntity(CreateBookmarkEntity(
-      env, title, url, /*guid=*/absl::nullopt, parent_id, parent_guid));
+      env, title, url, /*guid=*/std::nullopt, parent_id, parent_guid));
 }
 
 static void JNI_FakeServerHelper_InjectBookmarkFolderEntity(
@@ -293,7 +343,8 @@ static void JNI_FakeServerHelper_ModifyBookmarkFolderEntity(
   fake_server::BookmarkEntityBuilder bookmark_builder =
       entity_builder_factory.NewBookmarkEntityBuilder(
           base::android::ConvertJavaStringToUTF8(env, title),
-          base::android::ConvertJavaStringToUTF8(env, guid));
+          base::Uuid::ParseLowercase(
+              base::android::ConvertJavaStringToUTF8(env, guid)));
   bookmark_builder.SetParentId(
       base::android::ConvertJavaStringToUTF8(env, parent_id));
   bookmark_builder.SetParentGuid(base::Uuid::ParseLowercase(
@@ -324,6 +375,17 @@ static void JNI_FakeServerHelper_DeleteEntity(
   std::string native_id = base::android::ConvertJavaStringToUTF8(env, id);
   fake_server_ptr->InjectEntity(syncer::PersistentTombstoneEntity::CreateNew(
       native_id, base::android::ConvertJavaStringToUTF8(env, client_tag_hash)));
+}
+
+static void JNI_FakeServerHelper_SetCustomPassphraseNigori(
+    JNIEnv* env,
+    jlong fake_server,
+    const JavaParamRef<jstring>& passphrase) {
+  SetNigoriInFakeServer(
+      syncer::BuildCustomPassphraseNigoriSpecifics(
+          syncer::Pbkdf2PassphraseKeyParamsForTesting(
+              base::android::ConvertJavaStringToUTF8(env, passphrase))),
+      reinterpret_cast<fake_server::FakeServer*>(fake_server));
 }
 
 static void JNI_FakeServerHelper_SetTrustedVaultNigori(

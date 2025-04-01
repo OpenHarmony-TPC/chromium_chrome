@@ -5,6 +5,7 @@
 #include "chrome/browser/extensions/user_script_listener.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/command_line.h"
 #include "base/files/file_util.h"
@@ -30,15 +31,14 @@
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/test_utils.h"
 #include "content/public/test/web_contents_tester.h"
-#include "extensions/browser/api/scripting/scripting_utils.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
+#include "extensions/browser/scripting_utils.h"
 #include "extensions/browser/test_extension_registry_observer.h"
 #include "extensions/common/url_pattern_set.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "components/user_manager/scoped_user_manager.h"
 #endif
@@ -55,14 +55,14 @@ const char kNotMatchingUrl[] = "http://example.com/";
 const ExtensionId kTestExtensionId = "behllobkkfkfnphdnhnkndlbkcpglgmj";
 
 // Yoinked from manifest_unittest.cc.
-absl::optional<base::Value::Dict> LoadManifestFile(const base::FilePath path,
-                                                   std::string* error) {
+std::optional<base::Value::Dict> LoadManifestFile(const base::FilePath path,
+                                                  std::string* error) {
   EXPECT_TRUE(base::PathExists(path));
   JSONFileValueDeserializer deserializer(path);
   std::unique_ptr<base::Value> manifest =
       deserializer.Deserialize(nullptr, error);
   if (!manifest || !manifest->is_dict()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return std::move(*manifest).TakeDict();
 }
@@ -75,7 +75,7 @@ scoped_refptr<Extension> LoadExtension(const std::string& filename,
       AppendASCII("extensions").
       AppendASCII("manifest_tests").
       AppendASCII(filename.c_str());
-  absl::optional<base::Value::Dict> manifest = LoadManifestFile(path, error);
+  std::optional<base::Value::Dict> manifest = LoadManifestFile(path, error);
   if (!manifest) {
     return nullptr;
   }
@@ -98,7 +98,7 @@ class UserScriptListenerTest : public testing::Test {
   UserScriptListenerTest& operator=(const UserScriptListenerTest&) = delete;
 
   void SetUp() override {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     user_manager_enabler_ = std::make_unique<user_manager::ScopedUserManager>(
         std::make_unique<ash::FakeChromeUserManager>());
 #endif
@@ -138,14 +138,14 @@ class UserScriptListenerTest : public testing::Test {
                                         .AppendASCII("Extensions")
                                         .AppendASCII(kTestExtensionId)
                                         .AppendASCII("1.0.0.0");
-    extensions::TestExtensionRegistryObserver observer(
-        ExtensionRegistry::Get(profile_), kTestExtensionId);
+    TestExtensionRegistryObserver observer(ExtensionRegistry::Get(profile_),
+                                           kTestExtensionId);
     UnpackedInstaller::Create(service_)->Load(extension_path);
     observer.WaitForExtensionLoaded();
   }
 
   void UnloadTestExtension() {
-    const extensions::ExtensionSet& extensions =
+    const ExtensionSet& extensions =
         ExtensionRegistry::Get(profile_)->enabled_extensions();
     ASSERT_FALSE(extensions.empty());
     service_->UnloadExtension((*extensions.begin())->id(),
@@ -178,7 +178,7 @@ class UserScriptListenerTest : public testing::Test {
   raw_ptr<ExtensionService> service_ = nullptr;
   bool was_navigation_resumed_ = false;
   std::unique_ptr<content::WebContents> web_contents_;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<user_manager::ScopedUserManager> user_manager_enabler_;
 #endif
 };

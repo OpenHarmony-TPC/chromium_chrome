@@ -32,8 +32,12 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/login/users/scoped_test_user_manager.h"
+#include "chrome/browser/ash/login/users/user_manager_delegate_impl.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
+#include "chrome/browser/browser_process.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
+#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/user_manager_impl.h"
 #endif
 
 namespace component_updater {
@@ -59,9 +63,6 @@ class GalleryWatchManagerTest : public GalleryWatchManagerObserver,
  public:
   GalleryWatchManagerTest()
       : task_environment_(content::BrowserTaskEnvironment::IO_MAINLOOP),
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-        test_user_manager_(std::make_unique<ash::ScopedTestUserManager>()),
-#endif
         profile_(new TestingProfile()),
         gallery_prefs_(nullptr),
         expect_gallery_changed_(false),
@@ -111,9 +112,9 @@ class GalleryWatchManagerTest : public GalleryWatchManagerObserver,
     ShutdownProfile();
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-    // The TestUserManager must be destroyed before the TestingBrowserProcess
-    // because TestUserManager uses TestingBrowserProcess in its destructor.
-    test_user_manager_.reset();
+    // The UserManager must be destroyed before the TestingBrowserProcess
+    // because UserManager uses TestingBrowserProcess in its destructor.
+    user_manager_.Reset();
 #endif
 
     // Make sure any pending network events are run before the
@@ -215,7 +216,11 @@ class GalleryWatchManagerTest : public GalleryWatchManagerObserver,
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   ash::ScopedCrosSettingsTestHelper cros_settings_test_helper_;
-  std::unique_ptr<ash::ScopedTestUserManager> test_user_manager_;
+  user_manager::ScopedUserManager user_manager_{
+      std::make_unique<user_manager::UserManagerImpl>(
+          std::make_unique<ash::UserManagerDelegateImpl>(),
+          g_browser_process->local_state(),
+          ash::CrosSettings::Get())};
 #endif
 
   raw_ptr<storage_monitor::TestStorageMonitor> monitor_;
@@ -227,8 +232,8 @@ class GalleryWatchManagerTest : public GalleryWatchManagerObserver,
   raw_ptr<base::RunLoop> pending_loop_;
 };
 
-// TODO(crbug.com/936065): Flaky on ChromeOS.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+// TODO(crbug.com/41443722): Flaky on ChromeOS and macOS.
+#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_MAC)
 #define MAYBE_Basic DISABLED_Basic
 #else
 #define MAYBE_Basic Basic
@@ -251,7 +256,7 @@ TEST_F(GalleryWatchManagerTest, MAYBE_Basic) {
   loop.Run();
 }
 
-// TODO(crbug.com/1183482): Flaky on mac.
+// TODO(crbug.com/40171219): Flaky on mac.
 #if BUILDFLAG(IS_MAC)
 #define MAYBE_AddAndRemoveTwoWatches DISABLED_AddAndRemoveTwoWatches
 #else
@@ -302,7 +307,7 @@ TEST_F(GalleryWatchManagerTest, MAYBE_AddAndRemoveTwoWatches) {
   EXPECT_TRUE(manager()->GetWatchSet(profile(), extension()->id()).empty());
 }
 
-// TODO(crbug.com/1182867): Flaky on mac.
+// TODO(crbug.com/40751695): Flaky on mac.
 #if BUILDFLAG(IS_MAC)
 #define MAYBE_RemoveAllWatches DISABLED_RemoveAllWatches
 #else
@@ -373,7 +378,7 @@ TEST_F(GalleryWatchManagerTest, DropWatchOnGalleryPermissionRevoked) {
   success_loop.Run();
 }
 
-// TODO(crbug.com/1183212): flaky on mac.
+// TODO(crbug.com/40751910): flaky on mac.
 #if BUILDFLAG(IS_MAC)
 #define MAYBE_DropWatchOnStorageRemoved DISABLED_DropWatchOnStorageRemoved
 #else
@@ -401,7 +406,8 @@ TEST_F(GalleryWatchManagerTest, MAYBE_DropWatchOnStorageRemoved) {
   success_loop.Run();
 }
 
-#if BUILDFLAG(IS_CHROMEOS)
+// Test is flaky. https://crbug.com/40752685
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
 #define MAYBE_TestWatchOperation DISABLED_TestWatchOperation
 #else
 #define MAYBE_TestWatchOperation TestWatchOperation

@@ -2,29 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/enterprise/signals/device_info_fetcher_mac.h"
 
 #import <Foundation/Foundation.h>
-
-#include <IOKit/IOKitLib.h>
-#include <MacTypes.h>
-#include <dlfcn.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <net/if_dl.h>
-#include <sys/sysctl.h>
-#include <sys/types.h>
 
 #include "base/files/file_util.h"
-#include "base/mac/foundation_util.h"
+#include "base/mac/login_util.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_cftyperef.h"
-#include "base/mac/scoped_ioobject.h"
 #include "base/process/launch.h"
 #include "base/strings/stringprintf.h"
-#include "base/strings/sys_string_conversions.h"
 #include "base/system/sys_info.h"
-#include "chrome/browser/enterprise/signals/signals_common.h"
 #include "net/base/network_interfaces.h"
 
 namespace enterprise_signals {
@@ -48,26 +43,12 @@ std::string GetSerialNumber() {
 }
 
 SettingValue GetScreenlockSecured() {
-  // Use the login private framework since there is no official way to
-  // obtain the screen lock value (at least for now).
-  using SACScreenLockEnabledType = Boolean (*)();
-  static const auto SACScreenLockEnabled = []() -> SACScreenLockEnabledType {
-    void* const login_framework = dlopen(
-        "/System/Library/PrivateFrameworks/login.framework/Versions/A/login",
-        RTLD_LAZY | RTLD_LOCAL);
-    if (!login_framework) {
-      return nullptr;
-    }
-    return reinterpret_cast<SACScreenLockEnabledType>(
-        dlsym(login_framework, "SACScreenLockEnabled"));
-  }();
-
-  if (!SACScreenLockEnabled) {
+  std::optional<bool> result = base::mac::IsScreenLockEnabled();
+  if (!result.has_value()) {
     return SettingValue::UNKNOWN;
   }
 
-  return SACScreenLockEnabled() ? SettingValue::ENABLED
-                                : SettingValue::DISABLED;
+  return result.value() ? SettingValue::ENABLED : SettingValue::DISABLED;
 }
 
 SettingValue GetDiskEncrypted() {
@@ -117,6 +98,11 @@ std::vector<std::string> GetMacAddresses() {
 }
 
 }  // namespace
+
+// static
+std::unique_ptr<DeviceInfoFetcher> DeviceInfoFetcher::CreateInstanceInternal() {
+  return std::make_unique<DeviceInfoFetcherMac>();
+}
 
 DeviceInfoFetcherMac::DeviceInfoFetcherMac() = default;
 

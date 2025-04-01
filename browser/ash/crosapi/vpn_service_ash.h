@@ -21,6 +21,7 @@
 #include "chromeos/ash/components/network/network_state_handler_observer.h"
 #include "chromeos/crosapi/mojom/vpn_service.mojom.h"
 #include "chromeos/services/network_config/public/cpp/cros_network_config_observer.h"
+#include "extensions/common/extension_id.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
@@ -38,7 +39,7 @@ class Value;
 namespace chromeos {
 
 // Fwd for friend declaration in VpnServiceAsh.
-class VpnProviderApiTestAsh;
+class VpnProviderApiTest;
 
 }  // namespace chromeos
 
@@ -147,18 +148,19 @@ class VpnServiceForExtensionAsh : public crosapi::mojom::VpnServiceForExtension,
   void DispatchOnPlatformMessageEvent(
       const std::string& configuration_name,
       int32_t platform_message,
-      const absl::optional<std::string>& error = {});
+      const std::optional<std::string>& error = {});
 
  private:
   friend class VpnConfigurationImpl;
-  friend class chromeos::VpnProviderApiTestAsh;
+  friend class chromeos::VpnProviderApiTest;
   friend class TestShillControllerAsh;
 
   using StringToOwnedConfigurationMap =
       std::map<std::string, std::unique_ptr<VpnConfiguration>>;
-  using StringToConfigurationMap = std::map<std::string, VpnConfiguration*>;
+  using StringToConfigurationMap =
+      std::map<std::string, raw_ptr<VpnConfiguration, CtnExperimental>>;
 
-  const std::string& extension_id() const { return extension_id_; }
+  const extensions::ExtensionId& extension_id() const { return extension_id_; }
 
   // Creates a key for |key_to_configuration_map_| as a hash of |extension_id|
   // and |configuration_name|.
@@ -192,7 +194,7 @@ class VpnServiceForExtensionAsh : public crosapi::mojom::VpnServiceForExtension,
 
   void SetActiveConfiguration(VpnConfiguration*);
 
-  const std::string extension_id_;
+  const extensions::ExtensionId extension_id_;
 
   // Owns all configurations. Key is a hash of |extension_id| and
   // |configuration_name|.
@@ -244,7 +246,7 @@ class VpnServiceAsh : public crosapi::mojom::VpnService,
       base::flat_set<std::string> vpn_extensions) override;
 
  private:
-  friend class chromeos::VpnProviderApiTestAsh;
+  friend class chromeos::VpnProviderApiTest;
   friend class VpnServiceForExtensionAsh;
 
   // Callback for
@@ -253,7 +255,7 @@ class VpnServiceAsh : public crosapi::mojom::VpnService,
   // configuration provided that it belongs to some enabled extension.
   void OnGetShillProperties(
       const std::string& service_path,
-      absl::optional<base::Value::Dict> configuration_properties);
+      std::optional<base::Value::Dict> configuration_properties);
 
   // Always returns a valid pointer.
   VpnServiceForExtensionAsh* GetVpnServiceForExtension(
@@ -287,7 +289,7 @@ class VpnServiceForExtensionAsh::VpnConfiguration
   virtual const std::string& key() const = 0;
   virtual const std::string& object_path() const = 0;
 
-  virtual const absl::optional<std::string>& service_path() const = 0;
+  virtual const std::optional<std::string>& service_path() const = 0;
   virtual void set_service_path(std::string) = 0;
 
   virtual void BindPepperVpnProxyObserver(

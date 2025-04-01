@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view_linux.h"
@@ -52,17 +51,21 @@ std::unique_ptr<OpaqueBrowserFrameView> CreateOpaqueBrowserFrameView(
       !app_uses_wco_or_borderless) {
     auto nav_button_provider = linux_ui_theme->CreateNavButtonProvider();
     if (nav_button_provider) {
-      bool solid_frame = !static_cast<DesktopBrowserFrameAuraLinux*>(
-                              frame->native_browser_frame())
-                              ->ShouldDrawRestoredFrameShadow();
-      auto* window_frame_provider =
-          linux_ui_theme->GetWindowFrameProvider(solid_frame);
-      DCHECK(window_frame_provider);
+      auto* native_frame = static_cast<DesktopBrowserFrameAuraLinux*>(
+          frame->native_browser_frame());
       auto* layout = new BrowserFrameViewLayoutLinuxNative(
-          nav_button_provider.get(), window_frame_provider);
+          nav_button_provider.get(),
+          base::BindRepeating(
+              [](DesktopBrowserFrameAuraLinux* native_frame,
+                 ui::LinuxUiTheme* linux_ui_theme, bool tiled) {
+                const bool solid_frame =
+                    !native_frame->ShouldDrawRestoredFrameShadow();
+                return linux_ui_theme->GetWindowFrameProvider(solid_frame,
+                                                              tiled);
+              },
+              native_frame, linux_ui_theme));
       return std::make_unique<BrowserFrameViewLinuxNative>(
-          frame, browser_view, layout, std::move(nav_button_provider),
-          window_frame_provider);
+          frame, browser_view, layout, std::move(nav_button_provider));
     }
   }
   return std::make_unique<BrowserFrameViewLinux>(
@@ -79,26 +82,14 @@ std::unique_ptr<BrowserNonClientFrameView> CreateBrowserNonClientFrameView(
     BrowserFrame* frame,
     BrowserView* browser_view) {
   if (browser_view->browser()->is_type_picture_in_picture()) {
-    auto view =
-        std::make_unique<PictureInPictureBrowserFrameView>(frame, browser_view);
-#if BUILDFLAG(IS_LINUX)
-    auto* profile = browser_view->browser()->profile();
-    auto* linux_ui_theme = ui::LinuxUiTheme::GetForProfile(profile);
-    auto* theme_service_factory = ThemeServiceFactory::GetForProfile(profile);
-    if (linux_ui_theme && theme_service_factory->UsingSystemTheme()) {
-      bool solid_frame = !static_cast<DesktopBrowserFrameAuraLinux*>(
-                              frame->native_browser_frame())
-                              ->ShouldDrawRestoredFrameShadow();
-      view->SetWindowFrameProvider(
-          linux_ui_theme->GetWindowFrameProvider(solid_frame));
-    }
-#endif  // BUILDFLAG(IS_LINUX)
-    return view;
+    return std::make_unique<PictureInPictureBrowserFrameView>(frame,
+                                                              browser_view);
   }
 
 #if BUILDFLAG(IS_WIN)
-  if (frame->ShouldUseNativeFrame())
+  if (frame->ShouldUseNativeFrame()) {
     return std::make_unique<BrowserFrameViewWin>(frame, browser_view);
+  }
 #endif
   auto view = CreateOpaqueBrowserFrameView(frame, browser_view);
   view->InitViews();

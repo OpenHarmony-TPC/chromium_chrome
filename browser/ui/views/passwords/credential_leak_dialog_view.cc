@@ -13,6 +13,8 @@
 #include "components/password_manager/core/browser/leak_detection_dialog_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/views/border.h"
@@ -26,10 +28,10 @@ namespace {
 std::unique_ptr<views::TooltipIcon> CreateInfoIcon() {
   auto explanation_tooltip = std::make_unique<views::TooltipIcon>(
       password_manager::GetLeakDetectionTooltip());
-  explanation_tooltip->set_bubble_width(
+  explanation_tooltip->SetBubbleWidth(
       ChromeLayoutProvider::Get()->GetDistanceMetric(
           views::DISTANCE_BUBBLE_PREFERRED_WIDTH));
-  explanation_tooltip->set_anchor_point_arrow(
+  explanation_tooltip->SetAnchorPointArrow(
       views::BubbleBorder::Arrow::TOP_RIGHT);
   return explanation_tooltip;
 }
@@ -44,18 +46,21 @@ CredentialLeakDialogView::CredentialLeakDialogView(
   DCHECK(web_contents);
 
   SetButtons(controller->ShouldShowCancelButton()
-                 ? ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL
-                 : ui::DIALOG_BUTTON_OK);
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, controller_->GetAcceptButtonLabel());
-  SetButtonLabel(ui::DIALOG_BUTTON_CANCEL, controller_->GetCancelButtonLabel());
+                 ? static_cast<int>(ui::mojom::DialogButton::kOk) |
+                       static_cast<int>(ui::mojom::DialogButton::kCancel)
+                 : static_cast<int>(ui::mojom::DialogButton::kOk));
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
+                 controller_->GetAcceptButtonLabel());
+  SetButtonLabel(ui::mojom::DialogButton::kCancel,
+                 controller_->GetCancelButtonLabel());
 
-  SetModalType(ui::MODAL_TYPE_CHILD);
+  SetModalType(ui::mojom::ModalType::kChild);
   SetShowCloseButton(false);
   set_fixed_width(views::LayoutProvider::Get()->GetDistanceMetric(
       views::DISTANCE_MODAL_DIALOG_PREFERRED_WIDTH));
 
   using ControllerClosureFn = void (CredentialLeakDialogController::*)();
-  auto close_callback = [](CredentialLeakDialogController** controller,
+  auto close_callback = [](raw_ptr<CredentialLeakDialogController>* controller,
                            ControllerClosureFn fn) {
     // Null out the controller pointer stored in the parent object, to avoid any
     // further calls to the controller and inhibit recursive closes that would
@@ -64,7 +69,7 @@ CredentialLeakDialogView::CredentialLeakDialogView(
     //
     // Note that when this lambda gets bound it closes over &controller_, not
     // controller_ itself!
-    (std::exchange(*controller, nullptr)->*(fn))();
+    (controller->ExtractAsDangling()->*(fn))();
   };
 
   SetAcceptCallback(
@@ -79,8 +84,9 @@ CredentialLeakDialogView::CredentialLeakDialogView(
 }
 
 CredentialLeakDialogView::~CredentialLeakDialogView() {
-  if (controller_)
+  if (controller_) {
     std::exchange(controller_, nullptr)->ResetDialog();
+  }
 }
 
 void CredentialLeakDialogView::ShowCredentialLeakPrompt() {
@@ -94,8 +100,9 @@ void CredentialLeakDialogView::ControllerGone() {
   // reentry into Close() - |controller_| might have been nulled out by the
   // closure callbacks already, in which case the dialog is already closing. See
   // the definition of |close_callback| in the constructor.
-  if (controller_)
+  if (controller_) {
     GetWidget()->Close();
+  }
 }
 
 void CredentialLeakDialogView::AddedToWidget() {
@@ -115,7 +122,7 @@ void CredentialLeakDialogView::AddedToWidget() {
     // Reduce width by a pixel on each side. This enforces that the banner image
     // is rescaled during the ImageView::OnPaint step. Without the rescaling,
     // the image will display compression artifacts due to the size mismatch.
-    // TODO(crbug.com/1171763): Remove once the scaling works automatically.
+    // TODO(crbug.com/40745285): Remove once the scaling works automatically.
     max_width -= 2;
     const float scale = max_width / preferred_size.width();
     preferred_size = gfx::ScaleToRoundedSize(preferred_size, scale);
@@ -147,7 +154,7 @@ void CredentialLeakDialogView::InitWindow() {
   SetExtraView(CreateInfoIcon());
 }
 
-BEGIN_METADATA(CredentialLeakDialogView, views::DialogDelegateView)
+BEGIN_METADATA(CredentialLeakDialogView)
 END_METADATA
 
 CredentialLeakPrompt* CreateCredentialLeakPromptView(

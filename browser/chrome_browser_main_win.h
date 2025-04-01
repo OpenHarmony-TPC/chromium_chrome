@@ -11,6 +11,13 @@
 
 #include "chrome/browser/chrome_browser_main.h"
 #include "chrome/common/conflicts/module_watcher_win.h"
+#include "chrome/install_static/buildflags.h"
+
+#if BUILDFLAG(USE_GOOGLE_UPDATE_INTEGRATION)
+#include <optional>
+
+#include "chrome/browser/google/did_run_updater_win.h"
+#endif
 
 class PlatformAuthPolicyObserver;
 
@@ -36,9 +43,11 @@ class ChromeBrowserMainPartsWin : public ChromeBrowserMainParts {
   void ToolkitInitialized() override;
   void PreCreateMainMessageLoop() override;
   int PreCreateThreads() override;
+  void PostCreateThreads() override;
   void PostMainMessageLoopRun() override;
 
   // ChromeBrowserMainParts overrides.
+  void PostEarlyInitialization() override;
   void ShowMissingLocaleMessageBox() override;
   void PreProfileInit() override;
   void PostProfileInit(Profile* profile, bool is_initial_profile) override;
@@ -81,6 +90,11 @@ class ChromeBrowserMainPartsWin : public ChromeBrowserMainParts {
  private:
   void OnModuleEvent(const ModuleWatcher::ModuleEvent& event);
   void SetupModuleDatabase(std::unique_ptr<ModuleWatcher>* module_watcher);
+
+#if BUILDFLAG(USE_GOOGLE_UPDATE_INTEGRATION)
+  // Updates Chrome's "did run" state periodically when the process is in use.
+  std::optional<DidRunUpdater> did_run_updater_;
+#endif
 
   // Watches module load events and forwards them to the ModuleDatabase.
   std::unique_ptr<ModuleWatcher> module_watcher_;

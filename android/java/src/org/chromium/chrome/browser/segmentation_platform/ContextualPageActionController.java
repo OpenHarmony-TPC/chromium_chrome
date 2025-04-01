@@ -9,8 +9,10 @@ import android.os.Looper;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Callback;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
@@ -53,7 +55,7 @@ public class ContextualPageActionController {
          * @param tab The current tab for which the action was shown.
          * @param action Enum value of the action shown.
          */
-        default void onActionShown(Tab tab, @AdaptiveToolbarButtonVariant int action){};
+        default void onActionShown(Tab tab, @AdaptiveToolbarButtonVariant int action) {}
     }
 
     private final ObservableSupplier<Profile> mProfileSupplier;
@@ -71,7 +73,8 @@ public class ContextualPageActionController {
      * @param adaptiveToolbarButtonController The {@link AdaptiveToolbarButtonController} that
      *         handles the logic to decide between multiple buttons to show.
      */
-    public ContextualPageActionController(ObservableSupplier<Profile> profileSupplier,
+    public ContextualPageActionController(
+            ObservableSupplier<Profile> profileSupplier,
             ObservableSupplier<Tab> tabSupplier,
             AdaptiveToolbarButtonController adaptiveToolbarButtonController,
             Supplier<ShoppingService> shoppingServiceSupplier,
@@ -79,40 +82,49 @@ public class ContextualPageActionController {
         mProfileSupplier = profileSupplier;
         mTabSupplier = tabSupplier;
         mAdaptiveToolbarButtonController = adaptiveToolbarButtonController;
-        profileSupplier.addObserver(profile -> {
-            if (profile.isOffTheRecord()) return;
+        profileSupplier.addObserver(
+                profile -> {
+                    if (profile.isOffTheRecord()) return;
 
-            // The profile supplier observer will be invoked every time the profile is changed.
-            // Ignore the subsequent calls since we are only interested in initializing tab
-            // observers once.
-            if (mCurrentTabObserver != null) return;
-            mAdaptiveToolbarButtonController.initializePageLoadMetricsRecorder(tabSupplier);
+                    // The profile supplier observer will be invoked every time the profile is
+                    // changed.
+                    // Ignore the subsequent calls since we are only interested in initializing tab
+                    // observers once.
+                    if (mCurrentTabObserver != null) return;
+                    mAdaptiveToolbarButtonController.initializePageLoadMetricsRecorder(tabSupplier);
 
-            if (!AdaptiveToolbarFeatures.isContextualPageActionsEnabled()) return;
+                    if (!AdaptiveToolbarFeatures.isContextualPageActionsEnabled()) return;
 
-            // TODO(shaktisahu): Observe the right method to handle tab switch, same-page
-            // navigations. Also handle chrome:// URLs if not already handled.
-            mCurrentTabObserver = new CurrentTabObserver(tabSupplier, new EmptyTabObserver() {
-                @Override
-                public void didFirstVisuallyNonEmptyPaint(Tab tab) {
-                    if (tab != null) maybeShowContextualPageAction();
-                }
-            }, this::activeTabChanged);
+                    // TODO(shaktisahu): Observe the right method to handle tab switch, same-page
+                    // navigations. Also handle chrome:// URLs if not already handled.
+                    mCurrentTabObserver =
+                            new CurrentTabObserver(
+                                    tabSupplier,
+                                    new EmptyTabObserver() {
+                                        @Override
+                                        public void didFirstVisuallyNonEmptyPaint(Tab tab) {
+                                            if (tab != null) maybeShowContextualPageAction();
+                                        }
+                                    },
+                                    this::activeTabChanged);
 
-            initActionProviders(shoppingServiceSupplier, bookmarkModelSupplier);
-        });
+                    initActionProviders(shoppingServiceSupplier, bookmarkModelSupplier);
+                });
     }
 
     @VisibleForTesting
-    protected void initActionProviders(Supplier<ShoppingService> shoppingServiceSupplier,
+    protected void initActionProviders(
+            Supplier<ShoppingService> shoppingServiceSupplier,
             Supplier<BookmarkModel> bookmarkModelSupplier) {
         mActionProviders.clear();
-        if (AdaptiveToolbarFeatures.isPriceTrackingPageActionEnabled()) {
-            mActionProviders.add(new PriceTrackingActionProvider(
-                    shoppingServiceSupplier, bookmarkModelSupplier, mProfileSupplier));
+        mActionProviders.add(
+                new PriceTrackingActionProvider(shoppingServiceSupplier, bookmarkModelSupplier));
+        mActionProviders.add(new ReaderModeActionProvider());
+        if (AdaptiveToolbarFeatures.isPriceInsightsPageActionEnabled()) {
+            mActionProviders.add(new PriceInsightsActionProvider(shoppingServiceSupplier));
         }
-        if (AdaptiveToolbarFeatures.isReaderModePageActionEnabled()) {
-            mActionProviders.add(new ReaderModeActionProvider());
+        if (AdaptiveToolbarFeatures.isDiscountsPageActionEnabled()) {
+            mActionProviders.add(new DiscountsActionProvider(shoppingServiceSupplier));
         }
     }
 
@@ -150,23 +162,34 @@ public class ContextualPageActionController {
         Tab tab = getValidActiveTab();
         if (tab == null) return;
         InputContext inputContext = new InputContext();
-        inputContext.addEntry(Constants.CONTEXTUAL_PAGE_ACTIONS_PRICE_TRACKING_INPUT,
+        inputContext.addEntry(
+                Constants.CONTEXTUAL_PAGE_ACTIONS_PRICE_TRACKING_INPUT,
                 ProcessedValue.fromFloat(signalAccumulator.hasPriceTracking() ? 1.0f : 0.0f));
-        inputContext.addEntry(Constants.CONTEXTUAL_PAGE_ACTIONS_READER_MODE_INPUT,
+        inputContext.addEntry(
+                Constants.CONTEXTUAL_PAGE_ACTIONS_READER_MODE_INPUT,
                 ProcessedValue.fromFloat(signalAccumulator.hasReaderMode() ? 1.0f : 0.0f));
+        inputContext.addEntry(
+                Constants.CONTEXTUAL_PAGE_ACTIONS_PRICE_INSIGHTS_INPUT,
+                ProcessedValue.fromFloat(signalAccumulator.hasPriceInsights() ? 1.0f : 0.0f));
+        inputContext.addEntry(
+                Constants.CONTEXTUAL_PAGE_ACTIONS_DISCOUNTS_INPUT,
+                ProcessedValue.fromFloat(signalAccumulator.hasDiscounts() ? 1.0f : 0.0f));
         inputContext.addEntry("url", ProcessedValue.fromGURL(tab.getUrl()));
 
-        ContextualPageActionControllerJni.get().computeContextualPageAction(
-                mProfileSupplier.get(), inputContext, result -> {
-                    if (tab.isDestroyed()) return;
+        ContextualPageActionControllerJni.get()
+                .computeContextualPageAction(
+                        mProfileSupplier.get(),
+                        inputContext,
+                        result -> {
+                            if (tab.isDestroyed()) return;
 
-                    boolean isSameTab =
-                            mTabSupplier.get() != null && mTabSupplier.get().getId() == tab.getId();
-                    if (!isSameTab) return;
+                            boolean isSameTab =
+                                    mTabSupplier.get() != null
+                                            && mTabSupplier.get().getId() == tab.getId();
+                            if (!isSameTab) return;
 
-                    if (!AdaptiveToolbarFeatures.isContextualPageActionUiEnabled()) return;
-                    showDynamicAction(result);
-                });
+                            showDynamicAction(result);
+                        });
     }
 
     private void showDynamicAction(@AdaptiveToolbarButtonVariant int action) {
@@ -174,7 +197,7 @@ public class ContextualPageActionController {
             actionProvider.onActionShown(mTabSupplier.get(), action);
         }
 
-        // TODO(crbug/1373891): Add logic to inform reader mode backend.
+        // TODO(crbug.com/40242242): Add logic to inform reader mode backend.
         mAdaptiveToolbarButtonController.showDynamicAction(action);
     }
 
@@ -189,6 +212,8 @@ public class ContextualPageActionController {
     @NativeMethods
     interface Natives {
         void computeContextualPageAction(
-                Profile profile, InputContext inputContext, Callback<Integer> callback);
+                @JniType("Profile*") Profile profile,
+                InputContext inputContext,
+                Callback<Integer> callback);
     }
 }

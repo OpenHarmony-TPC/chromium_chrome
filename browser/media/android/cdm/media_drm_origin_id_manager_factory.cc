@@ -21,7 +21,8 @@ MediaDrmOriginIdManager* MediaDrmOriginIdManagerFactory::GetForProfile(
 
 // static
 MediaDrmOriginIdManagerFactory* MediaDrmOriginIdManagerFactory::GetInstance() {
-  return base::Singleton<MediaDrmOriginIdManagerFactory>::get();
+  static base::NoDestructor<MediaDrmOriginIdManagerFactory> instance;
+  return instance.get();
 }
 
 MediaDrmOriginIdManagerFactory::MediaDrmOriginIdManagerFactory()
@@ -30,7 +31,7 @@ MediaDrmOriginIdManagerFactory::MediaDrmOriginIdManagerFactory()
           "MediaDrmOriginIdManager",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
               .Build()) {}

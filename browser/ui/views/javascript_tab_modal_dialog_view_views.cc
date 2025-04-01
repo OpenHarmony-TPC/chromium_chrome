@@ -11,6 +11,8 @@
 #include "content/public/browser/javascript_dialog_manager.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/strings/grit/ui_strings.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/bubble/bubble_frame_view.h"
@@ -23,6 +25,7 @@ JavaScriptTabModalDialogViewViews::~JavaScriptTabModalDialogViewViews() =
     default;
 
 void JavaScriptTabModalDialogViewViews::CloseDialogWithoutCallback() {
+  scoped_tab_modal_ui_.reset();
   dialog_callback_.Reset();
   dialog_force_closed_callback_.Reset();
   GetWidget()->Close();
@@ -50,7 +53,7 @@ void JavaScriptTabModalDialogViewViews::AddedToWidget() {
       GetWidget()->non_client_view()->frame_view());
   bubble_frame_view->SetTitleView(CreateTitleOriginLabel(GetWindowTitle()));
   if (!message_text_.empty()) {
-    GetWidget()->GetRootView()->GetViewAccessibility().OverrideDescription(
+    GetWidget()->GetRootView()->GetViewAccessibility().SetDescription(
         message_text_);
   }
   // On some platforms, the platform accessibility API automatically
@@ -76,14 +79,20 @@ JavaScriptTabModalDialogViewViews::JavaScriptTabModalDialogViewViews(
       default_prompt_text_(default_prompt_text),
       dialog_callback_(std::move(dialog_callback)),
       dialog_force_closed_callback_(std::move(dialog_force_closed_callback)) {
-  SetModalType(ui::MODAL_TYPE_CHILD);
-  SetDefaultButton(ui::DIALOG_BUTTON_OK);
+  tabs::TabInterface* tab =
+      tabs::TabInterface::GetFromContents(parent_web_contents);
+  CHECK(tab && tab->CanShowModalUI());
+  scoped_tab_modal_ui_ = tab->ShowModalUI();
+
+  SetModalType(ui::mojom::ModalType::kChild);
+  SetDefaultButton(static_cast<int>(ui::mojom::DialogButton::kOk));
   const bool is_alert = dialog_type == content::JAVASCRIPT_DIALOG_TYPE_ALERT;
   SetButtons(
       // Alerts only have an OK button, no Cancel, because there is no choice
       // being made.
-      is_alert ? ui::DIALOG_BUTTON_OK
-               : (ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL));
+      is_alert ? static_cast<int>(ui::mojom::DialogButton::kOk)
+               : static_cast<int>(ui::mojom::DialogButton::kOk) |
+                     static_cast<int>(ui::mojom::DialogButton::kCancel));
 
   SetAcceptCallback(base::BindOnce(
       [](JavaScriptTabModalDialogViewViews* dialog) {
@@ -106,6 +115,9 @@ JavaScriptTabModalDialogViewViews::JavaScriptTabModalDialogViewViews(
       base::Unretained(this)));
   RegisterWindowWillCloseCallback(base::BindOnce(
       [](JavaScriptTabModalDialogViewViews* dialog) {
+        // Since the window is closing, reset the ScopedTabModalUI so it removes
+        // its reference to the TabModel prior to the TabModel being destroyed.
+        dialog->scoped_tab_modal_ui_.reset();
         // If the force-close callback still exists at this point we're not
         // closed due to a user action (would've been caught in Accept/Cancel).
         if (dialog->dialog_force_closed_callback_)
@@ -137,7 +149,7 @@ JavaScriptTabModalDialogViewViews::CreateAlertDialogForTesting(
       base::NullCallback(), base::NullCallback());
 }
 
-BEGIN_METADATA(JavaScriptTabModalDialogViewViews, views::DialogDelegateView)
+BEGIN_METADATA(JavaScriptTabModalDialogViewViews)
 END_METADATA
 
 // Creates a new JS dialog. Note the two callbacks; |dialog_callback| is for

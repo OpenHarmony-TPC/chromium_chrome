@@ -17,24 +17,33 @@ import android.view.View;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceScreen;
 
+import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.payments.ServiceWorkerPaymentAppBridge;
+import org.chromium.components.browser_ui.settings.EmbeddableSettingsPage;
 import org.chromium.components.browser_ui.settings.TextMessagePreference;
 import org.chromium.components.payments.AndroidPaymentAppFactory;
 
 import java.util.Map;
 
-/**
- * Preference fragment to allow users to control use of the Android payment apps on device.
- */
-public class AndroidPaymentAppsFragment extends PreferenceFragmentCompat {
+/** Preference fragment to allow users to control use of the Android payment apps on device. */
+public class AndroidPaymentAppsFragment extends PreferenceFragmentCompat
+        implements EmbeddableSettingsPage {
+    private final ObservableSupplierImpl<String> mPageTitle = new ObservableSupplierImpl<>();
+
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
-        getActivity().setTitle(R.string.payment_apps_title);
+        mPageTitle.set(getString(R.string.payment_apps_title));
 
         // Create blank preference screen.
         PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(getStyledContext());
         setPreferenceScreen(screen);
+    }
+
+    @Override
+    public ObservableSupplier<String> getPageTitle() {
+        return mPageTitle;
     }
 
     @Override
@@ -66,7 +75,8 @@ public class AndroidPaymentAppsFragment extends PreferenceFragmentCompat {
                 });
     }
 
-    private void addPaymentAppsPreference(Map<String, Pair<String, Drawable>> androidAppsInfo,
+    private void addPaymentAppsPreference(
+            Map<String, Pair<String, Drawable>> androidAppsInfo,
             Map<String, Pair<String, Bitmap>> serviceWorkerAppsInfo) {
         if (androidAppsInfo.isEmpty() && serviceWorkerAppsInfo.isEmpty()) return;
 
@@ -80,7 +90,8 @@ public class AndroidPaymentAppsFragment extends PreferenceFragmentCompat {
             AndroidPaymentAppPreference pref = new AndroidPaymentAppPreference(getStyledContext());
             pref.setTitle(app.getValue().first);
             pref.setSummary(app.getKey());
-            pref.setIcon(app.getValue().second == null
+            pref.setIcon(
+                    app.getValue().second == null
                             ? new ColorDrawable(Color.TRANSPARENT)
                             : new BitmapDrawable(getResources(), app.getValue().second));
             getPreferenceScreen().addPreference(pref);

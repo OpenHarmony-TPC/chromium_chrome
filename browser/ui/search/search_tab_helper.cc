@@ -33,10 +33,13 @@
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/browser/ui/tab_modal_confirm_dialog.h"
 #include "chrome/browser/ui/tab_modal_confirm_dialog_delegate.h"
+#include "chrome/browser/ui/tabs/public/tab_interface.h"
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "components/google/core/common/google_util.h"
 #include "components/navigation_metrics/navigation_metrics.h"
 #include "components/profile_metrics/browser_profile_type.h"
@@ -47,8 +50,8 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync/base/user_selectable_type.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_user_settings.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/navigation_details.h"
 #include "content/public/browser/navigation_entry.h"
@@ -60,6 +63,7 @@
 #include "extensions/common/constants.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/vector_icon_types.h"
 #include "url/gurl.h"
@@ -77,12 +81,6 @@ enum class NewTabPageConcretePage {
   kOffTheRecordNtp = 5,
   kMaxValue = kOffTheRecordNtp,
 };
-
-bool IsCacheableNTP(content::WebContents* contents) {
-  content::NavigationEntry* entry =
-      contents->GetController().GetLastCommittedEntry();
-  return search::NavEntryIsInstantNTP(contents, entry);
-}
 
 // Returns true if |contents| are rendered inside an Instant process.
 bool InInstantProcess(const InstantService* instant_service,
@@ -104,20 +102,6 @@ void RecordNewTabLoadTime(content::WebContents* contents) {
   if (core_tab_helper->new_tab_start_time().is_null())
     return;
 
-  base::TimeDelta duration =
-      base::TimeTicks::Now() - core_tab_helper->new_tab_start_time();
-  if (IsCacheableNTP(contents)) {
-    if (google_util::IsGoogleDomainUrl(
-            contents->GetController().GetLastCommittedEntry()->GetURL(),
-            google_util::ALLOW_SUBDOMAIN,
-            google_util::DISALLOW_NON_STANDARD_PORTS)) {
-      UMA_HISTOGRAM_TIMES("Tab.NewTabOnload.Google", duration);
-    } else {
-      UMA_HISTOGRAM_TIMES("Tab.NewTabOnload.Other", duration);
-    }
-  } else {
-    UMA_HISTOGRAM_TIMES("Tab.NewTabOnload.Local", duration);
-  }
   core_tab_helper->set_new_tab_start_time(base::TimeTicks());
 }
 
@@ -132,8 +116,12 @@ void RecordConcreteNtp(content::NavigationHandle* navigation_handle) {
     concrete_page = NewTabPageConcretePage::k3PWebUiNtp;
   } else if (search::IsInstantNTP(navigation_handle->GetWebContents())) {
     concrete_page = NewTabPageConcretePage::k3PRemoteNtp;
-  } else if (navigation_handle->GetURL().SchemeIs(
-                 extensions::kExtensionScheme)) {
+  } else if (navigation_handle->GetURL().SchemeIs(extensions::kExtensionScheme)
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+             || navigation_handle->GetURL().SchemeIs(
+                    extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     concrete_page = NewTabPageConcretePage::kExtensionNtp;
   } else if (Profile::FromBrowserContext(
                  navigation_handle->GetWebContents()->GetBrowserContext())
@@ -189,6 +177,8 @@ void SearchTabHelper::OnTabActivated() {
 
   if (search::IsInstantNTP(web_contents()) && instant_service_)
     instant_service_->OnNewTabPageOpened();
+
+  CloseNTPCustomizeChromeFeaturePromo();
 }
 
 void SearchTabHelper::OnTabDeactivated() {
@@ -218,6 +208,8 @@ void SearchTabHelper::DidStartNavigation(
           entry, l10n_util::GetStringUTF16(IDS_NEW_TAB_TITLE));
     }
   }
+
+  CloseNTPCustomizeChromeFeaturePromo();
 }
 
 void SearchTabHelper::TitleWasSet(content::NavigationEntry* entry) {
@@ -319,6 +311,24 @@ Profile* SearchTabHelper::profile() const {
 
 bool SearchTabHelper::IsInputInProgress() const {
   return search::IsOmniboxInputInProgress(web_contents());
+}
+
+void SearchTabHelper::CloseNTPCustomizeChromeFeaturePromo() {
+  const base::Feature& customize_chrome_feature =
+      feature_engagement::kIPHDesktopCustomizeChromeRefreshFeature;
+  if (web_contents()->GetController().GetVisibleEntry()->GetURL() ==
+      GURL(chrome::kChromeUINewTabPageURL)) {
+    return;
+  }
+  auto* const tab = tabs::TabInterface::MaybeGetFromContents(web_contents());
+  if (!tab || !tab->IsInForeground()) {
+    return;
+  }
+  if (auto* const interface =
+          BrowserUserEducationInterface::MaybeGetForWebContentsInTab(
+              web_contents())) {
+    interface->AbortFeaturePromo(customize_chrome_feature);
+  }
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(SearchTabHelper);

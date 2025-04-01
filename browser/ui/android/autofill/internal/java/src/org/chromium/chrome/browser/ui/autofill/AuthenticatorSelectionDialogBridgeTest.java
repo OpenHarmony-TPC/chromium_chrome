@@ -17,7 +17,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -30,9 +29,7 @@ import org.chromium.ui.test.util.modaldialog.FakeModalDialogManager;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Unit tests for {@link AuthenticatorSelectionDialogBridge}.
- */
+/** Unit tests for {@link AuthenticatorSelectionDialogBridge}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class AuthenticatorSelectionDialogBridgeTest {
     // The icon set on the AuthenticatorOption is not important and any icon would do.
@@ -60,23 +57,21 @@ public class AuthenticatorSelectionDialogBridgeTest {
 
     private FakeModalDialogManager mModalDialogManager;
     private AuthenticatorSelectionDialogBridge mAuthenticatorSelectionDialogBridge;
-    @Mock
-    private AuthenticatorSelectionDialogBridge.Natives mNativeMock;
-    @Rule
-    public MockitoRule mMockitoRule = MockitoJUnit.rule();
-    @Rule
-    public JniMocker mMocker = new JniMocker();
+    @Mock private AuthenticatorSelectionDialogBridge.Natives mNativeMock;
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public JniMocker mMocker = new JniMocker();
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         reset(mNativeMock);
         mOptions.add(OPTION_1);
         mOptions.add(OPTION_2);
         mModalDialogManager = new FakeModalDialogManager(ModalDialogType.TAB);
         mAuthenticatorSelectionDialogBridge =
-                new AuthenticatorSelectionDialogBridge(NATIVE_AUTHENTICATOR_SELECTION_DIALOG_VIEW,
-                        ApplicationProvider.getApplicationContext(), mModalDialogManager);
+                new AuthenticatorSelectionDialogBridge(
+                        NATIVE_AUTHENTICATOR_SELECTION_DIALOG_VIEW,
+                        ApplicationProvider.getApplicationContext(),
+                        mModalDialogManager);
         mMocker.mock(AuthenticatorSelectionDialogBridgeJni.TEST_HOOKS, mNativeMock);
         mAuthenticatorSelectionDialogBridge.show(mOptions);
     }

@@ -4,7 +4,8 @@
 
 // clang-format off
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {loadTimeData, Route, Router, SettingsRoutes} from 'chrome://settings/settings.js';
+import type {SettingsRoutes} from 'chrome://settings/settings.js';
+import {loadTimeData, Route, Router} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
@@ -74,11 +75,11 @@ suite('SettingsSubpage', function() {
     // Check that the help icon only shows up when a |learnMoreUrl| is
     // specified.
     assertFalse(
-        !!subpage.shadowRoot!.querySelector('[iron-icon="cr:help-outline"]'));
+        !!subpage.shadowRoot!.querySelector('[cr-icon="cr:help-outline"]'));
     subpage.learnMoreUrl = 'https://www.chromium.org';
     flush();
     const icon = subpage.shadowRoot!.querySelector<HTMLElement>(
-        '[iron-icon="cr:help-outline"]');
+        '[cr-icon="cr:help-outline"]');
     assertTrue(!!icon);
     // Check that the icon is forced to always use 'ltr' mode.
     assertEquals('ltr', icon!.getAttribute('dir'));
@@ -86,8 +87,10 @@ suite('SettingsSubpage', function() {
     subpage.pageTitle = 'Title';
     flush();
     assertEquals(
-        subpage.i18n('subpageLearnMoreAriaLabel', subpage.pageTitle),
-        icon.ariaLabel);
+        icon.ariaLabel,
+        subpage.i18n('subpageLearnMoreAriaLabel', subpage.pageTitle));
+    assertEquals(
+        icon?.getAttribute('aria-description'), subpage.i18n('opensInNewTab'));
   });
 
   test('favicon', function() {

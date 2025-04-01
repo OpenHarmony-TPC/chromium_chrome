@@ -6,9 +6,11 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_string_value_serializer.h"
@@ -16,15 +18,12 @@
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "base/task/thread_pool.h"
-#include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "cef/libcef/features/runtime.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/chrome_content_browser_client_extensions_part.h"
 #include "chrome/browser/google/google_brand.h"
@@ -33,40 +32,45 @@
 #include "chrome/common/channel_info.h"
 #include "components/feedback/system_logs/system_logs_source.h"
 #include "components/prefs/pref_service.h"
-#include "components/sync/driver/sync_internals_util.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_internals_util.h"
+#include "components/sync/service/sync_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/gpu_data_manager.h"
 #include "extensions/browser/api/power/power_api.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/api/power.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_set.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "ui/display/types/display_constants.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "ash/public/ash_interfaces.h"
+#include "base/i18n/time_formatting.h"
 #include "chrome/browser/ash/arc/arc_util.h"
 #include "chrome/browser/ash/arc/policy/arc_policy_bridge.h"
-#include "chrome/browser/ash/crosapi/browser_manager.h"
-#include "chrome/browser/ash/crosapi/browser_util.h"
 #include "chrome/browser/ash/login/demo_mode/demo_session.h"
 #include "chrome/browser/ash/login/login_pref_names.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/metrics/chromeos_metrics_provider.h"
 #include "chrome/browser/metrics/enrollment_status.h"
 #include "chromeos/ash/components/dbus/spaced/spaced_client.h"
-#include "chromeos/ash/components/login/auth/auth_metrics_recorder.h"
+#include "chromeos/ash/components/login/auth/auth_events_recorder.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/components/system/statistics_provider.h"
 #include "chromeos/version/version_loader.h"
+#include "third_party/icu/source/i18n/unicode/timezone.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/win_util.h"
+#include "base/win/windows_version.h"
+#include "ui/base/win/hidden_window.h"
+
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#include "base/strings/stringprintf.h"
 #include "chrome/browser/google/google_update_win.h"
 #endif
-#include "ui/base/win/hidden_window.h"
 #endif
 
 #if BUILDFLAG(IS_MAC)
@@ -81,13 +85,9 @@ constexpr char kSyncDataKey[] = "about_sync_data";
 constexpr char kExtensionsListKey[] = "extensions";
 constexpr char kPowerApiListKey[] = "chrome.power extensions";
 constexpr char kChromeVersionTag[] = "CHROME VERSION";
+constexpr char kSkiaGraphiteStatusKey[] = "skia_graphite_status";
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-constexpr char kLacrosChromeVersionPrefix[] = "Lacros ";
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-constexpr char kAshChromeVersionPrefix[] = "Ash ";
 constexpr char kArcPolicyComplianceReportKey[] =
     "CHROMEOS_ARC_POLICY_COMPLIANCE_REPORT";
 constexpr char kArcDpcVersionKey[] = "CHROMEOS_ARC_DPC_VERSION";
@@ -101,14 +101,14 @@ constexpr char kLTSChromeVersionPrefix[] = "LTS ";
 constexpr char kArcStatusKey[] = "CHROMEOS_ARC_STATUS";
 constexpr char kMonitorInfoKey[] = "monitor_info";
 constexpr char kAccountTypeKey[] = "account_type";
-constexpr char kLacrosStatus[] = "lacros_status";
 constexpr char kDemoModeConfigKey[] = "demo_mode_config";
 constexpr char kOnboardingTime[] = "ONBOARDING_TIME";
 constexpr char kFreeDiskSpace[] = "FREE_DISK_SPACE";
 constexpr char kTotalDiskSpace[] = "TOTAL_DISK_SPACE";
-constexpr char kChronosHomeDirectory[] = "/home/user/chronos";
+constexpr char kChronosHomeDirectory[] = "/home/chronos/user";
 constexpr char kFailedKnowledgeFactorAttempts[] =
     "FAILED_KNOWLEDGE_FACTOR_ATTEMPTS";
+constexpr char kRecordedAuthEvents[] = "RECORDED_AUTH_EVENTS";
 #else
 constexpr char kOsVersionTag[] = "OS VERSION";
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
@@ -125,7 +125,7 @@ constexpr char kInstallLocation[] = "install_location";
 #endif
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 constexpr char kCpuArch[] = "cpu_arch";
 #endif
 
@@ -141,25 +141,20 @@ std::string GetPrimaryAccountTypeString() {
     return "none";
 
   switch (primary_user->GetType()) {
-    case user_manager::USER_TYPE_REGULAR:
+    case user_manager::UserType::kRegular:
       return "regular";
-    case user_manager::USER_TYPE_GUEST:
+    case user_manager::UserType::kGuest:
       return "guest";
-    case user_manager::USER_TYPE_PUBLIC_ACCOUNT:
+    case user_manager::UserType::kPublicAccount:
       return "public_account";
-    case user_manager::USER_TYPE_KIOSK_APP:
+    case user_manager::UserType::kKioskApp:
       return "kiosk_app";
-    case user_manager::USER_TYPE_CHILD:
+    case user_manager::UserType::kChild:
       return "child";
-    case user_manager::USER_TYPE_ARC_KIOSK_APP:
-      return "arc_kiosk_app";
-    case user_manager::USER_TYPE_ACTIVE_DIRECTORY:
-      return "active_directory";
-    case user_manager::USER_TYPE_WEB_KIOSK_APP:
+    case user_manager::UserType::kWebKioskApp:
       return "web_kiosk_app";
-    case user_manager::NUM_USER_TYPES:
-      NOTREACHED();
-      break;
+    case user_manager::UserType::kKioskIWA:
+      return "kiosk_iwa";
   }
   return std::string();
 }
@@ -208,7 +203,7 @@ void PopulateEntriesAsync(std::unique_ptr<SystemLogsResponse> response,
     DCHECK(stats);
 
     // Get the HWID.
-    absl::optional<base::StringPiece> hwid =
+    std::optional<std::string_view> hwid =
         stats->GetMachineStatistic(ash::system::kHardwareClassKey);
     if (hwid) {
       response->emplace(kHWIDKey, std::string(hwid.value()));
@@ -233,11 +228,10 @@ void PopulateDiskSpaceLogsAsync(std::unique_ptr<SystemLogsResponse> response,
                                 SysLogsSourceCallback callback) {
   auto on_get_free_disk_space = [](std::unique_ptr<SystemLogsResponse> response,
                                    SysLogsSourceCallback callback,
-                                   absl::optional<int64_t> free_space) {
+                                   std::optional<int64_t> free_space) {
     auto on_get_total_disk_space =
         [](std::unique_ptr<SystemLogsResponse> response,
-           SysLogsSourceCallback callback,
-           absl::optional<int64_t> total_space) {
+           SysLogsSourceCallback callback, std::optional<int64_t> total_space) {
           if (total_space.has_value()) {
             response->emplace(kTotalDiskSpace,
                               base::NumberToString(total_space.value()));
@@ -312,18 +306,6 @@ std::string GetChromeVersionString() {
       ash::CrosSettings::Get()->GetString(ash::kReleaseLtsTag, &value);
   if (is_lts)
     browser_version = kLTSChromeVersionPrefix + browser_version;
-
-  // If lacros-chrome is allowed & supported, and launched before, which
-  // is indicated by |browser_version| in BrowserManager being set to non-empty
-  // string during lacros startup, attach its version in the chrome
-  // version string.
-  if (crosapi::browser_util::IsLacrosEnabled() &&
-      !crosapi::BrowserManager::Get()->browser_version().empty()) {
-    std::string lacros_version =
-        crosapi::BrowserManager::Get()->browser_version();
-    return kLacrosChromeVersionPrefix + lacros_version + ", " +
-           kAshChromeVersionPrefix + browser_version;
-  }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   return browser_version;
 }
@@ -371,6 +353,25 @@ std::string MacCpuArchAsString() {
       return "arm64";
   }
 }
+#elif BUILDFLAG(IS_WIN)
+std::string WinCpuArchAsString() {
+#if defined(ARCH_CPU_ARM64)
+  return "arm64";
+#else
+  bool emulated = base::win::OSInfo::IsRunningEmulatedOnArm64();
+#if defined(ARCH_CPU_X86)
+  if (emulated) {
+    return "32-bit emulated";
+  }
+  return "32-bit";
+#else   // defined(ARCH_CPU_X86)
+  if (emulated) {
+    return "64-bit emulated";
+  }
+  return "64-bit";
+#endif  // defined(ARCH_CPU_X86)
+#endif  // defined(ARCH_CPU_ARM64)
+}
 #endif
 
 }  // namespace
@@ -402,11 +403,7 @@ void ChromeInternalLogSource::Fetch(SysLogsSourceCallback callback) {
   response->emplace(kOsVersionTag, os_version);
 #endif
 
-  if (!cef::IsAlloyRuntimeEnabled()) {
-    // Avoid loading ProfileSyncServiceFactory which depends on a lot of
-    // unnecessary Chrome-specific factories.
-    PopulateSyncLogs(response.get());
-  }
+  PopulateSyncLogs(response.get());
   PopulateExtensionInfoLogs(response.get());
   PopulatePowerApiLogs(response.get());
 #if BUILDFLAG(IS_WIN)
@@ -418,7 +415,21 @@ void ChromeInternalLogSource::Fetch(SysLogsSourceCallback callback) {
 
 #if BUILDFLAG(IS_MAC)
   response->emplace(kCpuArch, MacCpuArchAsString());
+#elif BUILDFLAG(IS_WIN)
+  response->emplace(kCpuArch, WinCpuArchAsString());
 #endif
+
+  std::string skia_graphite_status = "unknown";
+  if (content::GpuDataManager::GetInstance()->IsEssentialGpuInfoAvailable()) {
+    if (content::GpuDataManager::GetInstance()->GetFeatureStatus(
+            gpu::GPU_FEATURE_TYPE_SKIA_GRAPHITE) ==
+        gpu::kGpuFeatureStatusEnabled) {
+      skia_graphite_status = "enabled";
+    } else {
+      skia_graphite_status = "disabled";
+    }
+  }
+  response->emplace(kSkiaGraphiteStatusKey, skia_graphite_status);
 
   if (ProfileManager::GetLastUsedProfile()->IsChild())
     response->emplace("account_type", "child");
@@ -432,15 +443,14 @@ void ChromeInternalLogSource::Fetch(SysLogsSourceCallback callback) {
     PopulateArcPolicyStatus(response.get());
   }
   response->emplace(kAccountTypeKey, GetPrimaryAccountTypeString());
-  response->emplace(kLacrosStatus, crosapi::browser_util::IsLacrosEnabled()
-                                       ? "enabled"
-                                       : "disabled");
   response->emplace(kDemoModeConfigKey, ash::DemoSession::DemoConfigToString(
                                             ash::DemoSession::GetDemoConfig()));
   response->emplace(
       kFailedKnowledgeFactorAttempts,
-      base::NumberToString(ash::AuthMetricsRecorder::Get()
+      base::NumberToString(ash::AuthEventsRecorder::Get()
                                ->knowledge_factor_auth_failure_count()));
+  response->emplace(kRecordedAuthEvents,
+                    ash::AuthEventsRecorder::Get()->GetAuthEventsLog());
   PopulateLocalStateSettings(response.get());
   PopulateOnboardingTime(response.get());
 
@@ -484,12 +494,8 @@ void ChromeInternalLogSource::PopulateExtensionInfoLogs(
   if (!profile)
     return;
 
-  // May be nullptr if using CEF Alloy with extensions disabled.
   extensions::ExtensionRegistry* extension_registry =
       extensions::ExtensionRegistry::Get(profile);
-  if (!extension_registry)
-    return;
-
   std::string extensions_list;
   for (const scoped_refptr<const extensions::Extension>& extension :
        extension_registry->enabled_extensions()) {
@@ -580,12 +586,9 @@ void ChromeInternalLogSource::PopulateOnboardingTime(
       profile->GetPrefs()->GetTime(ash::prefs::kOobeOnboardingTime);
   if (time.is_null())
     return;
-
-  base::Time::Exploded exploded;
-  time.UTCExplode(&exploded);
   response->emplace(kOnboardingTime,
-                    base::StringPrintf("%04d-%02d-%02d", exploded.year,
-                                       exploded.month, exploded.day_of_month));
+                    base::UnlocalizedTimeFormatWithPattern(
+                        time, "yyyy-MM-dd", icu::TimeZone::getGMT()));
 }
 
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
@@ -593,8 +596,6 @@ void ChromeInternalLogSource::PopulateOnboardingTime(
 #if BUILDFLAG(IS_WIN)
 void ChromeInternalLogSource::PopulateUsbKeyboardDetected(
     SystemLogsResponse* response) {
-  // The below call may result in some DLLs being loaded.
-  base::ScopedAllowBlockingForTesting allow_blocking;
   std::string reason;
   bool result =
       base::win::IsKeyboardPresentOnSlate(ui::GetHiddenWindow(), &reason);
@@ -620,7 +621,7 @@ void ChromeInternalLogSource::PopulateInstallerBrandCode(
 void ChromeInternalLogSource::PopulateLastUpdateState(
     SystemLogsResponse* response) {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  const absl::optional<UpdateState> update_state = GetLastUpdateState();
+  const std::optional<UpdateState> update_state = GetLastUpdateState();
   if (!update_state)
     return;  // There is nothing to include if no update check has completed.
 

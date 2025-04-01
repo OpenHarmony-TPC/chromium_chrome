@@ -171,7 +171,7 @@ bool PresentationReceiverWindowController::ShouldSuppressDialogs(
   DCHECK_EQ(web_contents_.get(), source);
   // Suppress all because there is no possible direct user interaction with
   // dialogs.
-  // TODO(https://crbug.com/734191): This does not suppress window.print().
+  // TODO(crbug.com/40526231): This does not suppress window.print().
   return true;
 }
 
@@ -185,7 +185,8 @@ bool PresentationReceiverWindowController::ShouldFocusLocationBarByDefault(
   return true;
 }
 
-bool PresentationReceiverWindowController::ShouldFocusPageAfterCrash() {
+bool PresentationReceiverWindowController::ShouldFocusPageAfterCrash(
+    content::WebContents* source) {
   // Never focus the page after a crash.
   return false;
 }

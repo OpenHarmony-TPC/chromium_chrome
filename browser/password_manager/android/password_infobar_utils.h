@@ -7,11 +7,23 @@
 
 #include "components/signin/public/identity_manager/account_info.h"
 
-class Profile;
+namespace signin {
+class IdentityManager;
+}  // namespace signin
+
+namespace syncer {
+class SyncService;
+}  // namespace syncer
 
 namespace password_manager {
 
-AccountInfo GetAccountInfoForPasswordMessages(Profile* profile);
+std::optional<AccountInfo> GetAccountInfoForPasswordMessages(
+    syncer::SyncService* sync_service,
+    signin::IdentityManager* identity_manager);
+
+std::string GetDisplayableAccountName(
+    syncer::SyncService* sync_service,
+    signin::IdentityManager* identity_manager);
 
 }  // namespace password_manager
 

@@ -15,7 +15,6 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/signin/inline_login_handler.h"
-#include "chrome/browser/ui/webui/signin/signin_email_confirmation_dialog.h"
 #include "google_apis/gaia/gaia_auth_consumer.h"
 #include "google_apis/gaia/gaia_auth_fetcher.h"
 
@@ -79,7 +78,6 @@ class InlineLoginHandlerImpl : public InlineLoginHandler {
                               const std::string& gaia_id,
                               const std::string& password,
                               const std::string& auth_code,
-                              bool choose_what_to_sync,
                               bool is_force_sign_in_with_usermanager);
     FinishCompleteLoginParams(const FinishCompleteLoginParams& other);
     ~FinishCompleteLoginParams();
@@ -106,8 +104,6 @@ class InlineLoginHandlerImpl : public InlineLoginHandler {
     // for the account used to sign in.  Used only with password separated
     // signin flow.
     std::string auth_code;
-    // True if the user wants to configure sync before signing in.
-    bool choose_what_to_sync;
     // True if user signing in with UserManager when force-sign-in policy is
     // enabled.
     bool is_force_sign_in_with_usermanager;

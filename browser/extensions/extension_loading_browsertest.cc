@@ -17,6 +17,7 @@
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/extensions/api/tabs.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -204,7 +205,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionLoadingTest,
   EXPECT_TRUE(activities.empty());
 
   DevToolsWindowCreationObserver observer;
-  devtools_util::InspectBackgroundPage(extension, profile());
+  devtools_util::InspectBackgroundPage(extension, profile(),
+                                       DevToolsOpenedByAction::kUnknown);
   observer.WaitForLoad();
 
   // This is due to how these keepalive counters are managed by the extension
@@ -213,8 +215,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionLoadingTest,
   // It bumps them each time it sees a DevToolsAgentHost associated to an
   // extension, and in case of the tab target mode, there's one agent host for
   // the WebContents and one for the render frame.
-  const int expected_keepalive_count =
-      base::FeatureList::IsEnabled(::features::kDevToolsTabTarget) ? 2 : 1;
+  const int expected_keepalive_count = 2;
 
   EXPECT_EQ(expected_keepalive_count,
             process_manager->GetLazyKeepaliveCount(extension));
@@ -254,7 +255,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionLoadingTest,
 // Tests whether the extension runtime stays valid when an extension reloads
 // while a devtools extension is hammering the frame with eval requests.
 // Regression test for https://crbug.com/544182
-// TODO(crbug.com/1416423): Flaky with dbg and sanitizers.
+// TODO(crbug.com/40893499): Flaky with dbg and sanitizers.
 #if !defined(NDEBUG) || defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER)
 #define MAYBE_RuntimeValidWhileDevToolsOpen \
   DISABLED_RuntimeValidWhileDevToolsOpen
@@ -311,7 +312,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionLoadingTest,
 
   // Open the devtools and wait until the devtools_page is ready.
   ExtensionTestMessageListener devtools_ready("devtools_page_ready");
-  devtools_util::InspectBackgroundPage(inspect_ext, profile());
+  devtools_util::InspectBackgroundPage(inspect_ext, profile(),
+                                       DevToolsOpenedByAction::kUnknown);
   ASSERT_TRUE(devtools_ready.WaitUntilSatisfied());
 
   // Reload the extension. The devtools window will stay open, but temporarily
@@ -331,9 +333,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionLoadingTest,
 
   // Tidy up.
   scoped_refptr<content::DevToolsAgentHost> agent_host(
-      base::FeatureList::IsEnabled(::features::kDevToolsTabTarget)
-          ? content::DevToolsAgentHost::GetOrCreateForTab(bg_contents)
-          : content::DevToolsAgentHost::GetOrCreateFor(bg_contents));
+      content::DevToolsAgentHost::GetOrCreateForTab(bg_contents));
   DevToolsWindowTesting::CloseDevToolsWindowSync(
       DevToolsWindow::FindDevToolsWindow(agent_host.get()));
 }
@@ -378,7 +378,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionLoadingTest, PRE_ChangeBackgroundScriptType) {
 
 IN_PROC_BROWSER_TEST_F(ExtensionLoadingTest, ChangeBackgroundScriptType) {
   // The goal of this test step is to not crash.
-  const extensions::Extension* extension =
+  const Extension* extension =
       extension_registry()->enabled_extensions().GetByID(
           kChangeBackgroundScriptTypeExtensionId);
   ASSERT_TRUE(extension);

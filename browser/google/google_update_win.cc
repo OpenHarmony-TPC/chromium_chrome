@@ -5,6 +5,7 @@
 #include "chrome/browser/google/google_update_win.h"
 
 #include <objbase.h>
+
 #include <stdint.h>
 #include <string.h>
 
@@ -20,6 +21,7 @@
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -102,16 +104,17 @@ GoogleUpdateErrorCode CanUpdateCurrentChrome(
     const base::FilePath& chrome_exe_path,
     bool system_level_install) {
   DCHECK_NE(InstallUtil::IsPerUserInstall(), system_level_install);
-  base::FilePath user_exe_path = installer::GetChromeInstallPath(false);
-  base::FilePath machine_exe_path = installer::GetChromeInstallPath(true);
-  if (!base::FilePath::CompareEqualIgnoreCase(chrome_exe_path.value(),
-                                        user_exe_path.value()) &&
-      !base::FilePath::CompareEqualIgnoreCase(chrome_exe_path.value(),
-                                        machine_exe_path.value())) {
-    return CANNOT_UPGRADE_CHROME_IN_THIS_DIRECTORY;
-  }
 
-  return GOOGLE_UPDATE_NO_ERROR;
+  // The currently-running browser can only be updated by Google Update if it
+  // is running from the same directory as the currently-installed browser
+  // being managed by Google Update at the desired install level.
+  const base::FilePath install_dir =
+      installer::GetInstalledDirectory(system_level_install);
+  return (!install_dir.empty() &&
+          base::FilePath::CompareEqualIgnoreCase(chrome_exe_path.value(),
+                                                 install_dir.value()))
+             ? GOOGLE_UPDATE_NO_ERROR
+             : CANNOT_UPGRADE_CHROME_IN_THIS_DIRECTORY;
 }
 
 // Explicitly allow the Google Update service to impersonate the client since
@@ -143,10 +146,8 @@ HRESULT CoGetClassObjectAsAdmin(gfx::AcceleratedWidget hwnd,
 
   // For Vista+, need to instantiate the class factory via the elevation
   // moniker. This ensures that the UAC dialog shows up.
-  auto class_id_as_string = base::win::WStringFromGUID(class_id);
-
-  std::wstring elevation_moniker_name = base::StringPrintf(
-      L"Elevation:Administrator!clsid:%ls", class_id_as_string.c_str());
+  const std::wstring elevation_moniker_name =
+      L"Elevation:Administrator!clsid:" + base::win::WStringFromGUID(class_id);
 
   BIND_OPTS3 bind_opts;
   // An explicit memset is needed rather than relying on value initialization
@@ -168,9 +169,9 @@ HRESULT CreateGoogleUpdate3WebClass(
   if (g_google_update_factory)
     return g_google_update_factory->Run(google_update);
 
-  const CLSID& google_update_clsid = system_level_install ?
-      CLSID_GoogleUpdate3WebMachineClass :
-      CLSID_GoogleUpdate3WebUserClass;
+  const CLSID& google_update_clsid = system_level_install
+                                         ? CLSID_GoogleUpdate3WebSystemClass
+                                         : CLSID_GoogleUpdate3WebUserClass;
   Microsoft::WRL::ComPtr<IClassFactory> class_factory;
   HRESULT hresult = S_OK;
 
@@ -195,13 +196,25 @@ HRESULT CreateGoogleUpdate3WebClass(
 
   ConfigureProxyBlanket(class_factory.Get());
 
-  return class_factory->CreateInstance(nullptr,
-                                       IID_PPV_ARGS(&(*google_update)));
+  Microsoft::WRL::ComPtr<IUnknown> unknown;
+  hresult = class_factory->CreateInstance(nullptr, IID_PPV_ARGS(&unknown));
+  if (FAILED(hresult)) {
+    return hresult;
+  }
+
+  // Chrome queries for the SxS IIDs first, with a fallback to the legacy IID.
+  // Without this change, marshaling can load the typelib from the wrong hive
+  // (HKCU instead of HKLM, or vice-versa).
+  hresult =
+      unknown.CopyTo(system_level_install ? __uuidof(IGoogleUpdate3WebSystem)
+                                          : __uuidof(IGoogleUpdate3WebUser),
+                     IID_PPV_ARGS_Helper(&(*google_update)));
+  return SUCCEEDED(hresult) ? hresult : unknown.As(&(*google_update));
 }
 
 // Returns the process-wide storage for the state of the last update check.
-absl::optional<UpdateState>* GetLastUpdateStateStorage() {
-  static base::NoDestructor<absl::optional<UpdateState>> storage;
+std::optional<UpdateState>* GetLastUpdateStateStorage() {
+  static base::NoDestructor<std::optional<UpdateState>> storage;
   return storage.get();
 }
 
@@ -210,10 +223,10 @@ absl::optional<UpdateState>* GetLastUpdateStateStorage() {
 // was present without the value, or the value of the switch as an HRESULT.
 // Additionally the returned structure contains the default error code
 // GOOGLE_UPDATE_ERROR_UPDATING or the value of --simulate-update-error-code.
-absl::optional<UpdateCheckResult> GetSimulatedErrorForDebugging() {
+std::optional<UpdateCheckResult> GetSimulatedErrorForDebugging() {
   const base::CommandLine& cmd_line = *base::CommandLine::ForCurrentProcess();
   if (!cmd_line.HasSwitch(switches::kSimulateUpdateHresult))
-    return absl::nullopt;
+    return std::nullopt;
 
   uint32_t error_from_string = 0;
   std::string error_switch_value =
@@ -288,7 +301,7 @@ class UpdateCheckDriver {
   // to the user. This call should be followed by deletion of the driver, which
   // will result in callers being notified via their delegates.
   void OnUpgradeError(UpdateCheckResult check_result,
-                      absl::optional<int> installer_exit_code,
+                      std::optional<int> installer_exit_code,
                       const std::u16string& error_string);
 
   // Returns true if |current_state| and |state_value| can be obtained from the
@@ -312,7 +325,7 @@ class UpdateCheckDriver {
                     CurrentState state_value,
                     GoogleUpdateErrorCode* error_code,
                     HRESULT* hresult,
-                    absl::optional<int>* installer_exit_code,
+                    std::optional<int>* installer_exit_code,
                     std::u16string* error_string) const;
 
   // Returns true if |current_state| and |state_value| constitute a final state
@@ -516,7 +529,7 @@ void UpdateCheckDriver::BeginUpdateCheck() {
   }
 
   DCHECK(FAILED(result.hresult));
-  OnUpgradeError(result, absl::nullopt, std::u16string());
+  OnUpgradeError(result, std::nullopt, std::u16string());
   result_runner_->DeleteSoon(FROM_HERE, this);
 }
 
@@ -530,8 +543,9 @@ UpdateCheckResult UpdateCheckDriver::BeginUpdateCheckInternal() {
   // Instantiate GoogleUpdate3Web{Machine,User}Class.
   if (!google_update_) {
     base::FilePath chrome_exe;
-    if (!base::PathService::Get(base::DIR_EXE, &chrome_exe))
+    if (!base::PathService::Get(base::DIR_EXE, &chrome_exe)) {
       NOTREACHED();
+    }
 
     system_level_install_ = !InstallUtil::IsPerUserInstall();
 
@@ -563,9 +577,18 @@ UpdateCheckResult UpdateCheckDriver::BeginUpdateCheckInternal() {
     hresult = google_update_->createAppBundleWeb(&dispatch);
     if (FAILED(hresult))
       return {error_code, hresult};
-    hresult = dispatch.As(&app_bundle);
-    if (FAILED(hresult))
-      return {error_code, hresult};
+
+    hresult =
+        dispatch.CopyTo(system_level_install_ ? __uuidof(IAppBundleWebSystem)
+                                              : __uuidof(IAppBundleWebUser),
+                        IID_PPV_ARGS_Helper(&app_bundle));
+    if (FAILED(hresult)) {
+      hresult = dispatch.As(&app_bundle);
+      if (FAILED(hresult)) {
+        return {error_code, hresult};
+      }
+    }
+
     dispatch.Reset();
 
     ConfigureProxyBlanket(app_bundle.Get());
@@ -611,9 +634,20 @@ UpdateCheckResult UpdateCheckDriver::BeginUpdateCheckInternal() {
     if (FAILED(hresult))
       return {error_code, hresult};
     Microsoft::WRL::ComPtr<IAppWeb> app;
-    hresult = dispatch.As(&app);
-    if (FAILED(hresult))
-      return {error_code, hresult};
+
+    // Chrome queries for the SxS IIDs first, with a fallback to the legacy IID.
+    // Without this change, marshaling can load the typelib from the wrong hive
+    // (HKCU instead of HKLM, or vice-versa).
+    hresult = dispatch.CopyTo(
+        system_level_install_ ? __uuidof(IAppWebSystem) : __uuidof(IAppWebUser),
+        IID_PPV_ARGS_Helper(&app));
+    if (FAILED(hresult)) {
+      hresult = dispatch.As(&app);
+      if (FAILED(hresult)) {
+        return {error_code, hresult};
+      }
+    }
+
     ConfigureProxyBlanket(app.Get());
     hresult = app_bundle->checkForUpdate();
     if (FAILED(hresult))
@@ -633,9 +667,20 @@ bool UpdateCheckDriver::GetCurrentState(
   *hresult = app_->get_currentState(&dispatch);
   if (FAILED(*hresult))
     return false;
-  *hresult = dispatch.As(&(*current_state));
-  if (FAILED(*hresult))
-    return false;
+
+  // Chrome queries for the SxS IIDs first, with a fallback to the legacy IID.
+  // Without this change, marshaling can load the typelib from the wrong hive
+  // (HKCU instead of HKLM, or vice-versa).
+  *hresult =
+      dispatch.CopyTo(system_level_install_ ? __uuidof(ICurrentStateSystem)
+                                            : __uuidof(ICurrentStateUser),
+                      IID_PPV_ARGS_Helper(&(*current_state)));
+  if (FAILED(*hresult)) {
+    *hresult = dispatch.As(&(*current_state));
+    if (FAILED(*hresult)) {
+      return false;
+    }
+  }
   ConfigureProxyBlanket(current_state->Get());
   LONG value = 0;
   *hresult = (*current_state)->get_stateValue(&value);
@@ -650,7 +695,7 @@ bool UpdateCheckDriver::IsErrorState(
     CurrentState state_value,
     GoogleUpdateErrorCode* error_code,
     HRESULT* hresult,
-    absl::optional<int>* installer_exit_code,
+    std::optional<int>* installer_exit_code,
     std::u16string* error_string) const {
   if (state_value == STATE_ERROR) {
     // In general, errors reported by Google Update fall under this category
@@ -796,7 +841,6 @@ bool UpdateCheckDriver::IsIntermediateState(
     case STATE_ERROR:
     default:
       NOTREACHED();
-      return false;
   }
   return true;
 }
@@ -806,7 +850,7 @@ void UpdateCheckDriver::PollGoogleUpdate() {
   CurrentState state_value = STATE_INIT;
   HRESULT hresult = S_OK;
   GoogleUpdateErrorCode error_code = GOOGLE_UPDATE_NO_ERROR;
-  absl::optional<int> installer_exit_code;
+  std::optional<int> installer_exit_code;
   std::u16string error_string;
   GoogleUpdateUpgradeStatus upgrade_status = UPGRADE_ERROR;
   std::u16string new_version;
@@ -814,7 +858,7 @@ void UpdateCheckDriver::PollGoogleUpdate() {
 
   if (!GetCurrentState(&state, &state_value, &hresult)) {
     OnUpgradeError({GOOGLE_UPDATE_ONDEMAND_CLASS_REPORTED_ERROR, hresult},
-                   absl::nullopt, std::u16string());
+                   std::nullopt, std::u16string());
   } else if (IsErrorState(state, state_value, &error_code, &hresult,
                           &installer_exit_code, &error_string)) {
     OnUpgradeError({error_code, hresult}, installer_exit_code, error_string);
@@ -865,7 +909,7 @@ void UpdateCheckDriver::PollGoogleUpdate() {
 }
 
 void UpdateCheckDriver::OnUpgradeError(UpdateCheckResult check_result,
-                                       absl::optional<int> installer_exit_code,
+                                       std::optional<int> installer_exit_code,
                                        const std::u16string& error_string) {
   status_ = UPGRADE_ERROR;
   update_state_.error_code = check_result.error_code;
@@ -879,10 +923,10 @@ void UpdateCheckDriver::OnUpgradeError(UpdateCheckResult check_result,
     return;
   }
 
-  std::u16string html_error_msg = base::StringPrintf(
-      u"%d: <a href='%ls0x%X' target=_blank>0x%X</a>", update_state_.error_code,
-      base::UTF8ToWide(chrome::kUpgradeHelpCenterBaseURL).c_str(),
-      update_state_.hresult, update_state_.hresult);
+  std::u16string html_error_msg = base::UTF8ToUTF16(base::StringPrintf(
+      "%d: <a href='%s%#lX' target=_blank>%#lX</a>", update_state_.error_code,
+      chrome::kUpgradeHelpCenterBaseURL, update_state_.hresult,
+      update_state_.hresult));
   if (update_state_.installer_exit_code) {
     html_error_msg +=
         u": " + base::NumberToString16(*update_state_.installer_exit_code);
@@ -920,7 +964,7 @@ UpdateState::UpdateState(UpdateState&&) = default;
 UpdateState& UpdateState::operator=(UpdateState&&) = default;
 UpdateState::~UpdateState() = default;
 
-absl::optional<UpdateState> GetLastUpdateState() {
+std::optional<UpdateState> GetLastUpdateState() {
   return *GetLastUpdateStateStorage();
 }
 

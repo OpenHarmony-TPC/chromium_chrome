@@ -14,6 +14,7 @@
 #include "base/containers/adapters.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ash/crosapi/browser_util.h"
 #include "components/exo/shell_surface_util.h"
@@ -75,7 +76,7 @@ class WindowList : public aura::WindowObserver {
   //
   // The members |id_to_window_| and |window_to_id_| must be kept in sync. The
   // members exist to allow fast lookup in both directions.
-  std::map<uint64_t, aura::Window*> id_to_window_;
+  std::map<uint64_t, raw_ptr<aura::Window, CtnExperimental>> id_to_window_;
   std::map<aura::Window*, uint64_t> window_to_id_;
   uint64_t next_window_id_ = 0;
 };
@@ -100,7 +101,7 @@ class SnapshotCapturerBase : public mojom::SnapshotCapturer {
     gfx::Rect bounds = window->bounds();
     bounds.set_x(0);
     bounds.set_y(0);
-    ui::GrabWindowSnapshotAsync(
+    ui::GrabWindowSnapshot(
         window, bounds,
         base::BindOnce(
             [](TakeSnapshotCallback callback, gfx::Image image) {
@@ -190,7 +191,7 @@ class ScreenManagerAsh::WindowCapturerImpl : public SnapshotCapturerBase {
     // the most top-level window is at the end. So iterate children reversely
     // to make sure |windows| is in the expected order.
     for (aura::Window* window : base::Reversed(container->children())) {
-      // TODO(https://crbug.com/1094460): The window is currently not visible
+      // TODO(crbug.com/40135428): The window is currently not visible
       // or focusable. If the window later becomes invisible or unfocusable,
       // we don't bother removing the window from the list. We should handle
       // this more robustly.

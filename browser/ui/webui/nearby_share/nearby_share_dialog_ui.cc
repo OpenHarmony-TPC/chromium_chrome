@@ -2,12 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/nearby_share/nearby_share_dialog_ui.h"
 
 #include <string>
 
 #include "base/strings/string_split.h"
-#include "chrome/browser/nearby_sharing/common/nearby_share_features.h"
 #include "chrome/browser/nearby_sharing/contacts/nearby_share_contact_manager.h"
 #include "chrome/browser/nearby_sharing/file_attachment.h"
 #include "chrome/browser/nearby_sharing/nearby_per_session_discovery_manager.h"
@@ -31,7 +35,6 @@
 #include "chrome/grit/nearby_share_dialog_resources_map.h"
 #include "chrome/grit/theme_resources.h"
 #include "chromeos/components/sharesheet/constants.h"
-#include "chromeos/constants/chromeos_features.h"
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
@@ -83,7 +86,6 @@ NearbyShareDialogUI::NearbyShareDialogUI(content::WebUI* web_ui)
                               base::make_span(kNearbyShareDialogResources,
                                               kNearbyShareDialogResourcesSize),
                               IDR_NEARBY_SHARE_DIALOG_NEARBY_SHARE_DIALOG_HTML);
-  html_source->DisableTrustedTypesCSP();
 
   // To use lottie, the worker-src CSP needs to be updated for the web ui that
   // is using it. Since as of now there are only a couple of webuis using
@@ -94,12 +96,20 @@ NearbyShareDialogUI::NearbyShareDialogUI(content::WebUI* web_ui)
       network::mojom::CSPDirectiveName::WorkerSrc,
       "worker-src blob: chrome://resources 'self';");
 
-  html_source->AddBoolean(
-      "isOnePageOnboardingEnabled",
-      base::FeatureList::IsEnabled(features::kNearbySharingOnePageOnboarding));
+  html_source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::TrustedTypes,
+      "trusted-types static-types "
+      // Required by lottie.
+      "cros-lottie-worker-script-loader "
+      "lottie-worker-script-loader webui-test-script "
+      // Required by parse-html-subset.
+      "parse-html-subset sanitize-inner-html "
+      // Required by lit-html.
+      "lit-html "
+      // Required by polymer.
+      "polymer-html-literal polymer-template-event-attribute-policy;");
+
   RegisterNearbySharedStrings(html_source);
-  html_source->AddBoolean("isJellyEnabled",
-                          chromeos::features::IsJellyEnabled());
   html_source->UseStringsJs();
 
   // Register callback to handle "cancel-button-event" from nearby_*.html files.
@@ -110,7 +120,7 @@ NearbyShareDialogUI::NearbyShareDialogUI(content::WebUI* web_ui)
   auto plural_string_handler = std::make_unique<PluralStringHandler>();
   plural_string_handler->AddLocalizedString(
       "nearbyShareContactVisibilityNumUnreachable",
-      IDS_NEARBY_CONTACT_VISIBILITY_NUM_UNREACHABLE);
+      IDS_NEARBY_CONTACT_VISIBILITY_NUM_UNREACHABLE_PH);
   web_ui->AddMessageHandler(std::move(plural_string_handler));
   // Add the metrics handler to write uma stats.
   web_ui->AddMessageHandler(std::make_unique<MetricsHandler>());
@@ -164,7 +174,7 @@ void NearbyShareDialogUI::BindInterface(
 
 bool NearbyShareDialogUI::HandleKeyboardEvent(
     content::WebContents* source,
-    const content::NativeWebKeyboardEvent& event) {
+    const input::NativeWebKeyboardEvent& event) {
   if (!web_view_) {
     return false;
   }
@@ -226,8 +236,8 @@ void NearbyShareDialogUI::SetAttachmentFromQueryParameter(const GURL& url) {
            {"text", TextAttachment::Type::kText}}) {
     if (net::GetValueForKeyInQuery(url, text_type.first, &value)) {
       attachments.push_back(std::make_unique<TextAttachment>(
-          text_type.second, value, /*title=*/absl::nullopt,
-          /*mime_type=*/absl::nullopt));
+          text_type.second, value, /*title=*/std::nullopt,
+          /*mime_type=*/std::nullopt));
       SetAttachments(std::move(attachments));
       return;
     }

@@ -9,8 +9,8 @@ ConcatMenuModel::ConcatMenuModel(ui::MenuModel* m1, ui::MenuModel* m2)
 
 ConcatMenuModel::~ConcatMenuModel() = default;
 
-bool ConcatMenuModel::HasIcons() const {
-  return m1_->HasIcons() || m2_->HasIcons();
+base::WeakPtr<ui::MenuModel> ConcatMenuModel::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 size_t ConcatMenuModel::GetItemCount() const {

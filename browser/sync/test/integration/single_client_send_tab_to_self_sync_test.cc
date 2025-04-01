@@ -151,9 +151,9 @@ IN_PROC_BROWSER_TEST_F(SingleClientSendTabToSelfSyncTest,
   const std::string kTargetDeviceSyncCacheGuid("target");
 
   ASSERT_TRUE(SetupClients()) << "SetupClients() failed.";
-  AccountInfo account = secondary_account_helper::SignInUnconsentedAccount(
+  secondary_account_helper::SignInUnconsentedAccount(
       GetProfile(0), &test_url_loader_factory_, "user@g.com");
-  GetClient(0)->AwaitSyncTransportActive();
+  ASSERT_TRUE(GetClient(0)->AwaitSyncTransportActive());
 
   send_tab_to_self::SendTabToSelfModel* model =
       SendTabToSelfSyncServiceFactory::GetForProfile(GetProfile(0))
@@ -161,8 +161,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientSendTabToSelfSyncTest,
 
   ASSERT_TRUE(model->AddEntry(kUrl, kTitle, kTargetDeviceSyncCacheGuid));
 
-  secondary_account_helper::SignOutAccount(
-      GetProfile(0), &test_url_loader_factory_, account.account_id);
+  secondary_account_helper::SignOut(GetProfile(0), &test_url_loader_factory_);
 
   EXPECT_TRUE(send_tab_to_self_helper::SendTabToSelfUrlDeletedChecker(
                   SendTabToSelfSyncServiceFactory::GetForProfile(GetProfile(0)),

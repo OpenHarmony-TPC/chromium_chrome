@@ -12,6 +12,7 @@
 #include "chrome/browser/ash/printing/cups_print_job.h"
 #include "chrome/browser/chromeos/printing/printer_error_codes.h"
 #include "printing/backend/cups_jobs.h"
+#include "printing/printed_document.h"
 #include "printing/printer_status.h"
 
 namespace ash {
@@ -47,8 +48,6 @@ CupsPrintJob::State ConvertState(::printing::CupsJob::JobState state) {
   }
 
   NOTREACHED();
-
-  return CupsPrintJob::State::STATE_NONE;
 }
 
 // Update the current printed page.  Returns true of the page has been updated.
@@ -158,6 +157,14 @@ bool UpdatePrintJob(const ::printing::PrinterStatus& printer_status,
   }
 
   return print_job->state() != old_state || pages_updated;
+}
+
+int CalculatePrintJobTotalPages(const ::printing::PrintedDocument* document) {
+  if (document->settings().copies() == 0) {
+    return document->page_count();
+  }
+
+  return document->page_count() * document->settings().copies();
 }
 
 }  // namespace ash

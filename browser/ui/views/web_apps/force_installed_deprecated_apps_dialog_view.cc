@@ -16,9 +16,12 @@
 #include "extensions/browser/extension_registry.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/base/window_open_disposition_utils.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/link.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/layout_provider.h"
@@ -27,10 +30,9 @@
 // static
 void ForceInstalledDeprecatedAppsDialogView::CreateAndShowDialog(
     const extensions::ExtensionId& app_id,
-    content::WebContents* web_contents,
-    base::OnceClosure launch_anyways) {
+    content::WebContents* web_contents) {
   auto delegate = std::make_unique<views::DialogDelegate>();
-  delegate->SetModalType(ui::MODAL_TYPE_CHILD);
+  delegate->SetModalType(ui::mojom::ModalType::kChild);
   delegate->SetShowCloseButton(false);
   delegate->SetOwnedByWidget(true);
   auto* browser_context = web_contents->GetBrowserContext();
@@ -40,16 +42,7 @@ void ForceInstalledDeprecatedAppsDialogView::CreateAndShowDialog(
   std::u16string app_name = base::UTF8ToUTF16(extension->name());
   delegate->SetTitle(l10n_util::GetStringFUTF16(
       IDS_DEPRECATED_APPS_RENDERER_TITLE_WITH_APP_NAME, app_name));
-  bool hide_launch_anyways =
-      features::kChromeAppsDeprecationHideLaunchAnyways.Get();
-  if (hide_launch_anyways) {
-    delegate->SetButtons(ui::DIALOG_BUTTON_OK);
-  } else {
-    delegate->SetButtonLabel(
-        ui::DIALOG_BUTTON_OK,
-        l10n_util::GetStringUTF16(IDS_DEPRECATED_APPS_LAUNCH_ANYWAY_LABEL));
-    delegate->SetAcceptCallback(std::move(launch_anyways));
-  }
+  delegate->SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk));
   delegate->SetContentsView(
       base::WrapUnique<ForceInstalledDeprecatedAppsDialogView>(
           new ForceInstalledDeprecatedAppsDialogView(app_name, web_contents)));
@@ -69,29 +62,29 @@ ForceInstalledDeprecatedAppsDialogView::ForceInstalledDeprecatedAppsDialogView(
   SetBetweenChildSpacing(ChromeLayoutProvider::Get()->GetDistanceMetric(
       views::DISTANCE_RELATED_CONTROL_VERTICAL));
 
-#if !BUILDFLAG(IS_OHOS)
   auto* info_label = AddChildView(std::make_unique<views::Label>(
       l10n_util::GetStringUTF16(IDS_FORCE_INSTALLED_DEPRECATED_APPS_CONTENT)));
   info_label->SetMultiLine(true);
   info_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-#endif  // !BUILDFLAG(IS_OHOS)
 
   auto* learn_more = AddChildView(std::make_unique<views::Link>(
       l10n_util::GetStringUTF16(IDS_DEPRECATED_APPS_LEARN_MORE)));
   learn_more->SetCallback(base::BindRepeating(
       [](content::WebContents* web_contents, const ui::Event& event) {
-        web_contents->OpenURL(content::OpenURLParams(
-            GURL(chrome::kChromeAppsDeprecationLearnMoreURL),
-            content::Referrer(),
-            ui::DispositionFromEventFlags(
-                event.flags(), WindowOpenDisposition::NEW_FOREGROUND_TAB),
-            ui::PAGE_TRANSITION_LINK, /*is_renderer_initiated=*/false));
+        web_contents->OpenURL(
+            content::OpenURLParams(
+                GURL(chrome::kChromeAppsDeprecationLearnMoreURL),
+                content::Referrer(),
+                ui::DispositionFromEventFlags(
+                    event.flags(), WindowOpenDisposition::NEW_FOREGROUND_TAB),
+                ui::PAGE_TRANSITION_LINK, /*is_renderer_initiated=*/false),
+            /*navigation_handle_callback=*/{});
       },
       web_contents));
-  learn_more->SetAccessibleName(
+  learn_more->GetViewAccessibility().SetName(
       l10n_util::GetStringUTF16(IDS_DEPRECATED_APPS_LEARN_MORE_AX_LABEL));
   learn_more->SetHorizontalAlignment(gfx::ALIGN_LEFT);
 }
 
-BEGIN_METADATA(ForceInstalledDeprecatedAppsDialogView, views::View)
+BEGIN_METADATA(ForceInstalledDeprecatedAppsDialogView)
 END_METADATA

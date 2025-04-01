@@ -44,10 +44,9 @@ namespace {
 
 void PassRiskData(base::OnceCallback<void(const std::string&)> callback,
                   std::unique_ptr<risk::Fingerprint> fingerprint) {
-  std::string proto_data, risk_data;
+  std::string proto_data;
   fingerprint->SerializeToString(&proto_data);
-  base::Base64Encode(proto_data, &risk_data);
-  std::move(callback).Run(risk_data);
+  std::move(callback).Run(base::Base64Encode(proto_data));
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -56,7 +55,7 @@ void PassRiskData(base::OnceCallback<void(const std::string&)> callback,
 // window for a platform app.
 ui::BaseWindow* GetBaseWindowForWebContents(
     content::WebContents* web_contents) {
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (browser)
     return browser->window();
 
@@ -64,7 +63,7 @@ ui::BaseWindow* GetBaseWindowForWebContents(
   extensions::AppWindow* app_window =
       AppWindowRegistryUtil::GetAppWindowForNativeWindowAnyProfile(
           native_window);
-  return app_window->GetBaseWindow();
+  return app_window ? app_window->GetBaseWindow() : nullptr;
 }
 #endif
 
@@ -78,7 +77,9 @@ void LoadRiskData(uint64_t obfuscated_gaia_id,
   // contents).
   gfx::Rect window_bounds;
 #if !BUILDFLAG(IS_ANDROID)
-  window_bounds = GetBaseWindowForWebContents(web_contents)->GetBounds();
+  if (ui::BaseWindow* base_window = GetBaseWindowForWebContents(web_contents)) {
+    window_bounds = base_window->GetBounds();
+  }
 #endif
 
   PrefService* user_prefs =

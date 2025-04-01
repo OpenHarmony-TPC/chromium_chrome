@@ -26,98 +26,109 @@ using UrlPredicate = base::RepeatingCallback<bool(const GURL&)>;
 // Manages the storage of DIPSState values.
 class DIPSStorage {
  public:
-  explicit DIPSStorage(const absl::optional<base::FilePath>& path);
+  explicit DIPSStorage(const std::optional<base::FilePath>& path);
   ~DIPSStorage();
 
   DIPSState Read(const GURL& url);
+
+  std::optional<PopupsStateValue> ReadPopup(const std::string& first_party_site,
+                                            const std::string& tracking_site);
+
+  std::vector<PopupWithTime> ReadRecentPopupsWithInteraction(
+      const base::TimeDelta& lookback);
+
+  bool WritePopup(const std::string& first_party_site,
+                  const std::string& tracking_site,
+                  const uint64_t access_id,
+                  const base::Time& popup_time,
+                  bool is_current_interaction,
+                  bool is_authentication_interaction);
 
   void RemoveEvents(base::Time delete_begin,
                     base::Time delete_end,
                     network::mojom::ClearDataFilterPtr filter,
                     const DIPSEventRemovalType type);
 
+  // Delete all DB rows for |sites|.
   void RemoveRows(const std::vector<std::string>& sites);
+  // Delete all DB rows for |sites| without a protective event. A protective
+  // event is a user interaction or successful WebAuthn assertion.
+  void RemoveRowsWithoutProtectiveEvent(const std::set<std::string>& sites);
 
   // DIPS Helper Method Impls --------------------------------------------------
 
   // Record that |url| wrote to storage.
   void RecordStorage(const GURL& url, base::Time time, DIPSCookieMode mode);
   // Record that the user interacted on |url|.
+  // TODO (crbug.com/371304526): Change "Interaction" in DIPS to
+  // "UserActivation"
   void RecordInteraction(const GURL& url, base::Time time, DIPSCookieMode mode);
+  void RecordWebAuthnAssertion(const GURL& url,
+                               base::Time time,
+                               DIPSCookieMode mode);
   // Record that |url| redirected the user and whether it was |stateful|,
   // meaning that |url| wrote to storage while redirecting.
   void RecordBounce(const GURL& url, base::Time time, bool stateful);
 
   // Storage querying Methods --------------------------------------------------
 
-  // Returns the subset of sites in |sites| WITHOUT user interaction recorded.
-  std::set<std::string> FilterSitesWithoutInteraction(
+  // Returns the subset of sites in |sites| WITHOUT a protective event recorded.
+  // A protective event is a user interaction or successful WebAuthn assertion.
+  std::set<std::string> FilterSitesWithoutProtectiveEvent(
       std::set<std::string> sites) const;
 
   // Returns all sites that did a bounce that aren't protected from DIPS.
   std::vector<std::string> GetSitesThatBounced(
-      const base::TimeDelta& grace_period) const;
+      base::TimeDelta grace_period) const;
 
   // Returns all sites that did a stateful bounce that aren't protected from
   // DIPS.
   std::vector<std::string> GetSitesThatBouncedWithState(
-      const base::TimeDelta& grace_period) const;
+      base::TimeDelta grace_period) const;
 
   // Returns all sites which use storage that aren't protected from DIPS.
   std::vector<std::string> GetSitesThatUsedStorage(
-      const base::TimeDelta& grace_period) const;
+      base::TimeDelta grace_period) const;
 
   // Returns the list of sites that should have their state cleared by DIPS. How
   // these sites are determined is controlled by the value of
-  // `dips::kTriggeringAction`. Passing a non-NULL `grace_period` parameter
-  // overrides the use of `dips::kGracePeriod` when evaluating sites to clear.
+  // `features::kDIPSTriggeringAction`. Passing a non-NULL `grace_period`
+  // parameter overrides the use of `features::kDIPSGracePeriod` when
+  // evaluating sites to clear.
   std::vector<std::string> GetSitesToClear(
-      absl::optional<base::TimeDelta> grace_period) const;
+      std::optional<base::TimeDelta> grace_period) const;
+
+  // Returns true if `url`'s site has had user interaction since `bound`.
+  // TODO (crbug.com/371304526): Change "Interaction" in DIPS to
+  // "UserActivation"
+  bool DidSiteHaveInteractionSince(const GURL& url, base::Time bound);
+
+  // Returns the timestamp of the last user interaction time on `url`, or
+  // std::nullopt if there has been no user interaction on `url`.
+  std::optional<base::Time> LastUserActivationTime(const GURL& url);
+
+  // Returns the timestamp of the last web authentication time on `url`, or
+  // std::nullopt if there has been no authentication on `url`.
+  std::optional<base::Time> LastWebAuthnAssertionTime(const GURL& url);
+
+  // Returns the timestamp of the most recent of the last user activation or
+  // authentication on `url`, or std::nullopt if there has been no user
+  // activation or authentication on `url`.
+  std::optional<base::Time> LastUserActivationOrAuthnAssertionTime(
+      const GURL& url);
+
+  std::optional<base::Time> GetTimerLastFired();
+  bool SetTimerLastFired(base::Time time);
 
   // Utility Methods -----------------------------------------------------------
 
   static void DeleteDatabaseFiles(base::FilePath path,
                                   base::OnceClosure on_complete);
 
-  static size_t SetPrepopulateChunkSizeForTesting(size_t size);
   void SetClockForTesting(base::Clock* clock) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     db_->SetClockForTesting(clock);
   }
-
-  // Whether the DIPS database has already been prepopulated with
-  // SiteEngagement.
-  bool IsPrepopulated() {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    return db_->IsPrepopulated();
-  }
-
-  // For each site in |sites|, set the interaction and storage timestamps to
-  // |time|. Note this may run asynchronously -- the DB is not guaranteed to be
-  // fully prepopulated when this method returns.
-  void Prepopulate(base::Time time,
-                   std::vector<std::string> sites,
-                   base::OnceClosure on_complete) {
-    PrepopulateChunk(
-        PrepopulateArgs{time, 0, std::move(sites), std::move(on_complete)});
-  }
-
-  // Because we keep posting tasks with Prepopulate() with mostly the same
-  // arguments (only |offset| changes), group them into a struct that can easily
-  // be posted again.
-  struct PrepopulateArgs {
-    PrepopulateArgs(base::Time time,
-                    size_t offset,
-                    std::vector<std::string> sites,
-                    base::OnceClosure on_complete);
-    PrepopulateArgs(PrepopulateArgs&&);
-    ~PrepopulateArgs();
-
-    base::Time time;
-    size_t offset;
-    std::vector<std::string> sites;
-    base::OnceClosure on_complete;
-  };
 
  protected:
   void Write(const DIPSState& state);
@@ -125,9 +136,6 @@ class DIPSStorage {
  private:
   friend class DIPSState;
   DIPSState ReadSite(std::string site);
-  // Prepopulate the DB with one chunk of |args.sites|, and schedule another
-  // task to continue if more sites remain.
-  void PrepopulateChunk(PrepopulateArgs args);
 
   std::unique_ptr<DIPSDatabase> db_ GUARDED_BY_CONTEXT(sequence_checker_);
   SEQUENCE_CHECKER(sequence_checker_);

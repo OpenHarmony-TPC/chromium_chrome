@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
-
-import {DoodleShareDialogElement, WindowProxy} from 'chrome://new-tab-page/new_tab_page.js';
+import type {DoodleShareDialogElement} from 'chrome://new-tab-page/new_tab_page.js';
+import {WindowProxy} from 'chrome://new-tab-page/new_tab_page.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {TestMock} from 'chrome://webui-test/test_mock.js';
+import type {TestMock} from 'chrome://webui-test/test_mock.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {installMock} from './test_support.js';
 
@@ -28,10 +28,11 @@ suite('NewTabPageDoodleShareDialogTest', () => {
     assertTrue(doodleShareDialog.$.dialog.open);
   });
 
-  test('setting title, url shows title, url', () => {
+  test('setting title, url shows title, url', async () => {
     // Act.
     doodleShareDialog.title = 'foo';
     doodleShareDialog.url = {url: 'https://bar.com'};
+    await microtasksFinished();
 
     // Assert.
     assertEquals(doodleShareDialog.$.title.innerText, 'foo');

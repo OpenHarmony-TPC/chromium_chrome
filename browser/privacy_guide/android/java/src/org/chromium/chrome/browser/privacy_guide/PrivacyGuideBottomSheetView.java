@@ -4,20 +4,38 @@
 
 package org.chromium.chrome.browser.privacy_guide;
 
+import android.content.Context;
 import android.view.View;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 
 /** Bottom sheet view for displaying privacy guide control explanations */
 public class PrivacyGuideBottomSheetView implements BottomSheetContent {
     private final View mContentView;
-    private final View mToolbarView;
+    private final Runnable mCloseBottomSheetCallback;
+    private ObservableSupplierImpl<Boolean> mBackPressStateChangedSupplier =
+            new ObservableSupplierImpl<>();
+    private final float mHalfHeight;
+    private final float mFullHeight;
 
-    PrivacyGuideBottomSheetView(View contentView, View toolbarView) {
+    PrivacyGuideBottomSheetView(View contentView, Runnable closeBottomSheetCallback) {
+        this(contentView, closeBottomSheetCallback, HeightMode.DEFAULT, HeightMode.WRAP_CONTENT);
+    }
+
+    PrivacyGuideBottomSheetView(
+            View contentView,
+            Runnable closeBottomSheetCallback,
+            float halfHeight,
+            float fullHeight) {
         mContentView = contentView;
-        mToolbarView = toolbarView;
+        mCloseBottomSheetCallback = closeBottomSheetCallback;
+        mBackPressStateChangedSupplier.set(true);
+        mHalfHeight = halfHeight;
+        mFullHeight = fullHeight;
     }
 
     @Override
@@ -28,7 +46,7 @@ public class PrivacyGuideBottomSheetView implements BottomSheetContent {
     @Nullable
     @Override
     public View getToolbarView() {
-        return mToolbarView;
+        return null;
     }
 
     @Override
@@ -50,8 +68,13 @@ public class PrivacyGuideBottomSheetView implements BottomSheetContent {
     }
 
     @Override
+    public float getHalfHeightRatio() {
+        return mHalfHeight;
+    }
+
+    @Override
     public float getFullHeightRatio() {
-        return BottomSheetContent.HeightMode.WRAP_CONTENT;
+        return mFullHeight;
     }
 
     @Override
@@ -60,8 +83,24 @@ public class PrivacyGuideBottomSheetView implements BottomSheetContent {
     }
 
     @Override
-    public int getSheetContentDescriptionStringId() {
-        return R.string.privacy_guide_explanation_content_description;
+    public boolean handleBackPress() {
+        onBackPressed();
+        return true;
+    }
+
+    @Override
+    public void onBackPressed() {
+        mCloseBottomSheetCallback.run();
+    }
+
+    @Override
+    public ObservableSupplierImpl<Boolean> getBackPressStateChangedSupplier() {
+        return mBackPressStateChangedSupplier;
+    }
+
+    @Override
+    public @NonNull String getSheetContentDescription(Context context) {
+        return context.getString(R.string.privacy_guide_explanation_content_description);
     }
 
     @Override

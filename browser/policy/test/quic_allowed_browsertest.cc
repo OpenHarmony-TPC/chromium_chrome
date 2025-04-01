@@ -23,8 +23,8 @@
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/policy_constants.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/browser/storage_partition.h"
-#include "content/public/common/network_service_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_mock_cert_verifier.h"
@@ -225,7 +225,7 @@ class QuicAllowedPolicyIsTrue : public QuicAllowedPolicyTestBase {
 // just crash the network service once, and then test all network contexts in
 // some particular order.
 
-// TODO(crbug.com/938139): Flaky on ChromeOS with Network Service
+// TODO(crbug.com/41444868): Flaky on ChromeOS with Network Service
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #define MAYBE_QuicAllowedForSystem DISABLED_QuicAllowedForSystem
 #else
@@ -259,7 +259,7 @@ IN_PROC_BROWSER_TEST_F(QuicAllowedPolicyIsTrue, QuicAllowedForSafeBrowsing) {
   }
 }
 
-// TODO(crbug.com/1228869): Flaky on multiple platforms
+// TODO(crbug.com/40777997): Flaky on multiple platforms
 IN_PROC_BROWSER_TEST_F(QuicAllowedPolicyIsTrue,
                        DISABLED_QuicAllowedForProfile) {
   EXPECT_TRUE(IsQuicEnabled(browser()->profile()));

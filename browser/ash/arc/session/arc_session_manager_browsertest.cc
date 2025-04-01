@@ -26,8 +26,8 @@
 #include "chrome/browser/ash/arc/session/arc_session_manager_observer.h"
 #include "chrome/browser/ash/arc/test/arc_data_removed_waiter.h"
 #include "chrome/browser/ash/arc/test/test_arc_session_manager.h"
-#include "chrome/browser/ash/login/test/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
+#include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/certificate_provider/certificate_provider_service.h"
@@ -90,7 +90,7 @@ class ArcPlayStoreDisabledWaiter : public ArcSessionManagerObserver {
 
   void Wait() {
     base::RunLoop run_loop;
-    base::AutoReset<base::RunLoop*> reset(&run_loop_, &run_loop);
+    base::AutoReset<raw_ptr<base::RunLoop>> reset(&run_loop_, &run_loop);
     run_loop.Run();
   }
 
@@ -103,7 +103,7 @@ class ArcPlayStoreDisabledWaiter : public ArcSessionManagerObserver {
     }
   }
 
-  base::RunLoop* run_loop_ = nullptr;
+  raw_ptr<base::RunLoop> run_loop_ = nullptr;
 };
 
 class ArcSessionManagerTest : public MixinBasedInProcessBrowserTest {
@@ -123,8 +123,7 @@ class ArcSessionManagerTest : public MixinBasedInProcessBrowserTest {
 
   void SetUpOnMainThread() override {
     MixinBasedInProcessBrowserTest::SetUpOnMainThread();
-    user_manager_enabler_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::make_unique<ash::FakeChromeUserManager>());
+    fake_user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
     // Init ArcSessionManager for testing.
     ArcServiceLauncher::Get()->ResetForTesting();
     ArcSessionManager::SetUiEnabledForTesting(false);
@@ -140,8 +139,8 @@ class ArcSessionManagerTest : public MixinBasedInProcessBrowserTest {
 
     const AccountId account_id(
         AccountId::FromUserEmailGaiaId(kFakeUserName, kFakeGaiaId));
-    GetFakeUserManager()->AddUser(account_id);
-    GetFakeUserManager()->LoginUser(account_id);
+    fake_user_manager_->AddUser(account_id);
+    fake_user_manager_->LoginUser(account_id);
 
     // Create test profile.
     TestingProfile::Builder profile_builder;
@@ -153,7 +152,7 @@ class ArcSessionManagerTest : public MixinBasedInProcessBrowserTest {
     identity_test_environment_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(profile_.get());
     ash::ProfileHelper::Get()->SetUserToProfileMappingForTesting(
-        GetFakeUserManager()->GetPrimaryUser(), profile_.get());
+        fake_user_manager_->GetPrimaryUser(), profile_.get());
 
     // Seed account info properly.
     identity_test_env()->MakePrimaryAccountAvailable(
@@ -186,7 +185,7 @@ class ArcSessionManagerTest : public MixinBasedInProcessBrowserTest {
     // destructor of ash::FakeChromeUserManager.
     const AccountId account_id(
         AccountId::FromUserEmailGaiaId(kFakeUserName, kFakeGaiaId));
-    GetFakeUserManager()->RemoveUserFromList(account_id);
+    fake_user_manager_->RemoveUserFromList(account_id);
     // Since ArcServiceLauncher is (re-)set up with profile() in
     // SetUpOnMainThread() it is necessary to Shutdown() before the profile()
     // is destroyed. ArcServiceLauncher::Shutdown() will be called again on
@@ -197,17 +196,15 @@ class ArcSessionManagerTest : public MixinBasedInProcessBrowserTest {
     identity_test_environment_adaptor_.reset();
     profile_.reset();
     base::RunLoop().RunUntilIdle();
-    user_manager_enabler_.reset();
     ash::ProfileHelper::SetAlwaysReturnPrimaryUserForTesting(false);
+    fake_user_manager_.Reset();
     MixinBasedInProcessBrowserTest::TearDownOnMainThread();
   }
 
-  ash::FakeChromeUserManager* GetFakeUserManager() const {
-    return static_cast<ash::FakeChromeUserManager*>(
-        user_manager::UserManager::Get());
-  }
-
   void EnableArc() {
+    session_manager::SessionManager::Get()
+        ->HandleUserSessionStartUpTaskCompleted();
+
     PrefService* const prefs = profile()->GetPrefs();
     prefs->SetBoolean(prefs::kArcEnabled, true);
     base::RunLoop().RunUntilIdle();
@@ -229,7 +226,8 @@ class ArcSessionManagerTest : public MixinBasedInProcessBrowserTest {
 
  private:
   ash::EmbeddedPolicyTestServerMixin policy_test_server_mixin_{&mixin_host_};
-  std::unique_ptr<user_manager::ScopedUserManager> user_manager_enabler_;
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_environment_adaptor_;
   base::ScopedTempDir temp_dir_;
@@ -285,11 +283,11 @@ IN_PROC_BROWSER_TEST_F(ArcSessionManagerTest, ArcDisabledInLockedFullscreen) {
   scoped_refptr<const extensions::Extension> extension(
       extensions::ExtensionBuilder("Test")
           .SetID("pmgljoohajacndjcjlajcopidgnhphcl")
-          .AddPermission("lockWindowFullscreenPrivate")
+          .AddAPIPermission("lockWindowFullscreenPrivate")
           .Build());
   function->set_extension(extension.get());
 
-  absl::optional<base::Value> value =
+  std::optional<base::Value> value =
       extensions::api_test_utils::RunFunctionAndReturnSingleResult(
           function.get(), base::StringPrintf(kStateLockedFullscreen, window_id),
           browser()->profile());

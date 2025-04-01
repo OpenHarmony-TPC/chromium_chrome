@@ -13,7 +13,9 @@
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/personal_data_manager.h"
 #include "components/strings/grit/components_strings.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -192,76 +194,6 @@ IN_PROC_BROWSER_TEST_F(PaymentSheetViewControllerNoShippingTest,
                          DialogViewID::PAYMENT_SHEET_SHIPPING_OPTION_SECTION));
   EXPECT_EQ(nullptr, GetByDialogViewID(
                          DialogViewID::PAYMENT_SHEET_CONTACT_INFO_SECTION));
-}
-
-typedef PaymentRequestBrowserTestBase PaymentHandlerUITest;
-
-IN_PROC_BROWSER_TEST_F(PaymentHandlerUITest, BackReturnsToPaymentSheet) {
-  NavigateTo("/payment_handler.html");
-
-  // Add an autofill profile so the [Continue] button is enabled.
-  autofill::AutofillProfile profile(autofill::test::GetFullProfile());
-  AddAutofillProfile(profile);
-
-  // Installs a payment handler which opens a window.
-  std::string payment_method;
-  InstallPaymentApp("a.com", "/payment_handler_sw.js", &payment_method);
-
-  ResetEventWaiterForDialogOpened();
-  EXPECT_TRUE(content::ExecJs(
-      GetActiveWebContents(),
-      content::JsReplace(
-          "paymentRequestWithOptions({requestShipping: true}, $1)",
-          payment_method),
-      /*options=*/content::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
-  ASSERT_TRUE(WaitForObservedEvent());
-
-  EXPECT_TRUE(IsPayButtonEnabled());
-  EXPECT_FALSE(IsViewVisible(DialogViewID::PAYMENT_APP_OPENED_WINDOW_SHEET));
-
-  // Click on Pay to show the payment handler window. The presence of Pay
-  // indicates that the payment sheet is presenting.
-  ResetEventWaiterForSequence({DialogEvent::PROCESSING_SPINNER_SHOWN,
-                               DialogEvent::PROCESSING_SPINNER_HIDDEN,
-                               DialogEvent::PAYMENT_HANDLER_WINDOW_OPENED});
-  ClickOnDialogViewAndWait(DialogViewID::PAY_BUTTON, dialog_view());
-
-  EXPECT_TRUE(IsViewVisible(DialogViewID::BACK_BUTTON));
-  EXPECT_TRUE(IsViewVisible(DialogViewID::PAYMENT_APP_OPENED_WINDOW_SHEET));
-
-  // Click on back arrow to return to the payment sheet.
-  ClickOnBackArrow();
-
-  EXPECT_TRUE(IsPayButtonEnabled());
-  EXPECT_FALSE(IsViewVisible(DialogViewID::PAYMENT_APP_OPENED_WINDOW_SHEET));
-}
-
-IN_PROC_BROWSER_TEST_F(PaymentHandlerUITest, BackAbortsRequestIfSkipSheet) {
-  NavigateTo("/payment_handler.html");
-  std::string payment_method;
-  InstallPaymentApp("a.com", "/payment_handler_sw.js", &payment_method);
-
-  // Skip the sheet flow skips directly to the payment handler window.
-  ResetEventWaiterForSequence({DialogEvent::PROCESSING_SPINNER_SHOWN,
-                               DialogEvent::PROCESSING_SPINNER_HIDDEN,
-                               DialogEvent::DIALOG_OPENED,
-                               DialogEvent::PROCESSING_SPINNER_SHOWN,
-                               DialogEvent::PROCESSING_SPINNER_HIDDEN,
-                               DialogEvent::PAYMENT_HANDLER_WINDOW_OPENED});
-
-  EXPECT_EQ("success", content::EvalJs(GetActiveWebContents(),
-                                       content::JsReplace(
-                                           "launchWithoutWaitForResponse($1)",
-                                           payment_method)));
-  ASSERT_TRUE(WaitForObservedEvent());
-
-  EXPECT_TRUE(IsViewVisible(DialogViewID::BACK_BUTTON));
-  EXPECT_TRUE(IsViewVisible(DialogViewID::PAYMENT_APP_OPENED_WINDOW_SHEET));
-
-  // Click on back arrow aborts the payment request.
-  ResetEventWaiter(DialogEvent::DIALOG_CLOSED);
-  ClickOnDialogViewAndWait(DialogViewID::BACK_BUTTON,
-                           /* wait_for_animation= */ false);
 }
 
 }  // namespace payments

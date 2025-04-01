@@ -26,7 +26,6 @@
 #include "chrome/browser/media_galleries/fileapi/media_path_filter.h"
 #include "chrome/browser/media_galleries/fileapi/native_media_file_util.h"
 #include "chrome/browser/media_galleries/media_file_system_registry.h"
-#include "chrome/browser/media_galleries/media_galleries_histograms.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/download/public/common/quarantine_connection.h"
 #include "components/prefs/pref_service.h"
@@ -96,8 +95,7 @@ void AttemptAutoMountOnUIThread(
     extensions::ExtensionRegistry* extension_registry =
         extensions::ExtensionRegistry::Get(profile);
     const extensions::Extension* extension =
-        extension_registry->GetExtensionById(
-            storage_domain, extensions::ExtensionRegistry::ENABLED);
+        extension_registry->enabled_extensions().GetByID(storage_domain);
     std::string expected_mount_prefix =
         MediaFileSystemBackend::ConstructMountName(
             profile->GetPath(), storage_domain, kInvalidMediaGalleryPrefId);
@@ -126,7 +124,7 @@ void AttemptAutoMountOnUIThread(
 }
 
 content::WebContents* GetWebContentsFromFrameTreeNodeID(
-    int frame_tree_node_id) {
+    content::FrameTreeNodeId frame_tree_node_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   return content::WebContents::FromFrameTreeNodeId(frame_tree_node_id);
 }
@@ -206,8 +204,9 @@ bool MediaFileSystemBackend::AttemptAutoMountForURLRequest(
                         base::CompareCase::SENSITIVE))
     return false;
 
-  content::WebContents::Getter web_contents_getter = base::BindRepeating(
-      &GetWebContentsFromFrameTreeNodeID, request_info.content_id);
+  content::WebContents::Getter web_contents_getter =
+      base::BindRepeating(&GetWebContentsFromFrameTreeNodeID,
+                          content::FrameTreeNodeId(request_info.content_id));
 
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
@@ -253,7 +252,6 @@ storage::AsyncFileUtil* MediaFileSystemBackend::GetAsyncFileUtil(
     default:
       NOTREACHED();
   }
-  return nullptr;
 }
 
 storage::WatcherManager* MediaFileSystemBackend::GetWatcherManager(
@@ -278,18 +276,18 @@ MediaFileSystemBackend::GetCopyOrMoveFileValidatorFactory(
     default:
       NOTREACHED();
   }
-  return nullptr;
 }
 
 std::unique_ptr<storage::FileSystemOperation>
 MediaFileSystemBackend::CreateFileSystemOperation(
+    storage::OperationType type,
     const FileSystemURL& url,
     FileSystemContext* context,
     base::File::Error* error_code) const {
   std::unique_ptr<storage::FileSystemOperationContext> operation_context(
       std::make_unique<storage::FileSystemOperationContext>(
           context, MediaTaskRunner().get()));
-  return storage::FileSystemOperation::Create(url, context,
+  return storage::FileSystemOperation::Create(type, url, context,
                                               std::move(operation_context));
 }
 

@@ -4,28 +4,20 @@
 
 #include <string>
 
+#include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/sharesheet/sharesheet_service.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "url/gurl.h"
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "base/run_loop.h"
-#include "chrome/browser/lacros/browser_test_util.h"
-#include "chromeos/crosapi/mojom/test_controller.mojom.h"
-#include "chromeos/lacros/lacros_service.h"
-#else
-#include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/sharesheet/sharesheet_service.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 namespace {
 
@@ -50,16 +42,8 @@ class ScopedSharesheetAppSelection {
 
  private:
   static void SetSelectedSharesheetApp(const std::string& app_id) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    base::RunLoop run_loop;
-    chromeos::LacrosService::Get()
-        ->GetRemote<crosapi::mojom::TestController>()
-        ->SetSelectedSharesheetApp(app_id, run_loop.QuitClosure());
-    run_loop.Run();
-#else
     sharesheet::SharesheetService::SetSelectedAppForTesting(
         base::UTF8ToUTF16(app_id));
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
   }
 };
 
@@ -67,7 +51,7 @@ class ScopedSharesheetAppSelection {
 
 namespace web_app {
 
-class ShareToTargetBrowserTest : public WebAppControllerBrowserTest {
+class ShareToTargetBrowserTest : public WebAppBrowserTestBase {
  public:
   std::string ExecuteShare(const std::string& script) {
     const GURL url = https_server()->GetURL("/webshare/index.html");
@@ -94,30 +78,25 @@ class ShareToTargetBrowserTest : public WebAppControllerBrowserTest {
     app_id_ = web_app::InstallWebAppFromManifest(browser(), app_url);
   }
 
-  const AppId& app_id() const { return app_id_; }
+  const webapps::AppId& app_id() const { return app_id_; }
 
  private:
-  // WebAppControllerBrowserTest:
+  // WebAppBrowserTestBase:
   void TearDownOnMainThread() override {
     if (!app_id_.empty())
       CloseAppWindows(app_id_);
-    WebAppControllerBrowserTest::TearDownOnMainThread();
+    WebAppBrowserTestBase::TearDownOnMainThread();
   }
 
-  static void CloseAppWindows(const AppId& app_id) {
-    for (auto* browser : *BrowserList::GetInstance()) {
+  static void CloseAppWindows(const webapps::AppId& app_id) {
+    for (Browser* browser : *BrowserList::GetInstance()) {
       const AppBrowserController* app_controller = browser->app_controller();
       if (app_controller && app_controller->app_id() == app_id)
         browser->window()->Close();
     }
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    // Wait for item to stop existing in shelf.
-    ASSERT_TRUE(browser_test_util::WaitForShelfItem(app_id, /*exists=*/false));
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
   }
 
-  AppId app_id_;
+  webapps::AppId app_id_;
 };
 
 IN_PROC_BROWSER_TEST_F(ShareToTargetBrowserTest, ShareToPosterWebApp) {

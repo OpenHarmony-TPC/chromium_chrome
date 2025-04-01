@@ -10,6 +10,7 @@
 #include "chrome/test/views/chrome_test_views_delegate.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/events/event_utils.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/test/button_test_api.h"
 
 class ReloadButtonTest : public ChromeRenderViewHostTestHarness {
@@ -66,7 +67,7 @@ TEST_F(ReloadButtonTest, Basic) {
              false, false);
 
   // Press the button.  This should start the double-click timer.
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi test_api(reload());
   test_api.NotifyClick(e);
@@ -87,7 +88,7 @@ TEST_F(ReloadButtonTest, Basic) {
 
 TEST_F(ReloadButtonTest, DoubleClickTimer) {
   // Start by pressing the button.
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi test_api(reload());
   test_api.NotifyClick(e);
@@ -115,7 +116,7 @@ TEST_F(ReloadButtonTest, DoubleClickTimer) {
 
 TEST_F(ReloadButtonTest, DisableOnHover) {
   // Change to stop and hover.
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi(reload()).NotifyClick(e);
   reload()->ChangeMode(ReloadButton::Mode::kStop, false);
@@ -129,7 +130,7 @@ TEST_F(ReloadButtonTest, DisableOnHover) {
 
   // Un-hover the button, which should allow it to reset.
   set_mouse_hovered(false);
-  ui::MouseEvent e2(ui::ET_MOUSE_MOVED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e2(ui::EventType::kMouseMoved, gfx::Point(), gfx::Point(),
                     ui::EventTimeForNow(), 0, 0);
   reload()->OnMouseExited(e2);
   CheckState(true, ReloadButton::Mode::kReload, ReloadButton::Mode::kReload,
@@ -138,7 +139,7 @@ TEST_F(ReloadButtonTest, DisableOnHover) {
 
 TEST_F(ReloadButtonTest, ResetOnClick) {
   // Change to stop and hover.
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi test_api(reload());
   test_api.NotifyClick(e);
@@ -154,7 +155,7 @@ TEST_F(ReloadButtonTest, ResetOnClick) {
 
 TEST_F(ReloadButtonTest, ResetOnTimer) {
   // Change to stop, hover, and change back to reload.
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi(reload()).NotifyClick(e);
   reload()->ChangeMode(ReloadButton::Mode::kStop, false);
@@ -165,4 +166,19 @@ TEST_F(ReloadButtonTest, ResetOnTimer) {
   base::RunLoop().RunUntilIdle();
   CheckState(true, ReloadButton::Mode::kReload, ReloadButton::Mode::kReload,
              false, false);
+}
+
+TEST_F(ReloadButtonTest, AccessibleHasPopup) {
+  ui::AXNodeData button_data;
+
+  button_data = ui::AXNodeData();
+  reload()->GetViewAccessibility().GetAccessibleNodeData(&button_data);
+  EXPECT_FALSE(reload()->GetMenuEnabled());
+  EXPECT_EQ(ax::mojom::HasPopup::kNone, button_data.GetHasPopup());
+
+  button_data = ui::AXNodeData();
+  reload()->SetMenuEnabled(true);
+  reload()->GetViewAccessibility().GetAccessibleNodeData(&button_data);
+  EXPECT_TRUE(reload()->GetMenuEnabled());
+  EXPECT_EQ(ax::mojom::HasPopup::kMenu, button_data.GetHasPopup());
 }

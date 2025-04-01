@@ -16,7 +16,6 @@
 #include "extensions/browser/uninstall_reason.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/manifest.h"
-#include "extensions/common/value_builder.h"
 
 namespace {
 
@@ -56,7 +55,7 @@ class ExtensionSettingsOverriddenDialogUnitTest
     extensions::ExtensionBuilder builder(name);
     builder.SetLocation(location);
     if (include_extra_perms)
-      builder.AddPermission("storage");
+      builder.AddAPIPermission("storage");
     scoped_refptr<const extensions::Extension> extension = builder.Build();
     service()->AddExtension(extension.get());
     return extension.get();

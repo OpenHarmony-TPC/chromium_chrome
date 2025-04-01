@@ -52,7 +52,7 @@ NSString* MenuTitleForNode(const BookmarkNode* node) {
 BookmarkMenuBridge::BookmarkMenuBridge(Profile* profile, NSMenu* menu_root)
     : profile_(profile),
       controller_([[BookmarkMenuCocoaController alloc] initWithBridge:this]),
-      menu_root_([menu_root retain]) {
+      menu_root_(menu_root) {
   DCHECK(profile_);
   profile_dir_ = profile->GetPath();
   DCHECK(menu_root_);
@@ -67,8 +67,7 @@ BookmarkMenuBridge::~BookmarkMenuBridge() {
   [menu_root_ setDelegate:nil];
 }
 
-void BookmarkMenuBridge::BookmarkModelLoaded(BookmarkModel* model,
-                                             bool ids_reassigned) {
+void BookmarkMenuBridge::BookmarkModelLoaded(bool ids_reassigned) {
   InvalidateMenu();
 }
 
@@ -77,7 +76,7 @@ void BookmarkMenuBridge::UpdateMenu(NSMenu* menu,
                                     bool recurse) {
   DCHECK(menu);
   DCHECK(controller_);
-  DCHECK_EQ([menu delegate], controller_.get());
+  DCHECK_EQ([menu delegate], controller_);
 
   if (menu == menu_root_) {
     if (!IsMenuValid())
@@ -98,8 +97,7 @@ void BookmarkMenuBridge::BuildRootMenu(bool recurse) {
 
   if (!folder_image_) {
     ui::ResourceBundle& rb = ui::ResourceBundle::GetSharedInstance();
-    folder_image_.reset(
-        [rb.GetNativeImageNamed(IDR_FOLDER_CLOSED).ToNSImage() retain]);
+    folder_image_ = rb.GetNativeImageNamed(IDR_FOLDER_CLOSED).ToNSImage();
     [folder_image_ setTemplate:YES];
   }
 
@@ -144,54 +142,49 @@ void BookmarkMenuBridge::BuildRootMenu(bool recurse) {
   menuIsValid_ = true;
 }
 
-void BookmarkMenuBridge::BookmarkModelBeingDeleted(BookmarkModel* model) {}
+void BookmarkMenuBridge::BookmarkModelBeingDeleted() {}
 
-void BookmarkMenuBridge::BookmarkNodeMoved(BookmarkModel* model,
-                                           const BookmarkNode* old_parent,
+void BookmarkMenuBridge::BookmarkNodeMoved(const BookmarkNode* old_parent,
                                            size_t old_index,
                                            const BookmarkNode* new_parent,
                                            size_t new_index) {
   InvalidateMenu();
 }
 
-void BookmarkMenuBridge::BookmarkNodeAdded(BookmarkModel* model,
-                                           const BookmarkNode* parent,
+void BookmarkMenuBridge::BookmarkNodeAdded(const BookmarkNode* parent,
                                            size_t index,
                                            bool added_by_user) {
   InvalidateMenu();
 }
 
-void BookmarkMenuBridge::BookmarkNodeRemoved(
-    BookmarkModel* model,
-    const BookmarkNode* parent,
-    size_t old_index,
-    const BookmarkNode* node,
-    const std::set<GURL>& removed_urls) {
+void BookmarkMenuBridge::BookmarkNodeRemoved(const BookmarkNode* parent,
+                                             size_t old_index,
+                                             const BookmarkNode* node,
+                                             const std::set<GURL>& removed_urls,
+                                             const base::Location& location) {
   InvalidateMenu();
 }
 
 void BookmarkMenuBridge::BookmarkAllUserNodesRemoved(
-    BookmarkModel* model,
-    const std::set<GURL>& removed_urls) {
+    const std::set<GURL>& removed_urls,
+    const base::Location& location) {
   InvalidateMenu();
 }
 
-void BookmarkMenuBridge::BookmarkNodeChanged(BookmarkModel* model,
-                                             const BookmarkNode* node) {
+void BookmarkMenuBridge::BookmarkNodeChanged(const BookmarkNode* node) {
   NSMenuItem* item = MenuItemForNode(node);
   if (item)
     ConfigureMenuItem(node, item, true);
 }
 
-void BookmarkMenuBridge::BookmarkNodeFaviconChanged(BookmarkModel* model,
-                                                    const BookmarkNode* node) {
+void BookmarkMenuBridge::BookmarkNodeFaviconChanged(const BookmarkNode* node) {
   NSMenuItem* item = MenuItemForNode(node);
   if (item)
     ConfigureMenuItem(node, item, false);
 }
 
 void BookmarkMenuBridge::BookmarkNodeChildrenReordered(
-    BookmarkModel* model, const BookmarkNode* node) {
+    const BookmarkNode* node) {
   InvalidateMenu();
 }
 
@@ -204,8 +197,9 @@ void BookmarkMenuBridge::ObserveBookmarkModel() {
     return;
 
   bookmark_model_observation_.Observe(model);
-  if (model->loaded())
-    BookmarkModelLoaded(model, false);
+  if (model->loaded()) {
+    BookmarkModelLoaded(false);
+  }
 }
 
 BookmarkModel* BookmarkMenuBridge::GetBookmarkModel() {
@@ -259,10 +253,11 @@ void BookmarkMenuBridge::AddNodeAsSubmenu(NSMenu* menu,
                                           NSImage* image,
                                           bool recurse) {
   NSString* title = MenuTitleForNode(node);
-  base::scoped_nsobject<NSMenuItem> items(
-      [[NSMenuItem alloc] initWithTitle:title action:nil keyEquivalent:@""]);
+  NSMenuItem* items = [[NSMenuItem alloc] initWithTitle:title
+                                                 action:nil
+                                          keyEquivalent:@""];
   [items setImage:image];
-  base::scoped_nsobject<NSMenu> submenu([[NSMenu alloc] initWithTitle:title]);
+  NSMenu* submenu = [[NSMenu alloc] initWithTitle:title];
   [menu setSubmenu:submenu forItem:items];
 
   // Set a delegate and a tag on the item so that the submenu can be populated
@@ -284,10 +279,9 @@ void BookmarkMenuBridge::AddNodeToMenu(const BookmarkNode* node,
                                        bool recurse) {
   if (node->children().empty()) {
     NSString* empty_string = l10n_util::GetNSString(IDS_MENU_EMPTY_SUBMENU);
-    base::scoped_nsobject<NSMenuItem> item([[NSMenuItem alloc]
-        initWithTitle:empty_string
-               action:nil
-        keyEquivalent:@""]);
+    NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:empty_string
+                                                  action:nil
+                                           keyEquivalent:@""];
     [menu addItem:item];
     return;
   }
@@ -296,10 +290,10 @@ void BookmarkMenuBridge::AddNodeToMenu(const BookmarkNode* node,
     if (child->is_folder()) {
       AddNodeAsSubmenu(menu, child.get(), folder_image_, recurse);
     } else {
-      base::scoped_nsobject<NSMenuItem> item([[NSMenuItem alloc]
-          initWithTitle:MenuTitleForNode(child.get())
-                 action:nil
-          keyEquivalent:@""]);
+      NSMenuItem* item =
+          [[NSMenuItem alloc] initWithTitle:MenuTitleForNode(child.get())
+                                     action:nil
+                              keyEquivalent:@""];
       bookmark_nodes_[child.get()] = item;
       tag_to_guid_[child->id()] = child->uuid();
       ConfigureMenuItem(child.get(), item, false);
@@ -342,6 +336,11 @@ NSMenuItem* BookmarkMenuBridge::MenuItemForNode(const BookmarkNode* node) {
   if (it == bookmark_nodes_.end())
     return nil;
   return it->second;
+}
+
+NSMenuItem* BookmarkMenuBridge::MenuItemForNodeForTest(
+    const bookmarks::BookmarkNode* node) {
+  return MenuItemForNode(node);
 }
 
 void BookmarkMenuBridge::OnProfileWillBeDestroyed() {

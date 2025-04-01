@@ -39,7 +39,6 @@ enum class ForcedShowDialogState {
 ForcedShowDialogState g_forced_show_dialog_state =
     ForcedShowDialogState::kNotForced;
 
-#if !BUILDFLAG(IS_OHOS)
 // Returns whether the first run dialog should be shown. This is only true for
 // certain builds, and only if the user has not already set preferences. In a
 // real, official-build first run, initializes the default metrics reporting if
@@ -63,16 +62,13 @@ bool ShouldShowFirstRunDialog() {
     return false;
 
   // For real first runs, Mac and Desktop Linux initialize the default metrics
-  // reporting state when the first run dialog is shown.
-  bool is_opt_in = first_run::IsMetricsReportingOptIn();
+  // reporting state when the first run dialog is shown. These days, metrics are
+  // always enabled by default (opt-out).
   metrics::RecordMetricsReportingDefaultState(
-      g_browser_process->local_state(),
-      is_opt_in ? metrics::EnableMetricsDefault::OPT_IN
-                : metrics::EnableMetricsDefault::OPT_OUT);
+      g_browser_process->local_state(), metrics::EnableMetricsDefault::OPT_OUT);
   return true;
 #endif
 }
-#endif
 
 }  // namespace
 
@@ -84,7 +80,6 @@ void ForceFirstRunDialogShownForTesting(bool shown) {
 }
 
 void DoPostImportPlatformSpecificTasks() {
-#if !BUILDFLAG(IS_OHOS)
   if (!ShouldShowFirstRunDialog())
     return;
 
@@ -92,8 +87,7 @@ void DoPostImportPlatformSpecificTasks() {
     std::move(GetBeforeShowFirstRunDialogHookForTesting()).Run();
 
   ShowFirstRunDialog();
-  startup_metric_utils::SetNonBrowserUIDisplayed();
-#endif
+  startup_metric_utils::GetBrowser().SetNonBrowserUIDisplayed();
 }
 
 bool ShowPostInstallEULAIfNeeded(installer::InitialPreferences* install_prefs) {

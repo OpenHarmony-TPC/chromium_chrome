@@ -24,9 +24,9 @@ namespace signin {
 class IdentityManager;
 }  // namespace signin
 
-namespace Variations {
+namespace variations {
 class VariationsClient;
-}  // namespace Variations
+}  // namespace variations
 
 // Delegate class that enables FetchDiscountWorker to use discount-related
 // functionalities from CartService.
@@ -42,7 +42,7 @@ class CartDiscountServiceDelegate {
   virtual void UpdateFreeListingCoupons(const CouponService::CouponsMap& map);
 
  private:
-  raw_ptr<CartService> cart_service_;
+  raw_ptr<CartService, DanglingUntriaged> cart_service_;
 };
 
 // This is used to fetch discounts for active Carts in cart_db. It starts
@@ -96,7 +96,8 @@ class FetchDiscountWorker {
   // This is used to fetch the oauth token.
   std::unique_ptr<const signin::PrimaryAccountAccessTokenFetcher>
       access_token_fetcher_;
-  const raw_ptr<variations::VariationsClient> chrome_variations_client_;
+  const raw_ptr<variations::VariationsClient, DanglingUntriaged>
+      chrome_variations_client_;
 
   // This is run in the UI thread, it loads all active carts.
   void PrepareToFetch();
@@ -109,19 +110,18 @@ class FetchDiscountWorker {
                           signin::AccessTokenInfo access_token_info);
 
   // Load all the active carts.
-  void LoadAllActiveCarts(const bool is_oauth_fetch,
-                          const std::string access_token_str);
+  void LoadAllActiveCarts(bool is_oauth_fetch, std::string access_token_str);
 
   // This is run in the UI thread, it posts the discount fetching work,
   // FetchInBackground(), to another thread as a background task.
-  void ReadyToFetch(const bool is_oauth_fetch,
-                    const std::string access_token_str,
+  void ReadyToFetch(bool is_oauth_fetch,
+                    std::string access_token_str,
                     bool success,
                     std::vector<CartDB::KeyAndValue> proto_pairs);
 
   std::string GetVariationsHeaders();
 
-  // TODO(crbug.com/1207197): Change these two static method to anonymous
+  // TODO(crbug.com/40181210): Change these two static method to anonymous
   // namespace in the cc file. This is run in a background thread, it fetches
   // for discounts for all active carts.
   static void FetchInBackground(
@@ -129,10 +129,10 @@ class FetchDiscountWorker {
       std::unique_ptr<CartDiscountFetcher> fetcher,
       AfterFetchingCallback after_fetching_callback,
       std::vector<CartDB::KeyAndValue> proto_pairs,
-      const bool is_oauth_fetch,
-      const std::string access_token_str,
-      const std::string fetch_for_locale,
-      const std::string variation_headers);
+      bool is_oauth_fetch,
+      std::string access_token_str,
+      std::string fetch_for_locale,
+      std::string variation_headers);
 
   // This is run in a background thread, it posts AfterDiscountFetched() back to
   // UI thread to process the fetched result.

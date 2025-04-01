@@ -80,12 +80,12 @@ export class PdfScriptingApi {
   private loadState_: LoadState = LoadState.LOADING;
   private pendingScriptingMessages_: Array<{type: string}> = [];
 
-  private viewportChangedCallback_: ViewportChangedCallback;
-  private loadCompleteCallback_: (completed: boolean) => void;
-  private selectedTextCallback_: ((text: string) => void)|null;
-  private keyEventCallback_: (e: KeyboardEvent) => void;
+  private viewportChangedCallback_?: ViewportChangedCallback;
+  private loadCompleteCallback_?: (completed: boolean) => void;
+  private selectedTextCallback_?: ((text: string) => void)|null;
+  private keyEventCallback_?: (e: KeyboardEvent) => void;
 
-  private plugin_: Window|null;
+  private plugin_: Window|null = null;
 
   /**
    * @param window the window of the page containing the pdf viewer.
@@ -97,7 +97,7 @@ export class PdfScriptingApi {
     window.addEventListener('message', event => {
       if (event.origin !==
               'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai' &&
-          event.origin !== 'arkweb://print') {
+          event.origin !== 'chrome://print') {
         console.error(
             'Received message that was not from the extension: ' + event);
         return;

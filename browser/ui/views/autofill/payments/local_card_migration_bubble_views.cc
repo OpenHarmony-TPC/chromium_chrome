@@ -23,6 +23,8 @@
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
@@ -30,6 +32,7 @@
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/bubble/bubble_frame_view.h"
 #include "ui/views/controls/button/label_button.h"
@@ -51,11 +54,11 @@ LocalCardMigrationBubbleViews::LocalCardMigrationBubbleViews(
     views::View* anchor_view,
     content::WebContents* web_contents,
     LocalCardMigrationBubbleController* controller)
-    : LocationBarBubbleDelegateView(anchor_view, web_contents),
+    : AutofillLocationBarBubble(anchor_view, web_contents),
       controller_(controller) {
   DCHECK(controller);
-  SetButtons(ui::DIALOG_BUTTON_OK);
-  SetButtonLabel(ui::DIALOG_BUTTON_OK,
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk));
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
                  l10n_util::GetStringUTF16(
                      IDS_AUTOFILL_LOCAL_CARD_MIGRATION_BUBBLE_BUTTON_LABEL));
   SetCancelCallback(
@@ -83,21 +86,21 @@ void LocalCardMigrationBubbleViews::Hide() {
 
   if (controller_) {
     controller_->OnBubbleClosed(
-        GetPaymentsBubbleClosedReasonFromWidget(GetWidget()));
+        GetPaymentsUiClosedReasonFromWidget(GetWidget()));
   }
   controller_ = nullptr;
 }
 
 void LocalCardMigrationBubbleViews::OnDialogAccepted() {
-  // TODO(https://crbug.com/1046793): Maybe delete this.
-  if (controller_)
+  if (controller_) {
     controller_->OnConfirmButtonClicked();
+  }
 }
 
 void LocalCardMigrationBubbleViews::OnDialogCancelled() {
-  // TODO(https://crbug.com/1046793): Maybe delete this.
-  if (controller_)
+  if (controller_) {
     controller_->OnCancelButtonClicked();
+  }
 }
 
 void LocalCardMigrationBubbleViews::AddedToWidget() {
@@ -121,9 +124,9 @@ void LocalCardMigrationBubbleViews::AddedToWidget() {
       GetColorProvider()->GetColor(ui::kColorIcon));
 #endif
   views::ImageView* icon_view = new views::ImageView();
-  icon_view->SetImage(image);
+  icon_view->SetImage(ui::ImageModel::FromImageSkia(image));
   icon_view->SetHorizontalAlignment(views::ImageView::Alignment::kLeading);
-  icon_view->SetAccessibleName(
+  icon_view->GetViewAccessibility().SetName(
       l10n_util::GetStringUTF16(IDS_AUTOFILL_GOOGLE_PAY_LOGO_ACCESSIBLE_NAME));
   title_container->AddChildView(icon_view);
 
@@ -148,7 +151,7 @@ std::u16string LocalCardMigrationBubbleViews::GetWindowTitle() const {
 void LocalCardMigrationBubbleViews::WindowClosing() {
   if (controller_) {
     controller_->OnBubbleClosed(
-        GetPaymentsBubbleClosedReasonFromWidget(GetWidget()));
+        GetPaymentsUiClosedReasonFromWidget(GetWidget()));
     controller_ = nullptr;
   }
 }
@@ -174,5 +177,8 @@ void LocalCardMigrationBubbleViews::Init() {
   AddChildView(explanatory_message);
   SetID(DialogViewId::MAIN_CONTENT_VIEW_MIGRATION_BUBBLE);
 }
+
+BEGIN_METADATA(LocalCardMigrationBubbleViews)
+END_METADATA
 
 }  // namespace autofill

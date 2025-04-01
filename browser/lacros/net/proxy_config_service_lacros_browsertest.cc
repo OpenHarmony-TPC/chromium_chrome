@@ -59,17 +59,24 @@ class FakeNetworkSettingsService
     }
   }
 
-  void SetExtensionProxy(crosapi::mojom::ProxyConfigPtr proxy_config) override {
-    // Extension set proxy are tested by the test suite
-    // LacrosExtensionProxyTrackerTest whose fixture supports installing
-    // extension.
-  }
+  void IsAlwaysOnVpnPreConnectUrlAllowlistEnforced(
+      IsAlwaysOnVpnPreConnectUrlAllowlistEnforcedCallback callback) override {}
 
-  void ClearExtensionProxy() override {
-    // Extension set proxy are tested by the test suite
-    // LacrosExtensionProxyTrackerTest whose fixture supports installing
-    // extension.
+  // This fake implementation of the crosapi::mojom::NetworkSettingsService is
+  // only used to test the behaviour of `ProxyConfigServiceLacros`, which is an
+  // observer of the mojo service. Observers only listen for updates, they do
+  // not send data to the service. Extension set proxy are tested by the test
+  // suite LacrosExtensionProxyTrackerTest whose fixture supports installing
+  // extension.
+  void SetExtensionProxy(crosapi::mojom::ProxyConfigPtr proxy_config) override {
+    NOTREACHED();
   }
+  void ClearExtensionProxy() override { NOTREACHED(); }
+  void SetExtensionControllingProxyMetadata(
+      crosapi::mojom::ExtensionControllingProxyPtr extension) override {
+    NOTREACHED();
+  }
+  void ClearExtensionControllingProxyMetadata() override { NOTREACHED(); }
 
   void SetQuitClosure(base::OnceClosure quit_closure) {
     quit_closure_ = std::move(quit_closure);
@@ -239,7 +246,7 @@ IN_PROC_BROWSER_TEST_F(ProxyConfigServiceLacrosTest, ProxyUpdates) {
   crosapi::mojom::ProxySettingsWpadPtr wpad =
       crosapi::mojom::ProxySettingsWpad::New();
   wpad->pac_url = GURL(kPacUrl);
-  // TODO(https://crbug.com/1320656): This test seems buggy; wpad is never used.
+  // TODO(crbug.com/40223591): This test seems buggy; wpad is never used.
   proxy_config->proxy_settings = crosapi::mojom::ProxySettings::NewWpad(
       crosapi::mojom::ProxySettingsWpad::New());
   SendAshProxyUpdateAndWait(proxy_config.Clone());

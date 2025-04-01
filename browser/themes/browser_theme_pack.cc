@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/themes/browser_theme_pack.h"
 
 #include <limits.h>
@@ -9,12 +14,17 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/containers/contains.h"
-#include "base/containers/flat_set.h"
+#include "base/containers/fixed_flat_set.h"
+#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
@@ -33,7 +43,6 @@
 #include "chrome/grit/theme_resources.h"
 #include "components/crx_file/id_util.h"
 #include "content/public/browser/browser_thread.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/resource/data_pack.h"
@@ -70,7 +79,8 @@ enum BrowserThemePack::PersistentID : int {
   kToolbar = 5,
   kTabBackground = 6,
   kTabBackgroundIncognito = 7,
-  kTabBackgroundV = 8,
+  // kTabBackgroundV = 8, Deprecated and unused. Previously supported windows
+  // vista aero glass theme.
   kNtpBackground = 9,
   kFrameOverlay = 10,
   kFrameOverlayInactive = 11,
@@ -97,7 +107,7 @@ constexpr int kTallestFrameHeight = kTallestTabHeight + 19;
 // changed default theme assets, if you need themes to recreate their generated
 // images (which are cached), if you changed how missing values are
 // generated, or if you changed any constants.
-const int kThemePackVersion = 103;
+const int kThemePackVersion = 104;
 
 // IDs that are in the DataPack won't clash with the positive integer
 // uint16_t. kHeaderID should always have the maximum value because we want the
@@ -142,8 +152,6 @@ constexpr PersistingImagesTable kPersistingImages[] = {
     {PRS::kTabBackgroundIncognitoInactive,
      IDR_THEME_TAB_BACKGROUND_INCOGNITO_INACTIVE,
      "theme_tab_background_incognito_inactive"},
-    {PRS::kTabBackgroundV, IDR_THEME_TAB_BACKGROUND_V,
-     "theme_tab_background_v"},
     {PRS::kNtpBackground, IDR_THEME_NTP_BACKGROUND, "theme_ntp_background"},
     {PRS::kFrameOverlay, IDR_THEME_FRAME_OVERLAY, "theme_frame_overlay"},
     {PRS::kFrameOverlayInactive, IDR_THEME_FRAME_OVERLAY_INACTIVE,
@@ -173,30 +181,29 @@ BrowserThemePack::PersistentID GetPersistentIDByIDR(int idr) {
 
 // Returns true if the scales in |input| match those in |expected|.
 // The order must match as the index is used in determining the raw id.
-bool InputScalesValid(const base::StringPiece& input,
-                      const std::vector<ui::ResourceScaleFactor>& expected) {
-  if (input.size() != expected.size() * sizeof(float))
+bool InputScalesValid(std::string_view input,
+                      base::span<ui::ResourceScaleFactor> expected) {
+  if (input.size() != expected.size() * sizeof(float)) {
     return false;
-  std::unique_ptr<float[]> scales(new float[expected.size()]);
-  // Do a memcpy to avoid misaligned memory access.
-  memcpy(scales.get(), input.data(), input.size());
+  }
+  auto scales = base::HeapArray<float>::WithSize(expected.size());
+  base::as_writable_byte_span(scales).copy_from(base::as_byte_span(input));
   for (size_t index = 0; index < expected.size(); ++index) {
-    if (scales[index] != ui::GetScaleForResourceScaleFactor(expected[index]))
+    if (scales[index] != ui::GetScaleForResourceScaleFactor(expected[index])) {
       return false;
+    }
   }
   return true;
 }
 
 // Returns |scale_factors| as a string to be written to disk.
 std::string GetResourceScaleFactorsAsString(
-    const std::vector<ui::ResourceScaleFactor>& scale_factors) {
-  std::unique_ptr<float[]> scales(new float[scale_factors.size()]);
-  for (size_t i = 0; i < scale_factors.size(); ++i)
+    base::span<const ui::ResourceScaleFactor> scale_factors) {
+  auto scales = base::HeapArray<float>::WithSize(scale_factors.size());
+  for (size_t i = 0; i < scale_factors.size(); ++i) {
     scales[i] = ui::GetScaleForResourceScaleFactor(scale_factors[i]);
-  std::string out_string = std::string(
-      reinterpret_cast<const char*>(scales.get()),
-      scale_factors.size() * sizeof(float));
-  return out_string;
+  }
+  return std::string(base::as_string_view(base::as_byte_span(scales)));
 }
 
 struct StringToIntTable {
@@ -349,8 +356,10 @@ scoped_refptr<base::RefCountedMemory> ReadFileData(const base::FilePath& path) {
         std::vector<unsigned char> raw_data;
         raw_data.resize(size);
         char* data = reinterpret_cast<char*>(&(raw_data.front()));
-        if (file.ReadAtCurrentPos(data, size) == length)
-          return base::RefCountedBytes::TakeVector(&raw_data);
+        if (file.ReadAtCurrentPos(data, size) == length) {
+          return base::MakeRefCounted<base::RefCountedBytes>(
+              std::move(raw_data));
+        }
       }
     }
   }
@@ -435,11 +444,9 @@ class ThemeImagePngSource : public gfx::ImageSkiaSource {
     // decode it, store the result in the bitmap map and return it.
     PngMap::const_iterator exact_png_it = png_map_.find(scale_factor);
     if (exact_png_it != png_map_.end()) {
-      SkBitmap bitmap;
-      if (!gfx::PNGCodec::Decode(exact_png_it->second->front(),
-                                 exact_png_it->second->size(),
-                                 &bitmap)) {
-        NOTREACHED();
+      SkBitmap bitmap = gfx::PNGCodec::Decode(*exact_png_it->second);
+      if (bitmap.isNull()) {
+        // The image is either broken or a different format.
         return gfx::ImageSkiaRep();
       }
       bitmap_map_[scale_factor] = bitmap;
@@ -467,12 +474,10 @@ class ThemeImagePngSource : public gfx::ImageSkiaSource {
     BitmapMap::const_iterator available_bitmap_it =
         bitmap_map_.find(available_scale_factor);
     if (available_bitmap_it == bitmap_map_.end()) {
-      SkBitmap available_bitmap;
-      if (!gfx::PNGCodec::Decode(available_png_it->second->front(),
-                                 available_png_it->second->size(),
-                                 &available_bitmap)) {
+      SkBitmap available_bitmap =
+          gfx::PNGCodec::Decode(*available_png_it->second);
+      if (available_bitmap.isNull()) {
         NOTREACHED();
-        return gfx::ImageSkiaRep();
       }
       bitmap_map_[available_scale_factor] = available_bitmap;
       available_bitmap_it = bitmap_map_.find(available_scale_factor);
@@ -760,11 +765,12 @@ scoped_refptr<BrowserThemePack> BrowserThemePack::BuildFromDataPack(
     return nullptr;
   }
 
-  base::StringPiece pointer;
-  if (!data_pack->GetStringPiece(kHeaderID, &pointer))
+  std::optional<std::string_view> pointer = data_pack->GetStringView(kHeaderID);
+  if (!pointer) {
     return nullptr;
-  pack->header_ = reinterpret_cast<BrowserThemePackHeader*>(const_cast<char*>(
-      pointer.data()));
+  }
+  pack->header_ = reinterpret_cast<BrowserThemePackHeader*>(
+      const_cast<char*>(pointer->data()));
 
   if (pack->header_->version != kThemePackVersion) {
     DLOG(ERROR) << "BuildFromDataPack failure! Version mismatch!";
@@ -779,30 +785,40 @@ scoped_refptr<BrowserThemePack> BrowserThemePack::BuildFromDataPack(
     return nullptr;
   }
 
-  if (!data_pack->GetStringPiece(kTintsID, &pointer))
+  pointer = data_pack->GetStringView(kTintsID);
+  if (!pointer) {
     return nullptr;
-  pack->tints_ = reinterpret_cast<TintEntry*>(const_cast<char*>(
-      pointer.data()));
+  }
+  pack->tints_ =
+      reinterpret_cast<TintEntry*>(const_cast<char*>(pointer->data()));
 
-  if (!data_pack->GetStringPiece(kColorsID, &pointer))
+  pointer = data_pack->GetStringView(kColorsID);
+  if (!pointer) {
     return nullptr;
+  }
   pack->colors_ =
-      reinterpret_cast<ColorPair*>(const_cast<char*>(pointer.data()));
+      reinterpret_cast<ColorPair*>(const_cast<char*>(pointer->data()));
 
-  if (!data_pack->GetStringPiece(kDisplayPropertiesID, &pointer))
+  pointer = data_pack->GetStringView(kDisplayPropertiesID);
+  if (!pointer) {
     return nullptr;
+  }
   pack->display_properties_ = reinterpret_cast<DisplayPropertyPair*>(
-      const_cast<char*>(pointer.data()));
+      const_cast<char*>(pointer->data()));
 
-  if (!data_pack->GetStringPiece(kSourceImagesID, &pointer))
+  pointer = data_pack->GetStringView(kSourceImagesID);
+  if (!pointer) {
     return nullptr;
-  pack->source_images_ = reinterpret_cast<int*>(
-      const_cast<char*>(pointer.data()));
+  }
+  pack->source_images_ =
+      reinterpret_cast<SourceImage*>(const_cast<char*>(pointer->data()));
 
-  if (!data_pack->GetStringPiece(kScaleFactorsID, &pointer))
+  pointer = data_pack->GetStringView(kScaleFactorsID);
+  if (!pointer) {
     return nullptr;
+  }
 
-  if (!InputScalesValid(pointer, pack->scale_factors_)) {
+  if (!InputScalesValid(pointer.value(), pack->scale_factors_)) {
     DLOG(ERROR) << "BuildFromDataPack failure! The pack scale factors differ "
                 << "from those supported by platform.";
     return nullptr;
@@ -828,13 +844,7 @@ void BrowserThemePack::BuildFromColor(SkColor color, BrowserThemePack* pack) {
 // static
 void BrowserThemePack::BuildFromColors(AutogeneratedThemeColors colors,
                                        BrowserThemePack* pack) {
-  DCHECK(!pack->is_valid());
-
-  pack->InitEmptyPack();
-
-  // Init |source_images_| only here as other code paths initialize it
-  // differently.
-  pack->InitSourceImages();
+  pack->InitEmptyPackFromColors();
 
   // NOTE! If you make any changes here, please update kThemePackVersion.
 
@@ -867,46 +877,73 @@ void BrowserThemePack::BuildFromColors(AutogeneratedThemeColors colors,
   pack->SetTint(TP::TINT_FRAME_INACTIVE, {-1, -1, -1});
   pack->SetTint(TP::TINT_FRAME_INCOGNITO_INACTIVE, {-1, -1, -1});
 
-  pack->AdjustThemePack();
+  pack->FinalizePackFromColors();
+}
 
-  // The BrowserThemePack is now in a consistent state.
-  pack->is_valid_ = true;
+void BrowserThemePack::BuildFromWebAppColors(SkColor theme_color,
+                                             SkColor background_color,
+                                             BrowserThemePack* pack) {
+  pack->InitEmptyPackFromColors();
+
+  // NOTE! If you make any changes here, please update kThemePackVersion.
+
+  // Frame and inactive tab use the theme color.
+  pack->SetColor(TP::COLOR_FRAME_ACTIVE, theme_color);
+  pack->SetColor(TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_ACTIVE, theme_color);
+  SkColor theme_text_color = color_utils::GetColorWithMaxContrast(theme_color);
+  pack->SetColor(TP::COLOR_TAB_FOREGROUND_INACTIVE_FRAME_ACTIVE,
+                 theme_text_color);
+
+  // Toolbar also uses theme color.
+  pack->SetColor(TP::COLOR_TOOLBAR, theme_color);
+  pack->SetColor(TP::COLOR_TOOLBAR_TEXT, theme_text_color);
+  pack->SetColor(TP::COLOR_TOOLBAR_BUTTON_ICON, theme_text_color);
+
+  // Active tab however uses background color.
+  pack->SetColor(TP::COLOR_TAB_BACKGROUND_ACTIVE_FRAME_ACTIVE,
+                 background_color);
+  pack->SetColor(TP::COLOR_TAB_FOREGROUND_ACTIVE_FRAME_ACTIVE,
+                 color_utils::GetColorWithMaxContrast(background_color));
+
+  // Don't change frame color for inactive window.
+  pack->SetTint(TP::TINT_FRAME_INACTIVE, {-1, -1, -1});
+  pack->SetTint(TP::TINT_FRAME_INCOGNITO_INACTIVE, {-1, -1, -1});
+
+  pack->FinalizePackFromColors();
 }
 
 BrowserThemePack::BrowserThemePack(ThemeType theme_type)
     : CustomThemeSupplier(theme_type) {
   scale_factors_ = ui::GetSupportedResourceScaleFactors();
-  // On Windows HiDPI k100Percent may not be supported by default.
-  if (!base::Contains(scale_factors_, ui::k100Percent))
-    scale_factors_.push_back(ui::k100Percent);
 }
 
 bool BrowserThemePack::WriteToDisk(const base::FilePath& path) const {
   // Add resources for each of the property arrays.
   RawDataForWriting resources;
   resources[kHeaderID] =
-      base::StringPiece(reinterpret_cast<const char*>(header_.get()),
-                        sizeof(BrowserThemePackHeader));
+      std::string_view(reinterpret_cast<const char*>(header_.get()),
+                       sizeof(BrowserThemePackHeader));
   resources[kTintsID] =
-      base::StringPiece(reinterpret_cast<const char*>(tints_.get()),
-                        sizeof(TintEntry[kTintTableLength]));
+      std::string_view(reinterpret_cast<const char*>(tints_.get()),
+                       sizeof(TintEntry[kTintTableLength]));
   resources[kColorsID] =
-      base::StringPiece(reinterpret_cast<const char*>(colors_.get()),
-                        sizeof(ColorPair[kColorsArrayLength]));
-  resources[kDisplayPropertiesID] = base::StringPiece(
-      reinterpret_cast<const char*>(display_properties_.get()),
-      sizeof(DisplayPropertyPair[kDisplayPropertiesSize]));
+      std::string_view(reinterpret_cast<const char*>(colors_.get()),
+                       sizeof(ColorPair[kColorsArrayLength]));
+  resources[kDisplayPropertiesID] =
+      std::string_view(reinterpret_cast<const char*>(display_properties_.get()),
+                       sizeof(DisplayPropertyPair[kDisplayPropertiesSize]));
 
   int source_count = 1;
-  int* end = source_images_;
-  for (; *end != -1; end++)
+  SourceImage* end = source_images_;
+  for (; end->id != -1; end++) {
     source_count++;
+  }
   resources[kSourceImagesID] =
-      base::StringPiece(reinterpret_cast<const char*>(source_images_.get()),
-                        source_count * sizeof(*source_images_));
+      std::string_view(reinterpret_cast<const char*>(source_images_.get()),
+                       source_count * sizeof(*source_images_));
 
   // Store results of GetResourceScaleFactorsAsString() in std::string as
-  // base::StringPiece does not copy data in constructor.
+  // std::string_view does not copy data in constructor.
   std::string scale_factors_string =
       GetResourceScaleFactorsAsString(scale_factors_);
   resources[kScaleFactorsID] = scale_factors_string;
@@ -936,36 +973,32 @@ bool BrowserThemePack::GetTint(int id, color_utils::HSL* hsl) const {
 }
 
 bool BrowserThemePack::GetColor(int id, SkColor* color) const {
-  static const base::NoDestructor<
-      base::flat_set<TP::OverwritableByUserThemeProperty>>
-      kOpaqueColors(
-          // Explicitly creating a base::flat_set here is not strictly
-          // necessary according to C++, but we do so to work around
-          // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84849.
-          base::flat_set<TP::OverwritableByUserThemeProperty>({
-              // Background tabs must be opaque since the tabstrip expects to be
-              // able to render text opaquely atop them.
-              TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_ACTIVE,
-              TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_INACTIVE,
-              TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_ACTIVE_INCOGNITO,
-              TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_INACTIVE_INCOGNITO,
-              // The frame colors will be used for background tabs when not
-              // otherwise overridden and thus must be opaque as well.
-              TP::COLOR_FRAME_ACTIVE,
-              TP::COLOR_FRAME_INACTIVE,
-              TP::COLOR_FRAME_ACTIVE_INCOGNITO,
-              TP::COLOR_FRAME_INACTIVE_INCOGNITO,
-              // The toolbar is used as the foreground tab color, so it must be
-              // opaque just like background tabs.
-              TP::COLOR_TOOLBAR,
-          }));
+  static constexpr auto kOpaqueColors =
+      base::MakeFixedFlatSet<TP::OverwritableByUserThemeProperty>({
+          // Background tabs must be opaque since the tabstrip expects to be
+          // able to render text opaquely atop them.
+          TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_ACTIVE,
+          TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_INACTIVE,
+          TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_ACTIVE_INCOGNITO,
+          TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_INACTIVE_INCOGNITO,
+          // The frame colors will be used for background tabs when not
+          // otherwise overridden and thus must be opaque as well.
+          TP::COLOR_FRAME_ACTIVE,
+          TP::COLOR_FRAME_INACTIVE,
+          TP::COLOR_FRAME_ACTIVE_INCOGNITO,
+          TP::COLOR_FRAME_INACTIVE_INCOGNITO,
+          // The toolbar is used as the foreground tab color, so it must be
+          // opaque just like background tabs.
+          TP::COLOR_TOOLBAR,
+      });
 
   if (colors_) {
     for (size_t i = 0; i < kColorsArrayLength; ++i) {
       if (colors_[i].id == id) {
         *color = colors_[i].color;
-        if (base::Contains(*kOpaqueColors, id))
+        if (base::Contains(kOpaqueColors, id)) {
           *color = SkColorSetA(*color, SK_AlphaOPAQUE);
+        }
         return true;
       }
     }
@@ -1041,18 +1074,18 @@ bool BrowserThemePack::HasCustomImage(int idr_id) const {
   if (prs_id == PersistentID::kInvalid)
     return false;
 
-  int* img = source_images_;
-  for (; *img != -1; ++img) {
-    if (*img == prs_id)
+  SourceImage* img = source_images_;
+  for (; img->id != -1; ++img) {
+    if (img->id == prs_id) {
       return true;
+    }
   }
 
   return false;
 }
 
-void BrowserThemePack::AddColorMixers(
-    ui::ColorProvider* provider,
-    const ui::ColorProviderManager::Key& key) const {
+void BrowserThemePack::AddColorMixers(ui::ColorProvider* provider,
+                                      const ui::ColorProviderKey& key) const {
   ui::ColorMixer& mixer = provider->AddMixer();
 
   // TODO(http://crbug.com/878664): Enable for all cases.
@@ -1200,6 +1233,15 @@ void BrowserThemePack::InitEmptyPack() {
   InitDisplayProperties();
 }
 
+void BrowserThemePack::InitEmptyPackFromColors() {
+  DCHECK(!is_valid());
+  InitEmptyPack();
+
+  // Init `source_images_` only here as other code paths initialize it
+  // differently.
+  InitSourceImages();
+}
+
 void BrowserThemePack::InitHeader() {
   header_ = new BrowserThemePackHeader;
   header_->version = kThemePackVersion;
@@ -1244,8 +1286,15 @@ void BrowserThemePack::InitDisplayProperties() {
 }
 
 void BrowserThemePack::InitSourceImages() {
-  source_images_ = new int[1];
-  source_images_[0] = -1;
+  source_images_ = new SourceImage[1];
+  source_images_[0].id = -1;
+}
+
+void BrowserThemePack::FinalizePackFromColors() {
+  AdjustThemePack();
+
+  // The BrowserThemePack is now in a consistent state.
+  is_valid_ = true;
 }
 
 void BrowserThemePack::SetHeaderId(const Extension* extension) {
@@ -1270,9 +1319,9 @@ void BrowserThemePack::SetTintsFromJSON(const base::Value::Dict* tints_value) {
     if (tint_list.size() != 3)
       continue;
 
-    absl::optional<double> h = tint_list[0].GetIfDouble();
-    absl::optional<double> s = tint_list[1].GetIfDouble();
-    absl::optional<double> l = tint_list[2].GetIfDouble();
+    std::optional<double> h = tint_list[0].GetIfDouble();
+    std::optional<double> s = tint_list[1].GetIfDouble();
+    std::optional<double> l = tint_list[2].GetIfDouble();
     if (!h || !s || !l)
       continue;
 
@@ -1326,9 +1375,9 @@ void BrowserThemePack::ReadColorsFromJSON(const base::Value::Dict& colors_value,
       continue;
 
     SkColor color = SK_ColorWHITE;
-    absl::optional<int> r = color_list[0].GetIfInt();
-    absl::optional<int> g = color_list[1].GetIfInt();
-    absl::optional<int> b = color_list[2].GetIfInt();
+    std::optional<int> r = color_list[0].GetIfInt();
+    std::optional<int> g = color_list[1].GetIfInt();
+    std::optional<int> b = color_list[2].GetIfInt();
     if (!(r.has_value() && r.value() >= 0 && r.value() <= 255 &&
           g.has_value() && g.value() >= 0 && g.value() <= 255 &&
           b.has_value() && b.value() >= 0 && b.value() <= 255)) {
@@ -1453,10 +1502,11 @@ void BrowserThemePack::AddFileAtScaleToMap(const std::string& image_name,
 }
 
 void BrowserThemePack::BuildSourceImagesArray(const FilePathMap& file_paths) {
-  source_images_ = new int[file_paths.size() + 1];
-  base::ranges::transform(file_paths, source_images_.get(),
-                          &FilePathMap::value_type::first);
-  source_images_[file_paths.size()] = -1;
+  source_images_ = new SourceImage[file_paths.size() + 1];
+  base::ranges::transform(
+      file_paths, source_images_.get(),
+      [](const auto& pair) { return SourceImage{pair.first}; });
+  source_images_[file_paths.size()].id = -1;
 }
 
 bool BrowserThemePack::LoadRawBitmapsTo(
@@ -1498,14 +1548,13 @@ bool BrowserThemePack::LoadRawBitmapsTo(
           int raw_id = GetRawIDByPersistentID(prs_id, scale_factor);
           image_memory_[raw_id] = raw_data;
         } else {
-          SkBitmap bitmap;
-          if (gfx::PNGCodec::Decode(raw_data->front(), raw_data->size(),
-                                    &bitmap)) {
+          SkBitmap bitmap = gfx::PNGCodec::Decode(*raw_data);
+          if (!bitmap.isNull()) {
             image_skia.AddRepresentation(gfx::ImageSkiaRep(
                 bitmap, ui::GetScaleForResourceScaleFactor(scale_factor)));
           } else {
-            NOTREACHED() << "Unable to decode theme image resource "
-                         << entry.first;
+            // The image is either broken or a different format.
+            return false;
           }
         }
       }
@@ -1629,12 +1678,12 @@ void BrowserThemePack::CreateFrameImagesAndColors(ImageCache* images) {
   static constexpr struct FrameValues {
     PersistentID prs_id;
     int tint_id;
-    absl::optional<int> color_id;
+    std::optional<int> color_id;
   } kFrameValues[] = {
       {PRS::kFrame, TP::TINT_FRAME, TP::COLOR_FRAME_ACTIVE},
       {PRS::kFrameInactive, TP::TINT_FRAME_INACTIVE, TP::COLOR_FRAME_INACTIVE},
-      {PRS::kFrameOverlay, TP::TINT_FRAME, absl::nullopt},
-      {PRS::kFrameOverlayInactive, TP::TINT_FRAME_INACTIVE, absl::nullopt},
+      {PRS::kFrameOverlay, TP::TINT_FRAME, std::nullopt},
+      {PRS::kFrameOverlayInactive, TP::TINT_FRAME_INACTIVE, std::nullopt},
       {PRS::kFrameIncognito, TP::TINT_FRAME_INCOGNITO,
        TP::COLOR_FRAME_ACTIVE_INCOGNITO},
       {PRS::kFrameIncognitoInactive, TP::TINT_FRAME_INCOGNITO_INACTIVE,
@@ -1732,13 +1781,13 @@ void BrowserThemePack::GenerateWindowControlButtonColor(ImageCache* images) {
   if (bg_img_it != images->end())
     bg_image = bg_img_it->second.AsImageSkia();
 
-  SkColor button_bg_color;
+  SkColor button_bg_color = SK_ColorTRANSPARENT;
   SkAlpha button_bg_alpha = SK_AlphaTRANSPARENT;
   if (GetColor(TP::COLOR_CONTROL_BUTTON_BACKGROUND, &button_bg_color))
     button_bg_alpha = SkColorGetA(button_bg_color);
 
   button_bg_alpha =
-      WindowFrameUtil::CalculateWindows10GlassCaptionButtonBackgroundAlpha(
+      WindowFrameUtil::CalculateWindowsCaptionButtonBackgroundAlpha(
           button_bg_alpha);
 
   // Determine what portion of the image to use in our calculations (we won't
@@ -1749,8 +1798,7 @@ void BrowserThemePack::GenerateWindowControlButtonColor(ImageCache* images) {
   // processing time (as it is determined by the size of icons, which we don't
   // have easy access to here), so we use the glass frame area as an
   // approximation.
-  gfx::Size dest_size =
-      WindowFrameUtil::GetWindows10GlassCaptionButtonAreaSize();
+  gfx::Size dest_size = WindowFrameUtil::GetWindowsCaptionButtonAreaSize();
 
   // To get an accurate sampling, all we need to do is get a representative
   // image that is at MOST the size of the caption button area.  In the case of
@@ -1788,7 +1836,7 @@ void BrowserThemePack::CreateTabBackgroundImagesAndColors(ImageCache* images) {
     // For inactive images, the corresponding active image.  If the active
     // images are customized and the inactive ones are not, the inactive ones
     // will be based on the active ones.
-    absl::optional<PersistentID> fallback_tab_id;
+    std::optional<PersistentID> fallback_tab_id;
 
     // The frame image to use as the base of this tab background image.
     PersistentID frame_id;
@@ -1799,12 +1847,12 @@ void BrowserThemePack::CreateTabBackgroundImagesAndColors(ImageCache* images) {
     // The color to compute and store for this image, if not present.
     int color_id;
   } kTabBackgroundMap[] = {
-      {PRS::kTabBackground, absl::nullopt, PRS::kFrame, TP::COLOR_FRAME_ACTIVE,
+      {PRS::kTabBackground, std::nullopt, PRS::kFrame, TP::COLOR_FRAME_ACTIVE,
        TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_ACTIVE},
       {PRS::kTabBackgroundInactive, PRS::kTabBackground, PRS::kFrameInactive,
        TP::COLOR_FRAME_INACTIVE,
        TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_INACTIVE},
-      {PRS::kTabBackgroundIncognito, absl::nullopt, PRS::kFrameIncognito,
+      {PRS::kTabBackgroundIncognito, std::nullopt, PRS::kFrameIncognito,
        TP::COLOR_FRAME_ACTIVE_INCOGNITO,
        TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_ACTIVE_INCOGNITO},
       {PRS::kTabBackgroundIncognitoInactive, PRS::kTabBackgroundIncognito,
@@ -1915,15 +1963,15 @@ void BrowserThemePack::RepackImages(const ImageCache& images,
     DCHECK(!image_reps.empty())
         << "No image reps for resource " << image.first << ".";
     for (const auto& rep : image_reps) {
-      std::vector<unsigned char> bitmap_data;
-      const bool encoded = gfx::PNGCodec::EncodeBGRASkBitmap(
-          rep.GetBitmap(), false, &bitmap_data);
-      DCHECK(encoded) << "Image file for resource " << image.first
-                      << " could not be encoded.";
+      std::optional<std::vector<uint8_t>> bitmap_data =
+          gfx::PNGCodec::EncodeBGRASkBitmap(rep.GetBitmap(),
+                                            /*discard_transparency=*/false);
+      CHECK(bitmap_data) << "Image file for resource " << image.first
+                         << " could not be encoded.";
       int raw_id = GetRawIDByPersistentID(
           image.first, ui::GetSupportedResourceScaleFactor(rep.scale()));
-      (*reencoded_images)[raw_id] =
-          base::RefCountedBytes::TakeVector(&bitmap_data);
+      (*reencoded_images)[raw_id] = base::MakeRefCounted<base::RefCountedBytes>(
+          std::move(bitmap_data).value());
     }
   }
 }
@@ -1937,9 +1985,8 @@ void BrowserThemePack::MergeImageCaches(
 
 void BrowserThemePack::AddRawImagesTo(const RawImages& images,
                                       RawDataForWriting* out) const {
-  for (auto it = images.begin(); it != images.end(); ++it) {
-    (*out)[it->first] = base::StringPiece(
-        it->second->front_as<char>(), it->second->size());
+  for (const auto& pair : images) {
+    (*out)[pair.first] = base::as_string_view(*pair.second);
   }
 }
 
@@ -2029,12 +2076,9 @@ void BrowserThemePack::GenerateRawImageForAllSupportedScales(
   // Get bitmap for the available scale factor.
   int available_raw_id = GetRawIDByPersistentID(prs_id, available_scale_factor);
   RawImages::const_iterator it = image_memory_.find(available_raw_id);
-  SkBitmap available_bitmap;
-  if (!gfx::PNGCodec::Decode(it->second->front(),
-                             it->second->size(),
-                             &available_bitmap)) {
-    NOTREACHED() << "Unable to decode theme image for prs_id=" << prs_id
-                 << " for scale_factor=" << available_scale_factor;
+  SkBitmap available_bitmap = gfx::PNGCodec::Decode(*it->second);
+  if (available_bitmap.isNull()) {
+    // The image is either broken or a different format.
     return;
   }
 
@@ -2047,15 +2091,14 @@ void BrowserThemePack::GenerateRawImageForAllSupportedScales(
         CreateLowQualityResizedBitmap(available_bitmap,
                                       available_scale_factor,
                                       scale_factors_[i]);
-    std::vector<unsigned char> bitmap_data;
-    if (!gfx::PNGCodec::EncodeBGRASkBitmap(scaled_bitmap,
-                                           false,
-                                           &bitmap_data)) {
+    std::optional<std::vector<uint8_t>> bitmap_data =
+        gfx::PNGCodec::EncodeBGRASkBitmap(scaled_bitmap,
+                                          /*discard_transparency=*/false);
+    if (!bitmap_data) {
       NOTREACHED() << "Unable to encode theme image for prs_id=" << prs_id
                    << " for scale_factor=" << scale_factors_[i];
-      break;
     }
-    image_memory_[scaled_raw_id] =
-        base::RefCountedBytes::TakeVector(&bitmap_data);
+    image_memory_[scaled_raw_id] = base::MakeRefCounted<base::RefCountedBytes>(
+        std::move(bitmap_data).value());
   }
 }

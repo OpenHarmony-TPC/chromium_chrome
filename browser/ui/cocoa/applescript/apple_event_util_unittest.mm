@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "chrome/browser/ui/cocoa/applescript/apple_event_util.h"
 
 #include <CoreServices/CoreServices.h>
@@ -9,6 +14,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <string>
 
 #include "base/json/json_reader.h"
 #include "base/mac/scoped_aedesc.h"
@@ -48,7 +54,6 @@ std::string AEDescToString(const AEDesc* aedesc) {
       OSErr err = AEGetDescData(aedesc, &code, sizeof(code));
       if (err != noErr) {
         NOTREACHED();
-        return std::string();
       }
 
       return FourCharToString(code);
@@ -60,14 +65,12 @@ std::string AEDescToString(const AEDesc* aedesc) {
       OSErr err = AECoerceDesc(aedesc, typeSInt64, wide_desc.OutPointer());
       if (err != noErr) {
         NOTREACHED();
-        return std::string();
       }
 
       int64_t value;
       err = AEGetDescData(wide_desc, &value, sizeof(value));
       if (err != noErr) {
         NOTREACHED();
-        return std::string();
       }
 
       return base::NumberToString(value);
@@ -79,14 +82,12 @@ std::string AEDescToString(const AEDesc* aedesc) {
                                wide_desc.OutPointer());
       if (err != noErr) {
         NOTREACHED();
-        return std::string();
       }
 
       double value;
       err = AEGetDescData(wide_desc, &value, sizeof(value));
       if (err != noErr) {
         NOTREACHED();
-        return std::string();
       }
 
       return base::NumberToString(value);
@@ -99,7 +100,6 @@ std::string AEDescToString(const AEDesc* aedesc) {
       OSErr err = AEGetDescData(aedesc, data_vector.data(), byte_length);
       if (err != noErr) {
         NOTREACHED();
-        return std::string();
       }
       return FourCharToString(typeUnicodeText) + "(\"" +
              base::UTF16ToUTF8(
@@ -119,7 +119,6 @@ std::string AEDescToString(const AEDesc* aedesc) {
       OSErr err = AECountItems(aedesc, &list_count);
       if (err != noErr) {
         NOTREACHED();
-        return std::string();
       }
       for (long i = 0; i < list_count; ++i) {
         AEKeyword key;
@@ -128,7 +127,6 @@ std::string AEDescToString(const AEDesc* aedesc) {
                            value_desc.OutPointer());
         if (err != noErr) {
           NOTREACHED();
-          return std::string();
         }
 
         if (is_record) {
@@ -148,7 +146,6 @@ std::string AEDescToString(const AEDesc* aedesc) {
     default: {
       NOTREACHED() << "unexpected descriptor type "
                    << FourCharToString(aedesc->descriptorType);
-      return std::string();
     }
   }
 }
@@ -229,7 +226,7 @@ TEST_F(AppleEventUtilTest, ValueToAppleEventDescriptor) {
   };
 
   for (size_t i = 0; i < std::size(cases); ++i) {
-    absl::optional<base::Value> value =
+    std::optional<base::Value> value =
         base::JSONReader::Read(cases[i].json_input);
     NSAppleEventDescriptor* descriptor =
         chrome::mac::ValueToAppleEventDescriptor(value.value());

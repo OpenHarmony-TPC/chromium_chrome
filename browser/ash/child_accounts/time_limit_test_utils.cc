@@ -4,12 +4,13 @@
 
 #include "chrome/browser/ash/child_accounts/time_limit_test_utils.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/ranges/algorithm.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/strings/string_number_conversions.h"
 
 namespace ash {
 namespace time_limit_test_utils {
@@ -53,7 +54,8 @@ std::string CreatePolicyTimestamp(const char* time_string) {
 }
 
 std::string CreatePolicyTimestamp(base::Time time) {
-  return std::to_string((time - base::Time::UnixEpoch()).InMilliseconds());
+  return base::NumberToString(
+      (time - base::Time::UnixEpoch()).InMilliseconds());
 }
 
 base::TimeDelta CreateTime(int hour, int minute) {
@@ -141,7 +143,7 @@ void AddOverride(base::Value::Dict* policy,
   base::Value::List* overrides = policy->EnsureList(
       usage_time_limit::TimeLimitOverride::kOverridesDictKey);
   usage_time_limit::TimeLimitOverride new_override(action, created_at,
-                                                   absl::nullopt);
+                                                   std::nullopt);
   overrides->Append(new_override.ToDictionary());
 }
 

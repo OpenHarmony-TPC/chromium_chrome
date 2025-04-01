@@ -25,7 +25,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_manager.h"
-#include "chrome/browser/chromeos/policy/dlp/mock_dlp_content_manager.h"
+#include "chrome/browser/chromeos/policy/dlp/test/mock_dlp_content_manager.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace {
@@ -52,14 +52,15 @@ class TabCaptureAccessHandlerTest : public ChromeRenderViewHostTestHarness {
     content::MediaStreamRequest request(
         web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID(),
         web_contents()->GetPrimaryMainFrame()->GetRoutingID(),
-        /*page_request_id=*/0, GURL(kOrigin), /*user_gesture=*/false,
-        blink::MEDIA_GENERATE_STREAM,
-        /*requested_audio_device_id=*/std::string(),
-        /*requested_video_device_id=*/std::string(),
+        /*page_request_id=*/0, url::Origin::Create(GURL(kOrigin)),
+        /*user_gesture=*/false, blink::MEDIA_GENERATE_STREAM,
+        /*requested_audio_device_ids=*/{},
+        /*requested_video_device_ids=*/{},
         blink::mojom::MediaStreamType::NO_SERVICE,
         blink::mojom::MediaStreamType::GUM_TAB_VIDEO_CAPTURE,
         /*disable_local_echo=*/false,
-        /*request_pan_tilt_zoom_permission=*/false);
+        /*request_pan_tilt_zoom_permission=*/false,
+        /*captured_surface_control_active=*/false);
 
     base::RunLoop wait_loop;
     content::MediaResponseCallback callback = base::BindOnce(
@@ -96,6 +97,12 @@ class TabCaptureAccessHandlerTest : public ChromeRenderViewHostTestHarness {
     access_handler_.reset();
   }
 
+  content::RenderFrameHost* main_frame() {
+    return web_contents()->GetPrimaryMainFrame();
+  }
+  int main_frame_id() { return main_frame()->GetRoutingID(); }
+  int process_id() { return main_frame()->GetProcess()->GetID(); }
+
  protected:
   std::unique_ptr<TabCaptureAccessHandler> access_handler_;
 };
@@ -110,7 +117,7 @@ TEST_F(TabCaptureAccessHandlerTest, PermissionGiven) {
 
   extensions::TabCaptureRegistry::Get(profile())->AddRequest(
       web_contents(), /*extension_id=*/"", /*is_anonymous=*/false,
-      GURL(kOrigin), source, /*extension_name=*/"", web_contents());
+      GURL(kOrigin), source, process_id(), main_frame_id());
 
   blink::mojom::MediaStreamRequestResult result = kInvalidResult;
   blink::mojom::StreamDevices devices;
@@ -145,7 +152,7 @@ TEST_F(TabCaptureAccessHandlerTest, DlpRestricted) {
 
   extensions::TabCaptureRegistry::Get(profile())->AddRequest(
       web_contents(), /*extension_id=*/"", /*is_anonymous=*/false,
-      GURL(kOrigin), source, /*extension_name=*/"", web_contents());
+      GURL(kOrigin), source, process_id(), main_frame_id());
 
   blink::mojom::MediaStreamRequestResult result = kInvalidResult;
   blink::mojom::StreamDevices devices;
@@ -177,7 +184,7 @@ TEST_F(TabCaptureAccessHandlerTest, DlpNotRestricted) {
 
   extensions::TabCaptureRegistry::Get(profile())->AddRequest(
       web_contents(), /*extension_id=*/"", /*is_anonymous=*/false,
-      GURL(kOrigin), source, /*extension_name=*/"", web_contents());
+      GURL(kOrigin), source, process_id(), main_frame_id());
 
   blink::mojom::MediaStreamRequestResult result = kInvalidResult;
   blink::mojom::StreamDevices devices;
@@ -210,7 +217,7 @@ TEST_F(TabCaptureAccessHandlerTest, DlpWebContentsDestroyed) {
 
   extensions::TabCaptureRegistry::Get(profile())->AddRequest(
       web_contents(), /*extension_id=*/"", /*is_anonymous=*/false,
-      GURL(kOrigin), source, /*extension_name=*/"", web_contents());
+      GURL(kOrigin), source, process_id(), main_frame_id());
 
   blink::mojom::MediaStreamRequestResult result = kInvalidResult;
   blink::mojom::StreamDevices devices;

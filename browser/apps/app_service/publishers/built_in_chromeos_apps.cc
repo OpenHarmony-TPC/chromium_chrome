@@ -10,7 +10,6 @@
 #include "ash/public/cpp/app_list/app_list_metrics.h"
 #include "ash/public/cpp/app_list/internal_app_id_constants.h"
 #include "ash/public/cpp/app_menu_constants.h"
-#include "ash/public/cpp/keyboard_shortcut_viewer.h"
 #include "base/time/time.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
 #include "chrome/browser/apps/app_service/app_launch_params.h"
@@ -44,8 +43,7 @@ apps::AppPtr CreateApp(const app_list::InternalApp& internal_app) {
   }
 
   app->icon_key =
-      apps::IconKey(apps::IconKey::kDoesNotChangeOverTime,
-                    internal_app.icon_resource_id, apps::IconEffects::kNone);
+      apps::IconKey(internal_app.icon_resource_id, apps::IconEffects::kNone);
 
   app->recommendable = internal_app.recommendable;
   app->searchable = internal_app.searchable;
@@ -81,37 +79,19 @@ void BuiltInChromeOsApps::Initialize() {
                         /*should_notify_initialized=*/true);
 }
 
-void BuiltInChromeOsApps::LoadIcon(const std::string& app_id,
-                                   const IconKey& icon_key,
-                                   IconType icon_type,
-                                   int32_t size_hint_in_dip,
-                                   bool allow_placeholder_icon,
-                                   apps::LoadIconCallback callback) {
-  constexpr bool is_placeholder_icon = false;
-  if (icon_key.resource_id != IconKey::kInvalidResourceId) {
-    LoadIconFromResource(
-        icon_type, size_hint_in_dip, icon_key.resource_id, is_placeholder_icon,
-        static_cast<IconEffects>(icon_key.icon_effects), std::move(callback));
-    return;
-  }
-  // On failure, we still run the callback, with an empty IconValue.
-  std::move(callback).Run(std::make_unique<IconValue>());
-}
-
 void BuiltInChromeOsApps::Launch(const std::string& app_id,
                                  int32_t event_flags,
                                  LaunchSource launch_source,
                                  WindowInfoPtr window_info) {
-  if (app_id == ash::kInternalAppIdKeyboardShortcutViewer) {
-    ash::ToggleKeyboardShortcutViewer();
-  }
+  // TODO(longbowei): Remove BuiltInChromeOsApps code if no longer needed.
+  NOTIMPLEMENTED();
 }
 
 void BuiltInChromeOsApps::LaunchAppWithParams(AppLaunchParams&& params,
                                               LaunchCallback callback) {
   Launch(params.app_id, ui::EF_NONE, LaunchSource::kUnknown, nullptr);
 
-  // TODO(crbug.com/1244506): Add launch return value.
+  // TODO(crbug.com/40787924): Add launch return value.
   std::move(callback).Run(LaunchResult());
 }
 

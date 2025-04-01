@@ -17,12 +17,13 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "content/public/test/browser_test.h"
+#include "ui/views/test/ax_event_counter.h"
 #include "url/gurl.h"
 
 namespace {
 ui::MouseEvent GetDummyEvent() {
-  return ui::MouseEvent(ui::ET_MOUSE_PRESSED, gfx::PointF(), gfx::PointF(),
-                        base::TimeTicks::Now(), 0, 0);
+  return ui::MouseEvent(ui::EventType::kMousePressed, gfx::PointF(),
+                        gfx::PointF(), base::TimeTicks::Now(), 0, 0);
 }
 }  // namespace
 
@@ -130,7 +131,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest,
   tab_strip()->ShiftTabPrevious(tab_strip()->tab_at(2));
   EXPECT_EQ(expected, GetWebContentses());
   EXPECT_TRUE(tab_strip()->IsGroupCollapsed(group));
-  EXPECT_EQ(tab_strip()->tab_at(0)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(0)->group(), std::nullopt);
   EXPECT_EQ(tab_strip()->tab_at(1)->group().value(), group);
   EXPECT_EQ(tab_strip()->tab_at(2)->group().value(), group);
 }
@@ -162,7 +163,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest,
   EXPECT_TRUE(tab_strip()->IsGroupCollapsed(group2));
   EXPECT_EQ(tab_strip()->tab_at(0)->group().value(), group1);
   EXPECT_EQ(tab_strip()->tab_at(1)->group().value(), group1);
-  EXPECT_EQ(tab_strip()->tab_at(2)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(2)->group(), std::nullopt);
   EXPECT_EQ(tab_strip()->tab_at(3)->group().value(), group2);
   EXPECT_EQ(tab_strip()->tab_at(4)->group().value(), group2);
 }
@@ -179,7 +180,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, ShiftTabPrevious_RemovesFromGroup) {
   const auto expected = GetWebContentsesInOrder({0, 1, 2});
   tab_strip()->ShiftTabPrevious(tab_strip()->tab_at(1));
   EXPECT_EQ(expected, GetWebContentses());
-  EXPECT_EQ(tab_strip()->tab_at(1)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(1)->group(), std::nullopt);
 }
 
 IN_PROC_BROWSER_TEST_F(TabStripBrowsertest,
@@ -197,7 +198,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest,
   const auto expected = GetWebContentsesInOrder({0, 1, 2});
   tab_strip()->ShiftTabPrevious(tab_strip()->tab_at(1));
   EXPECT_EQ(expected, GetWebContentses());
-  EXPECT_EQ(tab_strip()->tab_at(1)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(1)->group(), std::nullopt);
   tab_strip()->ShiftTabPrevious(tab_strip()->tab_at(1));
   EXPECT_EQ(expected, GetWebContentses());
   EXPECT_EQ(tab_strip()->tab_at(1)->group().value(), group);
@@ -268,7 +269,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest,
   EXPECT_TRUE(tab_strip()->IsGroupCollapsed(group));
   EXPECT_EQ(tab_strip()->tab_at(0)->group().value(), group);
   EXPECT_EQ(tab_strip()->tab_at(1)->group().value(), group);
-  EXPECT_EQ(tab_strip()->tab_at(2)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(2)->group(), std::nullopt);
 }
 
 IN_PROC_BROWSER_TEST_F(TabStripBrowsertest,
@@ -299,7 +300,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest,
   EXPECT_TRUE(tab_strip()->IsGroupCollapsed(group2));
   EXPECT_EQ(tab_strip()->tab_at(0)->group().value(), group1);
   EXPECT_EQ(tab_strip()->tab_at(1)->group().value(), group1);
-  EXPECT_EQ(tab_strip()->tab_at(2)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(2)->group(), std::nullopt);
   EXPECT_EQ(tab_strip()->tab_at(3)->group().value(), group2);
   EXPECT_EQ(tab_strip()->tab_at(4)->group().value(), group2);
 }
@@ -316,7 +317,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, ShiftTabNext_RemovesFromGroup) {
   const auto expected = GetWebContentsesInOrder({0, 1, 2});
   tab_strip()->ShiftTabNext(tab_strip()->tab_at(1));
   EXPECT_EQ(expected, GetWebContentses());
-  EXPECT_EQ(tab_strip()->tab_at(1)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(1)->group(), std::nullopt);
 }
 
 IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, ShiftTabNext_ShiftsBetweenGroups) {
@@ -333,7 +334,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, ShiftTabNext_ShiftsBetweenGroups) {
   const auto expected = GetWebContentsesInOrder({0, 1, 2});
   tab_strip()->ShiftTabNext(tab_strip()->tab_at(0));
   EXPECT_EQ(expected, GetWebContentses());
-  EXPECT_EQ(tab_strip()->tab_at(0)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(0)->group(), std::nullopt);
   tab_strip()->ShiftTabNext(tab_strip()->tab_at(0));
   EXPECT_EQ(expected, GetWebContentses());
   EXPECT_EQ(tab_strip()->tab_at(0)->group().value(), group);
@@ -391,7 +392,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, MoveTabFirst_DoesNotAddToGroup) {
   AddTabToNewGroup(0);
 
   tab_strip()->MoveTabFirst(tab_strip()->tab_at(1));
-  EXPECT_EQ(tab_strip()->tab_at(0)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(0)->group(), std::nullopt);
 }
 
 IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, MoveTabFirst_RemovesFromGroup) {
@@ -404,10 +405,10 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, MoveTabFirst_RemovesFromGroup) {
   AddTabToNewGroup(1);
 
   tab_strip()->MoveTabFirst(tab_strip()->tab_at(0));
-  EXPECT_EQ(tab_strip()->tab_at(0)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(0)->group(), std::nullopt);
 
   tab_strip()->MoveTabFirst(tab_strip()->tab_at(1));
-  EXPECT_EQ(tab_strip()->tab_at(0)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(0)->group(), std::nullopt);
 }
 
 IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, MoveTabFirst_NoPinnedTabs_Failure) {
@@ -490,7 +491,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, MoveTabLast_DoesNotAddToGroup) {
   AddTabToNewGroup(2);
 
   tab_strip()->MoveTabLast(tab_strip()->tab_at(1));
-  EXPECT_EQ(tab_strip()->tab_at(2)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(2)->group(), std::nullopt);
 }
 
 IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, MoveTabLast_RemovesFromGroup) {
@@ -503,10 +504,10 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, MoveTabLast_RemovesFromGroup) {
   AddTabToNewGroup(2);
 
   tab_strip()->MoveTabLast(tab_strip()->tab_at(2));
-  EXPECT_EQ(tab_strip()->tab_at(2)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(2)->group(), std::nullopt);
 
   tab_strip()->MoveTabLast(tab_strip()->tab_at(1));
-  EXPECT_EQ(tab_strip()->tab_at(2)->group(), absl::nullopt);
+  EXPECT_EQ(tab_strip()->tab_at(2)->group(), std::nullopt);
 }
 
 IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, MoveTabLast_NoPinnedTabs_Failure) {
@@ -558,7 +559,13 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, ShiftGroupLeft_Success) {
   EXPECT_EQ(expected, GetWebContentses());
 }
 
-IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, ShiftGroupLeft_OtherGroup) {
+// TODO(crbug.com/353618704): Re-enable this test
+#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER)
+#define MAYBE_ShiftGroupLeft_OtherGroup DISABLED_ShiftGroupLeft_OtherGroup
+#else
+#define MAYBE_ShiftGroupLeft_OtherGroup ShiftGroupLeft_OtherGroup
+#endif
+IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, MAYBE_ShiftGroupLeft_OtherGroup) {
   ASSERT_TRUE(tab_strip_model()->SupportsTabGroups());
 
   AppendTab();
@@ -818,6 +825,45 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest,
 }
 
 IN_PROC_BROWSER_TEST_F(TabStripBrowsertest,
+                       CollapseGroup_WhenAddingActiveTab_ExpandsGroup) {
+  ASSERT_TRUE(tab_strip_model()->SupportsTabGroups());
+
+  AppendTab();
+
+  tab_groups::TabGroupId group = AddTabToNewGroup(0);
+  ASSERT_FALSE(tab_strip()->IsGroupCollapsed(group));
+  tab_strip()->ToggleTabGroupCollapsedState(group);
+
+  EXPECT_TRUE(tab_strip()->IsGroupCollapsed(group));
+  EXPECT_EQ(1, tab_strip()->GetActiveIndex());
+
+  tab_strip_model()->AddToExistingGroup({1}, group);
+  EXPECT_FALSE(tab_strip()->IsGroupCollapsed(group));
+  EXPECT_EQ(1, tab_strip()->GetActiveIndex());
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripBrowsertest,
+                       CollapseGroup_WhenAddingInactiveTab_StaysCollapsed) {
+  ASSERT_TRUE(tab_strip_model()->SupportsTabGroups());
+
+  AppendTab();
+  AppendTab();
+
+  tab_groups::TabGroupId group = AddTabToNewGroup(0);
+
+  ASSERT_FALSE(tab_strip()->IsGroupCollapsed(group));
+  tab_strip()->ToggleTabGroupCollapsedState(group);
+
+  EXPECT_TRUE(tab_strip()->IsGroupCollapsed(group));
+  EXPECT_EQ(2, tab_strip()->GetActiveIndex());
+
+  tab_strip_model()->AddToExistingGroup({1}, group);
+
+  EXPECT_TRUE(tab_strip()->IsGroupCollapsed(group));
+  EXPECT_EQ(2, tab_strip()->GetActiveIndex());
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripBrowsertest,
                        CollapseGroup_WithActiveTabInGroup_SelectsPrevious) {
   AppendTab();
 
@@ -856,7 +902,12 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, CollapseGroup_CreatesNewTab) {
   tab_groups::TabGroupId group = AddTabToNewGroup(0);
   tab_strip_model()->AddToExistingGroup({1}, group);
   ASSERT_FALSE(tab_strip()->IsGroupCollapsed(group));
-  tab_strip()->ToggleTabGroupCollapsedState(group);
+
+  // Any origin other than kMenuAction will work here. At the time this was
+  // written, it was impossible to trigger this specific interaction (collapsing
+  // a group) from a context menu.
+  tab_strip()->ToggleTabGroupCollapsedState(
+      group, ToggleTabGroupCollapsedStateOrigin::kMouse);
   ASSERT_EQ(3, tab_strip_model()->count());
 
   EXPECT_TRUE(tab_strip()->IsGroupCollapsed(group));
@@ -915,4 +966,52 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, TabGroupTabNavigationAccelerators) {
   // Navigate to the last tab using the select last accelerator.
   updater->ExecuteCommand(IDC_SELECT_LAST_TAB);
   ASSERT_EQ(3, tab_strip_model()->active_index());
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripBrowsertest,
+                       TabHasCorrectAccessibleSelectedState) {
+  AppendTab();
+  AppendTab();
+
+  Tab* tab0 = tab_strip()->tab_at(0);
+  Tab* tab1 = tab_strip()->tab_at(1);
+  ui::AXNodeData ax_node_data_0;
+  ui::AXNodeData ax_node_data_1;
+  views::test::AXEventCounter counter(views::AXEventManager::Get());
+
+  tab_strip()->SelectTab(tab_strip()->tab_at(0), GetDummyEvent());
+  tab0->GetViewAccessibility().GetAccessibleNodeData(&ax_node_data_0);
+  tab1->GetViewAccessibility().GetAccessibleNodeData(&ax_node_data_1);
+  EXPECT_TRUE(tab0->IsSelected());
+  EXPECT_TRUE(
+      ax_node_data_0.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+  EXPECT_FALSE(tab1->IsSelected());
+  EXPECT_FALSE(
+      ax_node_data_1.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+  EXPECT_EQ(counter.GetCount(ax::mojom::Event::kSelection), 1);
+
+  tab_strip()->SelectTab(tab_strip()->tab_at(1), GetDummyEvent());
+  ax_node_data_0 = ui::AXNodeData();
+  ax_node_data_1 = ui::AXNodeData();
+  tab0->GetViewAccessibility().GetAccessibleNodeData(&ax_node_data_0);
+  tab1->GetViewAccessibility().GetAccessibleNodeData(&ax_node_data_1);
+  EXPECT_FALSE(tab0->IsSelected());
+  EXPECT_FALSE(
+      ax_node_data_0.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+  EXPECT_TRUE(tab1->IsSelected());
+  EXPECT_TRUE(
+      ax_node_data_1.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+  EXPECT_EQ(counter.GetCount(ax::mojom::Event::kSelection), 2);
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, TabGroupHeaderAccessibleState) {
+  AppendTab();
+  AppendTab();
+
+  tab_groups::TabGroupId group = AddTabToNewGroup(1);
+  auto* group_header = tab_strip()->group_header(group);
+
+  ui::AXNodeData data;
+  group_header->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_TRUE(data.HasState(ax::mojom::State::kEditable));
 }

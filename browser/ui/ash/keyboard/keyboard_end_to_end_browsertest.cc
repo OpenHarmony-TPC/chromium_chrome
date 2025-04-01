@@ -101,7 +101,7 @@ class KeyboardEndToEndTest : public InProcessBrowserTest {
 
  protected:
   // Initialized in |SetUpOnMainThread|.
-  raw_ptr<content::WebContents, ExperimentalAsh> web_contents_;
+  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_;
 
   explicit KeyboardEndToEndTest(const base::FilePath& test_file)
       : test_file_(test_file) {}
@@ -320,7 +320,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(WaitUntilHidden());
 
   // Wait until the transient blur threshold (3500ms) passes.
-  // TODO(https://crbug.com/849995): Find a way to accelerate the clock without
+  // TODO(crbug.com/41392988): Find a way to accelerate the clock without
   // actually waiting in real time.
   base::PlatformThread::Sleep(base::Milliseconds(3501));
 

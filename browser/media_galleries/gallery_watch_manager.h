@@ -118,7 +118,8 @@ class GalleryWatchManager
 
   typedef std::map<WatchOwner, base::FilePath> WatchesMap;
   typedef std::map<base::FilePath, NotificationInfo> WatchedPaths;
-  typedef std::map<content::BrowserContext*, GalleryWatchManagerObserver*>
+  typedef std::map<content::BrowserContext*,
+                   raw_ptr<GalleryWatchManagerObserver, CtnExperimental>>
       ObserverMap;
   typedef std::map<content::BrowserContext*, base::CallbackListSubscription>
       BrowserContextSubscriptionMap;
@@ -157,7 +158,8 @@ class GalleryWatchManager
   bool storage_monitor_observed_;
 
   // MediaGalleriesPreferences we are currently observing.
-  std::set<MediaGalleriesPreferences*> observed_preferences_;
+  std::set<raw_ptr<MediaGalleriesPreferences, SetExperimental>>
+      observed_preferences_;
 
   // All registered watches, keyed by WatchOwner.
   WatchesMap watches_;

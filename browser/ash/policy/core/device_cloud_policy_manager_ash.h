@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
 #include "base/scoped_observation_traits.h"
@@ -23,11 +24,11 @@ class MetricReportingManager;
 class OsUpdatesReporter;
 class UserAddedRemovedReporter;
 class UserEventReporterHelper;
+class UserSessionActivityReporter;
 }  // namespace reporting
 
 namespace ash {
 namespace attestation {
-class AttestationPolicyObserver;
 class EnrollmentCertificateUploader;
 class EnrollmentIdUploadManager;
 class MachineCertificateUploader;
@@ -48,17 +49,20 @@ class PrefService;
 
 namespace policy {
 
+class StartCrdSessionJobDelegate;
 class DeviceCloudPolicyStoreAsh;
 class EuiccStatusUploader;
 class ForwardingSchemaRegistry;
 class HeartbeatScheduler;
+class LookupKeyUploader;
 class ManagedSessionService;
+class ReportingUserTracker;
 class SchemaRegistry;
 class StatusUploader;
 class SystemLogUploader;
-class LookupKeyUploader;
+class EventBasedLogManager;
 
-enum class ZeroTouchEnrollmentMode { DISABLED, ENABLED, FORCED, HANDS_OFF };
+BASE_DECLARE_FEATURE(kEnableUserSessionActivityReporting);
 
 // CloudPolicyManager specialization for device policy in Ash.
 class DeviceCloudPolicyManagerAsh : public CloudPolicyManager,
@@ -75,10 +79,11 @@ class DeviceCloudPolicyManagerAsh : public CloudPolicyManager,
   // |task_runner| is the runner for policy refresh, heartbeat, and status
   // upload tasks.
   DeviceCloudPolicyManagerAsh(
-      std::unique_ptr<DeviceCloudPolicyStoreAsh> store,
+      std::unique_ptr<DeviceCloudPolicyStoreAsh> device_store,
       std::unique_ptr<CloudExternalDataManager> external_data_manager,
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-      ServerBackedStateKeysBroker* state_keys_broker);
+      ServerBackedStateKeysBroker* state_keys_broker,
+      StartCrdSessionJobDelegate& crd_delegate);
 
   DeviceCloudPolicyManagerAsh(const DeviceCloudPolicyManagerAsh&) = delete;
   DeviceCloudPolicyManagerAsh& operator=(const DeviceCloudPolicyManagerAsh&) =
@@ -101,9 +106,6 @@ class DeviceCloudPolicyManagerAsh : public CloudPolicyManager,
   // Pref registration helper.
   static void RegisterPrefs(PrefRegistrySimple* registry);
 
-  // Returns the mode for using zero-touch enrollment.
-  static ZeroTouchEnrollmentMode GetZeroTouchEnrollmentMode();
-
   // Starts the connection via |client_to_connect|.
   void StartConnection(std::unique_ptr<CloudPolicyClient> client_to_connect,
                        ash::InstallAttributes* install_attributes);
@@ -118,6 +120,9 @@ class DeviceCloudPolicyManagerAsh : public CloudPolicyManager,
   }
 
   DeviceCloudPolicyStoreAsh* device_store() { return device_store_.get(); }
+  ReportingUserTracker* reporting_user_tracker() {
+    return reporting_user_tracker_.get();
+  }
 
   // Return the StatusUploader used to communicate device status to the
   // policy server.
@@ -154,12 +159,18 @@ class DeviceCloudPolicyManagerAsh : public CloudPolicyManager,
   // Called when UserManager is created.
   void OnUserManagerCreated(user_manager::UserManager* user_manager);
   // Called just before UserManager is destroyed.
-  void OnUserManagerWillBeDestroyed(user_manager::UserManager* user_manager);
+  void OnUserManagerWillBeDestroyed();
 
   // user_manager::UserManager::Observer:
   void OnUserToBeRemoved(const AccountId& account_id) override;
   void OnUserRemoved(const AccountId& account_id,
                      user_manager::UserRemovalReason reason) override;
+
+  HeartbeatScheduler* GetHeartbeatSchedulerForTesting() const;
+
+  reporting::OsUpdatesReporter* GetOsUpdatesReporter() const;
+
+  reporting::MetricReportingManager* GetMetricReportingManager();
 
  protected:
   // Object that monitors managed session related events used by reporting
@@ -183,6 +194,10 @@ class DeviceCloudPolicyManagerAsh : public CloudPolicyManager,
   // testing.
   std::unique_ptr<reporting::OsUpdatesReporter> os_updates_reporter_;
 
+  // Object that reports user active/idle times during a session.
+  std::unique_ptr<reporting::UserSessionActivityReporter>
+      user_session_activity_reporter_;
+
  private:
   // Caches removed users. Passed to the reporter, when it is created.
   struct RemovedUser {
@@ -194,7 +209,6 @@ class DeviceCloudPolicyManagerAsh : public CloudPolicyManager,
   void OnStateKeysUpdated();
 
   void NotifyConnected();
-  void NotifyDisconnected();
   void NotifyGotRegistry();
 
   // Factory function to create the StatusUploader.
@@ -205,15 +219,16 @@ class DeviceCloudPolicyManagerAsh : public CloudPolicyManager,
   // |lock_unlock_reporter_|.
   void CreateManagedSessionServiceAndReporters();
 
-  // Points to the same object as the base CloudPolicyManager::store(), but with
-  // actual device policy specific type.
-  std::unique_ptr<DeviceCloudPolicyStoreAsh> device_store_;
+  // Points to the object owned by the base CloudPolicyManager, but with actual
+  // device policy specific type.
+  raw_ptr<DeviceCloudPolicyStoreAsh> device_store_;
 
   // Manages external data referenced by device policies.
   std::unique_ptr<CloudExternalDataManager> external_data_manager_;
 
-  raw_ptr<ServerBackedStateKeysBroker, DanglingUntriaged | ExperimentalAsh>
-      state_keys_broker_;
+  raw_ptr<ServerBackedStateKeysBroker, DanglingUntriaged> state_keys_broker_;
+
+  raw_ptr<StartCrdSessionJobDelegate, DanglingUntriaged> crd_delegate_;
 
   // Helper object that handles updating the server with our current device
   // state.
@@ -229,13 +244,18 @@ class DeviceCloudPolicyManagerAsh : public CloudPolicyManager,
   // Object that initiates device metrics collection and reporting.
   std::unique_ptr<reporting::MetricReportingManager> metric_reporting_manager_;
 
+  // Helper object that handles the event based log uploads.
+  std::unique_ptr<EventBasedLogManager> event_based_log_manager_;
+
   // The TaskRunner used to do device status and log uploads.
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
+  // PrefService instance to read the policy refresh rate from.
+  raw_ptr<PrefService, DanglingUntriaged> local_state_;
+
   base::CallbackListSubscription state_keys_update_subscription_;
 
-  // PrefService instance to read the policy refresh rate from.
-  raw_ptr<PrefService, DanglingUntriaged | ExperimentalAsh> local_state_;
+  std::unique_ptr<ReportingUserTracker> reporting_user_tracker_;
 
   std::unique_ptr<ash::attestation::EnrollmentCertificateUploader>
       enrollment_certificate_uploader_;
@@ -243,8 +263,6 @@ class DeviceCloudPolicyManagerAsh : public CloudPolicyManager,
       enrollment_id_upload_manager_;
   std::unique_ptr<ash::attestation::MachineCertificateUploader>
       machine_certificate_uploader_;
-  std::unique_ptr<ash::attestation::AttestationPolicyObserver>
-      attestation_policy_observer_;
   std::unique_ptr<EuiccStatusUploader> euicc_status_uploader_;
 
   // Uploader for remote server unlock related lookup keys.

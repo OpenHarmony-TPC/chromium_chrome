@@ -56,8 +56,8 @@ class TestGrammarServiceClient : public GrammarServiceClient {
 };
 
 ui::KeyEvent CreateKeyEvent(const ui::DomCode& code) {
-  return ui::KeyEvent(ui::ET_KEY_PRESSED, ui::VKEY_UNKNOWN, code, ui::EF_NONE,
-                      ui::DomKey::NONE, ui::EventTimeForNow());
+  return ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_UNKNOWN, code,
+                      ui::EF_NONE, ui::DomKey::NONE, ui::EventTimeForNow());
 }
 
 class MockSuggestionHandler : public SuggestionHandlerInterface {
@@ -96,6 +96,7 @@ class MockSuggestionHandler : public SuggestionHandlerInterface {
               (int context_id,
                const std::u16string& candidate,
                size_t delete_previous_utf16_len,
+               bool use_replace_surrounding_text,
                std::string* error),
               (override));
   MOCK_METHOD(bool,

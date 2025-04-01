@@ -24,10 +24,11 @@ class FastCheckoutPersonalDataHelperImpl
       const FastCheckoutPersonalDataHelperImpl&) = delete;
 
   // FastCheckoutPersonalDataHelper:
-  std::vector<autofill::AutofillProfile*> GetProfilesToSuggest() const override;
+  std::vector<const autofill::AutofillProfile*> GetProfilesToSuggest()
+      const override;
   std::vector<autofill::CreditCard*> GetCreditCardsToSuggest() const override;
   std::vector<autofill::CreditCard*> GetValidCreditCards() const override;
-  std::vector<autofill::AutofillProfile*> GetValidAddressProfiles()
+  std::vector<const autofill::AutofillProfile*> GetValidAddressProfiles()
       const override;
   autofill::PersonalDataManager* GetPersonalDataManager() const override;
 
@@ -38,4 +39,4 @@ class FastCheckoutPersonalDataHelperImpl
   raw_ptr<content::WebContents> web_contents_;
 };
 
-#endif
+#endif  // CHROME_BROWSER_FAST_CHECKOUT_FAST_CHECKOUT_PERSONAL_DATA_HELPER_IMPL_H_

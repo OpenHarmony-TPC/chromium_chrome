@@ -50,7 +50,6 @@ public class BookmarkOpener {
     /**
      * Open the given id in the current tab.
      *
-     * @param bookmarkIds The bookmark id to open.
      * @param incognito Whether the bookmark should be opened in incognito mode.
      * @return Whether the bookmark id was successfully opened.
      */
@@ -138,7 +137,7 @@ public class BookmarkOpener {
 
     private void maybeMarkReadingListItemAsRead(@NonNull BookmarkItem item) {
         if (item.getId().getType() == BookmarkType.READING_LIST) {
-            mModel.setReadStatusForReadingList(item.getUrl(), true);
+            mModel.setReadStatusForReadingList(item.getId(), true);
         }
     }
 
@@ -180,7 +179,9 @@ public class BookmarkOpener {
     private void recordTimeSinceAdded(BookmarkItem item, String histogramPrefix) {
         RecordHistogram.recordCustomTimesHistogram(
                 histogramPrefix + bookmarkTypeToHistogramSuffix(item.getId().getType()),
-                System.currentTimeMillis() - item.getDateAdded(), 1, DateUtils.DAY_IN_MILLIS * 30,
+                System.currentTimeMillis() - item.getDateAdded(),
+                1,
+                DateUtils.DAY_IN_MILLIS * 30,
                 50);
     }
 }

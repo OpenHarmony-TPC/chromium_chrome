@@ -50,7 +50,6 @@ void ProfileImportImpl::StartImport(
 #endif
   if (!import_thread_->Start()) {
     NOTREACHED();
-    ImporterCleanup();
   }
   bridge_ = new ExternalProcessImporterBridge(
       localized_strings,

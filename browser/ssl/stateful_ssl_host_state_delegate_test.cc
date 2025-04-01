@@ -52,6 +52,7 @@ const char kExampleHost[] = "example.com";
 
 const uint64_t kDeltaOneDayInSeconds = UINT64_C(86400);
 const uint64_t kDeltaOneWeekInSeconds = UINT64_C(604800);
+const uint64_t kDeltaFifteenDaysInSeconds = UINT64_C(1296000);
 
 scoped_refptr<net::X509Certificate> GetOkCert() {
   return net::ImportCertFromFile(net::GetTestCertsDirectory(), kOkCertFile);
@@ -127,6 +128,34 @@ IN_PROC_BROWSER_TEST_F(StatefulSSLHostStateDelegateTest, QueryPolicy) {
   EXPECT_EQ(content::SSLHostStateDelegate::ALLOWED,
             state->QueryPolicy(kExampleHost, *cert, net::ERR_CERT_DATE_INVALID,
                                storage_partition));
+}
+
+// Tests the expected behavior of calling HasAllowExceptionForAnyHost on the
+// SSLHostStateDelegate class after setting website settings for
+// different ContentSettingsType.
+IN_PROC_BROWSER_TEST_F(StatefulSSLHostStateDelegateTest,
+                       HasAllowExceptionForAnyHost) {
+  scoped_refptr<net::X509Certificate> cert = GetOkCert();
+  content::WebContents* tab =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  Profile* profile = Profile::FromBrowserContext(tab->GetBrowserContext());
+  content::SSLHostStateDelegate* state = profile->GetSSLHostStateDelegate();
+  auto* storage_partition = tab->GetPrimaryMainFrame()->GetStoragePartition();
+  auto* host_content_settings_map =
+      HostContentSettingsMapFactory::GetForProfile(profile);
+  GURL url = GURL("https://example1.com/");
+
+  EXPECT_EQ(false, state->HasAllowExceptionForAnyHost(storage_partition));
+
+  host_content_settings_map->SetContentSettingDefaultScope(
+      url, url, ContentSettingsType::COOKIES, CONTENT_SETTING_DEFAULT);
+  EXPECT_EQ(false, state->HasAllowExceptionForAnyHost(storage_partition));
+
+  // Simulate a user decision to allow an invalid certificate exception for
+  // kWWWGoogleHost.
+  state->AllowCert(kWWWGoogleHost, *cert, net::ERR_CERT_DATE_INVALID,
+                   storage_partition);
+  EXPECT_EQ(true, state->HasAllowExceptionForAnyHost(storage_partition));
 }
 
 // Tests the expected behavior of calling IsHttpAllowedForHost on the
@@ -593,7 +622,7 @@ IN_PROC_BROWSER_TEST_F(IncognitoSSLHostStateDelegateTest, AfterRestart) {
                 incognito_tab->GetPrimaryMainFrame()->GetStoragePartition()));
 }
 
-// TODO(https://crbug.com/1243074): Disabled for brokenness.
+// TODO(crbug.com/40787070): Disabled for brokenness.
 IN_PROC_BROWSER_TEST_F(IncognitoSSLHostStateDelegateTest,
                        DISABLED_PRE_AfterRestartHttp) {
   auto* tab = browser()->tab_strip_model()->GetActiveWebContents();
@@ -627,7 +656,7 @@ IN_PROC_BROWSER_TEST_F(IncognitoSSLHostStateDelegateTest,
 
 // AfterRestartHttp ensures that any HTTP decisions made in an incognito profile
 // are forgetten after a session restart.
-// TODO(https://crbug.com/1243074): Disabled for brokenness.
+// TODO(crbug.com/40787070): Disabled for brokenness.
 IN_PROC_BROWSER_TEST_F(IncognitoSSLHostStateDelegateTest,
                        DISABLED_AfterRestartHttp) {
   auto* tab = browser()->tab_strip_model()->GetActiveWebContents();
@@ -758,10 +787,10 @@ IN_PROC_BROWSER_TEST_F(DefaultMemorySSLHostStateDelegateTest,
   // has not passed yet.
   EXPECT_TRUE(state->IsHttpAllowedForHost(kWWWGoogleHost, storage_partition));
 
-  // Now simulate the clock advancing by one week, which is past the expiration
-  // point.
+  // Now simulate the clock advancing by fifteen days, which is past the
+  // expiration point.
   clock_ptr->Advance(
-      base::Seconds(kDeltaOneWeekInSeconds - kDeltaOneDayInSeconds + 1));
+      base::Seconds(kDeltaFifteenDaysInSeconds - kDeltaOneDayInSeconds + 1));
 
   // HTTP should no longer be allowed because the specified delta has passed.
   EXPECT_FALSE(state->IsHttpAllowedForHost(kWWWGoogleHost, storage_partition));
@@ -839,8 +868,8 @@ IN_PROC_BROWSER_TEST_F(DefaultMemorySSLHostStateDelegateTest,
   state->AllowHttpForHost(kWWWGoogleHost, storage_partition);
   EXPECT_TRUE(state->IsHttpAllowedForHost(kWWWGoogleHost, storage_partition));
 
-  // Simulate the clock advancing by one week, the default expiration time.
-  clock_ptr->Advance(base::Seconds(kDeltaOneWeekInSeconds + 1));
+  // Simulate the clock advancing by fifteen days, the default expiration time.
+  clock_ptr->Advance(base::Seconds(kDeltaFifteenDaysInSeconds + 1));
 
   // The decision expiration time has come, so this should now return false.
   EXPECT_FALSE(state->IsHttpAllowedForHost(kWWWGoogleHost, storage_partition));
@@ -929,9 +958,7 @@ IN_PROC_BROWSER_TEST_F(StatefulSSLHostStateDelegateTest,
 class StatefulSSLHostStateDelegateExtensionTest
     : public extensions::ExtensionBrowserTest {
  public:
-  StatefulSSLHostStateDelegateExtensionTest() {
-    guest_view::GuestViewManager::set_factory_for_testing(&factory_);
-  }
+  StatefulSSLHostStateDelegateExtensionTest() = default;
 
  protected:
   void SetUpCommandLine(base::CommandLine* command_line) override {

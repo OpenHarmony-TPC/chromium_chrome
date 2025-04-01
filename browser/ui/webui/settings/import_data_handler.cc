@@ -27,6 +27,7 @@
 #include "chrome/common/pref_names.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_ui.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
 using content::BrowserThread;
 
@@ -186,8 +187,7 @@ void ImportDataHandler::HandleImportFromBookmarksFile(
   file_type_info.extensions.resize(1);
   file_type_info.extensions[0].push_back(FILE_PATH_LITERAL("html"));
 
-  Browser* browser =
-      chrome::FindBrowserWithWebContents(web_ui()->GetWebContents());
+  Browser* browser = chrome::FindBrowserWithTab(web_ui()->GetWebContents());
 
   select_file_dialog_->SelectFile(
       ui::SelectFileDialog::SELECT_OPEN_FILE, std::u16string(),
@@ -253,21 +253,20 @@ void ImportDataHandler::ImportEnded() {
                                                     : kImportStatusFailed));
 }
 
-void ImportDataHandler::FileSelected(const base::FilePath& path,
-                                     int /*index*/,
-                                     void* /*params*/) {
+void ImportDataHandler::FileSelected(const ui::SelectedFileInfo& file,
+                                     int /*index*/) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   select_file_dialog_ = nullptr;
 
   importer::SourceProfile source_profile;
   source_profile.importer_type = importer::TYPE_BOOKMARKS_FILE;
-  source_profile.source_path = path;
+  source_profile.source_path = file.path();
 
   StartImport(source_profile, importer::FAVORITES);
 }
 
-void ImportDataHandler::FileSelectionCanceled(void* params) {
+void ImportDataHandler::FileSelectionCanceled() {
   select_file_dialog_ = nullptr;
 }
 

@@ -60,6 +60,7 @@ class AudioSourceFetcherImpl
   void OnCaptureStarted() final {}
   void Capture(const media::AudioBus* audio_source,
                base::TimeTicks audio_capture_time,
+               const media::AudioGlitchInfo& glitch_info,
                double volume,
                bool key_pressed) final;
   void OnCaptureError(media::AudioCapturerSource::ErrorCode code,
@@ -77,7 +78,7 @@ class AudioSourceFetcherImpl
   void OnProcessingStateChanged(const std::string& message) override;
 
   // The output callback for ConvertingAudioFifo.
-  void OnAudioFinishedConvert(media::AudioBus* output_bus);
+  void OnAudioFinishedConvert(const media::AudioBus* output_bus);
 
   void set_audio_capturer_source_for_tests(
       media::AudioCapturerSource* audio_capturer_source_for_tests) {
@@ -97,7 +98,11 @@ class AudioSourceFetcherImpl
 
   void SendAudioEndToSpeechRecognitionService();
 
+  void SendError();
+
   media::AudioCapturerSource* GetAudioCapturerSource();
+
+  void DrainConverterOutput();
 
   // Sends audio to the speech recognition recognizer.
   SendAudioToSpeechRecognitionServiceCallback send_audio_callback_;
@@ -126,8 +131,8 @@ class AudioSourceFetcherImpl
   std::unique_ptr<media::ConvertingAudioFifo> converter_;
 
   // The output params for resampling for the server based speech recognition.
-  absl::optional<media::AudioParameters> server_based_recognition_params_ =
-      absl::nullopt;
+  std::optional<media::AudioParameters> server_based_recognition_params_ =
+      std::nullopt;
   bool is_multi_channel_supported_;
   bool is_server_based_;
 
@@ -135,6 +140,9 @@ class AudioSourceFetcherImpl
 
   // A callback to push audio data into `converter_`.
   SendAudioToResampleCallback resample_callback_;
+
+  // Callback bound to correct thread to send errors to `audio_consumer_`.
+  base::RepeatingClosure send_error_callback_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

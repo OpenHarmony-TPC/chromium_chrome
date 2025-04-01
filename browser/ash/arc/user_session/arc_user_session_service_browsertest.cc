@@ -46,12 +46,7 @@ void RunUntilIdle() {
 
 class ArcUserSessionServiceTest : public InProcessBrowserTest {
  public:
-  ArcUserSessionServiceTest() {
-    // App pin syncing code makes an untitled Play Store icon appear in the
-    // shelf. Sync isn't relevant to this test, so skip pinned app sync.
-    // https://crbug.com/1085597
-    ChromeShelfPrefs::SkipPinnedAppsFromSyncForTest();
-  }
+  ArcUserSessionServiceTest() = default;
 
   ArcUserSessionServiceTest(const ArcUserSessionServiceTest&) = delete;
   ArcUserSessionServiceTest& operator=(const ArcUserSessionServiceTest&) =

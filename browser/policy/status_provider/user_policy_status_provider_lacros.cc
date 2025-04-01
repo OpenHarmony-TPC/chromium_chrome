@@ -49,7 +49,7 @@ base::Value::Dict UserPolicyStatusProviderLacros::GetStatus() {
   // Get last fetched time from policy, since we have no refresh scheduler here.
   base::Time last_refresh_time =
       policy && policy->has_timestamp()
-          ? base::Time::FromJavaTime(policy->timestamp())
+          ? base::Time::FromMillisecondsSinceUnixEpoch(policy->timestamp())
           : base::Time();
   dict.Set("timeSinceLastRefresh",
            GetTimeSinceLastActionString(last_refresh_time));
@@ -58,7 +58,7 @@ base::Value::Dict UserPolicyStatusProviderLacros::GetStatus() {
   dict.Set("timeSinceLastFetchAttempt",
            GetTimeSinceLastActionString(last_refresh_attempt_time));
 
-  // TODO(https://crbug.com/1243869): Pass this information from Ash through
+  // TODO(crbug.com/40787523): Pass this information from Ash through
   // Mojo. Assume no error for now.
   dict.Set("error", false);
   dict.Set("status",

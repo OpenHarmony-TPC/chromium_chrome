@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.browserservices.trustedwebactivityui.sharing;
 
+import android.content.Intent;
 import android.net.Uri;
 import android.text.TextUtils;
 import android.util.Pair;
@@ -19,11 +20,13 @@ import org.chromium.chrome.browser.browserservices.intents.WebApkShareTarget;
 import org.chromium.chrome.browser.browserservices.metrics.TrustedWebActivityUmaRecorder;
 import org.chromium.chrome.browser.browserservices.metrics.TrustedWebActivityUmaRecorder.ShareRequestMethod;
 import org.chromium.chrome.browser.browserservices.ui.controller.Verifier;
+import org.chromium.chrome.browser.customtabs.BaseCustomTabActivity;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityNavigationController;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityTabProvider;
 import org.chromium.chrome.browser.dependency_injection.ActivityScope;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.webapps.WebApkPostShareTargetNavigator;
+import org.chromium.content_public.browser.LoadUrlParams;
 
 import java.util.ArrayList;
 import java.util.Locale;
@@ -31,27 +34,20 @@ import java.util.function.Function;
 
 import javax.inject.Inject;
 
-/**
- * Handles sharing intents coming to Trusted Web Activities.
- */
+/** Handles sharing intents coming to Trusted Web Activities. */
 @ActivityScope
 public class TwaSharingController {
     private final CustomTabActivityTabProvider mTabProvider;
     private final CustomTabActivityNavigationController mNavigationController;
-    private final WebApkPostShareTargetNavigator mPostNavigator;
     private final Verifier mVerifierDelegate;
-    private final TrustedWebActivityUmaRecorder mUmaRecorder;
 
     @Inject
-    public TwaSharingController(CustomTabActivityTabProvider tabProvider,
+    public TwaSharingController(
             CustomTabActivityNavigationController navigationController,
-            WebApkPostShareTargetNavigator postNavigator, Verifier verifierDelegate,
-            TrustedWebActivityUmaRecorder umaRecorder) {
-        mTabProvider = tabProvider;
+            BaseCustomTabActivity activity) {
+        mTabProvider = activity.getCustomTabActivityTabProvider();
         mNavigationController = navigationController;
-        mPostNavigator = postNavigator;
-        mVerifierDelegate = verifierDelegate;
-        mUmaRecorder = umaRecorder;
+        mVerifierDelegate = activity.getVerifier();
     }
 
     /**
@@ -65,31 +61,41 @@ public class TwaSharingController {
             BrowserServicesIntentDataProvider intentDataProvider) {
         ShareData shareData = intentDataProvider.getShareData();
         WebApkExtras webApkExtras = intentDataProvider.getWebApkExtras();
-        WebApkShareTarget shareTarget = (webApkExtras != null)
-                ? webApkExtras.shareTarget
-                : toShareTargetInternal(intentDataProvider.getShareTarget());
+        WebApkShareTarget shareTarget =
+                (webApkExtras != null)
+                        ? webApkExtras.shareTarget
+                        : toShareTargetInternal(intentDataProvider.getShareTarget());
         if (shareTarget == null || shareData == null) {
             return Promise.fulfilled(false);
         }
+        Intent intent = intentDataProvider.getIntent();
 
-        return mVerifierDelegate.verify(shareTarget.getAction())
-                .then((Function<Boolean, Boolean>) (verified) -> {
-                    if (!verified) {
-                        return false;
-                    }
-                    if (shareTarget.isShareMethodPost()) {
-                        boolean success = sendPost(shareData, shareTarget);
-                        if (success) {
-                            mUmaRecorder.recordShareTargetRequest(ShareRequestMethod.POST);
-                        }
-                        return success;
-                    }
+        return mVerifierDelegate
+                .verify(shareTarget.getAction())
+                .then(
+                        (Function<Boolean, Boolean>)
+                                (verified) -> {
+                                    if (!verified) {
+                                        return false;
+                                    }
+                                    if (shareTarget.isShareMethodPost()) {
+                                        boolean success = sendPost(shareData, shareTarget);
+                                        if (success) {
+                                            TrustedWebActivityUmaRecorder.recordShareTargetRequest(
+                                                    ShareRequestMethod.POST);
+                                        }
+                                        return success;
+                                    }
 
-                    mNavigationController.navigate(
-                            computeStartUrlForGETShareTarget(shareData, shareTarget));
-                    mUmaRecorder.recordShareTargetRequest(ShareRequestMethod.GET);
-                    return true;
-                });
+                                    mNavigationController.navigate(
+                                            new LoadUrlParams(
+                                                    computeStartUrlForGETShareTarget(
+                                                            shareData, shareTarget)),
+                                            intent);
+                                    TrustedWebActivityUmaRecorder.recordShareTargetRequest(
+                                            ShareRequestMethod.GET);
+                                    return true;
+                                });
     }
 
     /**
@@ -107,8 +113,9 @@ public class TwaSharingController {
         String method = shareTarget.method;
         boolean isPost = method != null && "POST".equals(method.toUpperCase(Locale.ENGLISH));
         String encodingType = shareTarget.encodingType;
-        boolean isMultipart = encodingType != null &&
-                "multipart/form-data".equals(encodingType.toLowerCase(Locale.ENGLISH));
+        boolean isMultipart =
+                encodingType != null
+                        && "multipart/form-data".equals(encodingType.toLowerCase(Locale.ENGLISH));
 
         int numFiles = params.files == null ? 0 : params.files.size();
         String[] filesArray = new String[numFiles];
@@ -116,7 +123,7 @@ public class TwaSharingController {
         for (int i = 0; i < numFiles; i++) {
             ShareTarget.FileFormField file = params.files.get(i);
             filesArray[i] = file.name;
-            acceptsArray[i] =  file.acceptedTypes.toArray(new String[file.acceptedTypes.size()]);
+            acceptsArray[i] = file.acceptedTypes.toArray(new String[file.acceptedTypes.size()]);
         }
         return new WebApkShareTarget(
                 action, paramTitle, paramText, isPost, isMultipart, filesArray, acceptsArray);
@@ -128,7 +135,7 @@ public class TwaSharingController {
             assert false : "Null tab when sharing";
             return false;
         }
-        return mPostNavigator.navigateIfPostShareTarget(
+        return WebApkPostShareTargetNavigator.navigateIfPostShareTarget(
                 target.getAction(), target, shareData, tab.getWebContents());
     }
 

@@ -4,8 +4,9 @@
 
 #include "chrome/chrome_elf/chrome_elf_main.h"
 
-#include <assert.h>
 #include <windows.h>
+
+#include <assert.h>
 
 #include "chrome/chrome_elf/chrome_elf_security.h"
 #include "chrome/chrome_elf/crash/crash_helper.h"
@@ -47,6 +48,10 @@ bool GetUserDataDirectoryThunk(wchar_t* user_data_dir,
             invalid_user_data_dir_str.c_str(), _TRUNCATE);
 
   return true;
+}
+
+bool IsTemporaryUserDataDirectoryCreatedForHeadless() {
+  return install_static::IsTemporaryUserDataDirectoryCreatedForHeadless();
 }
 
 // DllMain

@@ -16,7 +16,6 @@
 #include "base/values.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/speech/extension_api/tts_engine_extension_api.h"
 #include "chrome/browser/speech/extension_api/tts_extension_api_constants.h"
 #include "content/public/browser/tts_controller.h"
@@ -29,11 +28,12 @@
 #include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/speech/extension_api/tts_engine_extension_observer_chromeos.h"
+#include "chrome/browser/speech/extension_api/tts_engine_extension_observer_chromeos_factory.h"
 #include "chrome/common/extensions/extension_constants.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/speech/tts_client_lacros.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
@@ -47,6 +47,7 @@ namespace {
 // These values are logged to UMA. Entries should not be renumbered and
 // numeric values should never be reused. Please keep in sync with
 // "TextToSpeechSource" in src/tools/metrics/histograms/enums.xml.
+// LINT.IfChange(UMATextToSpeechSource)
 enum class UMATextToSpeechSource {
   kOther = 0,
   kChromeVox = 1,
@@ -54,12 +55,14 @@ enum class UMATextToSpeechSource {
 
   kMaxValue = kSelectToSpeak,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/accessibility/enums.xml:TextToSpeechSource)
 
 }  // namespace
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 namespace events {
 const char kOnEvent[] = "tts.onEvent";
+const char kOnVoicesChanged[] = "tts.onVoicesChanged";
 }  // namespace events
 
 const char* TtsEventTypeToString(content::TtsEventType event_type) {
@@ -86,7 +89,6 @@ const char* TtsEventTypeToString(content::TtsEventType event_type) {
       return constants::kEventTypeResume;
     default:
       NOTREACHED();
-      return constants::kEventTypeError;
   }
 }
 
@@ -113,7 +115,6 @@ content::TtsEventType TtsEventTypeFromString(const std::string& str) {
     return content::TTS_EVENT_RESUME;
 
   NOTREACHED();
-  return content::TTS_EVENT_ERROR;
 }
 
 namespace extensions {
@@ -365,9 +366,9 @@ ExtensionFunction::ResponseAction TtsIsSpeakingFunction::Run() {
   // browser test, we have to use a workaround to enable it for testing.
   // TtsPlatformImplLacros::PlatformImplSupported() returns true if lacros
   // tts support is enabled either by ash feature flag or by testing workaround.
-  // TODO(crbug/1422469): Remove the workaround for enable lacros tts support
-  // for testing and call tts_crosapi_util::ShouldEnableLacrosTtsSupport()
-  // instead.
+  // TODO(crbug.com/40259646): Remove the workaround for enable lacros tts
+  // support for testing and call
+  // tts_crosapi_util::ShouldEnableLacrosTtsSupport() instead.
   if (content::TtsPlatform::GetInstance()->PlatformImplSupported()) {
     content::BrowserContext* browser_context =
         ProfileManager::GetPrimaryUserProfile();
@@ -418,6 +419,7 @@ TtsAPI::TtsAPI(content::BrowserContext* context) {
   registry.RegisterFunction<ExtensionTtsEngineUpdateVoicesFunction>();
   registry.RegisterFunction<ExtensionTtsEngineSendTtsEventFunction>();
   registry.RegisterFunction<ExtensionTtsEngineSendTtsAudioFunction>();
+  registry.RegisterFunction<ExtensionTtsEngineUpdateLanguageFunction>();
   registry.RegisterFunction<TtsGetVoicesFunction>();
   registry.RegisterFunction<TtsIsSpeakingFunction>();
   registry.RegisterFunction<TtsSpeakFunction>();
@@ -427,12 +429,19 @@ TtsAPI::TtsAPI(content::BrowserContext* context) {
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   // Ensure we're observing newly added engines for the given context.
-  TtsEngineExtensionObserverChromeOS::GetInstance(
+  TtsEngineExtensionObserverChromeOSFactory::GetForProfile(
       Profile::FromBrowserContext(context));
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
+  content::TtsController::GetInstance()->AddVoicesChangedDelegate(this);
+
+  event_router_ = EventRouter::Get(context);
+  event_router_->RegisterObserver(this, ::events::kOnVoicesChanged);
 }
 
 TtsAPI::~TtsAPI() {
+  content::TtsController::GetInstance()->RemoveVoicesChangedDelegate(this);
+  event_router_->UnregisterObserver(this);
 }
 
 static base::LazyInstance<
@@ -441,6 +450,29 @@ static base::LazyInstance<
 
 BrowserContextKeyedAPIFactory<TtsAPI>* TtsAPI::GetFactoryInstance() {
   return g_factory.Pointer();
+}
+
+void TtsAPI::OnVoicesChanged() {
+  if (!broadcast_events_) {
+    return;
+  }
+  auto event = std::make_unique<extensions::Event>(
+      events::TTS_ON_VOICES_CHANGED, ::events::kOnVoicesChanged,
+      base::Value::List());
+  event_router_->BroadcastEvent(std::move(event));
+}
+
+void TtsAPI::OnListenerAdded(const EventListenerInfo& details) {
+  StartOrStopListeningForVoicesChanged();
+}
+
+void TtsAPI::OnListenerRemoved(const EventListenerInfo& details) {
+  StartOrStopListeningForVoicesChanged();
+}
+
+void TtsAPI::StartOrStopListeningForVoicesChanged() {
+  broadcast_events_ =
+      event_router_->HasEventListener(::events::kOnVoicesChanged);
 }
 
 }  // namespace extensions

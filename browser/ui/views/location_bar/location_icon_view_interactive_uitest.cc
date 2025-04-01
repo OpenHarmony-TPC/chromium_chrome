@@ -28,7 +28,8 @@ class LocationIconViewTest : public InProcessBrowserTest {
 };
 
 // Verify that clicking the location icon a second time hides the bubble.
-// TODO(crbug.com/1404640) flaky on mac11-arm64-rel, disabled via filter
+// TODO(crbug.com/40251927) flaky on mac11-arm64-rel, disabled via filter
+// TODO(crbug.com/41481796) Fails consistently on Linux, disabled via filter.
 IN_PROC_BROWSER_TEST_F(LocationIconViewTest, HideOnSecondClick) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   views::View* location_icon_view =
@@ -38,7 +39,7 @@ IN_PROC_BROWSER_TEST_F(LocationIconViewTest, HideOnSecondClick) {
   // Verify that clicking once shows the location icon bubble.
   scoped_refptr<content::MessageLoopRunner> runner1 =
       new content::MessageLoopRunner;
-  ui_test_utils::MoveMouseToCenterAndPress(
+  ui_test_utils::MoveMouseToCenterAndClick(
       location_icon_view, ui_controls::LEFT,
       ui_controls::DOWN | ui_controls::UP, runner1->QuitClosure());
   runner1->Run();
@@ -49,7 +50,7 @@ IN_PROC_BROWSER_TEST_F(LocationIconViewTest, HideOnSecondClick) {
   // Verify that clicking again doesn't reshow it.
   scoped_refptr<content::MessageLoopRunner> runner2 =
       new content::MessageLoopRunner;
-  ui_test_utils::MoveMouseToCenterAndPress(
+  ui_test_utils::MoveMouseToCenterAndClick(
       location_icon_view, ui_controls::LEFT,
       ui_controls::DOWN | ui_controls::UP, runner2->QuitClosure());
   runner2->Run();

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/ash/assistant_optin/assistant_optin_ui.h"
 
 #include <memory>
@@ -10,23 +15,23 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/shelf_config.h"
+#include "ash/webui/common/trusted_types_util.h"
 #include "base/functional/bind.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "build/buildflag.h"
 #include "chrome/browser/ash/assistant/assistant_util.h"
-#include "chrome/browser/ash/login/ui/oobe_dialog_size_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/ui/ash/ash_util.h"
+#include "chrome/browser/ui/ash/login/oobe_dialog_size_utils.h"
 #include "chrome/browser/ui/views/chrome_web_dialog_view.h"
 #include "chrome/browser/ui/webui/ash/login/base_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/oobe_ui.h"
+#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/assistant_optin_resources.h"
 #include "chrome/grit/assistant_optin_resources_map.h"
 #include "chrome/grit/browser_resources.h"
-#include "chrome/grit/oobe_conditional_resources.h"
 #include "chromeos/ash/components/assistant/buildflags.h"
 #include "chromeos/ash/services/assistant/public/cpp/assistant_prefs.h"
 #include "chromeos/ash/services/assistant/public/cpp/features.h"
@@ -73,6 +78,7 @@ AssistantOptInUI::AssistantOptInUI(content::WebUI* web_ui)
   // Set up the chrome://assistant-optin source.
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       Profile::FromWebUI(web_ui), chrome::kChromeUIAssistantOptInHost);
+  ash::EnableTrustedTypesCSP(source);
 
   auto assistant_handler = std::make_unique<AssistantOptInFlowScreenHandler>();
   assistant_handler_ptr_ = assistant_handler.get();
@@ -92,7 +98,6 @@ AssistantOptInUI::AssistantOptInUI(content::WebUI* web_ui)
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::WorkerSrc,
       "worker-src blob: chrome://resources 'self';");
-  source->DisableTrustedTypesCSP();
 
   // Do not zoom for Assistant opt-in web contents.
   content::HostZoomMap* zoom_map =

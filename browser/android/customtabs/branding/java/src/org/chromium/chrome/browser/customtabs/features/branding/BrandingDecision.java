@@ -9,19 +9,20 @@ import androidx.annotation.IntDef;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * Class used to indicate what branding decision needs to make for the embedded app.
- *
- * This is used for histograms and should therefore be treated as append-only.
- * See CustomTabsBrandingDecision in tools/metrics/histograms/enums.xml.
- */
+/** Class used to indicate what branding decision needs to make for the embedded app. */
 @Retention(RetentionPolicy.SOURCE)
-@IntDef({BrandingDecision.NONE, BrandingDecision.TOOLBAR, BrandingDecision.TOAST,
-        BrandingDecision.NUM_ENTRIES})
+@IntDef({
+    BrandingDecision.NONE,
+    BrandingDecision.TOOLBAR,
+    BrandingDecision.TOAST,
+    BrandingDecision.MIM,
+    BrandingDecision.NUM_ENTRIES
+})
 @interface BrandingDecision {
     int NONE = 0;
     int TOOLBAR = 1;
     int TOAST = 2;
+    int MIM = 3;
 
-    int NUM_ENTRIES = 3;
+    int NUM_ENTRIES = 4;
 }

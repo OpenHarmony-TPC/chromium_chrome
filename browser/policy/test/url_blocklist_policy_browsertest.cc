@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <string>
 
 #include "base/containers/contains.h"
@@ -457,7 +462,7 @@ IN_PROC_BROWSER_TEST_F(UrlBlockingPolicyTest, JavascriptBlocklistable) {
   // Without blocklist policy value is incremented properly.
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("javascript:increment()"),
-      WindowOpenDisposition::CURRENT_TAB, ui_test_utils::BROWSER_TEST_NONE);
+      WindowOpenDisposition::CURRENT_TAB, ui_test_utils::BROWSER_TEST_NO_WAIT);
 
   EXPECT_EQ(JSIncrementerFetch(contents), 2);
 
@@ -474,12 +479,12 @@ IN_PROC_BROWSER_TEST_F(UrlBlockingPolicyTest, JavascriptBlocklistable) {
   // unchanged.
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("javascript:increment()"),
-      WindowOpenDisposition::CURRENT_TAB, ui_test_utils::BROWSER_TEST_NONE);
+      WindowOpenDisposition::CURRENT_TAB, ui_test_utils::BROWSER_TEST_NO_WAIT);
   EXPECT_EQ(JSIncrementerFetch(contents), 2);
 
   // But in-page links still work even if they are javascript-links.
-  EXPECT_TRUE(content::ExecuteScript(
-      contents, "document.getElementById('link').click();"));
+  EXPECT_TRUE(
+      content::ExecJs(contents, "document.getElementById('link').click();"));
   EXPECT_EQ(JSIncrementerFetch(contents), 3);
 }
 

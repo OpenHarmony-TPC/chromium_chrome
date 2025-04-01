@@ -5,7 +5,6 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/extensions/extension_apitest.h"
@@ -24,6 +23,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/extension_action.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/test/result_catcher.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "ui/base/models/menu_model.h"
@@ -79,6 +79,10 @@ IN_PROC_BROWSER_TEST_P(ExtensionContextMenuApiLazyTest, ContextMenus) {
   ASSERT_TRUE(RunExtensionTest("context_menus/event_page")) << message_;
 }
 
+IN_PROC_BROWSER_TEST_P(ExtensionContextMenuApiTestWithContextType, Count) {
+  ASSERT_TRUE(RunExtensionTest("context_menus/count")) << message_;
+}
+
 // crbug.com/51436 -- creating context menus from multiple script contexts
 // should work.
 IN_PROC_BROWSER_TEST_P(ExtensionContextMenuApiTestWithContextType,
@@ -132,6 +136,8 @@ class ExtensionContextMenuVisibilityApiTest
       const ExtensionContextMenuVisibilityApiTest&) = delete;
 
   void TearDownOnMainThread() override {
+    // Depends on `menu_` so must be cleared before it is destroyed.
+    top_level_model_ = nullptr;
     menu_.reset();
     ExtensionContextMenuApiTest::TearDownOnMainThread();
   }
@@ -169,10 +175,7 @@ class ExtensionContextMenuVisibilityApiTest
 
   void CallAPI(const Extension* extension, const std::string& script) {
     content::WebContents* background_page = GetBackgroundPage(extension->id());
-    bool error = false;
-    ASSERT_TRUE(
-        content::ExecuteScriptAndExtractBool(background_page, script, &error));
-    ASSERT_FALSE(error);
+    ASSERT_EQ(false, content::EvalJs(background_page, script));
   }
 
   // Verifies that the UI menu model has the given number of extension menu
@@ -215,12 +218,10 @@ class ExtensionContextMenuVisibilityApiTest
 
   const Extension* extension() { return extension_; }
 
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION ui::MenuModel* top_level_model_ = nullptr;
+  raw_ptr<ui::MenuModel> top_level_model_ = nullptr;
 
  private:
-  content::WebContents* GetBackgroundPage(const std::string& extension_id) {
+  content::WebContents* GetBackgroundPage(const ExtensionId& extension_id) {
     return process_manager()
         ->GetBackgroundHostForExtension(extension_id)
         ->host_contents();

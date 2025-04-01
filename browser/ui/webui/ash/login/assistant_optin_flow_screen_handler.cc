@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "ash/constants/ash_switches.h"
-#include "ash/public/cpp/tablet_mode.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -33,6 +32,7 @@
 #include "components/user_manager/user_manager.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/chromeos/devicetype_utils.h"
+#include "ui/display/screen.h"
 
 namespace ash {
 
@@ -202,6 +202,11 @@ void AssistantOptInFlowScreenHandler::Show() {
   SetupAssistantConnection();
 
   ShowInWebUI();
+}
+
+base::WeakPtr<AssistantOptInFlowScreenView>
+AssistantOptInFlowScreenHandler::AsWeakPtr() {
+  return weak_factory_.GetWeakPtr();
 }
 
 void AssistantOptInFlowScreenHandler::OnListeningHotword() {
@@ -487,7 +492,7 @@ void AssistantOptInFlowScreenHandler::OnGetSettingsResponse(
   dictionary.Set("childName", GetGivenNameIfIsChild());
   dictionary.Set(
       "isTabletMode",
-      TabletMode::Get()->InTabletMode() ||
+      display::Screen::GetScreen()->InTabletMode() ||
           (is_oobe_in_progress && switches::ShouldOobeUseTabletModeFirstRun()));
   ReloadContent(std::move(dictionary));
 

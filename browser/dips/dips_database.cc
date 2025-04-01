@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,33 +8,44 @@
 #include <limits>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
-#include "chrome/browser/dips/dips_features.h"
+#include "chrome/browser/dips/dips_database_migrator.h"
 #include "chrome/browser/dips/dips_utils.h"
+#include "content/public/common/content_features.h"
 #include "sql/database.h"
 #include "sql/error_delegate_util.h"
 #include "sql/init_status.h"
 #include "sql/meta_table.h"
 #include "sql/statement.h"
 #include "sql/transaction.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
-constexpr char kPrepopulatedKey[] = "prepopulated";
+BASE_FEATURE(kSqlWALModeOnDipsDatabase,
+             "SqlWALModeOnDipsDatabase",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
-absl::optional<base::Time> ColumnOptionalTime(sql::Statement* statement,
-                                              int column_index) {
+// NOTE: This is flag is intended for local testing and debugging only.
+BASE_FEATURE(kDisableExclusiveLockingOnDipsDatabase,
+             "DisableExclusiveLockingOnDipsDatabase",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+constexpr char kTimerLastFiredKey[] = "timer_last_fired";
+
+std::optional<base::Time> ColumnOptionalTime(sql::Statement* statement,
+                                             int column_index) {
   if (statement->GetColumnType(column_index) == sql::ColumnType::kNull) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return statement->ColumnTime(column_index);
 }
@@ -43,23 +54,23 @@ TimestampRange RangeFromColumns(sql::Statement* statement,
                                 int start_column_idx,
                                 int end_column_idx,
                                 std::vector<DIPSErrorCode>& errors) {
-  absl::optional<base::Time> first_time =
+  std::optional<base::Time> first_time =
       ColumnOptionalTime(statement, start_column_idx);
-  absl::optional<base::Time> last_time =
+  std::optional<base::Time> last_time =
       ColumnOptionalTime(statement, end_column_idx);
 
   if (!first_time.has_value() && !last_time.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (!first_time.has_value()) {
     errors.push_back(DIPSErrorCode::kRead_OpenEndedRange_NullStart);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (!last_time.has_value()) {
     errors.push_back(DIPSErrorCode::kRead_OpenEndedRange_NullEnd);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return std::make_pair(first_time.value(), last_time.value());
@@ -80,37 +91,36 @@ void BindTimesOrNull(sql::Statement& statement,
   }
 }
 
-// Version number of the database.
-// NOTE: When changing the version, add a new golden file for the new version
-// and a test to verify that Init() works with it.
-const int kCurrentVersionNumber = 2;
-
-// The lowest current version embedded in Chrome code that can use the current
-// version of this database.
-const int kCompatibleVersionNumber = 2;
-
 }  // namespace
 
 // See comments at declaration of these variables in dips_database.h
 // for details.
 const base::TimeDelta DIPSDatabase::kMetricsInterval = base::Hours(24);
+const base::TimeDelta DIPSDatabase::kPopupTtl = base::Days(60);
 
-DIPSDatabase::DIPSDatabase(const absl::optional<base::FilePath>& db_path)
-    : db_path_(db_path.value_or(base::FilePath())),
-      db_(std::make_unique<sql::Database>(
-          sql::DatabaseOptions{.exclusive_locking = true,
-                               .page_size = 4096,
-                               .cache_size = 32})) {
-  DCHECK(base::FeatureList::IsEnabled(dips::kFeature));
+DIPSDatabase::DIPSDatabase(const std::optional<base::FilePath>& db_path)
+    : db_path_(db_path.value_or(base::FilePath())) {
+  DCHECK(base::FeatureList::IsEnabled(features::kDIPS));
+
+  sql::DatabaseOptions db_options{
+      .wal_mode = base::FeatureList::IsEnabled(kSqlWALModeOnDipsDatabase),
+      .page_size = 4096,
+      .cache_size = 32};
+  if (base::FeatureList::IsEnabled(kDisableExclusiveLockingOnDipsDatabase)) {
+    db_options.exclusive_locking = false;
+  }
+  db_ = (std::make_unique<sql::Database>(db_options));
+
   base::AssertLongCPUWorkAllowed();
   if (db_path.has_value()) {
     DCHECK(!db_path->empty())
         << "To create an in-memory DIPSDatabase, explicitly pass an "
-           "absl::nullopt `db_path`.";
+           "std::nullopt `db_path`.";
   }
 
-  if (Init() != sql::INIT_OK)
+  if (Init() != sql::INIT_OK) {
     LOG(WARNING) << "Failed to initialize the DIPS SQLite database.";
+  }
 }
 
 DIPSDatabase::~DIPSDatabase() {
@@ -132,219 +142,126 @@ void DIPSDatabase::DatabaseErrorCallback(int extended_error,
   }
 
   // The default handling is to assert on debug and to ignore on release.
-  if (!sql::Database::IsExpectedSqliteError(extended_error))
+  if (!sql::Database::IsExpectedSqliteError(extended_error)) {
     DLOG(FATAL) << db_->GetErrorMessage();
+  }
 }
 
 sql::InitStatus DIPSDatabase::OpenDatabase() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(db_);
+
+  // If this is not the first call to `OpenDatabase()` which can happen when
+  // retrying the DB's initialization, then the error callback would've
+  // previously been set.
+  db_->reset_error_callback();
+
   db_->set_histogram_tag("DIPS");
   db_->set_error_callback(base::BindRepeating(
       &DIPSDatabase::DatabaseErrorCallback, base::Unretained(this)));
 
   if (in_memory()) {
-    if (!db_->OpenInMemory())
+    if (!db_->OpenInMemory()) {
       return sql::INIT_FAILURE;
+    }
   } else {
-    if (!db_->Open(db_path_))
+    if (!db_->Open(db_path_)) {
       return sql::INIT_FAILURE;
+    }
   }
   return sql::INIT_OK;
 }
 
 bool DIPSDatabase::InitTables() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  static constexpr char kBounceSql[] =
-      // clang-format off
-      "CREATE TABLE bounces("
-          "site TEXT PRIMARY KEY NOT NULL,"
-          "first_site_storage_time INTEGER,"
-          "last_site_storage_time INTEGER,"
-          "first_user_interaction_time INTEGER,"
-          "last_user_interaction_time INTEGER,"
-          "first_stateful_bounce_time INTEGER,"
-          "last_stateful_bounce_time INTEGER,"
-          "first_bounce_time INTEGER,"
-          "last_bounce_time INTEGER)";
+  static constexpr char kBouncesSql[] =  // clang-format off
+    "CREATE TABLE bounces("
+      "site TEXT PRIMARY KEY NOT NULL,"
+      "first_site_storage_time INTEGER,"
+      "last_site_storage_time INTEGER,"
+      "first_user_interaction_time INTEGER,"
+      "last_user_interaction_time INTEGER,"
+      "first_stateful_bounce_time INTEGER,"
+      "last_stateful_bounce_time INTEGER,"
+      "first_bounce_time INTEGER,"
+      "last_bounce_time INTEGER,"
+      "first_web_authn_assertion_time INTEGER,"
+      "last_web_authn_assertion_time INTEGER"
+    ")";
   // clang-format on
+  DCHECK(db_->IsSQLValid(kBouncesSql));
 
-  DCHECK(db_->IsSQLValid(kBounceSql));
-  return db_->Execute(kBounceSql);
-}
-
-bool DIPSDatabase::UpdateSchema() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (meta_table_.GetVersionNumber() == 1 && !MigrateToVersion2()) {
-    return false;
-  }
-  return true;
-}
-
-bool DIPSDatabase::MigrateToVersion2() {
-  // This migration:
-  // - Makes all timestamp columns nullable instead of using base::Time() as
-  // default.
-  // - Replaces both the first and last stateless bounce columns to track
-  // the first and last bounce times instead.
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(db_->HasActiveTransactions());
-  // First make a new table that allows for null values in the timestamps
-  // columns.
-  static constexpr char kNewTableSql[] =  // clang-format off
-      "CREATE TABLE new_bounces("
-          "site TEXT PRIMARY KEY NOT NULL,"
-          "first_site_storage_time INTEGER,"
-          "last_site_storage_time INTEGER,"
-          "first_user_interaction_time INTEGER,"
-          "last_user_interaction_time INTEGER,"
-          "first_stateful_bounce_time INTEGER,"
-          "last_stateful_bounce_time INTEGER,"
-          "first_stateless_bounce_time INTEGER,"
-          "last_stateless_bounce_time INTEGER)";
+  static constexpr char kPopupsSql[] =  // clang-format off
+    "CREATE TABLE popups("
+      "opener_site TEXT NOT NULL,"
+      "popup_site TEXT NOT NULL,"
+      "access_id INT64,"
+      "last_popup_time INTEGER,"
+      "is_current_interaction BOOLEAN,"
+      "is_authentication_interaction BOOLEAN,"
+      "PRIMARY KEY (`opener_site`,`popup_site`)"
+    ")";
   // clang-format on
-  DCHECK(db_->IsSQLValid(kNewTableSql));
-  if (!db_->Execute(kNewTableSql)) {
-    return false;
-  }
+  DCHECK(db_->IsSQLValid(kPopupsSql));
 
-  static constexpr char kCopyEverythingSql[] =
-      "INSERT INTO new_bounces "
-      "SELECT * FROM bounces";
-  DCHECK(db_->IsSQLValid(kCopyEverythingSql));
-  if (!db_->Execute(kCopyEverythingSql)) {
-    return false;
-  }
-
-  const std::array<std::string, 8> timestamp_columns{
-      "first_site_storage_time",     "last_site_storage_time",
-      "first_user_interaction_time", "last_user_interaction_time",
-      "first_stateless_bounce_time", "last_stateless_bounce_time",
-      "first_stateful_bounce_time",  "last_stateful_bounce_time"};
-
-  for (const std::string& column : timestamp_columns) {
-    std::string command = base::StringPrintf(
-        "UPDATE new_bounces "
-        "SET %s=NULL "
-        "WHERE %s=0 ",
-        column.c_str(), column.c_str());
-    sql::Statement s_nullify(db_->GetUniqueStatement(command.c_str()));
-
-    if (!s_nullify.Run()) {
-      return false;
-    }
-  }
-
-  // Replace the first_stateless_bounce with the first bounce overall.
-  // We have to first case on whether either of the bounce fields are NULL,
-  // since MIN will return NULL if either are NULL.
-  static constexpr char kReplaceFirstStatelessBounceSql[] =  // clang-format off
-    "UPDATE new_bounces "
-      "SET first_stateless_bounce_time = "
-        "CASE "
-          "WHEN first_stateful_bounce_time IS NULL "
-            "THEN first_stateless_bounce_time "
-          "WHEN first_stateless_bounce_time IS NULL "
-            "THEN first_stateful_bounce_time "
-          "ELSE MIN(first_stateful_bounce_time, first_stateless_bounce_time) "
-        "END";
+  static constexpr char kConfigSql[] =  // clang-format off
+    "CREATE TABLE config("
+      "key TEXT NOT NULL,"
+      "int_value INTEGER,"
+      "PRIMARY KEY (`key`)"
+    ")";
   // clang-format on
-  DCHECK(db_->IsSQLValid(kReplaceFirstStatelessBounceSql));
-  if (!db_->Execute(kReplaceFirstStatelessBounceSql)) {
+  DCHECK(db_->IsSQLValid(kConfigSql));
+
+  if (!db_->Execute(kConfigSql)) {
     return false;
   }
 
-  // Replace the last_stateless_bounce with the last bounce overall.
-  // We have to first case on whether either of the bounce fields are NULL,
-  // since MAX will return NULL if either are NULL.
-  static constexpr char kReplaceLastStatelessBounceSql[] =  // clang-format off
-      "UPDATE new_bounces "
-        "SET last_stateless_bounce_time = "
-          "CASE "
-            "WHEN last_stateful_bounce_time IS NULL "
-              "THEN last_stateless_bounce_time "
-            "WHEN last_stateless_bounce_time IS NULL "
-              "THEN last_stateful_bounce_time "
-            "ELSE MAX(last_stateful_bounce_time, last_stateless_bounce_time) "
-          "END";
-  // clang-format on
-  DCHECK(db_->IsSQLValid(kReplaceLastStatelessBounceSql));
-  if (!db_->Execute(kReplaceLastStatelessBounceSql)) {
-    return false;
-  }
-  // Rename this column to be reflect its new purpose.
-  static constexpr char kRenameFirstStatelessBounceTimeSql[] =
-      "ALTER TABLE new_bounces RENAME COLUMN first_stateless_bounce_time TO "
-      "first_bounce_time";
-  DCHECK(db_->IsSQLValid(kRenameFirstStatelessBounceTimeSql));
-  if (!db_->Execute(kRenameFirstStatelessBounceTimeSql)) {
-    return false;
-  }
-
-  // Rename this column to be reflect its new purpose.
-  static constexpr char kRenameLastStatelessBounceTimeSql[] =
-      "ALTER TABLE new_bounces RENAME COLUMN last_stateless_bounce_time TO "
-      "last_bounce_time";
-  if (!db_->Execute(kRenameLastStatelessBounceTimeSql)) {
-    return false;
-  }
-
-  // Replace the old `bounces` table with the new one.
-  static constexpr char kDropOldTableSql[] = "DROP TABLE bounces";
-  if (!db_->Execute(kDropOldTableSql)) {
-    return false;
-  }
-
-  static constexpr char kReplaceOldTable[] =
-      "ALTER TABLE new_bounces RENAME TO bounces";
-  if (!db_->Execute(kReplaceOldTable)) {
-    return false;
-  }
-
-  return meta_table_.SetVersionNumber(2);
+  return db_->Execute(kBouncesSql) && db_->Execute(kPopupsSql);
 }
 
 sql::InitStatus DIPSDatabase::InitImpl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  SCOPED_UMA_HISTOGRAM_TIMER("Privacy.DIPS.Database.Operation.InitTime");
+
   sql::InitStatus status = OpenDatabase();
   if (status != sql::INIT_OK) {
     return status;
   }
-
   DCHECK(db_->is_open());
 
-  sql::MetaTable::RazeIfIncompatible(db_.get(),
-                                     sql::MetaTable::kNoLowestSupportedVersion,
-                                     kCurrentVersionNumber);
+  if (sql::MetaTable::RazeIfIncompatible(
+          db_.get(), sql::MetaTable::kNoLowestSupportedVersion,
+          kLatestSchemaVersion) == sql::RazeIfIncompatibleResult::kFailed) {
+    return sql::INIT_FAILURE;
+  }
 
   // Scope initialization in a transaction so we can't be partially initialized.
   sql::Transaction transaction(db_.get());
-  if (!transaction.Begin())
+  if (!transaction.Begin()) {
     return sql::INIT_FAILURE;
+  }
 
   // Check if the table already exists to update schema if needed.
   bool table_already_exists = sql::MetaTable::DoesTableExist(db_.get());
   // Create the tables.
-  if (!meta_table_.Init(db_.get(), kCurrentVersionNumber,
-                        kCompatibleVersionNumber)) {
+  if (!meta_table_.Init(db_.get(), kLatestSchemaVersion,
+                        kMinCompatibleSchemaVersion)) {
     db_->Close();
     return sql::INIT_FAILURE;
   }
 
-  if (!table_already_exists) {
-    if (!InitTables()) {
-      return sql::INIT_FAILURE;
-    }
-  } else {
-    if (!UpdateSchema()) {
-      return sql::INIT_FAILURE;
-    }
+  if (table_already_exists
+          ? !MigrateDIPSSchemaToLatestVersion(*(db_.get()), meta_table_)
+          : !InitTables()) {
+    return sql::INIT_FAILURE;
   }
 
   // Initialization is complete.
-  if (!transaction.Commit())
+  if (!transaction.Commit()) {
     return sql::INIT_FAILURE;
+  }
 
   return sql::INIT_OK;
 }
@@ -368,6 +285,7 @@ sql::InitStatus DIPSDatabase::Init() {
     }
   }
 
+  db_init_ = (status == sql::INIT_OK);
   base::UmaHistogramExactLinear("Privacy.DIPS.DatabaseInit", attempts, 3);
 
   last_health_metrics_time_ = clock_->Now();
@@ -380,13 +298,14 @@ void DIPSDatabase::LogDatabaseMetrics() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   base::TimeTicks start_time = base::TimeTicks::Now();
 
-  int64_t db_size;
-  if (base::GetFileSize(db_path_, &db_size)) {
-    base::UmaHistogramMemoryKB("Privacy.DIPS.DatabaseSize", db_size / 1024);
+  std::optional<int64_t> db_size = base::GetFileSize(db_path_);
+  if (db_size.has_value()) {
+    base::UmaHistogramMemoryKB("Privacy.DIPS.DatabaseSize",
+                               db_size.value() / 1024);
   }
 
   base::UmaHistogramCounts10000("Privacy.DIPS.DatabaseEntryCount",
-                                GetEntryCount());
+                                GetEntryCount(DIPSDatabaseTable::kBounces));
 
   base::UmaHistogramTimes("Privacy.DIPS.DatabaseHealthMetricsTime",
                           base::TimeTicks::Now() - start_time);
@@ -394,8 +313,9 @@ void DIPSDatabase::LogDatabaseMetrics() {
 
 bool DIPSDatabase::CheckDBInit() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!db_ || !db_->is_open())
+  if (!db_ || !db_->is_open() || !db_init_) {
     return false;
+  }
 
   // Computing these metrics may be costly, so we only do it every
   // |kMetricsInterval|.
@@ -408,7 +328,7 @@ bool DIPSDatabase::CheckDBInit() {
   return true;
 }
 
-bool DIPSDatabase::ExecuteSqlForTesting(const char* sql) {
+bool DIPSDatabase::ExecuteSqlForTesting(const base::cstring_view sql) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!CheckDBInit()) {
     return false;
@@ -420,27 +340,39 @@ bool DIPSDatabase::Write(const std::string& site,
                          const TimestampRange& storage_times,
                          const TimestampRange& interaction_times,
                          const TimestampRange& stateful_bounce_times,
-                         const TimestampRange& bounce_times) {
+                         const TimestampRange& bounce_times,
+                         const TimestampRange& web_authn_assertion_times) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(
       IsNullOrWithin(/*inner=*/stateful_bounce_times, /*outer=*/bounce_times));
-  if (!CheckDBInit())
+  if (!CheckDBInit()) {
     return false;
+  }
+
+  if (site.empty()) {
+    base::UmaHistogramEnumeration("Privacy.DIPS.DIPSErrorCodes",
+                                  DIPSErrorCode::kWrite_EmptySite);
+    return false;
+  }
 
   static constexpr char kWriteSql[] =  // clang-format off
-      "INSERT OR REPLACE INTO bounces("
-          "site,"
-          "first_site_storage_time,"
-          "last_site_storage_time,"
-          "first_user_interaction_time,"
-          "last_user_interaction_time,"
-          "first_stateful_bounce_time,"
-          "last_stateful_bounce_time,"
-          "first_bounce_time,"
-          "last_bounce_time) "
-          "VALUES (?,?,?,?,?,?,?,?,?)";
+    "INSERT OR REPLACE INTO bounces("
+      "site,"
+      "first_site_storage_time,"
+      "last_site_storage_time,"
+      "first_user_interaction_time,"
+      "last_user_interaction_time,"
+      "first_stateful_bounce_time,"
+      "last_stateful_bounce_time,"
+      "first_bounce_time,"
+      "last_bounce_time,"
+      "first_web_authn_assertion_time,"
+      "last_web_authn_assertion_time"
+    ") VALUES(?,?,?,?,?,?,?,?,?,?,?)";
   // clang-format on
   DCHECK(db_->IsSQLValid(kWriteSql));
+
+  SCOPED_UMA_HISTOGRAM_TIMER("Privacy.DIPS.Database.Operation.WriteTime");
 
   sql::Statement statement(db_->GetCachedStatement(SQL_FROM_HERE, kWriteSql));
   statement.BindString(0, site);
@@ -448,13 +380,58 @@ bool DIPSDatabase::Write(const std::string& site,
   BindTimesOrNull(statement, interaction_times, 3, 4);
   BindTimesOrNull(statement, stateful_bounce_times, 5, 6);
   BindTimesOrNull(statement, bounce_times, 7, 8);
+  BindTimesOrNull(statement, web_authn_assertion_times, 9, 10);
+
+  if (!statement.Run()) {
+    return false;
+  }
+
+  base::UmaHistogramEnumeration("Privacy.DIPS.DIPSErrorCodes",
+                                DIPSErrorCode::kWrite_None);
+  return true;
+}
+
+bool DIPSDatabase::WritePopup(const std::string& opener_site,
+                              const std::string& popup_site,
+                              const uint64_t access_id,
+                              const base::Time& popup_time,
+                              bool is_current_interaction,
+                              bool is_authentication_interaction) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!CheckDBInit()) {
+    return false;
+  }
+
+  static constexpr char kWriteSql[] =  // clang-format off
+    "INSERT OR REPLACE INTO popups("
+      "opener_site,"
+      "popup_site,"
+      "access_id,"
+      "last_popup_time,"
+      "is_current_interaction,"
+      "is_authentication_interaction"
+    ") VALUES(?,?,?,?,?,?)";
+  // clang-format on
+  DCHECK(db_->IsSQLValid(kWriteSql));
+
+  SCOPED_UMA_HISTOGRAM_TIMER("Privacy.DIPS.Database.Operation.WritePopupTime");
+
+  sql::Statement statement(db_->GetCachedStatement(SQL_FROM_HERE, kWriteSql));
+  statement.BindString(0, opener_site);
+  statement.BindString(1, popup_site);
+  statement.BindInt64(2, access_id);
+  statement.BindTime(3, popup_time);
+  statement.BindBool(4, is_current_interaction);
+  statement.BindBool(5, is_authentication_interaction);
+
   return statement.Run();
 }
 
-absl::optional<StateValue> DIPSDatabase::Read(const std::string& site) {
+std::optional<StateValue> DIPSDatabase::Read(const std::string& site) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!CheckDBInit())
-    return absl::nullopt;
+  if (!CheckDBInit()) {
+    return std::nullopt;
+  }
 
   static constexpr char kReadSql[] =  // clang-format off
       "SELECT site,"
@@ -465,25 +442,41 @@ absl::optional<StateValue> DIPSDatabase::Read(const std::string& site) {
           "first_stateful_bounce_time,"
           "last_stateful_bounce_time,"
           "first_bounce_time,"
-          "last_bounce_time "
+          "last_bounce_time,"
+          "first_web_authn_assertion_time,"
+          "last_web_authn_assertion_time "
           "FROM bounces WHERE site=?";
   // clang-format on
   DCHECK(db_->IsSQLValid(kReadSql));
+
+  SCOPED_UMA_HISTOGRAM_TIMER("Privacy.DIPS.Database.Operation.ReadTime");
 
   sql::Statement statement(db_->GetCachedStatement(SQL_FROM_HERE, kReadSql));
   statement.BindString(0, site);
 
   if (!statement.Step()) {
-    return absl::nullopt;
+    if (statement.Succeeded() && site.empty()) {
+      base::UmaHistogramEnumeration("Privacy.DIPS.DIPSErrorCodes",
+                                    DIPSErrorCode::kRead_EmptySite_NotInDb);
+    }
+
+    return std::nullopt;
   }
-  // If the last interaction has expired, treat this entry as not in the
-  // database so that callers rewrite the entry for `site` as if it was deleted.
-  absl::optional<base::Time> last_user_interaction =
+
+  std::optional<base::Time> last_user_interaction_time =
       ColumnOptionalTime(&statement, 4);
-  if (last_user_interaction.has_value() &&
-      last_user_interaction.value() + dips::kInteractionTtl.Get() <
-          clock_->Now()) {
-    return absl::nullopt;
+  std::optional<base::Time> last_web_authn_assertion_time =
+      ColumnOptionalTime(&statement, 10);
+  // If the last interaction and last web authn assertion have expired, treat
+  // this entry as not in the database so that callers rewrite the entry for
+  // `site` as if it was deleted.
+  if (HasExpired(last_user_interaction_time.has_value()
+                     ? last_user_interaction_time
+                     : last_web_authn_assertion_time) &&
+      HasExpired(last_web_authn_assertion_time.has_value()
+                     ? last_web_authn_assertion_time
+                     : last_user_interaction_time)) {
+    return std::nullopt;
   }
 
   std::vector<DIPSErrorCode> errors;
@@ -494,6 +487,8 @@ absl::optional<StateValue> DIPSDatabase::Read(const std::string& site) {
   TimestampRange stateful_bounce_times =
       RangeFromColumns(&statement, 5, 6, errors);
   TimestampRange bounce_times = RangeFromColumns(&statement, 7, 8, errors);
+  TimestampRange web_authn_assertion_times =
+      RangeFromColumns(&statement, 9, 10, errors);
 
   if (!IsNullOrWithin(stateful_bounce_times, bounce_times)) {
     DCHECK(stateful_bounce_times.has_value());
@@ -510,6 +505,10 @@ absl::optional<StateValue> DIPSDatabase::Read(const std::string& site) {
     }
   }
 
+  if (site.empty()) {
+    errors.push_back(DIPSErrorCode::kRead_EmptySite_InDb);
+  }
+
   if (errors.empty()) {
     base::UmaHistogramEnumeration("Privacy.DIPS.DIPSErrorCodes",
                                   DIPSErrorCode::kRead_None);
@@ -519,42 +518,144 @@ absl::optional<StateValue> DIPSDatabase::Read(const std::string& site) {
     }
   }
 
+  // If `site` is an empty string, treat the entry as not in the database and
+  // remove it. See crbug.com/1447035 for context.
+  if (site.empty()) {
+    RemoveRow(DIPSDatabaseTable::kBounces, site);
+    return std::nullopt;
+  }
+
   return StateValue{site_storage_times, user_interaction_times,
-                    stateful_bounce_times, bounce_times};
+                    stateful_bounce_times, bounce_times,
+                    web_authn_assertion_times};
 }
 
-std::vector<std::string> DIPSDatabase::GetAllSitesForTesting() {
+std::optional<PopupsStateValue> DIPSDatabase::ReadPopup(
+    const std::string& opener_site,
+    const std::string& popup_site) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!CheckDBInit()) {
+    return std::nullopt;
+  }
+
+  static constexpr char kReadSql[] =  // clang-format off
+      "SELECT opener_site,"
+        "popup_site,"
+        "access_id,"
+        "last_popup_time, "
+        "is_current_interaction, "
+        "is_authentication_interaction "
+        "FROM popups "
+        "WHERE opener_site=? AND popup_site=?";
+  // clang-format on
+  DCHECK(db_->IsSQLValid(kReadSql));
+
+  SCOPED_UMA_HISTOGRAM_TIMER("Privacy.DIPS.Database.Operation.ReadPopupTime");
+
+  sql::Statement statement(db_->GetCachedStatement(SQL_FROM_HERE, kReadSql));
+  statement.BindString(0, opener_site);
+  statement.BindString(1, popup_site);
+
+  if (!statement.Step()) {
+    return std::nullopt;
+  }
+
+  uint64_t access_id = statement.ColumnInt64(2);
+  std::optional<base::Time> popup_time = ColumnOptionalTime(&statement, 3);
+  if (!popup_time.has_value()) {
+    return std::nullopt;
+  }
+  bool is_current_interaction = statement.ColumnBool(4);
+
+  bool is_authentication_interaction = statement.ColumnBool(5);
+
+  return PopupsStateValue{access_id, popup_time.value(), is_current_interaction,
+                          is_authentication_interaction};
+}
+
+std::vector<PopupWithTime> DIPSDatabase::ReadRecentPopupsWithInteraction(
+    const base::TimeDelta& lookback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!CheckDBInit()) {
+    return std::vector<PopupWithTime>();
+  }
+
+  static constexpr char kReadSql[] =  // clang-format off
+      "SELECT opener_site,popup_site,last_popup_time "
+      "FROM popups "
+      "WHERE "
+        "is_current_interaction "
+        "AND last_popup_time>?";
+  // clang-format on
+  DCHECK(db_->IsSQLValid(kReadSql));
+
+  SCOPED_UMA_HISTOGRAM_TIMER(
+      "Privacy.DIPS.Database.Operation.ReadRecentPopupsWithInteractionTime");
+
+  sql::Statement statement(db_->GetCachedStatement(SQL_FROM_HERE, kReadSql));
+  statement.BindTime(0, clock_->Now() - lookback);
+
+  std::vector<PopupWithTime> popups;
+  while (statement.Step()) {
+    popups.push_back(PopupWithTime{.opener_site = statement.ColumnString(0),
+                                   .popup_site = statement.ColumnString(1),
+                                   .last_popup_time = statement.ColumnTime(2)});
+  }
+  return popups;
+}
+
+std::vector<std::string> DIPSDatabase::GetAllSitesForTesting(
+    DIPSDatabaseTable table) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!CheckDBInit()) {
     return {};
   }
 
-  static constexpr char kReadSql[] =  // clang-format off
-      "SELECT site FROM bounces ORDER BY site";
-  // clang-format on
-
-  DCHECK(db_->IsSQLValid(kReadSql));
-  sql::Statement statement(db_->GetCachedStatement(SQL_FROM_HERE, kReadSql));
-
   std::vector<std::string> sites;
-  while (statement.Step()) {
-    sites.push_back(statement.ColumnString(0));
+
+  if (table == DIPSDatabaseTable::kBounces) {
+    static constexpr char kReadBounceTableSqlStr[] = "SELECT site FROM bounces";
+    DCHECK(db_->IsSQLValid(kReadBounceTableSqlStr));
+    sql::Statement s_bounces(
+        db_->GetCachedStatement(SQL_FROM_HERE, kReadBounceTableSqlStr));
+    while (s_bounces.Step()) {
+      sites.push_back(s_bounces.ColumnString(0));
+    }
+  } else if (table == DIPSDatabaseTable::kPopups) {
+    static constexpr char kReadPopupTableSqlStr[] =
+        "SELECT opener_site,popup_site FROM popups";
+    DCHECK(db_->IsSQLValid(kReadPopupTableSqlStr));
+    sql::Statement s_popups(
+        db_->GetCachedStatement(SQL_FROM_HERE, kReadPopupTableSqlStr));
+    while (s_popups.Step()) {
+      sites.push_back(s_popups.ColumnString(0));
+      sites.push_back(s_popups.ColumnString(1));
+    }
   }
+
   return sites;
 }
 
 std::vector<std::string> DIPSDatabase::GetSitesThatBounced(
-    const base::TimeDelta& grace_period) {
+    base::TimeDelta grace_period) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!CheckDBInit()) {
     return {};
   }
-  ClearRowsWithExpiredInteractions();
+
+  SCOPED_UMA_HISTOGRAM_TIMER(
+      "Privacy.DIPS.Database.Operation.GetSitesThatBouncedTime");
+
+  ClearExpiredRows();
+
   static constexpr char kBounceSql[] =  // clang-format off
-      "SELECT site FROM bounces "
-        "WHERE first_bounce_time < ? AND "
-        "last_user_interaction_time IS NULL "
-        "ORDER BY site";  // clang-format on
+    "SELECT site FROM bounces "
+    "WHERE "
+      "first_bounce_time<? "
+      "AND last_user_interaction_time IS NULL "
+      "AND last_web_authn_assertion_time IS NULL "
+    "ORDER BY site";
+  // clang-format on
   DCHECK(db_->IsSQLValid(kBounceSql));
   sql::Statement statement(db_->GetCachedStatement(SQL_FROM_HERE, kBounceSql));
   statement.BindTime(0, clock_->Now() - grace_period);
@@ -567,17 +668,25 @@ std::vector<std::string> DIPSDatabase::GetSitesThatBounced(
 }
 
 std::vector<std::string> DIPSDatabase::GetSitesThatBouncedWithState(
-    const base::TimeDelta& grace_period) {
+    base::TimeDelta grace_period) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!CheckDBInit()) {
     return {};
   }
-  ClearRowsWithExpiredInteractions();
+
+  SCOPED_UMA_HISTOGRAM_TIMER(
+      "Privacy.DIPS.Database.Operation.GetSitesThatBouncedWithStateTime");
+
+  ClearExpiredRows();
+
   static constexpr char kStatefulBounceSql[] =  // clang-format off
-      "SELECT site FROM bounces "
-        "WHERE first_stateful_bounce_time < ? AND "
-        "last_user_interaction_time IS NULL "
-        "ORDER BY site";  // clang-format on
+    "SELECT site FROM bounces "
+    "WHERE "
+      "first_stateful_bounce_time<? "
+      "AND last_user_interaction_time IS NULL "
+      "AND last_web_authn_assertion_time IS NULL "
+    "ORDER BY site";
+  // clang-format on
   DCHECK(db_->IsSQLValid(kStatefulBounceSql));
   sql::Statement statement(
       db_->GetCachedStatement(SQL_FROM_HERE, kStatefulBounceSql));
@@ -591,17 +700,25 @@ std::vector<std::string> DIPSDatabase::GetSitesThatBouncedWithState(
 }
 
 std::vector<std::string> DIPSDatabase::GetSitesThatUsedStorage(
-    const base::TimeDelta& grace_period) {
+    base::TimeDelta grace_period) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!CheckDBInit()) {
     return {};
   }
-  ClearRowsWithExpiredInteractions();
+
+  SCOPED_UMA_HISTOGRAM_TIMER(
+      "Privacy.DIPS.Database.Operation.GetSitesThatUsedStorageTime");
+
+  ClearExpiredRows();
+
   static constexpr char kStorageSql[] =  // clang-format off
     "SELECT site FROM bounces "
-      "WHERE first_site_storage_time < ? AND "
-        "last_user_interaction_time IS NULL "
-      "ORDER BY site";  // clang-format on
+    "WHERE "
+      "first_site_storage_time<? "
+      "AND last_user_interaction_time IS NULL "
+      "AND last_web_authn_assertion_time IS NULL "
+    "ORDER BY site";
+  // clang-format on
   DCHECK(db_->IsSQLValid(kStorageSql));
   sql::Statement statement(db_->GetCachedStatement(SQL_FROM_HERE, kStorageSql));
   statement.BindTime(0, clock_->Now() - grace_period);
@@ -613,74 +730,125 @@ std::vector<std::string> DIPSDatabase::GetSitesThatUsedStorage(
   return sites;
 }
 
-std::set<std::string> DIPSDatabase::FilterSitesWithInteraction(
+std::set<std::string> DIPSDatabase::FilterSitesWithProtectiveEvent(
     const std::set<std::string>& sites) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!CheckDBInit()) {
     return {};
   }
-  ClearRowsWithExpiredInteractions();
-  sql::Statement s_interactions(db_->GetUniqueStatement(
-      base::StrCat({"SELECT site,last_user_interaction_time FROM bounces "
-                    "WHERE site IN(",
-                    base::JoinString(
-                        std::vector<base::StringPiece>(sites.size(), "?"), ","),
-                    ")"})
-          .c_str()));
+
+  SCOPED_UMA_HISTOGRAM_TIMER(
+      "Privacy.DIPS.Database.Operation.FilterSitesWithProtectiveEventTime");
+
+  ClearExpiredRows();
+
+  sql::Statement statement(db_->GetUniqueStatement(base::StrCat(
+      {"SELECT site,last_user_interaction_time,"
+       "last_web_authn_assertion_time FROM bounces "
+       "WHERE site IN(",
+       base::JoinString(std::vector<std::string_view>(sites.size(), "?"), ","),
+       ")"})));
 
   int i = 0;
   for (const auto& site : sites) {
-    s_interactions.BindString(i, site);
+    statement.BindString(i, site);
     i++;
   }
 
-  std::set<std::string> interacted_sites;
-  while (s_interactions.Step()) {
-    if (ColumnOptionalTime(&s_interactions, 1).has_value()) {
-      interacted_sites.insert(s_interactions.ColumnString(0));
+  std::set<std::string> sites_with_protective_event;
+  while (statement.Step()) {
+    std::optional<base::Time> last_user_interaction =
+        ColumnOptionalTime(&statement, 1);
+    std::optional<base::Time> last_web_authn_assertion_time =
+        ColumnOptionalTime(&statement, 2);
+
+    if (last_user_interaction.has_value() ||
+        last_web_authn_assertion_time.has_value()) {
+      sites_with_protective_event.insert(statement.ColumnString(0));
     }
   }
-  return interacted_sites;
+  return sites_with_protective_event;
 }
 
-size_t DIPSDatabase::ClearRowsWithExpiredInteractions() {
+size_t DIPSDatabase::ClearExpiredRows() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(clock_);
   if (!CheckDBInit()) {
     return false;
   }
 
-  static constexpr char kClearAllExpiredSql[] =
-      "DELETE FROM bounces WHERE last_user_interaction_time < ?";
+  size_t change_count = 0;
 
-  DCHECK(db_->IsSQLValid(kClearAllExpiredSql));
-  sql::Statement statement(
-      db_->GetCachedStatement(SQL_FROM_HERE, kClearAllExpiredSql));
+  // NOTE: The SQLITE `MAX` and `MIN` return `NULL` if any value is `NULL`.
+  // That's why `COALESCE` is used.
+  static constexpr char kClearAllExpiredBouncesTableSql[] =  // clang-format off
+    "DELETE FROM bounces "
+    "WHERE MAX("
+      "COALESCE(last_user_interaction_time,last_web_authn_assertion_time),"
+      "COALESCE(last_web_authn_assertion_time,last_user_interaction_time)"
+    ")<?";
+  // clang-format on
 
-  statement.BindTime(0, clock_->Now() - dips::kInteractionTtl.Get());
-  if (!statement.Run()) {
+  DCHECK(db_->IsSQLValid(kClearAllExpiredBouncesTableSql));
+  sql::Statement bounces_statement(
+      db_->GetCachedStatement(SQL_FROM_HERE, kClearAllExpiredBouncesTableSql));
+  bounces_statement.BindTime(
+      0, clock_->Now() - features::kDIPSInteractionTtl.Get());
+  if (!bounces_statement.Run()) {
     return 0;
   }
+  change_count += db_->GetLastChangeCount();
 
-  return db_->GetLastChangeCount();
+  static constexpr char kClearAllExpiredPopupsTableSql[] =
+      "DELETE FROM popups "
+      "WHERE last_popup_time<?";
+
+  DCHECK(db_->IsSQLValid(kClearAllExpiredPopupsTableSql));
+  sql::Statement popups_statement(
+      db_->GetCachedStatement(SQL_FROM_HERE, kClearAllExpiredPopupsTableSql));
+  popups_statement.BindTime(0, clock_->Now() - kPopupTtl);
+  if (!popups_statement.Run()) {
+    return 0;
+  }
+  change_count += db_->GetLastChangeCount();
+
+  return change_count;
 }
 
-bool DIPSDatabase::RemoveRow(const std::string& site) {
+bool DIPSDatabase::RemoveRow(const DIPSDatabaseTable table,
+                             const std::string& site) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!CheckDBInit())
+  if (!CheckDBInit()) {
     return false;
-  ClearRowsWithExpiredInteractions();
+  }
 
-  static constexpr char kRemoveSql[] = "DELETE FROM bounces WHERE site=?";
-  DCHECK(db_->IsSQLValid(kRemoveSql));
+  ClearExpiredRows();
 
-  sql::Statement statement(db_->GetCachedStatement(SQL_FROM_HERE, kRemoveSql));
-  statement.BindString(0, site);
+  if (table == DIPSDatabaseTable::kBounces) {
+    static constexpr char kRemoveSql[] = "DELETE FROM bounces WHERE site=?";
+    DCHECK(db_->IsSQLValid(kRemoveSql));
+    sql::Statement statement(
+        db_->GetCachedStatement(SQL_FROM_HERE, kRemoveSql));
+    statement.BindString(0, site);
+    return statement.Run();
+  } else if (table == DIPSDatabaseTable::kPopups) {
+    static constexpr char kRemoveSql[] =
+        "DELETE FROM popups WHERE opener_site=? OR popup_site=?";
+    DCHECK(db_->IsSQLValid(kRemoveSql));
+    sql::Statement statement(
+        db_->GetCachedStatement(SQL_FROM_HERE, kRemoveSql));
+    statement.BindString(0, site);
+    statement.BindString(1, site);
+    return statement.Run();
+  }
 
-  return statement.Run();
+  // This should never be called - both DIPSDatabaseTable types are handled and
+  // return above.
+  return false;
 }
 
-bool DIPSDatabase::RemoveRows(const std::vector<std::string>& sites) {
+bool DIPSDatabase::RemoveRows(const DIPSDatabaseTable table,
+                              const std::vector<std::string>& sites) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!CheckDBInit()) {
     return false;
@@ -690,32 +858,50 @@ bool DIPSDatabase::RemoveRows(const std::vector<std::string>& sites) {
     return true;
   }
 
-  sql::Statement s_remove_rows(db_->GetUniqueStatement(
-      base::StrCat({"DELETE FROM bounces "
-                    "WHERE site IN(",
-                    base::JoinString(
-                        std::vector<base::StringPiece>(sites.size(), "?"), ","),
-                    ")"})
-          .c_str()));
+  SCOPED_UMA_HISTOGRAM_TIMER("Privacy.DIPS.Database.Operation.RemoveRowsTime");
 
-  for (size_t i = 0; i < sites.size(); i++) {
-    s_remove_rows.BindString(i, sites[i]);
+  const std::string site_list =
+      base::JoinString(std::vector<std::string_view>(sites.size(), "?"), ",");
+
+  if (table == DIPSDatabaseTable::kBounces) {
+    sql::Statement statement(db_->GetUniqueStatement(base::StrCat(
+        {"DELETE FROM bounces ", "WHERE site IN(", site_list, ")"})));
+    for (size_t i = 0; i < sites.size(); i++) {
+      statement.BindString(i, sites[i]);
+    }
+    return statement.Run();
+  } else if (table == DIPSDatabaseTable::kPopups) {
+    sql::Statement statement(db_->GetUniqueStatement(
+        base::StrCat({"DELETE FROM popups ", "WHERE opener_site IN(", site_list,
+                      ") OR popup_site IN(", site_list, ")"})));
+    for (size_t i = 0; i < sites.size(); i++) {
+      // There are 2 * sites.size() total bind locations, in the first and
+      // second site_list. Each site should be bound in both lists.
+      statement.BindString(i, sites[i]);
+      statement.BindString(i + sites.size(), sites[i]);
+    }
+    return statement.Run();
   }
 
-  return s_remove_rows.Run();
+  // This should never be called - both DIPSDatabaseTable types are handled and
+  // return above.
+  return false;
 }
 
 bool DIPSDatabase::RemoveEventsByTime(const base::Time& delete_begin,
                                       const base::Time& delete_end,
                                       const DIPSEventRemovalType type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!CheckDBInit())
+  if (!CheckDBInit()) {
     return false;
-  ClearRowsWithExpiredInteractions();
+  }
+
+  ClearExpiredRows();
 
   sql::Transaction transaction(db_.get());
-  if (!transaction.Begin())
+  if (!transaction.Begin()) {
     return false;
+  }
 
   GarbageCollect();
 
@@ -727,17 +913,20 @@ bool DIPSDatabase::RemoveEventsBySite(bool preserve,
                                       const std::vector<std::string>& sites,
                                       const DIPSEventRemovalType type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!CheckDBInit())
+  if (!CheckDBInit()) {
     return false;
+  }
 
   sql::Transaction transaction(db_.get());
-  if (!transaction.Begin())
+  if (!transaction.Begin()) {
     return false;
+  }
 
   GarbageCollect();
 
-  if (!ClearTimestampsBySite(preserve, sites, type))
+  if (!ClearTimestampsBySite(preserve, sites, type)) {
     return false;
+  }
 
   return transaction.Commit();
 }
@@ -746,9 +935,14 @@ bool DIPSDatabase::ClearTimestamps(const base::Time& delete_begin,
                                    const base::Time& delete_end,
                                    const DIPSEventRemovalType type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!CheckDBInit())
+  if (!CheckDBInit()) {
     return false;
-  ClearRowsWithExpiredInteractions();
+  }
+
+  SCOPED_UMA_HISTOGRAM_TIMER(
+      "Privacy.DIPS.Database.Operation.ClearTimestampsTime");
+
+  ClearExpiredRows();
 
   if ((type & DIPSEventRemovalType::kHistory) ==
       DIPSEventRemovalType::kHistory) {
@@ -769,13 +963,46 @@ bool DIPSDatabase::ClearTimestamps(const base::Time& delete_begin,
     if (!s_clear_interaction.Run()) {
       return false;
     }
+
+    static constexpr char kClearWaaSql[] =  // clang-format off
+        "UPDATE bounces SET "
+            "first_web_authn_assertion_time=NULL,"
+            "last_web_authn_assertion_time=NULL "
+            "WHERE first_web_authn_assertion_time>=? AND "
+                  "last_web_authn_assertion_time<=?";
+    // clang-format on
+    DCHECK(db_->IsSQLValid(kClearWaaSql));
+
+    sql::Statement s_clear_waa(
+        db_->GetCachedStatement(SQL_FROM_HERE, kClearWaaSql));
+    s_clear_waa.BindTime(0, delete_begin);
+    s_clear_waa.BindTime(1, delete_end);
+
+    if (!s_clear_waa.Run()) {
+      return false;
+    }
+
+    static constexpr char kClearPopupsSql[] =  // clang-format off
+        "DELETE FROM popups "
+        "WHERE last_popup_time>=? AND last_popup_time<=?";
+    // clang-format on
+    DCHECK(db_->IsSQLValid(kClearPopupsSql));
+
+    sql::Statement s_clear_popups(
+        db_->GetCachedStatement(SQL_FROM_HERE, kClearPopupsSql));
+    s_clear_popups.BindTime(0, delete_begin);
+    s_clear_popups.BindTime(1, delete_end);
+
+    if (!s_clear_popups.Run()) {
+      return false;
+    }
   }
 
   if ((type & DIPSEventRemovalType::kStorage) ==
       DIPSEventRemovalType::kStorage) {
     static constexpr char kClearStorageSql[] =  // clang-format off
         "UPDATE bounces SET "
-            "first_site_storage_time=NULL, "
+            "first_site_storage_time=NULL,"
             "last_site_storage_time=NULL "
             "WHERE first_site_storage_time>=? AND "
                   "last_site_storage_time<=?";
@@ -837,9 +1064,11 @@ bool DIPSDatabase::AdjustFirstTimestamps(const base::Time& delete_begin,
                                          const base::Time& delete_end,
                                          const DIPSEventRemovalType type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!CheckDBInit())
+  if (!CheckDBInit()) {
     return false;
-  ClearRowsWithExpiredInteractions();
+  }
+
+  ClearExpiredRows();
 
   if (delete_end == base::Time::Max()) {
     // When `delete_end` is `base::Time::Max()`, any timestamp range that would
@@ -863,6 +1092,22 @@ bool DIPSDatabase::AdjustFirstTimestamps(const base::Time& delete_begin,
     s_first_interaction.BindTime(1, delete_end);
 
     if (!s_first_interaction.Run()) {
+      return false;
+    }
+
+    static constexpr char kUpdateFirstWaaSql[] =  // clang-format off
+        "UPDATE bounces SET first_web_authn_assertion_time=?2 "
+            "WHERE first_web_authn_assertion_time>=?1 AND "
+                  "first_web_authn_assertion_time<?2";
+    // clang-format on
+    DCHECK(db_->IsSQLValid(kUpdateFirstWaaSql));
+
+    sql::Statement s_first_waa(
+        db_->GetCachedStatement(SQL_FROM_HERE, kUpdateFirstWaaSql));
+    s_first_waa.BindTime(0, delete_begin);
+    s_first_waa.BindTime(1, delete_end);
+
+    if (!s_first_waa.Run()) {
       return false;
     }
   }
@@ -925,9 +1170,11 @@ bool DIPSDatabase::AdjustLastTimestamps(const base::Time& delete_begin,
                                         const base::Time& delete_end,
                                         const DIPSEventRemovalType type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!CheckDBInit())
+  if (!CheckDBInit()) {
     return false;
-  ClearRowsWithExpiredInteractions();
+  }
+
+  ClearExpiredRows();
 
   if (delete_begin == base::Time::Min()) {
     // When `delete_begin` is `base::Time::Min()`, any timestamp range that
@@ -951,6 +1198,22 @@ bool DIPSDatabase::AdjustLastTimestamps(const base::Time& delete_begin,
     s_last_interaction.BindTime(1, delete_end);
 
     if (!s_last_interaction.Run()) {
+      return false;
+    }
+
+    static constexpr char kUpdateLastWaaSql[] =  // clang-format off
+        "UPDATE bounces SET last_web_authn_assertion_time=?1 "
+            "WHERE last_web_authn_assertion_time>?1 AND "
+                  "last_web_authn_assertion_time<=?2";
+    // clang-format on
+    DCHECK(db_->IsSQLValid(kUpdateLastWaaSql));
+
+    sql::Statement s_last_waa(
+        db_->GetCachedStatement(SQL_FROM_HERE, kUpdateLastWaaSql));
+    s_last_waa.BindTime(0, delete_begin);
+    s_last_waa.BindTime(1, delete_end);
+
+    if (!s_last_waa.Run()) {
       return false;
     }
   }
@@ -1014,11 +1277,12 @@ bool DIPSDatabase::ClearTimestampsBySite(bool preserve,
                                          const DIPSEventRemovalType type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (sites.empty())
+  if (sites.empty()) {
     return true;
+  }
 
   std::string placeholders =
-      base::JoinString(std::vector<base::StringPiece>(sites.size(), "?"), ",");
+      base::JoinString(std::vector<std::string_view>(sites.size(), "?"), ",");
 
   if ((type & DIPSEventRemovalType::kStorage) ==
       DIPSEventRemovalType::kStorage) {
@@ -1032,14 +1296,15 @@ bool DIPSDatabase::ClearTimestampsBySite(bool preserve,
                           "last_bounce_time=NULL "
                           "WHERE site ", (preserve ? "NOT " : ""),
                               "IN(", placeholders, ")" })  // clang-format on
-            .c_str()));
+        ));
 
     for (size_t i = 0; i < sites.size(); i++) {
       s_clear_storage.BindString(i, sites[i]);
     }
 
-    if (!s_clear_storage.Run())
+    if (!s_clear_storage.Run()) {
       return false;
+    }
   }
 
   return RemoveEmptyRows();
@@ -1049,101 +1314,247 @@ bool DIPSDatabase::RemoveEmptyRows() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   static constexpr char kCleanUpSql[] =  // clang-format off
-      "DELETE FROM bounces "
-          "WHERE first_site_storage_time IS NULL AND "
-                "last_site_storage_time IS NULL AND "
-                "first_user_interaction_time IS NULL AND "
-                "last_user_interaction_time IS NULL AND "
-                "first_stateful_bounce_time IS NULL AND "
-                "last_stateful_bounce_time IS NULL AND "
-                "first_bounce_time IS NULL AND "
-                "last_bounce_time IS NULL";
+    "DELETE FROM bounces "
+    "WHERE first_site_storage_time IS NULL "
+      "AND last_site_storage_time IS NULL "
+      "AND first_user_interaction_time IS NULL "
+      "AND last_user_interaction_time IS NULL "
+      "AND first_stateful_bounce_time IS NULL "
+      "AND last_stateful_bounce_time IS NULL "
+      "AND first_bounce_time IS NULL "
+      "AND last_bounce_time IS NULL "
+      "AND first_web_authn_assertion_time IS NULL "
+      "AND last_web_authn_assertion_time IS NULL";
   // clang-format on
   DCHECK(db_->IsSQLValid(kCleanUpSql));
-
   sql::Statement s_clean(db_->GetCachedStatement(SQL_FROM_HERE, kCleanUpSql));
+
+  // Clearing the `popups` table is unnecessary because there are no operations
+  // to nullify individual rows.
 
   return s_clean.Run();
 }
 
-size_t DIPSDatabase::GetEntryCount() {
+size_t DIPSDatabase::GetEntryCount(const DIPSDatabaseTable table) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!CheckDBInit())
+  if (!CheckDBInit()) {
     return 0;
-  ClearRowsWithExpiredInteractions();
+  }
 
-  sql::Statement s_entry_count(
-      db_->GetCachedStatement(SQL_FROM_HERE, "SELECT COUNT(*) FROM bounces"));
-  return (s_entry_count.Step() ? s_entry_count.ColumnInt(0) : 0);
+  ClearExpiredRows();
+
+  if (table == DIPSDatabaseTable::kBounces) {
+    static constexpr char kBounceTableEntryCountSqlStr[] =
+        "SELECT COUNT(*) FROM bounces";
+    sql::Statement statement(
+        db_->GetCachedStatement(SQL_FROM_HERE, kBounceTableEntryCountSqlStr));
+    return (statement.Step() ? statement.ColumnInt(0) : 0);
+  } else if (table == DIPSDatabaseTable::kPopups) {
+    static constexpr char kPopupTableEntryCountSqlStr[] =
+        "SELECT COUNT(*) FROM popups";
+    sql::Statement statement(
+        db_->GetCachedStatement(SQL_FROM_HERE, kPopupTableEntryCountSqlStr));
+    return (statement.Step() ? statement.ColumnInt(0) : 0);
+  }
+
+  // This should never be called - both DIPSDatabaseTable types are handled and
+  // return above.
+  return false;
 }
 
 size_t DIPSDatabase::GarbageCollect() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!CheckDBInit())
+  if (!CheckDBInit()) {
     return 0;
+  }
 
-  size_t num_deleted = ClearRowsWithExpiredInteractions();
-  size_t num_entries = GetEntryCount();
-  int purge_goal = num_entries - (max_entries_ - purge_entries_);
+  size_t num_deleted = ClearExpiredRows();
 
-  if (num_entries <= max_entries_)
-    return num_deleted;
+  for (const DIPSDatabaseTable table :
+       {DIPSDatabaseTable::kBounces, DIPSDatabaseTable::kPopups}) {
+    // NOTE: `GetEntryCount()` might perform other row deletions whilst
+    // re-calling `ClearExpiredRows()`, but possible precision lost in the final
+    // num_delete isn't deemed crucial.
+    const size_t num_entries = GetEntryCount(table);
+    if (num_entries <= max_entries_) {
+      continue;
+    }
 
-  DCHECK_GT(purge_goal, 0);
-
-  // If expiration did not purge enough entries, remove entries with the oldest
-  // |MAX(last_user_interaction_time,last_site_storage_time)| values until the
-  // |purge_goal| is satisfied.
-  if (num_deleted < static_cast<size_t>(purge_goal)) {
-    num_deleted += GarbageCollectOldest(purge_goal - num_deleted);
+    const int purge_goal = num_entries - (max_entries_ - purge_entries_);
+    DCHECK_GT(purge_goal, 0);
+    num_deleted += GarbageCollectOldest(table, purge_goal);
   }
 
   return num_deleted;
 }
 
-size_t DIPSDatabase::GarbageCollectOldest(int purge_goal) {
+size_t DIPSDatabase::GarbageCollectOldest(const DIPSDatabaseTable table,
+                                          int purge_goal) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!CheckDBInit())
+  if (!CheckDBInit()) {
     return 0;
+  }
 
-  static constexpr char kGarbageCollectOldestSql[] =  // clang-format off
-      "DELETE FROM bounces WHERE site "
-          "IN(SELECT site FROM bounces "
-              "ORDER BY "
-                  "MAX(last_user_interaction_time,last_site_storage_time) ASC,"
-                      "last_site_storage_time ASC "
-              "LIMIT ?)";
-  // clang-format on
-  DCHECK(db_->IsSQLValid(kGarbageCollectOldestSql));
+  if (table == DIPSDatabaseTable::kBounces) {
+    static constexpr char kGarbageCollectOldestSql[] =  // clang-format off
+    "DELETE FROM bounces "
+    "WHERE site IN("
+      "SELECT site FROM bounces "
+      "ORDER BY "
+        "MAX("
+          "COALESCE("
+            "last_user_interaction_time,"
+            "last_web_authn_assertion_time,"
+            "last_site_storage_time"
+          "),"
+          "COALESCE("
+            "last_web_authn_assertion_time,"
+            "last_user_interaction_time,"
+            "last_site_storage_time"
+          "),"
+          "COALESCE("
+            "last_site_storage_time,"
+            "last_user_interaction_time,"
+            "last_web_authn_assertion_time"
+          ")"
+        ") ASC,"
+        "last_user_interaction_time ASC,"
+        "last_web_authn_assertion_time ASC,"
+        "last_site_storage_time ASC "
+      "LIMIT ?"
+    ")";
+    // clang-format on
+    DCHECK(db_->IsSQLValid(kGarbageCollectOldestSql));
 
-  sql::Statement s_garbage_collect_oldest(
-      db_->GetCachedStatement(SQL_FROM_HERE, kGarbageCollectOldestSql));
-  s_garbage_collect_oldest.BindInt(0, purge_goal);
+    sql::Statement statement(
+        db_->GetCachedStatement(SQL_FROM_HERE, kGarbageCollectOldestSql));
+    statement.BindInt(0, purge_goal);
+    return statement.Run() ? db_->GetLastChangeCount() : 0;
+  } else if (table == DIPSDatabaseTable::kPopups) {
+    static constexpr char kGarbageCollectOldestSql[] =  // clang-format off
+    "DELETE FROM popups "
+    "WHERE (opener_site,popup_site) IN("
+      "SELECT opener_site,popup_site "
+      "FROM popups "
+      "ORDER BY last_popup_time ASC "
+      "LIMIT ?"
+    ")";
+    // clang-format on
+    DCHECK(db_->IsSQLValid(kGarbageCollectOldestSql));
 
-  if (!s_garbage_collect_oldest.Run())
-    return 0;
+    sql::Statement statement(
+        db_->GetCachedStatement(SQL_FROM_HERE, kGarbageCollectOldestSql));
+    statement.BindInt(0, purge_goal);
+    return statement.Run() ? db_->GetLastChangeCount() : 0;
+  }
 
-  return db_->GetLastChangeCount();
+  // This should never be called - both DIPSDatabaseTable types are handled and
+  // return above.
+  return false;
 }
 
-bool DIPSDatabase::MarkAsPrepopulated() {
+std::vector<std::string> DIPSDatabase::GetGarbageCollectOldestSitesForTesting(
+    DIPSDatabaseTable table) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!CheckDBInit()) {
+    return {};
+  }
+
+  std::vector<std::string> sites;
+  if (table == DIPSDatabaseTable::kBounces) {
+    static constexpr char kReadSql[] =  // clang-format off
+    "SELECT site FROM bounces "
+    "ORDER BY "
+      "MAX("
+        "COALESCE("
+          "last_user_interaction_time,"
+          "last_web_authn_assertion_time,"
+          "last_site_storage_time"
+        "),"
+        "COALESCE("
+          "last_web_authn_assertion_time,"
+          "last_user_interaction_time,"
+          "last_site_storage_time"
+        "),"
+        "COALESCE("
+          "last_site_storage_time,"
+          "last_user_interaction_time,"
+          "last_web_authn_assertion_time"
+        ")"
+      ") ASC,"
+      "last_user_interaction_time ASC,"
+      "last_web_authn_assertion_time ASC,"
+      "last_site_storage_time ASC";
+    // clang-format on
+    DCHECK(db_->IsSQLValid(kReadSql));
+
+    sql::Statement statement(db_->GetCachedStatement(SQL_FROM_HERE, kReadSql));
+    while (statement.Step()) {
+      sites.push_back(statement.ColumnString(0));
+    }
+  } else if (table == DIPSDatabaseTable::kPopups) {
+    static constexpr char kReadSql[] =
+        "SELECT opener_site,popup_site "
+        "FROM popups "
+        "ORDER BY last_popup_time ASC";
+    DCHECK(db_->IsSQLValid(kReadSql));
+
+    sql::Statement statement(db_->GetCachedStatement(SQL_FROM_HERE, kReadSql));
+    while (statement.Step()) {
+      sites.push_back(statement.ColumnString(0));
+    }
+  }
+
+  return sites;
+}
+
+bool DIPSDatabase::SetConfigValue(std::string_view key, int64_t value) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!CheckDBInit()) {
     return false;
   }
-  return meta_table_.SetValue(kPrepopulatedKey, 1);
+
+  static constexpr char kInsertValueSql[] =
+      "INSERT OR REPLACE INTO config(key,int_value) VALUES(?,?)";
+  DCHECK(db_->IsSQLValid(kInsertValueSql));
+  sql::Statement statement(
+      db_->GetCachedStatement(SQL_FROM_HERE, kInsertValueSql));
+  statement.BindString(0, key);
+  statement.BindInt64(1, value);
+
+  return statement.Run();
 }
 
-bool DIPSDatabase::IsPrepopulated() {
+std::optional<int64_t> DIPSDatabase::GetConfigValue(std::string_view key) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!CheckDBInit()) {
-    return false;
+    return std::nullopt;
   }
-  int result;
-  bool has_key = meta_table_.GetValue(kPrepopulatedKey, &result);
-  if (!has_key) {
-    meta_table_.SetValue(kPrepopulatedKey, 0);
-    return false;
+
+  static constexpr char kSelectValueSql[] =
+      "SELECT int_value FROM config WHERE key = ?";
+  DCHECK(db_->IsSQLValid(kSelectValueSql));
+  sql::Statement statement(
+      db_->GetCachedStatement(SQL_FROM_HERE, kSelectValueSql));
+  statement.BindString(0, key);
+
+  if (!statement.Step()) {
+    return std::nullopt;
   }
-  return result;
+
+  return statement.ColumnInt64(0);
+}
+
+std::optional<base::Time> DIPSDatabase::GetTimerLastFired() {
+  std::optional<int64_t> raw_value = GetConfigValue(kTimerLastFiredKey);
+  if (!raw_value.has_value()) {
+    return std::nullopt;
+  }
+
+  return base::Time::FromDeltaSinceWindowsEpoch(base::Microseconds(*raw_value));
+}
+
+bool DIPSDatabase::SetTimerLastFired(base::Time time) {
+  return SetConfigValue(kTimerLastFiredKey,
+                        time.ToDeltaSinceWindowsEpoch().InMicroseconds());
 }

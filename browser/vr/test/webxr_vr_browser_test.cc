@@ -33,7 +33,7 @@ void WebXrVrBrowserTestBase::EnterSessionWithUserGesture(
   GetPermissionRequestManager()->set_auto_response_for_test(
       permission_auto_response_);
 
-  // ExecuteScript runs with a user gesture, so we can just directly call
+  // ExecJs runs with a user gesture, so we can just directly call
   // requestSession instead of having to do the hacky workaround the
   // instrumentation tests use of actually sending a click event to the canvas.
   RunJavaScriptOrFail("onRequestSession()", web_contents);
@@ -103,6 +103,7 @@ WebXrVrRuntimelessBrowserTestSensorless::
 #if BUILDFLAG(ENABLE_OPENXR)
 WebXrVrOpenXrBrowserTestBase::WebXrVrOpenXrBrowserTestBase() {
   enable_features_.push_back(device::features::kOpenXR);
+  enable_features_.push_back(device::features::kWebXrHandInput);
 }
 
 WebXrVrOpenXrBrowserTestBase::~WebXrVrOpenXrBrowserTestBase() = default;

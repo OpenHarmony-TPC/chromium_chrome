@@ -37,8 +37,12 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/login/users/scoped_test_user_manager.h"
+#include "chrome/browser/ash/login/users/user_manager_delegate_impl.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
+#include "chrome/browser/browser_process.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
+#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/user_manager_impl.h"
 #endif
 
 using ::testing::StrictMock;
@@ -88,13 +92,12 @@ void ExtensionTestingProfile::AddExtension(std::string extension_id,
   scoped_refptr<const extensions::Extension> extension =
       extensions::ExtensionBuilder()
           .SetID(extension_id)
-          .SetManifest(extensions::DictionaryBuilder()
+          .SetManifest(base::Value::Dict()
                            .Set("name", extension_name)
                            .Set("version", version)
                            .Set("manifest_version", 2)
                            .Set("description", description)
-                           .Set("update_url", update_url)
-                           .Build())
+                           .Set("update_url", update_url))
           .Build();
 
   // Install the extension on the faked extension service.
@@ -136,7 +139,9 @@ class ExtensionDataCollectionTest : public testing::Test {
         TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(profile_manager_->SetUp());
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-    test_user_manager_ = std::make_unique<ash::ScopedTestUserManager>();
+    user_manager_.Reset(std::make_unique<user_manager::UserManagerImpl>(
+        std::make_unique<ash::UserManagerDelegateImpl>(),
+        g_browser_process->local_state(), ash::CrosSettings::Get()));
 #endif
   }
 
@@ -144,7 +149,7 @@ class ExtensionDataCollectionTest : public testing::Test {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
     // UserManager should be destroyed before TestingBrowserProcess as it
     // uses it in destructor.
-    test_user_manager_.reset();
+    user_manager_.Reset();
     // Finish any pending tasks before deleting the TestingBrowserProcess.
     task_environment_.RunUntilIdle();
 #endif
@@ -190,7 +195,7 @@ class ExtensionDataCollectionTest : public testing::Test {
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   ash::ScopedCrosSettingsTestHelper cros_settings_test_helper_;
-  std::unique_ptr<ash::ScopedTestUserManager> test_user_manager_;
+  user_manager::ScopedUserManager user_manager_;
 #endif
 };
 
@@ -257,7 +262,8 @@ TEST_F(ExtensionDataCollectionTest, CollectExtensionDataWithExtension) {
 
   ASSERT_EQ(extension_info.id(), extension_id);
   ASSERT_EQ(extension_info.name(), extension_name);
-  ASSERT_EQ(extension_info.install_time_msec(), install_time.ToJavaTime());
+  ASSERT_EQ(extension_info.install_time_msec(),
+            install_time.InMillisecondsSinceUnixEpoch());
   ASSERT_EQ(extension_info.version(), version);
   ASSERT_EQ(extension_info.description(), description);
   ASSERT_EQ(extension_info.update_url(), update_url);
@@ -293,7 +299,8 @@ TEST_F(ExtensionDataCollectionTest, CollectsLastInstalledExtension) {
 
   ASSERT_EQ(extension_info.id(), extension_id);
   ASSERT_EQ(extension_info.name(), extension_name);
-  ASSERT_EQ(extension_info.install_time_msec(), install_time.ToJavaTime());
+  ASSERT_EQ(extension_info.install_time_msec(),
+            install_time.InMillisecondsSinceUnixEpoch());
 }
 
 TEST_F(ExtensionDataCollectionTest, IgnoresExtensionsIfNoExtendedSafeBrowsing) {

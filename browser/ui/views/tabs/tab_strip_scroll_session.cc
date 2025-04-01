@@ -84,7 +84,7 @@ bool TabStripScrollSessionWithTimer::IsRunning() {
 }
 
 int TabStripScrollSessionWithTimer::CalculateSpeed() {
-  // TODO(crbug.com/1378735): Use the expected offset at a given time to
+  // TODO(crbug.com/40875170): Use the expected offset at a given time to
   // calculate the current offset. This can help with making up
   // for rounding off the calculation to int in the next call.
   // Also use the time elapsed to calculate the expected offset.
@@ -109,13 +109,13 @@ int TabStripScrollSessionWithTimer::CalculateSpeed() {
                         CalculateBaseScrollOffset() * -3, 0.0));
       }
     default:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 }
 
 double TabStripScrollSessionWithTimer::CalculateBaseScrollOffset() {
   return kNumberOfTabsScrolledPerSecond *
-         TabStyleViews::Create()->GetMinimumInactiveWidth() *
+         TabStyle::Get()->GetMinimumInactiveWidth() *
          (kScrollTimerDelay / base::Milliseconds(1000));
 }
 
@@ -173,7 +173,7 @@ TabStripScrollSessionWithTimer::GetTabScrollDirection() {
       dragged_tabs_rect_drag_context_coord.origin().x() <=
       (visible_rect_drag_context_coord.origin().x() + GetScrollableOffset());
 
-  // TODO(crbug.com/1378683): Add case for both maybe scroll left and right.
+  // TODO(crbug.com/40875138): Add case for both maybe scroll left and right.
   // This would happen when many tabs are selected.
   if (maybe_scroll_towards_trailing_tabs) {
     return TabStripScrollSession::TabScrollDirection::
@@ -186,5 +186,5 @@ TabStripScrollSessionWithTimer::GetTabScrollDirection() {
 }
 
 int TabStripScrollSession::GetScrollableOffset() const {
-  return TabStyleViews::Create()->GetMinimumInactiveWidth() / 5;
+  return TabStyle::Get()->GetMinimumInactiveWidth() / 5;
 }

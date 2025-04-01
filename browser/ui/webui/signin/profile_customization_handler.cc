@@ -18,9 +18,9 @@
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/profile_picker.h"
-#include "chrome/browser/ui/signin/profile_colors_util.h"
-#include "chrome/browser/ui/signin/profile_customization_util.h"
+#include "chrome/browser/ui/profiles/profile_colors_util.h"
+#include "chrome/browser/ui/profiles/profile_customization_util.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
@@ -143,7 +143,7 @@ void ProfileCustomizationHandler::HandleDone(const base::Value::List& args) {
     // finalized when customization is successfully completed.
     FinalizeNewProfileSetup(profile_, profile_name, /*is_default_name=*/false);
   } else {
-    // TODO(crbug.com/1432944): Look into whether this branch should be also
+    // TODO(crbug.com/40264199): Look into whether this branch should be also
     // covered by calling FinalizeNewProfileSetup().
     GetProfileEntry()->SetLocalProfileName(profile_name,
                                            /*is_default_name=*/false);
