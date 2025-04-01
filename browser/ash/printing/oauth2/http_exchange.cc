@@ -37,7 +37,6 @@ std::string ToString(ContentFormat format) {
     default:
       NOTREACHED();
   }
-  return "";
 }
 
 }  // namespace

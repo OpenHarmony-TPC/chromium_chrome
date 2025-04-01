@@ -13,6 +13,7 @@ namespace soda {
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+// LINT.IfChange(LoadSodaResultValue)
 enum class LoadSodaResultValue {
   kUnknown = 0,
   kSuccess = 1,
@@ -20,6 +21,7 @@ enum class LoadSodaResultValue {
   kFunctionPointerInvalid = 3,
   kMaxValue = kFunctionPointerInvalid,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/accessibility/enums.xml:LoadSodaResult)
 
 // The client that wraps the plain C-style interface between Chrome and the
 // Speech On-Device API (SODA). Changes to the interface must be backwards
@@ -74,8 +76,10 @@ class SodaClient {
   typedef void (*SodaStartFunction)(void*);
   SodaStartFunction soda_start_func_;
 
-  // An opaque handle to the SODA async instance.
-  raw_ptr<void> soda_async_handle_;
+  // An opaque handle to the SODA async instance. While this class owns this
+  // handle, the handle is instantiated and deleted by the SODA library, so the
+  // pointer may dangle after DeleteExtendedSodaAsync is called.
+  raw_ptr<void, DisableDanglingPtrDetection> soda_async_handle_;
 
   LoadSodaResultValue load_soda_result_ = LoadSodaResultValue::kUnknown;
   bool is_initialized_;

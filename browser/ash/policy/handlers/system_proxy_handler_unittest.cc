@@ -77,10 +77,10 @@ class SystemProxyHandlerTest : public testing::Test {
   void SetPolicy(bool system_proxy_enabled,
                  const std::string& system_services_username,
                  const std::string& system_services_password) {
-    base::Value::Dict dict;
-    dict.Set("system_proxy_enabled", system_proxy_enabled);
-    dict.Set("system_services_username", system_services_username);
-    dict.Set("system_services_password", system_services_password);
+    auto dict = base::Value::Dict()
+                    .Set("system_proxy_enabled", system_proxy_enabled)
+                    .Set("system_services_username", system_services_username)
+                    .Set("system_services_password", system_services_password);
     scoped_testing_cros_settings_.device_settings()->Set(
         ash::kSystemProxySettings, base::Value(std::move(dict)));
     task_environment_.RunUntilIdle();
@@ -88,9 +88,9 @@ class SystemProxyHandlerTest : public testing::Test {
 
   void SetManagedProxy(Profile* profile) {
     // Configure a proxy via user policy.
-    base::Value::Dict proxy_config;
-    proxy_config.Set("mode", ProxyPrefs::kFixedServersProxyModeName);
-    proxy_config.Set("server", kProxyAuthUrl);
+    auto proxy_config = base::Value::Dict()
+                            .Set("mode", ProxyPrefs::kFixedServersProxyModeName)
+                            .Set("server", kProxyAuthUrl);
     profile->GetPrefs()->SetDict(proxy_config::prefs::kProxy,
                                  std::move(proxy_config));
     task_environment_.RunUntilIdle();
@@ -103,10 +103,10 @@ class SystemProxyHandlerTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<ash::NetworkHandlerTestHelper> network_handler_test_helper_;
   ScopedTestingLocalState local_state_;
-  std::unique_ptr<TestingProfile> profile_;
   ash::ScopedTestingCrosSettings scoped_testing_cros_settings_;
   ash::ScopedDeviceSettingsTestHelper device_settings_test_helper_;
   ash::ScopedStubInstallAttributes test_install_attributes_;
+  std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<SystemProxyHandler> system_proxy_handler_;
   std::unique_ptr<ash::SystemProxyManager> system_proxy_manager_;
 };

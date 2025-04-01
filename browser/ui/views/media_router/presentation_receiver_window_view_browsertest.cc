@@ -110,8 +110,8 @@ class PresentationReceiverWindowViewBrowserTest : public InProcessBrowserTest {
 
   const gfx::Rect bounds_{100, 100};
   std::unique_ptr<FakeReceiverDelegate> fake_delegate_;
-  raw_ptr<PresentationReceiverWindowView, DanglingUntriaged> receiver_view_ =
-      nullptr;
+  raw_ptr<PresentationReceiverWindowView, AcrossTasksDanglingUntriaged>
+      receiver_view_ = nullptr;
 };
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -157,8 +157,7 @@ IN_PROC_BROWSER_TEST_F(PresentationReceiverWindowViewBrowserTest,
         std::move(fullscreen_callback_).Run();
     }
 
-    const raw_ptr<PresentationReceiverWindowView, ExperimentalAsh>
-        receiver_view_;
+    const raw_ptr<PresentationReceiverWindowView> receiver_view_;
     base::CallbackListSubscription subscription_;
     const AwaitType await_type_;
     base::OnceClosure fullscreen_callback_;
@@ -230,10 +229,10 @@ IN_PROC_BROWSER_TEST_F(PresentationReceiverWindowViewBrowserTest,
   gfx::Point local_icon_center(local_bounds.x() + local_bounds.width() / 2,
                                local_bounds.y() + local_bounds.height() / 2);
   ui::MouseEvent security_chip_press_event(
-      ui::ET_MOUSE_PRESSED, local_icon_center, local_icon_center,
+      ui::EventType::kMousePressed, local_icon_center, local_icon_center,
       base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON);
   ui::MouseEvent security_chip_release_event(
-      ui::ET_MOUSE_RELEASED, local_icon_center, local_icon_center,
+      ui::EventType::kMouseReleased, local_icon_center, local_icon_center,
       base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON);
 
   location_icon_view->OnMousePressed(security_chip_press_event);

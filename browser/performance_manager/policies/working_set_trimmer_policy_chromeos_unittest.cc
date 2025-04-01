@@ -12,10 +12,14 @@
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ash/arc/process/arc_process.h"
 #include "chrome/browser/ash/arc/process/arc_process_service.h"
+#include "chrome/browser/ash/arc/vmm/arcvm_working_set_trim_executor.h"
 #include "chrome/browser/performance_manager/policies/policy_features.h"
 #include "chrome/browser/performance_manager/policies/working_set_trimmer_policy_arcvm.h"
+#include "chromeos/dbus/power/fake_power_manager_client.h"
+#include "chromeos/dbus/power_manager/suspend.pb.h"
 #include "components/performance_manager/graph/graph_impl_operations.h"
 #include "components/performance_manager/graph/page_node_impl.h"
 #include "components/performance_manager/graph/process_node_impl.h"
@@ -69,7 +73,7 @@ using testing::Return;
 // system update.
 int64_t GetSystemTimeInPastAsMsSinceUptime(base::TimeDelta delta) {
   const base::Time cur_time = base::Time::NowFromSystemTime();
-  return (cur_time - delta).ToJavaTime();
+  return (cur_time - delta).InMillisecondsSinceUnixEpoch();
 }
 
 class ScopedTestArcVmDelegate
@@ -109,7 +113,7 @@ class ScopedTestArcVmDelegate
   }
 
  private:
-  const raw_ptr<WorkingSetTrimmerPolicyChromeOS, ExperimentalAsh> policy_;
+  const raw_ptr<WorkingSetTrimmerPolicyChromeOS> policy_;
   mechanism::ArcVmReclaimType eligibility_;
   bool is_first_trim_post_boot_;
 };
@@ -263,6 +267,18 @@ class MockWorkingSetTrimmerPolicyChromeOS
   }
 };
 
+class PageNodeContext {
+ public:
+  TestNodeWrapper<ProcessNodeImpl> process_node_;
+  TestNodeWrapper<PageNodeImpl> page_node_;
+  TestNodeWrapper<FrameNodeImpl> parent_frame_;
+
+  PageNodeContext() = default;
+  ~PageNodeContext() = default;
+  PageNodeContext(const PageNodeContext&) = delete;
+  PageNodeContext& operator=(const PageNodeContext&) = delete;
+};
+
 class WorkingSetTrimmerPolicyChromeOSTest : public GraphTestHarness {
  public:
   WorkingSetTrimmerPolicyChromeOSTest()
@@ -277,6 +293,7 @@ class WorkingSetTrimmerPolicyChromeOSTest : public GraphTestHarness {
   ~WorkingSetTrimmerPolicyChromeOSTest() override {}
 
   void SetUp() override {
+    chromeos::PowerManagerClient::InitializeFake();
     CreateTrimmer();
     GraphTestHarness::SetUp();
     RecreatePolicy(base::BindLambdaForTesting(
@@ -284,12 +301,13 @@ class WorkingSetTrimmerPolicyChromeOSTest : public GraphTestHarness {
   }
 
   void TearDown() override {
-    policy_ = nullptr;
     // Fix flakiness due to WorkingSetTrimmerPolicyChromeOS's weak ptr factory
     // getting destroyed and causing a weak ptr to get invalidated on a
     // different sequenced thread from where it was bound.
     task_env().RunUntilIdle();
+    TakePolicyFromGraph();
     GraphTestHarness::TearDown();
+    chromeos::PowerManagerClient::Shutdown();
   }
 
   void DefaultOnTrimArcVmProcessesAndQuit(
@@ -307,16 +325,6 @@ class WorkingSetTrimmerPolicyChromeOSTest : public GraphTestHarness {
                                       bool success) {
     policy()->DefaultOnArcVmTrimEnded(reclaim_type, success);
     run_loop()->Quit();
-  }
-
-  size_t GetArcVmTrimCountForFinalReport(
-      size_t current_arcvm_trim_count,
-      const base::TimeDelta& time_since_last_arcvm_trim_metric_report,
-      const base::TimeDelta& arcvm_trim_backoff_time,
-      const base::TimeDelta& arcvm_trim_metric_report_delay) {
-    return policy()->GetArcVmTrimCountForFinalReport(
-        current_arcvm_trim_count, time_since_last_arcvm_trim_metric_report,
-        arcvm_trim_backoff_time, arcvm_trim_metric_report_delay);
   }
 
   // Creates a new policy and runs the |callback| with the policy before passing
@@ -365,15 +373,38 @@ class WorkingSetTrimmerPolicyChromeOSTest : public GraphTestHarness {
   void ExpectFullReclaim(bool is_first_reclaim, int computed_page_limit);
   void ExpectDropPageCaches();
 
+  std::unique_ptr<PageNodeContext> CreateInvisiblePage() {
+    // Create a simple graph
+    auto context = std::make_unique<PageNodeContext>();
+    context->process_node_ = CreateNode<ProcessNodeImpl>();
+    context->page_node_ = CreateNode<PageNodeImpl>();
+    context->parent_frame_ = CreateFrameNodeAutoId(context->process_node_.get(),
+                                                   context->page_node_.get());
+
+    // Create a Process so this process node doesn't bail on Process.IsValid();
+    context->process_node_->SetProcess(base::Process::Current().Duplicate(),
+                                       /* launch_time=*/base::TimeTicks::Now());
+
+    // Set it invisible using the current clock, then we will advance the clock
+    // and it should result in a TrimWorkingSet since it's been invisible long
+    // enough.
+    context->page_node_->SetIsVisible(
+        true);  // Reset visibility and then set invisible.
+    context->page_node_->SetIsVisible(false);  // Uses the testing clock.
+
+    return context;
+  }
+
  private:
   std::unique_ptr<base::RunLoop> run_loop_;
-  raw_ptr<MockWorkingSetTrimmerPolicyChromeOS, ExperimentalAsh> policy_ =
-      nullptr;  // Not owned.
+  raw_ptr<MockWorkingSetTrimmerPolicyChromeOS,
+          DanglingUntriaged>
+      policy_ = nullptr;  // Not owned.
   std::unique_ptr<mechanism::MockWorkingSetTrimmerChromeOS> trimmer_;
 };
 
 // Validate that we don't walk again before the backoff period has expired.
-// TODO(crbug.com/1051006): Test is flaky
+// TODO(crbug.com/40673488): Test is flaky
 TEST_F(WorkingSetTrimmerPolicyChromeOSTest, DISABLED_GraphWalkBackoffPeriod) {
   // Since we've never walked the graph we should do so now.
   const base::TimeTicks initial_walk_time = policy()->get_last_graph_walk();
@@ -401,7 +432,7 @@ TEST_F(WorkingSetTrimmerPolicyChromeOSTest, DISABLED_GraphWalkBackoffPeriod) {
 
 // Validate that we will walk the graph again after the backoff period is
 // expired.
-// TODO(crbug.com/1051006): Test is flaky
+// TODO(crbug.com/40673488): Test is flaky
 TEST_F(WorkingSetTrimmerPolicyChromeOSTest,
        DISABLED_GraphWalkAfterBackoffPeriod) {
   // Since we've never walked the graph we should do so now.
@@ -433,7 +464,7 @@ TEST_F(WorkingSetTrimmerPolicyChromeOSTest,
 
 // This test will validate that we will NOT try to trim a node if it has not
 // been invisible for long enough.
-// TODO(crbug.com/1051006): Test is flaky
+// TODO(crbug.com/40673488): Test is flaky
 TEST_F(WorkingSetTrimmerPolicyChromeOSTest,
        DISABLED_DontTrimIfNotInvisibleLongEnough) {
   // Create a simple graph
@@ -488,31 +519,14 @@ TEST_F(WorkingSetTrimmerPolicyChromeOSTest, DontTrimIfNoMainFrame) {
 // This test will validate that we WILL trim the working set if it has been
 // invisible long enough.
 TEST_F(WorkingSetTrimmerPolicyChromeOSTest, TrimIfInvisibleLongEnough) {
-  // Create a simple graph
-  auto process_node = CreateNode<ProcessNodeImpl>();
-  auto page_node = CreateNode<PageNodeImpl>();
-  auto parent_frame =
-      CreateFrameNodeAutoId(process_node.get(), page_node.get());
-
+  auto page = CreateInvisiblePage();
   ASSERT_EQ(1u, graph()->GetAllPageNodes().size());
 
-  // Create a Process so this process node doesn't bail on Process.IsValid();
-  const base::Process self = base::Process::Current();
-  auto duplicate = self.Duplicate();
-  ASSERT_TRUE(duplicate.IsValid());
-  process_node->SetProcess(std::move(duplicate),
-                           /* launch_time=*/base::TimeTicks::Now());
-
-  // Set it invisible using the current clock, then we will advance the clock
-  // and it should result in a TrimWorkingSet since it's been invisible long
-  // enough.
-  page_node->SetIsVisible(true);   // Reset visibility and then set invisible.
-  page_node->SetIsVisible(false);  // Uses the testing clock.
   const base::TimeTicks cur_time = FastForwardBy(base::Days(365));
 
   // We will attempt to trim to corresponding ProcessNode since we've been
   // invisible long enough.
-  EXPECT_CALL(*policy(), TrimWorkingSet(process_node.get())).Times(1);
+  EXPECT_CALL(*policy(), TrimWorkingSet(page->process_node_.get())).Times(1);
 
   // Triger memory pressure and we should observe the walk since we've never
   // walked before.
@@ -523,6 +537,63 @@ TEST_F(WorkingSetTrimmerPolicyChromeOSTest, TrimIfInvisibleLongEnough) {
 
   // We should have triggered the walk and it should have trimmed.
   EXPECT_EQ(cur_time, policy()->get_last_graph_walk());
+}
+
+TEST_F(WorkingSetTrimmerPolicyChromeOSTest, DoNotTrimWhileSuspended) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kDisableTrimmingWhileSuspended);
+  RecreatePolicy(
+      base::BindLambdaForTesting([](MockWorkingSetTrimmerPolicyChromeOS*) {}));
+  auto page = CreateInvisiblePage();
+  FastForwardBy(base::Minutes(15) + base::Seconds(1));
+
+  chromeos::FakePowerManagerClient::Get()->SendSuspendImminent(
+      power_manager::SuspendImminent_Reason_OTHER);
+
+  EXPECT_CALL(*policy(), TrimWorkingSet(testing::_)).Times(0);
+
+  policy()->listener().SimulatePressureNotification(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+  FastForwardBy(base::Seconds(1));
+}
+
+TEST_F(WorkingSetTrimmerPolicyChromeOSTest, DoNotTrimJustAfterResumed) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kDisableTrimmingWhileSuspended);
+  RecreatePolicy(
+      base::BindLambdaForTesting([](MockWorkingSetTrimmerPolicyChromeOS*) {}));
+  auto page = CreateInvisiblePage();
+  FastForwardBy(base::Minutes(15) + base::Seconds(1));
+
+  chromeos::FakePowerManagerClient::Get()->SendSuspendImminent(
+      power_manager::SuspendImminent_Reason_OTHER);
+  chromeos::FakePowerManagerClient::Get()->SendSuspendDone();
+
+  EXPECT_CALL(*policy(), TrimWorkingSet(testing::_)).Times(0);
+
+  policy()->listener().SimulatePressureNotification(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+  FastForwardBy(base::Seconds(1));
+}
+
+TEST_F(WorkingSetTrimmerPolicyChromeOSTest, Trim15MinutesAfterResumed) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kDisableTrimmingWhileSuspended);
+  RecreatePolicy(
+      base::BindLambdaForTesting([](MockWorkingSetTrimmerPolicyChromeOS*) {}));
+  auto page = CreateInvisiblePage();
+  FastForwardBy(base::Minutes(15) + base::Seconds(1));
+
+  chromeos::FakePowerManagerClient::Get()->SendSuspendImminent(
+      power_manager::SuspendImminent_Reason_OTHER);
+  chromeos::FakePowerManagerClient::Get()->SendSuspendDone();
+  FastForwardBy(base::Minutes(15) + base::Seconds(1));
+
+  EXPECT_CALL(*policy(), TrimWorkingSet(page->process_node_.get())).Times(1);
+
+  policy()->listener().SimulatePressureNotification(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+  FastForwardBy(base::Seconds(1));
 }
 
 // This test is a simple smoke test to make sure that ARC process trimming
@@ -537,7 +608,7 @@ TEST_F(WorkingSetTrimmerPolicyChromeOSTest, ArcDontTrimOnlyIfDisabled) {
       base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
 }
 
-// TODO(crbug.com/1177146) Re-enable test
+// TODO(crbug.com/40748300) Re-enable test
 TEST_F(WorkingSetTrimmerPolicyChromeOSTest, DISABLED_ArcTrimOnlyIfEnabled) {
   policy()->trim_arc_on_memory_pressure(true);
   FastForwardBy(base::Seconds(1));
@@ -1219,85 +1290,6 @@ TEST_F(WorkingSetTrimmerPolicyChromeOSTest, ArcVmTrimProcessesForceTrim) {
   policy()->listener().SimulatePressureNotification(
       base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
   run_loop()->Run();
-}
-
-// Tests that the UMA reporting is done every 30 minutes.
-TEST_F(WorkingSetTrimmerPolicyChromeOSTest, ReportArcVmTrimMetric) {
-  base::HistogramTester tester;
-
-  // Crates the policy _after_ ARCVM trimming is enabled. This is necessary to
-  // start the time for UMA reporting.
-  RecreatePolicy(base::BindLambdaForTesting(
-      [](MockWorkingSetTrimmerPolicyChromeOS* policy) {
-        policy->trim_arcvm_on_memory_pressure(true);
-      }));
-
-  FastForwardBy(base::Minutes(15));
-  run_loop()->RunUntilIdle();
-  tester.ExpectTotalCount("Memory.WorkingSetTrim.ArcVmTrimCountPer30Mins", 0);
-
-  FastForwardBy(base::Minutes(15));
-  run_loop()->RunUntilIdle();
-  tester.ExpectTotalCount("Memory.WorkingSetTrim.ArcVmTrimCountPer30Mins", 1);
-
-  FastForwardBy(base::Minutes(30));
-  run_loop()->RunUntilIdle();
-  tester.ExpectTotalCount("Memory.WorkingSetTrim.ArcVmTrimCountPer30Mins", 2);
-
-  TakePolicyFromGraph();
-}
-
-// Tests that the final UMA reporting is done when the policy is detached from
-// the graph.
-TEST_F(WorkingSetTrimmerPolicyChromeOSTest, ReportArcVmTrimMetricOnDestrution) {
-  base::HistogramTester tester;
-
-  // Crates the policy _after_ ARCVM trimming is enabled. This is necessary to
-  // start the time for UMA reporting.
-  RecreatePolicy(base::BindLambdaForTesting(
-      [](MockWorkingSetTrimmerPolicyChromeOS* policy) {
-        policy->trim_arcvm_on_memory_pressure(true);
-      }));
-
-  FastForwardBy(base::Minutes(30));
-  run_loop()->RunUntilIdle();
-  tester.ExpectTotalCount("Memory.WorkingSetTrim.ArcVmTrimCountPer30Mins", 1);
-
-  FastForwardBy(base::Minutes(15));
-  run_loop()->RunUntilIdle();
-  tester.ExpectTotalCount("Memory.WorkingSetTrim.ArcVmTrimCountPer30Mins", 1);
-
-  TakePolicyFromGraph();
-  tester.ExpectTotalCount("Memory.WorkingSetTrim.ArcVmTrimCountPer30Mins", 2);
-}
-
-// Tests that the |arcvm_trim_count_| calculation for the final report is
-// properly done.
-TEST_F(WorkingSetTrimmerPolicyChromeOSTest, GetArcVmTrimCountForFinalReport) {
-  constexpr base::TimeDelta kBackoffTime = base::Minutes(15);
-  constexpr base::TimeDelta kMetricReportDelay = base::Minutes(30);
-
-  // If 0 trim has been done in the last 15 minutes, 0 should be reported.
-  EXPECT_EQ(0u, GetArcVmTrimCountForFinalReport(
-                    0, base::Minutes(15), kBackoffTime, kMetricReportDelay));
-
-  // If 1 trim has been done in the last 28 minutes, 1 should be reported.
-  EXPECT_EQ(1u, GetArcVmTrimCountForFinalReport(
-                    1, base::Minutes(28), kBackoffTime, kMetricReportDelay));
-
-  // If 1 trim has been done in the last 15 minutes, 2 should be reported.
-  EXPECT_EQ(2u, GetArcVmTrimCountForFinalReport(
-                    1, base::Minutes(15), kBackoffTime, kMetricReportDelay));
-
-  // If 2 trims have been done in the last 28 minutes, 2 should be reported.
-  EXPECT_EQ(2u, GetArcVmTrimCountForFinalReport(
-                    2, base::Minutes(28), kBackoffTime, kMetricReportDelay));
-
-  // If 2 trims has been done in the last 15 minutes, 3 should be reported.
-  // This is not 4 because of |kBackoffTime|. Only 3 trims are possible within
-  // |kMetricReportDelay|.
-  EXPECT_EQ(3u, GetArcVmTrimCountForFinalReport(
-                    2, base::Minutes(15), kBackoffTime, kMetricReportDelay));
 }
 
 }  // namespace policies

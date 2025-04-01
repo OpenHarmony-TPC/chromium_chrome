@@ -12,7 +12,6 @@
 #include "ui/aura/window.h"
 #include "ui/base/class_property.h"
 #include "ui/platform_window/platform_window.h"
-#include "ui/views/widget/desktop_aura/desktop_window_tree_host_lacros.h"
 
 WebAuthnRequestRegistrarLacros::WebAuthnRequestRegistrarLacros() = default;
 
@@ -26,10 +25,6 @@ WebAuthnRequestRegistrarLacros::GetRegisterCallback(aura::Window* window) {
     return base::BindRepeating([] { return std::string(); });
   }
 
-  auto* host = views::DesktopWindowTreeHostLacros::From(window->GetHost());
-  if (!host) {
-    return base::BindRepeating([] { return std::string(); });
-  }
   auto* platform_window = host->platform_window();
   if (!platform_window) {
     return base::BindRepeating([] { return std::string(); });
@@ -48,5 +43,4 @@ WebAuthnRequestRegistrarLacros::GetRegisterCallback(aura::Window* window) {
 aura::Window* WebAuthnRequestRegistrarLacros::GetWindowForRequestId(
     std::string request_id) {
   NOTREACHED();
-  return nullptr;
 }

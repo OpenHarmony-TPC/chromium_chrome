@@ -66,10 +66,19 @@ void LoginScreenPowerManagementPolicyHandlerTest::SetUp() {
   chrome_schema_ = Schema::Wrap(GetChromeSchemaData());
 }
 
+// Test cases for the Help me write policy setting.
+class HelpMeWritePolicyHandlerTest : public testing::Test {
+ protected:
+  PolicyMap policy_;
+  PrefValueMap prefs_;
+  HelpMeWritePolicyHandler handler_;
+};
+
 base::Value GetPref(PrefValueMap* prefs, const std::string& name) {
   base::Value* pref_value = nullptr;
-  if (prefs->GetValue(name, &pref_value))
+  if (prefs->GetValue(name, &pref_value)) {
     return pref_value->Clone();
+  }
   return base::Value("Pref was not found");
 }
 
@@ -114,8 +123,8 @@ TEST(ExternalDataPolicyHandlerTest, WrongType) {
 }
 
 TEST(ExternalDataPolicyHandlerTest, MissingURL) {
-  base::Value::Dict dict;
-  dict.Set("hash", "1234567890123456789012345678901234567890");
+  auto dict = base::Value::Dict().Set(
+      "hash", "1234567890123456789012345678901234567890");
   PolicyMap policy_map;
   policy_map.Set(key::kUserAvatarImage, POLICY_LEVEL_MANDATORY,
                  POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD,
@@ -127,9 +136,9 @@ TEST(ExternalDataPolicyHandlerTest, MissingURL) {
 }
 
 TEST(ExternalDataPolicyHandlerTest, InvalidURL) {
-  base::Value::Dict dict;
-  dict.Set("url", "http://");
-  dict.Set("hash", "1234567890123456789012345678901234567890");
+  auto dict = base::Value::Dict()
+                  .Set("url", "http://")
+                  .Set("hash", "1234567890123456789012345678901234567890");
   PolicyMap policy_map;
   policy_map.Set(key::kUserAvatarImage, POLICY_LEVEL_MANDATORY,
                  POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD,
@@ -141,8 +150,7 @@ TEST(ExternalDataPolicyHandlerTest, InvalidURL) {
 }
 
 TEST(ExternalDataPolicyHandlerTest, MissingHash) {
-  base::Value::Dict dict;
-  dict.Set("url", "http://localhost/");
+  auto dict = base::Value::Dict().Set("url", "http://localhost/");
   PolicyMap policy_map;
   policy_map.Set(key::kUserAvatarImage, POLICY_LEVEL_MANDATORY,
                  POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD,
@@ -154,9 +162,8 @@ TEST(ExternalDataPolicyHandlerTest, MissingHash) {
 }
 
 TEST(ExternalDataPolicyHandlerTest, InvalidHash) {
-  base::Value::Dict dict;
-  dict.Set("url", "http://localhost/");
-  dict.Set("hash", "1234");
+  auto dict =
+      base::Value::Dict().Set("url", "http://localhost/").Set("hash", "1234");
   PolicyMap policy_map;
   policy_map.Set(key::kUserAvatarImage, POLICY_LEVEL_MANDATORY,
                  POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD,
@@ -168,10 +175,11 @@ TEST(ExternalDataPolicyHandlerTest, InvalidHash) {
 }
 
 TEST(ExternalDataPolicyHandlerTest, Valid) {
-  base::Value::Dict dict;
-  dict.Set("url", "http://localhost/");
-  dict.Set("hash",
-           "1234567890123456789012345678901234567890123456789012345678901234");
+  auto dict = base::Value::Dict()
+                  .Set("url", "http://localhost/")
+                  .Set("hash",
+                       "1234567890123456789012345678901234567890123456789012345"
+                       "678901234");
   PolicyMap policy_map;
   MockCloudExternalDataManager external_data_manager;
 
@@ -588,6 +596,43 @@ TEST(ArcServicePolicyHandlerTest, UnderUserControlForConsumer) {
   handler.ApplyPolicySettings(policy_map, &prefs);
   const base::Value* enabled = nullptr;
   EXPECT_FALSE(prefs.GetValue(arc::prefs::kArcBackupRestoreEnabled, &enabled));
+}
+
+TEST_F(HelpMeWritePolicyHandlerTest, Default) {
+  handler_.ApplyPolicySettings(policy_, &prefs_);
+
+  EXPECT_FALSE(prefs_.GetValue(ash::prefs::kOrcaEnabled, nullptr));
+  EXPECT_FALSE(prefs_.GetValue(ash::prefs::kOrcaFeedbackEnabled, nullptr));
+}
+
+TEST_F(HelpMeWritePolicyHandlerTest, EnabledWithModelImprovement) {
+  policy_.Set(key::kHelpMeWriteSettings, POLICY_LEVEL_MANDATORY,
+              POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD, base::Value(0), nullptr);
+  handler_.ApplyPolicySettings(policy_, &prefs_);
+
+  EXPECT_EQ(base::Value(true), GetPref(&prefs_, ash::prefs::kOrcaEnabled));
+  EXPECT_EQ(base::Value(true),
+            GetPref(&prefs_, ash::prefs::kOrcaFeedbackEnabled));
+}
+
+TEST_F(HelpMeWritePolicyHandlerTest, EnabledWithoutModelImprovement) {
+  policy_.Set(key::kHelpMeWriteSettings, POLICY_LEVEL_MANDATORY,
+              POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD, base::Value(1), nullptr);
+  handler_.ApplyPolicySettings(policy_, &prefs_);
+
+  EXPECT_EQ(base::Value(true), GetPref(&prefs_, ash::prefs::kOrcaEnabled));
+  EXPECT_EQ(base::Value(false),
+            GetPref(&prefs_, ash::prefs::kOrcaFeedbackEnabled));
+}
+
+TEST_F(HelpMeWritePolicyHandlerTest, Disabled) {
+  policy_.Set(key::kHelpMeWriteSettings, POLICY_LEVEL_MANDATORY,
+              POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD, base::Value(2), nullptr);
+  handler_.ApplyPolicySettings(policy_, &prefs_);
+
+  EXPECT_EQ(base::Value(false), GetPref(&prefs_, ash::prefs::kOrcaEnabled));
+  EXPECT_EQ(base::Value(false),
+            GetPref(&prefs_, ash::prefs::kOrcaFeedbackEnabled));
 }
 
 }  // namespace policy

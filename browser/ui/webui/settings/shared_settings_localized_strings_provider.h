@@ -14,6 +14,9 @@ class WebUIDataSource;
 
 namespace settings {
 
+// Adds strings used by the <settings-ax-annotations-section> element.
+void AddAxAnnotationsSectionStrings(content::WebUIDataSource* html_source);
+
 // Adds strings used by the <settings-captions> element.
 void AddCaptionSubpageStrings(content::WebUIDataSource* html_source);
 
@@ -28,11 +31,6 @@ void AddPasswordPromptDialogStrings(content::WebUIDataSource* html_source);
 // Adds strings used by both <settings-sync-page> and <os-settings-sync-subpage>
 // elements.
 void AddSharedSyncPageStrings(content::WebUIDataSource* html_source);
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-// Adds load time data used by the <settings-nearby-share-subpage>.
-void AddNearbyShareData(content::WebUIDataSource* html_source);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 // Adds strings used by the <settings-secure-dns> element.
 void AddSecureDnsStrings(content::WebUIDataSource* html_source);

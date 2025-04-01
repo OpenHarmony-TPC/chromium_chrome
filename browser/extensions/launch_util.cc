@@ -9,8 +9,8 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "chrome/browser/extensions/bookmark_app_util.h"
 #include "chrome/browser/extensions/extension_sync_service.h"
-#include "chrome/browser/web_applications/extensions/bookmark_app_util.h"
 #include "chrome/common/extensions/extension_constants.h"
 #include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
 #include "components/pref_registry/pref_registry_syncable.h"
@@ -80,7 +80,7 @@ apps::LaunchContainer GetLaunchContainer(const ExtensionPrefs* prefs,
   apps::LaunchContainer manifest_launch_container =
       AppLaunchInfo::GetLaunchContainer(extension);
 
-  absl::optional<apps::LaunchContainer> result;
+  std::optional<apps::LaunchContainer> result;
 
   if (manifest_launch_container ==
       apps::LaunchContainer::kLaunchContainerPanelDeprecated) {
@@ -95,7 +95,7 @@ apps::LaunchContainer GetLaunchContainer(const ExtensionPrefs* prefs,
       // If the pref is set to launch a window (or no pref is set, and
       // window opening is the default), make the container a window.
       result = apps::LaunchContainer::kLaunchContainerWindow;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     } else if (prefs_launch_type == LAUNCH_TYPE_FULLSCREEN) {
       // LAUNCH_TYPE_FULLSCREEN launches in a maximized app window in ash.
       // For desktop chrome AURA on all platforms we should open the

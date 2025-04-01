@@ -6,11 +6,12 @@
 
 #include <unordered_map>
 
+#include "base/debug/stack_trace.h"
+#include "base/logging.h"
+#include "base/sequence_checker_impl.h"
 #include "base/strings/string_util.h"
 #include "base/uuid.h"
-#include "chrome/test/chromedriver/chrome/browser_info.h"
 #include "chrome/test/chromedriver/chrome/devtools_client.h"
-#include "chrome/test/chromedriver/chrome/javascript_dialog_manager.h"
 #include "chrome/test/chromedriver/chrome/status.h"
 #include "chrome/test/chromedriver/net/timeout.h"
 
@@ -23,6 +24,7 @@ Status MakeNavigationCheckFailedStatus(Status command_status) {
   // Report specific errors to callers for proper handling
   if (command_status.code() == kUnexpectedAlertOpen ||
       command_status.code() == kTimeout ||
+      command_status.code() == kAbortedByNavigation ||
       command_status.code() == kNoSuchExecutionContext) {
     return command_status;
   }
@@ -79,13 +81,10 @@ class ObjectGroup {
 NavigationTracker::NavigationTracker(
     DevToolsClient* client,
     WebView* web_view,
-    const BrowserInfo* browser_info,
-    const JavaScriptDialogManager* dialog_manager,
     const bool is_eager)
     : client_(client),
       web_view_(web_view),
       top_frame_id_(client->GetId()),
-      dialog_manager_(dialog_manager),
       is_eager_(is_eager),
       timed_out_(false),
       loading_state_(nullptr) {
@@ -97,13 +96,10 @@ NavigationTracker::NavigationTracker(
     DevToolsClient* client,
     LoadingState known_state,
     WebView* web_view,
-    const BrowserInfo* browser_info,
-    const JavaScriptDialogManager* dialog_manager,
     const bool is_eager)
     : client_(client),
       web_view_(web_view),
       top_frame_id_(client->GetId()),
-      dialog_manager_(dialog_manager),
       is_eager_(is_eager),
       timed_out_(false),
       loading_state_(nullptr) {
@@ -111,7 +107,7 @@ NavigationTracker::NavigationTracker(
   InitCurrentFrame(known_state);
 }
 
-NavigationTracker::~NavigationTracker() {}
+NavigationTracker::~NavigationTracker() = default;
 
 void NavigationTracker::SetFrame(const std::string& new_frame_id) {
   if (new_frame_id.empty())
@@ -127,7 +123,7 @@ void NavigationTracker::SetFrame(const std::string& new_frame_id) {
 
 Status NavigationTracker::IsPendingNavigation(const Timeout* timeout,
                                               bool* is_pending) {
-  if (dialog_manager_->IsDialogOpen()) {
+  if (client_->IsDialogOpen()) {
     // The render process is paused while modal dialogs are open, so
     // Runtime.evaluate will block and time out if we attempt to call it. In
     // this case we can consider the page to have loaded, so that we return
@@ -263,9 +259,7 @@ bool NavigationTracker::IsNonBlocking() const {
 Status NavigationTracker::OnConnected(DevToolsClient* client) {
   ClearFrameStates();
   InitCurrentFrame(kUnknown);
-  // Enable page domain notifications to allow tracking navigation state.
-  base::Value::Dict empty_params;
-  return client_->SendCommand("Page.enable", empty_params);
+  return Status{kOk};
 }
 
 Status NavigationTracker::OnEvent(DevToolsClient* client,

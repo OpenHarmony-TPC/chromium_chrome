@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "base/command_line.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/profiles/profile.h"
@@ -122,13 +122,15 @@ class WorkerTaskProviderBrowserTest : public InProcessBrowserTest,
 
   void TaskRemoved(Task* task) override {
     DCHECK(task);
-    base::Erase(tasks_, task);
+    std::erase(tasks_, task);
 
     if (expected_task_count_ == tasks_.size())
       StopWaiting();
   }
 
-  const std::vector<Task*>& tasks() const { return tasks_; }
+  const std::vector<raw_ptr<Task, VectorExperimental>>& tasks() const {
+    return tasks_;
+  }
   TaskProvider* task_provider() const { return task_provider_.get(); }
 
  protected:
@@ -148,7 +150,7 @@ class WorkerTaskProviderBrowserTest : public InProcessBrowserTest,
   std::unique_ptr<WorkerTaskProvider> task_provider_;
 
   // Tasks created by |task_provider_|.
-  std::vector<Task*> tasks_;
+  std::vector<raw_ptr<Task, VectorExperimental>> tasks_;
 
   base::OnceClosure quit_closure_for_waiting_;
 
@@ -327,7 +329,7 @@ IN_PROC_BROWSER_TEST_F(WorkerTaskProviderBrowserTest, CreateExistingTasks) {
 // Tests that destroying a profile while updating will correctly remove the
 // existing tasks. An incognito browser is used because a regular profile is
 // never truly destroyed until browser shutdown (See https://crbug.com/88586).
-// TODO(crbug.com/1168407): Fix the flakiness and re-enable this.
+// TODO(crbug.com/40743320): Fix the flakiness and re-enable this.
 IN_PROC_BROWSER_TEST_F(WorkerTaskProviderBrowserTest,
                        DISABLED_DestroyedProfile) {
   StartUpdating();

@@ -127,7 +127,7 @@ class TabsHighlightFunction : public ExtensionFunction {
   ResponseAction Run() override;
   bool HighlightTab(TabStripModel* tabstrip,
                     ui::ListSelectionModel* selection,
-                    absl::optional<size_t>* active_index,
+                    std::optional<size_t>* active_index,
                     int index,
                     std::string* error);
   DECLARE_EXTENSION_FUNCTION("tabs.highlight", TABS_HIGHLIGHT)
@@ -143,7 +143,7 @@ class TabsUpdateFunction : public ExtensionFunction {
                  std::string* error);
   ResponseValue GetResult();
 
-  raw_ptr<content::WebContents> web_contents_;
+  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_;
 
  private:
   ResponseAction Run() override;
@@ -156,7 +156,7 @@ class TabsMoveFunction : public ExtensionFunction {
   bool MoveTab(int tab_id,
                int* new_index,
                base::Value::List& tab_values,
-               const absl::optional<int>& window_id,
+               const std::optional<int>& window_id,
                std::string* error);
   DECLARE_EXTENSION_FUNCTION("tabs.move", TABS_MOVE)
 };
@@ -207,6 +207,7 @@ class TabsDetectLanguageFunction
   void WebContentsDestroyed() override;
 
   // translate::TranslateDriver::LanguageDetectionObserver:
+  void OnTranslateDriverDestroyed(translate::TranslateDriver* driver) override;
   void OnLanguageDetermined(
       const translate::LanguageDetectionDetails& details) override;
 
@@ -260,7 +261,7 @@ class TabsCaptureVisibleTabFunction
   void EncodeBitmapOnWorkerThread(
       scoped_refptr<base::TaskRunner> reply_task_runner,
       const SkBitmap& bitmap);
-  void OnBitmapEncodedOnUIThread(bool success, std::string base64_result);
+  void OnBitmapEncodedOnUIThread(std::optional<std::string> base64_result);
 
  private:
   DECLARE_EXTENSION_FUNCTION("tabs.captureVisibleTab", TABS_CAPTUREVISIBLETAB)
@@ -285,6 +286,7 @@ class ExecuteCodeInTabFunction : public ExecuteCodeFunction {
   bool CanExecuteScriptOnPage(std::string* error) override;
   ScriptExecutor* GetScriptExecutor(std::string* error) override;
   bool IsWebView() const override;
+  int GetRootFrameId() const override;
   const GURL& GetWebViewSrc() const override;
 
  private:

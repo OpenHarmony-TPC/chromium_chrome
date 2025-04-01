@@ -7,24 +7,8 @@
 
 #include <string>
 
-#include "base/values.h"
+#include "base/types/expected.h"
 #include "extensions/browser/extension_function.h"
-
-class PrefRegistrySimple;
-
-namespace chromeos {
-
-namespace echo_offer {
-
-// Registers the EchoCheckedOffers field in Local State.
-void RegisterPrefs(PrefRegistrySimple* registry);
-
-// Removes nested empty dictionaries from |dict|.
-void RemoveEmptyValueDicts(base::Value::Dict& dict);
-
-}  // namespace echo_offer
-
-}  // namespace chromeos
 
 class EchoPrivateGetRegistrationCodeFunction : public ExtensionFunction {
  public:
@@ -49,7 +33,7 @@ class EchoPrivateGetOobeTimestampFunction : public ExtensionFunction {
   ResponseAction Run() override;
 
  private:
-  void RespondWithResult(const std::string& timestamp);
+  void RespondWithResult(std::optional<base::Time> timestamp);
 
   DECLARE_EXTENSION_FUNCTION("echoPrivate.getOobeTimestamp",
                              ECHOPRIVATE_GETOOBETIMESTAMP)

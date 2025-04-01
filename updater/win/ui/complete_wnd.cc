@@ -4,7 +4,6 @@
 
 #include "chrome/updater/win/ui/complete_wnd.h"
 
-#include "base/check.h"
 #include "base/check_op.h"
 #include "base/strings/string_util.h"
 #include "chrome/updater/win/ui/l10n_util.h"
@@ -41,7 +40,6 @@ LRESULT CompleteWnd::OnInitDialog(UINT message,
                                   WPARAM w_param,
                                   LPARAM l_param,
                                   BOOL& handled) {
-  // TODO(sorin): remove this when https://crbug.com/1010653 is fixed.
   HideWindowChildren(*this);
   InitializeDialog();
 

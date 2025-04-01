@@ -42,6 +42,12 @@
 #include "ash/constants/ash_switches.h"
 #endif
 
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#include "chromeos/lacros/lacros_paths.h"
+#include "chromeos/startup/browser_params_proxy.h"  // nogncheck
+#include "chromeos/startup/startup.h"               // nogncheck
+#endif
+
 void ChromeCrashReporterClient::Create() {
   static base::NoDestructor<ChromeCrashReporterClient> crash_client;
   crash_reporter::SetCrashReporterClient(crash_client.get());
@@ -84,6 +90,16 @@ bool ChromeCrashReporterClient::ShouldPassCrashLoopBefore(
   return true;
 }
 #endif
+
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+// static
+bool ChromeCrashReporterClient::GetCollectStatsConsentFromAshDir() {
+  base::FilePath consent_dir;
+  CHECK(base::PathService::Get(chromeos::lacros_paths::ASH_DATA_DIR,
+                               &consent_dir));
+  return GoogleUpdateSettings::GetCollectStatsConsentFromDir(consent_dir);
+}
+#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 ChromeCrashReporterClient::ChromeCrashReporterClient() {}
 
@@ -150,7 +166,7 @@ bool ChromeCrashReporterClient::GetCrashMetricsLocation(
     base::FilePath* metrics_dir) {
   if (!GetCollectStatsConsent())
     return false;
-  return base::PathService::Get(chrome::DIR_USER_DATA, metrics_dir);
+  return base::PathService::Get(chrome::DIR_CRASH_METRICS, metrics_dir);
 }
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
@@ -197,12 +213,6 @@ bool ChromeCrashReporterClient::GetCollectStatsConsent() {
   return settings_consent;
 #endif  // BUILDFLAG(IS_ANDROID)
 }
-
-#if BUILDFLAG(IS_ANDROID)
-int ChromeCrashReporterClient::GetAndroidMinidumpDescriptor() {
-  return kAndroidMinidumpDescriptor;
-}
-#endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 bool ChromeCrashReporterClient::ShouldMonitorCrashHandlerExpensively() {

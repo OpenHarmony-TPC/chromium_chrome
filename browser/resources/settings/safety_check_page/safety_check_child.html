@@ -9,11 +9,15 @@
     padding-inline-end: 0;
   }
 
-  iron-icon {
+  cr-icon {
     display: flex;
     flex-shrink: 0;
     padding-inline-end: var(--cr-icon-button-margin-start);
     width: var(--cr-link-row-icon-width, var(--cr-icon-size));
+  }
+
+  .button-icon {
+    padding-inline-end: 0;
   }
 
   .icon-blue {
@@ -35,13 +39,14 @@
     }
   }
 </style>
-<iron-icon id="statusIcon"
+<cr-icon id="statusIcon" hidden="[[shouldShowThrobber_(iconStatus)]]"
     icon="[[getStatusIcon_(iconStatus)]]"
-    src="[[getStatusIconSrc_(iconStatus)]]"
     class$="[[getStatusIconClass_(iconStatus)]]"
     role="img"
     aria-label="[[getStatusIconAriaLabel_(iconStatus)]]">
-</iron-icon>
+</cr-icon>
+<img hidden="[[!shouldShowThrobber_(iconStatus)]]"
+     src="chrome://resources/images/throbber_small.svg">
 <div class="flex cr-padded-text">
   <div id="label" inner-h-t-m-l="[[sanitizeInnerHtml_(label)]]"></div>
   <div id="subLabel" class="secondary" no-search
@@ -52,11 +57,15 @@
   <cr-button id="button" class$="[[buttonClass]]" on-click="onButtonClick_"
       aria-label="[[buttonAriaLabel]]" no-search>
     [[buttonLabel]]
+    <template is="dom-if" if="[[showButtonIcon_(buttonIcon)]]">
+      <cr-icon class="button-icon icon-blue" icon="[[buttonIcon]]" slot="suffix-icon">
+      </cr-icon>
+    </template>
   </cr-button>
 </template>
 <template is="dom-if" if="[[showManagedIcon_(managedIcon)]]">
-  <iron-icon id="managedIcon" icon="[[managedIcon]]" aria-hidden="true">
-  </iron-icon>
+  <cr-icon id="managedIcon" icon="[[managedIcon]]" aria-hidden="true">
+  </cr-icon>
 </template>
 <template is="dom-if" if="[[rowClickable]]">
   <cr-icon-button id="rowClickableIndicator"

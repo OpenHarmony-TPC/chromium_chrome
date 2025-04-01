@@ -104,7 +104,8 @@ void FetchDiscountWorker::FetchOauthToken() {
       std::make_unique<signin::PrimaryAccountAccessTokenFetcher>(
           kOauthName, identity_manager_, signin::ScopeSet{kOauthScopes},
           std::move(token_callback),
-          signin::PrimaryAccountAccessTokenFetcher::Mode::kImmediate);
+          signin::PrimaryAccountAccessTokenFetcher::Mode::kImmediate,
+          signin::ConsentLevel::kSync);
 }
 
 void FetchDiscountWorker::OnAuthTokenFetched(
@@ -121,9 +122,8 @@ void FetchDiscountWorker::OnAuthTokenFetched(
   LoadAllActiveCarts(/*is_oauth_fetch*/ true, access_token_info.token);
 }
 
-void FetchDiscountWorker::LoadAllActiveCarts(
-    const bool is_oauth_fetch,
-    const std::string access_token_str) {
+void FetchDiscountWorker::LoadAllActiveCarts(bool is_oauth_fetch,
+                                             std::string access_token_str) {
   DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
 
   auto cart_loaded_callback = base::BindOnce(
@@ -134,8 +134,8 @@ void FetchDiscountWorker::LoadAllActiveCarts(
 }
 
 void FetchDiscountWorker::ReadyToFetch(
-    const bool is_oauth_fetch,
-    const std::string access_token_str,
+    bool is_oauth_fetch,
+    std::string access_token_str,
     bool success,
     std::vector<CartDB::KeyAndValue> proto_pairs) {
   DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
@@ -155,15 +155,11 @@ void FetchDiscountWorker::ReadyToFetch(
     auto cart_url = pair.second.merchant_cart_url();
     bool is_partner_merchant = commerce::IsPartnerMerchant(GURL(cart_url));
     bool is_potential_merchant =
-        base::FeatureList::IsEnabled(commerce::kMerchantWidePromotion) &&
         !commerce::IsNoDiscountMerchant(GURL(cart_url));
     has_partner_merchant |= is_partner_merchant;
     has_potential_merchant |= is_potential_merchant;
   }
-  bool allow_to_fetch = base::GetFieldTrialParamByFeatureAsBool(
-      commerce::kMerchantWidePromotion,
-      commerce::kReadyToFetchMerchantWidePromotionParam, true);
-  if (has_partner_merchant || (has_potential_merchant && allow_to_fetch)) {
+  if (has_partner_merchant || has_potential_merchant) {
     backend_task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(
@@ -197,10 +193,10 @@ void FetchDiscountWorker::FetchInBackground(
     std::unique_ptr<CartDiscountFetcher> fetcher,
     AfterFetchingCallback after_fetching_callback,
     std::vector<CartDB::KeyAndValue> proto_pairs,
-    const bool is_oauth_fetch,
-    const std::string access_token_str,
-    const std::string fetch_for_locale,
-    const std::string variation_headers) {
+    bool is_oauth_fetch,
+    std::string access_token_str,
+    std::string fetch_for_locale,
+    std::string variation_headers) {
   DCHECK(!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
 
   auto done_fetching_callback = base::BindOnce(
@@ -251,7 +247,7 @@ void FetchDiscountWorker::OnUpdatingDiscounts(
     return;
   }
 
-  double current_timestamp = base::Time::Now().ToDoubleT();
+  double current_timestamp = base::Time::Now().InSecondsFSinceUnixEpoch();
 
   base::flat_map<GURL,
                  std::vector<std::unique_ptr<autofill::AutofillOfferData>>>
@@ -295,7 +291,8 @@ void FetchDiscountWorker::OnUpdatingDiscounts(
       for (const coupon_db::FreeListingCouponInfoProto& coupon_info :
            merchant_discounts.coupon_discounts) {
         int64_t offer_id = coupon_info.coupon_id();
-        base::Time expiry = base::Time::FromDoubleT(coupon_info.expiry_time());
+        base::Time expiry =
+            base::Time::FromSecondsSinceUnixEpoch(coupon_info.expiry_time());
         std::vector<GURL> merchant_origins;
         merchant_origins.emplace_back(cart_url_origin);
         GURL offer_details_url = GURL();

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/password_manager/password_manager_signin_intercept_test_helper.h"
 
+#include <optional>
+
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/strings/utf_string_conversions.h"
@@ -22,14 +24,13 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/account_id/account_id.h"
 #include "components/password_manager/core/browser/password_form.h"
-#include "components/password_manager/core/browser/test_password_store.h"
+#include "components/password_manager/core/browser/password_store/test_password_store.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "google_apis/gaia/gaia_switches.h"
 #include "google_apis/gaia/gaia_urls.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace {
@@ -45,8 +46,7 @@ constexpr char kGaiaId[] = "test_gaia_id";
 PasswordManagerSigninInterceptTestHelper::
     PasswordManagerSigninInterceptTestHelper(
         net::test_server::EmbeddedTestServer* https_test_server)
-    : https_test_server_(https_test_server) {
-}
+    : https_test_server_(https_test_server) {}
 
 PasswordManagerSigninInterceptTestHelper::
     ~PasswordManagerSigninInterceptTestHelper() = default;
@@ -83,8 +83,8 @@ void PasswordManagerSigninInterceptTestHelper::NavigateToGaiaSigninPage(
   DCHECK(gaia::HasGaiaSchemeHostPort(https_url));
 
   PasswordsNavigationObserver navigation_observer(contents);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      chrome::FindBrowserWithWebContents(contents), https_url));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(chrome::FindBrowserWithTab(contents),
+                                           https_url));
   ASSERT_TRUE(navigation_observer.Wait());
 }
 
@@ -106,7 +106,7 @@ void PasswordManagerSigninInterceptTestHelper::SetupProfilesForInterception(
   profile_storage->AddProfile(std::move(params));
 
   // Check that the signin qualifies for interception.
-  absl::optional<SigninInterceptionHeuristicOutcome> outcome =
+  std::optional<SigninInterceptionHeuristicOutcome> outcome =
       GetSigninInterceptor(current_profile)
           ->GetHeuristicOutcome(
               /*is_new_account=*/true, /*is_sync_signin=*/false, kGaiaUsername);
@@ -123,6 +123,7 @@ CoreAccountId PasswordManagerSigninInterceptTestHelper::AddGaiaAccountToProfile(
   return accounts_mutator->AddOrUpdateAccount(
       gaia_id, email, "refresh_token",
       /*is_under_advanced_protection=*/false,
+      signin_metrics::AccessPoint::ACCESS_POINT_UNKNOWN,
       signin_metrics::SourceForRefreshTokenOperation::kUnknown);
 }
 

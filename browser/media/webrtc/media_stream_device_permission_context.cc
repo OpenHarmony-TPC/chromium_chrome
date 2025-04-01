@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/media/webrtc/media_stream_device_permission_context.h"
+
+#include "base/command_line.h"
 #include "chrome/browser/media/webrtc/media_stream_device_permissions.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
@@ -10,6 +12,7 @@
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/permissions/permission_context_base.h"
 #include "content/public/common/content_features.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
 #include "extensions/common/constants.h"
 #include "third_party/blink/public/mojom/permissions_policy/permissions_policy.mojom.h"
@@ -21,6 +24,13 @@
 #include "components/permissions/permission_request_id.h"
 #include "components/permissions/permissions_client.h"
 #include "content/public/browser/web_contents.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "base/functional/callback.h"
+#include "base/task/thread_pool.h"
+#include "components/permissions/permission_request_id.h"
+#include "ohos/adapter/permission_manager/permission_manager_adapter.h"
 #endif
 
 namespace {
@@ -66,6 +76,13 @@ ContentSetting MediaStreamDevicePermissionContext::GetPermissionStatusInternal(
     urls_policy_name = prefs::kVideoCaptureAllowedUrls;
   }
 
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kUseFakeUIForMediaStream)) {
+    bool blocked = base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+                       switches::kUseFakeUIForMediaStream) == "deny";
+    return blocked ? CONTENT_SETTING_BLOCK : CONTENT_SETTING_ALLOW;
+  }
+
   MediaStreamDevicePolicy policy =
       GetDevicePolicy(Profile::FromBrowserContext(browser_context()),
                       requesting_origin, policy_name, urls_policy_name);
@@ -90,6 +107,47 @@ ContentSetting MediaStreamDevicePermissionContext::GetPermissionStatusInternal(
 
   return setting;
 }
+
+#if BUILDFLAG(IS_OHOS)
+void MediaStreamDevicePermissionContext::RequestPermission(
+    permissions::PermissionRequestData request_data,
+    permissions::BrowserPermissionCallback callback) {
+  namespace ohos_permission = ohos::adapter::permission;
+
+  ohos_permission::OHOSPermissionType type{};
+  if (content_settings_type_ == ContentSettingsType::MEDIASTREAM_MIC) {
+    type = ohos_permission::OHOSPermissionType::MICROPHONE;
+  } else if (content_settings_type_ ==
+             ContentSettingsType::MEDIASTREAM_CAMERA) {
+    type = ohos_permission::OHOSPermissionType::CAMERA;
+  } else {
+    LOG(ERROR) << "Unexpected permission requests";
+    return;
+  }
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, base::MayBlock(),
+      base::BindOnce(
+          &ohos_permission::PermissionManagerAdapter::RequestPermission, type),
+      base::BindOnce(&MediaStreamDevicePermissionContext::RequestReply,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(request_data),
+                     std::move(callback)));
+}
+
+void MediaStreamDevicePermissionContext::RequestReply(
+    permissions::PermissionRequestData request_data,
+    permissions::BrowserPermissionCallback callback,
+    bool reply_success) {
+  if (!reply_success) {
+    std::move(callback).Run(CONTENT_SETTING_ASK);
+    return;
+  }
+
+  permissions::PermissionContextBase::RequestPermission(std::move(request_data),
+                                                        std::move(callback));
+}
+
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 // There are two other permissions that need to check corresponding OS-level

@@ -26,12 +26,11 @@ namespace {
 const char* g_preinstalled_app_for_testing = nullptr;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_FUCHSIA)
+    BUILDFLAG(IS_OHOS)
 // TODO(b/268221237): Remove this allow-list.
 const char kDefaultAllowedExtensionIds[] =
     "alhngdkjgnedakdlnamimgfihgkmenbh,"
-    "gnddkmpjjjcimefninepfmmddpgaaado,"
-    "jdfhpkjeckflbbleddjlpimecpbjdeep";
+    "gnddkmpjjjcimefninepfmmddpgaaado";
 
 BASE_FEATURE(kChromeAppsDeprecationExcludeForceInstalls,
              "ChromeAppsDeprecationExcludeForceInstalls",
@@ -109,14 +108,8 @@ bool IsExternalExtensionUninstalled(content::BrowserContext* context,
   return prefs && prefs->IsExternalExtensionUninstalled(extension_id);
 }
 
-bool ClearExternalExtensionUninstalled(content::BrowserContext* context,
-                                       const std::string& extension_id) {
-  return ExtensionPrefs::Get(context)->ClearExternalExtensionUninstalled(
-      extension_id);
-}
-
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_FUCHSIA)
+    BUILDFLAG(IS_OHOS)
 bool IsExtensionUnsupportedDeprecatedApp(content::BrowserContext* context,
                                          const std::string& extension_id) {
   if (testing::g_enable_chrome_apps_for_testing) {
@@ -138,15 +131,6 @@ bool IsExtensionUnsupportedDeprecatedApp(content::BrowserContext* context,
 
   bool force_installed =
       IsExtensionForceInstalled(context, extension_id, nullptr);
-  bool preinstalled = IsPreinstalledAppId(extension_id);
-
-  // This feature allows us to keep chrome apps that are force installed AND
-  // preinstalled.
-  if (base::FeatureList::IsEnabled(
-          features::kKeepForceInstalledPreinstalledApps) &&
-      force_installed && preinstalled) {
-    return false;
-  }
 
   if (base::FeatureList::IsEnabled(
           kChromeAppsDeprecationExcludeForceInstalls) &&
@@ -167,11 +151,6 @@ bool IsExtensionUnsupportedDeprecatedApp(content::BrowserContext* context,
   }
 
   return true;
-}
-#elif BUILDFLAG(IS_OHOS)
-bool IsExtensionUnsupportedDeprecatedApp(content::BrowserContext* context,
-                                         const std::string& extension_id) {
-  return false;
 }
 #endif
 

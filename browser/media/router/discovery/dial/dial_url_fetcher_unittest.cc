@@ -49,7 +49,7 @@ class DialURLFetcherTest : public testing::Test {
 
  protected:
   MOCK_METHOD(void, OnSuccess, (const std::string&));
-  MOCK_METHOD(void, OnError, (const std::string&, absl::optional<int>));
+  MOCK_METHOD(void, OnError, (const std::string&, std::optional<int>));
 
   base::test::TaskEnvironment environment_;
   network::TestURLLoaderFactory loader_factory_;
@@ -70,9 +70,8 @@ TEST_F(DialURLFetcherTest, FetchSuccessful) {
   // Verify the request parameters.
   EXPECT_EQ(request_.url, url_);
   EXPECT_EQ(request_.method, "GET");
-  std::string origin_header;
-  EXPECT_TRUE(request_.headers.GetHeader("Origin", &origin_header));
-  EXPECT_TRUE(base::StartsWith(origin_header, "package:"));
+  EXPECT_THAT(request_.headers.GetHeader("Origin"),
+              testing::Optional(testing::StartsWith("package:")));
   EXPECT_TRUE(request_.load_flags & net::LOAD_BYPASS_PROXY);
   EXPECT_TRUE(request_.load_flags & net::LOAD_DISABLE_CACHE);
   EXPECT_EQ(request_.credentials_mode, network::mojom::CredentialsMode::kOmit);
@@ -86,7 +85,7 @@ TEST_F(DialURLFetcherTest, FetchFailsOnMissingAppInfo) {
 
   EXPECT_CALL(*this, OnError(HasSubstr(base::NumberToString(
                                  net::ERR_HTTP_RESPONSE_CODE_FAILURE)),
-                             absl::optional<int>(404)));
+                             std::optional<int>(404)));
   loader_factory_.AddResponse(
       url_, std::move(head), "",
       network::URLLoaderCompletionStatus(net::ERR_HTTP_RESPONSE_CODE_FAILURE),

@@ -295,9 +295,8 @@ void EduCoexistenceLoginHandler::SendInitializeEduArgs() {
              chrome::GetChannelName(chrome::WithExtendedStable(false)));
   params.Set("deviceId", GetDeviceIdForActiveUserProfile());
 
-  params.Set("signinTime", GetSigninTime().ToJsTimeIgnoringNull());
-  // TODO(crbug.com/1202135): Remove along with JS part.
-  params.Set("newOobeLayoutEnabled", true);
+  params.Set("signinTime",
+             GetSigninTime().InMillisecondsFSinceUnixEpochIgnoringNull());
 
   // If the secondary edu account is being reauthenticated, the email address
   // will be provided via the url of the webcontent. Example
@@ -319,7 +318,7 @@ void EduCoexistenceLoginHandler::SendInitializeEduArgs() {
 
   ResolveJavascriptCallback(base::Value(initialize_edu_args_callback_.value()),
                             params);
-  initialize_edu_args_callback_ = absl::nullopt;
+  initialize_edu_args_callback_ = std::nullopt;
 }
 
 void EduCoexistenceLoginHandler::ConsentValid(const base::Value::List& args) {

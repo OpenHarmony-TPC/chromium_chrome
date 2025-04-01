@@ -22,6 +22,8 @@ import android.view.ViewGroup.LayoutParams;
 
 import androidx.test.filters.SmallTest;
 
+import jp.tomorrowkey.android.gifplayer.BaseGifImage;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -34,18 +36,16 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.UiThreadTest;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.logo.LogoBridge.Logo;
+import org.chromium.chrome.browser.logo.LogoUtils.LogoSizeForLogoPolish;
 import org.chromium.components.image_fetcher.ImageFetcher;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.widget.LoadingView;
 
-import jp.tomorrowkey.android.gifplayer.BaseGifImage;
-
-// TODO(crbug.com/1394983): For the LogoViewTest and LogoViewBinderUnitTest, that's the nice thing
+// TODO(crbug.com/40881870): For the LogoViewTest and LogoViewBinderUnitTest, that's the nice thing
 //  about only have 1 test file, where all test cases go into the single test file.
 
 /** Unit tests for the {@link LogoViewBinder}. */
@@ -61,32 +61,27 @@ public class LogoViewBinderUnitTest {
     private static final String ANIMATED_LOGO_URL =
             "https://www.gstatic.com/chrome/ntp/doodle_test/ddljson_android4.json";
 
-    @Rule
-    public JniMocker mJniMocker = new JniMocker();
+    @Rule public JniMocker mJniMocker = new JniMocker();
 
-    @Mock
-    private LogoView mMockLogoView;
+    @Mock private LogoView mMockLogoView;
 
-    @Mock
-    LogoBridge.Natives mLogoBridgeJniMock;
+    @Mock LogoBridge.Natives mLogoBridgeJniMock;
 
-    @Mock
-    LogoBridge mLogoBridge;
+    @Mock LogoBridge mLogoBridge;
 
-    @Mock
-    ImageFetcher mImageFetcher;
+    @Mock ImageFetcher mImageFetcher;
 
     static class TestObserver implements LoadingView.Observer {
         public final CallbackHelper showLoadingCallback = new CallbackHelper();
         public final CallbackHelper hideLoadingCallback = new CallbackHelper();
 
         @Override
-        public void onShowLoadingUIComplete() {
+        public void onShowLoadingUiComplete() {
             showLoadingCallback.notifyCalled();
         }
 
         @Override
-        public void onHideLoadingUIComplete() {
+        public void onHideLoadingUiComplete() {
             hideLoadingCallback.notifyCalled();
         }
     }
@@ -104,7 +99,13 @@ public class LogoViewBinderUnitTest {
         mPropertyModelChangeProcessor =
                 PropertyModelChangeProcessor.create(mLogoModel, mLogoView, new LogoViewBinder());
         mLogoMediator =
-                new LogoMediator(null, null, mLogoModel, true, null, null, true, null, null);
+                new LogoMediator(
+                        /* context= */ null,
+                        /* logoClickedCallback= */ null,
+                        mLogoModel,
+                        /* onLogoAvailableCallback= */ null,
+                        /* visibilityObserver= */ null,
+                        /* defaultGoogleLogo= */ null);
     }
 
     @After
@@ -117,7 +118,6 @@ public class LogoViewBinderUnitTest {
     }
 
     @Test
-    @UiThreadTest
     @SmallTest
     public void testSetShowAndHideLogoWithMetaData() {
         assertFalse(mLogoModel.get(LogoProperties.VISIBILITY));
@@ -138,18 +138,25 @@ public class LogoViewBinderUnitTest {
     }
 
     @Test
-    @UiThreadTest
     @SmallTest
     public void testEndFadeAnimation() {
-        Logo logo = new Logo(Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8), null, null,
-                "https://www.gstatic.com/chrome/ntp/doodle_test/ddljson_android4.json");
+        Logo logo =
+                new Logo(
+                        Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8),
+                        null,
+                        null,
+                        "https://www.gstatic.com/chrome/ntp/doodle_test/ddljson_android4.json");
         assertNull(mLogoView.getFadeAnimationForTesting());
         mLogoModel.set(LogoProperties.LOGO, logo);
         assertNotNull(mLogoView.getFadeAnimationForTesting());
         mLogoModel.set(LogoProperties.SET_END_FADE_ANIMATION, true);
         assertNull(mLogoView.getFadeAnimationForTesting());
-        Logo newLogo = new Logo(Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888),
-                "https://www.google.com", null, null);
+        Logo newLogo =
+                new Logo(
+                        Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888),
+                        "https://www.google.com",
+                        null,
+                        null);
         mLogoModel.set(LogoProperties.LOGO, newLogo);
         assertNotNull(mLogoView.getFadeAnimationForTesting());
         mLogoModel.set(LogoProperties.SET_END_FADE_ANIMATION, true);
@@ -157,11 +164,14 @@ public class LogoViewBinderUnitTest {
     }
 
     @Test
-    @UiThreadTest
     @SmallTest
     public void testUpdateLogo() {
-        Logo logo = new Logo(Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8), null, null,
-                "https://www.gstatic.com/chrome/ntp/doodle_test/ddljson_android4.json");
+        Logo logo =
+                new Logo(
+                        Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8),
+                        null,
+                        null,
+                        "https://www.gstatic.com/chrome/ntp/doodle_test/ddljson_android4.json");
         assertNull(mLogoView.getFadeAnimationForTesting());
         assertNotEquals(logo.image, mLogoView.getNewLogoForTesting());
         mLogoModel.set(LogoProperties.LOGO, logo);
@@ -170,18 +180,17 @@ public class LogoViewBinderUnitTest {
     }
 
     @Test
-    @UiThreadTest
     @SmallTest
     public void testDefaultGoogleLogo() {
-        Bitmap defaultLogo = BitmapFactory.decodeResource(
-                mLogoView.getContext().getResources(), R.drawable.google_logo);
+        Bitmap defaultLogo =
+                BitmapFactory.decodeResource(
+                        mLogoView.getContext().getResources(), R.drawable.google_logo);
         assertNotEquals(defaultLogo, mLogoView.getDefaultGoogleLogoForTesting());
         mLogoModel.set(LogoProperties.DEFAULT_GOOGLE_LOGO, defaultLogo);
         assertEquals(defaultLogo, mLogoView.getDefaultGoogleLogoForTesting());
     }
 
     @Test
-    @UiThreadTest
     @SmallTest
     public void testAnimationEnabled() {
         assertEquals(true, mLogoView.getAnimationEnabledForTesting());
@@ -192,7 +201,6 @@ public class LogoViewBinderUnitTest {
     }
 
     @Test
-    @UiThreadTest
     @SmallTest
     public void testSetLogoClickHandler() {
         assertNull(mLogoView.getClickHandlerForTesting());
@@ -207,7 +215,6 @@ public class LogoViewBinderUnitTest {
     }
 
     @Test
-    @UiThreadTest
     @SmallTest
     public void testShowSearchProviderInitialView() {
         PropertyModel LogoModel = new PropertyModel(LogoProperties.ALL_KEYS);
@@ -219,11 +226,32 @@ public class LogoViewBinderUnitTest {
     }
 
     @Test
-    @UiThreadTest
     @SmallTest
     public void testLoadingViewWithAnimatedLogo() {
         mLogoView.setLoadingViewVisibilityForTesting(View.INVISIBLE);
         mLogoModel.set(LogoProperties.ANIMATED_LOGO, new BaseGifImage(new byte[] {}));
         assertEquals(View.GONE, mLogoView.getLoadingViewVisibilityForTesting());
+    }
+
+    @Test
+    @SmallTest
+    public void testLogoPolishFlagEnabled() {
+        assertEquals(false, mLogoView.getIsLogoPolishFlagEnabledForTesting());
+        mLogoModel.set(LogoProperties.LOGO_POLISH_FLAG_ENABLED, true);
+        assertEquals(true, mLogoView.getIsLogoPolishFlagEnabledForTesting());
+        mLogoModel.set(LogoProperties.LOGO_POLISH_FLAG_ENABLED, false);
+        assertEquals(false, mLogoView.getIsLogoPolishFlagEnabledForTesting());
+    }
+
+    @Test
+    @SmallTest
+    public void testSetLogoSizeForLogoPolish() {
+        assertEquals(LogoSizeForLogoPolish.SMALL, mLogoView.getLogoSizeForLogoPolishForTesting());
+        mLogoModel.set(LogoProperties.LOGO_SIZE_FOR_LOGO_POLISH, LogoSizeForLogoPolish.MEDIUM);
+        assertEquals(LogoSizeForLogoPolish.MEDIUM, mLogoView.getLogoSizeForLogoPolishForTesting());
+        mLogoModel.set(LogoProperties.LOGO_SIZE_FOR_LOGO_POLISH, LogoSizeForLogoPolish.LARGE);
+        assertEquals(LogoSizeForLogoPolish.LARGE, mLogoView.getLogoSizeForLogoPolishForTesting());
+        mLogoModel.set(LogoProperties.LOGO_SIZE_FOR_LOGO_POLISH, LogoSizeForLogoPolish.SMALL);
+        assertEquals(LogoSizeForLogoPolish.SMALL, mLogoView.getLogoSizeForLogoPolishForTesting());
     }
 }

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
 #include <string>
 
 #include "ash/constants/ash_switches.h"
@@ -31,7 +32,6 @@
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using ::chromeos::MissiveClientTestObserver;
 using ::reporting::Destination;
@@ -82,7 +82,7 @@ class LockUnlockReporterBrowserTest
   }
 
   void SetUpOnMainThread() override {
-    login_manager_mixin_.set_should_launch_browser(true);
+    login_manager_mixin_.SetShouldLaunchBrowser(true);
     FakeSessionManagerClient::Get()->set_supports_browser_restart(true);
     policy::DevicePolicyCrosBrowserTest::SetUpOnMainThread();
   }
@@ -139,6 +139,9 @@ IN_PROC_BROWSER_TEST_P(LockUnlockReporterBrowserTest, ReportLockAndUnlockTest) {
   EXPECT_TRUE(screen_locker_tester.IsLocked());
 
   const Record& lock_record = GetNextLockUnlockRecord(&observer);
+  ASSERT_TRUE(lock_record.has_source_info());
+  EXPECT_THAT(lock_record.source_info().source(),
+              Eq(::reporting::SourceInfo::ASH));
   LockUnlockRecord lock_record_data;
   ASSERT_TRUE(lock_record_data.ParseFromString(lock_record.data()));
   ASSERT_TRUE(lock_record_data.has_lock_event());
@@ -157,6 +160,9 @@ IN_PROC_BROWSER_TEST_P(LockUnlockReporterBrowserTest, ReportLockAndUnlockTest) {
   }
 
   const Record& unlock_record = GetNextLockUnlockRecord(&observer);
+  ASSERT_TRUE(unlock_record.has_source_info());
+  EXPECT_THAT(unlock_record.source_info().source(),
+              Eq(::reporting::SourceInfo::ASH));
   LockUnlockRecord unlock_record_data;
   ASSERT_TRUE(unlock_record_data.ParseFromString(unlock_record.data()));
   ASSERT_TRUE(unlock_record_data.has_unlock_event());

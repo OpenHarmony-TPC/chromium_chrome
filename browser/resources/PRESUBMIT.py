@@ -8,7 +8,6 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details about the presubmit API built into depot_tools.
 """
 
-USE_PYTHON3 = True
 ACTION_XML_PATH = '../../../tools/metrics/actions/actions.xml'
 PRESUBMIT_VERSION = '2.0.0'
 
@@ -134,9 +133,10 @@ def CheckNoNewJs(input_api, output_api):
   EXCLUDED_PATHS = [
     'chrome/browser/resources/.eslintrc',
     'chrome/browser/resources/about_sys/',
+    'chrome/browser/resources/ash/settings/.eslintrc',
     'chrome/browser/resources/bluetooth_internals/',
     'chrome/browser/resources/chromeos/',
-    'chrome/browser/resources/device_log_ui/',
+    'chrome/browser/resources/device_log/',
     'chrome/browser/resources/explore_sites_internals/',
     'chrome/browser/resources/family_link_user_internals/',
     'chrome/browser/resources/feed_internals/',
@@ -144,22 +144,20 @@ def CheckNoNewJs(input_api, output_api):
     'chrome/browser/resources/hangout_services/',
     'chrome/browser/resources/image_editor/',
     'chrome/browser/resources/identity_scope_approval_dialog/',
-    'chrome/browser/resources/internals/lens/',
     'chrome/browser/resources/internals/notifications/',
     'chrome/browser/resources/internals/query_tiles/',
     'chrome/browser/resources/inspect/',
-    'chrome/browser/resources/invalidations/',
     'chrome/browser/resources/nearby_internals/',
     'chrome/browser/resources/nearby_share/',
     'chrome/browser/resources/net_internals/',
     'chrome/browser/resources/network_speech_synthesis/',
+    'chrome/browser/resources/new_tab_page_incognito_guest/',
     'chrome/browser/resources/new_tab_page/untrusted/',
-    'chrome/browser/resources/ntp4/',
     'chrome/browser/resources/offline_pages/',
     'chrome/browser/resources/omnibox/',
+    'chrome/browser/resources/reading_mode_gdocs_helper/',
     'chrome/browser/resources/settings/',
     'chrome/browser/resources/tools/',
-    'chrome/browser/resources/video_tutorials/',
   ]
 
   normalized_excluded_paths = []
@@ -168,7 +166,7 @@ def CheckNoNewJs(input_api, output_api):
 
   def excluded_path(f):
     for path in normalized_excluded_paths:
-      if f.LocalPath().startswith(path):
+      if f.LocalPath().startswith(path) or '.eslintrc.js' in f.LocalPath():
         return True
     return False
 

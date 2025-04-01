@@ -45,7 +45,6 @@ void PopulateFeatureRestrictionsToConfig(
         break;
       case VirtualKeyboardFeature::NONE:
         NOTREACHED();
-        break;
     }
   }
 }

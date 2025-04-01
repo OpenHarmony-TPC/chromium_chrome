@@ -5,7 +5,7 @@
 #include "chrome/browser/ui/webui/download_internals/download_internals_ui_message_handler.h"
 
 #include "base/functional/bind.h"
-#include "base/guid.h"
+#include "base/uuid.h"
 #include "base/values.h"
 #include "chrome/browser/download/background_download_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -115,7 +115,7 @@ void DownloadInternalsUIMessageHandler::HandleStartDownload(
     LOG(WARNING) << "Can't parse download URL, try to enter a valid URL.";
     return;
   }
-  
+
   Profile* profile = Profile::FromWebUI(web_ui());
   PolicyBlocklistService* service =
       PolicyBlocklistFactory::GetForBrowserContext(profile);
@@ -127,7 +127,7 @@ void DownloadInternalsUIMessageHandler::HandleStartDownload(
   }
 
   download::DownloadParams params;
-  params.guid = base::GenerateGUID();
+  params.guid = base::Uuid::GenerateRandomV4().AsLowercaseString();
   params.client = download::DownloadClient::DEBUGGING;
   params.request_params.method = "GET";
   params.request_params.url = url;

@@ -6,10 +6,9 @@
 #define CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_FRAME_MAC_H_
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/views/frame/native_browser_frame.h"
-
-#import "base/mac/scoped_nsobject.h"
 #include "chrome/browser/command_observer.h"
+#include "chrome/browser/ui/views/frame/native_browser_frame.h"
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/views/widget/native_widget_mac.h"
 
 class Browser;
@@ -46,12 +45,12 @@ class BrowserFrameMac : public views::NativeWidgetMac,
   bool UseCustomFrame() const override;
   bool UsesNativeSystemMenu() const override;
   bool ShouldSaveWindowPlacement() const override;
-  void GetWindowPlacement(gfx::Rect* bounds,
-                          ui::WindowShowState* show_state) const override;
+  void GetWindowPlacement(
+      gfx::Rect* bounds,
+      ui::mojom::WindowShowState* show_state) const override;
   content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
-      const content::NativeWebKeyboardEvent& event) override;
-  bool HandleKeyboardEvent(
-      const content::NativeWebKeyboardEvent& event) override;
+      const input::NativeWebKeyboardEvent& event) override;
+  bool HandleKeyboardEvent(const input::NativeWebKeyboardEvent& event) override;
   bool ShouldRestorePreviousBrowserWidgetState() const override;
   bool ShouldUseInitialVisibleOnAllWorkspaces() const override;
   void AnnounceTextInInProcessWindow(const std::u16string& text) override;
@@ -60,16 +59,14 @@ class BrowserFrameMac : public views::NativeWidgetMac,
       Browser* browser,
       int32_t command,
       remote_cocoa::mojom::ValidateUserInterfaceItemResult* result);
-  static bool WillExecuteCommand(
-      Browser* browser,
-      int32_t command,
-      WindowOpenDisposition window_open_disposition,
-      bool is_before_first_responder);
-  static bool ExecuteCommand(
-      Browser* browser,
-      int32_t command,
-      WindowOpenDisposition window_open_disposition,
-      bool is_before_first_responder);
+  static bool WillExecuteCommand(Browser* browser,
+                                 int32_t command,
+                                 WindowOpenDisposition window_open_disposition,
+                                 bool is_before_first_responder);
+  static bool ExecuteCommand(Browser* browser,
+                             int32_t command,
+                             WindowOpenDisposition window_open_disposition,
+                             bool is_before_first_responder);
 
  protected:
   ~BrowserFrameMac() override;
@@ -101,7 +98,7 @@ class BrowserFrameMac : public views::NativeWidgetMac,
 
  private:
   raw_ptr<BrowserView> browser_view_;  // Weak. Our ClientView.
-  base::scoped_nsobject<BrowserWindowTouchBarViewsDelegate> touch_bar_delegate_;
+  BrowserWindowTouchBarViewsDelegate* __strong touch_bar_delegate_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_FRAME_MAC_H_

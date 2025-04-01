@@ -3,9 +3,14 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/nearby_sharing/common/nearby_share_features.h"
+
 #include "base/feature_list.h"
+#include "nearby_share_features.h"
 
 namespace features {
+
+// Enables Quick Share branding.
+BASE_FEATURE(kIsNameEnabled, "IsNameEnabled", base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables Nearby Sharing functionality.
 BASE_FEATURE(kNearbySharing, "NearbySharing", base::FEATURE_ENABLED_BY_DEFAULT);
@@ -18,30 +23,23 @@ BASE_FEATURE(kNearbySharingDeviceContacts,
              "NearbySharingDeviceContacts",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables new one-page onboarding workflow for Nearby Share.
-BASE_FEATURE(kNearbySharingOnePageOnboarding,
-             "NearbySharingOnePageOnboarding",
+// Enables UI features for Self Share to allow seamless sharing between a user's
+// own devices.
+BASE_FEATURE(kNearbySharingSelfShare,
+             "NearbySharingSelfShare",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables auto-accept functionality when sharing between a user's own devices.
-BASE_FEATURE(kNearbySharingSelfShareAutoAccept,
-             "NearbySharingSelfShareAutoAccept",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables UI features for Self Share, to allow seamless sharing between a
-// user's own devices.
-BASE_FEATURE(kNearbySharingSelfShareUI,
-             "NearbySharingSelfShareUI",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables use of WebRTC in Nearby Share.
-BASE_FEATURE(kNearbySharingWebRtc,
-             "NearbySharingWebRtc",
+// Enables contact restriction when not in high-visibility mode.
+BASE_FEATURE(kNearbySharingRestrictToContacts,
+             "NearbySharingRestrictToContacts",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables use of WifiLan in Nearby Share.
-BASE_FEATURE(kNearbySharingWifiLan,
-             "NearbySharingWifiLan",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+bool IsNameEnabled() {
+  return base::FeatureList::IsEnabled(kIsNameEnabled);
+}
+
+bool IsRestrictToContactsEnabled() {
+  return base::FeatureList::IsEnabled(kNearbySharingRestrictToContacts);
+}
 
 }  // namespace features

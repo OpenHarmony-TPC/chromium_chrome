@@ -4,18 +4,19 @@
 
 #include "chrome/browser/ui/views/update_recommended_message_box.h"
 
-#include "base/feature_list.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/views/controls/message_box_view.h"
 #include "ui/views/widget/widget.h"
 
@@ -33,18 +34,16 @@ void UpdateRecommendedMessageBox::Show(gfx::NativeWindow parent_window) {
 // UpdateRecommendedMessageBox, private:
 
 UpdateRecommendedMessageBox::UpdateRecommendedMessageBox() {
-  SetButtonLabel(ui::DIALOG_BUTTON_OK,
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
                  l10n_util::GetStringUTF16(IDS_RELAUNCH_AND_UPDATE));
-  SetButtonLabel(ui::DIALOG_BUTTON_CANCEL,
+  SetButtonLabel(ui::mojom::DialogButton::kCancel,
                  l10n_util::GetStringUTF16(IDS_NOT_NOW));
-  SetModalType(ui::MODAL_TYPE_WINDOW);
+  SetModalType(ui::mojom::ModalType::kWindow);
   SetOwnedByWidget(true);
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING) && \
     (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX))
-  SetTitle(base::FeatureList::IsEnabled(features::kUpdateTextOptions)
-               ? IDS_UPDATE_RECOMMENDED_DIALOG_TITLE_ALT
-               : IDS_UPDATE_RECOMMENDED_DIALOG_TITLE);
+  SetTitle(IDS_UPDATE_RECOMMENDED_DIALOG_TITLE_ALT);
 #else
   SetTitle(IDS_UPDATE_RECOMMENDED_DIALOG_TITLE);
 #endif
@@ -55,10 +54,7 @@ UpdateRecommendedMessageBox::UpdateRecommendedMessageBox() {
 #elif BUILDFLAG(GOOGLE_CHROME_BRANDING) && \
     (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX))
   update_message = l10n_util::GetPluralStringFUTF16(
-      base::FeatureList::IsEnabled(features::kUpdateTextOptions)
-          ? IDS_UPDATE_RECOMMENDED_ALT
-          : IDS_UPDATE_RECOMMENDED,
-      BrowserList::GetIncognitoBrowserCount());
+      IDS_UPDATE_RECOMMENDED_ALT, BrowserList::GetIncognitoBrowserCount());
 #else
   update_message = l10n_util::GetPluralStringFUTF16(
       IDS_UPDATE_RECOMMENDED, BrowserList::GetIncognitoBrowserCount());

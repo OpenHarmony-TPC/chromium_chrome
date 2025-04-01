@@ -11,9 +11,11 @@ import static org.chromium.chrome.browser.ui.autofill.OtpVerificationDialogPrope
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewStub;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.VisibleForTesting;
-import androidx.core.content.res.ResourcesCompat;
 
 import org.chromium.chrome.browser.ui.autofill.internal.R;
 import org.chromium.ui.modaldialog.ModalDialogManager;
@@ -33,8 +35,10 @@ class OtpVerificationDialogCoordinator {
          * @param otp The OTP entered by the user.
          */
         void onConfirm(String otp);
+
         /** Notify that a new otp was requested by the user. */
         void onNewOtpRequested();
+
         /** Notify the caller that the dialog was dismissed. */
         void onDialogDismissed();
     }
@@ -54,10 +58,12 @@ class OtpVerificationDialogCoordinator {
     static OtpVerificationDialogCoordinator create(
             Context context, ModalDialogManager modalDialogManager, Delegate delegate) {
         OtpVerificationDialogView otpVerificationDialogView =
-                (OtpVerificationDialogView) LayoutInflater.from(context).inflate(
-                        org.chromium.chrome.browser.ui.autofill.internal.R.layout
-                                .otp_verification_dialog,
-                        null);
+                (OtpVerificationDialogView)
+                        LayoutInflater.from(context)
+                                .inflate(
+                                        org.chromium.chrome.browser.ui.autofill.internal.R.layout
+                                                .otp_verification_dialog,
+                                        null);
         return new OtpVerificationDialogCoordinator(
                 context, modalDialogManager, otpVerificationDialogView, delegate);
     }
@@ -72,12 +78,26 @@ class OtpVerificationDialogCoordinator {
      * @param delegate The delegate to be called with results of interaction.
      */
     @VisibleForTesting
-    OtpVerificationDialogCoordinator(Context context, ModalDialogManager modalDialogManager,
-            OtpVerificationDialogView dialogView, Delegate delegate) {
+    OtpVerificationDialogCoordinator(
+            Context context,
+            ModalDialogManager modalDialogManager,
+            OtpVerificationDialogView dialogView,
+            Delegate delegate) {
         mContext = context;
         mDialogView = dialogView;
-        mMediator = new OtpVerificationDialogMediator(
-                modalDialogManager, getModalDialogModelBuilder(dialogView), delegate);
+
+        ViewStub title_view_stub = mDialogView.findViewById(R.id.title_with_icon_stub);
+        title_view_stub.setLayoutResource(R.layout.icon_after_title_view);
+        title_view_stub.inflate();
+        TextView titleView = (TextView) mDialogView.findViewById(R.id.title);
+        titleView.setText(mContext.getString(R.string.autofill_card_unmask_otp_input_dialog_title));
+        ImageView iconView = (ImageView) mDialogView.findViewById(R.id.title_icon);
+        iconView.setImageResource(R.drawable.google_pay);
+
+        PropertyModel.Builder dialogModelBuilder = getModalDialogModelBuilder(mDialogView);
+
+        mMediator =
+                new OtpVerificationDialogMediator(modalDialogManager, dialogModelBuilder, delegate);
     }
 
     /**
@@ -126,8 +146,9 @@ class OtpVerificationDialogCoordinator {
     private PropertyModel buildOtpVerificationDialogModel(int otpLength) {
         return new PropertyModel.Builder(ALL_KEYS)
                 .with(OTP_LENGTH, otpLength)
-                .with(EDIT_TEXT_HINT,
-                        mContext.getResources().getString(
+                .with(
+                        EDIT_TEXT_HINT,
+                        mContext.getString(
                                 R.string.autofill_payments_otp_verification_dialog_otp_input_hint,
                                 otpLength))
                 .build();
@@ -142,23 +163,19 @@ class OtpVerificationDialogCoordinator {
     private PropertyModel.Builder getModalDialogModelBuilder(View customView) {
         return new PropertyModel.Builder(ModalDialogProperties.ALL_KEYS)
                 .with(ModalDialogProperties.CUSTOM_VIEW, customView)
-                .with(ModalDialogProperties.TITLE,
-                        mContext.getResources().getString(
-                                org.chromium.chrome.browser.ui.autofill.internal.R.string
-                                        .autofill_payments_otp_verification_dialog_title))
-                .with(ModalDialogProperties.TITLE_ICON,
-                        ResourcesCompat.getDrawable(mContext.getResources(),
-                                org.chromium.chrome.browser.ui.autofill.internal.R.drawable
-                                        .google_pay_with_divider,
-                                mContext.getTheme()))
-                .with(ModalDialogProperties.NEGATIVE_BUTTON_TEXT,
-                        mContext.getResources().getString(
+                .with(
+                        ModalDialogProperties.NEGATIVE_BUTTON_TEXT,
+                        mContext.getString(
                                 org.chromium.chrome.browser.ui.autofill.internal.R.string
                                         .autofill_payments_otp_verification_dialog_negative_button_label))
-                .with(ModalDialogProperties.POSITIVE_BUTTON_TEXT,
-                        mContext.getResources().getString(
+                .with(
+                        ModalDialogProperties.POSITIVE_BUTTON_TEXT,
+                        mContext.getString(
                                 org.chromium.chrome.browser.ui.autofill.internal.R.string
                                         .autofill_payments_otp_verification_dialog_positive_button_label))
-                .with(ModalDialogProperties.POSITIVE_BUTTON_DISABLED, true);
+                .with(ModalDialogProperties.POSITIVE_BUTTON_DISABLED, true)
+                .with(
+                        ModalDialogProperties.BUTTON_STYLES,
+                        ModalDialogProperties.ButtonStyles.PRIMARY_FILLED_NEGATIVE_OUTLINE);
     }
 }

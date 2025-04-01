@@ -8,17 +8,17 @@ import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
 import './print_preview_shared.css.js';
 import './print_preview_vars.css.js';
-import '../strings.m.js';
+import '/strings.m.js';
 import './throbber.css.js';
 
-import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {Destination} from '../data/destination.js';
-import {DestinationStore} from '../data/destination_store.js';
+import type {Destination} from '../data/destination.js';
+import type {DestinationStore} from '../data/destination_store.js';
 
 import {getTemplate} from './provisional_destination_resolver.html.js';
 
@@ -95,9 +95,9 @@ export class PrintPreviewProvisionalDestinationResolverElement extends
     this.state_ = ResolverState.ACTIVE;
     this.destination_ = destination;
     this.$.dialog.showModal();
-    const icon =
-        this.shadowRoot!.querySelector('.extension-icon')! as HTMLElement;
-    icon.style.backgroundImage = '-webkit-image-set(' +
+    const icon = this.shadowRoot!.querySelector<HTMLElement>('.extension-icon');
+    assert(icon);
+    icon.style.backgroundImage = 'image-set(' +
         'url(chrome://extension-icon/' + this.destination_!.extensionId +
         '/24/1) 1x,' +
         'url(chrome://extension-icon/' + this.destination_!.extensionId +

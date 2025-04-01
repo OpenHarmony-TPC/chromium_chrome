@@ -45,10 +45,18 @@
     opacity: var(--cr-disabled-opacity);
   }
 </style>
-<div class="link" id="systemDialogLink"
+<if expr="is_ohos"> 
+  <div class="link" id="systemDialogLink"
+     actionable$="[[!systemDialogLinkDisabled_]]"
+     hidden$="[[shouldShowSystemDialogLink_]]"
+     on-click="onSystemDialogClick_">
+</if>
+<if expr="not is_ohos">  
+  <div class="link" id="systemDialogLink"
      actionable$="[[!systemDialogLinkDisabled_]]"
      hidden$="[[!shouldShowSystemDialogLink_]]"
      on-click="onSystemDialogClick_">
+</if>    
   <div class="label">$i18n{systemDialogOption}</div>
   <cr-icon-button class="icon-external"
       hidden$="[[openingSystemDialog_]]"

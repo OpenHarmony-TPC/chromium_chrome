@@ -30,6 +30,10 @@
 #include "chrome/browser/ash/account_manager/account_manager_util.h"
 #endif
 
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#include "chromeos/components/mgs/managed_guest_session_utils.h"
+#endif
+
 #if BUILDFLAG(ENABLE_DICE_SUPPORT) && BUILDFLAG(ENABLE_MIRROR)
 #error "Dice and Mirror cannot be both enabled."
 #endif
@@ -81,12 +85,6 @@ bool CanEnableDiceForBuild() {
 
 }  // namespace
 
-// static
-AccountConsistencyModeManager* AccountConsistencyModeManager::GetForProfile(
-    Profile* profile) {
-  return AccountConsistencyModeManagerFactory::GetForProfile(profile);
-}
-
 AccountConsistencyModeManager::AccountConsistencyModeManager(Profile* profile)
     : profile_(profile),
       account_consistency_(signin::AccountConsistencyMethod::kDisabled),
@@ -128,7 +126,7 @@ AccountConsistencyMethod AccountConsistencyModeManager::GetMethodForProfile(
   if (!ShouldBuildServiceForProfile(profile))
     return AccountConsistencyMethod::kDisabled;
 
-  return AccountConsistencyModeManager::GetForProfile(profile)
+  return AccountConsistencyModeManagerFactory::GetForProfile(profile)
       ->GetAccountConsistencyMethod();
 }
 
@@ -141,8 +139,16 @@ bool AccountConsistencyModeManager::IsDiceEnabledForProfile(Profile* profile) {
 // static
 bool AccountConsistencyModeManager::IsDiceSignInAllowed(
     ProfileAttributesEntry* entry) {
+  // Sign in should only be allowed for OIDC profiles with 3P identities that
+  // are sync-ed to Google. Otherwise, we won't have a valid GAIA ID to sign in
+  // to.
+  bool is_oidc_sign_in_disallowed =
+      entry && !entry->GetProfileManagementOidcTokens().auth_token.empty() &&
+      entry->IsDasherlessManagement();
   return CanEnableDiceForBuild() && IsBrowserSigninAllowedByCommandLine() &&
+         !is_oidc_sign_in_disallowed &&
          (!entry || entry->GetProfileManagementEnrollmentToken().empty());
+  ;
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
@@ -166,7 +172,7 @@ bool AccountConsistencyModeManager::ShouldBuildServiceForProfile(
 AccountConsistencyMethod
 AccountConsistencyModeManager::GetAccountConsistencyMethod() {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  // TODO(https://crbug.com/860671): ChromeOS should use the cached value.
+  // TODO(crbug.com/40583837): ChromeOS should use the cached value.
   // Changing the value dynamically is not supported.
   return ComputeAccountConsistencyMethod(profile_);
 #else
@@ -191,9 +197,8 @@ AccountConsistencyModeManager::ComputeAccountConsistencyMethod(
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Account consistency is unavailable on Managed Guest Sessions and Public
-  // Sessions.
-  if (profiles::IsPublicSession() || profile->IsGuestSession()) {
+  // Account consistency is unavailable on Guest and Managed Guest Sessions.
+  if (chromeos::IsManagedGuestSession() || profile->IsGuestSession()) {
     return AccountConsistencyMethod::kDisabled;
   }
 #endif
@@ -213,5 +218,4 @@ AccountConsistencyModeManager::ComputeAccountConsistencyMethod(
 #endif
 
   NOTREACHED();
-  return AccountConsistencyMethod::kDisabled;
 }

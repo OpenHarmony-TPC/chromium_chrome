@@ -13,6 +13,7 @@ build_webui("build") {
   static_files = [
     "privacy_sandbox_dialog.html",
     "privacy_sandbox_combined_dialog.html",
+    "privacy_sandbox_privacy_policy.html",
     "privacy_sandbox_notice_dialog.html",
     "privacy_sandbox_notice_restricted_dialog.html",
     "images/privacy_sandbox_confirmation_banner.svg",
@@ -39,18 +40,23 @@ build_webui("build") {
     "privacy_sandbox_dialog_browser_proxy.ts",
     "privacy_sandbox_dialog_resize_mixin.ts",
     "privacy_sandbox_dialog_mixin.ts",
+    "privacy_sandbox_privacy_policy_dialog.html.ts",
+    "privacy_sandbox_privacy_policy_dialog.ts",
   ]
 
   css_files = [
     "shared_style.css",
     "shared_vars.css",
+    "privacy_sandbox_privacy_policy_dialog.css",
   ]
 
   ts_composite = true
   ts_definitions = [ "//tools/typescript/definitions/chrome_send.d.ts" ]
   ts_deps = [
+    "//third_party/lit/v3_0:build_ts",
     "//third_party/polymer/v3_0:library",
     "//ui/webui/resources/cr_elements:build_ts",
     "//ui/webui/resources/js:build_ts",
   ]
+  webui_context_type = "trusted"
 }

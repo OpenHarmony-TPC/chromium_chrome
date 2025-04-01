@@ -39,6 +39,8 @@ class CheckFileSystemAccessWriteRequest
 
   ~CheckFileSystemAccessWriteRequest() override;
 
+  download::DownloadItem* item() const override;
+
  private:
   // CheckClientDownloadRequestBase overrides:
   bool IsSupportedDownload(DownloadCheckResultReason* reason) override;
@@ -51,19 +53,26 @@ class CheckFileSystemAccessWriteRequest
       const std::string& token,
       const ClientDownloadResponse::Verdict& verdict,
       const ClientDownloadResponse::TailoredVerdict& tailored_verdict) override;
-  void MaybeStorePingsForDownload(DownloadCheckResult result,
-                                  bool upload_requested,
-                                  const std::string& request_data,
-                                  const std::string& response_body) override;
-  absl::optional<enterprise_connectors::AnalysisSettings> ShouldUploadBinary(
+  void MaybeBeginFeedbackForDownload(DownloadCheckResult result,
+                                     bool upload_requested,
+                                     const std::string& request_data,
+                                     const std::string& response_body) override;
+  std::optional<enterprise_connectors::AnalysisSettings> ShouldUploadBinary(
       DownloadCheckResultReason reason) override;
   void UploadBinary(DownloadCheckResult result,
                     DownloadCheckResultReason reason,
                     enterprise_connectors::AnalysisSettings settings) override;
+  bool ShouldImmediatelyDeepScan(bool server_requests_prompt,
+                                 bool log_metrics) const override;
   bool ShouldPromptForDeepScanning(bool server_requests_prompt) const override;
+  bool ShouldPromptForLocalDecryption(
+      bool server_requests_prompt) const override;
+  bool ShouldPromptForIncorrectPassword() const override;
+  bool ShouldShowScanFailure() const override;
   void NotifyRequestFinished(DownloadCheckResult result,
                              DownloadCheckResultReason reason) override;
   bool IsAllowlistedByPolicy() const override;
+  void LogDeepScanningPrompt(bool did_prompt) const override;
 
   const std::unique_ptr<content::FileSystemAccessWriteItem> item_;
   std::unique_ptr<ReferrerChainData> referrer_chain_data_;

@@ -4,36 +4,45 @@
 
 #include "chrome/browser/autofill/iban_manager_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "components/autofill/core/browser/iban_manager.h"
+#include "components/autofill/core/browser/payments/iban_manager.h"
 
 namespace autofill {
 
 // static
-IBANManager* IBANManagerFactory::GetForProfile(Profile* profile) {
-  return static_cast<IBANManager*>(
+IbanManager* IbanManagerFactory::GetForProfile(Profile* profile) {
+  return static_cast<IbanManager*>(
       GetInstance()->GetServiceForBrowserContext(profile, true));
 }
 
 // static
-IBANManagerFactory* IBANManagerFactory::GetInstance() {
-  return base::Singleton<IBANManagerFactory>::get();
+IbanManagerFactory* IbanManagerFactory::GetInstance() {
+  static base::NoDestructor<IbanManagerFactory> instance;
+  return instance.get();
 }
 
-IBANManagerFactory::IBANManagerFactory()
+IbanManagerFactory::IbanManagerFactory()
     : ProfileKeyedServiceFactory(
-          "IBANManager",
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          "IbanManager",
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOwnInstance)
+              .Build()) {
   DependsOn(PersonalDataManagerFactory::GetInstance());
 }
 
-IBANManagerFactory::~IBANManagerFactory() = default;
+IbanManagerFactory::~IbanManagerFactory() = default;
 
-KeyedService* IBANManagerFactory::BuildServiceInstanceFor(
+KeyedService* IbanManagerFactory::BuildServiceInstanceFor(
     content::BrowserContext* context) const {
-  IBANManager* service = new IBANManager(
+  IbanManager* service = new IbanManager(
       PersonalDataManagerFactory::GetForBrowserContext(context));
   return service;
 }

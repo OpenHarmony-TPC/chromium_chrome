@@ -9,7 +9,6 @@
 #include "base/run_loop.h"
 #include "base/values.h"
 #include "content/public/test/browser_task_environment.h"
-#include "extensions/common/value_builder.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -40,7 +39,7 @@ class TestExternalRegistryLoader : public ExternalRegistryLoader {
   ~TestExternalRegistryLoader() override {}
 
   base::Value::Dict LoadPrefsOnBlockingThread() override {
-    return DictionaryBuilder().Set(kDummyRegistryKey, id_++).Build();
+    return base::Value::Dict().Set(kDummyRegistryKey, id_++);
   }
   void LoadFinished(base::Value::Dict prefs) override {
     ++load_finished_count_;
@@ -52,8 +51,9 @@ class TestExternalRegistryLoader : public ExternalRegistryLoader {
 
     ExternalRegistryLoader::LoadFinished(std::move(prefs));
 
-    if (load_finished_count_ == 2)
+    if (load_finished_count_ == 2) {
       run_loop_.Quit();
+    }
   }
 
   base::RunLoop run_loop_;
@@ -66,7 +66,7 @@ class TestExternalRegistryLoader : public ExternalRegistryLoader {
 
 class ExternalRegistryLoaderUnittest : public testing::Test {
  public:
-  ExternalRegistryLoaderUnittest() {}
+  ExternalRegistryLoaderUnittest() = default;
 
   ExternalRegistryLoaderUnittest(const ExternalRegistryLoaderUnittest&) =
       delete;

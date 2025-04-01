@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "arkweb/build/features/features.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/background/background_contents.h"
 #include "chrome/browser/background/background_contents_service.h"
@@ -25,7 +26,7 @@ std::unique_ptr<RendererTask> BackgroundContentsTag::CreateTask(
   // Try to lookup the application name from the parent extension (if any).
   Profile* profile = Profile::FromBrowserContext(
       web_contents()->GetBrowserContext());
-#if !(BUILDFLAG(IS_OHOS) && defined(OHOS_ASAN)) || BUILDFLAG(ENABLE_BACKGROUND_CONTENTS)
+#if !(BUILDFLAG(ARKWEB_ASAN)) || BUILDFLAG(ENABLE_BACKGROUND_CONTENTS)
   BackgroundContentsService* background_contents_service =
       BackgroundContentsServiceFactory::GetForProfile(profile);
   const std::string& application_id =

@@ -5,30 +5,31 @@
 #ifndef CHROME_BROWSER_DIPS_DIPS_SERVICE_FACTORY_H_
 #define CHROME_BROWSER_DIPS_DIPS_SERVICE_FACTORY_H_
 
-#include "base/memory/singleton.h"
-#include "chrome/browser/profiles/profile_keyed_service_factory.h"
+#include "base/no_destructor.h"
+#include "components/keyed_service/content/browser_context_keyed_service_factory.h"
 
 namespace content {
 class BrowserContext;
 }
 
-class DIPSService;
+class DIPSServiceImpl;
 
-class DIPSServiceFactory : public ProfileKeyedServiceFactory {
+class DIPSServiceFactory : public BrowserContextKeyedServiceFactory {
  public:
   static DIPSServiceFactory* GetInstance();
-  static DIPSService* GetForBrowserContext(content::BrowserContext* context);
-
-  static ProfileSelections CreateProfileSelections();
+  static DIPSServiceImpl* GetForBrowserContext(
+      content::BrowserContext* context);
 
  private:
-  friend struct base::DefaultSingletonTraits<DIPSServiceFactory>;
+  friend base::NoDestructor<DIPSServiceFactory>;
 
   DIPSServiceFactory();
   ~DIPSServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  content::BrowserContext* GetBrowserContextToUse(
+      content::BrowserContext* context) const override;
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

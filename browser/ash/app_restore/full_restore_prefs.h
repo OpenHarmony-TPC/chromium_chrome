@@ -10,24 +10,9 @@ class PrefService;
 
 namespace ash::full_restore {
 
-// Enum that specifies restore options on startup. The values must not be
-// changed as they are persisted on disk.
-//
-// This is used to record histograms, so do not remove or reorder existing
-// entries.
-enum class RestoreOption {
-  kAlways = 1,
-  kAskEveryTime = 2,
-  kDoNotRestore = 3,
-
-  // Add any new values above this one, and update kMaxValue to the highest
-  // enumerator value.
-  kMaxValue = kDoNotRestore,
-};
-
-extern const char kRestoreAppsEnabled[];
-extern const char kGhostWindowEnabled[];
-extern const char kRestoreAppsAndPagesPrefName[];
+// Prefs to define whether the features are enabled by policy.
+inline constexpr char kRestoreAppsEnabled[] = "settings.restore_apps_enabled";
+inline constexpr char kGhostWindowEnabled[] = "settings.ghost_window_enabled";
 
 // Registers the restore pref |kRestoreAppsAndPagesPrefName|.
 void RegisterProfilePrefs(PrefRegistrySimple* registry);

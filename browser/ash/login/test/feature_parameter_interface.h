@@ -20,7 +20,7 @@ namespace {
 
 // Desired state of a feature in a test instantiation.
 struct FeatureState {
-  raw_ptr<const base::Feature, ExperimentalAsh> feature;
+  raw_ptr<const base::Feature> feature;
   bool is_enabled;
 };
 
@@ -179,7 +179,6 @@ bool FeatureAsParameterInterface<N>::IsFeatureEnabledInThisTestCase(
   }
 
   NOTREACHED() << "The requested feature isn't being parameterized.";
-  return false;
 }
 
 template <size_t N>

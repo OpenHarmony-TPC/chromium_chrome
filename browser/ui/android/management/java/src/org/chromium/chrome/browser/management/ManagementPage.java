@@ -9,9 +9,7 @@ import org.chromium.chrome.browser.ui.native_page.BasicNativePage;
 import org.chromium.chrome.browser.ui.native_page.NativePageHost;
 import org.chromium.components.embedder_support.util.UrlConstants;
 
-/**
- * Native page that displays whether the current profile is managed or not.
- */
+/** Native page that displays whether the current profile is managed or not. */
 public class ManagementPage extends BasicNativePage {
     private final ManagementCoordinator mManagementCoordinator;
     private String mTitle;
@@ -24,7 +22,7 @@ public class ManagementPage extends BasicNativePage {
     public ManagementPage(NativePageHost host, Profile profile) {
         super(host);
 
-        mTitle = host.getContext().getResources().getString(R.string.management);
+        mTitle = host.getContext().getString(R.string.management);
         mManagementCoordinator = new ManagementCoordinator(host, profile);
 
         initWithView(mManagementCoordinator.getView());

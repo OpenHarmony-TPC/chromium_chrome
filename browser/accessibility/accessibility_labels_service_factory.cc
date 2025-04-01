@@ -25,7 +25,8 @@ AccessibilityLabelsServiceFactory::GetForProfileIfExists(Profile* profile) {
 // static
 AccessibilityLabelsServiceFactory*
 AccessibilityLabelsServiceFactory::GetInstance() {
-  return base::Singleton<AccessibilityLabelsServiceFactory>::get();
+  static base::NoDestructor<AccessibilityLabelsServiceFactory> instance;
+  return instance.get();
 }
 
 AccessibilityLabelsServiceFactory::AccessibilityLabelsServiceFactory()
@@ -43,9 +44,12 @@ AccessibilityLabelsServiceFactory::AccessibilityLabelsServiceFactory()
               .WithAshInternals(ProfileSelection::kNone)
               .Build()) {}
 
-AccessibilityLabelsServiceFactory::~AccessibilityLabelsServiceFactory() {}
+AccessibilityLabelsServiceFactory::~AccessibilityLabelsServiceFactory() =
+    default;
 
-KeyedService* AccessibilityLabelsServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AccessibilityLabelsServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new AccessibilityLabelsService(Profile::FromBrowserContext(context));
+  return std::make_unique<AccessibilityLabelsService>(
+      Profile::FromBrowserContext(context));
 }

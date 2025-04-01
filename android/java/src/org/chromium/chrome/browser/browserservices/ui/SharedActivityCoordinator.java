@@ -8,11 +8,13 @@ import androidx.annotation.Nullable;
 import androidx.browser.trusted.TrustedWebActivityDisplayMode;
 import androidx.browser.trusted.TrustedWebActivityDisplayMode.ImmersiveMode;
 
+import dagger.Lazy;
+
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.trustedwebactivityui.controller.TrustedWebActivityBrowserControlsVisibilityManager;
 import org.chromium.chrome.browser.browserservices.ui.controller.CurrentPageVerifier;
 import org.chromium.chrome.browser.browserservices.ui.controller.CurrentPageVerifier.VerificationStatus;
-import org.chromium.chrome.browser.browserservices.ui.controller.Verifier;
+import org.chromium.chrome.browser.customtabs.BaseCustomTabActivity;
 import org.chromium.chrome.browser.customtabs.CustomTabOrientationController;
 import org.chromium.chrome.browser.customtabs.CustomTabStatusBarColorProvider;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityNavigationController;
@@ -24,28 +26,23 @@ import org.chromium.chrome.browser.lifecycle.InflationObserver;
 
 import javax.inject.Inject;
 
-import dagger.Lazy;
-
-/**
- * Coordinator for shared functionality between Trusted Web Activities and webapps.
- */
+/** Coordinator for shared functionality between Trusted Web Activities and webapps. */
 @ActivityScope
 public class SharedActivityCoordinator implements InflationObserver {
     private final CurrentPageVerifier mCurrentPageVerifier;
-    private final BrowserServicesIntentDataProvider mIntentDataProvider;
     private TrustedWebActivityBrowserControlsVisibilityManager mBrowserControlsVisibilityManager;
     private final CustomTabToolbarColorController mToolbarColorController;
     private final CustomTabStatusBarColorProvider mStatusBarColorProvider;
     private final Lazy<ImmersiveModeController> mImmersiveModeController;
     private final CustomTabOrientationController mCustomTabOrientationController;
 
-    @Nullable
-    private final ImmersiveMode mImmersiveDisplayMode;
+    @Nullable private final ImmersiveMode mImmersiveDisplayMode;
 
     private boolean mUseAppModeUi = true;
 
     @Inject
-    public SharedActivityCoordinator(CurrentPageVerifier currentPageVerifier, Verifier verifier,
+    public SharedActivityCoordinator(
+            CurrentPageVerifier currentPageVerifier,
             CustomTabActivityNavigationController navigationController,
             BrowserServicesIntentDataProvider intentDataProvider,
             CustomTabToolbarColorController toolbarColorController,
@@ -53,9 +50,9 @@ public class SharedActivityCoordinator implements InflationObserver {
             ActivityLifecycleDispatcher lifecycleDispatcher,
             TrustedWebActivityBrowserControlsVisibilityManager browserControlsVisibilityManager,
             Lazy<ImmersiveModeController> immersiveModeController,
-            CustomTabOrientationController customTabOrientationController) {
+            CustomTabOrientationController customTabOrientationController,
+            BaseCustomTabActivity activity) {
         mCurrentPageVerifier = currentPageVerifier;
-        mIntentDataProvider = intentDataProvider;
         mBrowserControlsVisibilityManager = browserControlsVisibilityManager;
         mToolbarColorController = toolbarColorController;
         mStatusBarColorProvider = statusBarColorProvider;
@@ -63,7 +60,8 @@ public class SharedActivityCoordinator implements InflationObserver {
         mImmersiveDisplayMode = computeImmersiveMode(intentDataProvider);
         mCustomTabOrientationController = customTabOrientationController;
 
-        navigationController.setLandingPageOnCloseCriterion(verifier::wasPreviouslyVerified);
+        navigationController.setLandingPageOnCloseCriterion(
+                activity.getVerifier()::wasPreviouslyVerified);
 
         currentPageVerifier.addVerificationObserver(this::onVerificationUpdate);
         lifecycleDispatcher.register(this);
@@ -113,9 +111,11 @@ public class SharedActivityCoordinator implements InflationObserver {
             return;
         }
         if (inAppMode) {
-            mImmersiveModeController.get().enterImmersiveMode(
-                    mImmersiveDisplayMode.layoutInDisplayCutoutMode(),
-                    mImmersiveDisplayMode.isSticky());
+            mImmersiveModeController
+                    .get()
+                    .enterImmersiveMode(
+                            mImmersiveDisplayMode.layoutInDisplayCutoutMode(),
+                            mImmersiveDisplayMode.isSticky());
         } else {
             mImmersiveModeController.get().exitImmersiveMode();
         }

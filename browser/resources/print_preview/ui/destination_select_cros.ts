@@ -4,27 +4,29 @@
 
 import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
-import 'chrome://resources/js/util_ts.js';
-import 'chrome://resources/polymer/v3_0/iron-iconset-svg/iron-iconset-svg.js';
-import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
+import 'chrome://resources/js/util.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import 'chrome://resources/polymer/v3_0/iron-media-query/iron-media-query.js';
 import './destination_dropdown_cros.js';
 import './destination_select_style.css.js';
 import './icons.html.js';
 import './print_preview_shared.css.js';
 import './throbber.css.js';
-import '../strings.m.js';
+import '/strings.m.js';
 
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {Destination, DestinationOrigin, GooglePromotedDestinationId, PDF_DESTINATION_KEY} from '../data/destination.js';
-import {ERROR_STRING_KEY_MAP, getPrinterStatusIcon, PrinterStatusReason} from '../data/printer_status_cros.js';
+import type {Destination} from '../data/destination.js';
+import {DestinationOrigin, GooglePromotedDestinationId, PDF_DESTINATION_KEY} from '../data/destination.js';
+import {ERROR_STRING_KEY_MAP, getPrinterStatusIcon, getStatusTextColorClass, PrinterStatusReason} from '../data/printer_status_cros.js';
+import type {Error, State} from '../data/state.js';
 
-import {PrintPreviewDestinationDropdownCrosElement} from './destination_dropdown_cros.js';
+import type {PrintPreviewDestinationDropdownCrosElement} from './destination_dropdown_cros.js';
 import {getTemplate} from './destination_select_cros.html.js';
+import {shouldShowCrosPrinterSetupError} from './preview_area.js';
 import {SelectMixin} from './select_mixin.js';
-import {PrintPreviewSettingsSectionElement} from './settings_section.js';
+import type {PrintPreviewSettingsSectionElement} from './settings_section.js';
 
 export interface PrintPreviewDestinationSelectCrosElement {
   $: {
@@ -76,15 +78,15 @@ export class PrintPreviewDestinationSelectCrosElement extends
 
       statusText_: {
         type: String,
-        computed:
-            'computeStatusText_(destination, destination.printerStatusReason)',
+        computed: 'computeStatusText_(destination, ' +
+            'destination.printerStatusReason, state, error)',
       },
 
       destinationIcon_: {
         type: String,
         computed: 'computeDestinationIcon_(' +
             'selectedValue, destination, destination.printerStatusReason,' +
-            'isDarkModeActive_)',
+            'isDarkModeActive_, state, error)',
       },
 
       isCurrentDestinationCrosLocal_: {
@@ -95,6 +97,10 @@ export class PrintPreviewDestinationSelectCrosElement extends
 
       // Holds status of iron-media-query (prefers-color-scheme: dark).
       isDarkModeActive_: Boolean,
+
+      state: Number,
+
+      error: Number,
     };
   }
 
@@ -103,6 +109,8 @@ export class PrintPreviewDestinationSelectCrosElement extends
   loaded: boolean;
   pdfPrinterDisabled: boolean;
   recentDestinationList: Destination[];
+  state: State;
+  error: Error;
   private pdfDestinationKey_: string;
   private statusText_: TrustedHTML;
   private destinationIcon_: string;
@@ -134,6 +142,14 @@ export class PrintPreviewDestinationSelectCrosElement extends
     // destination.
     if (this.destination && this.destination.key === this.selectedValue) {
       if (this.isCurrentDestinationCrosLocal_) {
+        // Override the printer status icon if the printer setup info UI is
+        // showing.
+        if (shouldShowCrosPrinterSetupError(this.state, this.error)) {
+          return getPrinterStatusIcon(
+              PrinterStatusReason.PRINTER_UNREACHABLE,
+              this.destination.isEnterprisePrinter, this.isDarkModeActive_);
+        }
+
         return getPrinterStatusIcon(
             this.destination.printerStatusReason,
             this.destination.isEnterprisePrinter, this.isDarkModeActive_);
@@ -242,6 +258,11 @@ export class PrintPreviewDestinationSelectCrosElement extends
       return window.trustedTypes!.emptyHTML;
     }
 
+    // Override the printer status text if the printer setup info UI is showing.
+    if (shouldShowCrosPrinterSetupError(this.state, this.error)) {
+      return this.getErrorString_(PrinterStatusReason.PRINTER_UNREACHABLE);
+    }
+
     const printerStatusReason = this.destination.printerStatusReason;
     if (printerStatusReason === null ||
         printerStatusReason === PrinterStatusReason.NO_ERROR ||
@@ -265,6 +286,22 @@ export class PrintPreviewDestinationSelectCrosElement extends
   private computeIsCurrentDestinationCrosLocal_(): boolean {
     return this.destination &&
         this.destination.origin === DestinationOrigin.CROS;
+  }
+
+  private computeStatusClass_(): string {
+    const statusClass = 'destination-status';
+    if (!this.destination) {
+      return statusClass;
+    }
+
+    const printerStatusReason = this.destination.printerStatusReason;
+    if (printerStatusReason === null ||
+        printerStatusReason === PrinterStatusReason.NO_ERROR ||
+        printerStatusReason === PrinterStatusReason.UNKNOWN_REASON) {
+      return statusClass;
+    }
+
+    return `${statusClass} ${getStatusTextColorClass(printerStatusReason)}`;
   }
 
   /**

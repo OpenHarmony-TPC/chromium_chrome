@@ -7,7 +7,6 @@
 
 #include <memory>
 
-#include "ash/public/cpp/projector/projector_annotator_controller.h"
 #include "ash/public/cpp/projector/projector_client.h"
 #include "ash/public/cpp/projector/projector_controller.h"
 #include "ash/public/cpp/projector/speech_recognition_availability.h"
@@ -22,23 +21,15 @@
 #include "components/session_manager/core/session_manager.h"
 #include "components/session_manager/core/session_manager_observer.h"
 
-namespace views {
-class WebView;
-}  // namespace views
-
 class SpeechRecognitionRecognizerClientImpl;
 
 // The client implementation for the ProjectorController in ash/. This client is
 // responsible for handling requests that have browser dependencies.
 class ProjectorClientImpl : public ash::ProjectorClient,
                             public SpeechRecognizerDelegate,
-                            public ash::ProjectorAnnotatorController,
-                            public drive::DriveIntegrationServiceObserver,
-                            public session_manager::SessionManagerObserver {
+                            drive::DriveIntegrationService::Observer,
+                            session_manager::SessionManagerObserver {
  public:
-  // RecordingOverlayViewImpl calls this function to initialize the annotator
-  // tool.
-  static void InitForProjectorAnnotator(views::WebView* web_view);
 
   explicit ProjectorClientImpl(ash::ProjectorController* controller);
 
@@ -69,20 +60,16 @@ class ProjectorClientImpl : public ash::ProjectorClient,
   void OnSpeechResult(
       const std::u16string& text,
       bool is_final,
-      const absl::optional<media::SpeechRecognitionResult>& timing) override;
+      const std::optional<media::SpeechRecognitionResult>& timing) override;
   // This class is not utilizing the information about sound level.
   void OnSpeechSoundLevelChanged(int16_t level) override {}
   void OnSpeechRecognitionStateChanged(
       SpeechRecognizerStatus new_state) override;
   void OnSpeechRecognitionStopped() override;
+  void OnLanguageIdentificationEvent(
+      media::mojom::LanguageIdentificationEventPtr event) override;
 
-  // ash::ProjectorAnnotatorController:
-  void SetTool(const ash::AnnotatorTool& tool) override;
-  void Undo() override;
-  void Redo() override;
-  void Clear() override;
-
-  // drive::DriveIntegrationServiceObserver:
+  // DriveIntegrationService::Observer implementation.
   void OnFileSystemMounted() override;
   void OnFileSystemBeingUnmounted() override;
   void OnFileSystemMountFailed() override;
@@ -90,8 +77,8 @@ class ProjectorClientImpl : public ash::ProjectorClient,
   // session_manager::SessionManagerObserver:
   void OnUserSessionStarted(bool is_primary_user) override;
 
-  // Maybe reset |drive_observation_| and observe the Drive integration service
-  // of active profile when ActiveUserChanged and OnUserProfileLoaded.
+  // Maybe observe the Drive integration service of active profile when
+  // ActiveUserChanged and OnUserProfileLoaded.
   void MaybeSwitchDriveIntegrationServiceObservation();
 
  private:
@@ -104,7 +91,7 @@ class ProjectorClientImpl : public ash::ProjectorClient,
   // Called when app registry becomes ready.
   void SetAppIsDisabled(bool disabled);
 
-  const raw_ptr<ash::ProjectorController, ExperimentalAsh> controller_;
+  const raw_ptr<ash::ProjectorController> controller_;
   SpeechRecognizerStatus recognizer_status_ =
       SpeechRecognizerStatus::SPEECH_RECOGNIZER_OFF;
   std::unique_ptr<SpeechRecognitionRecognizerClientImpl> speech_recognizer_;
@@ -114,10 +101,6 @@ class ProjectorClientImpl : public ash::ProjectorClient,
       session_observation_{this};
 
   PrefChangeRegistrar pref_change_registrar_;
-
-  base::ScopedObservation<drive::DriveIntegrationService,
-                          drive::DriveIntegrationServiceObserver>
-      drive_observation_{this};
 
   ProjectorDriveFsProvider drive_helper_;
 

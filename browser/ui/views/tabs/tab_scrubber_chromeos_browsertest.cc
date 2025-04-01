@@ -23,14 +23,13 @@
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/interactive_test_utils.h"
-#include "chromeos/crosapi/cpp/crosapi_constants.h"
 #include "components/exo/shell_surface_util.h"
 #include "components/exo/test/shell_surface_builder.h"
 #include "components/exo/wm_helper.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "ui/aura/window.h"
 #include "ui/events/event_utils.h"
 #include "ui/events/test/event_generator.h"
@@ -83,7 +82,7 @@ class ImmersiveRevealEndedWaiter : public ImmersiveModeController::Observer {
     immersive_controller_ = nullptr;
   }
 
-  raw_ptr<ImmersiveModeController, ExperimentalAsh> immersive_controller_;
+  raw_ptr<ImmersiveModeController> immersive_controller_;
   base::OnceClosure quit_closure_;
 };
 
@@ -172,7 +171,7 @@ class TabScrubberChromeOSTest : public InProcessBrowserTest,
 
     int offset = GetTabCenter(browser, index) -
                  GetStartX(browser, active_index, direction);
-    ui::ScrollEvent scroll_event(ui::ET_SCROLL, gfx::Point(0, 0),
+    ui::ScrollEvent scroll_event(ui::EventType::kScroll, gfx::Point(0, 0),
                                  ui::EventTimeForNow(), 0, offset, 0, offset, 0,
                                  kScrubbingGestureFingerCount);
     event_generator->Dispatch(&scroll_event);
@@ -288,11 +287,6 @@ class TabScrubberChromeOSTest : public InProcessBrowserTest,
   // History of tab activation. Scrub() resets it.
   std::vector<size_t> activation_order_;
 
- protected:
-  bool IsDelegatedToLacros(ui::ScrollEvent event) {
-    return TabScrubberChromeOS::MaybeDelegateHandlingToLacros(&event);
-  }
-
  private:
   // Used to generate a sequence of scrolls. Starts with a cancel, is followed
   // by any number of scrolls and finally a fling-start. After every event this
@@ -301,9 +295,9 @@ class TabScrubberChromeOSTest : public InProcessBrowserTest,
    public:
     explicit ScrollGenerator(ui::test::EventGenerator* event_generator)
         : event_generator_(event_generator) {
-      ui::ScrollEvent fling_cancel(ui::ET_SCROLL_FLING_CANCEL, gfx::Point(),
-                                   time_for_next_event_, 0, 0, 0, 0, 0,
-                                   kScrubbingGestureFingerCount);
+      ui::ScrollEvent fling_cancel(ui::EventType::kScrollFlingCancel,
+                                   gfx::Point(), time_for_next_event_, 0, 0, 0,
+                                   0, 0, kScrubbingGestureFingerCount);
       event_generator->Dispatch(&fling_cancel);
       if (TabScrubberChromeOS::GetInstance()->IsActivationPending())
         TabScrubberChromeOS::GetInstance()->FinishScrub(true);
@@ -313,9 +307,10 @@ class TabScrubberChromeOSTest : public InProcessBrowserTest,
     ScrollGenerator& operator=(const ScrollGenerator&) = delete;
 
     ~ScrollGenerator() {
-      ui::ScrollEvent fling_start(
-          ui::ET_SCROLL_FLING_START, gfx::Point(), time_for_next_event_, 0,
-          last_x_offset_, 0, last_x_offset_, 0, kScrubbingGestureFingerCount);
+      ui::ScrollEvent fling_start(ui::EventType::kScrollFlingStart,
+                                  gfx::Point(), time_for_next_event_, 0,
+                                  last_x_offset_, 0, last_x_offset_, 0,
+                                  kScrubbingGestureFingerCount);
       event_generator_->Dispatch(&fling_start);
       if (TabScrubberChromeOS::GetInstance()->IsActivationPending())
         TabScrubberChromeOS::GetInstance()->FinishScrub(true);
@@ -323,8 +318,8 @@ class TabScrubberChromeOSTest : public InProcessBrowserTest,
 
     void GenerateScroll(int x_offset) {
       time_for_next_event_ += base::Milliseconds(100);
-      ui::ScrollEvent scroll(ui::ET_SCROLL, gfx::Point(), time_for_next_event_,
-                             0, x_offset, 0, x_offset, 0,
+      ui::ScrollEvent scroll(ui::EventType::kScroll, gfx::Point(),
+                             time_for_next_event_, 0, x_offset, 0, x_offset, 0,
                              kScrubbingGestureFingerCount);
       last_x_offset_ = x_offset;
       event_generator_->Dispatch(&scroll);
@@ -332,7 +327,7 @@ class TabScrubberChromeOSTest : public InProcessBrowserTest,
         TabScrubberChromeOS::GetInstance()->FinishScrub(true);
     }
 
-    raw_ptr<ui::test::EventGenerator, ExperimentalAsh> event_generator_;
+    raw_ptr<ui::test::EventGenerator> event_generator_;
     base::TimeTicks time_for_next_event_ = ui::EventTimeForNow();
     int last_x_offset_ = 0;
   };
@@ -489,7 +484,7 @@ IN_PROC_BROWSER_TEST_F(TabScrubberChromeOSTest, MoveHighlighted) {
   EXPECT_TRUE(TabScrubberChromeOS::GetInstance()->IsActivationPending());
   browser()->tab_strip_model()->ToggleSelectionAt(0);
   browser()->tab_strip_model()->ToggleSelectionAt(1);
-  browser()->tab_strip_model()->MoveSelectedTabsTo(1);
+  browser()->tab_strip_model()->MoveSelectedTabsTo(1, std::nullopt);
   EXPECT_EQ(1, TabScrubberChromeOS::GetInstance()->highlighted_tab());
 }
 
@@ -502,7 +497,7 @@ IN_PROC_BROWSER_TEST_F(TabScrubberChromeOSTest, MoveBefore) {
   EXPECT_TRUE(TabScrubberChromeOS::GetInstance()->IsActivationPending());
   browser()->tab_strip_model()->ToggleSelectionAt(0);
   browser()->tab_strip_model()->ToggleSelectionAt(2);
-  browser()->tab_strip_model()->MoveSelectedTabsTo(2);
+  browser()->tab_strip_model()->MoveSelectedTabsTo(2, std::nullopt);
   EXPECT_EQ(0, TabScrubberChromeOS::GetInstance()->highlighted_tab());
 }
 
@@ -513,7 +508,7 @@ IN_PROC_BROWSER_TEST_F(TabScrubberChromeOSTest, MoveAfter) {
 
   SendScrubEvent(browser(), 1);
   EXPECT_TRUE(TabScrubberChromeOS::GetInstance()->IsActivationPending());
-  browser()->tab_strip_model()->MoveSelectedTabsTo(0);
+  browser()->tab_strip_model()->MoveSelectedTabsTo(0, std::nullopt);
   EXPECT_EQ(2, TabScrubberChromeOS::GetInstance()->highlighted_tab());
 }
 
@@ -574,7 +569,7 @@ IN_PROC_BROWSER_TEST_F(TabScrubberChromeOSTest, RTLMoveBefore) {
   EXPECT_TRUE(TabScrubberChromeOS::GetInstance()->IsActivationPending());
   browser()->tab_strip_model()->ToggleSelectionAt(0);
   browser()->tab_strip_model()->ToggleSelectionAt(2);
-  browser()->tab_strip_model()->MoveSelectedTabsTo(2);
+  browser()->tab_strip_model()->MoveSelectedTabsTo(2, std::nullopt);
   EXPECT_EQ(0, TabScrubberChromeOS::GetInstance()->highlighted_tab());
 }
 
@@ -604,82 +599,91 @@ IN_PROC_BROWSER_TEST_F(TabScrubberChromeOSTest, DisabledIfWindowCycleListOpen) {
   EXPECT_EQ(0, browser()->tab_strip_model()->active_index());
 }
 
-// Check scroll events other than 3-fingers scroll are not stopped by
-// TabScrubber.
-IN_PROC_BROWSER_TEST_F(TabScrubberChromeOSTest,
-                       EventPropagationWithLacrosWindow) {
-  // Create Lacros window and activate.
-  auto shell_surface = exo::test::ShellSurfaceBuilder({100, 100})
-                           .BuildClientControlledShellSurface();
-  exo::SetShellApplicationId(shell_surface->GetWidget()->GetNativeWindow(),
-                             crosapi::kLacrosAppIdPrefix);
-  wm::ActivateWindow(shell_surface->GetWidget()->GetNativeWindow());
-  ASSERT_TRUE(
-      wm::IsActiveWindow(shell_surface->GetWidget()->GetNativeWindow()));
-
+IN_PROC_BROWSER_TEST_F(TabScrubberChromeOSTest, VerticalAndHorizontalScroll) {
   auto event_generator = CreateEventGenerator(browser());
   constexpr int kOffset = 100;
 
-  // Stop propagation for 3-fingers scroll event.
-  ui::ScrollEvent scroll_event_with_3_fingers(
-      ui::ET_SCROLL, gfx::Point(0, 0), ui::EventTimeForNow(), 0, kOffset, 0,
-      kOffset, 0, kScrubbingGestureFingerCount);
-  event_generator->Dispatch(&scroll_event_with_3_fingers);
-  EXPECT_TRUE(scroll_event_with_3_fingers.stopped_propagation());
+  {
+    // If y offset is larger than x offset, the event should be recognized as a
+    // vertical scroll and should not begin scrubbing.
+    ui::ScrollEvent vertical_scroll_event(
+        ui::EventType::kScroll, gfx::Point(0, 0), ui::EventTimeForNow(), 0,
+        /*x_offset=*/0, /*y_offset=*/kOffset,
+        /*x_offset_ordinal_=*/0, /*y_offset=*/kOffset,
+        kScrubbingGestureFingerCount);
+    event_generator->Dispatch(&vertical_scroll_event);
+    EXPECT_FALSE(vertical_scroll_event.handled());
+  }
 
-  // Fling scroll event should be passed to Lacros via HandleTabScrubbing, but
-  // should not be stopped as it may be consumed elsewhere as well.
-  ui::ScrollEvent fling_scroll_event(ui::ET_SCROLL_FLING_START,
-                                     gfx::Point(0, 0), ui::EventTimeForNow(), 0,
-                                     kOffset, 0, kOffset, 0, 0);
-  event_generator->Dispatch(&fling_scroll_event);
-  EXPECT_FALSE(fling_scroll_event.stopped_propagation());
+  {
+    // If x offset is larger than y offset, the event should be recognized as a
+    // horizontal scroll and should begin scrubbing.
+    ui::ScrollEvent horizontal_scroll_event(
+        ui::EventType::kScroll, gfx::Point(0, 0), ui::EventTimeForNow(), 0,
+        /*x_offset=*/kOffset, /*y_offset=*/0,
+        /*x_offset_ordinal_=*/kOffset, /*y_offset=*/0,
+        kScrubbingGestureFingerCount);
+    event_generator->Dispatch(&horizontal_scroll_event);
+    EXPECT_TRUE(horizontal_scroll_event.handled());
+  }
 
-  // Other scroll events should be not handled by TabScrubber and should not be
-  // stopped.
-  ui::ScrollEvent scroll_event_with_2_fingers(ui::ET_SCROLL, gfx::Point(0, 0),
-                                              ui::EventTimeForNow(), 0, kOffset,
-                                              0, kOffset, 0,
-                                              /*finger_count=*/2);
-  event_generator->Dispatch(&scroll_event_with_2_fingers);
-  EXPECT_FALSE(scroll_event_with_2_fingers.stopped_propagation());
+  {
+    // Finish scrubbing by dispatching fling scroll event. For finishing the
+    // event, it is not required to be horizontal scroll. This happens for
+    // example when the user start scrubbing with a horizontal scroll and the
+    // fingers go up at the end of the scroll.
+    ui::ScrollEvent fling_scroll_event(
+        ui::EventType::kScrollFlingStart, gfx::Point(0, 0),
+        ui::EventTimeForNow(), 0,
+        /*x_offset=*/0, /*y_offset=*/kOffset,
+        /*x_offset_ordinal_=*/0, /*y_offset=*/kOffset, 0);
+    event_generator->Dispatch(&fling_scroll_event);
+    EXPECT_TRUE(fling_scroll_event.handled());
+  }
 }
 
-IN_PROC_BROWSER_TEST_F(TabScrubberChromeOSTest, MaybeDelegateHandlingToLacros) {
+// Check scroll events other than 3-fingers scroll are not handled by
+// TabScrubber.
+IN_PROC_BROWSER_TEST_F(TabScrubberChromeOSTest, EventHandling) {
+  auto event_generator = CreateEventGenerator(browser());
   constexpr int kOffset = 100;
 
-  ui::ScrollEvent fling_scroll_event(ui::ET_SCROLL_FLING_START,
-                                     gfx::Point(0, 0), ui::EventTimeForNow(), 0,
-                                     kOffset, 0, kOffset, 0, 0);
+  {
+    // Begin scrubbing and mark the event as handled for 3-fingers scroll event.
+    ui::ScrollEvent scroll_event_with_3_fingers(
+        ui::EventType::kScroll, gfx::Point(0, 0), ui::EventTimeForNow(), 0,
+        kOffset, 0, kOffset, 0, kScrubbingGestureFingerCount);
+    event_generator->Dispatch(&scroll_event_with_3_fingers);
+    EXPECT_TRUE(scroll_event_with_3_fingers.handled());
+  }
 
-  ui::ScrollEvent scroll_event_with_3_fingers(
-      ui::ET_SCROLL, gfx::Point(0, 0), ui::EventTimeForNow(), 0, kOffset, 0,
-      kOffset, 0, kScrubbingGestureFingerCount);
+  {
+    // Fling scroll event which is called during the scrubbing should be
+    // consumed here.
+    ui::ScrollEvent fling_scroll_event(ui::EventType::kScrollFlingStart,
+                                       gfx::Point(0, 0), ui::EventTimeForNow(),
+                                       0, kOffset, 0, kOffset, 0, 0);
+    event_generator->Dispatch(&fling_scroll_event);
+    EXPECT_TRUE(fling_scroll_event.handled());
+  }
 
-  ui::ScrollEvent scroll_event_with_2_fingers(ui::ET_SCROLL, gfx::Point(0, 0),
-                                              ui::EventTimeForNow(), 0, kOffset,
-                                              0, kOffset, 0,
-                                              /*finger_count=*/2);
+  {
+    // Fling scroll event should NOT be consumed here if the scrubbing is not
+    // ongoing. Do NOT handle the event for this scenario.
+    ui::ScrollEvent fling_scroll_event(ui::EventType::kScrollFlingStart,
+                                       gfx::Point(0, 0), ui::EventTimeForNow(),
+                                       0, kOffset, 0, kOffset, 0, 0);
+    event_generator->Dispatch(&fling_scroll_event);
+    EXPECT_FALSE(fling_scroll_event.handled());
+  }
 
-  // When there is no activated Lacros window, all scroll events should not be
-  // delegated to Lacros.
-  EXPECT_FALSE(IsDelegatedToLacros(fling_scroll_event));
-  EXPECT_FALSE(IsDelegatedToLacros(scroll_event_with_3_fingers));
-  EXPECT_FALSE(IsDelegatedToLacros(scroll_event_with_2_fingers));
-
-  // Create Lacros window and activate.
-  auto shell_surface = exo::test::ShellSurfaceBuilder({100, 100})
-                           .BuildClientControlledShellSurface();
-  exo::SetShellApplicationId(shell_surface->GetWidget()->GetNativeWindow(),
-                             crosapi::kLacrosAppIdPrefix);
-  wm::ActivateWindow(shell_surface->GetWidget()->GetNativeWindow());
-  ASSERT_TRUE(
-      wm::IsActiveWindow(shell_surface->GetWidget()->GetNativeWindow()));
-
-  // If Lacros window is activated, delegate scroll events related to tab
-  // scrubbing to Lacros while do not delegate other scroll events such as
-  // 2-fingers scroll event.
-  EXPECT_TRUE(IsDelegatedToLacros(fling_scroll_event));
-  EXPECT_TRUE(IsDelegatedToLacros(scroll_event_with_3_fingers));
-  EXPECT_FALSE(IsDelegatedToLacros(scroll_event_with_2_fingers));
+  {
+    // Other scroll events should be not handled by TabScrubber.
+    ui::ScrollEvent scroll_event_with_2_fingers(
+        ui::EventType::kScroll, gfx::Point(0, 0), ui::EventTimeForNow(), 0,
+        kOffset, 0, kOffset, 0,
+        /*finger_count=*/2);
+    event_generator->Dispatch(&scroll_event_with_2_fingers);
+    EXPECT_FALSE(scroll_event_with_2_fingers.handled());
+  }
 }

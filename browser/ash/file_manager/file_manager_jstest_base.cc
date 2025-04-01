@@ -2,8 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ash/file_manager/file_manager_jstest_base.h"
 
+#include "ash/webui/common/trusted_types_util.h"
 #include "ash/webui/file_manager/resource_loader.h"
 #include "ash/webui/file_manager/resources/grit/file_manager_swa_resources_map.h"
 #include "ash/webui/file_manager/url_constants.h"
@@ -13,12 +19,14 @@
 #include "chrome/browser/ash/file_manager/file_manager_test_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/test/base/test_switches.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/scoped_web_ui_controller_factory_registration.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/file_manager/grit/file_manager_gen_resources_map.h"
 #include "ui/file_manager/grit/file_manager_resources_map.h"
@@ -50,11 +58,10 @@ class TestWebUIProvider
     files_swa_source->AddResourcePaths(base::make_span(
         kFileManagerSwaResources, kFileManagerSwaResourcesSize));
 
-    ash::file_manager::AddFilesAppResources(
-        files_swa_source, kFileManagerResources, kFileManagerResourcesSize);
     ash::file_manager::AddFilesAppResources(files_swa_source,
-                                            kFileManagerGenResources,
-                                            kFileManagerGenResourcesSize);
+                                            kFileManagerResources);
+    ash::file_manager::AddFilesAppResources(files_swa_source,
+                                            kFileManagerGenResources);
 
     dict_ = GetFileManagerStrings();
     AddFileManagerFeatureStrings("en-US", Profile::FromWebUI(web_ui), &dict_);
@@ -65,6 +72,8 @@ class TestWebUIProvider
   }
 
   void DataSourceOverrides(content::WebUIDataSource* source) override {
+    ash::EnableTrustedTypesCSP(source);
+
     // Add 'unsafe-inline' to CSP to allow the inline <script> in the
     // generated HTML to run see js_test_gen_html.py.
     source->OverrideContentSecurityPolicy(
@@ -82,10 +91,6 @@ class TestWebUIProvider
             " "
             "'self' chrome-extension://hhaomjibdihmijegdhdafkllkbggdgoj "
             "chrome-extension://pmfjbimdmchhbnneeidfognadeopoehp ; ");
-
-    // TODO(crbug.com/1098685): Trusted Type remaining WebUI.
-    source->DisableTrustedTypesCSP();
-
     DCHECK(!dict_.empty()) << "The translation should be fully loaded";
     source->AddLocalizedStrings(dict_);
     source->UseStringsJs();
@@ -108,7 +113,7 @@ static const GURL TestResourceUrl() {
 FileManagerJsTestBase::FileManagerJsTestBase(const base::FilePath& base_path)
     : base_path_(base_path) {}
 
-FileManagerJsTestBase::~FileManagerJsTestBase() {}
+FileManagerJsTestBase::~FileManagerJsTestBase() = default;
 
 void FileManagerJsTestBase::RunTestURL(const std::string& file) {
   // Open a new tab with the Files app test harness.
@@ -122,10 +127,8 @@ void FileManagerJsTestBase::RunTestURL(const std::string& file) {
   ASSERT_TRUE(web_contents);
 
   // The test might have finished loading.
-  bool is_test_loaded = false;
-  EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-      web_contents, "domAutomationController.send(window.__TEST_LOADED__);",
-      &is_test_loaded));
+  bool is_test_loaded =
+      content::EvalJs(web_contents, "window.__TEST_LOADED__;").ExtractBool();
 
   if (!is_test_loaded) {
     // Wait for the JS modules to be loaded and exported to window.
@@ -136,7 +139,17 @@ void FileManagerJsTestBase::RunTestURL(const std::string& file) {
   }
 
   // Execute the WebUI test harness.
-  EXPECT_TRUE(ExecuteWebUIResourceTest(web_contents));
+  bool result = ExecuteWebUIResourceTest(web_contents);
+
+  if (coverage_handler_ && coverage_handler_->CoverageEnabled()) {
+    auto* const test_info =
+        ::testing::UnitTest::GetInstance()->current_test_info();
+    const std::string& full_test_name =
+        base::StrCat({test_info->test_suite_name(), "_", test_info->name()});
+    coverage_handler_->CollectCoverage(full_test_name);
+  }
+
+  EXPECT_TRUE(result);
 }
 
 void FileManagerJsTestBase::SetUpOnMainThread() {
@@ -158,6 +171,21 @@ void FileManagerJsTestBase::SetUpOnMainThread() {
                                                 test_webui_provider_.Pointer());
   Profile* profile = browser()->profile();
   file_manager::test::AddDefaultComponentExtensionsOnMainThread(profile);
+
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kDevtoolsCodeCoverage)) {
+    base::FilePath devtools_code_coverage_dir =
+        command_line->GetSwitchValuePath(switches::kDevtoolsCodeCoverage);
+
+    auto callback = base::BindRepeating([](content::DevToolsAgentHost* host) {
+      // Only connect to the DevToolsAgentHost backing the test, others are
+      // spawned during the test that are not relevant and cause crashes when
+      // attached.
+      return host->GetURL().host() == "webui-test";
+    });
+    coverage_handler_ = std::make_unique<DevToolsAgentCoverageObserver>(
+        devtools_code_coverage_dir, std::move(callback));
+  }
 }
 
 void FileManagerJsTestBase::TearDownOnMainThread() {

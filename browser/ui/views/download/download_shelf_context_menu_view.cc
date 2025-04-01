@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/views/download/download_shelf_context_menu_view.h"
 
 #include "base/check.h"
@@ -14,6 +19,7 @@
 #include "chrome/browser/ui/views/download/download_item_view.h"
 #include "components/download/public/common/download_item.h"
 #include "content/public/browser/page_navigator.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/views/controls/menu/menu_runner.h"
 
@@ -28,16 +34,16 @@ DownloadShelfContextMenuView::DownloadShelfContextMenuView(
 
 DownloadShelfContextMenuView::DownloadShelfContextMenuView(
     base::WeakPtr<DownloadUIModel> download_ui_model,
-    DownloadBubbleUIController* bubble_controller)
+    base::WeakPtr<DownloadBubbleUIController> bubble_controller)
     : DownloadShelfContextMenu(download_ui_model),
-      bubble_controller_(bubble_controller) {}
+      bubble_controller_(std::move(bubble_controller)) {}
 
 DownloadShelfContextMenuView::~DownloadShelfContextMenuView() = default;
 
 void DownloadShelfContextMenuView::Run(
     views::Widget* parent_widget,
     const gfx::Rect& rect,
-    ui::MenuSourceType source_type,
+    ui::mojom::MenuSourceType source_type,
     base::RepeatingClosure on_menu_closed_callback) {
   using Position = views::MenuAnchorPosition;
   ui::MenuModel* menu_model = GetMenuModel();

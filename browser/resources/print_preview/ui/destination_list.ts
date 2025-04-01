@@ -12,14 +12,14 @@ import './destination_list_item.js';
 import './destination_list_item_cros.js';
 // </if>
 import './print_preview_vars.css.js';
-import '../strings.m.js';
+import '/strings.m.js';
 import './throbber.css.js';
 
 import {ListPropertyUpdateMixin} from 'chrome://resources/cr_elements/list_property_update_mixin.js';
-import {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
+import type {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {Destination} from '../data/destination.js';
+import type {Destination} from '../data/destination.js';
 
 import {getTemplate} from './destination_list.html.js';
 
@@ -189,6 +189,18 @@ export class PrintPreviewDestinationListElement extends
   private getAriaRowindex_(index: number): number {
     return index + 1;
   }
+
+  // <if expr="is_chromeos">
+  updatePrinterStatusIcon(destinationKey: string) {
+    const index = this.matchingDestinations_.findIndex(
+        destination => destination.key === destinationKey);
+    if (index === -1) {
+      return;
+    }
+
+    this.notifyPath(`matchingDestinations_.${index}.printerStatusReason`);
+  }
+  // </if>
 }
 
 declare global {

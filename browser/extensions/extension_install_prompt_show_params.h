@@ -64,7 +64,7 @@ class ExtensionInstallPromptShowParams {
   // Returns trues if the current object was configured for WebContents.
   bool WasConfiguredForWebContents();
 
-  raw_ptr<Profile> profile_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
 
   // Only one of these will be non-null.
   base::WeakPtr<content::WebContents> parent_web_contents_;

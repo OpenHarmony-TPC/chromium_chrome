@@ -8,7 +8,6 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.widget.RadioGroup;
 
-import androidx.annotation.VisibleForTesting;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceViewHolder;
 
@@ -24,10 +23,8 @@ import org.chromium.components.browser_ui.widget.RadioButtonWithDescriptionLayou
  */
 public class RadioButtonGroupPreloadPagesSettings extends Preference
         implements RadioGroup.OnCheckedChangeListener,
-                   RadioButtonWithDescriptionAndAuxButton.OnAuxButtonClickedListener {
-    /**
-     * Interface that will subscribe to Preload Pages state details requested events.
-     */
+                RadioButtonWithDescriptionAndAuxButton.OnAuxButtonClickedListener {
+    /** Interface that will subscribe to Preload Pages state details requested events. */
     public interface OnPreloadPagesStateDetailsRequested {
         /**
          * Notify that details of a Preload Pages state are requested.
@@ -35,6 +32,7 @@ public class RadioButtonGroupPreloadPagesSettings extends Preference
          */
         void onPreloadPagesStateDetailsRequested(@PreloadPagesState int preloadPagesState);
     }
+
     private RadioButtonWithDescriptionAndAuxButton mExtendedPreloading;
     private RadioButtonWithDescriptionAndAuxButton mStandardPreloading;
     private RadioButtonWithDescription mNoPreloading;
@@ -72,11 +70,13 @@ public class RadioButtonGroupPreloadPagesSettings extends Preference
     @Override
     public void onBindViewHolder(PreferenceViewHolder holder) {
         super.onBindViewHolder(holder);
-        mExtendedPreloading = (RadioButtonWithDescriptionAndAuxButton) holder.findViewById(
-                R.id.extended_preloading);
+        mExtendedPreloading =
+                (RadioButtonWithDescriptionAndAuxButton)
+                        holder.findViewById(R.id.extended_preloading);
         mExtendedPreloading.setAuxButtonClickedListener(this);
-        mStandardPreloading = (RadioButtonWithDescriptionAndAuxButton) holder.findViewById(
-                R.id.standard_preloading);
+        mStandardPreloading =
+                (RadioButtonWithDescriptionAndAuxButton)
+                        holder.findViewById(R.id.standard_preloading);
         mStandardPreloading.setAuxButtonClickedListener(this);
         mNoPreloading = (RadioButtonWithDescription) holder.findViewById(R.id.no_preloading);
         RadioButtonWithDescriptionLayout groupLayout =
@@ -125,7 +125,10 @@ public class RadioButtonGroupPreloadPagesSettings extends Preference
         // The value of `allowManagedIcon` doesn't matter, because the corresponding layout doesn't
         // define an icon view.
         ManagedPreferencesUtils.initPreference(
-                mManagedPrefDelegate, this, /*allowManagedIcon=*/true, /*hasCustomLayout=*/true);
+                mManagedPrefDelegate,
+                this,
+                /* allowManagedIcon= */ true,
+                /* hasCustomLayout= */ true);
     }
 
     /**
@@ -140,22 +143,18 @@ public class RadioButtonGroupPreloadPagesSettings extends Preference
         mNoPreloading.setChecked(checkedState == PreloadPagesState.NO_PRELOADING);
     }
 
-    @VisibleForTesting
     public @PreloadPagesState int getPreloadPagesStateForTesting() {
         return mPreloadPagesState;
     }
 
-    @VisibleForTesting
     public RadioButtonWithDescriptionAndAuxButton getExtendedPreloadingButtonForTesting() {
         return mExtendedPreloading;
     }
 
-    @VisibleForTesting
     public RadioButtonWithDescriptionAndAuxButton getStandardPreloadingButtonForTesting() {
         return mStandardPreloading;
     }
 
-    @VisibleForTesting
     public RadioButtonWithDescription getNoPreloadingButtonForTesting() {
         return mNoPreloading;
     }

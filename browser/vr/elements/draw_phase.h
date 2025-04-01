@@ -10,13 +10,12 @@
 namespace vr {
 
 // Each draw phase is rendered independently in the order specified below.
-// TODO(https://crbug.com/796783): We don't really need all these draw phases as
+// TODO(crbug.com/41361860): We don't really need all these draw phases as
 // the draw order depends on an element's insert order.
 enum DrawPhase : int {
   // kPhaseNone is to be used for elements that do not draw. Eg, layouts.
   kPhaseNone = 0,
   kPhaseBackground,
-  kPhaseBackplanes,
   kPhaseForeground,
   kPhaseOverlayForeground,
   kNumDrawPhases = kPhaseOverlayForeground

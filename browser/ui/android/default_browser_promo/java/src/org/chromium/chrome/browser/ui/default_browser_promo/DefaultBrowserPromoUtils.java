@@ -6,33 +6,71 @@ package org.chromium.chrome.browser.ui.default_browser_promo;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.pm.ResolveInfo;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.base.CommandLine;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.feature_engagement.FeatureConstants;
+import org.chromium.components.feature_engagement.Tracker;
+import org.chromium.components.messages.MessageDispatcher;
+import org.chromium.components.messages.MessageDispatcherProvider;
 import org.chromium.ui.base.WindowAndroid;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * A utility class providing information regarding states of default browser.
- */
+/** A utility class providing information regarding states of default browser. */
 public class DefaultBrowserPromoUtils {
-    @IntDef({DefaultBrowserState.CHROME_DEFAULT, DefaultBrowserState.NO_DEFAULT,
-            DefaultBrowserState.OTHER_DEFAULT})
+    @IntDef({
+        DefaultBrowserState.CHROME_DEFAULT,
+        DefaultBrowserState.NO_DEFAULT,
+        DefaultBrowserState.OTHER_DEFAULT
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface DefaultBrowserState {
         int NO_DEFAULT = 0;
         int OTHER_DEFAULT = 1;
+
         /**
          * CHROME_DEFAULT means the currently running Chrome as opposed to
          * #isCurrentDefaultBrowserChrome() which looks for any Chrome.
          */
         int CHROME_DEFAULT = 2;
+
         int NUM_ENTRIES = 3;
+    }
+
+    private final DefaultBrowserPromoImpressionCounter mImpressionCounter;
+    private final DefaultBrowserStateProvider mStateProvider;
+
+    private static DefaultBrowserPromoUtils sInstance;
+
+    DefaultBrowserPromoUtils(
+            DefaultBrowserPromoImpressionCounter impressionCounter,
+            DefaultBrowserStateProvider stateProvider) {
+        mImpressionCounter = impressionCounter;
+        mStateProvider = stateProvider;
+    }
+
+    public static DefaultBrowserPromoUtils getInstance() {
+        if (sInstance == null) {
+            sInstance =
+                    new DefaultBrowserPromoUtils(
+                            new DefaultBrowserPromoImpressionCounter(),
+                            new DefaultBrowserStateProvider());
+        }
+        return sInstance;
+    }
+
+    static boolean isFeatureEnabled() {
+        return !CommandLine.getInstance().hasSwitch(ChromeSwitches.DISABLE_DEFAULT_BROWSER_PROMO);
     }
 
     /**
@@ -41,69 +79,97 @@ public class DefaultBrowserPromoUtils {
      *
      * @param activity The context.
      * @param windowAndroid The {@link WindowAndroid} for sending an intent.
+     * @param track A {@link Tracker} for tracking role manager promo shown event.
      * @param ignoreMaxCount Whether the promo dialog should be shown irrespective of whether it has
-     *         been shown before
+     *     been shown before
      * @return True if promo dialog will be displayed.
      */
-    public static boolean prepareLaunchPromoIfNeeded(
-            Activity activity, WindowAndroid windowAndroid, boolean ignoreMaxCount) {
-        DefaultBrowserPromoDeps deps = DefaultBrowserPromoDeps.getInstance();
-        if (!shouldShowPromo(deps, activity, ignoreMaxCount)) return false;
-        deps.incrementPromoCount();
-        deps.recordPromoTime();
-        DefaultBrowserPromoManager manager = new DefaultBrowserPromoManager(
-                activity, windowAndroid, deps.getCurrentDefaultBrowserState());
+    public boolean prepareLaunchPromoIfNeeded(
+            Activity activity,
+            WindowAndroid windowAndroid,
+            Tracker tracker,
+            boolean ignoreMaxCount) {
+        if (!shouldShowRoleManagerPromo(activity, ignoreMaxCount)) return false;
+        mImpressionCounter.onPromoShown();
+        tracker.notifyEvent("role_manager_default_browser_promos_shown");
+        DefaultBrowserPromoManager manager =
+                new DefaultBrowserPromoManager(
+                        activity, windowAndroid, mImpressionCounter, mStateProvider);
         manager.promoByRoleManager();
         return true;
     }
 
     /**
-     * This decides whether the dialog should be promoed.
-     * Returns false if any of following criteria is met:
-     *      1. A promo dialog has been displayed before, unless {@code ignoreMaxCount} is true.
-     *      2. Not enough sessions have been started before.
-     *      3. Any chrome, including pre-stable, has been set as default.
-     *      4. On Chrome stable while no default browser is set and multiple chrome channels
-     *         are installed.
-     *      5. Less than the promo interval if re-promoing.
-     *      6. A browser other than chrome channel is default and default app setting is not
-     *         available in the current system.
+     * Show the default browser promo message if conditions are met.
+     *
+     * @param context The context.
+     * @param windowAndroid The {@link WindowAndroid} for message to dispatch.
+     * @param profile A {@link Profile} for checking incognito and getting the {@link Tracker} to
+     *     tack promo impressions.
      */
-    public static boolean shouldShowPromo(
-            DefaultBrowserPromoDeps deps, Context context, boolean ignoreMaxCount) {
-        if (!deps.isFeatureEnabled() || !deps.isRoleAvailable(context)) {
-            return false;
-        }
-        // Criteria 1, 2, 5
-        if (!ignoreMaxCount
-                && (deps.getPromoCount() >= deps.getMaxPromoCount()
-                        || deps.getSessionCount() < deps.getMinSessionCount()
-                        || deps.getLastPromoInterval() < deps.getMinPromoInterval())) {
-            return false;
+    public void maybeShowDefaultBrowserPromoMessages(
+            Context context, WindowAndroid windowAndroid, Profile profile) {
+        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.DEFAULT_BROWSER_PROMO_ANDROID2)) {
+            return;
         }
 
-        ResolveInfo info = deps.getDefaultWebBrowserActivityResolveInfo();
-        if (info == null) {
-            return false;
+        if (profile == null || profile.isOffTheRecord()) {
+            return;
         }
 
-        int state = deps.getCurrentDefaultBrowserState(info);
-        if (state == DefaultBrowserState.CHROME_DEFAULT) {
-            return false;
-        } else if (state == DefaultBrowserState.NO_DEFAULT) {
-            // Criteria 4
-            return !deps.isChromeStable() || !deps.isChromePreStableInstalled();
-        } else { // other default
-            // Criteria 3
-            return !deps.isCurrentDefaultBrowserChrome(info);
+        MessageDispatcher dispatcher = MessageDispatcherProvider.from(windowAndroid);
+        if (dispatcher == null) {
+            return;
+        }
+
+        Tracker tracker = TrackerFactory.getTrackerForProfile(profile);
+        if (shouldShowNonRoleManagerPromo(context)
+                && tracker.shouldTriggerHelpUi(FeatureConstants.DEFAULT_BROWSER_PROMO_MESSAGES)) {
+            DefaultBrowserPromoMessageController messageController =
+                    new DefaultBrowserPromoMessageController(context, tracker);
+            messageController.promo(dispatcher);
         }
     }
 
     /**
-     * Increment session count for triggering feature in the future.
+     * Determine if default browser promo other than the Role Manager Promo should be displayed:
+     * 1. Role Manager Promo shouldn't be shown,
+     * 2. Impression count condition, other than the max count for RoleManager is met,
+     * 3. Current default browser state satisfied the pre-defined conditions.
      */
+    public boolean shouldShowNonRoleManagerPromo(Context context) {
+        return !shouldShowRoleManagerPromo(context, false)
+                && mImpressionCounter.shouldShowPromo(true)
+                && mStateProvider.shouldShowPromo();
+    }
+
+    /**
+     * This decides whether the dialog should be promoted. Returns true if: the feature is enabled,
+     * the {@link RoleManager} is available, and both the impression count and current default
+     * browser state satisfied the pre-defined conditions.
+     */
+    public boolean shouldShowRoleManagerPromo(Context context, boolean ignoreMaxCount) {
+        if (!isFeatureEnabled()) return false;
+
+        if (!mStateProvider.isRoleAvailable(context)) {
+            // Returns false if RoleManager default app setting is not available in the current
+            // system.
+            return false;
+        }
+
+        return mImpressionCounter.shouldShowPromo(ignoreMaxCount)
+                && mStateProvider.shouldShowPromo();
+    }
+
+    /** Increment session count for triggering feature in the future. */
     public static void incrementSessionCount() {
-        SharedPreferencesManager.getInstance().incrementInt(
-                ChromePreferenceKeys.DEFAULT_BROWSER_PROMO_SESSION_COUNT);
+        ChromeSharedPreferences.getInstance()
+                .incrementInt(ChromePreferenceKeys.DEFAULT_BROWSER_PROMO_SESSION_COUNT);
+    }
+
+    public static void setInstanceForTesting(DefaultBrowserPromoUtils testInstance) {
+        var oldInstance = sInstance;
+        sInstance = testInstance;
+        ResettersForTesting.register(() -> sInstance = oldInstance);
     }
 }

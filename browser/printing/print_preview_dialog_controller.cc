@@ -16,9 +16,9 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "cef/libcef/features/features.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/printing/print_view_manager.h"
+#include "chrome/browser/printing/print_view_manager_base.h"
 #include "chrome/browser/task_manager/web_contents_tags.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -37,6 +37,7 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/common/url_constants.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/web_dialogs/web_dialog_delegate.h"
 
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -83,12 +84,10 @@ class PrintPreviewDialogDelegate : public ui::WebDialogDelegate {
 
   ~PrintPreviewDialogDelegate() override;
 
-  ui::ModalType GetDialogModalType() const override;
+  ui::mojom::ModalType GetDialogModalType() const override;
   std::u16string GetDialogTitle() const override;
   std::u16string GetAccessibleDialogTitle() const override;
   GURL GetDialogContentURL() const override;
-  void GetWebUIMessageHandlers(
-      std::vector<WebUIMessageHandler*>* handlers) const override;
   void GetDialogSize(gfx::Size* size) const override;
   std::string GetDialogArgs() const override;
   void OnDialogClosingFromKeyEvent() override;
@@ -108,10 +107,9 @@ PrintPreviewDialogDelegate::PrintPreviewDialogDelegate(WebContents* initiator)
 
 PrintPreviewDialogDelegate::~PrintPreviewDialogDelegate() = default;
 
-ui::ModalType PrintPreviewDialogDelegate::GetDialogModalType() const {
+ui::mojom::ModalType PrintPreviewDialogDelegate::GetDialogModalType() const {
   // Not used, returning dummy value.
   NOTREACHED();
-  return ui::MODAL_TYPE_WINDOW;
 }
 
 std::u16string PrintPreviewDialogDelegate::GetDialogTitle() const {
@@ -127,11 +125,6 @@ GURL PrintPreviewDialogDelegate::GetDialogContentURL() const {
   return GURL(chrome::kChromeUIPrintURL);
 }
 
-void PrintPreviewDialogDelegate::GetWebUIMessageHandlers(
-    std::vector<WebUIMessageHandler*>* /* handlers */) const {
-  // PrintPreviewUI adds its own message handlers.
-}
-
 void PrintPreviewDialogDelegate::GetDialogSize(gfx::Size* size) const {
   DCHECK(size);
   const gfx::Size kMinDialogSize(800, 480);
@@ -144,7 +137,7 @@ void PrintPreviewDialogDelegate::GetDialogSize(gfx::Size* size) const {
   if (!outermost_web_contents)
     return;
 
-  Browser* browser = chrome::FindBrowserWithWebContents(outermost_web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(outermost_web_contents);
   if (browser)
     host = browser->window()->GetWebContentsModalDialogHost();
 
@@ -209,7 +202,7 @@ void PrintPreviewDialogController::PrintPreview(
     WebContents* initiator,
     const mojom::RequestPrintPreviewParams& params) {
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  ModuleDatabase::DisableThirdPartyBlocking();
+  PrintViewManagerBase::DisableThirdPartyBlocking();
 #endif
 
   if (initiator->IsCrashed()) {
@@ -222,6 +215,13 @@ void PrintPreviewDialogController::PrintPreview(
       print_view_manager->PrintPreviewDone();
     }
   }
+}
+
+// static
+std::unique_ptr<ui::WebDialogDelegate>
+PrintPreviewDialogController::CreatePrintPreviewDialogDelegateForTesting(
+    WebContents* initiator) {
+  return std::make_unique<PrintPreviewDialogDelegate>(initiator);
 }
 
 WebContents* PrintPreviewDialogController::GetOrCreatePreviewDialogForTesting(
@@ -241,7 +241,17 @@ WebContents* PrintPreviewDialogController::GetOrCreatePreviewDialog(
   if (preview_dialog) {
     return preview_dialog;
   }
-  return CreatePrintPreviewDialog(initiator, params);
+
+  // TODO(https://crbug.com/372062070: It's currently probably possible to
+  // invoke print-preview on non-tab web contents. There are currently tests
+  // that allow this for extension guest-views and chrome apps. For now allow
+  // these through. In the future we may want to restrict printing to tabs.
+  tabs::TabInterface* tab = tabs::TabInterface::MaybeGetFromContents(initiator);
+  if (tab && !tab->CanShowModalUI()) {
+    return nullptr;
+  }
+
+  return CreatePrintPreviewDialog(tab, initiator, params);
 }
 
 WebContents* PrintPreviewDialogController::GetPrintPreviewForContents(
@@ -299,10 +309,29 @@ void PrintPreviewDialogController::EraseInitiatorInfo(
     return;
 
   web_contents_collection_.StopObserving(it->second.initiator);
-  it->second = {/*initiator=*/nullptr, /*request_params=*/{}};
+  it->second.initiator = nullptr;
+  it->second.request_params = {};
+  it->second.scoper.reset();
 }
 
 PrintPreviewDialogController::~PrintPreviewDialogController() = default;
+
+PrintPreviewDialogController::InitiatorData::InitiatorData(
+    InitiatorData&&) noexcept = default;
+
+PrintPreviewDialogController::InitiatorData&
+PrintPreviewDialogController::InitiatorData::operator=(
+    InitiatorData&&) noexcept = default;
+
+PrintPreviewDialogController::InitiatorData::InitiatorData(
+    content::WebContents* initiator,
+    const mojom::RequestPrintPreviewParams& request_params,
+    std::unique_ptr<tabs::ScopedTabModalUI> scoper)
+    : initiator(initiator),
+      request_params(request_params),
+      scoper(std::move(scoper)) {}
+
+PrintPreviewDialogController::InitiatorData::~InitiatorData() = default;
 
 void PrintPreviewDialogController::RenderProcessGone(
     content::WebContents* web_contents,
@@ -338,7 +367,6 @@ void PrintPreviewDialogController::WebContentsDestroyed(WebContents* contents) {
   WebContents* preview_dialog = GetPrintPreviewForContents(contents);
   if (!preview_dialog) {
     NOTREACHED();
-    return;
   }
 
   if (contents == preview_dialog)
@@ -358,7 +386,6 @@ void PrintPreviewDialogController::DidFinishNavigation(
   WebContents* preview_dialog = GetPrintPreviewForContents(contents);
   if (!preview_dialog) {
     NOTREACHED();
-    return;
   }
 
   if (contents != preview_dialog)
@@ -399,18 +426,12 @@ void PrintPreviewDialogController::OnPreviewDialogNavigated(
       ui::PageTransitionCoreTypeIs(type, ui::PAGE_TRANSITION_AUTO_TOPLEVEL) &&
       !navigation_handle->IsSameDocument()) {
     SaveInitiatorTitle(preview_dialog);
-    return;
   }
-
-  // Cloud print sign-in causes a reload, but other cases should not be reached
-  // here.
-  DCHECK(ui::PageTransitionCoreTypeIs(type, ui::PAGE_TRANSITION_RELOAD));
-  DCHECK(
-      IsPrintPreviewURL(navigation_handle->GetPreviousPrimaryMainFrameURL()));
 }
 
 WebContents* PrintPreviewDialogController::CreatePrintPreviewDialog(
-    WebContents* initiator,
+    tabs::TabInterface* tab,
+    content::WebContents* initiator,
     const mojom::RequestPrintPreviewParams& params) {
   base::AutoReset<bool> auto_reset(&is_creating_print_preview_dialog_, true);
 
@@ -430,7 +451,8 @@ WebContents* PrintPreviewDialogController::CreatePrintPreviewDialog(
   PrintViewManager::CreateForWebContents(preview_dialog);
 
   // Add an entry to the map.
-  preview_dialog_map_[preview_dialog] = {initiator, params};
+  InitiatorData data(initiator, params, tab ? tab->ShowModalUI() : nullptr);
+  preview_dialog_map_.emplace(preview_dialog, std::move(data));
 
   // Make the print preview WebContents show up in the task manager.
   task_manager::WebContentsTags::CreateForPrintingContents(preview_dialog);
@@ -462,9 +484,7 @@ void PrintPreviewDialogController::RemoveInitiator(
   // Update the map entry first, so when the print preview dialog gets destroyed
   // and reaches RemovePreviewDialog(), it does not attempt to also remove the
   // initiator's observers.
-  preview_dialog_map_[preview_dialog] = {/*initiator=*/nullptr,
-                                         /*request_params=*/{}};
-  web_contents_collection_.StopObserving(initiator);
+  EraseInitiatorInfo(preview_dialog);
 
   PrintViewManager::FromWebContents(initiator)->PrintPreviewDone();
 

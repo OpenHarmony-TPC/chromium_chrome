@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string_view>
+
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
@@ -28,7 +29,7 @@ namespace {
 const base::FilePath::CharType kRLZBrandFilePath[] =
     FILE_PATH_LITERAL("/opt/oem/etc/BRAND_CODE");
 
-bool IsBrandValid(base::StringPiece brand) {
+bool IsBrandValid(std::string_view brand) {
   return !brand.empty();
 }
 
@@ -77,19 +78,19 @@ std::string GetBrand() {
 std::string GetRlzBrand() {
   policy::BrowserPolicyConnectorAsh* connector =
       g_browser_process->platform_part()->browser_policy_connector_ash();
-  absl::optional<policy::MarketSegment> market_segment;
+  std::optional<policy::MarketSegment> market_segment;
   if (connector->IsDeviceEnterpriseManaged())
     market_segment = connector->GetEnterpriseMarketSegment();
   // The rlz brand code may change over time (e.g. when device goes from
   // unenrolled to enrolled status in OOBE). Prefer not to save it in pref to
   // avoid using outdated value.
-  return GetRlzBrandCode(GetBrand(), market_segment);
+  return std::string(GetRlzBrandCode(GetBrand(), market_segment));
 }
 
 void InitBrand(base::OnceClosure callback) {
   ::ash::system::StatisticsProvider* provider =
       ::ash::system::StatisticsProvider::GetInstance();
-  const absl::optional<base::StringPiece> brand =
+  const std::optional<std::string_view> brand =
       provider->GetMachineStatistic(::ash::system::kRlzBrandCodeKey);
   if (brand && IsBrandValid(brand.value())) {
     SetBrand(std::move(callback), std::string(brand.value()));

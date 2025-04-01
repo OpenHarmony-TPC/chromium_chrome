@@ -39,15 +39,18 @@ class TitleAndUrlLayout extends FrameLayout {
     public TitleAndUrlLayout(Context context, AttributeSet attrs) {
         super(context, attrs);
         mGestureDetector =
-                new GestureDetector(getContext(), new GestureDetector.SimpleOnGestureListener() {
-                    @Override
-                    public boolean onSingleTapConfirmed(MotionEvent e) {
-                        if (LibraryLoader.getInstance().isInitialized()) {
-                            RecordUserAction.record("CustomTabs.TapUrlBar");
-                        }
-                        return super.onSingleTapConfirmed(e);
-                    }
-                }, ThreadUtils.getUiThreadHandler());
+                new GestureDetector(
+                        getContext(),
+                        new GestureDetector.SimpleOnGestureListener() {
+                            @Override
+                            public boolean onSingleTapConfirmed(MotionEvent e) {
+                                if (LibraryLoader.getInstance().isInitialized()) {
+                                    RecordUserAction.record("CustomTabs.TapUrlBar");
+                                }
+                                return super.onSingleTapConfirmed(e);
+                            }
+                        },
+                        ThreadUtils.getUiThreadHandler());
     }
 
     @Override
@@ -60,13 +63,13 @@ class TitleAndUrlLayout extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        assert getChildCount() == 2;
-
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
         int titleHeight = mTitleBar.getMeasuredHeight();
         int urlHeight = mUrlBar.getMeasuredHeight();
-        if (!mTextScaled && titleHeight > 0 && urlHeight > 0
+        if (!mTextScaled
+                && titleHeight > 0
+                && urlHeight > 0
                 && (titleHeight + urlHeight > getMeasuredHeight())) {
             float titleToTotalRatio =
                     mTitleBar.getTextSize() / (mTitleBar.getTextSize() + mUrlBar.getTextSize());

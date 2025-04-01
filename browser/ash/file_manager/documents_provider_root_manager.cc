@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <string_view>
 #include <tuple>
 #include <utility>
 
@@ -53,13 +54,10 @@ bool IsAuthorityToExclude(const std::string& authority) {
 GURL EncodeIconAsUrl(const SkBitmap& bitmap) {
   // Root icons are resized to 32px*32px in the ARC container. We use the given
   // bitmaps without resizing in Chrome side.
-  std::vector<unsigned char> output;
-  gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, false, &output);
-  std::string encoded;
-  base::Base64Encode(
-      base::StringPiece(reinterpret_cast<const char*>(output.data()),
-                        output.size()),
-      &encoded);
+  std::optional<std::vector<uint8_t>> output =
+      gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, /*discard_transparency=*/false);
+  std::string encoded =
+      base::Base64Encode(output.value_or(std::vector<uint8_t>()));
   return GURL("data:image/png;base64," + encoded);
 }
 
@@ -85,7 +83,7 @@ class BitmapWrapper {
   }
 
  private:
-  const raw_ptr<const SkBitmap, ExperimentalAsh> bitmap_;
+  const raw_ptr<const SkBitmap> bitmap_;
 };
 
 }  // namespace
@@ -180,7 +178,7 @@ void DocumentsProviderRootManager::RequestGetRoots() {
 }
 
 void DocumentsProviderRootManager::OnGetRoots(
-    absl::optional<std::vector<arc::mojom::RootPtr>> maybe_roots) {
+    std::optional<std::vector<arc::mojom::RootPtr>> maybe_roots) {
   if (!maybe_roots.has_value()) {
     return;
   }
@@ -259,16 +257,14 @@ void DocumentsProviderRootManager::NotifyRootAdded(const RootInfo& info) {
   for (auto& observer : observer_list_) {
     observer.OnDocumentsProviderRootAdded(
         info.authority, info.root_id, info.document_id, info.title,
-        info.summary,
-        !info.icon.empty() ? EncodeIconAsUrl(info.icon) : GURL::EmptyGURL(),
+        info.summary, !info.icon.empty() ? EncodeIconAsUrl(info.icon) : GURL(),
         !info.supports_create, info.mime_types);
   }
 }
 
 void DocumentsProviderRootManager::NotifyRootRemoved(const RootInfo& info) {
   for (auto& observer : observer_list_) {
-    observer.OnDocumentsProviderRootRemoved(info.authority, info.root_id,
-                                            info.document_id);
+    observer.OnDocumentsProviderRootRemoved(info.authority, info.root_id);
   }
 }
 

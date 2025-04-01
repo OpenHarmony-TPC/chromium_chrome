@@ -11,6 +11,7 @@
 #include "base/scoped_observation.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -20,7 +21,7 @@
 #include "chrome/browser/background/background_contents_service_observer.h"
 #include "chrome/browser/background/background_mode_manager.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
+#include "chrome/browser/chrome_browser_main_extra_parts_nacl_deprecation.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
@@ -31,7 +32,6 @@
 #include "chrome/common/chrome_paths.h"
 #include "components/embedder_support/switches.h"
 #include "components/nacl/common/buildflags.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -50,7 +50,7 @@
 #endif
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #endif
 
 using extensions::Extension;
@@ -150,16 +150,17 @@ class AppBackgroundPageApiTest : public extensions::ExtensionApiTest {
   }
 
   bool VerifyBackgroundMode(bool expected_background_mode) {
+#if BUILDFLAG(ENABLE_BACKGROUND_MODE)
     BackgroundModeManager* manager =
         g_browser_process->background_mode_manager();
+    if (manager && manager->IsBackgroundModePrefEnabled()) {
+      return manager->IsBackgroundModeActive() == expected_background_mode;
+    }
+#endif
     // If background mode is disabled on this platform (e.g. cros), then skip
     // this check.
-    if (!manager || !manager->IsBackgroundModePrefEnabled()) {
-      DLOG(WARNING) << "Skipping check - background mode disabled";
-      return true;
-    }
-
-    return manager->IsBackgroundModeActive() == expected_background_mode;
+    DLOG(WARNING) << "Skipping check - background mode disabled";
+    return true;
   }
 
   void UnloadExtensionViaTask(const std::string& id) {
@@ -178,7 +179,9 @@ namespace {
 // Native Client embeds.
 class AppBackgroundPageNaClTest : public AppBackgroundPageApiTest {
  public:
-  AppBackgroundPageNaClTest() : extension_(nullptr) {}
+  AppBackgroundPageNaClTest() : extension_(nullptr) {
+    feature_list_.InitAndEnableFeature(kNaclAllow);
+  }
   ~AppBackgroundPageNaClTest() override {}
 
   void SetUpOnMainThread() override {
@@ -202,6 +205,7 @@ class AppBackgroundPageNaClTest : public AppBackgroundPageApiTest {
 
  private:
   raw_ptr<const Extension> extension_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
 }  // namespace
@@ -508,7 +512,13 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, OpenPopupFromBGPage) {
 
 // Partly a regression test for crbug.com/756465. Namely, that window.open
 // correctly matches an app URL with a path component.
-IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, OpenThenClose) {
+// Flaky on Chrome OS https://crbug.com/1462141.
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_OpenThenClose DISABLED_OpenThenClose
+#else
+#define MAYBE_OpenThenClose OpenThenClose
+#endif
+IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, MAYBE_OpenThenClose) {
   std::string app_manifest = base::StringPrintf(
       "{"
       "  \"name\": \"App\","

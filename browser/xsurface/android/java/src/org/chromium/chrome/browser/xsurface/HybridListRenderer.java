@@ -21,8 +21,7 @@ public interface HybridListRenderer {
      * @return a View that the HybridListRenderer is managing, which can then be
      * attached to other view
      */
-    @Nullable
-    default View bind(ListContentManager manager) {
+    default @Nullable View bind(ListContentManager manager) {
         return null;
     }
 
@@ -30,16 +29,39 @@ public interface HybridListRenderer {
      * Binds a contentmanager with this renderer.
      *
      * @param manager the ListContentManager responsible for populating views
-     * @param viewport the ViewGroup containing the content. Views within the
-     *   bounds of this ViewGroup will be considered for view actions. If null,
-     *   the returned View will be used as the viewport.
+     * @param viewport the ViewGroup containing the content. Views within the bounds of this
+     *     ViewGroup will be considered for view actions. If null, the returned View will be used as
+     *     the viewport.
      * @param shouldUseStaggeredLayout whether to use Staggered layout for list. Column count should
-     *         be set via ListLayoutHelper#setSpanCount()
-     * @return
+     *     be set via ListLayoutHelper#setSpanCount()
+     * @return a View that the HybridListRenderer is managing, which can then be attached to other
+     *     view.
      */
-    @Nullable
-    default View bind(ListContentManager manager, @Nullable ViewGroup viewport,
+    @Deprecated
+    default @Nullable View bind(
+            ListContentManager manager,
+            @Nullable ViewGroup viewport,
             boolean shouldUseStaggeredLayout) {
+        return bind(manager);
+    }
+
+    /**
+     * Binds a contentmanager with this renderer.
+     *
+     * @param manager the ListContentManager responsible for populating views
+     * @param viewport the ViewGroup containing the content. Views within the bounds of this
+     *     ViewGroup will be considered for view actions. If null, the returned View will be used as
+     *     the viewport.
+     * @param gutterPaddingPerColumnPx the padding in the vertical gutter between the card columns,
+     *     per column in pixels when the staggered layout is used for list. Column count should be
+     *     set via ListLayoutHelper#setSpanCount(). If the staggered layout is not used, pass -1.
+     * @return a View that the HybridListRenderer is managing, which can then be attached to other
+     *     view.
+     */
+    default @Nullable View bind(
+            ListContentManager manager,
+            @Nullable ViewGroup viewport,
+            int gutterPaddingPerColumnPx) {
         return bind(manager);
     }
 
@@ -47,9 +69,9 @@ public interface HybridListRenderer {
      * Notify the HybridListRender when the externally provided view surface (embedded in
      * bind/update) is activated. This should include:
      *
-     *   - the user opening a new tab containing the (opened) surface.
-     *   - the user switching to a tab containing the (opened) surface.
-     *   - the user reactivating the previously deactivated surface.
+     * <p>- the user opening a new tab containing the (opened) surface. - the user switching to a
+     * tab containing the (opened) surface. - the user reactivating the previously deactivated
+     * surface.
      */
     default void onSurfaceOpened() {}
 
@@ -71,20 +93,17 @@ public interface HybridListRenderer {
      */
     default void unbind() {}
 
-    /**
-     * Updates the renderer with templates and initializing data.
-     */
+    /** Updates the renderer with templates and initializing data. */
     default void update(byte[] data) {}
 
-    /**
-     * Called when a pull to refresh is initiated by the user.
-     */
+    /** Called when a pull to refresh is initiated by the user. */
+    @Deprecated
     default void onPullToRefreshStarted() {}
 
-    /**
-     * Returns helper to manager the list layout.
-     * @return @{@link ListLayoutHelper} instance.
-     */
+    /** Called when a manual refresh is initiated by the user. */
+    default void onManualRefreshStarted() {}
+
+    /** Returns helper to manager the list layout. @{@link ListLayoutHelper} instance. */
     default ListLayoutHelper getListLayoutHelper() {
         return null;
     }

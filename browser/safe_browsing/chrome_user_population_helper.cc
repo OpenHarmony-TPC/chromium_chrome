@@ -4,7 +4,6 @@
 
 #include "chrome/browser/safe_browsing/chrome_user_population_helper.h"
 
-#include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "build/chromeos_buildflags.h"
@@ -21,16 +20,16 @@
 #include "components/safe_browsing/core/browser/sync/sync_utils.h"
 #include "components/safe_browsing/core/browser/user_population.h"
 #include "components/safe_browsing/core/browser/verdict_cache_manager.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
+#include "components/webdata/common/web_database_service.h"
 
 namespace safe_browsing {
 
 namespace {
 
-absl::optional<ChromeUserPopulation>& GetCachedUserPopulation(
-    Profile* profile) {
+std::optional<ChromeUserPopulation>& GetCachedUserPopulation(Profile* profile) {
   static base::NoDestructor<
-      std::map<Profile*, absl::optional<ChromeUserPopulation>>>
+      std::map<Profile*, std::optional<ChromeUserPopulation>>>
       instance;
   return (*instance)[profile];
 }
@@ -48,7 +47,7 @@ NoCachedPopulationReason& GetNoCachedPopulationReason(Profile* profile) {
 
 void ComparePopulationWithCache(Profile* profile,
                                 const ChromeUserPopulation& population) {
-  const absl::optional<ChromeUserPopulation>& cached_population =
+  const std::optional<ChromeUserPopulation>& cached_population =
       GetCachedUserPopulation(profile);
   if (!cached_population) {
     return;
@@ -59,7 +58,7 @@ void ComparePopulationWithCache(Profile* profile,
 
 void ClearCachedUserPopulation(Profile* profile,
                                NoCachedPopulationReason reason) {
-  GetCachedUserPopulation(profile) = absl::nullopt;
+  GetCachedUserPopulation(profile) = std::nullopt;
   GetNoCachedPopulationReason(profile) = reason;
 }
 
@@ -69,8 +68,8 @@ ChromeUserPopulation GetUserPopulationForProfile(Profile* profile) {
     return ChromeUserPopulation();
 
   syncer::SyncService* sync = SyncServiceFactory::GetForProfile(profile);
-  bool is_history_sync_enabled =
-      sync && sync->IsSyncFeatureActive() && !sync->IsLocalSyncEnabled() &&
+  bool is_history_sync_active =
+      sync && !sync->IsLocalSyncEnabled() &&
       sync->GetActiveDataTypes().Has(syncer::HISTORY_DELETE_DIRECTIVES);
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile);
@@ -87,28 +86,21 @@ ChromeUserPopulation GetUserPopulationForProfile(Profile* profile) {
       advanced_protection_manager->IsUnderAdvancedProtection();
 #endif
 
-  absl::optional<size_t> num_profiles;
-  absl::optional<size_t> num_loaded_profiles;
-  absl::optional<size_t> num_open_profiles;
+  std::optional<size_t> num_profiles;
+  std::optional<size_t> num_loaded_profiles;
 
   ProfileManager* profile_manager = g_browser_process->profile_manager();
   // |profile_manager| may be null in tests.
   if (profile_manager) {
     num_profiles = profile_manager->GetNumberOfProfiles();
     num_loaded_profiles = profile_manager->GetLoadedProfiles().size();
-
-    // On ChromeOS multiple profiles doesn't apply, and GetLastOpenedProfiles
-    // causes crashes on ChromeOS. See https://crbug.com/1211793.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-    num_open_profiles = profile_manager->GetLastOpenedProfiles().size();
-#endif
   }
 
   ChromeUserPopulation population = GetUserPopulation(
-      profile->GetPrefs(), profile->IsOffTheRecord(), is_history_sync_enabled,
+      profile->GetPrefs(), profile->IsOffTheRecord(), is_history_sync_active,
       is_signed_in, is_under_advanced_protection,
       g_browser_process->browser_policy_connector(), std::move(num_profiles),
-      std::move(num_loaded_profiles), std::move(num_open_profiles));
+      std::move(num_loaded_profiles));
 
   ComparePopulationWithCache(profile, population);
   GetCachedUserPopulation(profile) = population;
@@ -125,32 +117,15 @@ ChromeUserPopulation GetUserPopulationForProfileWithCookieTheftExperiments(
     static const base::NoDestructor<std::vector<const base::Feature*>>
         kCookieTheftExperiments{{
 #if BUILDFLAG(IS_WIN)
-            &features::kLockProfileCookieDatabase
+            &features::kUseAppBoundEncryptionProviderForEncryption,
 #endif
+            &features::kUseNewEncryptionKeyForWebData,
         }};
 
     GetExperimentStatus(*kCookieTheftExperiments, &population);
   }
 
   return population;
-}
-
-void GetExperimentStatus(const std::vector<const base::Feature*>& experiments,
-                         ChromeUserPopulation* population) {
-  for (const base::Feature* feature : experiments) {
-    base::FieldTrial* field_trial = base::FeatureList::GetFieldTrial(*feature);
-    if (!field_trial) {
-      continue;
-    }
-    const std::string& trial = field_trial->trial_name();
-    const std::string& group = field_trial->GetGroupNameWithoutActivation();
-    bool is_experimental = group.find("Enabled") != std::string::npos ||
-                           group.find("Control") != std::string::npos;
-    bool is_preperiod = group.find("Preperiod") != std::string::npos;
-    if (is_experimental && !is_preperiod) {
-      population->add_finch_active_groups(trial + "." + group);
-    }
-  }
 }
 
 ChromeUserPopulation::PageLoadToken GetPageLoadTokenForURL(Profile* profile,

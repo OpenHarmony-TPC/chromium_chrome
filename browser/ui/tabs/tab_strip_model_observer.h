@@ -6,16 +6,16 @@
 #define CHROME_BROWSER_UI_TABS_TAB_STRIP_MODEL_OBSERVER_H_
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "chrome/browser/ui/tabs/public/tab_interface.h"
 #include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "components/sessions/core/session_id.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 #include "ui/base/models/list_selection_model.h"
 
@@ -28,6 +28,13 @@ class WebContents;
 ////////////////////////////////////////////////////////////////////////////////
 //
 // TabStripModelChange / TabStripSelectionChange
+//
+// This observer is not appropriate for most use cases. It's primarily used for
+// features that must directly interface with the tab strip, for example: tab
+// groups, tab search, etc.
+// Most features in Chrome need to hold state on a per-tab basis. In that case,
+// add a controller to TabFeatures and use TabInterface to observe for the tab
+// events.
 //
 // The following class and structures are used to inform TabStripModelObservers
 // of changes to:
@@ -47,11 +54,6 @@ class TabStripModelChange {
     // WebContents will be deleted.
     kDeleted,
 
-    // WebContents will be stored in ClosedTabCache. After some amount of time,
-    // the WebContents will either be deleted, or inserted back into another
-    // TabStripModel.
-    kCached,
-
     // WebContents got detached from a TabStrip and inserted into another
     // TabStrip.
     kInsertedIntoOtherTabStrip
@@ -70,18 +72,20 @@ class TabStripModelChange {
     RemovedTab(content::WebContents* contents,
                int index,
                RemoveReason remove_reason,
-               absl::optional<SessionID> session_id);
+               tabs::TabInterface::DetachReason tab_detach_reason,
+               std::optional<SessionID> session_id,
+               tabs::TabInterface* tab);
     virtual ~RemovedTab();
     RemovedTab(RemovedTab&& other);
 
     void WriteIntoTrace(perfetto::TracedValue context) const;
 
-    // This field is not a raw_ptr<> because of incompatibilities with tracing
-    // in not-rewritten platform specific code.
-    RAW_PTR_EXCLUSION content::WebContents* contents;
+    raw_ptr<content::WebContents> contents;
     int index;
     RemoveReason remove_reason;
-    absl::optional<SessionID> session_id;
+    tabs::TabInterface::DetachReason tab_detach_reason;
+    std::optional<SessionID> session_id;
+    raw_ptr<tabs::TabInterface> tab;
   };
 
   struct ContentsWithIndex {
@@ -230,7 +234,8 @@ struct TabStripSelectionChange {
     return selected_tabs_were_removed || old_model != new_model;
   }
 
-  raw_ptr<content::WebContents, DanglingUntriaged> old_contents = nullptr;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> old_contents =
+      nullptr;
   raw_ptr<content::WebContents, DanglingUntriaged> new_contents = nullptr;
 
   ui::ListSelectionModel old_model;
@@ -348,14 +353,20 @@ class TabStripModelObserver {
   // TabStripModel, which allows an observer to react to an impending change to
   // the TabStripModel. The only use case of this signal that is currently
   // supported is the drag controller completing a drag before a tab is removed.
-  // TODO(1322943): Unify and generalize this and OnTabWillBeAdded, e.g. via
-  // OnTabStripModelWillChange().
+  // TODO(crbug.com/40838330): Unify and generalize this and OnTabWillBeAdded,
+  // e.g. via OnTabStripModelWillChange().
   virtual void OnTabWillBeRemoved(content::WebContents* contents, int index);
 
   // |change| is a change in the Tab Group model or metadata. These
   // changes may cause repainting of some Tab Group UI. They are
   // independent of the tabstrip model and do not affect any tab state.
   virtual void OnTabGroupChanged(const TabGroupChange& change);
+
+  // Notfies us when a Tab Group is added to the Tab Group Model.
+  virtual void OnTabGroupAdded(const tab_groups::TabGroupId& group_id);
+
+  // Notfies us when a Tab Group will be removed from the Tab Group Model.
+  virtual void OnTabGroupWillBeRemoved(const tab_groups::TabGroupId& group_id);
 
   // The specified WebContents at |index| changed in some way. |contents|
   // may be an entirely different object and the old value is no longer
@@ -379,14 +390,18 @@ class TabStripModelObserver {
 
   // Called when the tab at |index| is added to the group with id |group|.
   virtual void TabGroupedStateChanged(
-      absl::optional<tab_groups::TabGroupId> group,
-      content::WebContents* contents,
+      std::optional<tab_groups::TabGroupId> group,
+      tabs::TabInterface* tab,
       int index);
 
   // The TabStripModel now no longer has any tabs. The implementer may
   // use this as a trigger to try and close the window containing the
   // TabStripModel, for example...
   virtual void TabStripEmpty();
+
+  // Called when a tab is attempted to be closed but the closure is not
+  // permitted by the `TabStripModel::IsTabClosable` oracle.
+  virtual void TabCloseCancelled(const content::WebContents* contents);
 
   // Sent any time an attempt is made to close all the tabs. This is not
   // necessarily the result of CloseAllTabs(). For example, if the user closes
@@ -395,7 +410,7 @@ class TabStripModelObserver {
   // CloseAllTabsStopped() is sent with reason 'CANCELED'. On the other hand if
   // the close does finish then CloseAllTabsStopped() is sent with reason
   // 'COMPLETED'. Also note that if the last tab is detached
-  // (DetachAndDeleteWebContentsAt()/DetachWebContentsAtForInsertion()) then
+  // (DetachAndDeleteWebContentsAt()) then
   // this is not sent.
   virtual void WillCloseAllTabs(TabStripModel* tab_strip_model);
   virtual void CloseAllTabsStopped(TabStripModel* tab_strip_model,
@@ -437,7 +452,7 @@ class TabStripModelObserver {
   virtual ~TabStripModelObserver();
 
  private:
-  std::set<TabStripModel*> observed_models_;
+  std::set<raw_ptr<TabStripModel, SetExperimental>> observed_models_;
 };
 
 #endif  // CHROME_BROWSER_UI_TABS_TAB_STRIP_MODEL_OBSERVER_H_

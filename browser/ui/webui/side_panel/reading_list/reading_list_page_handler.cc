@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/location.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/user_metrics.h"
@@ -25,6 +26,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/profiles/profile_view_utils.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/side_panel/reading_list/reading_list_ui.h"
 #include "chrome/common/webui_url_constants.h"
@@ -35,10 +37,10 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "ui/base/l10n/time_format.h"
-#include "ui/base/models/simple_menu_model.h"
 #include "ui/base/mojom/window_open_disposition.mojom.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/base/window_open_disposition_utils.h"
+#include "ui/menus/simple_menu_model.h"
 #include "url/gurl.h"
 
 namespace {
@@ -92,7 +94,7 @@ class ReadLaterItemContextMenu : public ui::SimpleMenuModel,
         content::OpenURLParams params(url_, content::Referrer(),
                                       WindowOpenDisposition::NEW_BACKGROUND_TAB,
                                       ui::PAGE_TRANSITION_AUTO_BOOKMARK, false);
-        browser_->OpenURL(params);
+        browser_->OpenURL(params, /*navigation_handle_callback=*/{});
         break;
       }
 
@@ -100,7 +102,7 @@ class ReadLaterItemContextMenu : public ui::SimpleMenuModel,
         content::OpenURLParams params(url_, content::Referrer(),
                                       WindowOpenDisposition::NEW_WINDOW,
                                       ui::PAGE_TRANSITION_AUTO_BOOKMARK, false);
-        browser_->OpenURL(params);
+        browser_->OpenURL(params, /*navigation_handle_callback=*/{});
         break;
       }
 
@@ -108,7 +110,7 @@ class ReadLaterItemContextMenu : public ui::SimpleMenuModel,
         content::OpenURLParams params(url_, content::Referrer(),
                                       WindowOpenDisposition::OFF_THE_RECORD,
                                       ui::PAGE_TRANSITION_AUTO_BOOKMARK, false);
-        browser_->OpenURL(params);
+        browser_->OpenURL(params, /*navigation_handle_callback=*/{});
         break;
       }
 
@@ -119,12 +121,18 @@ class ReadLaterItemContextMenu : public ui::SimpleMenuModel,
         reading_list_model_->SetReadStatusIfExists(url_, false);
         break;
       case kDelete:
-        reading_list_model_->RemoveEntryByURL(url_);
+        reading_list_model_->RemoveEntryByURL(url_, FROM_HERE);
         break;
       default:
         NOTREACHED();
-        break;
     }
+  }
+
+  bool IsCommandIdEnabled(int command_id) const override {
+    if (command_id == IDC_CONTENT_CONTEXT_OPENLINKOFFTHERECORD) {
+      return IsOpenLinkOTREnabled(browser_->GetProfile(), url_);
+    }
+    return true;
   }
 
  private:
@@ -181,7 +189,7 @@ void ReadingListPageHandler::OpenURL(
 
   content::OpenURLParams params(url, content::Referrer(), open_location,
                                 ui::PAGE_TRANSITION_AUTO_BOOKMARK, false);
-  browser->OpenURL(params);
+  browser->OpenURL(params, /*navigation_handle_callback=*/{});
 
   scoped_refptr<const ReadingListEntry> entry =
       reading_list_model_->GetEntryByURL(url);
@@ -227,7 +235,7 @@ void ReadingListPageHandler::AddCurrentTab() {
 }
 
 void ReadingListPageHandler::RemoveEntry(const GURL& url) {
-  reading_list_model_->RemoveEntryByURL(url);
+  reading_list_model_->RemoveEntryByURL(url, FROM_HERE);
   base::RecordAction(base::UserMetricsAction("DesktopReadingList.RemoveItem"));
 }
 
@@ -290,7 +298,7 @@ void ReadingListPageHandler::ReadingListDidApplyChanges(
   reading_list_model_->MarkAllSeen();
 }
 
-const absl::optional<GURL> ReadingListPageHandler::GetActiveTabURL() {
+const std::optional<GURL> ReadingListPageHandler::GetActiveTabURL() {
   if (active_tab_url_)
     return active_tab_url_.value();
   Browser* browser = chrome::FindLastActive();
@@ -298,7 +306,7 @@ const absl::optional<GURL> ReadingListPageHandler::GetActiveTabURL() {
     return chrome::GetURLToBookmark(
         browser->tab_strip_model()->GetActiveWebContents());
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void ReadingListPageHandler::SetActiveTabURL(const GURL& url) {
@@ -370,7 +378,7 @@ void ReadingListPageHandler::UpdateCurrentPageActionButton() {
       Profile::FromWebUI(web_ui_)->IsGuestSession())
     return;
 
-  const absl::optional<GURL> url = GetActiveTabURL();
+  const std::optional<GURL> url = GetActiveTabURL();
   if (!url.has_value())
     return;
 
@@ -388,4 +396,13 @@ void ReadingListPageHandler::UpdateCurrentPageActionButton() {
     page_->CurrentPageActionButtonStateChanged(
         current_page_action_button_state_);
   }
+}
+
+std::unique_ptr<ui::SimpleMenuModel>
+ReadingListPageHandler::GetItemContextMenuModelForTesting(
+    Browser* browser,
+    ReadingListModel* reading_list_model,
+    GURL url) {
+  return std::make_unique<ReadLaterItemContextMenu>(browser, reading_list_model,
+                                                    url);
 }

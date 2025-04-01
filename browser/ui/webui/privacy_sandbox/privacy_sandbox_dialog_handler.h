@@ -25,38 +25,16 @@ class PrivacySandboxDialogHandler : public content::WebUIMessageHandler {
   void OnJavascriptAllowed() override;
   void OnJavascriptDisallowed() override;
 
- protected:
+ private:
   friend class PrivacySandboxDialogHandlerTest;
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxConsentDialogHandlerTest,
-                           HandleResizeDialog);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxConsentDialogHandlerTest,
-                           HandleShowDialog);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxConsentDialogHandlerTest,
-                           HandleClickLearnMore);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxConsentDialogHandlerTest,
-                           HandleConsentAccepted);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxConsentDialogHandlerTest,
-                           HandleConsentDeclined);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxNoticeDialogHandlerTest,
-                           HandleResizeDialog);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxNoticeDialogHandlerTest,
-                           HandleShowDialog);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxNoticeDialogHandlerTest,
-                           HandleOpenSettings);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxNoticeDialogHandlerTest,
-                           HandleNoticeAcknowledge);
-  FRIEND_TEST_ALL_PREFIXES(
-      PrivacySandboxConsentDialogHandlerTest,
-      NotifyServiceAboutPromptAction_Invokes_PromptActionOccured);
-  FRIEND_TEST_ALL_PREFIXES(
-      PrivacySandboxNoticeDialogHandlerTest,
-      NotifyServiceAboutPromptAction_Invokes_PromptActionOccured);
 
   void HandlePromptActionOccurred(const base::Value::List& args);
   void HandleResizeDialog(const base::Value::List& args);
   void HandleShowDialog(const base::Value::List& args);
-  void NotifyServiceAboutPromptAction(
-      PrivacySandboxService::PromptAction action);
+  void HandleRecordPrivacyPolicyLoadTime(const base::Value::List& args);
+  // Determines if the Privacy Policy page should be shown.
+  void HandleShouldShowPrivacySandboxPrivacyPolicy(
+      const base::Value::List& args);
   void CloseDialog();
 
   base::OnceClosure close_callback_;

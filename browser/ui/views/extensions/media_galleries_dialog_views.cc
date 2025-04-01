@@ -19,6 +19,9 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/border.h"
@@ -38,17 +41,18 @@ const int kScrollAreaHeight = 192;
 
 // This container has the right Layout() impl to use within a ScrollView.
 class ScrollableView : public views::View {
+  METADATA_HEADER(ScrollableView, views::View)
+
  public:
-  METADATA_HEADER(ScrollableView);
   ScrollableView() = default;
   ScrollableView(const ScrollableView&) = delete;
   ScrollableView& operator=(const ScrollableView&) = delete;
   ~ScrollableView() override = default;
 
-  void Layout() override;
+  void Layout(PassKey) override;
 };
 
-void ScrollableView::Layout() {
+void ScrollableView::Layout(PassKey) {
   gfx::Size pref = GetPreferredSize();
   int width = pref.width();
   int height = pref.height();
@@ -58,10 +62,10 @@ void ScrollableView::Layout() {
   }
   SetBounds(x(), y(), width, height);
 
-  views::View::Layout();
+  LayoutSuperclass<views::View>(this);
 }
 
-BEGIN_METADATA(ScrollableView, views::View)
+BEGIN_METADATA(ScrollableView)
 END_METADATA
 
 }  // namespace
@@ -73,11 +77,12 @@ MediaGalleriesDialogViews::MediaGalleriesDialogViews(
       auxiliary_button_(nullptr),
       confirm_available_(false),
       accepted_(false) {
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, controller_->GetAcceptButtonText());
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
+                 controller_->GetAcceptButtonText());
   SetAcceptCallback(base::BindOnce(
       [](MediaGalleriesDialogViews* dialog) { dialog->accepted_ = true; },
       base::Unretained(this)));
-  SetModalType(ui::MODAL_TYPE_CHILD);
+  SetModalType(ui::mojom::ModalType::kChild);
   SetShowCloseButton(false);
   SetTitle(controller_->GetHeader());
   SetOwnedByWidget(false);
@@ -192,7 +197,7 @@ void MediaGalleriesDialogViews::InitChildViews() {
 
 void MediaGalleriesDialogViews::UpdateGalleries() {
   InitChildViews();
-  contents_->Layout();
+  contents_->DeprecatedLayoutImmediately();
 
   if (ControllerHasWebContents())
     DialogModelChanged();
@@ -243,14 +248,14 @@ views::View* MediaGalleriesDialogViews::GetContentsView() {
 }
 
 bool MediaGalleriesDialogViews::IsDialogButtonEnabled(
-    ui::DialogButton button) const {
-  return button != ui::DIALOG_BUTTON_OK || confirm_available_;
+    ui::mojom::DialogButton button) const {
+  return button != ui::mojom::DialogButton::kOk || confirm_available_;
 }
 
 void MediaGalleriesDialogViews::ShowContextMenuForViewImpl(
     views::View* source,
     const gfx::Point& point,
-    ui::MenuSourceType source_type) {
+    ui::mojom::MenuSourceType source_type) {
   for (CheckboxMap::const_iterator iter = checkbox_map_.begin();
        iter != checkbox_map_.end(); ++iter) {
     if (iter->second->Contains(source)) {
@@ -260,9 +265,10 @@ void MediaGalleriesDialogViews::ShowContextMenuForViewImpl(
   }
 }
 
-void MediaGalleriesDialogViews::ShowContextMenu(const gfx::Point& point,
-                                                ui::MenuSourceType source_type,
-                                                MediaGalleryPrefId id) {
+void MediaGalleriesDialogViews::ShowContextMenu(
+    const gfx::Point& point,
+    ui::mojom::MenuSourceType source_type,
+    MediaGalleryPrefId id) {
   context_menu_runner_ = std::make_unique<views::MenuRunner>(
       controller_->GetContextMenu(id),
       views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU,

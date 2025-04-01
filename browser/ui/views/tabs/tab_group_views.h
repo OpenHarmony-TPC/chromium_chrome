@@ -55,14 +55,6 @@ class TabGroupViews {
   // Returns the group color.
   SkColor GetGroupColor() const;
 
-  // Returns the tab highlight background color. Needed to layer painting for
-  // the group background highlight.
-  SkColor GetTabBackgroundColor() const;
-
-  // Returns the group background color, which matches the non-active selected
-  // tab color. Needed to layer painting for the group background highlight.
-  SkColor GetGroupBackgroundColor() const;
-
   // Finds the first and last tab or group header belonging to `group_` from the
   // whole Tabstrip.
   std::tuple<const views::View*, const views::View*>
@@ -87,7 +79,7 @@ class TabGroupViews {
   // Finds the first and last tab or group header belonging to |group_| within
   // |children|.
   std::tuple<views::View*, views::View*> GetLeadingTrailingGroupViews(
-      std::vector<views::View*> children) const;
+      std::vector<raw_ptr<views::View, VectorExperimental>> children) const;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_TAB_GROUP_VIEWS_H_

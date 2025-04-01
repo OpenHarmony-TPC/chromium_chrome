@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+#include <utility>
+
 #include "chrome/browser/extensions/api/shared_storage/shared_storage_private_api.h"
 
 #include "base/values.h"
@@ -39,7 +42,7 @@ SharedStoragePrivateSetFunction::SharedStoragePrivateSetFunction() = default;
 SharedStoragePrivateSetFunction::~SharedStoragePrivateSetFunction() = default;
 
 ExtensionFunction::ResponseAction SharedStoragePrivateSetFunction::Run() {
-  absl::optional<shared_api::Set::Params> params =
+  std::optional<shared_api::Set::Params> params =
       shared_api::Set::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
   PrefService* prefs =
@@ -55,7 +58,7 @@ SharedStoragePrivateRemoveFunction::~SharedStoragePrivateRemoveFunction() =
     default;
 
 ExtensionFunction::ResponseAction SharedStoragePrivateRemoveFunction::Run() {
-  absl::optional<shared_api::Remove::Params> params =
+  std::optional<shared_api::Remove::Params> params =
       shared_api::Remove::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
   PrefService* prefs =

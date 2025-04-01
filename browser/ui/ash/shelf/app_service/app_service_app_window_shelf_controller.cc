@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "ash/constants/app_types.h"
+#include "ash/components/arc/app/arc_app_constants.h"
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/app_list/internal_app_id_constants.h"
 #include "ash/public/cpp/app_types_util.h"
@@ -21,6 +21,7 @@
 #include "chrome/browser/ash/app_list/arc/arc_app_utils.h"
 #include "chrome/browser/ash/arc/arc_util.h"
 #include "chrome/browser/ash/borealis/borealis_service.h"
+#include "chrome/browser/ash/borealis/borealis_service_factory.h"
 #include "chrome/browser/ash/borealis/borealis_window_manager.h"
 #include "chrome/browser/ash/crosapi/browser_util.h"
 #include "chrome/browser/ash/crostini/crostini_features.h"
@@ -46,15 +47,19 @@
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/chrome_unscaled_resources.h"
+#include "chromeos/ash/components/borealis/borealis_util.h"
+#include "chromeos/ui/base/app_types.h"
 #include "chromeos/ui/base/window_properties.h"
 #include "components/account_id/account_id.h"
 #include "components/app_constants/constants.h"
 #include "components/exo/shell_surface_base.h"
 #include "components/exo/shell_surface_util.h"
 #include "components/services/app_service/public/cpp/instance.h"
+#include "components/user_manager/user_manager.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/env.h"
 #include "ui/aura/window.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/views/widget/widget.h"
@@ -99,7 +104,7 @@ AppServiceAppWindowShelfController::AppServiceAppWindowShelfController(
       app_service_instance_helper_(
           std::make_unique<AppServiceInstanceRegistryHelper>(this)) {
   aura::Env::GetInstance()->AddObserver(this);
-  Observe(&proxy_->InstanceRegistry());
+  instance_registry_observation_.Observe(&proxy_->InstanceRegistry());
 
   if (arc::IsArcAllowedForProfile(owner->profile()))
     arc_tracker_ = std::make_unique<AppServiceAppWindowArcTracker>(this);
@@ -111,7 +116,7 @@ AppServiceAppWindowShelfController::AppServiceAppWindowShelfController(
 
   profile_list_.push_back(owner->profile());
 
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     if (browser && browser->window() && browser->window()->GetNativeWindow()) {
       observed_windows_.AddObservation(browser->window()->GetNativeWindow());
     }
@@ -122,7 +127,7 @@ AppServiceAppWindowShelfController::~AppServiceAppWindowShelfController() {
   aura::Env::GetInstance()->RemoveObserver(this);
 
   // We need to remove all Registry observers for added users.
-  for (auto* profile : profile_list_) {
+  for (Profile* profile : profile_list_) {
     apps::AppServiceProxy* proxy =
         apps::AppServiceProxyFactory::GetForProfile(profile);
     proxy->InstanceRegistry().RemoveObserver(this);
@@ -151,7 +156,7 @@ void AppServiceAppWindowShelfController::ActiveUserChanged(
   proxy_ = apps::AppServiceProxyFactory::GetForProfile(owner()->profile());
   // Deactivates the running app windows in InstanceRegistry for the inactive
   // user, and activates the app windows for the active user.
-  for (auto* window : window_list_) {
+  for (aura::Window* window : window_list_) {
     ash::ShelfID shelf_id = proxy_->InstanceRegistry().GetShelfId(window);
     if (!shelf_id.IsNull()) {
       RegisterWindow(window, shelf_id);
@@ -206,9 +211,9 @@ void AppServiceAppWindowShelfController::OnWindowInitialized(
   // shelf then it is added to a shelf by `ASAWSC::OnWindowVisibilityChanged()`
   // but when the window is created as a minimized window there is no change in
   // visible state and it is not added to the shelf. Hence, when a widget has a
-  // `initial_show_state_` as ui::SHOW_STATE_MINIMIZED, it should add itself to
-  // a shelf during initialization. The below code is applicable only for Lacros
-  // browser app.
+  // `initial_show_state_` as ui::mojom::WindowShowState::kMinimized, it should
+  // add itself to a shelf during initialization. The below code is applicable
+  // only for Lacros browser app.
   auto shelf_id = GetShelfId(window);
   if (!shelf_id.IsNull() &&
       GetAppType(shelf_id.app_id) == apps::AppType::kStandaloneBrowser &&
@@ -289,6 +294,10 @@ void AppServiceAppWindowShelfController::OnWindowVisibilityChanged(
   app_service_instance_helper_->OnInstances(GetAppId(shelf_id.app_id), window,
                                             shelf_id.launch_id, state);
 
+  if (crostini_tracker_) {
+    crostini_tracker_->OnWindowVisibilityChanged(window, shelf_id.app_id);
+  }
+
   // Only register the visible non-browser |window| for the active user.
   if (!visible || shelf_id.app_id == app_constants::kChromeAppId ||
       !proxy_->InstanceRegistry().Exists(window)) {
@@ -296,9 +305,6 @@ void AppServiceAppWindowShelfController::OnWindowVisibilityChanged(
   }
 
   RegisterWindow(window, shelf_id);
-
-  if (crostini_tracker_)
-    crostini_tracker_->OnWindowVisibilityChanged(window, shelf_id.app_id);
 
   // This will match both the Plugin VM App window and installer.
   if (shelf_id.app_id == plugin_vm::kPluginVmShelfAppId) {
@@ -410,8 +416,8 @@ void AppServiceAppWindowShelfController::OnInstanceUpdate(
     const std::string& app_id = update.AppId();
     if (GetAppType(app_id) == apps::AppType::kCrostini ||
         guest_os::IsUnregisteredCrostiniShelfAppId(app_id)) {
-      window->SetProperty(aura::client::kAppType,
-                          static_cast<int>(ash::AppType::CROSTINI_APP));
+      window->SetProperty(chromeos::kAppTypeKey,
+                          chromeos::AppType::CROSTINI_APP);
     }
     window->SetProperty(ash::kAppIDKey, update.AppId());
     window->SetProperty(ash::kShelfIDKey, shelf_id.Serialize());
@@ -457,7 +463,7 @@ void AppServiceAppWindowShelfController::OnInstanceUpdate(
 
 void AppServiceAppWindowShelfController::OnInstanceRegistryWillBeDestroyed(
     apps::InstanceRegistry* instance_registry) {
-  Observe(nullptr);
+  instance_registry_observation_.Reset();
 }
 
 int AppServiceAppWindowShelfController::GetActiveTaskId() const {
@@ -590,9 +596,11 @@ void AppServiceAppWindowShelfController::RegisterWindow(
     // Set fullscreen properties.
     exo::SetShellUseImmersiveForFullscreen(window, false);
     window->SetProperty(chromeos::kEscHoldToExitFullscreen, true);
-  } else if (borealis::BorealisWindowManager::IsBorealisWindow(window)) {
+  } else if (ash::borealis::IsBorealisWindow(window)) {
     window->SetProperty(chromeos::kUseOverviewToExitFullscreen, true);
+    window->SetProperty(chromeos::kNoExitFullscreenOnLock, true);
     window->SetProperty(chromeos::kUseOverviewToExitPointerLock, true);
+    window->SetProperty(ash::kShowCursorOnKeypress, true);
   } else if (crostini::IsCrostiniWindow(window)) {
     window->SetProperty(chromeos::kUseOverviewToExitFullscreen, true);
     window->SetProperty(chromeos::kUseOverviewToExitPointerLock, true);
@@ -632,7 +640,8 @@ void AppServiceAppWindowShelfController::AddAppWindowToShelf(
   app_window->SetController(item_controller);
 
   if (!owner()->GetItem(shelf_id)) {
-    owner()->CreateAppItem(std::move(controller), ash::STATUS_RUNNING);
+    owner()->CreateAppItem(std::move(controller), ash::STATUS_RUNNING,
+                           /*pinned=*/false);
   } else {
     owner()->shelf_model()->ReplaceShelfItemDelegate(shelf_id,
                                                      std::move(controller));
@@ -692,9 +701,9 @@ ash::ShelfID AppServiceAppWindowShelfController::GetShelfId(
     return ash::ShelfID(app_constants::kLacrosAppId);
 
   std::string shelf_app_id;
-  if (borealis::BorealisWindowManager::IsBorealisWindow(window)) {
-    for (auto* profile : profile_list_) {
-      shelf_app_id = borealis::BorealisService::GetForProfile(profile)
+  if (ash::borealis::IsBorealisWindow(window)) {
+    for (Profile* profile : profile_list_) {
+      shelf_app_id = borealis::BorealisServiceFactory::GetForProfile(profile)
                          ->WindowManager()
                          .GetShelfAppId(window);
       if (!shelf_app_id.empty()) {
@@ -721,7 +730,7 @@ ash::ShelfID AppServiceAppWindowShelfController::GetShelfId(
 
   // If the window exists in InstanceRegistry, get the shelf id from
   // InstanceRegistry.
-  for (auto* profile : profile_list_) {
+  for (Profile* profile : profile_list_) {
     auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile);
     shelf_id = proxy->InstanceRegistry().GetShelfId(window);
     if (!shelf_id.IsNull())
@@ -739,7 +748,7 @@ ash::ShelfID AppServiceAppWindowShelfController::GetShelfId(
 
 apps::AppType AppServiceAppWindowShelfController::GetAppType(
     const std::string& app_id) const {
-  for (auto* profile : profile_list_) {
+  for (Profile* profile : profile_list_) {
     auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile);
     auto app_type = proxy->AppRegistryCache().GetAppType(app_id);
     if (app_type != apps::AppType::kUnknown) {
@@ -767,7 +776,7 @@ void AppServiceAppWindowShelfController::UserHasAppOnActiveDesktop(
   MultiUserWindowManagerHelper* helper =
       MultiUserWindowManagerHelper::GetInstance();
   aura::Window* other_window = nullptr;
-  for (auto* it : profile_list_) {
+  for (Profile* it : profile_list_) {
     apps::AppServiceProxy* proxy =
         apps::AppServiceProxyFactory::GetForProfile(it);
     if (proxy == proxy_)

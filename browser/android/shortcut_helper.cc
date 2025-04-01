@@ -14,7 +14,6 @@
 #include "base/android/jni_string.h"
 #include "base/functional/bind.h"
 #include "base/uuid.h"
-#include "chrome/android/chrome_jni_headers/ShortcutHelper_jni.h"
 #include "components/webapps/browser/android/shortcut_info.h"
 #include "content/public/browser/manifest_icon_downloader.h"
 #include "content/public/browser/web_contents.h"
@@ -23,6 +22,9 @@
 #include "ui/gfx/android/java_bitmap.h"
 #include "url/gurl.h"
 #include "url/origin.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/ShortcutHelper_jni.h"
 
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
@@ -33,8 +35,7 @@ namespace {
 void AddWebappWithSkBitmap(content::WebContents* web_contents,
                            const webapps::ShortcutInfo& info,
                            const std::string& webapp_id,
-                           const SkBitmap& icon_bitmap,
-                           bool is_icon_maskable) {
+                           const SkBitmap& icon_bitmap) {
   // Send the data to the Java side to create the shortcut.
   JNIEnv* env = base::android::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> java_webapp_id =
@@ -59,8 +60,8 @@ void AddWebappWithSkBitmap(content::WebContents* web_contents,
   Java_ShortcutHelper_addWebapp(
       env, java_webapp_id, java_url, java_scope_url, java_user_title, java_name,
       java_short_name, java_best_primary_icon_url, java_bitmap,
-      is_icon_maskable, static_cast<int>(info.display),
-      static_cast<int>(info.orientation), info.source,
+      info.is_primary_icon_maskable, static_cast<int>(info.display),
+      static_cast<int>(info.orientation),
       ui::OptionalSkColorToJavaColor(info.theme_color),
       ui::OptionalSkColorToJavaColor(info.background_color));
 
@@ -75,8 +76,7 @@ void AddWebappWithSkBitmap(content::WebContents* web_contents,
 // Adds a shortcut which opens in a browser tab to the launcher.
 void AddShortcutWithSkBitmap(const webapps::ShortcutInfo& info,
                              const std::string& id,
-                             const SkBitmap& icon_bitmap,
-                             bool is_icon_maskable) {
+                             const SkBitmap& icon_bitmap) {
   JNIEnv* env = base::android::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> java_id =
       base::android::ConvertUTF8ToJavaString(env, id);
@@ -91,7 +91,7 @@ void AddShortcutWithSkBitmap(const webapps::ShortcutInfo& info,
   if (!icon_bitmap.drawsNothing())
     java_bitmap = gfx::ConvertToJavaBitmap(icon_bitmap);
   Java_ShortcutHelper_addShortcut(env, java_id, java_url, java_user_title,
-                                  java_bitmap, is_icon_maskable, info.source,
+                                  java_bitmap, info.is_primary_icon_maskable,
                                   java_best_primary_icon_url);
 }
 
@@ -119,7 +119,6 @@ void ShortcutHelper::AddToLauncherWithSkBitmap(
     content::WebContents* web_contents,
     const webapps::ShortcutInfo& info,
     const SkBitmap& icon_bitmap,
-    bool is_icon_maskable,
     webapps::InstallableStatusCode installable_status) {
   RecordAddToHomeScreenUKM(web_contents, info, installable_status);
 
@@ -127,11 +126,10 @@ void ShortcutHelper::AddToLauncherWithSkBitmap(
   if (info.display == blink::mojom::DisplayMode::kStandalone ||
       info.display == blink::mojom::DisplayMode::kFullscreen ||
       info.display == blink::mojom::DisplayMode::kMinimalUi) {
-    AddWebappWithSkBitmap(web_contents, info, webapp_id, icon_bitmap,
-                          is_icon_maskable);
+    AddWebappWithSkBitmap(web_contents, info, webapp_id, icon_bitmap);
     return;
   }
-  AddShortcutWithSkBitmap(info, webapp_id, icon_bitmap, is_icon_maskable);
+  AddShortcutWithSkBitmap(info, webapp_id, icon_bitmap);
 }
 
 // static

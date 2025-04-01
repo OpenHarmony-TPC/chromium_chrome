@@ -29,9 +29,16 @@ export enum PrivacySandboxPromptAction {
   NOTICE_MORE_BUTTON_CLICKED = 15,
   RESTRICTED_NOTICE_ACKNOWLEDGE = 16,
   RESTRICTED_NOTICE_OPEN_SETTINGS = 17,
+  RESTRICTED_NOTICE_SHOWN = 18,
+  RESTRICTED_NOTICE_CLOSED_NO_INTERACTION = 19,
+  RESTRICTED_NOTICE_MORE_BUTTON_CLICKED = 20,
+  PRIVACY_POLICY_LINK_CLICKED = 21,
 }
 
 export class PrivacySandboxDialogBrowserProxy {
+  recordPrivacyPolicyLoadTime(privacyPolicyLoadDuration: number) {
+    chrome.send('recordPrivacyPolicyLoadTime', [privacyPolicyLoadDuration]);
+  }
   promptActionOccurred(action: PrivacySandboxPromptAction) {
     chrome.send('promptActionOccurred', [action]);
   }
@@ -42,6 +49,10 @@ export class PrivacySandboxDialogBrowserProxy {
 
   showDialog() {
     chrome.send('showDialog');
+  }
+
+  shouldShowPrivacySandboxPrivacyPolicy() {
+    return sendWithPromise('shouldShowPrivacySandboxPrivacyPolicy');
   }
 
   static getInstance(): PrivacySandboxDialogBrowserProxy {

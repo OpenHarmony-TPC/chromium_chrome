@@ -16,11 +16,11 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/strings/string_piece.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/certificate_provider/certificate_provider.h"
+#include "extensions/common/extension_id.h"
 #include "net/base/net_errors.h"
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -91,7 +91,7 @@ class CertificateProviderService::SSLPrivateKey : public net::SSLPrivateKey {
  private:
   ~SSLPrivateKey() override;
 
-  const std::string extension_id_;
+  const extensions::ExtensionId extension_id_;
   const CertificateInfo cert_info_;
   const base::WeakPtr<CertificateProviderService> service_;
   SEQUENCE_CHECKER(sequence_checker_);
@@ -245,7 +245,7 @@ void CertificateProviderService::SetCertificatesProvidedByExtension(
   // Synchronize with Ash-Chrome
   chromeos::LacrosService* service = chromeos::LacrosService::Get();
   if (service && service->IsAvailable<crosapi::mojom::CertDatabase>() &&
-      service->GetInterfaceVersion(crosapi::mojom::CertDatabase::Uuid_) >=
+      service->GetInterfaceVersion<crosapi::mojom::CertDatabase>() >=
           static_cast<int>(crosapi::mojom::CertDatabase::MethodMinVersions::
                                kSetCertsProvidedByExtensionMinVersion)) {
     service->GetRemote<crosapi::mojom::CertDatabase>()
@@ -284,7 +284,7 @@ bool CertificateProviderService::ReplyToSignRequest(
     const std::vector<uint8_t>& signature) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // TODO(crbug.com/1046860): Remove logging after stabilizing the feature.
+  // TODO(crbug.com/40671053): Remove logging after stabilizing the feature.
   LOG(WARNING) << "Extension " << extension_id
                << " replied to signature request " << sign_request_id
                << ", size " << signature.size();
@@ -353,7 +353,7 @@ void CertificateProviderService::RequestSignatureBySpki(
     const std::string& subject_public_key_info,
     uint16_t algorithm,
     base::span<const uint8_t> input,
-    const absl::optional<AccountId>& authenticating_user_account_id,
+    const std::optional<AccountId>& authenticating_user_account_id,
     net::SSLPrivateKey::SignCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   bool is_currently_provided = false;
@@ -405,7 +405,7 @@ void CertificateProviderService::AbortSignatureRequestsForAuthenticatingUser(
     const std::string& extension_id = sign_request.first;
     const int sign_request_id = sign_request.second;
 
-    // TODO(crbug.com/1046860): Remove logging after stabilizing the feature.
+    // TODO(crbug.com/40671053): Remove logging after stabilizing the feature.
     LOG(WARNING) << "Aborting user login signature request from extension "
                  << extension_id << " id " << sign_request_id;
 
@@ -478,7 +478,7 @@ void CertificateProviderService::RequestSignatureFromExtension(
     const scoped_refptr<net::X509Certificate>& certificate,
     uint16_t algorithm,
     base::span<const uint8_t> input,
-    const absl::optional<AccountId>& authenticating_user_account_id,
+    const std::optional<AccountId>& authenticating_user_account_id,
     net::SSLPrivateKey::SignCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -486,7 +486,7 @@ void CertificateProviderService::RequestSignatureFromExtension(
       extension_id, certificate, authenticating_user_account_id,
       std::move(callback));
 
-  // TODO(crbug.com/1046860): Remove logging after stabilizing the feature.
+  // TODO(crbug.com/40671053): Remove logging after stabilizing the feature.
   LOG(WARNING) << "Starting signature request to extension " << extension_id
                << " id " << sign_request_id;
 
@@ -494,7 +494,7 @@ void CertificateProviderService::RequestSignatureFromExtension(
                                        authenticating_user_account_id);
   if (!delegate_->DispatchSignRequestToExtension(
           extension_id, sign_request_id, algorithm, certificate, input)) {
-    // TODO(crbug.com/1046860): Remove logging after stabilizing the feature.
+    // TODO(crbug.com/40671053): Remove logging after stabilizing the feature.
     LOG(WARNING) << "Failed to dispatch signature request to extension "
                  << extension_id << " id " << sign_request_id;
     scoped_refptr<net::X509Certificate> local_certificate;

@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_PERFORMANCE_MANAGER_USER_TUNING_USER_PERFORMANCE_TUNING_NOTIFIER_H_
 #define CHROME_BROWSER_PERFORMANCE_MANAGER_USER_TUNING_USER_PERFORMANCE_TUNING_NOTIFIER_H_
 
+#include <memory>
+
 #include "components/performance_manager/public/decorators/process_metrics_decorator.h"
 #include "components/performance_manager/public/graph/graph.h"
 #include "components/performance_manager/public/graph/page_node.h"
@@ -38,9 +40,6 @@ class UserPerformanceTuningNotifier : public performance_manager::GraphOwned,
     // Called when the current total resident set size of all processes exceeds
     // `resident_set_threshold_kb`.
     virtual void NotifyMemoryThresholdReached() = 0;
-
-    // Called when the memory metrics for a discarded tab is available to read
-    virtual void NotifyMemoryMetricsRefreshed() = 0;
   };
 
   UserPerformanceTuningNotifier(std::unique_ptr<Receiver> delegate,
@@ -65,7 +64,6 @@ class UserPerformanceTuningNotifier : public performance_manager::GraphOwned,
   void MaybeAddTabAndNotify(const PageNode* page_node);
 
   std::unique_ptr<Receiver> receiver_;
-  raw_ptr<Graph> graph_;
 
   std::unique_ptr<
       performance_manager::ProcessMetricsDecorator::ScopedMetricsInterestToken>

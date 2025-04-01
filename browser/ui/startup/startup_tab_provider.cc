@@ -5,13 +5,12 @@
 #include "chrome/browser/ui/startup/startup_tab_provider.h"
 
 #include <string>
+#include <string_view>
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/branding_buildflags.h"
@@ -24,7 +23,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/signin/signin_features.h"
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
@@ -35,11 +33,11 @@
 #include "chrome/browser/ui/tabs/pinned_tab_codec.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/settings/reset_settings_handler.h"
-#include "chrome/browser/ui/webui/whats_new/whats_new_util.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/search_engines/util.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
 #include "components/url_formatter/url_fixer.h"
@@ -53,19 +51,19 @@
 #include "chrome/browser/shell_integration.h"
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/crosapi/mojom/crosapi.mojom.h"
-#include "chromeos/startup/browser_params_proxy.h"
-#endif
-
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
+#include "chrome/browser/ui/webui/whats_new/whats_new_util.h"
 #include "chrome/common/extensions/chrome_manifest_url_handlers.h"
 #include "chrome/common/webui_url_constants.h"
 #include "extensions/browser/extension_registry.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#include "chrome/browser/headless/headless_mode_util.h"
+#endif
 
 namespace {
 
@@ -84,6 +82,7 @@ bool ProfileHasOtherTabbedBrowser(Profile* profile) {
 // checked in a different layer (such as the dbus UrlHandlerService and the
 // ArcIntentHelperBridge). Thus, chrome:// URLs are allowed on Lacros so that
 // trusted calls in Ash can open them.
+// Headless mode also allows chrome:// URLs if the user explicitly allowed it.
 bool ValidateUrl(const GURL& url) {
   if (!url.is_valid())
     return false;
@@ -100,22 +99,29 @@ bool ValidateUrl(const GURL& url) {
   const GURL reset_settings_url =
       settings_url.Resolve(chrome::kResetProfileSettingsSubPage);
   url_points_to_an_approved_settings_page = url == reset_settings_url;
-#if BUILDFLAG(IS_WIN)
-  // On Windows, also allow a hash for the Chrome Cleanup Tool.
-  const GURL reset_settings_url_with_cct_hash = reset_settings_url.Resolve(
-      std::string("#") + settings::ResetSettingsHandler::kCctResetSettingsHash);
-  url_points_to_an_approved_settings_page =
-      url_points_to_an_approved_settings_page ||
-      url == reset_settings_url_with_cct_hash;
-#endif  // BUILDFLAG(IS_WIN)
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+  bool url_scheme_is_chrome = false;
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+  // In ChromeOS, allow any URL pattern that matches chrome:// scheme.
+  url_scheme_is_chrome = url.SchemeIs(content::kChromeUIScheme);
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+  // In Headless mode, allow any URL pattern that matches chrome:// scheme if
+  // the user explicitly allowed it.
+  if (headless::IsHeadlessMode() && url.SchemeIs(content::kChromeUIScheme)) {
+    if (headless::IsChromeSchemeUrlAllowed()) {
+      url_scheme_is_chrome = true;
+    } else {
+      LOG(WARNING) << "Headless mode requires the --allow-chrome-scheme-url "
+                      "command-line option to access "
+                   << url;
+    }
+  }
+#endif
 
   auto* policy = content::ChildProcessSecurityPolicy::GetInstance();
   return policy->IsWebSafeScheme(url.scheme()) ||
-         url.SchemeIs(url::kFileScheme) ||
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-         url.SchemeIs(content::kChromeUIScheme) ||
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+         url.SchemeIs(url::kFileScheme) || url_scheme_is_chrome ||
          url_points_to_an_approved_settings_page ||
          url.spec() == url::kAboutBlankURL;
 }
@@ -148,52 +154,6 @@ bool IsChromeControlledNtpUrl(const GURL& url) {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
-
-StartupTabs StartupTabProviderImpl::GetOnboardingTabs(Profile* profile) const {
-// Chrome OS has its own welcome flow provided by OOBE.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  return StartupTabs();
-#else
-  if (!profile || base::FeatureList::IsEnabled(kForYouFre)) {
-    return StartupTabs();
-  }
-
-  StandardOnboardingTabsParams standard_params;
-  standard_params.is_first_run = first_run::IsChromeFirstRun();
-  PrefService* prefs = profile->GetPrefs();
-  standard_params.has_seen_welcome_page =
-      prefs && prefs->GetBoolean(prefs::kHasSeenWelcomePage);
-  standard_params.is_signin_allowed =
-      SyncServiceFactory::IsSyncAllowed(profile);
-  if (auto* identity_manager = IdentityManagerFactory::GetForProfile(profile)) {
-    standard_params.is_signed_in =
-        identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSync);
-  }
-  standard_params.is_child_account = profile->IsChild();
-  standard_params.is_force_signin_enabled = signin_util::IsForceSigninEnabled();
-
-  return GetStandardOnboardingTabsForState(standard_params);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-}
-
-#if BUILDFLAG(IS_WIN)
-StartupTabs StartupTabProviderImpl::GetWelcomeBackTabs(
-    Profile* profile,
-    StartupBrowserCreator* browser_creator,
-    chrome::startup::IsProcessStartup process_startup) const {
-  StartupTabs tabs;
-  if (process_startup == chrome::startup::IsProcessStartup::kNo ||
-      !browser_creator) {
-    return tabs;
-  }
-  if (browser_creator->welcome_back_page() &&
-      CanShowWelcome(SyncServiceFactory::IsSyncAllowed(profile),
-                     profile->IsChild(), signin_util::IsForceSigninEnabled())) {
-    tabs.emplace_back(GetWelcomePageUrl(false));
-  }
-  return tabs;
-}
-#endif  // BUILDFLAG(IS_WIN)
 
 StartupTabs StartupTabProviderImpl::GetDistributionFirstRunTabs(
     StartupBrowserCreator* browser_creator) const {
@@ -284,24 +244,6 @@ CommandLineTabsPresent StartupTabProviderImpl::HasCommandLineTabs(
                     : CommandLineTabsPresent::kNo;
 }
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-StartupTabs StartupTabProviderImpl::GetCrosapiTabs() const {
-  auto* init_params = chromeos::BrowserParamsProxy::Get();
-  if (init_params->InitialBrowserAction() !=
-          crosapi::mojom::InitialBrowserAction::kOpenWindowWithUrls ||
-      !init_params->StartupUrls().has_value()) {
-    return {};
-  }
-
-  StartupTabs result;
-  for (const GURL& url : *init_params->StartupUrls()) {
-    if (ValidateUrl(url))
-      result.emplace_back(url);
-  }
-  return result;
-}
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-
 #if !BUILDFLAG(IS_ANDROID)
 StartupTabs StartupTabProviderImpl::GetNewFeaturesTabs(
     bool whats_new_enabled) const {
@@ -318,41 +260,6 @@ StartupTabs StartupTabProviderImpl::GetPrivacySandboxTabs(
 
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-// static
-bool StartupTabProviderImpl::CanShowWelcome(bool is_signin_allowed,
-                                            bool is_child_account,
-                                            bool is_force_signin_enabled) {
-  return is_signin_allowed && !is_child_account && !is_force_signin_enabled;
-}
-
-// static
-bool StartupTabProviderImpl::ShouldShowWelcomeForOnboarding(
-    bool has_seen_welcome_page,
-    bool is_signed_in) {
-  return !has_seen_welcome_page && !is_signed_in;
-}
-#endif
-
-// static
-StartupTabs StartupTabProviderImpl::GetStandardOnboardingTabsForState(
-    const StandardOnboardingTabsParams& params) {
-  StartupTabs tabs;
-
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  DCHECK(!base::FeatureList::IsEnabled(kForYouFre));
-
-  if (CanShowWelcome(params.is_signin_allowed, params.is_child_account,
-                     params.is_force_signin_enabled) &&
-      ShouldShowWelcomeForOnboarding(params.has_seen_welcome_page,
-                                     params.is_signed_in)) {
-    tabs.emplace_back(GetWelcomePageUrl(!params.is_first_run));
-  }
-#endif
-
-  return tabs;
-}
-
 // static
 StartupTabs StartupTabProviderImpl::GetInitialPrefsTabsForState(
     bool is_first_run,
@@ -360,7 +267,6 @@ StartupTabs StartupTabProviderImpl::GetInitialPrefsTabsForState(
   // Constants: Magic words used by initial preferences files in place of a URL
   // host to indicate that internal pages should appear on first run.
   static constexpr char kNewTabUrlHost[] = "new_tab_page";
-  static constexpr char kWelcomePageUrlHost[] = "welcome_page";
 
   StartupTabs tabs;
   if (is_first_run) {
@@ -368,15 +274,6 @@ StartupTabs StartupTabProviderImpl::GetInitialPrefsTabsForState(
     for (GURL url : first_run_tabs) {
       if (url.host_piece() == kNewTabUrlHost) {
         url = GURL(chrome::kChromeUINewTabURL);
-      } else if (url.host_piece() == kWelcomePageUrlHost) {
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-        if (base::FeatureList::IsEnabled(kForYouFre)) {
-          // Do not show the in-tab welcome experience when the FRE is enabled.
-          continue;
-        } else {
-          url = GetWelcomePageUrl(false);
-        }
-#endif
       }
       tabs.emplace_back(url);
     }
@@ -470,7 +367,7 @@ StartupTabs StartupTabProviderImpl::GetPrivacySandboxTabsForState(
     return tabs;
 
   // Fallback to using about:blank if the user has customized the NTP.
-  // TODO(crbug.com/1306352): Stop using about:blank and create a dedicated
+  // TODO(crbug.com/40218325): Stop using about:blank and create a dedicated
   // Privacy Sandbox WebUI page for this scenario.
   if (HasExtensionNtpOverride(extension_registry) ||
       !IsChromeControlledNtpUrl(ntp_url)) {
@@ -484,20 +381,9 @@ StartupTabs StartupTabProviderImpl::GetPrivacySandboxTabsForState(
 
 #endif
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-// static
-GURL StartupTabProviderImpl::GetWelcomePageUrl(bool use_later_run_variant) {
-  GURL url(chrome::kChromeUIWelcomeURL);
-  return use_later_run_variant
-             ? net::AppendQueryParameter(url, "variant", "everywhere")
-             : url;
-}
-#endif
-
 // static
 void StartupTabProviderImpl::AddIncompatibleApplicationsUrl(StartupTabs* tabs) {
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  UMA_HISTOGRAM_BOOLEAN("IncompatibleApplicationsPage.AddedPostCrash", true);
   GURL url(chrome::kChromeUISettingsURL);
   tabs->emplace_back(url.Resolve("incompatibleApplications"));
 #endif  // BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)

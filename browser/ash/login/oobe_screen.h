@@ -6,9 +6,8 @@
 #define CHROME_BROWSER_ASH_LOGIN_OOBE_SCREEN_H_
 
 #include <iosfwd>
+#include <optional>
 #include <string>
-
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -37,8 +36,6 @@ struct OobeScreenId {
   // to make StaticOobeScreenId act more like OobeScreenId.
   OobeScreenId(const StaticOobeScreenId& id);
 
-  OobeScreenId(const std::string& id, const std::string& api_prefix);
-
   std::string name;
   std::string external_api_prefix;
 
@@ -66,10 +63,10 @@ struct ScreenSummary {
   StaticOobeScreenId screen_id;
   std::string icon_id;
   std::string title_id;
-  absl::optional<std::string> subtitle_resource;
+  std::optional<std::string> subtitle_resource;
   bool is_synced;
   bool is_revisitable;
-  absl::optional<bool> is_completed;
+  std::optional<bool> is_completed;
 };
 
 /* Keep it as `inline constexpr` (do not add `static`) so it exists as `inline

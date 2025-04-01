@@ -18,7 +18,6 @@
 #include "chrome/browser/extensions/chrome_extension_function_details.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/extensions/api/file_system_provider.h"
-#include "chrome/common/extensions/api/file_system_provider_internal.h"
 #include "chromeos/crosapi/mojom/file_system_provider.mojom.h"
 #include "storage/browser/file_system/watcher_manager.h"
 
@@ -63,11 +62,11 @@ api::file_system_provider::FileSystemInfo ConvertFileSystemInfoMojomToExtension(
     switch (opened_file->mode) {
       case crosapi::mojom::OpenFileMode::kRead:
         opened_file_item.mode =
-            extensions::api::file_system_provider::OPEN_FILE_MODE_READ;
+            extensions::api::file_system_provider::OpenFileMode::kRead;
         break;
       case crosapi::mojom::OpenFileMode::kWrite:
         opened_file_item.mode =
-            extensions::api::file_system_provider::OPEN_FILE_MODE_WRITE;
+            extensions::api::file_system_provider::OpenFileMode::kWrite;
         break;
     }
     item.opened_files.push_back(std::move(opened_file_item));
@@ -80,15 +79,24 @@ api::file_system_provider::FileSystemInfo ConvertFileSystemInfoMojomToExtension(
 crosapi::mojom::FSPChangeType ParseChangeType(
     const api::file_system_provider::ChangeType& change_type) {
   switch (change_type) {
-    case api::file_system_provider::CHANGE_TYPE_CHANGED:
+    case api::file_system_provider::ChangeType::kChanged:
       return crosapi::mojom::FSPChangeType::kChanged;
-    case api::file_system_provider::CHANGE_TYPE_DELETED:
+    case api::file_system_provider::ChangeType::kDeleted:
       return crosapi::mojom::FSPChangeType::kDeleted;
     default:
       break;
   }
   NOTREACHED();
-  return crosapi::mojom::FSPChangeType::kChanged;
+}
+
+crosapi::mojom::CloudFileInfoPtr ParseCloudFileInfo(
+    const std::optional<api::file_system_provider::CloudFileInfo>&
+        cloud_file_info) {
+  if (!cloud_file_info.has_value()) {
+    return nullptr;
+  }
+  return crosapi::mojom::CloudFileInfo::New(
+      cloud_file_info.value().version_tag);
 }
 
 // Convert the change from the IDL type to mojom type.
@@ -97,6 +105,7 @@ crosapi::mojom::FSPChangePtr ParseChange(
   crosapi::mojom::FSPChangePtr result = crosapi::mojom::FSPChange::New();
   result->path = base::FilePath::FromUTF8Unsafe(change.entry_path);
   result->type = ParseChangeType(change.change_type);
+  result->cloud_file_info = ParseCloudFileInfo(change.cloud_file_info);
   return result;
 }
 
@@ -116,7 +125,7 @@ std::string FileSystemProviderBase::GetProviderId() const {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   // Terminal app is the only non-extension to use fsp.
   if (!extension()) {
-    CHECK(url::IsSameOriginWith(GURL(source_url()),
+    CHECK(url::IsSameOriginWith(source_url(),
                                 GURL(chrome::kChromeUIUntrustedTerminalURL)));
     return guest_os::kTerminalSystemAppId;
   }
@@ -135,18 +144,26 @@ void FileSystemProviderBase::RespondWithError(const std::string& error) {
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
 bool FileSystemProviderBase::MountFinishedInterfaceAvailable() {
   auto* service = chromeos::LacrosService::Get();
-  return service->GetInterfaceVersion(
-             crosapi::mojom::FileSystemProviderService::Uuid_) >=
+  return service->GetInterfaceVersion<
+             crosapi::mojom::FileSystemProviderService>() >=
          int{crosapi::mojom::FileSystemProviderService::MethodMinVersions::
                  kMountFinishedMinVersion};
 }
 
 bool FileSystemProviderBase::OperationFinishedInterfaceAvailable() {
   auto* service = chromeos::LacrosService::Get();
-  return service->GetInterfaceVersion(
-             crosapi::mojom::FileSystemProviderService::Uuid_) >=
+  return service->GetInterfaceVersion<
+             crosapi::mojom::FileSystemProviderService>() >=
          int{crosapi::mojom::FileSystemProviderService::MethodMinVersions::
                  kOperationFinishedMinVersion};
+}
+
+bool FileSystemProviderBase::OpenFileFinishedSuccessfullyInterfaceAvailable() {
+  auto* service = chromeos::LacrosService::Get();
+  return service->GetInterfaceVersion<
+             crosapi::mojom::FileSystemProviderService>() >=
+         int{crosapi::mojom::FileSystemProviderService::MethodMinVersions::
+                 kOpenFileFinishedSuccessfullyMinVersion};
 }
 
 mojo::Remote<crosapi::mojom::FileSystemProviderService>&
@@ -158,7 +175,7 @@ FileSystemProviderBase::GetRemote() {
 
 ExtensionFunction::ResponseAction FileSystemProviderMountFunction::Run() {
   using api::file_system_provider::Mount::Params;
-  const absl::optional<Params> params(Params::Create(args()));
+  const std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
   // It's an error if the file system Id is empty.
@@ -216,7 +233,7 @@ ExtensionFunction::ResponseAction FileSystemProviderMountFunction::Run() {
 
 ExtensionFunction::ResponseAction FileSystemProviderUnmountFunction::Run() {
   using api::file_system_provider::Unmount::Params;
-  absl::optional<Params> params(Params::Create(args()));
+  std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
   auto id = crosapi::mojom::FileSystemId::New();
@@ -268,7 +285,7 @@ void FileSystemProviderGetAllFunction::RespondWithInfos(
 
 ExtensionFunction::ResponseAction FileSystemProviderGetFunction::Run() {
   using api::file_system_provider::Get::Params;
-  absl::optional<Params> params(Params::Create(args()));
+  std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
   auto id = crosapi::mojom::FileSystemId::New();
@@ -304,7 +321,7 @@ void FileSystemProviderGetFunction::RespondWithInfo(
 
 ExtensionFunction::ResponseAction FileSystemProviderNotifyFunction::Run() {
   using api::file_system_provider::Notify::Params;
-  absl::optional<Params> params(Params::Create(args()));
+  std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
   auto callback =
@@ -383,7 +400,7 @@ bool FileSystemProviderInternal::ForwardMountResult(int64_t request_id,
 ExtensionFunction::ResponseAction
 FileSystemProviderInternalRespondToMountRequestFunction::Run() {
   using api::file_system_provider_internal::RespondToMountRequest::Params;
-  absl::optional<Params> params(Params::Create(args()));
+  std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
   int64_t request_id = params->request_id;
@@ -431,7 +448,7 @@ bool FileSystemProviderInternal::ForwardOperationResultImpl(
 ExtensionFunction::ResponseAction
 FileSystemProviderInternalUnmountRequestedSuccessFunction::Run() {
   using api::file_system_provider_internal::UnmountRequestedSuccess::Params;
-  absl::optional<Params> params(Params::Create(args()));
+  std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
   bool result = ForwardOperationResult(
@@ -445,7 +462,7 @@ FileSystemProviderInternalUnmountRequestedSuccessFunction::Run() {
 ExtensionFunction::ResponseAction
 FileSystemProviderInternalGetMetadataRequestedSuccessFunction::Run() {
   using api::file_system_provider_internal::GetMetadataRequestedSuccess::Params;
-  absl::optional<Params> params(Params::Create(args()));
+  std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
   bool result = ForwardOperationResult(
@@ -459,7 +476,7 @@ FileSystemProviderInternalGetMetadataRequestedSuccessFunction::Run() {
 ExtensionFunction::ResponseAction
 FileSystemProviderInternalGetActionsRequestedSuccessFunction::Run() {
   using api::file_system_provider_internal::GetActionsRequestedSuccess::Params;
-  absl::optional<Params> params(Params::Create(args()));
+  std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
   bool result = ForwardOperationResult(
       params, mutable_args(),
@@ -473,7 +490,7 @@ ExtensionFunction::ResponseAction
 FileSystemProviderInternalReadDirectoryRequestedSuccessFunction::Run() {
   using api::file_system_provider_internal::ReadDirectoryRequestedSuccess::
       Params;
-  absl::optional<Params> params(Params::Create(args()));
+  std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
   bool result = ForwardOperationResult(
       params, mutable_args(),
@@ -488,8 +505,8 @@ FileSystemProviderInternalReadFileRequestedSuccessFunction::Run() {
   TRACE_EVENT0("file_system_provider", "ReadFileRequestedSuccess");
   using api::file_system_provider_internal::ReadFileRequestedSuccess::Params;
 
-  // TODO(https://crbug.com/1314397): Improve performance by removing copy.
-  absl::optional<Params> params(Params::Create(args()));
+  // TODO(crbug.com/40221395): Improve performance by removing copy.
+  std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
   bool result = ForwardOperationResult(
       params, mutable_args(),
@@ -500,9 +517,72 @@ FileSystemProviderInternalReadFileRequestedSuccessFunction::Run() {
 }
 
 ExtensionFunction::ResponseAction
+FileSystemProviderInternalOpenFileRequestedSuccessFunction::Run() {
+  TRACE_EVENT0("file_system_provider", "OpenFileRequestedSuccess");
+  using api::file_system_provider_internal::OpenFileRequestedSuccess::Params;
+
+  // TODO(crbug.com/40221395): Improve performance by removing copy.
+  std::optional<Params> params(Params::Create(args()));
+  EXTENSION_FUNCTION_VALIDATE(params);
+  bool result = ForwardOpenFileFinishedSuccessullyResult(std::move(params),
+                                                         mutable_args());
+  if (!result) {
+    return RespondNow(Error(kInterfaceUnavailable));
+  }
+  return RespondLater();
+}
+
+bool FileSystemProviderInternal::ForwardOpenFileFinishedSuccessullyResult(
+    std::optional<
+        api::file_system_provider_internal::OpenFileRequestedSuccess::Params>
+        params,
+    base::Value::List& args) {
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+  if (!OpenFileFinishedSuccessfullyInterfaceAvailable()) {
+    // The `kGenericSuccess` requires 3 args to deserialize on the Ash side. If
+    // the IDL supports the optional `EntryMetadata` struct, it will always
+    // contain 4 (either an empty base::Value() or the `EntryMetadata`). To
+    // ensure we can successfully deserialize, remove the extra args.
+    mutable_args().resize(3);
+    return ForwardOperationResult(
+        params, mutable_args(),
+        crosapi::mojom::FSPOperationResponse::kGenericSuccess);
+  }
+#endif
+
+  crosapi::mojom::FileSystemIdPtr file_system_id;
+  int64_t request_id;
+  GetOperationMetadata(params, &file_system_id, &request_id);
+  auto* profile = Profile::FromBrowserContext(browser_context());
+  auto* sw_lifetime_manager =
+      extensions::file_system_provider::ServiceWorkerLifetimeManager::Get(
+          profile);
+  sw_lifetime_manager->FinishRequest({
+      file_system_id->provider,
+      file_system_id->id,
+      request_id,
+  });
+  auto callback =
+      base::BindOnce(&FileSystemProviderInternal::RespondWithError, this);
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  crosapi::CrosapiManager::Get()
+      ->crosapi_ash()
+      ->file_system_provider_service_ash()
+      ->OpenFileFinishedSuccessfullyWithProfile(
+          std::move(file_system_id), request_id, std::move(mutable_args()),
+          std::move(callback), profile);
+#else
+  GetRemote()->OpenFileFinishedSuccessfully(
+      std::move(file_system_id), request_id, std::move(mutable_args()),
+      std::move(callback));
+#endif
+  return true;
+}
+
+ExtensionFunction::ResponseAction
 FileSystemProviderInternalOperationRequestedSuccessFunction::Run() {
   using api::file_system_provider_internal::OperationRequestedSuccess::Params;
-  absl::optional<Params> params(Params::Create(args()));
+  std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
   bool result = ForwardOperationResult(
@@ -516,10 +596,10 @@ FileSystemProviderInternalOperationRequestedSuccessFunction::Run() {
 ExtensionFunction::ResponseAction
 FileSystemProviderInternalOperationRequestedErrorFunction::Run() {
   using api::file_system_provider_internal::OperationRequestedError::Params;
-  absl::optional<Params> params(Params::Create(args()));
+  std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
-  if (params->error == api::file_system_provider::PROVIDER_ERROR_OK) {
+  if (params->error == api::file_system_provider::ProviderError::kOk) {
     // It's incorrect to pass OK as an error code.
     return ValidationFailure(this);
   }

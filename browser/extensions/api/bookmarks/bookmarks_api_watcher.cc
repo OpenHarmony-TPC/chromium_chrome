@@ -26,7 +26,15 @@ class BookmarksApiWatcherFactory : public ProfileKeyedServiceFactory {
   BookmarksApiWatcherFactory()
       : ProfileKeyedServiceFactory(
             "BookmarksApiWatcher",
-            ProfileSelections::BuildForRegularAndIncognito()) {}
+            ProfileSelections::Builder()
+                .WithRegular(ProfileSelection::kOwnInstance)
+                // TODO(crbug.com/40257657): Check if this service is needed in
+                // Guest mode.
+                .WithGuest(ProfileSelection::kOwnInstance)
+                // TODO(crbug.com/41488885): Check if this service is needed for
+                // Ash Internals.
+                .WithAshInternals(ProfileSelection::kOwnInstance)
+                .Build()) {}
 
  private:
   // BrowserContextKeyedServiceFactory overrides
@@ -55,11 +63,10 @@ void BookmarksApiWatcher::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-void BookmarksApiWatcher::NotifyApiInvoked(
-    const extensions::Extension* extension,
-    const extensions::BookmarksFunction* func) {
-  for (auto& observer : observers_)
-    observer.OnBookmarksApiInvoked(extension, func);
+void BookmarksApiWatcher::NotifyApiInvoked(const ExtensionFunction* func) {
+  for (auto& observer : observers_) {
+    observer.OnBookmarksApiInvoked(func);
+  }
 }
 
 // static

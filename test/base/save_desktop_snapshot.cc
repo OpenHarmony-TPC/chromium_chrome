@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/test/base/save_desktop_snapshot.h"
 
 #include <memory>
@@ -10,10 +15,11 @@
 
 #include "base/command_line.h"
 #include "base/files/file.h"
+#include "base/i18n/time_formatting.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/stringprintf.h"
-#include "base/strings/utf_string_conversions.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "content/public/browser/desktop_capture.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -37,6 +43,7 @@ class FrameHolder : public webrtc::DesktopCapturer::Callback {
 
   // Returns the frame that was captured or null in case of failure.
   std::unique_ptr<webrtc::DesktopFrame> TakeFrame() {
+    CHECK(signal_.Wait());
     return std::move(frame_);
   }
 
@@ -46,9 +53,11 @@ class FrameHolder : public webrtc::DesktopCapturer::Callback {
                        std::unique_ptr<webrtc::DesktopFrame> frame) override {
     if (result == webrtc::DesktopCapturer::Result::SUCCESS)
       frame_ = std::move(frame);
+    signal_.SetValue();
   }
 
   std::unique_ptr<webrtc::DesktopFrame> frame_;
+  base::test::TestFuture<void> signal_;
 };
 
 // Captures and returns a snapshot of the screen, or an empty bitmap in case of
@@ -105,33 +114,28 @@ base::FilePath SaveDesktopSnapshot() {
 base::FilePath SaveDesktopSnapshot(const base::FilePath& output_dir) {
   // Take the snapshot and encode it.
   SkBitmap screen = CaptureScreen();
-  if (screen.drawsNothing())
+  if (screen.drawsNothing()) {
     return base::FilePath();
+  }
 
-  std::vector<unsigned char> encoded;
-  if (!gfx::PNGCodec::EncodeBGRASkBitmap(CaptureScreen(), false, &encoded)) {
+  std::optional<std::vector<uint8_t>> encoded =
+      gfx::PNGCodec::EncodeBGRASkBitmap(CaptureScreen(),
+                                        /*discard_transparency=*/false);
+  if (!encoded) {
     LOG(ERROR) << "Failed to PNG encode screen snapshot.";
     return base::FilePath();
   }
 
   // Create the output file.
-  base::Time::Exploded exploded;
-  base::Time::Now().LocalExplode(&exploded);
-  const auto filename = base::StringPrintf(
-      "ss_%4d%02d%02d%02d%02d%02d_%03d.png", exploded.year, exploded.month,
-      exploded.day_of_month, exploded.hour, exploded.minute, exploded.second,
-      exploded.millisecond);
+  base::FilePath output_path =
+      output_dir.AppendASCII(base::UnlocalizedTimeFormatWithPattern(
+          base::Time::Now(), "'ss_'yyyyMMddHHmmss_SSS'.png'"));
+  uint32_t flags = base::File::FLAG_CREATE | base::File::FLAG_WRITE;
 #if BUILDFLAG(IS_WIN)
-  base::FilePath output_path(output_dir.Append(base::UTF8ToWide(filename)));
-  base::File file(output_path, base::File::FLAG_CREATE |
-                                   base::File::FLAG_WRITE |
-                                   base::File::FLAG_WIN_SHARE_DELETE |
-                                   base::File::FLAG_CAN_DELETE_ON_CLOSE);
-#else
-  base::FilePath output_path(output_dir.Append(filename));
-  base::File file(output_path,
-                  base::File::FLAG_CREATE | base::File::FLAG_WRITE);
+  flags |=
+      base::File::FLAG_WIN_SHARE_DELETE | base::File::FLAG_CAN_DELETE_ON_CLOSE;
 #endif
+  base::File file(output_path, flags);
 
   if (!file.IsValid()) {
     if (file.error_details() == base::File::FILE_ERROR_EXISTS) {
@@ -145,10 +149,7 @@ base::FilePath SaveDesktopSnapshot(const base::FilePath& output_dir) {
   }
 
   // Write it to disk.
-  const int to_write = base::checked_cast<int>(encoded.size());
-  int written =
-      file.WriteAtCurrentPos(reinterpret_cast<char*>(encoded.data()), to_write);
-  if (written != to_write) {
+  if (!file.WriteAtCurrentPosAndCheck(encoded.value())) {
     LOG(ERROR) << "Failed to write entire snapshot to file";
     return base::FilePath();
   }

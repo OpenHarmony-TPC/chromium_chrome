@@ -80,7 +80,6 @@ void MetricsHandler::HandleRecordBooleanHistogram(
     const base::Value::List& args) {
   if (args.size() < 2 || !args[0].is_string() || !args[1].is_bool()) {
     NOTREACHED();
-    return;
   }
   const std::string histogram_name = args[0].GetString();
   const bool value = args[1].GetBool();

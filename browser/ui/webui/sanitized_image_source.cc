@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/sanitized_image_source.h"
 
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/containers/contains.h"
 #include "base/memory/ref_counted_memory.h"
@@ -51,22 +57,19 @@ constexpr char kIsGooglePhotosKey[] = "isGooglePhotos";
 constexpr char kStaticEncodeKey[] = "staticEncode";
 constexpr char kUrlKey[] = "url";
 
-std::map<std::string, std::string> ParseParams(
-    const std::string& param_string) {
+std::map<std::string, std::string> ParseParams(std::string_view param_string) {
   url::Component query(0, param_string.size());
   url::Component key;
   url::Component value;
   constexpr int kMaxUriDecodeLen = 2048;
   std::map<std::string, std::string> params;
-  while (
-      url::ExtractQueryKeyValue(param_string.c_str(), &query, &key, &value)) {
+  while (url::ExtractQueryKeyValue(param_string, &query, &key, &value)) {
     url::RawCanonOutputW<kMaxUriDecodeLen> output;
-    url::DecodeURLEscapeSequences(param_string.c_str() + value.begin, value.len,
+    url::DecodeURLEscapeSequences(param_string.substr(value.begin, value.len),
                                   url::DecodeURLMode::kUTF8OrIsomorphic,
                                   &output);
-    params.insert({param_string.substr(key.begin, key.len),
-                   base::UTF16ToUTF8(
-                       base::StringPiece16(output.data(), output.length()))});
+    params.insert({std::string(param_string.substr(key.begin, key.len)),
+                   base::UTF16ToUTF8(output.view())});
   }
   return params;
 }
@@ -138,7 +141,7 @@ void SanitizedImageSource::StartDataRequest(
   std::string image_url_or_params = url.query();
   if (url != GURL(base::StrCat(
                  {chrome::kChromeUIImageURL, "?", image_url_or_params}))) {
-    std::move(callback).Run(base::MakeRefCounted<base::RefCountedString>());
+    std::move(callback).Run(nullptr);
     return;
   }
 
@@ -151,7 +154,7 @@ void SanitizedImageSource::StartDataRequest(
 
     auto url_it = params.find(kUrlKey);
     if (url_it == params.end()) {
-      std::move(callback).Run(base::MakeRefCounted<base::RefCountedString>());
+      std::move(callback).Run(nullptr);
       return;
     }
     image_url = GURL(url_it->second);
@@ -175,6 +178,13 @@ void SanitizedImageSource::StartDataRequest(
       send_auth_token = true;
     }
   }
+
+  if (image_url.SchemeIs(url::kHttpScheme)) {
+    // Disallow any HTTP requests, treat them as a failure instead.
+    std::move(callback).Run(nullptr);
+    return;
+  }
+
   request_attributes.image_url = image_url;
 
   // Download the image body.
@@ -284,7 +294,7 @@ void SanitizedImageSource::OnImageLoaded(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (loader->NetError() != net::OK || !body) {
-    std::move(callback).Run(base::MakeRefCounted<base::RefCountedString>());
+    std::move(callback).Run(nullptr);
     return;
   }
 
@@ -311,7 +321,7 @@ void SanitizedImageSource::OnAnimationDecoded(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (!mojo_frames.size()) {
-    std::move(callback).Run(base::MakeRefCounted<base::RefCountedString>());
+    std::move(callback).Run(nullptr);
     return;
   }
 
@@ -338,16 +348,16 @@ void SanitizedImageSource::EncodeAndReplyStaticImage(
       base::BindOnce(
           [](const SkBitmap& bitmap,
              RequestAttributes::EncodeType encode_type) {
-            auto encoded = base::MakeRefCounted<base::RefCountedBytes>();
-            const bool success =
+            std::optional<std::vector<uint8_t>> result =
                 encode_type == RequestAttributes::EncodeType::kWebP
-                    ? gfx::WebpCodec::Encode(bitmap, /*quality=*/90,
-                                             &encoded->data())
+                    ? gfx::WebpCodec::Encode(bitmap, /*quality=*/90)
                     : gfx::PNGCodec::EncodeBGRASkBitmap(
-                          bitmap, /*discard_transparency=*/false,
-                          &encoded->data());
-            return success ? encoded
-                           : base::MakeRefCounted<base::RefCountedBytes>();
+                          bitmap, /*discard_transparency=*/false);
+            if (!result) {
+              return base::MakeRefCounted<base::RefCountedBytes>();
+            }
+            return base::MakeRefCounted<base::RefCountedBytes>(
+                std::move(result.value()));
           },
           bitmap, request_attributes.encode_type),
       std::move(callback));

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/extensions/api/enterprise_device_attributes/enterprise_device_attributes_api.h"
-
 #include <memory>
 
 #include "base/files/file_path.h"
@@ -13,15 +11,17 @@
 #include "chrome/browser/ash/crosapi/crosapi_manager.h"
 #include "chrome/browser/ash/crosapi/device_attributes_ash.h"
 #include "chrome/browser/ash/crosapi/idle_service_ash.h"
-#include "chrome/browser/ash/crosapi/test_crosapi_dependency_registry.h"
+#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/policy/core/device_attributes_fake.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/settings/device_settings_test_helper.h"
+#include "chrome/browser/extensions/api/enterprise_device_attributes/enterprise_device_attributes_api.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
+#include "components/user_manager/scoped_user_manager.h"
 #include "extensions/browser/api_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -71,6 +71,8 @@ class EnterpriseDeviceAttributesApiAshTest
 
     DeviceSettingsTestBase::SetUp();
 
+    testing_profile_ = profile_manager_.CreateTestingProfile(kAccountId);
+
     switch (GetParam()) {
       case TestProfileChoice::kSigninProfile:
         TestingProfile* signin_profile;
@@ -98,7 +100,7 @@ class EnterpriseDeviceAttributesApiAshTest
 
     crosapi::IdleServiceAsh::DisableForTesting();
     ash::LoginState::Initialize();
-    manager_ = crosapi::CreateCrosapiManagerWithTestRegistry();
+    manager_ = std::make_unique<crosapi::CrosapiManager>();
     manager_->crosapi_ash()
         ->device_attributes_ash()
         ->SetDeviceAttributesForTesting(std::move(device_attributes_));
@@ -113,8 +115,8 @@ class EnterpriseDeviceAttributesApiAshTest
   void AddUser(bool is_affiliated = true) {
     AccountId account_id = AccountId::FromUserEmail(kAccountId);
     user_manager_->AddUserWithAffiliationAndTypeAndProfile(
-        account_id, is_affiliated, user_manager::USER_TYPE_REGULAR,
-        profile_.get());
+        account_id, is_affiliated, user_manager::UserType::kRegular,
+        testing_profile_);
     user_manager_->LoginUser(account_id);
   }
 
@@ -128,8 +130,11 @@ class EnterpriseDeviceAttributesApiAshTest
     }
   }
 
- private:
+ protected:
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      user_manager_{std::make_unique<ash::FakeChromeUserManager>()};
   TestingProfileManager profile_manager_;
+  raw_ptr<TestingProfile> testing_profile_;
   std::unique_ptr<crosapi::CrosapiManager> manager_;
   std::unique_ptr<policy::FakeDeviceAttributes> device_attributes_;
 };
@@ -138,9 +143,9 @@ TEST_P(EnterpriseDeviceAttributesApiAshTest, GetDirectoryDeviceIdFunction) {
   auto function = base::MakeRefCounted<
       EnterpriseDeviceAttributesGetDirectoryDeviceIdFunction>();
 
-  absl::optional<base::Value> result =
+  std::optional<base::Value> result =
       api_test_utils::RunFunctionAndReturnSingleResult(
-          function.get(), /*args=*/"[]", profile_.get());
+          function.get(), /*args=*/"[]", testing_profile_);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ(
       IsSigninProfileOrBelongsToAffiliatedUser() ? kFakeDirectoryApiId : "",
@@ -151,9 +156,9 @@ TEST_P(EnterpriseDeviceAttributesApiAshTest, GetDeviceSerialNumberFunction) {
   auto function = base::MakeRefCounted<
       EnterpriseDeviceAttributesGetDeviceSerialNumberFunction>();
 
-  absl::optional<base::Value> result =
+  std::optional<base::Value> result =
       api_test_utils::RunFunctionAndReturnSingleResult(
-          function.get(), /*args=*/"[]", profile_.get());
+          function.get(), /*args=*/"[]", testing_profile_);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ(IsSigninProfileOrBelongsToAffiliatedUser() ? kFakeSerialNumber : "",
             result->GetString());
@@ -163,9 +168,9 @@ TEST_P(EnterpriseDeviceAttributesApiAshTest, GetDeviceAssetIdFunction) {
   auto function = base::MakeRefCounted<
       EnterpriseDeviceAttributesGetDeviceAssetIdFunction>();
 
-  absl::optional<base::Value> result =
+  std::optional<base::Value> result =
       api_test_utils::RunFunctionAndReturnSingleResult(
-          function.get(), /*args=*/"[]", profile_.get());
+          function.get(), /*args=*/"[]", testing_profile_);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ(IsSigninProfileOrBelongsToAffiliatedUser() ? kFakeAssetId : "",
             result->GetString());
@@ -176,9 +181,9 @@ TEST_P(EnterpriseDeviceAttributesApiAshTest,
   auto function = base::MakeRefCounted<
       EnterpriseDeviceAttributesGetDeviceAnnotatedLocationFunction>();
 
-  absl::optional<base::Value> result =
+  std::optional<base::Value> result =
       api_test_utils::RunFunctionAndReturnSingleResult(
-          function.get(), /*args=*/"[]", profile_.get());
+          function.get(), /*args=*/"[]", testing_profile_);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ(
       IsSigninProfileOrBelongsToAffiliatedUser() ? kFakeAnnotatedLocation : "",
@@ -189,9 +194,9 @@ TEST_P(EnterpriseDeviceAttributesApiAshTest, GetDeviceHostnameFunction) {
   auto function = base::MakeRefCounted<
       EnterpriseDeviceAttributesGetDeviceHostnameFunction>();
 
-  absl::optional<base::Value> result =
+  std::optional<base::Value> result =
       api_test_utils::RunFunctionAndReturnSingleResult(
-          function.get(), /*args=*/"[]", profile_.get());
+          function.get(), /*args=*/"[]", testing_profile_);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ(IsSigninProfileOrBelongsToAffiliatedUser() ? kFakeHostname : "",
             result->GetString());

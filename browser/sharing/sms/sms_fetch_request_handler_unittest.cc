@@ -15,9 +15,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "chrome/browser/sharing/mock_sharing_device_source.h"
-#include "chrome/browser/sharing/proto/sharing_message.pb.h"
-#include "chrome/browser/sharing/sharing_message_handler.h"
+#include "components/sharing_message/mock_sharing_device_source.h"
+#include "components/sharing_message/proto/sharing_message.pb.h"
+#include "components/sharing_message/sharing_message_handler.h"
 #include "components/url_formatter/elide_url.h"
 #include "content/public/browser/sms_fetcher.h"
 #include "content/public/test/browser_task_environment.h"
@@ -27,8 +27,8 @@
 #include "url/origin.h"
 
 using base::BindLambdaForTesting;
-using chrome_browser_sharing::ResponseMessage;
-using chrome_browser_sharing::SharingMessage;
+using components_sharing_message::ResponseMessage;
+using components_sharing_message::SharingMessage;
 using content::SmsFetcher;
 using ::testing::_;
 using ::testing::NiceMock;
@@ -37,7 +37,6 @@ using ::testing::StrictMock;
 
 namespace {
 
-const char kEmptyDeviceName[] = "";
 const char kDefaultDeviceName[] = "Default Device";
 
 class MockSmsFetcher : public SmsFetcher {
@@ -87,20 +86,17 @@ class MockSmsFetchRequestHandler : public SmsFetchRequestHandler {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
-SharingMessage CreateRequest(
-    const std::string& origin,
-    const std::string& device_name = kDefaultDeviceName) {
+SharingMessage CreateRequest(const std::string& origin) {
   SharingMessage message;
-  message.set_sender_device_name(device_name);
+  message.set_sender_device_name(kDefaultDeviceName);
   message.mutable_sms_fetch_request()->add_origins(origin);
   return message;
 }
 
 SharingMessage CreateRequestWithMultipleOrigins(
-    const std::vector<std::string>& origins,
-    const std::string& device_name = kDefaultDeviceName) {
+    const std::vector<std::string>& origins) {
   SharingMessage message;
-  message.set_sender_device_name(device_name);
+  message.set_sender_device_name(kDefaultDeviceName);
   for (const auto& origin : origins)
     message.mutable_sms_fetch_request()->add_origins(origin);
   return message;
@@ -410,36 +406,4 @@ TEST(SmsFetchRequestHandlerTest, EmbeddedFrameDismiss) {
                         SmsFetcher::UserConsent::kNotObtained);
   handler.OnDismiss(env, j_top_origin.obj(), j_embedded_origin.obj());
   loop.Run();
-}
-
-TEST(SmsFetchRequestHandlerTest, DefaultDeviceName) {
-  base::HistogramTester histogram_tester;
-  StrictMock<MockSmsFetcher> fetcher;
-  MockSmsFetchRequestHandler handler(&fetcher);
-  const std::string origin = "https://a.com";
-  SharingMessage message = CreateRequest(origin, kDefaultDeviceName);
-
-  EXPECT_CALL(fetcher, Subscribe(_, _));
-  EXPECT_CALL(fetcher, Unsubscribe(_, _));
-
-  handler.OnMessage(message, base::DoNothing());
-  EXPECT_EQ(handler.requests_.size(), 1u);
-
-  histogram_tester.ExpectBucketCount("Sharing.SmsFetcherClientNameIsEmpty", 0,
-                                     1);
-  histogram_tester.ExpectTotalCount("Sharing.SmsFetcherClientNameIsEmpty", 1);
-}
-
-TEST(SmsFetchRequestHandlerTest, EmptyDeviceName) {
-  base::HistogramTester histogram_tester;
-  StrictMock<MockSmsFetcher> fetcher;
-  MockSmsFetchRequestHandler handler(&fetcher);
-  const std::string origin = "https://a.com";
-  SharingMessage message = CreateRequest(origin, kEmptyDeviceName);
-  handler.OnMessage(message, base::DoNothing());
-  EXPECT_TRUE(handler.requests_.empty());
-
-  histogram_tester.ExpectBucketCount("Sharing.SmsFetcherClientNameIsEmpty", 1,
-                                     1);
-  histogram_tester.ExpectTotalCount("Sharing.SmsFetcherClientNameIsEmpty", 1);
 }

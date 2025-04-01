@@ -19,6 +19,7 @@
 #include "extensions/browser/api/automation_internal/automation_event_router.h"
 #include "ui/accessibility/ax_action_handler.h"
 #include "ui/accessibility/ax_tree_serializer.h"
+#include "ui/accessibility/ax_tree_update.h"
 #include "ui/views/accessibility/ax_aura_obj_cache.h"
 #include "ui/views/accessibility/ax_event_observer.h"
 #include "ui/views/accessibility/ax_tree_source_views.h"
@@ -33,9 +34,12 @@ class AXAuraObjWrapper;
 class View;
 }  // namespace views
 
-using AuraAXTreeSerializer =
-    ui::AXTreeSerializer<views::AXAuraObjWrapper*,
-                         std::vector<views::AXAuraObjWrapper*>>;
+using AuraAXTreeSerializer = ui::AXTreeSerializer<
+    views::AXAuraObjWrapper*,
+    std::vector<raw_ptr<views::AXAuraObjWrapper, VectorExperimental>>,
+    ui::AXTreeUpdate*,
+    ui::AXTreeData*,
+    ui::AXNodeData>;
 
 // Manages a tree of automation nodes backed by aura constructs.
 class AutomationManagerAura : public ui::AXActionHandler,
@@ -56,7 +60,7 @@ class AutomationManagerAura : public ui::AXActionHandler,
   void Disable();
 
   // Handle an event fired upon the root view.
-  void HandleEvent(ax::mojom::Event event_type);
+  void HandleEvent(ax::mojom::Event event_type, bool from_user);
 
   // Handles a textual alert.
   void HandleAlert(const std::string& text);
@@ -111,7 +115,8 @@ class AutomationManagerAura : public ui::AXActionHandler,
 
   void PostEvent(int32_t id,
                  ax::mojom::Event event_type,
-                 int action_request_id = -1);
+                 int action_request_id = -1,
+                 bool from_user = false);
 
   void SendPendingEvents();
 
@@ -123,6 +128,8 @@ class AutomationManagerAura : public ui::AXActionHandler,
 
   // Whether automation support for views is enabled.
   bool enabled_ = false;
+
+  std::unique_ptr<views::AXAuraObjCache> cache_;
 
   // Holds the active views-based accessibility tree. A tree currently consists
   // of all views descendant to a |Widget| (see |AXTreeSourceViews|).
@@ -140,6 +147,7 @@ class AutomationManagerAura : public ui::AXActionHandler,
     ax::mojom::Event event_type;
     int action_request_id;
     ax::mojom::Action currently_performing_action;
+    bool from_user;
   };
 
   std::vector<Event> pending_events_;
@@ -150,8 +158,6 @@ class AutomationManagerAura : public ui::AXActionHandler,
       automation_event_router_interface_ = nullptr;
 
   std::unique_ptr<views::AccessibilityAlertWindow> alert_window_;
-
-  std::unique_ptr<views::AXAuraObjCache> cache_;
 
   ax::mojom::Action currently_performing_action_ = ax::mojom::Action::kNone;
 

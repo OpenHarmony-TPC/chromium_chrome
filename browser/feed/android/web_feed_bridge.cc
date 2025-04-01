@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "base/android/callback_android.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
@@ -14,24 +16,29 @@
 #include "base/notreached.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "chrome/browser/android/tab_android.h"
-#include "chrome/browser/feed/android/feed_stream.h"
-#include "chrome/browser/feed/android/jni_headers/WebFeedBridge_jni.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/feed/feed_service_factory.h"
 #include "chrome/browser/feed/web_feed_page_information_fetcher.h"
 #include "chrome/browser/feed/web_feed_util.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "components/country_codes/country_codes.h"
 #include "components/feed/core/v2/config.h"
 #include "components/feed/core/v2/public/feed_service.h"
 #include "components/feed/core/v2/public/types.h"
 #include "components/feed/core/v2/public/web_feed_subscriptions.h"
+#include "components/feed/feed_feature_list.h"
 #include "components/feed/mojom/rss_link_reader.mojom.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/keyed_service/core/service_access_type.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/variations/service/variations_service.h"
 #include "url/android/gurl_android.h"
+#include "url/origin.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/browser/feed/android/jni_headers/WebFeedBridge_jni.h"
 
 class Profile;
 
@@ -49,12 +56,10 @@ base::CancelableTaskTracker& TaskTracker() {
 PageInformation ToNativePageInformation(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& pageInfo) {
-  std::unique_ptr<GURL> gurl = url::GURLAndroid::ToNativeGURL(
-      env, Java_WebFeedPageInformation_getUrl(env, pageInfo));
 
   PageInformation result;
-  if (gurl)
-    result.url = *gurl;
+  result.url = url::GURLAndroid::ToNativeGURL(
+      env, Java_WebFeedPageInformation_getUrl(env, pageInfo));
   TabAndroid* tab = TabAndroid::GetNativeTab(
       env, Java_WebFeedPageInformation_getTab(env, pageInfo));
   result.web_contents = tab ? tab->web_contents() : nullptr;
@@ -221,6 +226,14 @@ static void JNI_WebFeedBridge_FollowWebFeed(
       std::move(callback));
 }
 
+static jboolean JNI_WebFeedBridge_IsCormorantEnabledForLocale(JNIEnv* env) {
+  return JNI_WebFeedBridge_IsWebFeedEnabled(env);
+}
+
+static jboolean JNI_WebFeedBridge_IsWebFeedEnabled(JNIEnv* env) {
+  return feed::IsWebFeedEnabledForLocale(FeedServiceFactory::GetCountry());
+}
+
 static void JNI_WebFeedBridge_FollowWebFeedById(
     JNIEnv* env,
     const base::android::JavaParamRef<jbyteArray>& webFeedId,
@@ -359,9 +372,9 @@ static void JNI_WebFeedBridge_GetRecentVisitCountsToHost(
   auto begin_time =
       base::Time::Now() -
       base::Days(GetFeedConfig().webfeed_accelerator_recent_visit_history_days);
-  history_service->GetDailyVisitsToHost(
-      *url::GURLAndroid::ToNativeGURL(env, j_url), begin_time, end_time,
-      std::move(callback), &TaskTracker());
+  history_service->GetDailyVisitsToOrigin(
+      url::Origin::Create(url::GURLAndroid::ToNativeGURL(env, j_url)),
+      begin_time, end_time, std::move(callback), &TaskTracker());
 }
 
 static void JNI_WebFeedBridge_IncrementFollowedFromWebPageMenuCount(

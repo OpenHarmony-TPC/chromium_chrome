@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_TOOLBAR_UNITTEST_H_
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/extensions/permissions/site_permissions_helper.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_container.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/test_with_browser_view.h"
@@ -25,8 +26,10 @@ class ExtensionService;
 // interactive ui or browser test since they are faster and less flaky.
 class ExtensionsToolbarUnitTest : public TestWithBrowserView {
  public:
-  ExtensionsToolbarUnitTest() = default;
-  ~ExtensionsToolbarUnitTest() override = default;
+  ExtensionsToolbarUnitTest();
+  explicit ExtensionsToolbarUnitTest(
+      base::test::TaskEnvironment::TimeSource time_source);
+  ~ExtensionsToolbarUnitTest() override;
   ExtensionsToolbarUnitTest(const ExtensionsToolbarUnitTest&) = delete;
   const ExtensionsToolbarUnitTest& operator=(const ExtensionsToolbarUnitTest&) =
       delete;
@@ -41,6 +44,10 @@ class ExtensionsToolbarUnitTest : public TestWithBrowserView {
 
   ExtensionsToolbarButton* extensions_button() {
     return extensions_container()->GetExtensionsButton();
+  }
+
+  ExtensionsRequestAccessButton* request_access_button() {
+    return extensions_container()->GetRequestAccessButton();
   }
 
   ExtensionsMenuCoordinator* menu_coordinator() {
@@ -105,9 +112,31 @@ class ExtensionsToolbarUnitTest : public TestWithBrowserView {
       extensions::PermissionsManager::UserSiteSetting site_setting,
       const GURL& url);
 
+  // Adds a site access request with an optional `filter` for `extension` in
+  // `web_contents`.
+  void AddSiteAccessRequest(
+      const extensions::Extension& extension,
+      content::WebContents* web_contents,
+      const std::optional<URLPattern>& filter = std::nullopt);
+
+  // Removes the site access request for `extension` in `web_contents`, if
+  // existent.
+  void RemoveSiteAccessRequest(const extensions::Extension& extension,
+                               content::WebContents* web_contents);
+
   // Returns the user's site setting for `url`.
   extensions::PermissionsManager::UserSiteSetting GetUserSiteSetting(
       const GURL& url);
+
+  // Returns the user's `extension` site access for `url`.
+  extensions::PermissionsManager::UserSiteAccess GetUserSiteAccess(
+      const extensions::Extension& extension,
+      const GURL& url) const;
+
+  // Returns the `extension` site interaction on `web_contents`.
+  extensions::SitePermissionsHelper::SiteInteraction GetSiteInteraction(
+      const extensions::Extension& extension,
+      content::WebContents* web_contents) const;
 
   // Returns a list of the views of the currently pinned extensions, in order
   // from left to right.
@@ -131,9 +160,14 @@ class ExtensionsToolbarUnitTest : public TestWithBrowserView {
 
   // TestWithBrowserView:
   void SetUp() override;
+  void TearDown() override;
 
  private:
-  raw_ptr<extensions::ExtensionService> extension_service_ = nullptr;
+  raw_ptr<extensions::ExtensionService, DanglingUntriaged> extension_service_ =
+      nullptr;
+  raw_ptr<extensions::PermissionsManager, DanglingUntriaged>
+      permissions_manager_ = nullptr;
+  std::unique_ptr<extensions::SitePermissionsHelper> permissions_helper_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_TOOLBAR_UNITTEST_H_

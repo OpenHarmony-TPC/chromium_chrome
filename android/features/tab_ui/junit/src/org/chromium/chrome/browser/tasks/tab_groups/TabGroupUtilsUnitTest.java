@@ -8,43 +8,33 @@ import static androidx.test.espresso.matcher.ViewMatchers.assertThat;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.robolectric.annotation.Config;
 
-import org.chromium.base.UserDataHost;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.TabImpl;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
+import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
+import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterProvider;
 import org.chromium.chrome.browser.tabmodel.TabModel;
-import org.chromium.chrome.browser.tabmodel.TabModelFilterProvider;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiUnitTestUtils;
-import org.chromium.chrome.test.util.browser.Features;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Tests for {@link TabGroupUtils}.
- */
+/** Tests for {@link TabGroupUtils}. */
 @SuppressWarnings("ResultOfMethodCallIgnored")
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class TabGroupUtilsUnitTest {
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
 
     private static final String TAB1_TITLE = "Tab1";
     private static final String TAB2_TITLE = "Tab2";
@@ -56,18 +46,14 @@ public class TabGroupUtilsUnitTest {
     private static final int POSITION2 = 1;
     private static final int POSITION3 = 2;
 
-    @Mock
-    TabModel mTabModel;
-    @Mock
-    TabModelSelector mTabModelSelector;
-    @Mock
-    TabModelFilterProvider mTabModelFilterProvider;
-    @Mock
-    TabGroupModelFilter mTabGroupModelFilter;
+    @Mock TabModel mTabModel;
+    @Mock TabModelSelector mTabModelSelector;
+    @Mock TabGroupModelFilterProvider mTabGroupModelFilterProvider;
+    @Mock TabGroupModelFilter mTabGroupModelFilter;
 
-    private TabImpl mTab1;
-    private TabImpl mTab2;
-    private TabImpl mTab3;
+    private Tab mTab1;
+    private Tab mTab2;
+    private Tab mTab3;
 
     @Before
     public void setUp() {
@@ -77,8 +63,12 @@ public class TabGroupUtilsUnitTest {
         mTab2 = TabUiUnitTestUtils.prepareTab(TAB2_ID, TAB2_TITLE, GURL.emptyGURL());
         mTab3 = TabUiUnitTestUtils.prepareTab(TAB3_ID, TAB3_TITLE, GURL.emptyGURL());
 
-        doReturn(mTabModelFilterProvider).when(mTabModelSelector).getTabModelFilterProvider();
-        doReturn(mTabGroupModelFilter).when(mTabModelFilterProvider).getCurrentTabModelFilter();
+        doReturn(mTabGroupModelFilterProvider)
+                .when(mTabModelSelector)
+                .getTabGroupModelFilterProvider();
+        doReturn(mTabGroupModelFilter)
+                .when(mTabGroupModelFilterProvider)
+                .getCurrentTabGroupModelFilter();
         doReturn(POSITION1).when(mTabModel).indexOf(mTab1);
         doReturn(POSITION2).when(mTabModel).indexOf(mTab2);
         doReturn(POSITION3).when(mTabModel).indexOf(mTab3);
@@ -92,9 +82,11 @@ public class TabGroupUtilsUnitTest {
         doReturn(POSITION1).when(mTabGroupModelFilter).indexOf(mTab1);
         doReturn(POSITION1).when(mTabGroupModelFilter).indexOf(mTab2);
 
-        assertThat(TabGroupUtils.getSelectedTabInGroupForTab(mTabModelSelector, mTab1),
+        assertThat(
+                TabGroupUtils.getSelectedTabInGroupForTab(mTabGroupModelFilter, mTab1),
                 equalTo(mTab1));
-        assertThat(TabGroupUtils.getSelectedTabInGroupForTab(mTabModelSelector, mTab2),
+        assertThat(
+                TabGroupUtils.getSelectedTabInGroupForTab(mTabGroupModelFilter, mTab2),
                 equalTo(mTab1));
     }
 
@@ -115,12 +107,7 @@ public class TabGroupUtilsUnitTest {
     private void createTabGroup(List<Tab> tabs, int rootId) {
         for (Tab tab : tabs) {
             when(mTabGroupModelFilter.getRelatedTabList(tab.getId())).thenReturn(tabs);
-            CriticalPersistedTabData criticalPersistedTabData =
-                    mock(CriticalPersistedTabData.class);
-            UserDataHost userDataHost = new UserDataHost();
-            userDataHost.setUserData(CriticalPersistedTabData.class, criticalPersistedTabData);
-            doReturn(userDataHost).when(tab).getUserDataHost();
-            doReturn(rootId).when(criticalPersistedTabData).getRootId();
+            when(tab.getRootId()).thenReturn(rootId);
         }
     }
 }

@@ -206,6 +206,7 @@ void CloudExternalDataManagerBase::Backend::Disconnect() {
 void CloudExternalDataManagerBase::Backend::OnMetadataUpdated(
     std::unique_ptr<Metadata> metadata) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   metadata_set_ = true;
   Metadata old_metadata;
   metadata_.swap(old_metadata);
@@ -340,7 +341,6 @@ size_t CloudExternalDataManagerBase::Backend::GetMaxExternalDataSize(
   if (details)
     return details->max_external_data_size;
   NOTREACHED();
-  return 0;
 }
 
 void CloudExternalDataManagerBase::Backend::RunCallback(

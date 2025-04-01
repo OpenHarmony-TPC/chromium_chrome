@@ -6,12 +6,15 @@
 import 'chrome://settings/lazy_load.js';
 
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {SettingsSimpleConfirmationDialogElement, CrInputElement, PaymentsManagerImpl, SettingsIbanEditDialogElement} from 'chrome://settings/lazy_load.js';
-import {CrButtonElement, loadTimeData} from 'chrome://settings/settings.js';
+import type {SettingsSimpleConfirmationDialogElement, CrInputElement, SettingsIbanEditDialogElement} from 'chrome://settings/lazy_load.js';
+import {PaymentsManagerImpl} from 'chrome://settings/lazy_load.js';
+import type {CrButtonElement} from 'chrome://settings/settings.js';
+import {loadTimeData} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {eventToPromise, whenAttributeIs} from 'chrome://webui-test/test_util.js';
+import {eventToPromise, isVisible, microtasksFinished, whenAttributeIs} from 'chrome://webui-test/test_util.js';
 
-import {createIbanEntry, TestPaymentsManager} from './passwords_and_autofill_fake_data.js';
+import type {TestPaymentsManager} from './autofill_fake_data.js';
+import {createIbanEntry} from './autofill_fake_data.js';
 import {createPaymentsSection, getDefaultExpectations} from './payments_section_utils.js';
 
 // clang-format on
@@ -19,20 +22,29 @@ import {createPaymentsSection, getDefaultExpectations} from './payments_section_
 /**
  * Helper function to update IBAN value in the IBAN field.
  */
-function updateIbanTextboxValue(valueInput: CrInputElement, value: string) {
+async function updateIbanTextboxValue(
+    valueInput: CrInputElement, value: string): Promise<void> {
+  valueInput.focus();
   valueInput.value = value;
+  await valueInput.updateComplete;
   valueInput.dispatchEvent(
       new CustomEvent('input', {bubbles: true, composed: true}));
 }
 
+/**
+ * Helper function to wait for IBAN validation to complete and any associated UI
+ * to be updated.
+ */
+async function ibanValidated(paymentsManager: TestPaymentsManager) {
+  await paymentsManager.whenCalled('isValidIban');
+  await microtasksFinished();
+}
 
 suite('PaymentsSectionIban', function() {
   setup(function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     loadTimeData.overrideValues({
       migrationEnabled: true,
-      removeCardExpirationAndTypeTitles: true,
-      virtualCardEnrollmentEnabled: true,
       showIbansSettings: true,
     });
   });
@@ -51,12 +63,12 @@ suite('PaymentsSectionIban', function() {
   }
 
   /**
-   * Returns an array containing all local IBAN items.
+   * Returns an array containing all local and server IBAN items.
    */
-  function getLocalIbanListItems() {
+  function getIbanListItems() {
     return document.body.querySelector('settings-payments-section')!.shadowRoot!
         .querySelector('#paymentsList')!.shadowRoot!.querySelectorAll(
-            'settings-iban-list-entry')!;
+            'settings-iban-list-entry');
   }
 
   /**
@@ -75,8 +87,7 @@ suite('PaymentsSectionIban', function() {
       showIbansSettings: false,
     });
     const section = await createPaymentsSection(
-        /*creditCards=*/[], /*ibans=*/[], /*upiIds=*/[],
-        {credit_card_enabled: {value: true}});
+        /*creditCards=*/[], /*ibans=*/[], {credit_card_enabled: {value: true}});
     const addPaymentMethodsButton =
         section.shadowRoot!.querySelector<CrButtonElement>(
             '#addPaymentMethods');
@@ -90,8 +101,7 @@ suite('PaymentsSectionIban', function() {
 
   test('verifyAddCardOrIbanPaymentMenu', async function() {
     const section = await createPaymentsSection(
-        /*creditCards=*/[], /*ibans=*/[], /*upiIds=*/[],
-        {credit_card_enabled: {value: true}});
+        /*creditCards=*/[], /*ibans=*/[], {credit_card_enabled: {value: true}});
     const addPaymentMethodsButton =
         section.shadowRoot!.querySelector<CrButtonElement>(
             '#addPaymentMethods');
@@ -115,18 +125,18 @@ suite('PaymentsSectionIban', function() {
     const iban1 = createIbanEntry();
     const iban2 = createIbanEntry();
     await createPaymentsSection(
-        /*creditCards=*/[], [iban1, iban2], /*upiIds=*/[], /*prefValues=*/ {});
+        /*creditCards=*/[], [iban1, iban2], /*prefValues=*/ {});
 
-    assertEquals(2, getLocalIbanListItems().length);
+    assertEquals(2, getIbanListItems().length);
   });
 
   test('verifyIbanSummarySublabelWithNickname', async function() {
     const iban = createIbanEntry('BA393385804800211234', 'My doctor\'s IBAN');
 
     const section = await createPaymentsSection(
-        /*creditCards=*/[], [iban], /*upiIds=*/[], /*prefValues=*/ {});
+        /*creditCards=*/[], [iban], /*prefValues=*/ {});
 
-    assertEquals(1, getLocalIbanListItems().length);
+    assertEquals(1, getIbanListItems().length);
 
     const ibanItemValue = getIbanRowShadowRoot(section.$.paymentsList)
                               .querySelector<HTMLElement>('#value');
@@ -151,10 +161,10 @@ suite('PaymentsSectionIban', function() {
 
     // Add a valid IBAN value.
     const valueInput = ibanDialog.$.valueInput;
-    updateIbanTextboxValue(valueInput, 'FI1410093000123458');
+    await updateIbanTextboxValue(valueInput, 'FI1410093000123458');
 
     // Type in another valid IBAN value.
-    updateIbanTextboxValue(valueInput, 'IT60X0542811101000000123456');
+    await updateIbanTextboxValue(valueInput, 'IT60X0542811101000000123456');
 
     const savePromise = eventToPromise('save-iban', ibanDialog);
     saveButton.click();
@@ -170,6 +180,63 @@ suite('PaymentsSectionIban', function() {
     expectations.isValidIban = 2;
     expectations.listeningCreditCards = 0;
     paymentsManager.assertExpectations(expectations);
+  });
+
+  test('verifyIBANErrorMessage', async function() {
+    // All IBANs in this test are invalid, but since we're using
+    // TestPaymentsManager we have to set that explicitly.
+    const paymentsManager =
+        PaymentsManagerImpl.getInstance() as TestPaymentsManager;
+    paymentsManager.setIsValidIban(false);
+
+    // Creates an IBAN with empty value and nickname.
+    const iban = createIbanEntry('', '');
+    const ibanDialog = createIbanDialog(iban);
+
+    await whenAttributeIs(ibanDialog.$.dialog, 'open', '');
+
+    // With an empty IBAN, the save button should be disabled but no error
+    // should be shown.
+    const saveButton = ibanDialog.$.saveButton;
+    assertTrue(!!saveButton, 'Save button should be disabled for empty IBAN');
+    const valueInput = ibanDialog.$.valueInput;
+    assertFalse(
+        valueInput.invalid, 'No error message should be shown for empty IBAN');
+
+    // This invalid IBAN is of sufficient length that an error should be shown.
+    await updateIbanTextboxValue(valueInput, 'IT60X0542811101000000123450');
+    await ibanValidated(paymentsManager);
+
+    assertTrue(
+        !!saveButton,
+        'Save button should be disabled for invalid IBAN >= 24 characters ' +
+            'in length');
+    assertTrue(
+        valueInput.invalid,
+        'Error message should be shown for invalid IBAN >= 24 characters ' +
+            'in length');
+
+    // This invalid IBAN is less than 24 characters. The save button should
+    // remain disabled, but no error should be shown.
+    await updateIbanTextboxValue(valueInput, 'FI1410093000123458');
+    await ibanValidated(paymentsManager);
+
+    assertTrue(
+        !!saveButton,
+        'Save button should be disabled for shorter invalid IBAN');
+    assertFalse(
+        valueInput.invalid,
+        'No error message should be shown for shorter invalid IBAN while ' +
+            'editing');
+
+    // Now un-focus the field - this should trigger the error to show.
+    valueInput.blur();
+    await ibanValidated(paymentsManager);
+
+    assertTrue(
+        valueInput.invalid,
+        'After unfocusing, an error message should be shown for shorter ' +
+            'invalid IBAN');
   });
 
   test('verifyIbanEntryIsNotEditedAfterCancel', async function() {
@@ -200,9 +267,9 @@ suite('PaymentsSectionIban', function() {
   test('verifyLocalIbanMenu', async function() {
     const iban = createIbanEntry();
     const section = await createPaymentsSection(
-        /*creditCards=*/[], [iban], /*upiIds=*/[],
+        /*creditCards=*/[], [iban],
         /*prefValues=*/ {});
-    assertEquals(1, getLocalIbanListItems().length);
+    assertEquals(1, getIbanListItems().length);
 
     // Local IBANs will show the 3-dot overflow menu.
     section.$.ibanSharedActionMenu.get();
@@ -224,8 +291,8 @@ suite('PaymentsSectionIban', function() {
     const iban = createIbanEntry('FI1410093000123458', 'NickName');
 
     const section = await createPaymentsSection(
-        /*creditCards=*/[], [iban], /*upiIds=*/[], /*prefValues=*/ {});
-    assertEquals(1, getLocalIbanListItems().length);
+        /*creditCards=*/[], [iban], /*prefValues=*/ {});
+    assertEquals(1, getIbanListItems().length);
 
     const rowShadowRoot = getIbanRowShadowRoot(section.$.paymentsList);
     assertTrue(!!rowShadowRoot);
@@ -267,8 +334,8 @@ suite('PaymentsSectionIban', function() {
     const iban = createIbanEntry();
 
     const section = await createPaymentsSection(
-        /*creditCards=*/[], [iban], /*upiIds=*/[], /*prefValues=*/ {});
-    assertEquals(1, getLocalIbanListItems().length);
+        /*creditCards=*/[], [iban], /*prefValues=*/ {});
+    assertEquals(1, getIbanListItems().length);
 
     const rowShadowRoot = getIbanRowShadowRoot(section.$.paymentsList);
     assertTrue(!!rowShadowRoot);
@@ -303,5 +370,30 @@ suite('PaymentsSectionIban', function() {
     const expectations = getDefaultExpectations();
     expectations.removedIbans = 0;
     paymentsManager.assertExpectations(expectations);
+  });
+
+  test('verifyGooglePaymentsIndicatorAppearsForServerIbans', async function() {
+    const iban = createIbanEntry();
+    iban.metadata!.isLocal = false;
+    const section = await createPaymentsSection(
+        /*creditCards=*/[], [iban], /*prefValues=*/ {});
+    assertEquals(1, getIbanListItems().length);
+    assertTrue(
+        isVisible(getIbanRowShadowRoot(section.$.paymentsList)
+                      .querySelector<HTMLElement>('#paymentsIndicator')));
+  });
+
+  test('verifyIbanRowButtonIsOutlinkForServerIbans', async function() {
+    const iban = createIbanEntry();
+    iban.metadata!.isLocal = false;
+    const section = await createPaymentsSection(
+        /*creditCards=*/[], [iban], /*prefValues=*/ {});
+    assertEquals(1, getIbanListItems().length);
+    const rowShadowRoot = getIbanRowShadowRoot(section.$.paymentsList);
+    const menuButton = rowShadowRoot.querySelector('#ibanMenu');
+    assertFalse(!!menuButton);
+    const outlinkButton =
+        rowShadowRoot.querySelector('cr-icon-button.icon-external');
+    assertTrue(!!outlinkButton);
   });
 });

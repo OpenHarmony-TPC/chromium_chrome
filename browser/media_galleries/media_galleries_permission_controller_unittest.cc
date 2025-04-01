@@ -26,10 +26,15 @@
 #include "components/storage_monitor/test_storage_monitor.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/login/users/scoped_test_user_manager.h"
+#include "chrome/browser/ash/login/users/user_manager_delegate_impl.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
+#include "chrome/browser/browser_process.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
+#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/user_manager_impl.h"
 #endif
 
 using storage_monitor::StorageInfo;
@@ -160,7 +165,11 @@ class MediaGalleriesPermissionControllerTest : public ::testing::Test {
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   ash::ScopedCrosSettingsTestHelper cros_settings_test_helper_;
-  ash::ScopedTestUserManager test_user_manager_;
+  user_manager::ScopedUserManager user_manager_{
+      std::make_unique<user_manager::UserManagerImpl>(
+          std::make_unique<ash::UserManagerDelegateImpl>(),
+          g_browser_process->local_state(),
+          ash::CrosSettings::Get())};
 #endif
 
   TestStorageMonitor monitor_;
@@ -213,8 +222,9 @@ void MediaGalleriesPermissionControllerTest::TestForgottenType(
 
   // Add back and test whether the same pref id is preserved.
   StartDialog();
-  controller()->FileSelected(MakeMediaGalleriesTestingPath("forgotten1"), 0,
-                             nullptr);
+  ui::SelectedFileInfo file(MakeMediaGalleriesTestingPath("forgotten1"),
+                            MakeMediaGalleriesTestingPath("forgotten1"));
+  controller()->FileSelected(file, 0);
   controller()->DialogFinished(true);
   EXPECT_EQ(2U, gallery_prefs()->GalleriesForExtension(*extension()).size());
   MediaGalleryPrefInfo retrieved_info;

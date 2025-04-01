@@ -23,13 +23,22 @@ DownloadCoreService* DownloadCoreServiceFactory::GetForBrowserContext(
 
 // static
 DownloadCoreServiceFactory* DownloadCoreServiceFactory::GetInstance() {
-  return base::Singleton<DownloadCoreServiceFactory>::get();
+  static base::NoDestructor<DownloadCoreServiceFactory> instance;
+  return instance.get();
 }
 
 DownloadCoreServiceFactory::DownloadCoreServiceFactory()
     : ProfileKeyedServiceFactory(
           "DownloadCoreService",
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOwnInstance)
+              .Build()) {
 #if !BUILDFLAG(IS_ANDROID)
   DependsOn(DownloadBubbleUpdateServiceFactory::GetInstance());
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -38,7 +47,7 @@ DownloadCoreServiceFactory::DownloadCoreServiceFactory()
   DependsOn(OfflineContentAggregatorFactory::GetInstance());
 }
 
-DownloadCoreServiceFactory::~DownloadCoreServiceFactory() {}
+DownloadCoreServiceFactory::~DownloadCoreServiceFactory() = default;
 
 KeyedService* DownloadCoreServiceFactory::BuildServiceInstanceFor(
     content::BrowserContext* profile) const {

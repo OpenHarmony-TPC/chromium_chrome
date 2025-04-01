@@ -11,12 +11,14 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
+#include "chrome/browser/enterprise/connectors/test/deep_scanning_test_utils.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_test_util.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
+#include "chrome/common/extensions/api/enterprise_reporting_private.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/policy/core/common/management/management_service.h"
 #include "components/signin/public/identity_manager/account_info.h"
@@ -24,6 +26,7 @@
 #include "components/version_info/version_info.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/test/result_catcher.h"
 #include "extensions/test/test_extension_dir.h"
 #include "services/network/test/test_url_loader_factory.h"
@@ -49,42 +52,31 @@
 #include "components/device_signals/test/win/scoped_executable_files.h"
 #endif  // BUILDFLAG(IS_WIN)
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_test_utils.h"
+#if !BUILDFLAG(IS_CHROMEOS)
 #include "components/enterprise/browser/controller/fake_browser_dm_token_storage.h"
 #include "components/policy/core/common/cloud/cloud_policy_core.h"
 #include "components/policy/core/common/cloud/cloud_policy_store.h"
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_manager.h"
 #include "components/policy/core/common/cloud/user_cloud_policy_manager.h"
 #include "components/policy/proto/device_management_backend.pb.h"
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if BUILDFLAG(IS_CHROMEOS)
+#else
 #include "base/strings/strcat.h"
-#include "chrome/browser/enterprise/util/affiliation.h"
-#include "chrome/browser/extensions/api/enterprise_reporting_private/enterprise_reporting_private_api.h"
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/login/test/cryptohome_mixin.h"
+#include "chrome/browser/ash/login/test/user_auth_config.h"
 #include "chrome/browser/ash/policy/affiliation/affiliation_mixin.h"
 #include "chrome/browser/ash/policy/affiliation/affiliation_test_helper.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chrome/browser/browser_process.h"
-#include "chromeos/startup/browser_init_params.h"
-#include "components/policy/core/common/policy_loader_lacros.h"
-#endif
+#include "chrome/browser/enterprise/util/affiliation.h"
+#include "chrome/browser/extensions/api/enterprise_reporting_private/enterprise_reporting_private_api.h"
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 namespace extensions {
 namespace {
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 constexpr char kAffiliationId[] = "affiliation-id";
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 // Manifest key for the Endpoint Verification extension found at
 // chrome.google.com/webstore/detail/callobklhcbilhphinckomhgkigmfocg
@@ -110,11 +102,11 @@ constexpr char kManifestTemplate[] = R"(
       "key": "%s",
       "name": "Enterprise Private Reporting API Test",
       "version": "0.1",
-      "manifest_version": 2,
+      "manifest_version": 3,
       "permissions": [
           "enterprise.reportingPrivate"
       ],
-      "background": { "scripts": ["background.js"] }
+      "background": { "service_worker": "background.js" }
     })";
 
 }  // namespace
@@ -128,21 +120,31 @@ class EnterpriseReportingPrivateApiTest : public extensions::ExtensionApiTest {
  public:
   EnterpriseReportingPrivateApiTest() {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+    scoped_features_.InitWithFeatures(
+        /*enabled_features=*/
+        {
+            extensions_features::
+                kApiEnterpriseReportingPrivateReportDataMaskingEvent,
+            enterprise_signals::features::kNewEvSignalsEnabled,
+        },
+        /*disabled_features=*/{});
+#else
     scoped_features_.InitAndEnableFeature(
-        enterprise_signals::features::kNewEvSignalsEnabled);
+        extensions_features::
+            kApiEnterpriseReportingPrivateReportDataMaskingEvent);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
     browser_dm_token_storage_.SetClientId("client_id");
     browser_dm_token_storage_.SetEnrollmentToken("enrollment_token");
     browser_dm_token_storage_.SetDMToken("dm_token");
     policy::BrowserDMTokenStorage::SetForTesting(&browser_dm_token_storage_);
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
   }
 
   ~EnterpriseReportingPrivateApiTest() override = default;
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   // Signs in and returns the account ID of the primary account.
   AccountInfo SignIn(const std::string& email, bool as_managed = true) {
     auto account_info = identity_test_env()->MakePrimaryAccountAvailable(
@@ -154,7 +156,8 @@ class EnterpriseReportingPrivateApiTest : public extensions::ExtensionApiTest {
       account_info.hosted_domain = "example.com";
       identity_test_env()->UpdateAccountInfoForAccount(account_info);
 
-      safe_browsing::SetProfileDMToken(profile(), "fake_user_dmtoken");
+      enterprise_connectors::test::SetProfileDMToken(profile(),
+                                                     "fake_user_dmtoken");
       auto profile_policy_data =
           std::make_unique<enterprise_management::PolicyData>();
       profile_policy_data->add_user_affiliation_ids(kAffiliationId);
@@ -167,7 +170,7 @@ class EnterpriseReportingPrivateApiTest : public extensions::ExtensionApiTest {
 
     return account_info;
   }
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
   void RunTest(const std::string& background_js,
                bool authorized_manifest_key = true) {
@@ -258,7 +261,7 @@ class EnterpriseReportingPrivateApiTest : public extensions::ExtensionApiTest {
 
   base::test::ScopedFeatureList scoped_features_;
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   policy::FakeBrowserDMTokenStorage browser_dm_token_storage_;
 #endif
 };
@@ -456,13 +459,6 @@ IN_PROC_BROWSER_TEST_F(EnterpriseReportingPrivateApiTest, GetDeviceInfo) {
 }
 
 IN_PROC_BROWSER_TEST_F(EnterpriseReportingPrivateApiTest, GetContextInfo) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  static constexpr char kFakeDeviceID[] = "fake_device_id";
-  auto init_params = crosapi::mojom::BrowserInitParams::New();
-  init_params->device_properties = crosapi::mojom::DeviceProperties::New();
-  init_params->device_properties->serial_number = kFakeDeviceID;
-  chromeos::BrowserInitParams::SetInitParamsForTests(std::move(init_params));
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
   constexpr char kThirdPartyBlockingEnabledType[] = "boolean";
   constexpr char kCount[] = "18";
@@ -589,7 +585,7 @@ IN_PROC_BROWSER_TEST_F(EnterpriseReportingPrivateApiTest,
 
   kOptions = base::StringPrintf(
       R"(
-    const test_hive = 'HKEY_LOCAL_MACHINE';
+    const test_hive = 'HKEY_CURRENT_USER';
     const registry_path = '%s';
     const invalid_path = 'SOFTWARE\\Chromium\\DeviceTrust\\Invalid';
     const valid_key = '%s';
@@ -623,9 +619,9 @@ IN_PROC_BROWSER_TEST_F(EnterpriseReportingPrivateApiTest,
       registry_path.c_str(), valid_key.c_str());
 
   registry_util::RegistryOverrideManager registry_override_manager_;
-  registry_override_manager_.OverrideRegistry(HKEY_LOCAL_MACHINE);
+  registry_override_manager_.OverrideRegistry(HKEY_CURRENT_USER);
 
-  base::win::RegKey key(HKEY_LOCAL_MACHINE,
+  base::win::RegKey key(HKEY_CURRENT_USER,
                         base::SysUTF8ToWide(registry_path).c_str(),
                         KEY_ALL_ACCESS);
   ASSERT_TRUE(key.WriteValue(base::SysUTF8ToWide(valid_key).c_str(), 37) ==
@@ -693,8 +689,9 @@ IN_PROC_BROWSER_TEST_F(EnterpriseReportingPrivateApiTest,
 #endif  // !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-// // TODO(http://crbug.com/1408618): Failing consistently on Mac.
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/40888560): Failing consistently on Mac.
+// TODO(crbug.com/40863616): Flaky on Linux.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #define MAYBE_GetFileSystemInfo_Success DISABLED_GetFileSystemInfo_Success
 #else
 #define MAYBE_GetFileSystemInfo_Success GetFileSystemInfo_Success
@@ -991,7 +988,7 @@ static std::string CreateValidRecord() {
   reporting::Record record;
   record.set_data(serialized_data);
   record.set_destination(reporting::Destination::TELEMETRY_METRIC);
-  record.set_timestamp_us(base::Time::Now().ToJavaTime() *
+  record.set_timestamp_us(base::Time::Now().InMillisecondsSinceUnixEpoch() *
                           base::Time::kMicrosecondsPerMillisecond);
   serialized_record_data.resize(record.SerializeAsString().size());
   record.SerializeToArray(serialized_record_data.data(),
@@ -1010,11 +1007,9 @@ static std::string CreateValidRecord() {
   }
   return serialized_record_data_str;
 }
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Inheriting from DevicePolicyCrosBrowserTest enables use of AffiliationMixin
-// for setting up profile/device affiliation. Only available in Ash.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+// for setting up profile/device affiliation. Only available in ChromeOS.
 struct Params {
   explicit Params(bool affiliated) : affiliated(affiliated) {}
   // Whether the user is expected to be affiliated.
@@ -1028,6 +1023,9 @@ class EnterpriseReportingPrivateEnqueueRecordApiTest
   EnterpriseReportingPrivateEnqueueRecordApiTest() {
     affiliation_mixin_.set_affiliated(GetParam().affiliated);
     crypto_home_mixin_.MarkUserAsExisting(affiliation_mixin_.account_id());
+    crypto_home_mixin_.ApplyAuthConfig(
+        affiliation_mixin_.account_id(),
+        ash::test::UserAuthConfig::Create(ash::test::kDefaultAuthSetup));
   }
 
   ~EnterpriseReportingPrivateEnqueueRecordApiTest() override = default;
@@ -1076,7 +1074,7 @@ IN_PROC_BROWSER_TEST_P(EnterpriseReportingPrivateEnqueueRecordApiTest,
                           "\');"});
 
   ASSERT_EQ(GetParam().affiliated,
-            chrome::enterprise_util::IsProfileAffiliated(
+            enterprise_util::IsProfileAffiliated(
                 ash::ProfileHelper::Get()->GetProfileByAccountId(
                     affiliation_mixin_.account_id())));
 
@@ -1089,78 +1087,92 @@ INSTANTIATE_TEST_SUITE_P(TestAffiliation,
                          EnterpriseReportingPrivateEnqueueRecordApiTest,
                          ::testing::Values(Params(/*affiliated=*/true),
                                            Params(/*affiliated=*/false)));
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
+class EnterpriseReportDataMaskingEventTest
+    : public EnterpriseReportingPrivateApiTest {
+ public:
+  static constexpr char kTestJS[] = R"(
+    chrome.test.assertEq(
+      'function',
+      typeof chrome.enterprise.reportingPrivate.reportDataMaskingEvent);
+    chrome.enterprise.reportingPrivate.reportDataMaskingEvent(
+        {
+          "url": "https://foo.com",
+          "eventResult": "EVENT_RESULT_DATA_MASKED",
+          "triggeredRuleInfo": [
+            {
+              "ruleId": "1234",
+              "ruleName": "Data Masking rule",
+              "matchedDetectors": [
+                {
+                  "detectorId": "5678",
+                  "displayName": "Credit card matcher",
+                  "detectorType": "PREDEFINED_DLP"
+                }
+              ]
+            }
+          ]
+        }, () => {
+        chrome.test.assertNoLastError();
+        chrome.test.notifyPass();
+    });)";
 
-using EnterpriseReportingPrivateEnqueueRecordApiTest = ExtensionApiTest;
+  void SetUpOnMainThread() override {
+    EnterpriseReportingPrivateApiTest::SetUpOnMainThread();
+    event_report_validator_helper_ = std::make_unique<
+        enterprise_connectors::test::EventReportValidatorHelper>(
+        profile(), /*browser_test=*/true);
+  }
 
-static void SetupAffiliationLacros() {
-  constexpr char kDomain[] = "fake-domain";
-  constexpr char kFakeProfileClientId[] = "fake-profile-client-id";
-  constexpr char kFakeDMToken[] = "fake-dm-token";
-  enterprise_management::PolicyData profile_policy_data;
-  profile_policy_data.add_user_affiliation_ids(kAffiliationId);
-  profile_policy_data.set_managed_by(kDomain);
-  profile_policy_data.set_device_id(kFakeProfileClientId);
-  profile_policy_data.set_request_token(kFakeDMToken);
-  policy::PolicyLoaderLacros::set_main_user_policy_data_for_testing(
-      std::move(profile_policy_data));
+  void TearDownOnMainThread() override {
+    event_report_validator_helper_.reset();
+    EnterpriseReportingPrivateApiTest::TearDownOnMainThread();
+  }
 
-  crosapi::mojom::BrowserInitParamsPtr init_params =
-      crosapi::mojom::BrowserInitParams::New();
-  init_params->device_properties = crosapi::mojom::DeviceProperties::New();
-  init_params->device_properties->device_dm_token = kFakeDMToken;
-  init_params->device_properties->device_affiliation_ids = {kAffiliationId};
-  chromeos::BrowserInitParams::SetInitParamsForTests(std::move(init_params));
+ protected:
+  std::unique_ptr<enterprise_connectors::test::EventReportValidatorHelper>
+      event_report_validator_helper_;
+};
+
+IN_PROC_BROWSER_TEST_F(EnterpriseReportDataMaskingEventTest,
+                       ReportingPolicyDisabled) {
+  auto event_validator = event_report_validator_helper_->CreateValidator();
+  event_validator.ExpectNoReport();
+  enterprise_connectors::test::SetOnSecurityEventReporting(
+      profile()->GetPrefs(), false, {}, {});
+
+  RunTest(kTestJS);
 }
 
-IN_PROC_BROWSER_TEST_F(EnterpriseReportingPrivateEnqueueRecordApiTest,
-                       EnqueueRecordFailsWithUnaffiliatedProfile) {
-  constexpr char kTest[] = R"(
+IN_PROC_BROWSER_TEST_F(EnterpriseReportDataMaskingEventTest,
+                       ReportingPolicyEnabled) {
+  auto event_validator = event_report_validator_helper_->CreateValidator();
 
-        const request = {
-          eventType: "USER",
-          priority: 4,
-          recordData: Uint8Array.from(%s),
-        };
+  api::enterprise_reporting_private::TriggeredRuleInfo rule_info;
+  rule_info.rule_id = "1234";
+  rule_info.rule_name = "Data Masking rule";
+  rule_info.matched_detectors.push_back({});
+  rule_info.matched_detectors[0].detector_id = "5678";
+  rule_info.matched_detectors[0].display_name = "Credit card matcher";
+  rule_info.matched_detectors[0].detector_type =
+      api::enterprise_reporting_private::DetectorType::kPredefinedDlp;
 
-        chrome.enterprise.reportingPrivate.enqueueRecord(request, () =>{
-         chrome.test.assertLastError('%s');
+  api::enterprise_reporting_private::DataMaskingEvent event;
+  event.event_result =
+      api::enterprise_reporting_private::EventResult::kEventResultDataMasked;
+  event.url = "https://foo.com";
+  event.triggered_rule_info.push_back(std::move(rule_info));
+  event_validator.ExpectDataMaskingEvent("test-user@chromium.org",
+                                         profile()->GetPath().AsUTF8Unsafe(),
+                                         std::move(event));
 
-          chrome.test.succeed();
-        });
+  // Explicitly only enable sensitive data events only to avoid having to handle
+  // assertions for extension install events.
+  enterprise_connectors::test::SetOnSecurityEventReporting(
+      profile()->GetPrefs(), true, {"sensitiveDataEvent"}, {});
 
-      )";
-  const std::string kErrorMsg =
-      EnterpriseReportingPrivateEnqueueRecordFunction::
-          kErrorProfileNotAffiliated;
-  RunTestUsingProfile(
-      base::StringPrintf(kTest, CreateValidRecord().c_str(), kErrorMsg.c_str()),
-      profile());
+  RunTest(kTestJS);
 }
-
-IN_PROC_BROWSER_TEST_F(EnterpriseReportingPrivateEnqueueRecordApiTest,
-                       EnqueueRecordSucceedsWithAffiliatedProfile) {
-  SetupAffiliationLacros();
-  constexpr char kTest[] = R"(
-
-        const request = {
-          eventType: "USER",
-          priority: 4,
-          recordData: Uint8Array.from(%s),
-        };
-
-        chrome.enterprise.reportingPrivate.enqueueRecord(request, () =>{
-          chrome.test.assertNoLastError();
-
-          chrome.test.succeed();
-        });
-
-      )";
-  RunTestUsingProfile(base::StringPrintf(kTest, CreateValidRecord().c_str()),
-                      profile());
-}
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 }  // namespace extensions

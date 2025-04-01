@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/extensions/api/system_private/system_private_api.h"
 
 #include <memory>
@@ -18,7 +23,7 @@
 #include "components/prefs/pref_service.h"
 #include "google_apis/google_api_keys.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/ash/components/dbus/update_engine/update_engine_client.h"
 #else
 #include "chrome/browser/upgrade_detector/upgrade_detector.h"
@@ -42,9 +47,9 @@ const char kStateKey[] = "state";
 const char kNotAvailableState[] = "NotAvailable";
 const char kNeedRestartState[] = "NeedRestart";
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 const char kUpdatingState[] = "Updating";
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace
 
@@ -67,7 +72,7 @@ SystemPrivateGetIncognitoModeAvailabilityFunction::Run() {
 ExtensionFunction::ResponseAction SystemPrivateGetUpdateStatusFunction::Run() {
   std::string state;
   double download_progress = 0;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // With UpdateEngineClient, we can provide more detailed information about
   // system updates on ChromeOS.
   const update_engine::StatusResult status =

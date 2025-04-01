@@ -7,12 +7,14 @@
 
 #include <vector>
 
-#include "chrome/browser/ui/browser_tab_strip_tracker.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 
 namespace content {
 class WebContents;
 }
+
+class BrowserTabStripTracker;
 
 // TabStripModelStatsRecorder records user tab interaction stats.
 // In particular, we record tab's lifetime and state transition probability to
@@ -66,9 +68,12 @@ class TabStripModelStatsRecorder : public TabStripModelObserver {
 
   class TabInfo;
 
-  std::vector<content::WebContents*> active_tab_history_;
+  std::vector<raw_ptr<content::WebContents, VectorExperimental>>
+      active_tab_history_;
 
-  BrowserTabStripTracker browser_tab_strip_tracker_;
+  // TODO(crbug.com/364501603): revert smart pointer once the modularization is
+  // complete.
+  std::unique_ptr<BrowserTabStripTracker> browser_tab_strip_tracker_;
 };
 
 #endif  // CHROME_BROWSER_UI_TABS_TAB_STRIP_MODEL_STATS_RECORDER_H_

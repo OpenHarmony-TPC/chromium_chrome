@@ -91,7 +91,6 @@ bool NotifierStateTracker::IsNotifierEnabled(
       return true;
 #else
       NOTREACHED();
-      break;
 #endif
     case message_center::NotifierType::PHONE_HUB:
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -103,7 +102,6 @@ bool NotifierStateTracker::IsNotifierEnabled(
   }
 
   NOTREACHED();
-  return false;
 }
 
 void NotifierStateTracker::SetNotifierEnabled(
@@ -121,10 +119,10 @@ void NotifierStateTracker::SetNotifierEnabled(
       add_new_item = !enabled;
       id = base::Value(notifier_id.id);
       FirePermissionLevelChangedEvent(notifier_id, enabled);
+      break;
 #else
       NOTREACHED();
 #endif
-      break;
     default:
       NOTREACHED();
   }
@@ -177,8 +175,8 @@ void NotifierStateTracker::FirePermissionLevelChangedEvent(
   }
 
   extensions::api::notifications::PermissionLevel permission =
-      enabled ? extensions::api::notifications::PERMISSION_LEVEL_GRANTED
-              : extensions::api::notifications::PERMISSION_LEVEL_DENIED;
+      enabled ? extensions::api::notifications::PermissionLevel::kGranted
+              : extensions::api::notifications::PermissionLevel::kDenied;
   base::Value::List args;
   args.Append(extensions::api::notifications::ToString(permission));
   auto event = std::make_unique<extensions::Event>(

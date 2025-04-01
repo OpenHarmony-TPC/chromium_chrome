@@ -36,8 +36,6 @@ constexpr char kAppName[] = "test.app.name";
 constexpr char kAppActivity[] = "test.app.activity";
 constexpr char kPackageName[] = "test.app.package.name";
 
-constexpr char kTestProfileName[] = "user@gmail.com";
-
 }  // namespace
 
 class ArcUsbHostPermissionTest : public InProcessBrowserTest {
@@ -165,55 +163,11 @@ class ArcUsbHostPermissionTest : public InProcessBrowserTest {
   }
 
  private:
-  raw_ptr<ArcAppListPrefs, ExperimentalAsh> arc_app_list_pref_;
-  raw_ptr<ArcUsbHostPermissionManager, ExperimentalAsh>
+  raw_ptr<ArcAppListPrefs, DanglingUntriaged> arc_app_list_pref_;
+  raw_ptr<ArcUsbHostPermissionManager, DanglingUntriaged>
       arc_usb_permission_manager_;
   std::unique_ptr<FakeAppInstance> app_instance_;
-  raw_ptr<Profile, ExperimentalAsh> profile_;
-};
-
-class ArcUsbHostKioskPermissionTest : public ArcUsbHostPermissionTest {
- public:
-  ArcUsbHostKioskPermissionTest() = default;
-
-  ArcUsbHostKioskPermissionTest(const ArcUsbHostKioskPermissionTest&) = delete;
-  ArcUsbHostKioskPermissionTest& operator=(
-      const ArcUsbHostKioskPermissionTest&) = delete;
-
-  ~ArcUsbHostKioskPermissionTest() override = default;
-
-  void SetUpOnMainThread() override {
-    user_manager_enabler_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::make_unique<ash::FakeChromeUserManager>());
-    const AccountId account_id(AccountId::FromUserEmail(kTestProfileName));
-    GetFakeUserManager()->AddArcKioskAppUser(account_id);
-    GetFakeUserManager()->LoginUser(account_id);
-    ArcUsbHostPermissionTest::SetUpOnMainThread();
-  }
-
-  void TearDownOnMainThread() override {
-    ArcUsbHostPermissionTest::TearDownOnMainThread();
-    const AccountId account_id(AccountId::FromUserEmail(kTestProfileName));
-    GetFakeUserManager()->RemoveUserFromList(account_id);
-    user_manager_enabler_.reset();
-  }
-
-  void set_response(bool accepted) {
-    if (accepted)
-      accepted_response_count_++;
-  }
-
-  int accepted_response_count() const { return accepted_response_count_; }
-
- private:
-  ash::FakeChromeUserManager* GetFakeUserManager() const {
-    return static_cast<ash::FakeChromeUserManager*>(
-        user_manager::UserManager::Get());
-  }
-
-  int accepted_response_count_ = 0;
-
-  std::unique_ptr<user_manager::ScopedUserManager> user_manager_enabler_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
 };
 
 IN_PROC_BROWSER_TEST_F(ArcUsbHostPermissionTest, UsbTemporayPermissionTest) {
@@ -314,34 +268,6 @@ IN_PROC_BROWSER_TEST_F(ArcUsbHostPermissionTest, UsbChromePrefsTest) {
   EXPECT_FALSE(HasUsbAccessPermission(kPackageName, testDevice0));
   EXPECT_FALSE(HasUsbAccessPermission(kPackageName, testDevice1));
   EXPECT_FALSE(HasUsbAccessPermission(kPackageName, testDevice2));
-}
-
-// If Enterprise wants to control USB permission for kiosk app, this
-// test expectation should also be updated.
-IN_PROC_BROWSER_TEST_F(ArcUsbHostKioskPermissionTest, UsbKioskPermission) {
-  DCHECK(IsArcKioskMode());
-  AddArcApp(kAppName, kPackageName, kAppActivity);
-  AddArcPackage(kPackageName);
-  // Persistent device0.
-  const std::string guid = "TestGuidXXXXXX0";
-  const std::u16string serial_number = u"TestSerialNumber0";
-  const uint16_t vendor_id = 123;
-  const uint16_t product_id = 456;
-
-  int request_count = 0;
-  EXPECT_EQ(request_count, accepted_response_count());
-
-  arc_usb_permission_manager()->RequestUsbScanDeviceListPermission(
-      kPackageName, base::BindOnce(&ArcUsbHostKioskPermissionTest::set_response,
-                                   base::Unretained(this)));
-  EXPECT_EQ(++request_count, accepted_response_count());
-
-  arc_usb_permission_manager()->RequestUsbAccessPermission(
-      kPackageName, guid, serial_number, std::u16string(), std::u16string(),
-      vendor_id, product_id,
-      base::BindOnce(&ArcUsbHostKioskPermissionTest::set_response,
-                     base::Unretained(this)));
-  EXPECT_EQ(++request_count, accepted_response_count());
 }
 
 }  // namespace arc

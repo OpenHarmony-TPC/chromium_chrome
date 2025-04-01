@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/discards/discards_ui.h"
 
 #include <utility>
@@ -9,12 +14,15 @@
 
 #include "base/check.h"
 #include "base/containers/flat_map.h"
+#include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/performance_manager/public/user_tuning/performance_detection_manager.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_tuning_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit.h"
@@ -33,6 +41,9 @@
 #include "chrome/grit/discards_resources_map.h"
 #include "components/favicon_base/favicon_url_parser.h"
 #include "components/performance_manager/public/features.h"
+#include "components/performance_manager/public/freezing/freezing.h"
+#include "components/performance_manager/public/graph/graph.h"
+#include "components/performance_manager/public/graph/page_node.h"
 #include "components/performance_manager/public/performance_manager.h"
 #include "components/performance_manager/public/user_tuning/prefs.h"
 #include "components/prefs/pref_service.h"
@@ -66,7 +77,6 @@ discards::mojom::LifecycleUnitVisibility GetLifecycleUnitVisibility(
   }
 #if defined(COMPILER_MSVC)
   NOTREACHED();
-  return discards::mojom::LifecycleUnitVisibility::VISIBLE;
 #endif
 }
 
@@ -123,7 +133,8 @@ class DiscardsDetailsProviderImpl : public discards::mojom::DetailsProvider {
 
     // Convert the LifecycleUnits to a vector of TabDiscardsInfos.
     size_t rank = 1;
-    for (auto* lifecycle_unit : lifecycle_units) {
+    for (resource_coordinator::LifecycleUnit* lifecycle_unit :
+         lifecycle_units) {
       discards::mojom::TabDiscardsInfoPtr info(
           discards::mojom::TabDiscardsInfo::New());
 
@@ -140,12 +151,38 @@ class DiscardsDetailsProviderImpl : public discards::mojom::DetailsProvider {
       info->loading_state = lifecycle_unit->GetLoadingState();
       info->state = lifecycle_unit->GetState();
       resource_coordinator::DecisionDetails discard_details;
+      info->can_discard = lifecycle_unit->CanDiscard(
+          ::mojom::LifecycleUnitDiscardReason::PROACTIVE, &discard_details);
       info->cannot_discard_reasons = discard_details.GetFailureReasonStrings();
+
+      // When the "RunPerformanceManagerOnMainThreadSync" feature is enabled,
+      // the Performance Manager runs on the main thread and it is valid to call
+      // `performance_manager::freezing::GetCannotFreezeReasonsForPageNode`
+      // synchronously from here to get freezing info.
+      //
+      // Since the "RunPerformanceManagerOnMainThreadSync" feature will be
+      // enabled everywhere in the near term, no effort is made to provide
+      // freezing info when the feature is disabled.
+      base::WeakPtr<performance_manager::PageNode> page_node;
+      if (base::FeatureList::IsEnabled(
+              performance_manager::features::kRunOnMainThreadSync) &&
+          (page_node = performance_manager::PerformanceManager::
+               GetPrimaryPageNodeForWebContents(contents))) {
+        info->cannot_freeze_reasons = base::ToVector(
+            performance_manager::freezing::GetCannotFreezeReasonsForPageNode(
+                page_node.get()));
+        info->can_freeze = info->cannot_freeze_reasons.empty()
+                               ? discards::mojom::CanFreeze::YES
+                               : discards::mojom::CanFreeze::NO;
+      } else {
+        info->can_freeze = discards::mojom::CanFreeze::UNKNOWN;
+      }
+
       info->discard_reason = lifecycle_unit->GetDiscardReason();
       info->discard_count = lifecycle_unit->GetDiscardCount();
       info->utility_rank = rank++;
       const base::TimeTicks last_focused_time =
-          lifecycle_unit->GetLastFocusedTime();
+          lifecycle_unit->GetLastFocusedTimeTicks();
       const base::TimeDelta elapsed =
           (last_focused_time == base::TimeTicks::Max())
               ? base::TimeDelta()
@@ -157,11 +194,11 @@ class DiscardsDetailsProviderImpl : public discards::mojom::DetailsProvider {
       info->site_engagement_score = GetSiteEngagementScore(contents);
       info->state_change_time =
           lifecycle_unit->GetStateChangeTime() - base::TimeTicks::UnixEpoch();
-      // TODO(crbug.com/876340): The focus is used to compute the page lifecycle
-      // state. This should be replaced with the actual page lifecycle state
-      // information from Blink, but this depends on implementing the passive
-      // state and plumbing it to the browser.
-      info->has_focus = lifecycle_unit->GetLastFocusedTime().is_max();
+      // TODO(crbug.com/41409267): The focus is used to compute the page
+      // lifecycle state. This should be replaced with the actual page lifecycle
+      // state information from Blink, but this depends on implementing the
+      // passive state and plumbing it to the browser.
+      info->has_focus = lifecycle_unit->GetLastFocusedTimeTicks().is_max();
 
       infos.push_back(std::move(info));
     }
@@ -209,6 +246,16 @@ class DiscardsDetailsProviderImpl : public discards::mojom::DetailsProvider {
     }
   }
 
+  void FreezeById(int32_t id) override {
+    auto* lifecycle_unit = GetLifecycleUnitById(id);
+    if (!lifecycle_unit) {
+      return;
+    }
+    auto* tab_lifecycle_unit = lifecycle_unit->AsTabLifecycleUnitExternal();
+    CHECK(tab_lifecycle_unit);
+    tab_lifecycle_unit->GetWebContents()->SetPageFrozen(true);
+  }
+
   void LoadById(int32_t id) override {
     auto* lifecycle_unit = GetLifecycleUnitById(id);
     if (lifecycle_unit)
@@ -236,6 +283,11 @@ class DiscardsDetailsProviderImpl : public discards::mojom::DetailsProvider {
                                    BatterySaverModeState::kDisabled));
   }
 
+  void RefreshPerformanceTabCpuMeasurements() override {
+    performance_manager::user_tuning::PerformanceDetectionManager::GetInstance()
+        ->ForceTabCpuDataRefresh();
+  }
+
  private:
   mojo::Receiver<discards::mojom::DetailsProvider> receiver_;
 };
@@ -247,6 +299,11 @@ DiscardsUI::DiscardsUI(content::WebUI* web_ui)
   Profile* profile = Profile::FromWebUI(web_ui);
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       profile, chrome::kChromeUIDiscardsHost);
+
+  source->AddBoolean(
+      "isPerformanceInterventionDemoModeEnabled",
+      base::FeatureList::IsEnabled(
+          performance_manager::features::kPerformanceInterventionDemoMode));
 
   webui::SetupWebUIDataSource(
       source, base::make_span(kDiscardsResources, kDiscardsResourcesSize),

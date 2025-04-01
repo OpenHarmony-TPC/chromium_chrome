@@ -8,7 +8,7 @@
 #include "chrome/browser/sync/test/integration/exponential_backoff_helper.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
 #include "chrome/browser/sync/test/integration/updated_progress_marker_checker.h"
-#include "components/sync/driver/sync_service_impl.h"
+#include "components/sync/service/sync_service_impl.h"
 #include "components/sync/test/fake_server_http_post_provider.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/network_connection_change_simulator.h"
@@ -37,7 +37,7 @@ class SyncExponentialBackoffTest : public SyncTest {
   }
 };
 
-// TODO(crbug.com/1346194): Test fails on Lacros.
+// TODO(crbug.com/40854025): Test fails on Lacros.
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
 #define MAYBE_OfflineToOnline DISABLED_OfflineToOnline
 #else
@@ -68,8 +68,7 @@ IN_PROC_BROWSER_TEST_F(SyncExponentialBackoffTest, MAYBE_OfflineToOnline) {
 
   // Double check that the folder hasn't been committed.
   ASSERT_EQ(
-      1u,
-      GetFakeServer()->GetSyncEntitiesByModelType(syncer::BOOKMARKS).size());
+      1u, GetFakeServer()->GetSyncEntitiesByDataType(syncer::BOOKMARKS).size());
 
   // Trigger network change notification and remember time when it happened.
   // Ensure that scheduler runs canary job immediately.

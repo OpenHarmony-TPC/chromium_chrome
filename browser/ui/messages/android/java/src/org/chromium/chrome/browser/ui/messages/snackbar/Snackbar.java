@@ -48,10 +48,9 @@ public class Snackbar {
      */
     public static final int TYPE_PERSISTENT = 2;
 
-    /**
-     * UMA Identifiers of features using snackbar. See SnackbarIdentifier enum in histograms.
-     */
+    /** UMA Identifiers of features using snackbar. See SnackbarIdentifier enum in histograms. */
     public static final int UMA_TEST_SNACKBAR = -2;
+
     public static final int UMA_UNKNOWN = -1;
     public static final int UMA_BOOKMARK_ADDED = 0;
     public static final int UMA_BOOKMARK_DELETE_UNDO = 1;
@@ -114,6 +113,20 @@ public class Snackbar {
     public static final int UMA_CREATOR_UNFOLLOW_SUCCESS = 58;
     public static final int UMA_CREATOR_UNFOLLOW_FAILURE = 59;
     public static final int UMA_QUICK_DELETE = 60;
+    public static final int UMA_AUTO_TRANSLATE = 61;
+    public static final int UMA_BOOKMARK_MOVED = 62;
+    public static final int UMA_CLEAR_BROWSING_DATA = 63;
+    public static final int UMA_SIGN_OUT = 64;
+    public static final int UMA_TAB_GROUP_DELETE_UNDO = 65;
+    public static final int UMA_SINGLE_TAB_GROUP_DELETE_UNDO = 66;
+    public static final int UMA_SAFETY_HUB_REGRANT_SINGLE_PERMISSION = 67;
+    public static final int UMA_SAFETY_HUB_REGRANT_MULTIPLE_PERMISSIONS = 68;
+    public static final int UMA_SAFETY_HUB_SINGLE_SITE_NOTIFICATIONS = 69;
+    public static final int UMA_SAFETY_HUB_MULTIPLE_SITE_NOTIFICATIONS = 70;
+    public static final int UMA_SETTINGS_BATCH_UPLOAD = 71;
+    public static final int UMA_REVOKE_FILE_EDIT_GRANT = 72;
+    public static final int UMA_SEARCH_ENGINE_CHANGED_NOTIFICATION = 73;
+    public static final int UMA_BOOKMARK_BATCH_UPLOAD = 74;
 
     private @Nullable SnackbarController mController;
     private CharSequence mText;
@@ -128,8 +141,7 @@ public class Snackbar {
     private Drawable mProfileImage;
     private int mType;
     private int mIdentifier = UMA_UNKNOWN;
-    @Theme
-    private int mTheme = Theme.BASIC;
+    private @Theme int mTheme = Theme.BASIC;
 
     @IntDef({Theme.BASIC, Theme.GOOGLE})
     @Retention(RetentionPolicy.SOURCE)
@@ -161,8 +173,7 @@ public class Snackbar {
         if (type == TYPE_PERSISTENT) {
             // For persistent snackbars we set a default action text to ensure the snackbar can be
             // closed.
-            s.mActionText =
-                    ContextUtils.getApplicationContext().getResources().getString(R.string.ok);
+            s.mActionText = ContextUtils.getApplicationContext().getString(R.string.ok);
         }
         return s;
     }
@@ -227,9 +238,7 @@ public class Snackbar {
         return this;
     }
 
-    /**
-     * Sets the background color for the snackbar. If 0, the snackbar will use default color.
-     */
+    /** Sets the background color for the snackbar. If 0, the snackbar will use default color. */
     // TODO(fgorski): Clean up background color and text appearance -- transition all the consumers
     // to the Theme based styling.
     public Snackbar setBackgroundColor(int color) {
@@ -295,16 +304,12 @@ public class Snackbar {
         return mIdentifier;
     }
 
-    /**
-     * If method returns zero, then default color for snackbar will be used.
-     */
+    /** If method returns zero, then default color for snackbar will be used. */
     int getBackgroundColor() {
         return mBackgroundColor;
     }
 
-    /**
-     * If method returns zero, then default text appearance for snackbar will be used.
-     */
+    /** If method returns zero, then default text appearance for snackbar will be used. */
     int getTextAppearance() {
         return mTextApperanceResId;
     }
@@ -318,9 +323,7 @@ public class Snackbar {
         return mTheme;
     }
 
-    /**
-     * If method returns null, then no profileImage will be shown in snackbar.
-     */
+    /** If method returns null, then no profileImage will be shown in snackbar. */
     Drawable getProfileImage() {
         return mProfileImage;
     }
@@ -340,17 +343,14 @@ public class Snackbar {
     }
 
     /** So tests can trigger a press on a Snackbar. */
-    @VisibleForTesting
     public Object getActionDataForTesting() {
         return mActionData;
     }
 
-    @VisibleForTesting
     public int getIdentifierForTesting() {
         return mIdentifier;
     }
 
-    @VisibleForTesting
     public CharSequence getTextForTesting() {
         return mText;
     }

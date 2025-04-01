@@ -10,7 +10,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -22,34 +21,24 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileJni;
-import org.chromium.chrome.test.util.browser.Features;
 
-/**
- * Tests for {@link MerchantTrustSignalsStorageFactory}.
- */
+/** Tests for {@link MerchantTrustSignalsStorageFactory}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @LooperMode(LooperMode.Mode.LEGACY)
 public class MerchantTrustSignalsStorageFactoryTest {
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
 
-    @Rule
-    public JniMocker mMocker = new JniMocker();
+    @Rule public JniMocker mMocker = new JniMocker();
 
-    @Mock
-    private Profile mMockProfile1;
+    @Mock private Profile mMockProfile1;
 
-    @Mock
-    private Profile mMockProfile2;
+    @Mock private Profile mMockProfile2;
 
-    @Mock
-    private MerchantTrustSignalsEventStorage.Natives mMockStorage;
+    @Mock private MerchantTrustSignalsEventStorage.Natives mMockStorage;
 
     private ObservableSupplierImpl<Profile> mProfileSupplier;
 
-    @Mock
-    public Profile.Natives mMockProfileNatives;
+    @Mock public Profile.Natives mMockProfileNatives;
 
     @Before
     public void setUp() {

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/omnibox/omnibox_ui.h"
 
 #include <utility>
@@ -17,6 +22,7 @@
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/omnibox_resources.h"
 #include "chrome/grit/omnibox_resources_map.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_controller.h"
@@ -41,7 +47,10 @@ OmniboxUI::OmniboxUI(content::WebUI* web_ui)
   source->AddResourcePaths(
       base::make_span(kOmniboxResources, kOmniboxResourcesSize));
   source->SetDefaultResource(IDR_OMNIBOX_OMNIBOX_HTML);
-  web_ui->AddMessageHandler(std::make_unique<VersionHandler>());
+  source->AddResourcePath("ml", IDR_OMNIBOX_ML_ML_HTML);
+
+  source->AddBoolean("isMlUrlScoringEnabled",
+                     OmniboxFieldTrial::IsMlUrlScoringEnabled());
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(OmniboxUI)

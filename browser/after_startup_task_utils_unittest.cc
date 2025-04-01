@@ -42,7 +42,6 @@ class WrappedTaskRunner : public base::SequencedTaskRunner {
                                   base::TimeDelta delay) override {
     // Not implemented.
     NOTREACHED();
-    return false;
   }
 
   bool RunsTasksInCurrentSequence() const override {

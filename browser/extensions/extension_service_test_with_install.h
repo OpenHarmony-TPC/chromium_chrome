@@ -45,8 +45,7 @@ class ExtensionServiceTestWithInstall : public ExtensionServiceUserTestBase,
   ~ExtensionServiceTestWithInstall() override;
 
  protected:
-  void InitializeExtensionService(
-      const ExtensionServiceInitParams& params) override;
+  void InitializeExtensionService(ExtensionServiceInitParams params) override;
 
   static std::vector<std::u16string> GetErrors();
 
@@ -124,7 +123,18 @@ class ExtensionServiceTestWithInstall : public ExtensionServiceUserTestBase,
                        const base::FilePath& in_path,
                        UpdateState expected_state);
 
-  void UninstallExtension(const std::string& id);
+  enum UninstallExtensionFileDeleteType {
+    kDeletePath,         // Delete the exact path of the extension install.
+    kDeleteAllVersions,  // Delete all version of the extension (e.g. delete the
+                         // root of the install folder).
+    kDoNotDelete,        // Do not delete any of the extension's files.
+  };
+
+  // Uninstalls extension with `id` and expects deletion of the extension's
+  // files according to `delete_type`.
+  void UninstallExtension(
+      const std::string& id,
+      UninstallExtensionFileDeleteType delete_type = kDeleteAllVersions);
 
   void TerminateExtension(const std::string& id);
 
@@ -155,7 +165,7 @@ class ExtensionServiceTestWithInstall : public ExtensionServiceUserTestBase,
                           int creation_flags);
 
   extensions::ExtensionList loaded_extensions_;
-  raw_ptr<const Extension> installed_extension_;
+  raw_ptr<const Extension, DanglingUntriaged> installed_extension_;
   bool was_update_;
   std::string old_name_;
   std::string unloaded_id_;

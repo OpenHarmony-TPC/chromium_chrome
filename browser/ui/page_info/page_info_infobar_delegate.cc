@@ -22,7 +22,7 @@ void PageInfoInfoBarDelegate::Create(
       std::unique_ptr<ConfirmInfoBarDelegate>(new PageInfoInfoBarDelegate())));
 }
 
-PageInfoInfoBarDelegate::PageInfoInfoBarDelegate() : ConfirmInfoBarDelegate() {}
+PageInfoInfoBarDelegate::PageInfoInfoBarDelegate() = default;
 
 PageInfoInfoBarDelegate::~PageInfoInfoBarDelegate() {}
 
@@ -32,7 +32,7 @@ PageInfoInfoBarDelegate::GetIdentifier() const {
 }
 
 const gfx::VectorIcon& PageInfoInfoBarDelegate::GetVectorIcon() const {
-  return vector_icons::kSettingsIcon;
+  return vector_icons::kSettingsChromeRefreshIcon;
 }
 
 std::u16string PageInfoInfoBarDelegate::GetMessageText() const {

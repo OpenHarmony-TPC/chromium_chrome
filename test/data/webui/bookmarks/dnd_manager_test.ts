@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {BookmarkElement, BookmarkManagerApiProxyImpl, BookmarksAppElement, BookmarksFolderNodeElement, BookmarksItemElement, BookmarksListElement, BrowserProxyImpl, DndManager, DragInfo, overrideFolderOpenerTimeoutDelay, setDebouncerForTesting} from 'chrome://bookmarks/bookmarks.js';
-import {middleOfNode, topLeftOfNode} from 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
+import type {BookmarkElement, BookmarksAppElement, BookmarksFolderNodeElement, BookmarksItemElement, BookmarksListElement, DndManager} from 'chrome://bookmarks/bookmarks.js';
+import {BookmarkManagerApiProxyImpl, BrowserProxyImpl, DragInfo, overrideFolderOpenerTimeoutDelay, setDebouncerForTesting} from 'chrome://bookmarks/bookmarks.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertNotReached, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {middleOfNode, topLeftOfNode} from 'chrome://webui-test/mouse_mock_interactions.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 import {TestBookmarkManagerApiProxy} from './test_bookmark_manager_api_proxy.js';
@@ -141,9 +142,9 @@ suite('drag and drop', function() {
     app = document.createElement('bookmarks-app');
     replaceBody(app);
     list =
-        app.shadowRoot!.querySelector('bookmarks-list') as BookmarksListElement;
-    rootFolderNode = app.shadowRoot!.querySelector('bookmarks-folder-node') as
-        BookmarksFolderNodeElement;
+        app.shadowRoot!.querySelector<BookmarksListElement>('bookmarks-list')!;
+    rootFolderNode = app.shadowRoot!.querySelector<BookmarksFolderNodeElement>(
+        'bookmarks-folder-node')!;
     dndManager = app.getDndManagerForTesting() as DndManager;
     dndManager!.setTimerProxyForTesting(new TestTimerProxy());
 

@@ -29,8 +29,7 @@ class CredentialEditBridge {
       std::vector<std::u16string> existing_usernames,
       password_manager::SavedPasswordsPresenter* saved_passwords_presenter,
       base::OnceClosure dismissal_callback,
-      const base::android::JavaRef<jobject>& context,
-      const base::android::JavaRef<jobject>& settings_launcher);
+      const base::android::JavaRef<jobject>& context);
   ~CredentialEditBridge();
 
   CredentialEditBridge(const CredentialEditBridge&) = delete;
@@ -51,7 +50,7 @@ class CredentialEditBridge {
   void DeleteCredential(JNIEnv* env);
 
   // Called by Java to signal that the UI was dismissed.
-  void OnUIDismissed(JNIEnv* env);
+  void OnUiDismissed(JNIEnv* env);
 
  private:
   CredentialEditBridge(
@@ -61,7 +60,6 @@ class CredentialEditBridge {
       password_manager::SavedPasswordsPresenter* saved_passwords_presenter,
       base::OnceClosure dismissal_callback,
       const base::android::JavaRef<jobject>& context,
-      const base::android::JavaRef<jobject>& settings_launcher,
       base::android::ScopedJavaGlobalRef<jobject> java_bridge);
 
   // Returns the URL or app for which the credential was saved, formatted

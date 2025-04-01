@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/frame/desktop_browser_frame_aura_linux.h"
 
+#include "arkweb/build/features/features.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/profiles/profile.h"
@@ -32,7 +33,8 @@ DesktopBrowserFrameAuraLinux::DesktopBrowserFrameAuraLinux(
 DesktopBrowserFrameAuraLinux::~DesktopBrowserFrameAuraLinux() = default;
 
 views::Widget::InitParams DesktopBrowserFrameAuraLinux::GetWidgetParams() {
-  views::Widget::InitParams params;
+  views::Widget::InitParams params(
+      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
   params.native_widget = this;
 
   // Set up a custom WM_CLASS for some sorts of window types. This allows
@@ -60,7 +62,7 @@ views::Widget::InitParams DesktopBrowserFrameAuraLinux::GetWidgetParams() {
     params.wayland_app_id = shell_integration_linux::GetXdgAppIdForWebApp(
         browser.app_name(), browser.profile()->GetPath());
   } else {
-    params.wayland_app_id = params.wm_class_name;
+    params.wayland_app_id = params.wm_class_class;
   }
 
   return params;
@@ -88,16 +90,11 @@ bool DesktopBrowserFrameAuraLinux::UseCustomFrame() const {
 
 void DesktopBrowserFrameAuraLinux::TabDraggingKindChanged(
     TabDragKind tab_drag_kind) {
-#if !BUILDFLAG(IS_OHOS)
   host_->TabDraggingKindChanged(tab_drag_kind);
-#else
-  LOG(INFO) << "DesktopBrowserFrameAuraLinux::TabDraggingKindChanged TODO for "
-               "OS_OHOS";
-#endif
 }
 
 bool DesktopBrowserFrameAuraLinux::ShouldDrawRestoredFrameShadow() const {
-#if !(BUILDFLAG(IS_OHOS) && defined(OHOS_ASAN))
+#if !(BUILDFLAG(ARKWEB_ASAN))
   return host_->SupportsClientFrameShadow() && UseCustomFrame();
 #else
   LOG(INFO)
@@ -113,12 +110,7 @@ void DesktopBrowserFrameAuraLinux::OnUseCustomChromeFrameChanged() {
                                       ? views::Widget::FrameType::kForceCustom
                                       : views::Widget::FrameType::kForceNative);
   browser_frame()->FrameTypeChanged();
-#if !BUILDFLAG(IS_OHOS)
   host_->UpdateFrameHints();
-#else
-  LOG(INFO) << "DesktopBrowserFrameAuraLinux::OnUseCustomChromeFrameChanged "
-               "TODO for OS_OHOS";
-#endif
 }
 
 NativeBrowserFrame* NativeBrowserFrameFactory::Create(

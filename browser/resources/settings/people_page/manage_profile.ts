@@ -10,15 +10,14 @@
 import 'chrome://resources/cr_elements/cr_input/cr_input.js';
 import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/cr_components/customize_themes/customize_themes.js';
+import 'chrome://resources/cr_components/theme_color_picker/theme_color_picker.js';
 import 'chrome://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
-import 'chrome://resources/polymer/v3_0/paper-styles/shadow.js';
 import '../settings_shared.css.js';
 import 'chrome://resources/cr_elements/cr_profile_avatar_selector/cr_profile_avatar_selector.js';
 
-import {SyncStatus} from '/shared/settings/people_page/sync_browser_proxy.js';
-import {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
-import {AvatarIcon} from 'chrome://resources/cr_elements/cr_profile_avatar_selector/cr_profile_avatar_selector.js';
+import type {SyncStatus} from '/shared/settings/people_page/sync_browser_proxy.js';
+import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
+import type {AvatarIcon} from 'chrome://resources/cr_elements/cr_profile_avatar_selector/cr_profile_avatar_selector.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -27,7 +26,8 @@ import {routes} from '../route.js';
 import {RouteObserverMixin, Router} from '../router.js';
 
 import {getTemplate} from './manage_profile.html.js';
-import {ManageProfileBrowserProxy, ManageProfileBrowserProxyImpl, ProfileShortcutStatus} from './manage_profile_browser_proxy.js';
+import type {ManageProfileBrowserProxy} from './manage_profile_browser_proxy.js';
+import {ManageProfileBrowserProxyImpl, ProfileShortcutStatus} from './manage_profile_browser_proxy.js';
 
 const SettingsManageProfileElementBase =
     RouteObserverMixin(WebUiListenerMixin(PolymerElement));
@@ -51,9 +51,9 @@ export class SettingsManageProfileElement extends
   static get properties() {
     return {
       /**
-       * The newly selected avatar. Populated only if the user manually changes
-       * the avatar selection. The observer ensures that the changes are
-       * propagated to the C++.
+       * The newly selected avatar. Defaults to null, populated only if the user
+       * manually changes the avatar selection. The observer ensures that the
+       * changes are propagated to the C++.
        */
       profileAvatar_: {
         type: Object,
@@ -175,19 +175,16 @@ export class SettingsManageProfileElement extends
    * Handler for when the profile avatar is changed by the user.
    */
   private profileAvatarChanged_() {
+    if (this.profileAvatar_ === null) {
+      return;
+    }
+
     if (this.profileAvatar_.isGaiaAvatar) {
       this.browserProxy_.setProfileIconToGaiaAvatar();
     } else {
       this.browserProxy_.setProfileIconToDefaultAvatar(
           this.profileAvatar_.index);
     }
-  }
-
-  /**
-   * @return Whether the profile name field is disabled.
-   */
-  private isProfileNameDisabled_(syncStatus: SyncStatus): boolean {
-    return !!syncStatus.supervisedUser && !syncStatus.childUser;
   }
 
   /**

@@ -10,8 +10,9 @@ import {sendWithPromise} from 'chrome://resources/js/cr.js';
 
 /** Account information sent from C++. */
 export interface AccountInfo {
-  isManaged: boolean;
   pictureUrl: string;
+  // Empty if no badge should be set (for non-managed users).
+  avatarBadge: string;
 }
 
 export interface InterceptionParameters {
@@ -26,9 +27,18 @@ export interface InterceptionParameters {
   primaryProfileColor: string;
   interceptedAccount: AccountInfo;
   primaryAccount: AccountInfo;
-  showGuestOption: boolean;
   useV2Design: boolean;
   showManagedDisclaimer: boolean;
+}
+
+export interface ChromeSigninInterceptionParameters {
+  title: string;
+  subtitle: string;
+  fullName: string;
+  givenName: string;
+  email: string;
+  pictureUrl: string;
+  managedUserBadge: string;
 }
 
 export interface DiceWebSigninInterceptBrowserProxy {
@@ -38,11 +48,12 @@ export interface DiceWebSigninInterceptBrowserProxy {
   // Called when the user cancels the interception.
   cancel(): void;
 
-  // Called when user selects Guest mode.
-  guest(): void;
-
   // Called when the page is loaded.
   pageLoaded(): Promise<InterceptionParameters>;
+
+  // Called when the Chrome Signin promo is loaded.
+  // Returns the user parameters that are expected to be displayed.
+  chromeSigninPageLoaded(): Promise<ChromeSigninInterceptionParameters>;
 
   // Called after the page is loaded, sending the final height of the page in
   // order to set the size of the bubble dynamically.
@@ -59,12 +70,12 @@ export class DiceWebSigninInterceptBrowserProxyImpl implements
     chrome.send('cancel');
   }
 
-  guest() {
-    chrome.send('guest');
-  }
-
   pageLoaded() {
     return sendWithPromise('pageLoaded');
+  }
+
+  chromeSigninPageLoaded(): Promise<ChromeSigninInterceptionParameters> {
+    return sendWithPromise('chromeSigninPageLoaded');
   }
 
   initializedWithHeight(height: number) {

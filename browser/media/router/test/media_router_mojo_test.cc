@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/media/router/test/media_router_mojo_test.h"
 
 #include <utility>
@@ -67,7 +72,7 @@ void MockMediaRouteProvider::RouteRequestSuccess(RouteCallback& cb) const {
 }
 
 void MockMediaRouteProvider::RouteRequestTimeout(RouteCallback& cb) const {
-  std::move(cb).Run(absl::nullopt, nullptr, std::string("error"),
+  std::move(cb).Run(std::nullopt, nullptr, std::string("error"),
                     mojom::RouteRequestResultCode::TIMED_OUT);
 }
 
@@ -76,8 +81,8 @@ void MockMediaRouteProvider::TerminateRouteSuccess(
   std::move(cb).Run(std::string(), mojom::RouteRequestResultCode::OK);
 }
 
-void MockMediaRouteProvider::CreateMediaRouteControllerSuccess(
-    CreateMediaRouteControllerCallback& cb) const {
+void MockMediaRouteProvider::BindMediaControllerSuccess(
+    BindMediaControllerCallback& cb) const {
   std::move(cb).Run(true);
 }
 
@@ -179,8 +184,8 @@ void MediaRouterMojoTest::TestCreateRoute() {
   EXPECT_CALL(mock_cast_provider_,
               CreateRouteInternal(kSource, kSinkId, _,
                                   url::Origin::Create(GURL(kOrigin)),
-                                  kInvalidFrameTreeNodeId, _, _, _))
-      .WillOnce(WithArg<7>(
+                                  kInvalidFrameTreeNodeId, _, _))
+      .WillOnce(WithArg<6>(
           Invoke([](mojom::MediaRouteProvider::CreateRouteCallback& cb) {
             std::move(cb).Run(CreateMediaRoute(), nullptr, std::string(),
                               mojom::RouteRequestResultCode::OK);
@@ -193,7 +198,7 @@ void MediaRouterMojoTest::TestCreateRoute() {
                         nullptr,
                         base::BindOnce(&RouteResponseCallbackHandler::Invoke,
                                        base::Unretained(&handler)),
-                        base::Milliseconds(kTimeoutMillis), false);
+                        base::Milliseconds(kTimeoutMillis));
   base::RunLoop().RunUntilIdle();
 }
 
@@ -219,8 +224,8 @@ void MediaRouterMojoTest::TestJoinRoute(const std::string& presentation_id) {
               JoinRouteInternal(kSource, presentation_id,
                                 url::Origin::Create(GURL(kOrigin)),
                                 kInvalidFrameTreeNodeId,
-                                base::Milliseconds(kTimeoutMillis), _, _))
-      .WillOnce(WithArg<6>(
+                                base::Milliseconds(kTimeoutMillis), _))
+      .WillOnce(WithArg<5>(
           Invoke([&route](mojom::MediaRouteProvider::JoinRouteCallback& cb) {
             std::move(cb).Run(route, nullptr, std::string(),
                               mojom::RouteRequestResultCode::OK);
@@ -233,7 +238,7 @@ void MediaRouterMojoTest::TestJoinRoute(const std::string& presentation_id) {
                       url::Origin::Create(GURL(kOrigin)), nullptr,
                       base::BindOnce(&RouteResponseCallbackHandler::Invoke,
                                      base::Unretained(&handler)),
-                      base::Milliseconds(kTimeoutMillis), false);
+                      base::Milliseconds(kTimeoutMillis));
   base::RunLoop().RunUntilIdle();
 }
 
@@ -243,7 +248,7 @@ void MediaRouterMojoTest::TestTerminateRoute() {
       .WillOnce(
           Invoke([](const std::string& route_id,
                     mojom::MediaRouteProvider::TerminateRouteCallback& cb) {
-            std::move(cb).Run(absl::nullopt, mojom::RouteRequestResultCode::OK);
+            std::move(cb).Run(std::nullopt, mojom::RouteRequestResultCode::OK);
           }));
   router()->TerminateRoute(kRouteId);
   base::RunLoop().RunUntilIdle();

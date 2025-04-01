@@ -2,11 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/updater/win/app_command_runner.h"
 
-#include <shellapi.h>
 #include <windows.h>
 
+#include <shellapi.h>
+
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -28,7 +35,6 @@
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/win_util.h"
 #include "chrome/updater/win/win_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace updater {
 
@@ -64,7 +70,6 @@ HRESULT LoadAppCommandFormat(UpdaterScope scope,
 // REG_SZ `cmd`. Along with `cmd`, there are other properties of the app
 // registered, such as the version "pv"="107.0.5304.107". So, `pv` is also a
 // potential "command" for `IProcessLauncher`, which is unexpected.
-// TODO(crbug/1399177): Parameterize `LoadLegacyProcessLauncherFormat`.
 HRESULT LoadLegacyProcessLauncherFormat(const std::wstring& app_id,
                                         const std::wstring& command_id,
                                         std::wstring& command_format) {
@@ -114,6 +119,7 @@ bool IsSecureAppCommandExePath(UpdaterScope scope,
                                const base::FilePath& exe_path) {
   return exe_path.IsAbsolute() &&
          (!IsSystemInstall(scope) ||
+          IsParentOf(base::DIR_PROGRAM_FILES, exe_path) ||
           IsParentOf(base::DIR_PROGRAM_FILESX86, exe_path) ||
           IsParentOf(base::DIR_PROGRAM_FILES6432, exe_path));
 }
@@ -268,28 +274,28 @@ HRESULT AppCommandRunner::GetAppCommandFormatComponents(
 }
 
 // static
-absl::optional<std::wstring> AppCommandRunner::FormatParameter(
+std::optional<std::wstring> AppCommandRunner::FormatParameter(
     const std::wstring& parameter,
     const std::vector<std::wstring>& substitutions) {
   return base::internal::DoReplaceStringPlaceholders(
-      /*format_string*/ parameter, /*subst*/ substitutions,
-      /*placeholder_prefix*/ L'%',
-      /*should_escape_multiple_placeholder_prefixes*/ false,
-      /*is_strict_mode*/ true, /*offsets*/ nullptr);
+      /*format_string=*/parameter, /*subst=*/substitutions,
+      /*placeholder_prefix=*/L'%',
+      /*should_escape_multiple_placeholder_prefixes=*/false,
+      /*is_strict_mode=*/true, /*offsets=*/nullptr);
 }
 
 // static
-absl::optional<std::wstring> AppCommandRunner::FormatAppCommandLine(
+std::optional<std::wstring> AppCommandRunner::FormatAppCommandLine(
     const std::vector<std::wstring>& parameters,
     const std::vector<std::wstring>& substitutions) {
   std::wstring formatted_command_line;
   for (size_t i = 0; i < parameters.size(); ++i) {
-    absl::optional<std::wstring> formatted_parameter =
+    std::optional<std::wstring> formatted_parameter =
         FormatParameter(parameters[i], substitutions);
     if (!formatted_parameter) {
       VLOG(1) << __func__ << " FormatParameter failed: " << parameters[i]
               << ": " << substitutions.size();
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     constexpr wchar_t kQuotableCharacters[] = L" \t\\\"";
@@ -315,10 +321,10 @@ HRESULT AppCommandRunner::ExecuteAppCommand(
     const std::vector<std::wstring>& substitutions,
     base::Process& process) {
   VLOG(2) << __func__ << ": " << executable << ": "
-          << base::JoinString(parameters, L",")
+          << base::JoinString(parameters, L",") << " : "
           << base::JoinString(substitutions, L",");
 
-  const absl::optional<std::wstring> command_line_parameters =
+  const std::optional<std::wstring> command_line_parameters =
       FormatAppCommandLine(parameters, substitutions);
   if (!command_line_parameters) {
     LOG(ERROR) << __func__ << "!command_line_parameters";

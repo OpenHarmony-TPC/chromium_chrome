@@ -5,6 +5,8 @@
 #include "chrome/browser/performance_manager/policies/page_discarding_helper.h"
 
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "base/strings/string_number_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -17,11 +19,12 @@
 #include "components/performance_manager/public/decorators/page_live_state_decorator.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 namespace performance_manager {
 namespace policies {
 
-using CanDiscardResult = PageDiscardingHelper::CanDiscardResult;
 using DiscardReason = PageDiscardingHelper::DiscardReason;
 using ::testing::Return;
 
@@ -42,6 +45,33 @@ class PageDiscardingHelperTest
   void TearDown() override {
     histogram_tester_.reset();
     testing::GraphTestHarnessWithMockDiscarder::TearDown();
+  }
+
+  // Helper to update the url of `page` and `frame` (or the default page_node()
+  // and frame_node() on nullptr). In production a real navigation will notify
+  // both.
+  void SetPageAndFrameUrl(const GURL& url,
+                          PageNodeImpl* page = nullptr,
+                          FrameNodeImpl* frame = nullptr) {
+    SetPageAndFrameUrlWithMimeType(url, "text/html", page, frame);
+  }
+
+  // Helper to update the url and Content-Type of `page` and `frame` (or the
+  // default page_node() and frame_node() on nullptr). In production a real
+  // navigation will notify both.
+  void SetPageAndFrameUrlWithMimeType(const GURL& url,
+                                      const std::string& mime_type,
+                                      PageNodeImpl* page = nullptr,
+                                      FrameNodeImpl* frame = nullptr) {
+    page = page ? page : page_node();
+    frame = frame ? frame : frame_node();
+    page->OnMainFrameNavigationCommitted(
+        false, base::TimeTicks::Now(), page->GetNavigationID() + 1, url,
+        mime_type, /* notification_permission_status=*/
+        blink::mojom::PermissionStatus::ASK);
+    frame->OnNavigationCommitted(url, url::Origin::Create(url),
+                                 /*same_document=*/false,
+                                 /*is_served_from_back_forward_cache=*/false);
   }
 
   // Convenience wrappers for PageNodeHelper::CanDiscard().
@@ -66,6 +96,52 @@ class PageDiscardingHelperTest
   std::unique_ptr<base::HistogramTester> histogram_tester_;
 };
 
+TEST_F(PageDiscardingHelperTest, TestCanDiscardMultipleCurrentMainFrames) {
+  // TODO(crbug.com/40910297): It shouldn't be possible to have two main frames
+  // both marked "current", but due to a state tracking bug this sometimes
+  // occurs. Until the bug is fixed, make sure CanDiscard works around it. (See
+  // comment at
+  // https://source.chromium.org/chromium/chromium/src/+/main:components/performance_manager/graph/frame_node_impl.cc;l=272;drc=6d331b84c048659c6a9a89bd81e92dfdddd6bae7.)
+  TestNodeWrapper<FrameNodeImpl> other_frame_node =
+      CreateFrameNodeAutoId(process_node(), page_node());
+
+  // frame_node() is created with a URL. `other_frame_node` starts without.
+  ASSERT_FALSE(frame_node()->GetURL().is_empty());
+  ASSERT_TRUE(frame_node()->IsCurrent());
+  ASSERT_TRUE(other_frame_node->GetURL().is_empty());
+  ASSERT_TRUE(other_frame_node->IsCurrent());
+
+  // An arbitrary "current" frame will be returned by GetMainFrameNode(). Make
+  // sure the page can be discarded even if the one without a url is returned.
+  // Discarding is only blocked if neither have a url.
+  EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::URGENT));
+  EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
+  EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
+
+  SetPageAndFrameUrl(GURL(), page_node(), frame_node());
+
+  ASSERT_TRUE(frame_node()->GetURL().is_empty());
+  ASSERT_TRUE(frame_node()->IsCurrent());
+  ASSERT_TRUE(other_frame_node->GetURL().is_empty());
+  ASSERT_TRUE(other_frame_node->IsCurrent());
+
+  EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::URGENT));
+  EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
+  EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
+
+  SetPageAndFrameUrl(GURL("https://foo.com"), page_node(),
+                     other_frame_node.get());
+
+  ASSERT_TRUE(frame_node()->GetURL().is_empty());
+  ASSERT_TRUE(frame_node()->IsCurrent());
+  ASSERT_FALSE(other_frame_node->GetURL().is_empty());
+  ASSERT_TRUE(other_frame_node->IsCurrent());
+
+  EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::URGENT));
+  EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
+  EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
+}
+
 TEST_F(PageDiscardingHelperTest, TestCannotDiscardVisiblePage) {
   page_node()->SetIsVisible(true);
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::URGENT));
@@ -75,6 +151,9 @@ TEST_F(PageDiscardingHelperTest, TestCannotDiscardVisiblePage) {
 
 TEST_F(PageDiscardingHelperTest, TestCannotDiscardAudiblePage) {
   page_node()->SetIsAudible(true);
+  // Ensure that the discard is being blocked because audio is playing, not
+  // because GetTimeSinceLastAudibleChange() is recent.
+  task_env().FastForwardBy(kTabAudioProtectionTime * 2);
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::URGENT));
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
@@ -97,6 +176,39 @@ TEST_F(PageDiscardingHelperTest, TestCannotDiscardRecentlyAudiblePage) {
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
 }
 
+TEST_F(PageDiscardingHelperTest, TestCanDiscardNeverAudiblePage) {
+  // Ensure that if a page node is created without ever becoming audible, it
+  // isn't marked as "recently playing audio". MakePageNodeDiscardable() which
+  // is run on the default page_node() overrides audio properties, so need to
+  // create a new page node and make it discardable by hand.
+  TestNodeWrapper<PageNodeImpl> new_page_node = CreateNode<PageNodeImpl>();
+  new_page_node->SetType(PageType::kTab);
+  TestNodeWrapper<FrameNodeImpl> new_frame_node =
+      CreateFrameNodeAutoId(process_node(), new_page_node.get());
+  new_page_node->SetIsVisible(false);
+  const GURL kUrl("https://example.com");
+  new_page_node->OnMainFrameNavigationCommitted(
+      false, base::TimeTicks::Now(), 42, kUrl, "text/html",
+      /* notification_permission_status=*/blink::mojom::PermissionStatus::ASK);
+  new_frame_node->OnNavigationCommitted(
+      kUrl, url::Origin::Create(kUrl), /*same_document=*/false,
+      /*is_served_from_back_forward_cache=*/false);
+
+  EXPECT_FALSE(new_page_node->IsAudible());
+
+  // Use a short `minimum_time_in_background` so that the page is discardable
+  // but still created inside kTabAudioProtectionTime. It should NOT be blocked
+  // from discarding due to kTabAudioProtectionTime.
+  constexpr base::TimeDelta kMinTimeInBackground = kTabAudioProtectionTime / 2;
+  task_env().FastForwardBy(kMinTimeInBackground);
+  EXPECT_TRUE(CanDiscardWithMinimumTimeInBackground(
+      new_page_node.get(), DiscardReason::URGENT, kMinTimeInBackground));
+  EXPECT_TRUE(CanDiscardWithMinimumTimeInBackground(
+      new_page_node.get(), DiscardReason::PROACTIVE, kMinTimeInBackground));
+  EXPECT_TRUE(CanDiscardWithMinimumTimeInBackground(
+      new_page_node.get(), DiscardReason::EXTERNAL, kMinTimeInBackground));
+}
+
 #if !BUILDFLAG(IS_CHROMEOS)
 TEST_F(PageDiscardingHelperTest,
        TestCannotDiscardRecentlyVisiblePageUnlessExplicitlyRequested) {
@@ -117,9 +229,8 @@ TEST_F(PageDiscardingHelperTest,
 #endif
 
 TEST_F(PageDiscardingHelperTest, TestCannotDiscardPdf) {
-  page_node()->OnMainFrameNavigationCommitted(false, base::TimeTicks::Now(), 53,
-                                              GURL("https://foo.com/doc.pdf"),
-                                              "application/pdf");
+  SetPageAndFrameUrlWithMimeType(GURL("https://foo.com/doc.pdf"),
+                                 "application/pdf");
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::URGENT));
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
@@ -129,18 +240,18 @@ TEST_F(PageDiscardingHelperTest, TestCannotDiscardPageWithoutMainFrame) {
   ResetFrameNode();
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::URGENT));
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
-  EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
+  EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
 }
 
 TEST_F(PageDiscardingHelperTest, TestCannotDiscardExtension) {
-  frame_node()->OnNavigationCommitted(GURL("chrome-extention://foo"), false);
+  SetPageAndFrameUrl(GURL("chrome-extension://foo"));
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::URGENT));
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
 }
 
 TEST_F(PageDiscardingHelperTest, TestCannotDiscardPageWithInvalidURL) {
-  frame_node()->OnNavigationCommitted(GURL("foo42"), false);
+  SetPageAndFrameUrl(GURL("foo42"));
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::URGENT));
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
@@ -245,68 +356,53 @@ TEST_F(PageDiscardingHelperTest, TestCannotDiscardActiveTab) {
 
 TEST_F(PageDiscardingHelperTest,
        TestCannotProactivelyDiscardWithNotificationPermission) {
-  // The page is discardable if notifications are blocked.
-  PageLiveStateDecorator::Data::GetOrCreateForPageNode(page_node())
-      ->SetContentSettingsForTesting({
-          {ContentSettingsType::NOTIFICATIONS, CONTENT_SETTING_BLOCK},
-      });
+  // The page is discardable if notification permission is denied.
+  page_node()->OnNotificationPermissionStatusChange(
+      blink::mojom::PermissionStatus::DENIED);
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::URGENT));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
 
-  // The page is discardable if notifications aren't found in its permissions
-  // list.
-  PageLiveStateDecorator::Data::GetOrCreateForPageNode(page_node())
-      ->SetContentSettingsForTesting({
-          {ContentSettingsType::AUTO_SELECT_CERTIFICATE, CONTENT_SETTING_ALLOW},
-      });
-  EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::URGENT));
-  EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
-  EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
-
-  // The page is not proactively discardable if it can send notifications.
-  PageLiveStateDecorator::Data::GetOrCreateForPageNode(page_node())
-      ->SetContentSettingsForTesting({
-          {ContentSettingsType::NOTIFICATIONS, CONTENT_SETTING_ALLOW},
-      });
+  // The page is discardable if notification permission is granted.
+  page_node()->OnNotificationPermissionStatusChange(
+      blink::mojom::PermissionStatus::GRANTED);
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::URGENT));
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
 }
 
 TEST_F(PageDiscardingHelperTest, TestCannotDiscardPageOnNoDiscardList) {
-  // static_cast page_node because it's declared as a PageNodeImpl which hides
+  // static_cast page_node() because it's declared as a PageNodeImpl which hides
   // the members it overrides from PageNode.
+  const auto* page = static_cast<const PageNode*>(page_node());
   PageDiscardingHelper::GetFromGraph(graph())->SetNoDiscardPatternsForProfile(
-      static_cast<PageNode*>(page_node())->GetBrowserContextID(),
-      {"youtube.com"});
-  frame_node()->OnNavigationCommitted(GURL("https://www.youtube.com"), false);
+      page->GetBrowserContextID(), {"youtube.com"});
+  SetPageAndFrameUrl(GURL("https://www.youtube.com"));
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::URGENT));
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
 
-  frame_node()->OnNavigationCommitted(GURL("https://www.example.com"), false);
+  SetPageAndFrameUrl(GURL("https://www.example.com"));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::URGENT));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
 
   // Changing the no discard list rebuilds the matcher
   PageDiscardingHelper::GetFromGraph(graph())->SetNoDiscardPatternsForProfile(
-      static_cast<PageNode*>(page_node())->GetBrowserContextID(),
-      {"google.com"});
-  frame_node()->OnNavigationCommitted(GURL("https://www.youtube.com"), false);
+      page->GetBrowserContextID(), {"google.com"});
+  SetPageAndFrameUrl(GURL("https://www.youtube.com"));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::URGENT));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
-  frame_node()->OnNavigationCommitted(GURL("https://www.google.com"), false);
+  SetPageAndFrameUrl(GURL("https://www.google.com"));
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::URGENT));
   EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
 
   // Setting the no discard list to empty makes all URLs discardable again.
   PageDiscardingHelper::GetFromGraph(graph())->SetNoDiscardPatternsForProfile(
-      static_cast<PageNode*>(page_node())->GetBrowserContextID(), {});
-  frame_node()->OnNavigationCommitted(GURL("https://www.google.com"), false);
+      page->GetBrowserContextID(), {});
+  SetPageAndFrameUrl(GURL("https://www.google.com"));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::URGENT));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
@@ -337,6 +433,13 @@ TEST_F(PageDiscardingHelperTest,
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
 }
 
+TEST_F(PageDiscardingHelperTest, TestCannotDiscardWithPictureInPicture) {
+  page_node()->SetHasPictureInPicture(true);
+  EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::URGENT));
+  EXPECT_FALSE(CanDiscard(page_node(), DiscardReason::PROACTIVE));
+  EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::EXTERNAL));
+}
+
 // Tests DiscardMultiplePages.
 
 TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesNoCandidate) {
@@ -344,9 +447,11 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesNoCandidate) {
 
   // When discard_protected_tabs is false, protected page can not be discarded.
   PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-      /*reclaim_target_kb*/ 1024,
+      memory_pressure::ReclaimTarget(/*reclaim_target_kb*/ 1024),
       /*discard_protected_tabs*/ false,
-      base::BindOnce([](bool success) { EXPECT_FALSE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_FALSE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
 }
@@ -359,9 +464,11 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesDiscardProtected) {
       .WillOnce(Return(true));
 
   PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-      /*reclaim_target_kb*/ 1024,
+      memory_pressure::ReclaimTarget(/*reclaim_target_kb*/ 1024),
       /*discard_protected_tabs*/ true,
-      base::BindOnce([](bool success) { EXPECT_TRUE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
 }
@@ -371,7 +478,6 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesTwoCandidates) {
   auto page_node2 = CreateNode<performance_manager::PageNodeImpl>();
   auto main_frame_node2 =
       CreateFrameNodeAutoId(process_node2.get(), page_node2.get());
-  main_frame_node2->SetIsCurrent(true);
   testing::MakePageNodeDiscardable(page_node2.get(), task_env());
 
   EXPECT_TRUE(CanDiscard(page_node2.get(), DiscardReason::URGENT));
@@ -386,9 +492,11 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesTwoCandidates) {
       .WillOnce(Return(true));
 
   PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-      /*reclaim_target_kb*/ 2048,
+      memory_pressure::ReclaimTarget(/*reclaim_target_kb*/ 2048),
       /*discard_protected_tabs*/ true,
-      base::BindOnce([](bool success) { EXPECT_TRUE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
 }
@@ -401,7 +509,6 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesTwoCandidatesProtected) {
   auto page_node2 = CreateNode<performance_manager::PageNodeImpl>();
   auto main_frame_node2 =
       CreateFrameNodeAutoId(process_node2.get(), page_node2.get());
-  main_frame_node2->SetIsCurrent(true);
   testing::MakePageNodeDiscardable(page_node2.get(), task_env());
 
   EXPECT_TRUE(CanDiscard(page_node2.get(), DiscardReason::URGENT));
@@ -415,9 +522,11 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesTwoCandidatesProtected) {
       .WillOnce(Return(true));
 
   PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-      /*reclaim_target_kb*/ 1000000,
+      memory_pressure::ReclaimTarget(/*reclaim_target_kb*/ 1000000),
       /*discard_protected_tabs*/ false,
-      base::BindOnce([](bool success) { EXPECT_TRUE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
 }
@@ -427,14 +536,12 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesThreeCandidates) {
   auto page_node2 = CreateNode<performance_manager::PageNodeImpl>();
   auto main_frame_node2 =
       CreateFrameNodeAutoId(process_node2.get(), page_node2.get());
-  main_frame_node2->SetIsCurrent(true);
   testing::MakePageNodeDiscardable(page_node2.get(), task_env());
 
   auto process_node3 = CreateNode<performance_manager::ProcessNodeImpl>();
   auto page_node3 = CreateNode<performance_manager::PageNodeImpl>();
   auto main_frame_node3 =
       CreateFrameNodeAutoId(process_node3.get(), page_node3.get());
-  main_frame_node3->SetIsCurrent(true);
   testing::MakePageNodeDiscardable(page_node3.get(), task_env());
 
   page_node2->SetIsVisible(true);
@@ -459,9 +566,11 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesThreeCandidates) {
       .WillOnce(Return(true));
 
   PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-      /*reclaim_target_kb*/ 1500,
+      memory_pressure::ReclaimTarget(/*reclaim_target_kb*/ 1500),
       /*discard_protected_tabs*/ true,
-      base::BindOnce([](bool success) { EXPECT_TRUE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
   histogram_tester()->ExpectBucketCount("Discarding.DiscardCandidatesCount", 3,
@@ -477,14 +586,12 @@ TEST_F(PageDiscardingHelperTest,
   auto page_node2 = CreateNode<performance_manager::PageNodeImpl>();
   auto main_frame_node2 =
       CreateFrameNodeAutoId(process_node2.get(), page_node2.get());
-  main_frame_node2->SetIsCurrent(true);
   testing::MakePageNodeDiscardable(page_node2.get(), task_env());
 
   auto process_node3 = CreateNode<performance_manager::ProcessNodeImpl>();
   auto page_node3 = CreateNode<performance_manager::PageNodeImpl>();
   auto main_frame_node3 =
       CreateFrameNodeAutoId(process_node3.get(), page_node3.get());
-  main_frame_node3->SetIsCurrent(true);
   testing::MakePageNodeDiscardable(page_node3.get(), task_env());
 
   page_node2->SetIsVisible(true);
@@ -509,9 +616,11 @@ TEST_F(PageDiscardingHelperTest,
       .WillOnce(Return(true));
 
   PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-      /*reclaim_target_kb*/ 1500,
+      memory_pressure::ReclaimTarget(/*reclaim_target_kb*/ 1500),
       /*discard_protected_tabs*/ true,
-      base::BindOnce([](bool success) { EXPECT_TRUE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
 }
@@ -522,6 +631,7 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesNoDiscardable) {
 
   auto process_node2 = CreateNode<performance_manager::ProcessNodeImpl>();
   auto page_node2 = CreateNode<performance_manager::PageNodeImpl>();
+  page_node2->SetType(PageType::kTab);
   auto main_frame_node2 =
       CreateFrameNodeAutoId(process_node2.get(), page_node2.get());
 
@@ -535,9 +645,11 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesNoDiscardable) {
       .WillOnce(Return(false));
 
   PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-      /*reclaim_target_kb*/ 10240,
+      memory_pressure::ReclaimTarget(/*reclaim_target_kb*/ 10240),
       /*discard_protected_tabs*/ true,
-      base::BindOnce([](bool success) { EXPECT_FALSE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_FALSE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
 }
@@ -547,7 +659,9 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesNoDiscardable) {
 TEST_F(PageDiscardingHelperTest, DiscardAPageNoCandidate) {
   page_node()->SetIsVisible(true);
   PageDiscardingHelper::GetFromGraph(graph())->DiscardAPage(
-      base::BindOnce([](bool success) { EXPECT_FALSE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_FALSE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
 }
@@ -556,7 +670,9 @@ TEST_F(PageDiscardingHelperTest, DiscardAPageSingleCandidate) {
   EXPECT_CALL(*discarder(), DiscardPageNodeImpl(page_node()))
       .WillOnce(Return(true));
   PageDiscardingHelper::GetFromGraph(graph())->DiscardAPage(
-      base::BindOnce([](bool success) { EXPECT_TRUE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
   histogram_tester()->ExpectBucketCount("Discarding.DiscardCandidatesCount", 1,
@@ -567,7 +683,9 @@ TEST_F(PageDiscardingHelperTest, DiscardAPageSingleCandidateFails) {
   EXPECT_CALL(*discarder(), DiscardPageNodeImpl(page_node()))
       .WillOnce(Return(false));
   PageDiscardingHelper::GetFromGraph(graph())->DiscardAPage(
-      base::BindOnce([](bool success) { EXPECT_FALSE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_FALSE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
   // There should be 2 discard attempts, during the first one an attempt will be
@@ -585,7 +703,6 @@ TEST_F(PageDiscardingHelperTest, DiscardAPageTwoCandidates) {
   auto page_node2 = CreateNode<performance_manager::PageNodeImpl>();
   auto main_frame_node2 =
       CreateFrameNodeAutoId(process_node2.get(), page_node2.get());
-  main_frame_node2->SetIsCurrent(true);
   testing::MakePageNodeDiscardable(page_node2.get(), task_env());
 
   // Pretend that |page_node2| is the most recently visible page.
@@ -594,8 +711,8 @@ TEST_F(PageDiscardingHelperTest, DiscardAPageTwoCandidates) {
   page_node2->SetIsVisible(false);
   AdvanceClock(base::Minutes(30));
   EXPECT_TRUE(CanDiscard(page_node2.get(), DiscardReason::URGENT));
-  EXPECT_GT(page_node()->TimeSinceLastVisibilityChange(),
-            page_node2->TimeSinceLastVisibilityChange());
+  EXPECT_GT(page_node()->GetTimeSinceLastVisibilityChange(),
+            page_node2->GetTimeSinceLastVisibilityChange());
 
   process_node()->set_resident_set_kb(1024);
   process_node2->set_resident_set_kb(2048);
@@ -604,7 +721,9 @@ TEST_F(PageDiscardingHelperTest, DiscardAPageTwoCandidates) {
       .WillOnce(Return(true));
 
   PageDiscardingHelper::GetFromGraph(graph())->DiscardAPage(
-      base::BindOnce([](bool success) { EXPECT_TRUE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
 
@@ -617,7 +736,6 @@ TEST_F(PageDiscardingHelperTest, DiscardAPageTwoCandidatesFirstFails) {
   auto page_node2 = CreateNode<performance_manager::PageNodeImpl>();
   auto main_frame_node2 =
       CreateFrameNodeAutoId(process_node2.get(), page_node2.get());
-  main_frame_node2->SetIsCurrent(true);
   testing::MakePageNodeDiscardable(page_node2.get(), task_env());
 
   process_node()->set_resident_set_kb(1024);
@@ -633,7 +751,9 @@ TEST_F(PageDiscardingHelperTest, DiscardAPageTwoCandidatesFirstFails) {
       .WillOnce(Return(true));
 
   PageDiscardingHelper::GetFromGraph(graph())->DiscardAPage(
-      base::BindOnce([](bool success) { EXPECT_TRUE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
 }
@@ -643,7 +763,6 @@ TEST_F(PageDiscardingHelperTest, DiscardAPageTwoCandidatesMultipleFrames) {
   auto page_node2 = CreateNode<performance_manager::PageNodeImpl>();
   auto main_frame_node2 =
       CreateFrameNodeAutoId(process_node2.get(), page_node2.get());
-  main_frame_node2->SetIsCurrent(true);
   testing::MakePageNodeDiscardable(page_node2.get(), task_env());
   // Adds a second frame to |page_node()| and host it in |process_node2|.
   auto page_node1_extra_frame =
@@ -659,7 +778,9 @@ TEST_F(PageDiscardingHelperTest, DiscardAPageTwoCandidatesMultipleFrames) {
       .WillOnce(Return(true));
 
   PageDiscardingHelper::GetFromGraph(graph())->DiscardAPage(
-      base::BindOnce([](bool success) { EXPECT_TRUE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
 }
@@ -669,7 +790,6 @@ TEST_F(PageDiscardingHelperTest, DiscardAPageTwoCandidatesNoRSSData) {
   auto page_node2 = CreateNode<performance_manager::PageNodeImpl>();
   auto main_frame_node2 =
       CreateFrameNodeAutoId(process_node2.get(), page_node2.get());
-  main_frame_node2->SetIsCurrent(true);
   testing::MakePageNodeDiscardable(page_node2.get(), task_env());
 
   // Pretend that |page_node()| is the most recently visible page.
@@ -678,8 +798,8 @@ TEST_F(PageDiscardingHelperTest, DiscardAPageTwoCandidatesNoRSSData) {
   page_node()->SetIsVisible(false);
   AdvanceClock(base::Minutes(30));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::URGENT));
-  EXPECT_GT(page_node2->TimeSinceLastVisibilityChange(),
-            page_node()->TimeSinceLastVisibilityChange());
+  EXPECT_GT(page_node2->GetTimeSinceLastVisibilityChange(),
+            page_node()->GetTimeSinceLastVisibilityChange());
 
   // |page_node2| should be discarded as there's no RSS data for any of the
   // pages and it's the least recently visible page.
@@ -687,7 +807,9 @@ TEST_F(PageDiscardingHelperTest, DiscardAPageTwoCandidatesNoRSSData) {
       .WillOnce(Return(true));
 
   PageDiscardingHelper::GetFromGraph(graph())->DiscardAPage(
-      base::BindOnce([](bool success) { EXPECT_TRUE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
 }
@@ -699,7 +821,6 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesTwoCandidatesNoRSSData) {
   auto page_node2 = CreateNode<performance_manager::PageNodeImpl>();
   auto main_frame_node2 =
       CreateFrameNodeAutoId(process_node2.get(), page_node2.get());
-  main_frame_node2->SetIsCurrent(true);
   testing::MakePageNodeDiscardable(page_node2.get(), task_env());
 
   // Pretend that |page_node()| is the most recently visible page.
@@ -708,8 +829,8 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesTwoCandidatesNoRSSData) {
   page_node()->SetIsVisible(false);
   AdvanceClock(base::Minutes(30));
   EXPECT_TRUE(CanDiscard(page_node(), DiscardReason::URGENT));
-  EXPECT_GT(page_node2->TimeSinceLastVisibilityChange(),
-            page_node()->TimeSinceLastVisibilityChange());
+  EXPECT_GT(page_node2->GetTimeSinceLastVisibilityChange(),
+            page_node()->GetTimeSinceLastVisibilityChange());
 
   // |page_node2| should be discarded as there's no RSS data for any of the
   // pages and it's the least recently visible page.
@@ -717,11 +838,120 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesTwoCandidatesNoRSSData) {
       .WillOnce(Return(true));
 
   PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-      /*reclaim_target_kb*/ absl::nullopt,
+      /*reclaim_target*/ std::nullopt,
       /*discard_protected_tabs*/ true,
-      base::BindOnce([](bool success) { EXPECT_TRUE(success); }),
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
       DiscardReason::URGENT);
   ::testing::Mock::VerifyAndClearExpectations(discarder());
+}
+
+TEST_F(PageDiscardingHelperTest, DiscardingProtectedTabReported) {
+  auto process_node2 = CreateNode<performance_manager::ProcessNodeImpl>();
+  auto page_node2 = CreateNode<performance_manager::PageNodeImpl>();
+  auto main_frame_node2 =
+      CreateFrameNodeAutoId(process_node2.get(), page_node2.get());
+  testing::MakePageNodeDiscardable(page_node2.get(), task_env());
+
+  // Page node 2 is still audible but has not been visible for 30 minutes. It
+  // should be protected but the lower priority tab and should be discarded.
+  page_node2->SetIsVisible(true);
+  page_node2->SetIsAudible(true);
+  AdvanceClock(base::Minutes(30));
+  page_node2->SetIsVisible(false);
+  AdvanceClock(base::Minutes(30));
+
+  // Set the primary page node to visible so it is higher priority than
+  // page_node2.
+  page_node()->SetIsVisible(true);
+
+  process_node2->set_resident_set_kb(1024);
+
+  EXPECT_CALL(*discarder(), DiscardPageNodeImpl(page_node2.get()))
+      .WillOnce(Return(true));
+
+  PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
+      memory_pressure::ReclaimTarget(/*reclaim_target_kb*/ 1),
+      /*discard_protected_tabs*/ true,
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
+      DiscardReason::URGENT);
+  ::testing::Mock::VerifyAndClearExpectations(discarder());
+
+  histogram_tester()->ExpectBucketCount("Discarding.DiscardingProtectedTab",
+                                        true, 1);
+  histogram_tester()->ExpectBucketCount("Discarding.DiscardingProtectedTab",
+                                        false, 0);
+}
+
+TEST_F(PageDiscardingHelperTest, DiscardingUnprotectedTabReported) {
+  // By default the primary page node is not protected.
+
+  process_node()->set_resident_set_kb(1024);
+
+  EXPECT_CALL(*discarder(), DiscardPageNodeImpl(page_node()))
+      .WillOnce(Return(true));
+
+  PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
+      memory_pressure::ReclaimTarget(/*reclaim_target_kb*/ 1),
+      /*discard_protected_tabs*/ true,
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
+      DiscardReason::URGENT);
+  ::testing::Mock::VerifyAndClearExpectations(discarder());
+
+  histogram_tester()->ExpectBucketCount("Discarding.DiscardingProtectedTab",
+                                        true, 0);
+  histogram_tester()->ExpectBucketCount("Discarding.DiscardingProtectedTab",
+                                        false, 1);
+}
+
+TEST_F(PageDiscardingHelperTest, DiscardingFocusedTabReported) {
+  process_node()->set_resident_set_kb(1024);
+  page_node()->SetIsVisible(true);
+  page_node()->SetIsFocused(true);
+
+  EXPECT_CALL(*discarder(), DiscardPageNodeImpl(page_node()))
+      .WillOnce(Return(true));
+
+  PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
+      memory_pressure::ReclaimTarget(/*reclaim_target_kb*/ 1),
+      /*discard_protected_tabs*/ true,
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
+      DiscardReason::URGENT);
+  ::testing::Mock::VerifyAndClearExpectations(discarder());
+
+  histogram_tester()->ExpectBucketCount("Discarding.DiscardingFocusedTab", true,
+                                        1);
+  histogram_tester()->ExpectBucketCount("Discarding.DiscardingFocusedTab",
+                                        false, 0);
+}
+
+TEST_F(PageDiscardingHelperTest, DiscardingUnfocusedTabReported) {
+  // Main process node is not focused by default.
+  process_node()->set_resident_set_kb(1024);
+
+  EXPECT_CALL(*discarder(), DiscardPageNodeImpl(page_node()))
+      .WillOnce(Return(true));
+
+  PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
+      memory_pressure::ReclaimTarget(/*reclaim_target_kb*/ 1),
+      /*discard_protected_tabs*/ true,
+      base::BindOnce([](std::optional<base::TimeTicks> first_discarded_at) {
+        EXPECT_TRUE(first_discarded_at.has_value());
+      }),
+      DiscardReason::URGENT);
+  ::testing::Mock::VerifyAndClearExpectations(discarder());
+
+  histogram_tester()->ExpectBucketCount("Discarding.DiscardingFocusedTab", true,
+                                        0);
+  histogram_tester()->ExpectBucketCount("Discarding.DiscardingFocusedTab",
+                                        false, 1);
 }
 
 }  // namespace policies

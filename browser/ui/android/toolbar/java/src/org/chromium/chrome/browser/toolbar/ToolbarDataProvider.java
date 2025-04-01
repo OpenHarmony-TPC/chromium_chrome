@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.toolbar;
 
+import androidx.annotation.ColorInt;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -14,19 +15,26 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.url.GURL;
 
-/**
- * Defines the data that is exposed to properly render the Toolbar.
- */
+/** Defines the data that is exposed to properly render the Toolbar. */
 public interface ToolbarDataProvider {
+    /** Observer interface for consumers who wish to subscribe to updates of ToolbarData. */
+    interface Observer {
+        default void onIncognitoStateChanged() {}
+    }
+
+    /** Adds an observer of changes to ToolbarDataProvider's data. */
+    void addToolbarDataProviderObserver(Observer observer);
+
+    /** Removes an observer of changes to ToolbarDataProvider's data. */
+    void removeToolbarDataProviderObserver(Observer observer);
+
     /**
      * @return The tab that contains the information currently displayed in the toolbar.
      */
     @Nullable
     Tab getTab();
 
-    /**
-     * Returns The url of the current tab. Returns empty string when there is no tab.
-     */
+    /** Returns The url of the current tab. Returns empty string when there is no tab. */
     @NonNull
     String getCurrentUrl();
 
@@ -42,20 +50,27 @@ public interface ToolbarDataProvider {
     NewTabPageDelegate getNewTabPageDelegate();
 
     /**
+     * TODO(crbug.com/350654700): clean up usages and remove isIncognito.
+     *
      * @return Whether the toolbar is currently being displayed for incognito.
+     * @deprecated Use {@link #isIncognitoBranded()} or {@link #isOffTheRecord()}.
      */
+    @Deprecated
     boolean isIncognito();
 
     /**
-     * @return Whether the toolbar is currently being displayed in overview mode and showing the
-     *  omnibox.
+     * @return Whether the toolbar is currently being displayed for an incognito branded browser
+     *     context.
+     * @see {@link Profile#isIncognitoBranded()}
      */
-    boolean isInOverviewAndShowingOmnibox();
+    boolean isIncognitoBranded();
 
     /**
-     * @return Whether the location bar should show when in overview mode.
+     * @return Whether the toolbar is currently being displayed for an off the record browser
+     *     context.
+     * @see {@link Profile#isOffTheRecord()}
      */
-    boolean shouldShowLocationBarInOverviewMode();
+    boolean isOffTheRecord();
 
     /**
      * @return The current {@link Profile}.
@@ -70,6 +85,7 @@ public interface ToolbarDataProvider {
     /**
      * @return The primary color to use for the background drawable.
      */
+    @ColorInt
     int getPrimaryColor();
 
     /**

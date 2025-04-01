@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.feed.feedmanagement;
 
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.verify;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 
@@ -17,28 +16,28 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.feed.FeedServiceBridge;
 import org.chromium.chrome.browser.feed.FeedServiceBridgeJni;
 import org.chromium.chrome.browser.feed.StreamKind;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.ui.base.TestActivity;
 
-/**
- * Tests {@link FeedManagementCoordinator}.
- */
+/** Tests {@link FeedManagementCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
+@EnableFeatures(ChromeFeatureList.FEED_FOLLOW_UI_UPDATE)
 public class FeedManagementCoordinatorTest {
     private TestActivity mActivity;
     private FeedManagementCoordinator mFeedManagementCoordinator;
 
-    @Rule
-    public JniMocker mocker = new JniMocker();
+    @Rule public JniMocker mocker = new JniMocker();
+
     @Rule
     public ActivityScenarioRule<TestActivity> mActivityScenarioRule =
             new ActivityScenarioRule<>(TestActivity.class);
 
-    @Mock
-    private FeedServiceBridge.Natives mFeedServiceBridgeJniMock;
+    @Mock private FeedServiceBridge.Natives mFeedServiceBridgeJniMock;
 
     @Before
     public void setUpTest() {
@@ -47,10 +46,7 @@ public class FeedManagementCoordinatorTest {
         MockitoAnnotations.initMocks(this);
         mocker.mock(FeedServiceBridgeJni.TEST_HOOKS, mFeedServiceBridgeJniMock);
 
-        mFeedManagementCoordinator =
-                new FeedManagementCoordinator(mActivity, null, null, StreamKind.UNKNOWN);
-
-        verify(mFeedServiceBridgeJniMock).isAutoplayEnabled();
+        mFeedManagementCoordinator = new FeedManagementCoordinator(mActivity, StreamKind.UNKNOWN);
     }
 
     @Test

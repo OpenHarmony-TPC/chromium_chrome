@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/extensions/activity_log/activity_log.h"
 
 #include <stddef.h>
@@ -99,7 +104,11 @@ class InterceptingRendererStartupHelper : public RendererStartupHelper,
   void SetWebViewPartitionID(const std::string& partition_id) override {}
   void SetScriptingAllowlist(
       const std::vector<std::string>& extension_ids) override {}
-  void UpdateUserScriptWorld(mojom::UserScriptWorldInfoPtr info) override {}
+  void UpdateUserScriptWorlds(
+      std::vector<mojom::UserScriptWorldInfoPtr> info) override {}
+  void ClearUserScriptWorldConfig(
+      const std::string& extension_id,
+      const std::optional<std::string>& world_id) override {}
   void ShouldSuspend(ShouldSuspendCallback callback) override {
     std::move(callback).Run();
   }
@@ -165,8 +174,9 @@ class ActivityLogTest : public ChromeRenderViewHostTestHarness {
   }
 
   TestingProfile::TestingFactories GetTestingFactories() const override {
-    return {{RendererStartupHelperFactory::GetInstance(),
-             base::BindRepeating(&BuildFakeRendererStartupHelper)}};
+    return {TestingProfile::TestingFactory{
+        RendererStartupHelperFactory::GetInstance(),
+        base::BindRepeating(&BuildFakeRendererStartupHelper)}};
   }
 
   void TearDown() override {
@@ -238,7 +248,7 @@ class ActivityLogTest : public ChromeRenderViewHostTestHarness {
     // so just test once.
     ASSERT_TRUE(action->other());
     const base::Value::Dict& other = *action->other();
-    absl::optional<int> dom_verb =
+    std::optional<int> dom_verb =
         other.FindInt(activity_log_constants::kActionDomVerb);
     ASSERT_EQ(DomActionType::XHR, dom_verb);
 
@@ -276,13 +286,13 @@ class ActivityLogTest : public ChromeRenderViewHostTestHarness {
       ASSERT_EQ("http://www.google.co.uk/", action->arg_url().spec());
       ASSERT_TRUE(action->other());
       const base::Value::Dict& other = *action->other();
-      absl::optional<int> dom_verb =
+      std::optional<int> dom_verb =
           other.FindInt(activity_log_constants::kActionDomVerb);
       ASSERT_EQ(DomActionType::SETTER, dom_verb);
     }
   }
 
-  raw_ptr<ExtensionService> extension_service_;
+  raw_ptr<ExtensionService, DanglingUntriaged> extension_service_;
 };
 
 TEST_F(ActivityLogTest, Construct) {
@@ -315,11 +325,10 @@ TEST_F(ActivityLogTest, LogAndFetchActions) {
 TEST_F(ActivityLogTest, LogPrerender) {
   scoped_refptr<const Extension> extension =
       ExtensionBuilder()
-          .SetManifest(DictionaryBuilder()
+          .SetManifest(base::Value::Dict()
                            .Set("name", "Test extension")
                            .Set("version", "1.0.0")
-                           .Set("manifest_version", 2)
-                           .Build())
+                           .Set("manifest_version", 2))
           .Build();
   extension_service_->AddExtension(extension.get());
   ActivityLog* activity_log = ActivityLog::GetInstance(profile());
@@ -332,10 +341,10 @@ TEST_F(ActivityLogTest, LogPrerender) {
 
   const gfx::Size kSize(640, 480);
   std::unique_ptr<prerender::NoStatePrefetchHandle> no_state_prefetch_handle(
-      no_state_prefetch_manager->StartPrefetchingFromOmnibox(
+      no_state_prefetch_manager->AddSameOriginSpeculation(
           url,
           web_contents()->GetController().GetDefaultSessionStorageNamespace(),
-          kSize, nullptr));
+          kSize, url::Origin::Create(url)));
 
   const std::vector<content::WebContents*> contentses =
       no_state_prefetch_manager->GetAllNoStatePrefetchingContentsForTesting();
@@ -396,8 +405,7 @@ TEST_F(ActivityLogTest, ArgUrlExtraction) {
   action = new Action(kExtensionId, now - base::Seconds(3),
                       Action::ACTION_API_CALL, "windows.create");
   base::Value::List list;
-  base::Value::Dict item;
-  item.Set("url", "http://www.google.co.uk");
+  auto item = base::Value::Dict().Set("url", "http://www.google.co.uk");
   list.Append(std::move(item));
   action->set_args(std::move(list));
   activity_log->LogAction(action);
@@ -410,11 +418,10 @@ TEST_F(ActivityLogTest, ArgUrlExtraction) {
 TEST_F(ActivityLogTest, UninstalledExtension) {
   scoped_refptr<const Extension> extension =
       ExtensionBuilder()
-          .SetManifest(DictionaryBuilder()
+          .SetManifest(base::Value::Dict()
                            .Set("name", "Test extension")
                            .Set("version", "1.0.0")
-                           .Set("manifest_version", 2)
-                           .Build())
+                           .Set("manifest_version", 2))
           .Build();
 
   ActivityLog* activity_log = ActivityLog::GetInstance(profile());

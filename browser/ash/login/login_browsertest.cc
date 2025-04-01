@@ -29,12 +29,14 @@
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
 #include "chrome/browser/ash/login/test/oobe_screens_utils.h"
+#include "chrome/browser/ash/login/test/scoped_policy_update.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
 #include "chrome/browser/ash/login/test/test_predicate_waiter.h"
 #include "chrome/browser/ash/login/test/user_adding_screen_utils.h"
-#include "chrome/browser/ash/login/ui/login_display_host_webui.h"
+#include "chrome/browser/ash/login/test/user_auth_config.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/ui/ash/login/login_display_host_webui.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/webui/ash/login/error_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
@@ -120,9 +122,7 @@ class LoginOnlineCryptohomeError : public LoginManagerTest {
   LoginManagerMixin::TestUserInfo reauth_user_{
       AccountId::FromUserEmailGaiaId(FakeGaiaMixin::kFakeUserEmail,
                                      FakeGaiaMixin::kFakeUserGaiaId),
-      user_manager::USER_TYPE_REGULAR,
-      /* invalid token status to force online signin */
-      user_manager::User::OAUTH2_TOKEN_STATUS_INVALID};
+      test::UserAuthConfig::Create(test::kDefaultAuthSetup).RequireReauth()};
   LoginManagerMixin login_manager_{&mixin_host_, {reauth_user_}};
   FakeGaiaMixin fake_gaia_{&mixin_host_};
 };
@@ -136,7 +136,8 @@ IN_PROC_BROWSER_TEST_F(LoginOnlineCryptohomeError, FatalScreenShown) {
   EXPECT_TRUE(LoginScreenTestApi::IsOobeDialogVisible());
   FakeUserDataAuthClient::Get()->SetNextOperationError(
       FakeUserDataAuthClient::Operation::kStartAuthSession,
-      user_data_auth::CRYPTOHOME_ERROR_MOUNT_FATAL);
+      cryptohome::ErrorWrapper::CreateFromErrorCodeOnly(
+          user_data_auth::CRYPTOHOME_ERROR_MOUNT_FATAL));
 
   LoginDisplayHost::default_host()
       ->GetOobeUI()
@@ -154,7 +155,8 @@ IN_PROC_BROWSER_TEST_F(LoginOfflineTest, FatalScreenShown) {
   EXPECT_FALSE(LoginScreenTestApi::IsOobeDialogVisible());
   FakeUserDataAuthClient::Get()->SetNextOperationError(
       FakeUserDataAuthClient::Operation::kAuthenticateAuthFactor,
-      user_data_auth::CRYPTOHOME_ERROR_TPM_UPDATE_REQUIRED);
+      cryptohome::ErrorWrapper::CreateFromErrorCodeOnly(
+          user_data_auth::CRYPTOHOME_ERROR_TPM_UPDATE_REQUIRED));
   LoginScreenTestApi::SubmitPassword(test_account_id_, "password",
                                      /*check_if_submittable=*/false);
   OobeScreenWaiter(SignInFatalErrorView::kScreenId).Wait();
@@ -165,7 +167,8 @@ IN_PROC_BROWSER_TEST_F(LoginOfflineTest, FatalScreenNotShown) {
   EXPECT_FALSE(LoginScreenTestApi::IsOobeDialogVisible());
   FakeUserDataAuthClient::Get()->SetNextOperationError(
       FakeUserDataAuthClient::Operation::kAuthenticateAuthFactor,
-      user_data_auth::CRYPTOHOME_ERROR_AUTHORIZATION_KEY_FAILED);
+      cryptohome::ErrorWrapper::CreateFromErrorCodeOnly(
+          user_data_auth::CRYPTOHOME_ERROR_AUTHORIZATION_KEY_FAILED));
   LoginScreenTestApi::SubmitPassword(test_account_id_, "password",
                                      /*check_if_submittable=*/false);
   // Inserted RunUntilIdle here to give maximum chances for the dialog to show
@@ -291,7 +294,7 @@ IN_PROC_BROWSER_TEST_F(LoginGuestTest, GuestIsOTR) {
 
 // Verifies the cursor is hidden at startup on login screen.
 IN_PROC_BROWSER_TEST_F(LoginCursorTest, CursorHidden) {
-  OobeScreenWaiter(WelcomeView::kScreenId).Wait();
+  test::WaitForWelcomeScreen();
   // Cursor should be hidden at startup
   EXPECT_FALSE(Shell::Get()->cursor_manager()->IsCursorVisible());
 
@@ -313,7 +316,7 @@ IN_PROC_BROWSER_TEST_F(LoginOfflineTest, PRE_AuthOffline) {
 
 IN_PROC_BROWSER_TEST_F(LoginOfflineTest, AuthOffline) {
   network_portal_detector_.SimulateDefaultNetworkState(
-      NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_OFFLINE);
+      NetworkPortalDetectorMixin::NetworkStatus::kOffline);
   offline_login_test_mixin_.GoOffline();
   offline_login_test_mixin_.InitOfflineLogin(test_account_id_,
                                              LoginManagerTest::kPassword);

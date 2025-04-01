@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ash/app_restore/arc_ghost_window_view.h"
 
-#include "ash/components/arc/arc_features.h"
 #include "ash/public/cpp/app_list/app_list_config.h"
 #include "ash/public/cpp/style/dark_light_mode_controller.h"
 #include "base/metrics/histogram_functions.h"
@@ -26,6 +25,7 @@
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/paint_throbber.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
@@ -69,10 +69,6 @@ enum class GhostWindowType {
   kMaxValue = kIconSpinningWithFixupText,
 };
 
-bool IsGhostWindowNewStyleEnabled() {
-  return base::FeatureList::IsEnabled(arc::kGhostWindowNewStyle);
-}
-
 std::u16string GetGhostWindowAppLaunchString(const std::string& app_name) {
   return l10n_util::GetStringFUTF16(IDS_ARC_GHOST_WINDOW_APP_LAUNCHING_MESSAGE,
                                     base::UTF8ToUTF16(app_name));
@@ -84,6 +80,8 @@ std::u16string GetGhostWindowAppLaunchAodString() {
 }
 
 class Throbber : public views::View {
+  METADATA_HEADER(Throbber, views::View)
+
  public:
   explicit Throbber(uint32_t color) : color_(color) {
     start_time_ = base::TimeTicks::Now();
@@ -91,8 +89,8 @@ class Throbber : public views::View {
         FROM_HERE, base::Milliseconds(30),
         base::BindRepeating(&Throbber::SchedulePaint, base::Unretained(this)));
     SchedulePaint();  // paint right away
-    SetAccessibilityProperties(
-        ax::mojom::Role::kProgressIndicator,
+    GetViewAccessibility().SetRole(ax::mojom::Role::kProgressIndicator);
+    GetViewAccessibility().SetName(
         l10n_util::GetStringUTF16(IDS_ARC_GHOST_WINDOW_APP_LAUNCHING_THROBBER));
   }
   Throbber(const Throbber&) = delete;
@@ -110,6 +108,9 @@ class Throbber : public views::View {
   base::TimeTicks start_time_;  // Time when Start was called.
   base::RepeatingTimer timer_;  // Used to schedule Run calls.
 };
+
+BEGIN_METADATA(Throbber)
+END_METADATA
 
 }  // namespace
 
@@ -142,7 +143,7 @@ void ArcGhostWindowView::SetGhostWindowViewType(arc::GhostWindowType type) {
 
   // DarkLightModeController maybe null in test env.
   if (type != arc::GhostWindowType::kFullRestore &&
-      IsGhostWindowNewStyleEnabled() && DarkLightModeController::Get()) {
+      DarkLightModeController::Get()) {
     // New style use ChromeOS system provided background color.
     auto color = cros_styles::ResolveColor(
         cros_styles::ColorName::kBgColor,
@@ -155,8 +156,7 @@ void ArcGhostWindowView::SetGhostWindowViewType(arc::GhostWindowType type) {
     SetBackground(views::CreateSolidBackground(theme_color_));
   }
 
-  if (type == arc::GhostWindowType::kFullRestore ||
-      !IsGhostWindowNewStyleEnabled()) {
+  if (type == arc::GhostWindowType::kFullRestore) {
     // If not enabled new style flag, all types will use original UI.
     AddChildView(views::Builder<views::ImageView>()
                      .SetImage(icon_raw_data_)
@@ -169,7 +169,7 @@ void ArcGhostWindowView::SetGhostWindowViewType(arc::GhostWindowType type) {
         color_utils::GetColorWithMaxContrast(theme_color_)));
     throbber->SetPreferredSize(gfx::Size(kThrobberDiameterOriginalStyle,
                                          kThrobberDiameterOriginalStyle));
-    throbber->SetAccessibleRole(ax::mojom::Role::kImage);
+    throbber->GetViewAccessibility().SetRole(ax::mojom::Role::kImage);
     throbber->SetID(ContentID::ID_THROBBER);
     // TODO(sstan): Set window title and accessible name from saved data.
   } else {
@@ -184,14 +184,13 @@ void ArcGhostWindowView::SetGhostWindowViewType(arc::GhostWindowType type) {
     }
   }
 
-  Layout();
+  DeprecatedLayoutImmediately();
 }
 
 void ArcGhostWindowView::OnThemeChanged() {
   views::View::OnThemeChanged();
   // DarkLightModeController maybe null in test env.
-  if (!IsGhostWindowNewStyleEnabled() ||
-      ghost_window_type_ == arc::GhostWindowType::kFullRestore ||
+  if (ghost_window_type_ == arc::GhostWindowType::kFullRestore ||
       !DarkLightModeController::Get()) {
     return;
   }
@@ -212,7 +211,7 @@ void ArcGhostWindowView::LoadIcon(const std::string& app_id) {
       apps::AppServiceProxyFactory::IsAppServiceAvailableForProfile(profile));
 
   apps::AppServiceProxyFactory::GetForProfile(profile)->LoadIcon(
-      apps::AppType::kArc, app_id, apps::IconType::kStandard,
+      app_id, apps::IconType::kStandard,
       SharedAppListConfig::instance().default_grid_icon_dimension(),
       /*allow_placeholder_icon=*/false,
       icon_loaded_cb_for_testing_.is_null()
@@ -292,7 +291,7 @@ void ArcGhostWindowView::AddChildrenViewsForAppLaunchType() {
   base::UmaHistogramEnumeration(kGhostWindowTypeHistogram,
                                 GhostWindowType::kIconSpinning);
 }
-BEGIN_METADATA(ArcGhostWindowView, views::View)
+BEGIN_METADATA(ArcGhostWindowView)
 END_METADATA
 
 }  // namespace ash::full_restore

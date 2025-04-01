@@ -7,30 +7,35 @@
 #include <memory>
 #include <string>
 
+#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/app_menu_constants.h"
 #include "ash/public/cpp/shelf_model.h"
-#include "ash/public/cpp/tablet_mode.h"
 #include "base/metrics/user_metrics.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
+#include "chrome/browser/apps/app_service/promise_apps/promise_app_registry_cache.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_utils.h"
 #include "chrome/browser/ash/app_list/internal_app/internal_app_metadata.h"
 #include "chrome/browser/ash/app_restore/full_restore_service.h"
+#include "chrome/browser/ash/app_restore/full_restore_service_factory.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
 #include "chrome/browser/ash/guest_os/guest_os_shelf_utils.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/ash/shelf/app_service/app_service_promise_app_shelf_context_menu.h"
 #include "chrome/browser/ui/ash/shelf/app_service/app_service_shelf_context_menu.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller_util.h"
 #include "chrome/browser/ui/ash/shelf/extension_shelf_context_menu.h"
 #include "chrome/browser/ui/ash/shelf/extension_uninstaller.h"
+#include "chrome/browser/ui/ash/shelf/shelf_controller_helper.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/models/image_model.h"
 #include "ui/color/color_id.h"
+#include "ui/display/screen.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/views/vector_icons.h"
@@ -57,6 +62,10 @@ void UninstallApp(Profile* profile, const std::string& app_id) {
 
 }  // namespace
 
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kShelfCloseMenuItem);
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kShelfContextMenuNewWindowMenuItem);
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kShelfContextMenuIncognitoWindowMenuItem);
+
 // static
 std::unique_ptr<ShelfContextMenu> ShelfContextMenu::Create(
     ChromeShelfController* controller,
@@ -65,6 +74,14 @@ std::unique_ptr<ShelfContextMenu> ShelfContextMenu::Create(
   DCHECK(controller);
   DCHECK(item);
   DCHECK(!item->id.IsNull());
+
+  if (ash::features::ArePromiseIconsEnabled() &&
+      apps::AppServiceProxyFactory::GetForProfile(controller->profile())
+          ->PromiseAppRegistryCache()
+          ->GetPromiseAppForStringPackageId(item->id.app_id)) {
+    return std::make_unique<AppServicePromiseAppShelfContextMenu>(
+        controller, item, display_id);
+  }
 
   auto app_type =
       apps::AppServiceProxyFactory::GetForProfile(controller->profile())
@@ -113,8 +130,8 @@ bool ShelfContextMenu::IsCommandIdChecked(int command_id) const {
 
 bool ShelfContextMenu::IsCommandIdEnabled(int command_id) const {
   if (command_id == ash::TOGGLE_PIN) {
-    // Users cannot modify the pinned state of apps pinned by policy.
-    return !item_.pinned_by_policy &&
+    // Users cannot modify apps with a forced pinned state.
+    return !item_.IsPinStateForced() &&
            (item_.type == ash::TYPE_PINNED_APP || item_.type == ash::TYPE_APP);
   }
 
@@ -152,7 +169,7 @@ void ShelfContextMenu::ExecuteCommand(int command_id, int event_flags) {
       // Use a copy of the id to avoid crashes, as this menu's owner will be
       // destroyed if LaunchApp replaces the ShelfItemDelegate instance.
       controller_->LaunchApp(ash::ShelfID(item_.id), ash::LAUNCH_FROM_SHELF,
-                             ui::EF_NONE, display_id_);
+                             ui::EF_NONE, display_id_, /*new_window=*/true);
       break;
     case ash::MENU_CLOSE:
       if (item_.type == ash::TYPE_DIALOG) {
@@ -165,7 +182,7 @@ void ShelfContextMenu::ExecuteCommand(int command_id, int event_flags) {
         controller_->Close(item_.id);
       }
       base::RecordAction(base::UserMetricsAction("CloseFromContextMenu"));
-      if (ash::TabletMode::Get()->InTabletMode()) {
+      if (display::Screen::GetScreen()->InTabletMode()) {
         base::RecordAction(
             base::UserMetricsAction("Tablet_WindowCloseFromContextMenu"));
       }
@@ -217,12 +234,12 @@ const gfx::VectorIcon& ShelfContextMenu::GetCommandIdVectorIcon(
     case ash::DEPRECATED_USE_LAUNCH_TYPE_PINNED:
     case ash::DEPRECATED_USE_LAUNCH_TYPE_FULLSCREEN:
       NOTREACHED();
-      return gfx::kNoneIcon;
     case ash::NOTIFICATION_CONTAINER:
       NOTREACHED() << "NOTIFICATION_CONTAINER does not have an icon, and it is "
                       "added to the model by NotificationMenuController.";
-      return gfx::kNoneIcon;
     case ash::SHUTDOWN_GUEST_OS:
+      return kShutdownGuestOsIcon;
+    case ash::SHUTDOWN_BRUSCHETTA_OS:
       return kShutdownGuestOsIcon;
     case ash::CROSTINI_USE_HIGH_DENSITY:
       return views::kLinuxHighDensityIcon;
@@ -235,10 +252,8 @@ const gfx::VectorIcon& ShelfContextMenu::GetCommandIdVectorIcon(
     case ash::LAUNCH_APP_SHORTCUT_LAST:
     case ash::COMMAND_ID_COUNT:
       NOTREACHED();
-      return gfx::kNoneIcon;
     default:
       NOTREACHED();
-      return gfx::kNoneIcon;
   }
 }
 
@@ -259,17 +274,20 @@ void ShelfContextMenu::AddPinMenu(ui::SimpleMenuModel* menu_model) {
       return;
     default:
       NOTREACHED();
-      return;
   }
   AddContextMenuOption(menu_model, ash::TOGGLE_PIN, menu_pin_string_id);
 }
 
 bool ShelfContextMenu::ExecuteCommonCommand(int command_id, int event_flags) {
   switch (command_id) {
-    case ash::LAUNCH_NEW:
-      ash::full_restore::FullRestoreService::MaybeCloseNotification(
-          controller()->profile());
+    case ash::LAUNCH_NEW: {
+      if (auto* full_restore_service =
+              ash::full_restore::FullRestoreServiceFactory::GetForProfile(
+                  controller()->profile())) {
+        full_restore_service->MaybeCloseNotification();
+      }
       [[fallthrough]];
+    }
     case ash::MENU_CLOSE:
     case ash::TOGGLE_PIN:
     case ash::SWAP_WITH_NEXT:
@@ -295,6 +313,7 @@ void ShelfContextMenu::AddContextMenuOption(ui::SimpleMenuModel* menu_model,
         type, string_id,
         ui::ImageModel::FromVectorIcon(icon, ui::kColorAshSystemUIMenuIcon,
                                        ash::kAppContextMenuIconSize));
+    MaybeSetElementIdentifier(menu_model, type);
     return;
   }
   // If the MenuType is a check item.
@@ -307,7 +326,31 @@ void ShelfContextMenu::AddContextMenuOption(ui::SimpleMenuModel* menu_model,
   if (type == ash::NOTIFICATION_CONTAINER) {
     NOTREACHED()
         << "NOTIFICATION_CONTAINER is added by NotificationMenuController.";
-    return;
   }
   menu_model->AddItemWithStringId(type, string_id);
+}
+
+void ShelfContextMenu::MaybeSetElementIdentifier(
+    ui::SimpleMenuModel* menu_model,
+    ash::CommandId type) {
+  ui::ElementIdentifier id;
+  switch (type) {
+    case ash::MENU_CLOSE:
+      id = kShelfCloseMenuItem;
+      break;
+    case ash::APP_CONTEXT_MENU_NEW_WINDOW:
+      id = kShelfContextMenuNewWindowMenuItem;
+      break;
+    case ash::APP_CONTEXT_MENU_NEW_INCOGNITO_WINDOW:
+      id = kShelfContextMenuIncognitoWindowMenuItem;
+      break;
+    default:
+      break;
+  }
+
+  if (!id || !menu_model) {
+    return;
+  }
+  menu_model->SetElementIdentifierAt(
+      menu_model->GetIndexOfCommandId(type).value(), id);
 }

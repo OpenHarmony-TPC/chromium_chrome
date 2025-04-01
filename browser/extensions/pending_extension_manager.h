@@ -7,6 +7,7 @@
 
 #include <list>
 #include <map>
+#include <optional>
 #include <string>
 
 #include "base/gtest_prod_util.h"
@@ -16,7 +17,6 @@
 #include "chrome/browser/extensions/pending_extension_info.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/manifest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-shared.h"
 
 class GURL;
@@ -178,11 +178,11 @@ class PendingExtensionManager {
   void AddToMap(const std::string& id, PendingExtensionInfo info);
 
   // The BrowserContext with which the manager is associated.
-  raw_ptr<content::BrowserContext> context_;
+  raw_ptr<content::BrowserContext, DanglingUntriaged> context_;
 
   std::map<std::string, PendingExtensionInfo> pending_extensions_;
 
-  absl::optional<base::flat_set<std::string>>
+  std::optional<base::flat_set<std::string>>
       migrating_default_chrome_app_ids_cache_;
 
   base::ObserverList<Observer> observers_;

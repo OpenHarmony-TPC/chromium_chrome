@@ -9,10 +9,10 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/functional/bind.h"
-#include "base/guid.h"
 #include "base/logging.h"
 #include "base/synchronization/waitable_event.h"
-#include "chrome/android/chrome_jni_headers/PartnerBookmarksReader_jni.h"
+#include "base/threading/thread_restrictions.h"
+#include "base/uuid.h"
 #include "chrome/browser/android/bookmarks/partner_bookmarks_shim.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
@@ -27,6 +27,9 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/favicon_size.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/PartnerBookmarksReader_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::CheckException;
@@ -71,33 +74,6 @@ void SetFaviconCallback(Profile* profile,
     bookmark_added_event->Signal();
 }
 
-void PrepareAndSetFavicon(jbyte* icon_bytes,
-                          int icon_len,
-                          BookmarkNode* node,
-                          Profile* profile,
-                          favicon_base::IconType icon_type) {
-  SkBitmap icon_bitmap;
-  if (!gfx::PNGCodec::Decode(
-      reinterpret_cast<const unsigned char*>(icon_bytes),
-      icon_len, &icon_bitmap))
-    return;
-  std::vector<unsigned char> image_data;
-  if (!gfx::PNGCodec::EncodeBGRASkBitmap(icon_bitmap, false, &image_data))
-    return;
-  // TODO(aruslan): TODO(tedchoc): Follow up on how to avoid this through js.
-  // Since the favicon URL is used as a key in the history's thumbnail DB,
-  // this gives us a value which does not collide with others.
-  GURL fake_icon_url = node->url();
-
-  base::WaitableEvent event(base::WaitableEvent::ResetPolicy::AUTOMATIC,
-                            base::WaitableEvent::InitialState::NOT_SIGNALED);
-  content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE, base::BindOnce(&SetFaviconCallback, profile, node->url(),
-                                fake_icon_url, image_data, icon_type, &event));
-  // TODO(aruslan): http://b/6397072 If possible - avoid using favicon service
-  event.Wait();
-}
-
 const BookmarkNode* GetNodeByID(const BookmarkNode* parent, int64_t id) {
   if (parent->id() == id)
     return parent;
@@ -110,7 +86,7 @@ const BookmarkNode* GetNodeByID(const BookmarkNode* parent, int64_t id) {
 }
 
 std::unique_ptr<BookmarkNode> CreatePartnerBookmarksRoot(int id) {
-  return std::make_unique<BookmarkNode>(id, base::GUID::GenerateRandomV4(),
+  return std::make_unique<BookmarkNode>(id, base::Uuid::GenerateRandomV4(),
                                         GURL());
 }
 
@@ -171,7 +147,7 @@ jlong PartnerBookmarksReader::AddPartnerBookmark(
   jlong node_id = 0;
   if (wip_partner_bookmarks_root_.get()) {
     std::unique_ptr<BookmarkNode> node = std::make_unique<BookmarkNode>(
-        wip_next_available_id_++, base::GUID::GenerateRandomV4(), GURL(url));
+        wip_next_available_id_++, base::Uuid::GenerateRandomV4(), GURL(url));
     node->SetTitle(title);
 
     // Handle favicon and touchicon
@@ -181,11 +157,16 @@ jlong PartnerBookmarksReader::AddPartnerBookmark(
         const favicon_base::IconType icon_type =
             touchicon ? favicon_base::IconType::kTouchIcon
                       : favicon_base::IconType::kFavicon;
-        const int icon_len = env->GetArrayLength(icon);
         jbyte* icon_bytes = env->GetByteArrayElements(icon, nullptr);
-        if (icon_bytes)
-          PrepareAndSetFavicon(icon_bytes, icon_len, node.get(), profile_,
-                               icon_type);
+        if (icon_bytes) {
+          const int icon_len = env->GetArrayLength(icon);
+          // SAFETY: Pointer and length come from JNI; assume those are
+          // implemented correctly.
+          base::span<uint8_t> icon_span =
+              UNSAFE_BUFFERS(base::span(reinterpret_cast<uint8_t*>(icon_bytes),
+                                        base::checked_cast<size_t>(icon_len)));
+          PrepareAndSetFavicon(icon_span, node.get(), profile_, icon_type);
+        }
         env->ReleaseByteArrayElements(icon, icon_bytes, JNI_ABORT);
       } else {
         // We should attempt to read the favicon from cache or retrieve it from
@@ -323,8 +304,7 @@ void PartnerBookmarksReader::OnGetFaviconFromCacheFinished(
         })");
   GetLargeIconService()
       ->GetLargeIconOrFallbackStyleFromGoogleServerSkippingLocalCache(
-          page_url, false /* may_page_url_be_private */,
-          false /* should_trim_page_url_path */, traffic_annotation,
+          page_url, false /* should_trim_page_url_path */, traffic_annotation,
           base::BindOnce(
               &PartnerBookmarksReader::OnGetFaviconFromServerFinished,
               base::Unretained(this), page_url, desired_favicon_size_px,
@@ -364,6 +344,43 @@ void PartnerBookmarksReader::OnFaviconFetched(
   JNIEnv* env = AttachCurrentThread();
   Java_FetchFaviconCallback_onFaviconFetched(env, j_callback,
                                              static_cast<int>(result));
+}
+
+// static
+void PartnerBookmarksReader::PrepareAndSetFavicon(
+    base::span<uint8_t> icon,
+    BookmarkNode* node,
+    Profile* profile,
+    favicon_base::IconType icon_type) {
+  SkBitmap icon_bitmap = gfx::PNGCodec::Decode(icon);
+  if (icon_bitmap.isNull()) {
+    return;
+  }
+  std::optional<std::vector<uint8_t>> image_data =
+      gfx::PNGCodec::EncodeBGRASkBitmap(icon_bitmap,
+                                        /*discard_transparency=*/false);
+  if (!image_data) {
+    return;
+  }
+
+  // Since the bookmark URL is used as a key in the history's thumbnail DB,
+  // this gives us a value which does not collide with others.
+  GURL fake_icon_url = node->url();
+
+  base::WaitableEvent event(base::WaitableEvent::ResetPolicy::AUTOMATIC,
+                            base::WaitableEvent::InitialState::NOT_SIGNALED);
+  content::GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SetFaviconCallback, profile, node->url(), fake_icon_url,
+                     image_data.value(), icon_type, &event));
+
+  {
+    // Waiting is okay here because this is called from a background thread
+    // in Java.
+    DCHECK(!::content::BrowserThread::CurrentlyOn(BrowserThread::UI));
+    base::ScopedAllowBaseSyncPrimitives allow_sync;
+    event.Wait();
+  }
 }
 
 // ----------------------------------------------------------------

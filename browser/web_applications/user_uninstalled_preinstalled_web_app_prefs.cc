@@ -9,7 +9,6 @@
 
 #include "base/containers/contains.h"
 #include "base/metrics/user_metrics.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
@@ -33,7 +32,7 @@ void UserUninstalledPreinstalledWebAppPrefs::RegisterProfilePrefs(
 }
 
 void UserUninstalledPreinstalledWebAppPrefs::Add(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     base::flat_set<GURL> install_urls) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   base::Value::List url_list;
@@ -53,7 +52,7 @@ void UserUninstalledPreinstalledWebAppPrefs::Add(
   update->Set(app_id, std::move(url_list));
 }
 
-absl::optional<AppId>
+std::optional<webapps::AppId>
 UserUninstalledPreinstalledWebAppPrefs::LookUpAppIdByInstallUrl(
     const GURL& url) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
@@ -61,7 +60,7 @@ UserUninstalledPreinstalledWebAppPrefs::LookUpAppIdByInstallUrl(
       pref_service_->GetDict(prefs::kUserUninstalledPreinstalledWebAppPref);
 
   if (!url.is_valid())
-    return absl::nullopt;
+    return std::nullopt;
 
   for (auto it : ids_to_urls) {
     const base::Value::List* urls = it.second.GetIfList();
@@ -74,11 +73,11 @@ UserUninstalledPreinstalledWebAppPrefs::LookUpAppIdByInstallUrl(
         return it.first;
     }
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool UserUninstalledPreinstalledWebAppPrefs::DoesAppIdExist(
-    const AppId& app_id) {
+    const webapps::AppId& app_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   const base::Value::Dict& ids_to_urls =
       pref_service_->GetDict(prefs::kUserUninstalledPreinstalledWebAppPref);
@@ -87,7 +86,7 @@ bool UserUninstalledPreinstalledWebAppPrefs::DoesAppIdExist(
 }
 
 void UserUninstalledPreinstalledWebAppPrefs::AppendExistingInstallUrlsPerAppId(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     base::flat_set<GURL>& urls) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   const base::Value::Dict& ids_to_urls =
@@ -117,7 +116,7 @@ int UserUninstalledPreinstalledWebAppPrefs::Size() {
 }
 
 bool UserUninstalledPreinstalledWebAppPrefs::RemoveByInstallUrl(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const GURL& install_url) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   const base::Value::Dict& ids_to_urls =
@@ -156,7 +155,7 @@ bool UserUninstalledPreinstalledWebAppPrefs::RemoveByInstallUrl(
 }
 
 bool UserUninstalledPreinstalledWebAppPrefs::RemoveByAppId(
-    const AppId& app_id) {
+    const webapps::AppId& app_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   const base::Value::Dict& ids_to_urls =
       pref_service_->GetDict(prefs::kUserUninstalledPreinstalledWebAppPref);
@@ -170,7 +169,7 @@ bool UserUninstalledPreinstalledWebAppPrefs::RemoveByAppId(
 }
 
 bool UserUninstalledPreinstalledWebAppPrefs::AppIdContainsAllUrls(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const base::flat_map<WebAppManagement::Type,
                          WebApp::ExternalManagementConfig>& url_map,
     const bool only_default) {
@@ -201,5 +200,11 @@ bool UserUninstalledPreinstalledWebAppPrefs::AppIdContainsAllUrls(
   }
   return true;
 }
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+void UserUninstalledPreinstalledWebAppPrefs::ClearAllApps() {
+  pref_service_->ClearPref(prefs::kUserUninstalledPreinstalledWebAppPref);
+}
+#endif
 
 }  // namespace web_app

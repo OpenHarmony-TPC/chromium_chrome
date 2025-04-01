@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/functional/bind.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/extension_view_host.h"
 #include "chrome/browser/profiles/profile.h"
@@ -26,6 +27,9 @@ ExtensionViewViews::ExtensionViewViews(extensions::ExtensionViewHost* host)
     : views::WebView(host->GetBrowser() ? host->GetBrowser()->profile()
                                         : nullptr),
       host_(host) {
+  web_contents_attached_subscription_ =
+      AddWebContentsAttachedCallback(base::BindRepeating(
+          &ExtensionViewViews::OnWebContentsAttached, base::Unretained(this)));
   host_->set_view(this);
   SetWebContents(host_->web_contents());
 }
@@ -35,9 +39,7 @@ ExtensionViewViews::~ExtensionViewViews() {
     parent()->RemoveChildView(this);
   }
 
-  for (auto& observer : observers_) {
-    observer.OnViewDestroying();
-  }
+  observers_.Notify(&Observer::OnViewDestroying);
 }
 
 void ExtensionViewViews::Init() {
@@ -92,7 +94,7 @@ void ExtensionViewViews::SetContainer(
 }
 
 ExtensionViewViews::Container* ExtensionViewViews::GetContainer() const {
-  return container_;
+  return container_.get();
 }
 
 void ExtensionViewViews::AddObserver(Observer* observer) {
@@ -127,7 +129,7 @@ void ExtensionViewViews::RenderFrameCreated(
 
 bool ExtensionViewViews::HandleKeyboardEvent(
     content::WebContents* source,
-    const content::NativeWebKeyboardEvent& event) {
+    const input::NativeWebKeyboardEvent& event) {
   return unhandled_keyboard_event_handler_.HandleKeyboardEvent(
       event, GetFocusManager());
 }
@@ -148,18 +150,12 @@ ui::Cursor ExtensionViewViews::GetCursor(const ui::MouseEvent& event) {
   return ui::Cursor();
 }
 
-void ExtensionViewViews::PreferredSizeChanged() {
-  View::PreferredSizeChanged();
-  if (container_)
-    container_->OnExtensionSizeChanged(this);
-}
-
-void ExtensionViewViews::OnWebContentsAttached() {
+void ExtensionViewViews::OnWebContentsAttached(views::WebView*) {
   host_->CreateRendererSoon();
   SetVisible(false);
 }
 
-BEGIN_METADATA(ExtensionViewViews, views::WebView)
+BEGIN_METADATA(ExtensionViewViews)
 ADD_PROPERTY_METADATA(gfx::Size, MinimumSize)
 ADD_PROPERTY_METADATA(ExtensionViewViews::Container*, Container)
 END_METADATA

@@ -7,7 +7,9 @@
 #include <stddef.h>
 
 #include <memory>
+#include <string_view>
 
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ref_counted_memory.h"
@@ -31,8 +33,8 @@
 #include "extensions/common/manifest_handlers/icons_handler.h"
 #include "extensions/grit/extensions_browser_resources.h"
 #include "skia/ext/image_operations.h"
-#include "ui/base/layout.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/favicon_size.h"
@@ -45,9 +47,14 @@ namespace extensions {
 namespace {
 
 scoped_refptr<base::RefCountedMemory> BitmapToMemory(const SkBitmap* image) {
-  auto image_bytes = base::MakeRefCounted<base::RefCountedBytes>();
-  gfx::PNGCodec::EncodeBGRASkBitmap(*image, false, &image_bytes->data());
-  return image_bytes;
+  std::optional<std::vector<uint8_t>> encoded =
+      gfx::PNGCodec::EncodeBGRASkBitmap(*image, /*discard_transparency=*/false);
+  if (!encoded) {
+    return base::MakeRefCounted<base::RefCountedBytes>();
+  }
+
+  return base::MakeRefCounted<base::RefCountedBytes>(
+      std::move(encoded.value()));
 }
 
 SkBitmap DesaturateImage(const SkBitmap* image) {
@@ -55,11 +62,11 @@ SkBitmap DesaturateImage(const SkBitmap* image) {
   return SkBitmapOperations::CreateHSLShiftedBitmap(*image, shift);
 }
 
-SkBitmap* ToBitmap(const unsigned char* data, size_t size) {
-  SkBitmap* decoded = new SkBitmap();
-  bool success = gfx::PNGCodec::Decode(data, size, decoded);
-  DCHECK(success);
-  return decoded;
+std::unique_ptr<SkBitmap> ToBitmap(base::span<const uint8_t> data) {
+  auto result = std::make_unique<SkBitmap>();
+  *result = gfx::PNGCodec::Decode(data);
+  DCHECK(!result->isNull());
+  return result;
 }
 
 }  // namespace
@@ -72,13 +79,13 @@ struct ExtensionIconSource::ExtensionIconRequest {
   scoped_refptr<const Extension> extension;
   bool grayscale;
   int size;
-  ExtensionIconSet::MatchType match;
+  ExtensionIconSet::Match match;
 };
 
 // static
 GURL ExtensionIconSource::GetIconURL(const Extension* extension,
                                      int icon_size,
-                                     ExtensionIconSet::MatchType match,
+                                     ExtensionIconSet::Match match,
                                      bool grayscale) {
   return GetIconURL(extension->id(), icon_size, match, grayscale);
 }
@@ -86,25 +93,23 @@ GURL ExtensionIconSource::GetIconURL(const Extension* extension,
 // static
 GURL ExtensionIconSource::GetIconURL(const std::string& extension_id,
                                      int icon_size,
-                                     ExtensionIconSet::MatchType match,
+                                     ExtensionIconSet::Match match,
                                      bool grayscale) {
   GURL icon_url(base::StringPrintf(
       "%s%s/%d/%d%s", chrome::kChromeUIExtensionIconURL, extension_id.c_str(),
-      icon_size, match, grayscale ? "?grayscale=true" : ""));
+      icon_size, static_cast<int>(match), grayscale ? "?grayscale=true" : ""));
   CHECK(icon_url.is_valid());
   return icon_url;
 }
 
 // static
-SkBitmap* ExtensionIconSource::LoadImageByResourceId(int resource_id) {
-  base::StringPiece contents =
+std::unique_ptr<SkBitmap> ExtensionIconSource::LoadImageByResourceId(
+    int resource_id) {
+  std::string_view contents =
       ui::ResourceBundle::GetSharedInstance().GetRawDataResourceForScale(
           resource_id, ui::k100Percent);
 
-  // Convert and return it.
-  const unsigned char* data =
-      reinterpret_cast<const unsigned char*>(contents.data());
-  return ToBitmap(data, contents.length());
+  return ToBitmap(base::as_byte_span(contents));
 }
 
 std::string ExtensionIconSource::GetSource() {
@@ -151,20 +156,19 @@ bool ExtensionIconSource::AllowCaching() {
   return false;
 }
 
-ExtensionIconSource::~ExtensionIconSource() {
-}
+ExtensionIconSource::~ExtensionIconSource() {}
 
 const SkBitmap* ExtensionIconSource::GetDefaultAppImage() {
-  if (!default_app_data_.get())
-    default_app_data_.reset(LoadImageByResourceId(IDR_APP_DEFAULT_ICON));
+  if (!default_app_data_.get()) {
+    default_app_data_ = LoadImageByResourceId(IDR_APP_DEFAULT_ICON);
+  }
 
   return default_app_data_.get();
 }
 
 const SkBitmap* ExtensionIconSource::GetDefaultExtensionImage() {
   if (!default_extension_data_.get()) {
-    default_extension_data_.reset(
-        LoadImageByResourceId(IDR_EXTENSION_DEFAULT_ICON));
+    default_extension_data_ = LoadImageByResourceId(IDR_EXTENSION_DEFAULT_ICON);
   }
 
   return default_extension_data_.get();
@@ -251,8 +255,7 @@ void ExtensionIconSource::OnFaviconDataAvailable(
     std::move(request->callback).Run(bitmap_result.bitmap_data.get());
     ClearData(request_id);
   } else {
-    FinalizeImage(ToBitmap(bitmap_result.bitmap_data->front(),
-                           bitmap_result.bitmap_data->size()), request_id);
+    FinalizeImage(ToBitmap(*bitmap_result.bitmap_data).get(), request_id);
   }
 }
 
@@ -296,15 +299,16 @@ bool ExtensionIconSource::ParseData(
   if (size <= 0 || size > extension_misc::EXTENSION_ICON_GIGANTOR)
     return false;
 
-  ExtensionIconSet::MatchType match_type;
+  ExtensionIconSet::Match match_type;
   int match_num;
   if (!base::StringToInt(match_param, &match_num))
     return false;
-  match_type = static_cast<ExtensionIconSet::MatchType>(match_num);
-  if (!(match_type == ExtensionIconSet::MATCH_EXACTLY ||
-        match_type == ExtensionIconSet::MATCH_SMALLER ||
-        match_type == ExtensionIconSet::MATCH_BIGGER))
-    match_type = ExtensionIconSet::MATCH_EXACTLY;
+  match_type = static_cast<ExtensionIconSet::Match>(match_num);
+  if (!(match_type == ExtensionIconSet::Match::kExactly ||
+        match_type == ExtensionIconSet::Match::kSmaller ||
+        match_type == ExtensionIconSet::Match::kBigger)) {
+    match_type = ExtensionIconSet::Match::kExactly;
+  }
 
   std::string extension_id = path_parts.at(0);
   const Extension* extension =
@@ -326,7 +330,7 @@ void ExtensionIconSource::SetData(
     const Extension* extension,
     bool grayscale,
     int size,
-    ExtensionIconSet::MatchType match) {
+    ExtensionIconSet::Match match) {
   std::unique_ptr<ExtensionIconRequest> request =
       std::make_unique<ExtensionIconRequest>();
   request->callback = std::move(callback);

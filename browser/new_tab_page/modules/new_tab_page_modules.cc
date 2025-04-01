@@ -15,6 +15,7 @@
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/history_clusters/core/features.h"
 #include "components/page_image_service/features.h"
 #include "components/search/ntp_features.h"
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
@@ -24,45 +25,35 @@
 namespace ntp {
 
 const std::vector<std::pair<const std::string, int>> MakeModuleIdNames(
-    bool drive_module_enabled) {
+    bool is_managed_profile,
+    Profile* profile) {
   std::vector<std::pair<const std::string, int>> details;
 
-  if (base::FeatureList::IsEnabled(ntp_features::kNtpHistoryClustersModule) &&
-      base::FeatureList::IsEnabled(page_image_service::kImageService)) {
-    details.emplace_back("history_clusters",
-                         IDS_HISTORY_CLUSTERS_JOURNEYS_TAB_LABEL);
+  if (IsGoogleCalendarModuleEnabled(is_managed_profile)) {
+    details.emplace_back("google_calendar",
+                         IDS_NTP_MODULES_GOOGLE_CALENDAR_TITLE);
   }
 
-  if (IsRecipeTasksModuleEnabled()) {
-    std::vector<std::string> splitExperimentGroup = base::SplitString(
-        base::GetFieldTrialParamValueByFeature(
-            ntp_features::kNtpRecipeTasksModule,
-            ntp_features::kNtpRecipeTasksModuleExperimentGroupParam),
-        "-", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
-    bool recipes_historical_experiment_enabled =
-        !splitExperimentGroup.empty() &&
-        splitExperimentGroup[0] == "historical";
-
-    details.emplace_back("recipe_tasks",
-                         recipes_historical_experiment_enabled
-                             ? IDS_NTP_MODULES_RECIPE_VIEWED_TASKS_SENTENCE
-                             : IDS_NTP_MODULES_RECIPE_TASKS_SENTENCE);
+  if (IsOutlookCalendarModuleEnabled(is_managed_profile)) {
+    details.emplace_back("outlook_calendar",
+                         IDS_NTP_MODULES_OUTLOOK_CALENDAR_TITLE);
   }
 
-  if (IsCartModuleEnabled() &&
-      (!base::FeatureList::IsEnabled(
-           ntp_features::kNtpChromeCartInHistoryClusterModule) ||
-       base::FeatureList::IsEnabled(
-           ntp_features::kNtpChromeCartHistoryClusterCoexist))) {
-    details.emplace_back("chrome_cart", IDS_NTP_MODULES_CART_SENTENCE);
+  if (IsDriveModuleEnabledForProfile(is_managed_profile, profile)) {
+    details.emplace_back("drive", IDS_NTP_MODULES_DRIVE_NAME);
   }
 
-  if (drive_module_enabled) {
-    details.emplace_back("drive", IDS_NTP_MODULES_DRIVE_SENTENCE);
+  // TODO(crbug.com/372722777): Implement something similar to
+  // `IsDriveModuleEnabledForProfile()` that limits who can see the sharepoint
+  // module.
+  if (base::FeatureList::IsEnabled(ntp_features::kNtpSharepointModule)) {
+    details.emplace_back("sharepoint", IDS_NTP_MODULES_SHAREPOINT_NAME);
   }
 
-  if (base::FeatureList::IsEnabled(ntp_features::kNtpPhotosModule)) {
-    details.emplace_back("photos", IDS_NTP_MODULES_PHOTOS_MEMORIES_TITLE);
+  if (base::FeatureList::IsEnabled(
+          ntp_features::kNtpMostRelevantTabResumptionModule)) {
+    details.emplace_back("tab_resumption",
+                         IDS_NTP_MODULES_MOST_RELEVANT_TAB_RESUMPTION_TITLE);
   }
 
   if (base::FeatureList::IsEnabled(ntp_features::kNtpFeedModule)) {
@@ -72,11 +63,6 @@ const std::vector<std::pair<const std::string, int>> MakeModuleIdNames(
 #if !defined(OFFICIAL_BUILD)
   if (base::FeatureList::IsEnabled(ntp_features::kNtpDummyModules)) {
     details.emplace_back("dummy", IDS_NTP_MODULES_DUMMY_TITLE);
-
-    for (int i = 2; i <= 12; i++) {
-      details.emplace_back(base::StringPrintf("dummy%d", i),
-                           IDS_NTP_MODULES_DUMMY2_TITLE);
-    }
   }
 #endif
 
@@ -92,7 +78,8 @@ bool HasModulesEnabled(
               switches::kSignedOutNtpModulesSwitch) ||
           (/* Can be null if Chrome signin is disabled. */ identity_manager &&
            identity_manager->GetAccountsInCookieJar()
-                   .signed_in_accounts.size() > 0));
+                   .GetPotentiallyInvalidSignedInAccounts()
+                   .size() > 0));
 }
 
 }  // namespace ntp

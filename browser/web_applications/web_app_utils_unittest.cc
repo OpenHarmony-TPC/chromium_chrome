@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "ash/constants/web_app_id_constants.h"
 #include "base/containers/adapters.h"
 #include "base/files/file_path.h"
 #include "base/test/scoped_feature_list.h"
@@ -223,12 +224,6 @@ TEST_F(WebAppUtilsTest, AreWebAppsEnabled) {
   EXPECT_FALSE(AreWebAppsEnabled(
       signin_profile->GetPrimaryOTRProfile(/*create_if_needed=*/true)));
 
-  Profile* lock_screen_profile = profile_manager().CreateTestingProfile(
-      ash::kLockScreenAppBrowserContextBaseName);
-  EXPECT_TRUE(AreWebAppsEnabled(lock_screen_profile));
-  EXPECT_TRUE(AreWebAppsEnabled(
-      lock_screen_profile->GetPrimaryOTRProfile(/*create_if_needed=*/true)));
-
   const AccountId account_id = AccountId::FromUserEmail("test@test");
   {
     auto user_manager = std::make_unique<ash::FakeChromeUserManager>();
@@ -236,8 +231,6 @@ TEST_F(WebAppUtilsTest, AreWebAppsEnabled) {
     EXPECT_TRUE(AreWebAppsEnabled(regular_profile));
   }
   {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndDisableFeature(features::kKioskEnableAppService);
     auto user_manager = std::make_unique<ash::FakeChromeUserManager>();
     auto* user = user_manager->AddKioskAppUser(account_id);
     user_manager->UserLoggedIn(user->GetAccountId(), user->username_hash(),
@@ -247,31 +240,13 @@ TEST_F(WebAppUtilsTest, AreWebAppsEnabled) {
   }
   {
     base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndDisableFeature(features::kKioskEnableAppService);
-    auto user_manager = std::make_unique<ash::FakeChromeUserManager>();
-    auto* user = user_manager->AddWebKioskAppUser(account_id);
-    user_manager->UserLoggedIn(user->GetAccountId(), user->username_hash(),
-                               /*browser_restart=*/false, /*is_child=*/false);
-    user_manager::ScopedUserManager enabler(std::move(user_manager));
-    EXPECT_FALSE(AreWebAppsEnabled(regular_profile));
-  }
-  {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndDisableFeature(features::kKioskEnableAppService);
-    auto user_manager = std::make_unique<ash::FakeChromeUserManager>();
-    auto* user = user_manager->AddArcKioskAppUser(account_id);
-    user_manager->UserLoggedIn(user->GetAccountId(), user->username_hash(),
-                               /*browser_restart=*/false, /*is_child=*/false);
-    user_manager::ScopedUserManager enabler(std::move(user_manager));
-    EXPECT_FALSE(AreWebAppsEnabled(regular_profile));
-  }
-  {
+    feature_list.InitAndEnableFeature(features::kKioskEnableSystemWebApps);
     auto user_manager = std::make_unique<ash::FakeChromeUserManager>();
     auto* user = user_manager->AddKioskAppUser(account_id);
     user_manager->UserLoggedIn(user->GetAccountId(), user->username_hash(),
                                /*browser_restart=*/false, /*is_child=*/false);
     user_manager::ScopedUserManager enabler(std::move(user_manager));
-    EXPECT_FALSE(AreWebAppsEnabled(regular_profile));
+    EXPECT_TRUE(AreWebAppsEnabled(regular_profile));
   }
   {
     auto user_manager = std::make_unique<ash::FakeChromeUserManager>();
@@ -280,14 +255,6 @@ TEST_F(WebAppUtilsTest, AreWebAppsEnabled) {
                                /*browser_restart=*/false, /*is_child=*/false);
     user_manager::ScopedUserManager enabler(std::move(user_manager));
     EXPECT_TRUE(AreWebAppsEnabled(regular_profile));
-  }
-  {
-    auto user_manager = std::make_unique<ash::FakeChromeUserManager>();
-    auto* user = user_manager->AddArcKioskAppUser(account_id);
-    user_manager->UserLoggedIn(user->GetAccountId(), user->username_hash(),
-                               /*browser_restart=*/false, /*is_child=*/false);
-    user_manager::ScopedUserManager enabler(std::move(user_manager));
-    EXPECT_FALSE(AreWebAppsEnabled(regular_profile));
   }
 #endif
 }
@@ -326,12 +293,6 @@ TEST_F(WebAppUtilsTest, AreWebAppsUserInstallable) {
   EXPECT_FALSE(AreWebAppsUserInstallable(signin_profile));
   EXPECT_FALSE(AreWebAppsUserInstallable(
       signin_profile->GetPrimaryOTRProfile(/*create_if_needed=*/true)));
-
-  Profile* lock_screen_profile = profile_manager().CreateTestingProfile(
-      ash::kLockScreenAppBrowserContextBaseName);
-  EXPECT_FALSE(AreWebAppsUserInstallable(lock_screen_profile));
-  EXPECT_FALSE(AreWebAppsUserInstallable(
-      lock_screen_profile->GetPrimaryOTRProfile(/*create_if_needed=*/true)));
 #endif
 }
 
@@ -404,5 +365,24 @@ TEST_F(WebAppUtilsTest, GetBrowserContextForWebAppMetrics) {
           system_profile->GetPrimaryOTRProfile(/*create_if_needed=*/true)));
 #endif
 }
+
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && BUILDFLAG(IS_CHROMEOS)
+// TODO(http://b/331208955): Remove after migration.
+TEST_F(WebAppUtilsTest, CanUserUninstalGeminiApp) {
+  EXPECT_FALSE(CanUserUninstallWebApp(
+      ash::kGeminiAppId, WebAppManagementTypes({WebAppManagement::kDefault})));
+  EXPECT_TRUE(CanUserUninstallWebApp(
+      ash::kGeminiAppId, WebAppManagementTypes({WebAppManagement::kSync})));
+}
+
+// TODO(http://b/331208955): Remove after migration.
+TEST_F(WebAppUtilsTest, GeminiAppWillBeSystemWebApp) {
+  for (auto src : WebAppManagementTypes::All()) {
+    EXPECT_THAT(
+        WillBeSystemWebApp(ash::kGeminiAppId, WebAppManagementTypes({src})),
+        src == WebAppManagement::kDefault);
+  }
+}
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING) && BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace web_app

@@ -20,6 +20,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
@@ -28,6 +29,7 @@ import org.chromium.base.test.util.UrlUtils;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.history.HistoryManagerUtils;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
@@ -35,14 +37,11 @@ import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.NavigationEntry;
 import org.chromium.content_public.browser.NavigationHistory;
 import org.chromium.content_public.browser.test.mock.MockNavigationController;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.url.GURL;
 
 import java.util.concurrent.ExecutionException;
 
-/**
- * Tests for the navigation popup.
- */
+/** Tests for the navigation popup. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class NavigationPopupTest {
@@ -58,10 +57,25 @@ public class NavigationPopupTest {
 
     // Exists solely to expose protected methods to this test.
     private static class TestNavigationEntry extends NavigationEntry {
-        public TestNavigationEntry(int index, GURL url, GURL virtualUrl, GURL originalUrl,
-                String title, Bitmap favicon, int transition, long timestamp) {
-            super(index, url, virtualUrl, originalUrl, title, favicon, transition, timestamp,
-                    /* isInitialEntry=*/false);
+        public TestNavigationEntry(
+                int index,
+                GURL url,
+                GURL virtualUrl,
+                GURL originalUrl,
+                String title,
+                Bitmap favicon,
+                int transition,
+                long timestamp) {
+            super(
+                    index,
+                    url,
+                    virtualUrl,
+                    originalUrl,
+                    title,
+                    favicon,
+                    transition,
+                    timestamp,
+                    /* isInitialEntry= */ false);
         }
     }
 
@@ -71,11 +85,26 @@ public class NavigationPopupTest {
 
         public TestNavigationController() {
             mHistory = new NavigationHistory();
-            mHistory.addEntry(new TestNavigationEntry(
-                    1, new GURL("about:blank"), GURL.emptyGURL(), null, "About Blank", null, 0, 0));
-            mHistory.addEntry(new TestNavigationEntry(5,
-                    new GURL(UrlUtils.encodeHtmlDataUri("<html>1</html>")), GURL.emptyGURL(),
-                    GURL.emptyGURL(), null, null, 0, 0));
+            mHistory.addEntry(
+                    new TestNavigationEntry(
+                            1,
+                            new GURL("about:blank"),
+                            GURL.emptyGURL(),
+                            null,
+                            "About Blank",
+                            null,
+                            0,
+                            0));
+            mHistory.addEntry(
+                    new TestNavigationEntry(
+                            5,
+                            new GURL(UrlUtils.encodeHtmlDataUri("<html>1</html>")),
+                            GURL.emptyGURL(),
+                            GURL.emptyGURL(),
+                            null,
+                            null,
+                            0,
+                            0));
         }
 
         @Override
@@ -100,15 +129,18 @@ public class NavigationPopupTest {
         final TestNavigationController controller = new TestNavigationController();
         final ListPopupWindow popup = showPopup(controller, false);
 
-        CriteriaHelper.pollUiThread(() -> {
-            NavigationHistory history = controller.mHistory;
-            for (int i = 0; i < history.getEntryCount(); i++) {
-                Criteria.checkThat("Favicon[" + i + "] not updated",
-                        history.getEntryAtIndex(i).getFavicon(), Matchers.notNullValue());
-            }
-        });
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    NavigationHistory history = controller.mHistory;
+                    for (int i = 0; i < history.getEntryCount(); i++) {
+                        Criteria.checkThat(
+                                "Favicon[" + i + "] not updated",
+                                history.getEntryAtIndex(i).getFavicon(),
+                                Matchers.notNullValue());
+                    }
+                });
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> popup.dismiss());
+        ThreadUtils.runOnUiThreadBlocking(() -> popup.dismiss());
     }
 
     @Test
@@ -118,7 +150,7 @@ public class NavigationPopupTest {
         final TestNavigationController controller = new TestNavigationController();
         final ListPopupWindow popup = showPopup(controller, false);
 
-        TestThreadUtils.runOnUiThreadBlocking((Runnable) () -> popup.performItemClick(1));
+        ThreadUtils.runOnUiThreadBlocking((Runnable) () -> popup.performItemClick(1));
 
         Assert.assertFalse("Popup did not hide as expected.", popup.isShowing());
         Assert.assertEquals(
@@ -132,14 +164,17 @@ public class NavigationPopupTest {
         final TestNavigationController controller = new TestNavigationController();
         final ListPopupWindow popup = showPopup(controller, false);
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            ListView list = popup.getListView();
-            View view = list.getAdapter().getView(list.getAdapter().getCount() - 1, null, list);
-            TextView text = (TextView) view.findViewById(R.id.entry_title);
-            Assert.assertNotNull(text);
-            Assert.assertEquals(text.getResources().getString(R.string.show_full_history),
-                    text.getText().toString());
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ListView list = popup.getListView();
+                    View view =
+                            list.getAdapter().getView(list.getAdapter().getCount() - 1, null, list);
+                    TextView text = view.findViewById(R.id.entry_title);
+                    Assert.assertNotNull(text);
+                    Assert.assertEquals(
+                            text.getResources().getString(R.string.show_full_history),
+                            text.getText().toString());
+                });
     }
 
     @Test
@@ -149,32 +184,42 @@ public class NavigationPopupTest {
         final TestNavigationController controller = new TestNavigationController();
         final ListPopupWindow popup = showPopup(controller, true);
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            ListView list = popup.getListView();
-            View view = list.getAdapter().getView(list.getAdapter().getCount() - 1, null, list);
-            TextView text = (TextView) view.findViewById(R.id.entry_title);
-            Assert.assertNotNull(text);
-            Assert.assertNotEquals(text.getResources().getString(R.string.show_full_history),
-                    text.getText().toString());
-            Assert.assertEquals(controller.getEntryCount(), list.getAdapter().getCount());
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ListView list = popup.getListView();
+                    View view =
+                            list.getAdapter().getView(list.getAdapter().getCount() - 1, null, list);
+                    TextView text = view.findViewById(R.id.entry_title);
+                    Assert.assertNotNull(text);
+                    Assert.assertNotEquals(
+                            text.getResources().getString(R.string.show_full_history),
+                            text.getText().toString());
+                    Assert.assertEquals(controller.getEntryCount(), list.getAdapter().getCount());
+                });
     }
 
     private ListPopupWindow showPopup(NavigationController controller, boolean isOffTheRecord)
             throws ExecutionException {
-        return TestThreadUtils.runOnUiThreadBlocking(() -> {
-            Profile profile = Profile.getLastUsedRegularProfile();
-            if (isOffTheRecord) {
-                profile = profile.getPrimaryOTRProfile(true);
-            }
-            NavigationPopup popup = new NavigationPopup(profile, mActivityTestRule.getActivity(),
-                    controller, NavigationPopup.Type.TABLET_FORWARD,
-                    mActivityTestRule.getActivity().getActivityTabProvider(),
-                    HistoryManagerUtils::showHistoryManager);
-            popup.show(mActivityTestRule.getActivity()
-                               .getToolbarManager()
-                               .getToolbarLayoutForTesting());
-            return popup.getPopupForTesting();
-        });
+        return ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Profile profile = ProfileManager.getLastUsedRegularProfile();
+                    if (isOffTheRecord) {
+                        profile = profile.getPrimaryOtrProfile(true);
+                    }
+                    NavigationPopup popup =
+                            new NavigationPopup(
+                                    profile,
+                                    mActivityTestRule.getActivity(),
+                                    controller,
+                                    NavigationPopup.Type.TABLET_FORWARD,
+                                    mActivityTestRule.getActivity().getActivityTabProvider(),
+                                    HistoryManagerUtils::showHistoryManager);
+                    popup.show(
+                            mActivityTestRule
+                                    .getActivity()
+                                    .getToolbarManager()
+                                    .getToolbarLayoutForTesting());
+                    return popup.getPopupForTesting();
+                });
     }
 }

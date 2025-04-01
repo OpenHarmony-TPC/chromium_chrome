@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_WEB_APPLICATIONS_ISOLATED_WEB_APPS_GET_ISOLATED_WEB_APP_BROWSING_DATA_COMMAND_H_
 
 #include <memory>
+#include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
@@ -23,14 +24,14 @@ class Origin;
 
 namespace web_app {
 
-class AllAppsLock;
-class AllAppsLockDescription;
-class LockDescription;
+class GetIsolatedWebAppSizeJob;
+
+struct GetIsolatedWebAppSizeJobResult;
 
 // Computes the total browsing data usage in bytes of every installed Isolated
 // Web App.
 class GetIsolatedWebAppBrowsingDataCommand
-    : public WebAppCommandTemplate<AllAppsLock> {
+    : public WebAppCommand<AllAppsLock, base::flat_map<url::Origin, int64_t>> {
  public:
   using BrowsingDataCallback =
       base::OnceCallback<void(base::flat_map<url::Origin, int64_t>)>;
@@ -39,27 +40,18 @@ class GetIsolatedWebAppBrowsingDataCommand
                                        BrowsingDataCallback callback);
   ~GetIsolatedWebAppBrowsingDataCommand() override;
 
-  // WebAppCommandTemplate<AllAppsLock>:
-  const LockDescription& lock_description() const override;
-  base::Value ToDebugValue() const override;
+  // WebAppCommand:
   void StartWithLock(std::unique_ptr<AllAppsLock> lock) override;
-  void OnShutdown() override;
-  void OnSyncSourceRemoved() override {}
 
  private:
-  void StoragePartitionSizeFetched(const url::Origin& iwa_origin, int64_t size);
-  void MaybeCompleteCommand();
+  void CompleteCommand(
+      std::vector<std::optional<GetIsolatedWebAppSizeJobResult>>
+          app_size_results);
 
-  base::raw_ptr<Profile> profile_;
-  BrowsingDataCallback callback_;
-
-  std::unique_ptr<AllAppsLockDescription> lock_description_;
+  const raw_ref<Profile> profile_;
   std::unique_ptr<AllAppsLock> lock_;
-
-  int pending_task_count_ = 0;
-  base::flat_map<url::Origin, int64_t> browsing_data_;
-
-  base::Value::Dict debug_data_;
+  std::vector<std::unique_ptr<GetIsolatedWebAppSizeJob>>
+      get_isolated_web_app_size_jobs_;
 
   base::WeakPtrFactory<GetIsolatedWebAppBrowsingDataCommand> weak_factory_{
       this};

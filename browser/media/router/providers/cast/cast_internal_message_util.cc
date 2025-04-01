@@ -5,6 +5,7 @@
 #include "chrome/browser/media/router/providers/cast/cast_internal_message_util.h"
 
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/base64url.h"
@@ -12,11 +13,13 @@
 #include "base/json/json_writer.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/escape.h"
-#include "base/strings/string_piece.h"
 #include "components/media_router/common/discovery/media_sink_internal.h"
 #include "components/media_router/common/providers/cast/cast_media_source.h"
-#include "components/media_router/common/providers/cast/channel/cast_socket.h"
+#include "components/media_router/common/providers/cast/channel/cast_device_capability.h"
 #include "components/media_router/common/providers/cast/channel/enum_table.h"
+
+using cast_channel::CastDeviceCapability;
+using cast_channel::CastDeviceCapabilitySet;
 
 namespace cast_util {
 
@@ -109,28 +112,28 @@ CastInternalMessage::Type CastInternalMessageTypeFromString(
       CastInternalMessage::Type::kOther);
 }
 
-std::string CastInternalMessageTypeToString(CastInternalMessage::Type type) {
-  auto found = cast_util::EnumToString(type);
-  DCHECK(found);
-  return std::string(found.value_or(base::StringPiece()));
-}
-
 // Possible types in a receiver_action message.
 constexpr char kReceiverActionTypeCast[] = "cast";
 constexpr char kReceiverActionTypeStop[] = "stop";
 
-base::Value::List CapabilitiesToListValue(uint8_t capabilities) {
+base::Value::List CapabilitiesToListValue(
+    CastDeviceCapabilitySet capabilities) {
   base::Value::List value;
-  if (capabilities & cast_channel::VIDEO_OUT)
+  if (capabilities.Has(CastDeviceCapability::kVideoOut)) {
     value.Append("video_out");
-  if (capabilities & cast_channel::VIDEO_IN)
+  }
+  if (capabilities.Has(CastDeviceCapability::kVideoIn)) {
     value.Append("video_in");
-  if (capabilities & cast_channel::AUDIO_OUT)
+  }
+  if (capabilities.Has(CastDeviceCapability::kAudioOut)) {
     value.Append("audio_out");
-  if (capabilities & cast_channel::AUDIO_IN)
+  }
+  if (capabilities.Has(CastDeviceCapability::kAudioIn)) {
     value.Append("audio_in");
-  if (capabilities & cast_channel::MULTIZONE_GROUP)
+  }
+  if (capabilities.Has(CastDeviceCapability::kMultizoneGroup)) {
     value.Append("multizone_group");
+  }
   return value;
 }
 
@@ -165,7 +168,7 @@ blink::mojom::PresentationConnectionMessagePtr CreateMessageCommon(
     CastInternalMessage::Type type,
     base::Value::Dict payload,
     const std::string& client_id,
-    absl::optional<int> sequence_number = absl::nullopt) {
+    std::optional<int> sequence_number = std::nullopt) {
   base::Value::Dict message;
 
   message.Set("type", base::Value(CastInternalMessageTypeToString(type)));
@@ -203,8 +206,8 @@ blink::mojom::PresentationConnectionMessagePtr CreateReceiverActionMessage(
 
 base::Value::Dict CreateAppMessageBody(
     const std::string& session_id,
-    const cast::channel::CastMessage& cast_message) {
-  // TODO(https://crbug.com/862532): Investigate whether it is possible to move
+    const openscreen::cast::proto::CastMessage& cast_message) {
+  // TODO(crbug.com/41400942): Investigate whether it is possible to move
   // instead of copying the contents of |cast_message|. Right now copying is
   // done because the message is passed as a const ref at the
   // CastSocket::Observer level.
@@ -212,10 +215,10 @@ base::Value::Dict CreateAppMessageBody(
   message.Set("sessionId", base::Value(session_id));
   message.Set("namespaceName", base::Value(cast_message.namespace_()));
   switch (cast_message.payload_type()) {
-    case cast::channel::CastMessage_PayloadType_STRING:
+    case openscreen::cast::proto::CastMessage_PayloadType_STRING:
       message.Set("message", base::Value(cast_message.payload_utf8()));
       break;
-    case cast::channel::CastMessage_PayloadType_BINARY: {
+    case openscreen::cast::proto::CastMessage_PayloadType_BINARY: {
       const auto& payload = cast_message.payload_binary();
       message.Set("message",
                   base::Value(base::Value::BlobStorage(
@@ -224,7 +227,6 @@ base::Value::Dict CreateAppMessageBody(
     }
     default:
       NOTREACHED();
-      break;
   }
   return message;
 }
@@ -279,7 +281,7 @@ std::unique_ptr<CastInternalMessage> CastInternalMessage::From(
     return nullptr;
   }
 
-  absl::optional<int> sequence_number = message.FindInt("sequenceNumber");
+  std::optional<int> sequence_number = message.FindInt("sequenceNumber");
 
   std::string session_id;
   std::string namespace_or_v2_type;
@@ -331,7 +333,7 @@ CastInternalMessage::~CastInternalMessage() = default;
 CastInternalMessage::CastInternalMessage(
     Type type,
     const std::string& client_id,
-    absl::optional<int> sequence_number,
+    std::optional<int> sequence_number,
     const std::string& session_id,
     const std::string& namespace_or_v2_type,
     base::Value message_body)
@@ -424,6 +426,12 @@ std::unique_ptr<CastSession> CastSession::From(
   return session;
 }
 
+std::string CastInternalMessageTypeToString(CastInternalMessage::Type type) {
+  auto found = cast_util::EnumToString(type);
+  DCHECK(found);
+  return std::string(found.value_or(std::string_view()));
+}
+
 CastSession::CastSession() = default;
 CastSession::~CastSession() = default;
 
@@ -495,7 +503,7 @@ blink::mojom::PresentationConnectionMessagePtr CreateAppMessageAck(
 blink::mojom::PresentationConnectionMessagePtr CreateAppMessage(
     const std::string& session_id,
     const std::string& client_id,
-    const cast::channel::CastMessage& cast_message) {
+    const openscreen::cast::proto::CastMessage& cast_message) {
   return CreateMessageCommon(CastInternalMessage::Type::kAppMessage,
                              CreateAppMessageBody(session_id, cast_message),
                              client_id);
@@ -504,14 +512,14 @@ blink::mojom::PresentationConnectionMessagePtr CreateAppMessage(
 blink::mojom::PresentationConnectionMessagePtr CreateV2Message(
     const std::string& client_id,
     const base::Value::Dict& payload,
-    absl::optional<int> sequence_number) {
+    std::optional<int> sequence_number) {
   return CreateMessageCommon(CastInternalMessage::Type::kV2Message,
                              payload.Clone(), client_id, sequence_number);
 }
 
 blink::mojom::PresentationConnectionMessagePtr CreateLeaveSessionAckMessage(
     const std::string& client_id,
-    absl::optional<int> sequence_number) {
+    std::optional<int> sequence_number) {
   return CreateMessageCommon(CastInternalMessage::Type::kLeaveSession,
                              base::Value::Dict(), client_id, sequence_number);
 }
@@ -519,7 +527,7 @@ blink::mojom::PresentationConnectionMessagePtr CreateLeaveSessionAckMessage(
 blink::mojom::PresentationConnectionMessagePtr CreateErrorMessage(
     const std::string& client_id,
     base::Value::Dict error,
-    absl::optional<int> sequence_number) {
+    std::optional<int> sequence_number) {
   return CreateMessageCommon(CastInternalMessage::Type::kError,
                              std::move(error), client_id, sequence_number);
 }

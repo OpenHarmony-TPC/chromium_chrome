@@ -17,10 +17,6 @@
 #include "chrome/common/chrome_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(IS_FUCHSIA)
-#include "base/fuchsia/file_utils.h"
-#endif
-
 namespace chrome {
 
 // Test the behavior of chrome::GetUserCacheDirectory.
@@ -32,14 +28,13 @@ TEST(ChromePaths, UserCacheDir) {
 #if BUILDFLAG(IS_WIN)
   test_profile_dir = base::FilePath(FILE_PATH_LITERAL("C:\\Users\\Foo\\Bar"));
   expected_cache_dir = base::FilePath(FILE_PATH_LITERAL("C:\\Users\\Foo\\Bar"));
-#elif BUILDFLAG(IS_FUCHSIA)
-  // Fuchsia uses the Component's cache directory as the base.
-  expected_cache_dir = base::FilePath(base::kPersistedCacheDirectoryPath);
-  test_profile_dir =
-      base::FilePath(base::kPersistedDataDirectoryPath).Append("foobar");
-  expected_cache_dir = expected_cache_dir.Append("foobar");
 #elif BUILDFLAG(IS_MAC)
   ASSERT_TRUE(base::PathService::Get(base::DIR_APP_DATA, &test_profile_dir));
+  test_profile_dir = test_profile_dir.Append("foobar");
+  ASSERT_TRUE(base::PathService::Get(base::DIR_CACHE, &expected_cache_dir));
+  expected_cache_dir = expected_cache_dir.Append("foobar");
+#elif BUILDFLAG(IS_OHOS)
+  ASSERT_TRUE(base::PathService::Get(base::DIR_MODULE, &test_profile_dir));
   test_profile_dir = test_profile_dir.Append("foobar");
   ASSERT_TRUE(base::PathService::Get(base::DIR_CACHE, &expected_cache_dir));
   expected_cache_dir = expected_cache_dir.Append("foobar");
@@ -72,6 +67,9 @@ TEST(ChromePaths, UserCacheDir) {
   GetUserCacheDirectory(test_profile_dir, &cache_dir);
   EXPECT_EQ(expected_cache_dir.value(), cache_dir.value());
 
+#if !BUILDFLAG(IS_OHOS)
+  // do not support other random directory on ohos platform
+  // see GetUserCacheDirectory in src/chrome/common/chrome_paths_ohos.cc
   // Verify that a profile in some other random directory doesn't use
   // the special cache directory.
   base::FilePath non_special_profile_dir =
@@ -82,6 +80,7 @@ TEST(ChromePaths, UserCacheDir) {
   EXPECT_EQ(expected_cache_dir.value(), cache_dir.value());
 #else
   EXPECT_EQ(non_special_profile_dir.value(), cache_dir.value());
+#endif
 #endif
 }
 
@@ -100,7 +99,9 @@ TEST(ChromePaths, DefaultUserDataDir) {
   base::PathService::Get(base::DIR_HOME, &home_dir);
 
   std::string expected_branding;
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#if BUILDFLAG(GOOGLE_CHROME_FOR_TESTING_BRANDING)
+  std::string data_dir_basename = "google-chrome-for-testing";
+#elif BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // TODO(skobes): Test channel suffixes with $CHROME_VERSION_EXTRA.
   expected_branding = "google-chrome";
 #else

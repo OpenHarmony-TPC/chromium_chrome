@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "ash/constants/ash_features.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
@@ -33,6 +34,7 @@
 #include "crypto/scoped_nss_types.h"
 #include "crypto/scoped_test_nss_db.h"
 #include "crypto/scoped_test_system_nss_key_slot.h"
+#include "net/cert/cert_database.h"
 #include "net/cert/nss_cert_database.h"
 #include "net/cert/test_root_certs.h"
 #include "net/cert/x509_certificate.h"
@@ -74,6 +76,16 @@ class PlatformKeysTest : public PlatformKeysTestBase {
   PlatformKeysTest& operator=(const PlatformKeysTest&) = delete;
 
   void SetUpOnMainThread() override {
+    if (ash::features::IsCopyClientKeysCertsToChapsEnabled() &&
+        (user_client_cert_slot_ == UserClientCertSlot::kPublicSlot)) {
+      // There's an active effort to deprecate the public slot. Some components
+      // (e.g. Kcer) don't take it into account, which breaks tests, but they
+      // also don't have to consider it because with the
+      // CopyClientKeysCertsToChaps feature enabled all the necessary data is
+      // automatically copied from the public slot into the private slot.
+      GTEST_SKIP();
+    }
+
     base::AddTagToTestResult("feature_id",
                              "screenplay-63f95a00-bff8-4d81-9cf9-ccf5fdacbef0");
     if (!IsPreTest()) {
@@ -93,8 +105,9 @@ class PlatformKeysTest : public PlatformKeysTestBase {
 
     PlatformKeysTestBase::SetUpOnMainThread();
 
-    if (IsPreTest())
+    if (IsPreTest()) {
       return;
+    }
 
     {
       base::RunLoop loop;
@@ -105,8 +118,9 @@ class PlatformKeysTest : public PlatformKeysTestBase {
       loop.Run();
     }
 
-    if (user_status() != UserStatus::UNMANAGED && key_permission_policy_)
+    if (user_status() != UserStatus::UNMANAGED && key_permission_policy_) {
       SetupKeyPermissionUserPolicy();
+    }
   }
 
   void SetupKeyPermissionUserPolicy() {
@@ -201,8 +215,16 @@ class PlatformKeysTest : public PlatformKeysTestBase {
           extension_key_permissions_service) {
     auto* extension_key_permissions_service_unowned =
         extension_key_permissions_service.get();
+    std::vector<uint8_t> subject_public_key_info =
+        chromeos::platform_keys::GetSubjectPublicKeyInfoBlob(client_cert1_);
+
+    // Mimics the behaviour of the ExtensionPlatformKeysService, which sets the
+    // one-time signing permission when the key is registered for corporate
+    // usage.
+    extension_key_permissions_service_unowned
+        ->RegisterOneTimeSigningPermissionForKey(subject_public_key_info);
     extension_key_permissions_service_unowned->RegisterKeyForCorporateUsage(
-        chromeos::platform_keys::GetSubjectPublicKeyInfoBlob(client_cert1_),
+        subject_public_key_info,
         base::BindOnce(&PlatformKeysTest::OnKeyRegisteredForCorporateUsage,
                        base::Unretained(this),
                        std::move(extension_key_permissions_service),
@@ -240,6 +262,9 @@ class PlatformKeysTest : public PlatformKeysTestBase {
     client_cert3_ = net::ImportClientCertAndKeyFromFile(
         extension_path(), "client_3.pem", "client_3.pk8", slot.get());
     ASSERT_TRUE(client_cert3_.get());
+
+    // The main important observer for these tests is Kcer.
+    net::CertDatabase::GetInstance()->NotifyObserversClientCertStoreChanged();
   }
 
   void SetupTestCACerts() {
@@ -289,8 +314,9 @@ class TestSelectDelegate
         }
       }
     }
-    if (certs_to_select_.size() > 1)
+    if (certs_to_select_.size() > 1) {
       certs_to_select_.pop_back();
+    }
     std::move(callback).Run(selection);
   }
 
@@ -560,13 +586,14 @@ IN_PROC_BROWSER_TEST_P(ManagedWithPermissionPlatformKeysTest,
   // The policy grants access to corporate keys.
   // As the profile is managed, the user must not be able to grant any
   // certificate permission.
-  // If the user is not affilited, no corporate keys are available. Set up a
+  // If the user is not affiliated, no corporate keys are available. Set up a
   // delegate that fails on any invocation. If the user is affiliated, client_2
-  // on the system token will be avialable for selection, as it is implicitly
+  // on the system token will be available for selection, as it is implicitly
   // corporate.
   net::CertificateList certs;
-  if (user_status() == UserStatus::MANAGED_AFFILIATED_DOMAIN)
+  if (user_status() == UserStatus::MANAGED_AFFILIATED_DOMAIN) {
     certs.push_back(nullptr);
+  }
 
   GetExtensionPlatformKeysService()->SetSelectDelegate(
       std::make_unique<TestSelectDelegate>(certs));

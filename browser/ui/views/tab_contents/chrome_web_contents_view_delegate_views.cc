@@ -32,7 +32,7 @@ ChromeWebContentsViewDelegateViews::~ChromeWebContentsViewDelegateViews() =
     default;
 
 gfx::NativeWindow ChromeWebContentsViewDelegateViews::GetNativeWindow() {
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents_);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents_);
   return browser ? browser->window()->GetNativeWindow() : nullptr;
 }
 
@@ -91,6 +91,10 @@ void ChromeWebContentsViewDelegateViews::ShowMenu(
   context_menu_->Show();
 }
 
+bool ChromeWebContentsViewDelegateViews::IsMenuRunning() {
+  return context_menu_ && context_menu_->IsRunning();
+}
+
 void ChromeWebContentsViewDelegateViews::ShowContextMenu(
     content::RenderFrameHost& render_frame_host,
     const content::ContextMenuParams& params) {
@@ -107,10 +111,10 @@ void ChromeWebContentsViewDelegateViews::ExecuteCommandForTesting(
   context_menu_.reset();
 }
 
-void ChromeWebContentsViewDelegateViews::OnPerformDrop(
+void ChromeWebContentsViewDelegateViews::OnPerformingDrop(
     const content::DropData& drop_data,
     DropCompletionCallback callback) {
-  HandleOnPerformDrop(web_contents_, drop_data, std::move(callback));
+  HandleOnPerformingDrop(web_contents_, drop_data, std::move(callback));
 }
 
 std::unique_ptr<content::WebContentsViewDelegate> CreateWebContentsViewDelegate(

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ash/login/existing_user_controller.h"
+
 #include <string>
 #include <vector>
 
@@ -25,8 +27,6 @@
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs_factory.h"
 #include "chrome/browser/ash/arc/arc_util.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
-#include "chrome/browser/ash/authpolicy/authpolicy_credentials_manager.h"
-#include "chrome/browser/ash/login/existing_user_controller.h"
 #include "chrome/browser/ash/login/help_app_launcher.h"
 #include "chrome/browser/ash/login/helper.h"
 #include "chrome/browser/ash/login/lock/screen_locker_tester.h"
@@ -41,21 +41,18 @@
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
 #include "chrome/browser/ash/login/test/oobe_screens_utils.h"
 #include "chrome/browser/ash/login/test/user_policy_mixin.h"
-#include "chrome/browser/ash/login/ui/mock_login_display.h"
-#include "chrome/browser/ash/login/ui/mock_login_display_host.h"
-#include "chrome/browser/ash/login/ui/mock_signin_ui.h"
-#include "chrome/browser/ash/login/ui/signin_ui.h"
-#include "chrome/browser/ash/login/users/chrome_user_manager.h"
+#include "chrome/browser/ash/login/wizard_context.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
-#include "chrome/browser/ash/policy/core/device_local_account.h"
 #include "chrome/browser/ash/policy/core/device_local_account_policy_service.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/ui/ash/login/mock_login_display_host.h"
+#include "chrome/browser/ui/ash/login/mock_signin_ui.h"
+#include "chrome/browser/ui/ash/login/signin_ui.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/locale_switch_screen_handler.h"
@@ -65,13 +62,13 @@
 #include "chrome/test/base/fake_gaia_mixin.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
-#include "chromeos/ash/components/dbus/authpolicy/fake_authpolicy_client.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
 #include "chromeos/ash/components/dbus/userdataauth/fake_userdataauth_client.h"
 #include "chromeos/ash/components/login/auth/public/key.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
 #include "chromeos/ash/components/login/auth/stub_authenticator_builder.h"
 #include "chromeos/ash/components/network/network_state_test_helper.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/components/settings/cros_settings_provider.h"
 #include "chromeos/dbus/power/fake_power_manager_client.h"
@@ -83,6 +80,7 @@
 #include "components/policy/core/common/cloud/cloud_policy_store.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_store.h"
 #include "components/policy/core/common/cloud/test/policy_builder.h"
+#include "components/policy/core/common/device_local_account_type.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "components/policy/policy_constants.h"
 #include "components/policy/proto/chrome_device_policy.pb.h"
@@ -184,12 +182,13 @@ class UserProfileLoadedObserver
 }  // namespace
 
 class ExistingUserControllerTest : public policy::DevicePolicyCrosBrowserTest {
- protected:
-  ExistingUserControllerTest() = default;
-
+ public:
   ExistingUserControllerTest(const ExistingUserControllerTest&) = delete;
   ExistingUserControllerTest& operator=(const ExistingUserControllerTest&) =
       delete;
+
+ protected:
+  ExistingUserControllerTest() = default;
 
   ExistingUserController* existing_user_controller() {
     return ExistingUserController::current_controller();
@@ -203,19 +202,16 @@ class ExistingUserControllerTest : public policy::DevicePolicyCrosBrowserTest {
     DevicePolicyCrosBrowserTest::SetUpInProcessBrowserTestFixture();
 
     mock_login_display_host_ = std::make_unique<MockLoginDisplayHost>();
-    mock_login_display_ = std::make_unique<MockLoginDisplay>();
     mock_signin_ui_ = std::make_unique<MockSigninUI>();
     SetUpLoginDisplay();
   }
 
   virtual void SetUpLoginDisplay() {
-    EXPECT_CALL(*mock_login_display_host_, GetLoginDisplay())
-        .Times(AnyNumber())
-        .WillRepeatedly(Return(mock_login_display_.get()));
-    EXPECT_CALL(*mock_login_display_host_, GetSigninUI())
-        .Times(AnyNumber())
-        .WillRepeatedly(Return(mock_signin_ui_.get()));
-    EXPECT_CALL(*mock_login_display_, Init(_)).Times(1);
+    ON_CALL(*mock_login_display_host_, GetSigninUI())
+        .WillByDefault(Return(mock_signin_ui_.get()));
+
+    ON_CALL(*mock_login_display_host_, GetWizardContext())
+        .WillByDefault(Return(&dummy_wizard_context_));
   }
 
   void SetUpOnMainThread() override {
@@ -233,8 +229,8 @@ class ExistingUserControllerTest : public policy::DevicePolicyCrosBrowserTest {
     test::UserSessionManagerTestApi(UserSessionManager::GetInstance())
         .SetShouldLaunchBrowserInTests(false);
 
-    ash::AuthMetricsRecorder::Get()->OnAuthenticationSurfaceChange(
-        AuthMetricsRecorder::AuthenticationSurface::kLogin);
+    ash::AuthEventsRecorder::Get()->OnAuthenticationSurfaceChange(
+        AuthEventsRecorder::AuthenticationSurface::kLogin);
   }
 
   void TearDownOnMainThread() override {
@@ -256,11 +252,9 @@ class ExistingUserControllerTest : public policy::DevicePolicyCrosBrowserTest {
   }
 
   void ExpectLoginFailure() {
-    EXPECT_CALL(*mock_login_display_, SetUIEnabled(false)).Times(1);
     EXPECT_CALL(*mock_signin_ui_,
                 ShowSigninError(SigninError::kOwnerKeyLost, std::string()))
         .Times(1);
-    EXPECT_CALL(*mock_login_display_, SetUIEnabled(true)).Times(1);
   }
 
   void MakeCrosSettingsPermanentlyUntrusted() {
@@ -293,7 +287,6 @@ class ExistingUserControllerTest : public policy::DevicePolicyCrosBrowserTest {
   std::unique_ptr<ExistingUserController> existing_user_controller_;
 
   std::unique_ptr<MockSigninUI> mock_signin_ui_;
-  std::unique_ptr<MockLoginDisplay> mock_login_display_;
   std::unique_ptr<MockLoginDisplayHost> mock_login_display_host_;
 
   const AccountId ad_account_id_ =
@@ -309,11 +302,11 @@ class ExistingUserControllerTest : public policy::DevicePolicyCrosBrowserTest {
                                    {existing_user_},
                                    nullptr,
                                    &cryptohome_mixin_};
+
+  WizardContext dummy_wizard_context_;
 };
 
 IN_PROC_BROWSER_TEST_F(ExistingUserControllerTest, ExistingUserLogin) {
-  EXPECT_CALL(*mock_login_display_, SetUIEnabled(false)).Times(2);
-  EXPECT_CALL(*mock_login_display_, SetUIEnabled(true)).Times(1);
   EXPECT_CALL(*mock_login_display_host_,
               StartWizard(TermsOfServiceScreenView::kScreenId.AsId()))
       .Times(0);
@@ -358,12 +351,8 @@ IN_PROC_BROWSER_TEST_F(ExistingUserControllerUntrustedTest,
 IN_PROC_BROWSER_TEST_F(ExistingUserControllerUntrustedTest,
                        GuestLoginForbidden) {
   existing_user_controller()->Login(
-      UserContext(user_manager::USER_TYPE_GUEST, EmptyAccountId()),
+      UserContext(user_manager::UserType::kGuest, EmptyAccountId()),
       SigninSpecifics());
-}
-
-MATCHER_P(HasDetails, expected, "") {
-  return expected == *content::Details<const std::string>(arg).ptr();
 }
 
 class ExistingUserControllerPublicSessionTest
@@ -376,7 +365,7 @@ class ExistingUserControllerPublicSessionTest
       const ExistingUserControllerPublicSessionTest&) = delete;
 
  protected:
-  ExistingUserControllerPublicSessionTest() {}
+  ExistingUserControllerPublicSessionTest() = default;
 
   void SetUpOnMainThread() override {
     ExistingUserControllerTest::SetUpOnMainThread();
@@ -438,16 +427,6 @@ class ExistingUserControllerPublicSessionTest
         kPublicSessionUserEmail, device_local_account_policy.GetBlob());
   }
 
-  void SetUpLoginDisplay() override {
-    EXPECT_CALL(*mock_login_display_host_, GetLoginDisplay())
-        .Times(AnyNumber())
-        .WillRepeatedly(Return(mock_login_display_.get()));
-    EXPECT_CALL(*mock_login_display_host_, GetSigninUI())
-        .Times(AnyNumber())
-        .WillRepeatedly(Return(mock_signin_ui_.get()));
-    EXPECT_CALL(*mock_login_display_, Init(_)).Times(AnyNumber());
-  }
-
   void TearDownOnMainThread() override {
     ExistingUserControllerTest::TearDownOnMainThread();
 
@@ -474,8 +453,6 @@ class ExistingUserControllerPublicSessionTest
     EXPECT_CALL(*mock_login_display_host_,
                 StartWizard(LocaleSwitchView::kScreenId.AsId()))
         .Times(AnyNumber());
-    EXPECT_CALL(*mock_login_display_, SetUIEnabled(false)).Times(AnyNumber());
-    EXPECT_CALL(*mock_login_display_, SetUIEnabled(true)).Times(AnyNumber());
   }
 
   void SetAutoLoginPolicy(const std::string& user_email, int delay) {
@@ -531,7 +508,7 @@ class ExistingUserControllerPublicSessionTest
   const AccountId public_session_account_id_ =
       AccountId::FromUserEmail(policy::GenerateDeviceLocalAccountUserId(
           kPublicSessionUserEmail,
-          policy::DeviceLocalAccount::TYPE_PUBLIC_SESSION));
+          policy::DeviceLocalAccountType::kPublicSession));
 
  private:
   std::unique_ptr<base::RunLoop> local_state_changed_run_loop_;
@@ -561,7 +538,7 @@ IN_PROC_BROWSER_TEST_F(ExistingUserControllerPublicSessionTest,
 IN_PROC_BROWSER_TEST_F(ExistingUserControllerPublicSessionTest,
                        AutoLoginNoDelay) {
   // Set up mocks to check login success.
-  UserContext user_context(user_manager::USER_TYPE_PUBLIC_ACCOUNT,
+  UserContext user_context(user_manager::UserType::kPublicAccount,
                            public_session_account_id_);
   user_context.SetUserIDHash(user_context.GetAccountId().GetUserEmail());
   ExpectSuccessfulLogin(user_context);
@@ -574,7 +551,7 @@ IN_PROC_BROWSER_TEST_F(ExistingUserControllerPublicSessionTest,
 IN_PROC_BROWSER_TEST_F(ExistingUserControllerPublicSessionTest,
                        AutoLoginShortDelay) {
   // Set up mocks to check login success.
-  UserContext user_context(user_manager::USER_TYPE_PUBLIC_ACCOUNT,
+  UserContext user_context(user_manager::UserType::kPublicAccount,
                            public_session_account_id_);
   user_context.SetUserIDHash(user_context.GetAccountId().GetUserEmail());
   ExpectSuccessfulLogin(user_context);
@@ -630,7 +607,6 @@ IN_PROC_BROWSER_TEST_F(ExistingUserControllerPublicSessionTest,
 
 IN_PROC_BROWSER_TEST_F(ExistingUserControllerPublicSessionTest,
                        GuestModeLoginStopsAutoLogin) {
-  EXPECT_CALL(*mock_login_display_, SetUIEnabled(false)).Times(2);
   UserContext user_context(
       LoginManagerMixin::CreateDefaultUserContext(new_user_));
   test::UserSessionManagerTestApi session_manager_test_api(
@@ -642,7 +618,7 @@ IN_PROC_BROWSER_TEST_F(ExistingUserControllerPublicSessionTest,
 
   // Login and check that it stopped the timer.
   existing_user_controller()->Login(
-      UserContext(user_manager::USER_TYPE_GUEST, EmptyAccountId()),
+      UserContext(user_manager::UserType::kGuest, EmptyAccountId()),
       SigninSpecifics());
   EXPECT_TRUE(is_login_in_progress());
   ASSERT_TRUE(auto_login_timer());
@@ -686,7 +662,7 @@ IN_PROC_BROWSER_TEST_F(ExistingUserControllerPublicSessionTest,
 IN_PROC_BROWSER_TEST_F(ExistingUserControllerPublicSessionTest,
                        PublicSessionLoginStopsAutoLogin) {
   // Set up mocks to check login success.
-  UserContext user_context(user_manager::USER_TYPE_PUBLIC_ACCOUNT,
+  UserContext user_context(user_manager::UserType::kPublicAccount,
                            public_session_account_id_);
   user_context.SetUserIDHash(user_context.GetAccountId().GetUserEmail());
   ExpectSuccessfulLogin(user_context);
@@ -697,7 +673,7 @@ IN_PROC_BROWSER_TEST_F(ExistingUserControllerPublicSessionTest,
 
   // Login and check that it stopped the timer.
   existing_user_controller()->Login(
-      UserContext(user_manager::USER_TYPE_PUBLIC_ACCOUNT,
+      UserContext(user_manager::UserType::kPublicAccount,
                   public_session_account_id_),
       SigninSpecifics());
 
@@ -932,7 +908,7 @@ IN_PROC_BROWSER_TEST_F(ExistingUserControllerAuthFailureTest, WrongPassword) {
 IN_PROC_BROWSER_TEST_F(ExistingUserControllerAuthFailureTest,
                        WrongPasswordWhileOffline) {
   NetworkStateTestHelper network_state_test_helper(
-      false /*use_default_devices_and_services*/);
+      /*use_default_devices_and_services=*/false);
   network_state_test_helper.ClearServices();
 
   SetUpStubAuthenticatorAndAttemptLoginWithWrongPassword();
@@ -982,7 +958,8 @@ class ExistingUserControllerProfileTest : public LoginManagerTest {
     login_manager_mixin_.SkipPostLoginScreens();
 
     auto context = LoginManagerMixin::CreateDefaultUserContext(test_user);
-    login_manager_mixin_.LoginAndWaitForActiveSession(context);
+    login_manager_mixin_.LoginAsNewRegularUser(context);
+    login_manager_mixin_.WaitForActiveSession();
   }
 
   std::u16string ConstructManagedSessionUserWarning(std::string manager) {
@@ -1015,6 +992,8 @@ IN_PROC_BROWSER_TEST_F(ExistingUserControllerProfileTest,
 
   // Set the lock screen so that the managed warning can be queried.
   ScreenLockerTester().Lock();
+  EXPECT_TRUE(
+      LoginScreenTestApi::ShowRemoveAccountDialog(managed_user_.account_id));
 
   EXPECT_TRUE(LoginScreenTestApi::IsManagedMessageInDialogShown(
       managed_user_.account_id));
@@ -1039,6 +1018,8 @@ IN_PROC_BROWSER_TEST_F(ExistingUserControllerProfileTest, ManagedUserDomain) {
 
   // Set the lock screen so that the managed warning can be queried.
   ScreenLockerTester().Lock();
+  EXPECT_TRUE(
+      LoginScreenTestApi::ShowRemoveAccountDialog(managed_user_.account_id));
 
   EXPECT_TRUE(LoginScreenTestApi::IsManagedMessageInDialogShown(
       managed_user_.account_id));
@@ -1058,6 +1039,8 @@ IN_PROC_BROWSER_TEST_F(ExistingUserControllerProfileTest, NotManagedUserLogin) {
   EXPECT_FALSE(known_user.GetAccountManager(not_managed_user_.account_id));
 
   ScreenLockerTester().Lock();
+  EXPECT_TRUE(LoginScreenTestApi::ShowRemoveAccountDialog(
+      not_managed_user_.account_id));
 
   // Verify that no managed warning is shown for an unmanaged user.
   EXPECT_FALSE(LoginScreenTestApi::IsManagedMessageInDialogShown(

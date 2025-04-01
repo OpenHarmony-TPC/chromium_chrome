@@ -4,12 +4,14 @@
 
 #include "chrome/browser/enterprise/connectors/analysis/content_analysis_dialog.h"
 
+#include <cstddef>
 #include <memory>
 
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "cc/paint/paint_flags.h"
+#include "chrome/browser/enterprise/connectors/analysis/content_analysis_features.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
@@ -22,6 +24,8 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/color/color_id.h"
@@ -124,9 +128,9 @@ class DeepScanningBaseView {
 
 class DeepScanningTopImageView : public DeepScanningBaseView,
                                  public views::ImageView {
- public:
-  METADATA_HEADER(DeepScanningTopImageView);
+  METADATA_HEADER(DeepScanningTopImageView, views::ImageView)
 
+ public:
   using DeepScanningBaseView::DeepScanningBaseView;
 
   void Update() {
@@ -142,14 +146,14 @@ class DeepScanningTopImageView : public DeepScanningBaseView,
   }
 };
 
-BEGIN_METADATA(DeepScanningTopImageView, views::ImageView)
+BEGIN_METADATA(DeepScanningTopImageView)
 END_METADATA
 
 class DeepScanningSideIconImageView : public DeepScanningBaseView,
                                       public views::ImageView {
- public:
-  METADATA_HEADER(DeepScanningSideIconImageView);
+  METADATA_HEADER(DeepScanningSideIconImageView, views::ImageView)
 
+ public:
   using DeepScanningBaseView::DeepScanningBaseView;
 
   void Update() {
@@ -173,14 +177,14 @@ class DeepScanningSideIconImageView : public DeepScanningBaseView,
   }
 };
 
-BEGIN_METADATA(DeepScanningSideIconImageView, views::ImageView)
+BEGIN_METADATA(DeepScanningSideIconImageView)
 END_METADATA
 
 class DeepScanningSideIconSpinnerView : public DeepScanningBaseView,
                                         public views::Throbber {
- public:
-  METADATA_HEADER(DeepScanningSideIconSpinnerView);
+  METADATA_HEADER(DeepScanningSideIconSpinnerView, views::Throbber)
 
+ public:
   using DeepScanningBaseView::DeepScanningBaseView;
 
   void Update() {
@@ -197,7 +201,7 @@ class DeepScanningSideIconSpinnerView : public DeepScanningBaseView,
   }
 };
 
-BEGIN_METADATA(DeepScanningSideIconSpinnerView, views::Throbber)
+BEGIN_METADATA(DeepScanningSideIconSpinnerView)
 END_METADATA
 
 // static
@@ -218,19 +222,19 @@ base::TimeDelta ContentAnalysisDialog::ShowDialogDelay() {
 ContentAnalysisDialog::ContentAnalysisDialog(
     std::unique_ptr<ContentAnalysisDelegateBase> delegate,
     bool is_cloud,
-    content::WebContents* web_contents,
+    content::WebContents* contents,
     safe_browsing::DeepScanAccessPoint access_point,
     int files_count,
     FinalContentAnalysisResult final_result,
     download::DownloadItem* download_item)
-    : content::WebContentsObserver(web_contents),
+    : content::WebContentsObserver(contents),
       delegate_(std::move(delegate)),
-      web_contents_(web_contents),
       final_result_(final_result),
       access_point_(std::move(access_point)),
       files_count_(files_count),
       download_item_(download_item),
       is_cloud_(is_cloud) {
+  DVLOG(1) << __func__;
   DCHECK(delegate_);
   SetOwnedByWidget(true);
   set_fixed_width(views::LayoutProvider::Get()->GetDistanceMetric(
@@ -251,11 +255,13 @@ ContentAnalysisDialog::ContentAnalysisDialog(
   // interaction with the tab until it is visible.  To block interaction as of
   // now, ignore input events manually.
   top_level_contents_ =
-      constrained_window::GetTopLevelWebContents(web_contents_)->GetWeakPtr();
-  top_level_contents_->ClearFocusedElement();
-  top_level_contents_->SetIgnoreInputEvents(true);
+      constrained_window::GetTopLevelWebContents(web_contents())->GetWeakPtr();
+  top_level_contents_->StoreFocus();
+  scoped_ignore_input_events_ =
+      top_level_contents_->IgnoreInputEvents(std::nullopt);
 
   if (ShowDialogDelay().is_zero() || !is_pending()) {
+    DVLOG(1) << __func__ << ": Showing in ctor";
     ShowDialogNow();
   } else {
     content::GetUIThreadTaskRunner({})->PostDelayedTask(
@@ -273,11 +279,17 @@ ContentAnalysisDialog::ContentAnalysisDialog(
 }
 
 void ContentAnalysisDialog::ShowDialogNow() {
+  if (will_be_deleted_soon_) {
+    DVLOG(1) << __func__ << ": aborting since dialog will be deleted soon";
+    return;
+  }
+
   // If the web contents is still valid when the delay timer goes off and the
   // dialog has not yet been shown, show it now.
-  if (web_contents_ && !contents_view_) {
+  if (web_contents() && !contents_view_) {
+    DVLOG(1) << __func__ << ": first time";
     first_shown_timestamp_ = base::TimeTicks::Now();
-    constrained_window::ShowWebModalDialogViews(this, web_contents_);
+    constrained_window::ShowWebModalDialogViews(this, web_contents());
     if (observer_for_testing)
       observer_for_testing->ViewsFirstShown(this, first_shown_timestamp_);
   }
@@ -291,7 +303,7 @@ void ContentAnalysisDialog::AcceptButtonCallback() {
   DCHECK(delegate_);
   DCHECK(is_warning());
   accepted_or_cancelled_ = true;
-  absl::optional<std::u16string> justification = absl::nullopt;
+  std::optional<std::u16string> justification = std::nullopt;
   if (delegate_->BypassRequiresJustification() && bypass_justification_)
     justification = bypass_justification_->GetText();
   delegate_->BypassWarnings(justification);
@@ -306,22 +318,24 @@ void ContentAnalysisDialog::CancelButtonCallback() {
 void ContentAnalysisDialog::LearnMoreLinkClickedCallback(
     const ui::Event& event) {
   DCHECK(has_learn_more_url());
-  web_contents_->OpenURL(content::OpenURLParams(
-      (*delegate_->GetCustomLearnMoreUrl()), content::Referrer(),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB, ui::PAGE_TRANSITION_LINK,
-      false));
+  web_contents()->OpenURL(
+      content::OpenURLParams((*delegate_->GetCustomLearnMoreUrl()),
+                             content::Referrer(),
+                             WindowOpenDisposition::NEW_FOREGROUND_TAB,
+                             ui::PAGE_TRANSITION_LINK, false),
+      /*navigation_handle_callback=*/{});
 }
 
 void ContentAnalysisDialog::SuccessCallback() {
 #if defined(USE_AURA)
-  if (web_contents_) {
+  if (web_contents()) {
     // It's possible focus has been lost and gained back incorrectly if the user
     // clicked on the page between the time the scan started and the time the
     // dialog closes. This results in the behaviour detailed in
     // crbug.com/1139050. The fix is to preemptively take back focus when this
     // dialog closes on its own.
-    web_contents_->SetIgnoreInputEvents(false);
-    web_contents_->Focus();
+    scoped_ignore_input_events_.reset();
+    web_contents()->Focus();
   }
 #endif
 }
@@ -338,14 +352,14 @@ void ContentAnalysisDialog::ContentsChanged(
 
   if (new_contents.size() == 0 ||
       new_contents.size() > kMaxBypassJustificationLength) {
-    DialogDelegate::SetButtonEnabled(ui::DIALOG_BUTTON_OK, false);
+    DialogDelegate::SetButtonEnabled(ui::mojom::DialogButton::kOk, false);
     if (bypass_justification_text_length_) {
       bypass_justification_text_length_->SetEnabledColor(
           bypass_justification_text_length_->GetColorProvider()->GetColor(
               ui::kColorAlertHighSeverity));
     }
   } else {
-    DialogDelegate::SetButtonEnabled(ui::DIALOG_BUTTON_OK, true);
+    DialogDelegate::SetButtonEnabled(ui::mojom::DialogButton::kOk, true);
     if (bypass_justification_text_length_ && justification_text_label_) {
       bypass_justification_text_length_->SetEnabledColor(
           justification_text_label_->GetEnabledColor());
@@ -359,6 +373,7 @@ bool ContentAnalysisDialog::ShouldShowCloseButton() const {
 
 views::View* ContentAnalysisDialog::GetContentsView() {
   if (!contents_view_) {
+    DVLOG(1) << __func__ << ": first time";
     contents_view_ = new views::BoxLayoutView();  // Owned by caller.
     contents_view_->SetOrientation(views::BoxLayout::Orientation::kVertical);
     // Padding to distance the top image from the icon and message.
@@ -402,11 +417,17 @@ views::View* ContentAnalysisDialog::GetContentsView() {
     contents_layout_->AddChildView(CreateSideIcon());
 
     // Add the message.
-    message_ = contents_layout_->AddChildView(std::make_unique<views::Label>());
+    message_ =
+        contents_layout_->AddChildView(std::make_unique<views::StyledLabel>());
     message_->SetText(GetDialogMessage());
     message_->SetLineHeight(kLineHeight);
-    message_->SetMultiLine(true);
-    message_->SetVerticalAlignment(gfx::ALIGN_MIDDLE);
+
+    // Calculate the width of the side icon column with insets and padding.
+    int side_icon_column_width = kMessageAndIconRowLeadingPadding +
+                                 kSideImageInsets.width() + kSideImageSize +
+                                 kSideIconBetweenChildSpacing;
+    message_->SizeToFit(fixed_width() - side_icon_column_width -
+                        kMessageAndIconRowTrailingPadding);
     message_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
 
     if (!is_pending())
@@ -424,15 +445,14 @@ const views::Widget* ContentAnalysisDialog::GetWidget() const {
   return contents_view_->GetWidget();
 }
 
-ui::ModalType ContentAnalysisDialog::GetModalType() const {
-  return ui::MODAL_TYPE_CHILD;
+ui::mojom::ModalType ContentAnalysisDialog::GetModalType() const {
+  return ui::mojom::ModalType::kChild;
 }
 
 void ContentAnalysisDialog::WebContentsDestroyed() {
-  // If |web_contents_| is destroyed, then the scan results don't matter so the
+  // If WebContents are destroyed, then the scan results don't matter so the
   // delegate can be destroyed as well.
   CancelDialogWithoutCallback();
-  web_contents_ = nullptr;
 }
 
 void ContentAnalysisDialog::PrimaryPageChanged(content::Page& page) {
@@ -461,8 +481,16 @@ void ContentAnalysisDialog::ShowResult(FinalContentAnalysisResult result) {
 }
 
 ContentAnalysisDialog::~ContentAnalysisDialog() {
-  if (top_level_contents_)
-    top_level_contents_->SetIgnoreInputEvents(false);
+  DVLOG(1) << __func__;
+
+  if (bypass_justification_) {
+    bypass_justification_->SetController(nullptr);
+  }
+
+  if (top_level_contents_) {
+    scoped_ignore_input_events_.reset();
+    top_level_contents_->RestoreFocus();
+  }
   if (download_item_)
     download_item_->RemoveObserver(this);
   if (observer_for_testing)
@@ -475,6 +503,7 @@ void ContentAnalysisDialog::UpdateStateFromFinalResult(
   switch (final_result_) {
     case FinalContentAnalysisResult::ENCRYPTED_FILES:
     case FinalContentAnalysisResult::LARGE_FILES:
+    case FinalContentAnalysisResult::FAIL_CLOSED:
     case FinalContentAnalysisResult::FAILURE:
       dialog_state_ = State::FAILURE;
       break;
@@ -499,8 +528,8 @@ void ContentAnalysisDialog::UpdateViews() {
   // There isn't always a spinner, for instance when the dialog is started in a
   // state other than the "pending" state.
   if (side_icon_spinner_) {
-    side_icon_spinner_->Update();
-    side_icon_spinner_ = nullptr;
+    // Calling `Update` leads to the deletion of the spinner.
+    side_icon_spinner_.ExtractAsDangling()->Update();
   }
 
   // Update the buttons.
@@ -509,13 +538,7 @@ void ContentAnalysisDialog::UpdateViews() {
   // Update the message's text, and send an alert for screen readers since the
   // text changed.
   std::u16string new_message = GetDialogMessage();
-  message_->SetText(new_message);
-  message_->GetViewAccessibility().AnnounceText(std::move(new_message));
-
-  // Add a "Learn More" link for warnings/failures when one is provided.
-  if ((is_failure() || is_warning()) && has_learn_more_url()) {
-    AddLearnMoreLinkToDialog();
-  }
+  UpdateDialogMessage(std::move(new_message));
 
   // Add bypass justification views when required on warning verdicts. The order
   // of the helper functions needs to be preserved for them to appear in the
@@ -527,21 +550,26 @@ void ContentAnalysisDialog::UpdateViews() {
   }
 }
 
-void ContentAnalysisDialog::UpdateDialog() {
-  if (!contents_view_) {
-    // If the dialog is no longer pending, a final verdict was received before
-    // the dalog was displayed.  If the verdict is success and this is not a
-    // cloud analysis, don't bother the user at all and close the dialog.
-    // Otherwise make sure it show right away with the verdict.
-    if (!is_pending()) {
-      if (is_success() || !is_cloud_) {
-        CancelDialogAndDelete();
-      } else {
-        ShowDialogNow();
-      }
+bool ContentAnalysisDialog::ShouldShowDialogNow() {
+  DCHECK(!is_pending());
+  // If the final result is fail closed, display ui regardless of cloud or local
+  // analysis.
+  if (final_result_ == FinalContentAnalysisResult::FAIL_CLOSED) {
+    DVLOG(1) << __func__ << ": show fail-closed ui.";
+    return true;
+  }
+  // Otherwise, show dialog now only if it is cloud analysis and the verdict is
+  // not success.
+  return is_cloud_ && !is_success();
+}
 
-      return;
-    }
+void ContentAnalysisDialog::UpdateDialog() {
+  if (!contents_view_ && !is_pending()) {
+    // If the dialog is no longer pending, a final verdict was received before
+    // the dialog was displayed.  Show the verdict right away only if
+    // ShouldShowDialogNow() returns true.
+    ShouldShowDialogNow() ? ShowDialogNow() : CancelDialogAndDelete();
+    return;
   }
 
   DCHECK(is_result());
@@ -623,36 +651,42 @@ void ContentAnalysisDialog::Resize(int height_to_add) {
 void ContentAnalysisDialog::SetupButtons() {
   if (is_warning()) {
     // Include the Ok and Cancel buttons if there is a bypassable warning.
-    DialogDelegate::SetButtons(ui::DIALOG_BUTTON_CANCEL | ui::DIALOG_BUTTON_OK);
-    DialogDelegate::SetDefaultButton(ui::DIALOG_BUTTON_CANCEL);
+    DialogDelegate::SetButtons(
+        static_cast<int>(ui::mojom::DialogButton::kCancel) |
+        static_cast<int>(ui::mojom::DialogButton::kOk));
+    DialogDelegate::SetDefaultButton(
+        static_cast<int>(ui::mojom::DialogButton::kCancel));
 
-    DialogDelegate::SetButtonLabel(ui::DIALOG_BUTTON_CANCEL,
+    DialogDelegate::SetButtonLabel(ui::mojom::DialogButton::kCancel,
                                    GetCancelButtonText());
     DialogDelegate::SetCancelCallback(
         base::BindOnce(&ContentAnalysisDialog::CancelButtonCallback,
                        weak_ptr_factory_.GetWeakPtr()));
 
-    DialogDelegate::SetButtonLabel(ui::DIALOG_BUTTON_OK,
+    DialogDelegate::SetButtonLabel(ui::mojom::DialogButton::kOk,
                                    GetBypassWarningButtonText());
     DialogDelegate::SetAcceptCallback(
         base::BindOnce(&ContentAnalysisDialog::AcceptButtonCallback,
                        weak_ptr_factory_.GetWeakPtr()));
 
     if (delegate_->BypassRequiresJustification())
-      DialogDelegate::SetButtonEnabled(ui::DIALOG_BUTTON_OK, false);
+      DialogDelegate::SetButtonEnabled(ui::mojom::DialogButton::kOk, false);
   } else if (is_failure() || is_pending()) {
     // Include the Cancel button when the scan is pending or failing.
-    DialogDelegate::SetButtons(ui::DIALOG_BUTTON_CANCEL);
-    DialogDelegate::SetDefaultButton(ui::DIALOG_BUTTON_NONE);
+    DialogDelegate::SetButtons(
+        static_cast<int>(ui::mojom::DialogButton::kCancel));
+    DialogDelegate::SetDefaultButton(
+        static_cast<int>(ui::mojom::DialogButton::kNone));
 
-    DialogDelegate::SetButtonLabel(ui::DIALOG_BUTTON_CANCEL,
+    DialogDelegate::SetButtonLabel(ui::mojom::DialogButton::kCancel,
                                    GetCancelButtonText());
     DialogDelegate::SetCancelCallback(
         base::BindOnce(&ContentAnalysisDialog::CancelButtonCallback,
                        weak_ptr_factory_.GetWeakPtr()));
   } else {
     // Include no buttons otherwise.
-    DialogDelegate::SetButtons(ui::DIALOG_BUTTON_NONE);
+    DialogDelegate::SetButtons(
+        static_cast<int>(ui::mojom::DialogButton::kNone));
     DialogDelegate::SetCancelCallback(
         base::BindOnce(&ContentAnalysisDialog::SuccessCallback,
                        weak_ptr_factory_.GetWeakPtr()));
@@ -682,7 +716,6 @@ std::u16string ContentAnalysisDialog::GetCancelButtonText() const {
   switch (dialog_state_) {
     case State::SUCCESS:
       NOTREACHED();
-      [[fallthrough]];
     case State::PENDING:
       text_id = IDS_DEEP_SCANNING_DIALOG_CANCEL_UPLOAD_BUTTON;
       break;
@@ -708,8 +741,8 @@ std::unique_ptr<views::View> ContentAnalysisDialog::CreateSideIcon() {
   icon->SetLayoutManager(std::make_unique<views::FillLayout>());
 
   auto side_image = std::make_unique<DeepScanningSideIconImageView>(this);
-  side_image->SetImage(gfx::CreateVectorIcon(
-      gfx::IconDescription(vector_icons::kBusinessIcon, kSideImageSize)));
+  side_image->SetImage(ui::ImageModel::FromVectorIcon(
+      vector_icons::kBusinessIcon, gfx::kPlaceholderColor, kSideImageSize));
   side_image->SetBorder(views::CreateEmptyBorder(kSideImageInsets));
   side_icon_image_ = icon->AddChildView(std::move(side_image));
 
@@ -730,7 +763,6 @@ ui::ColorId ContentAnalysisDialog::GetSideImageBackgroundColor() const {
   switch (dialog_state_) {
     case State::PENDING:
       NOTREACHED();
-      [[fallthrough]];
     case State::SUCCESS:
       return ui::kColorAccent;
     case State::FAILURE:
@@ -784,6 +816,12 @@ std::u16string ContentAnalysisDialog::GetFailureMessage() const {
   // precedence over the generic ones.
   if (has_custom_message())
     return GetCustomMessage();
+
+  if (final_result_ == FinalContentAnalysisResult::FAIL_CLOSED) {
+    DVLOG(1) << __func__ << ": display fail-closed message.";
+    return l10n_util::GetStringUTF16(
+        IDS_DEEP_SCANNING_DIALOG_UPLOAD_FAIL_CLOSED_MESSAGE);
+  }
 
   if (final_result_ == FinalContentAnalysisResult::LARGE_FILES) {
     if (is_print_scan()) {
@@ -917,7 +955,8 @@ void ContentAnalysisDialog::AddJustificationTextAreaToDialog() {
 
   bypass_justification_ =
       contents_layout_->AddChildView(std::make_unique<views::Textarea>());
-  bypass_justification_->SetAccessibleName(justification_text_label_);
+  bypass_justification_->GetViewAccessibility().SetName(
+      *justification_text_label_);
   bypass_justification_->SetController(this);
 }
 
@@ -953,28 +992,82 @@ void ContentAnalysisDialog::AddJustificationTextLengthToDialog() {
   }
 }
 
+void ContentAnalysisDialog::AddLinksToDialogMessage() {
+  if (!has_custom_message_ranges()) {
+    return;
+  }
+
+  std::vector<std::pair<gfx::Range, GURL>> ranges =
+      *(delegate_->GetCustomRuleMessageRanges());
+  for (const auto& range : ranges) {
+    if (!range.second.is_valid()) {
+      continue;
+    }
+    message_->AddStyleRange(
+        gfx::Range(range.first.start(), range.first.end()),
+        views::StyledLabel::RangeStyleInfo::CreateForLink(base::BindRepeating(
+            [](base::WeakPtr<content::WebContents> web_contents, GURL url,
+               const ui::Event& event) {
+              if (!web_contents) {
+                return;
+              }
+              web_contents->OpenURL(
+                  content::OpenURLParams(
+                      url, content::Referrer(),
+                      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+                      ui::PAGE_TRANSITION_LINK,
+                      /*is_renderer_initiated=*/false),
+                  /*navigation_handle_callback=*/{});
+            },
+            web_contents()->GetWeakPtr(), range.second)));
+  }
+}
+
+void ContentAnalysisDialog::UpdateDialogMessage(std::u16string new_message) {
+  if ((is_failure() || is_warning()) && has_custom_message()) {
+    message_->SetText(new_message);
+    AddLinksToDialogMessage();
+    message_->GetViewAccessibility().AnnounceText(std::move(new_message));
+    if (has_learn_more_url()) {
+      AddLearnMoreLinkToDialog();
+    }
+  } else {
+    message_->SetText(new_message);
+    message_->GetViewAccessibility().AnnounceText(std::move(new_message));
+
+    // Add a "Learn More" link for warnings/failures when one is provided.
+    if ((is_failure() || is_warning()) && has_learn_more_url()) {
+      AddLearnMoreLinkToDialog();
+    }
+  }
+}
+
 bool ContentAnalysisDialog::ShouldUseDarkTopImage() const {
   return color_utils::IsDark(
       contents_view_->GetColorProvider()->GetColor(ui::kColorDialogBackground));
 }
 
-const gfx::ImageSkia* ContentAnalysisDialog::GetTopImage() const {
-  return ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
-      GetTopImageId(ShouldUseDarkTopImage()));
+ui::ImageModel ContentAnalysisDialog::GetTopImage() const {
+  return ui::ImageModel::FromResourceId(GetTopImageId(ShouldUseDarkTopImage()));
 }
 
 bool ContentAnalysisDialog::is_print_scan() const {
   return access_point_ == safe_browsing::DeepScanAccessPoint::PRINT;
 }
 
-bool ContentAnalysisDialog::CancelDialogAndDelete() {
-  if (contents_view_) {
-    CancelDialog();
-  } else {
-    content::GetUIThreadTaskRunner({})->DeleteSoon(FROM_HERE, this);
+void ContentAnalysisDialog::CancelDialogAndDelete() {
+  if (observer_for_testing) {
+    observer_for_testing->CancelDialogAndDeleteCalled(this, final_result_);
   }
 
-  return true;
+  if (contents_view_) {
+    DVLOG(1) << __func__ << ": dialog will be canceled";
+    CancelDialog();
+  } else {
+    DVLOG(1) << __func__ << ": dialog will be deleted soon";
+    will_be_deleted_soon_ = true;
+    content::GetUIThreadTaskRunner({})->DeleteSoon(FROM_HERE, this);
+  }
 }
 
 ui::ColorId ContentAnalysisDialog::GetSideImageLogoColor() const {
@@ -1026,7 +1119,7 @@ views::Throbber* ContentAnalysisDialog::GetSideIconSpinnerForTesting() const {
   return side_icon_spinner_;
 }
 
-views::Label* ContentAnalysisDialog::GetMessageForTesting() const {
+views::StyledLabel* ContentAnalysisDialog::GetMessageForTesting() const {
   return message_;
 }
 

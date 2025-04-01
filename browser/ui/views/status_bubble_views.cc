@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/views/status_bubble_views.h"
 
 #include <algorithm>
@@ -11,7 +16,6 @@
 #include "base/i18n/rtl.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -46,7 +50,7 @@
 #include "ui/views/controls/scrollbar/scroll_bar_views.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/style/typography.h"
-#include "ui/views/views_features.h"
+#include "ui/views/style/typography_provider.h"
 #include "ui/views/widget/root_view.h"
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
@@ -87,8 +91,8 @@ constexpr auto kMaxExpansionStepDuration = base::Milliseconds(150);
 constexpr auto kDestroyPopupDelay = base::Seconds(10);
 
 const gfx::FontList& GetFont() {
-  return views::style::GetFont(views::style::CONTEXT_LABEL,
-                               views::style::STYLE_PRIMARY);
+  return views::TypographyProvider::Get().GetFont(views::style::CONTEXT_LABEL,
+                                                  views::style::STYLE_PRIMARY);
 }
 
 }  // namespace
@@ -128,9 +132,9 @@ class StatusBubbleViews::StatusViewAnimation
 // StatusView manages the display of the bubble, applying text changes and
 // fading in or out the bubble as required.
 class StatusBubbleViews::StatusView : public views::View {
- public:
-  METADATA_HEADER(StatusView);
+  METADATA_HEADER(StatusView, views::View)
 
+ public:
   // The bubble can be in one of many states:
   enum class BubbleState {
     kHidden,
@@ -220,9 +224,7 @@ class StatusBubbleViews::StatusView : public views::View {
   raw_ptr<StatusBubbleViews> status_bubble_;
 
   // The currently-displayed text.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION views::Label* text_;
+  raw_ptr<views::Label> text_;
 
   // A timer used to delay destruction of the popup widget. This is meant to
   // balance the performance tradeoffs of rapid creation/destruction and the
@@ -569,7 +571,7 @@ DEFINE_ENUM_CONVERTERS(StatusView::BubbleStyle,
                        {StatusView::BubbleStyle::kStandardRight,
                         u"kStandardRight"})
 
-BEGIN_METADATA(StatusView, views::View)
+BEGIN_METADATA(StatusView)
 ADD_PROPERTY_METADATA(std::u16string, Text)
 ADD_READONLY_PROPERTY_METADATA(StatusView::BubbleState, State)
 ADD_PROPERTY_METADATA(StatusView::BubbleStyle, Style)
@@ -710,11 +712,14 @@ void StatusBubbleViews::InitPopup() {
     DCHECK(!expand_view_);
     popup_ = std::make_unique<views::Widget>();
 
+    views::Widget::InitParams params(
+        views::Widget::InitParams::CLIENT_OWNS_WIDGET,
 #if BUILDFLAG(IS_MAC)
-    views::Widget::InitParams params(views::Widget::InitParams::TYPE_TOOLTIP);
+        views::Widget::InitParams::TYPE_TOOLTIP);
 #else
-    views::Widget::InitParams params(views::Widget::InitParams::TYPE_POPUP);
+        views::Widget::InitParams::TYPE_POPUP);
 #endif
+
 #if BUILDFLAG(IS_WIN)
     // On Windows use the software compositor to ensure that we don't block
     // the UI thread blocking issue during command buffer creation. We can
@@ -723,7 +728,6 @@ void StatusBubbleViews::InitPopup() {
 #endif
     params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
     params.accept_events = false;
-    params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
     views::Widget* frame = base_view_->GetWidget();
     params.parent = frame->GetNativeView();
     params.context = frame->GetNativeWindow();
@@ -742,11 +746,7 @@ void StatusBubbleViews::InitPopup() {
 #if !BUILDFLAG(IS_MAC)
     // Stack the popup above the base widget and below higher z-order windows.
     // This is unnecessary and even detrimental on Mac, see CreateBubbleWidget.
-    if (base::FeatureList::IsEnabled(views::features::kWidgetLayering)) {
-      popup_->SetZOrderSublevel(ChromeWidgetSublevel::kSublevelHoverable);
-    } else {
-      popup_->StackAboveWidget(frame);
-    }
+    popup_->SetZOrderSublevel(ChromeWidgetSublevel::kSublevelHoverable);
 #endif
     RepositionPopup();
   }
@@ -805,11 +805,6 @@ int StatusBubbleViews::GetWidthForURL(const std::u16string& url_string) {
   int elided_url_width = gfx::GetStringWidth(url_string, GetFont());
   // Add proper paddings
   return elided_url_width + (kShadowThickness + kTextHorizPadding) * 2 + 1;
-}
-
-void StatusBubbleViews::OnThemeChanged() {
-  if (popup_)
-    popup_->ThemeChanged();
 }
 
 void StatusBubbleViews::SetStatus(const std::u16string& status_text) {

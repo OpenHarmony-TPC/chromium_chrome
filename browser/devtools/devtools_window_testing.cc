@@ -41,7 +41,7 @@ DevToolsWindowTesting::~DevToolsWindowTesting() {
   DevToolsWindowTestings* instances =
       g_devtools_window_testing_instances.Pointer();
   auto it = base::ranges::find(*instances, this);
-  DCHECK(it != instances->end());
+  CHECK(it != instances->end());
   instances->erase(it);
   if (!close_callback_.is_null())
     std::move(close_callback_).Run();
@@ -108,7 +108,7 @@ void DevToolsWindowTesting::WaitForDevToolsWindowLoad(DevToolsWindow* window) {
   if (!window) {
     return;
   }
-  auto* main_web_contents = window->main_web_contents_;
+  auto* main_web_contents = window->main_web_contents_.get();
   if (!window->ready_for_test_) {
     scoped_refptr<content::MessageLoopRunner> runner =
         new content::MessageLoopRunner;
@@ -138,10 +138,7 @@ DevToolsWindow* DevToolsWindowTesting::OpenDevToolsWindowSync(
       "{\"isUnderTest\": true, \"currentDockState\":\"\\\"bottom\\\"\"}" :
       "{\"isUnderTest\": true, \"currentDockState\":\"\\\"undocked\\\"\"}";
   scoped_refptr<content::DevToolsAgentHost> agent(
-      base::FeatureList::IsEnabled(::features::kDevToolsTabTarget)
-          ? content::DevToolsAgentHost::GetOrCreateForTab(
-                inspected_web_contents)
-          : content::DevToolsAgentHost::GetOrCreateFor(inspected_web_contents));
+      content::DevToolsAgentHost::GetOrCreateForTab(inspected_web_contents));
   DevToolsWindow::ToggleDevToolsWindow(inspected_web_contents, profile, true,
                                        DevToolsToggleAction::Show(), settings);
   DevToolsWindow* window = DevToolsWindow::FindDevToolsWindow(agent.get());
@@ -171,7 +168,8 @@ DevToolsWindow* DevToolsWindowTesting::OpenDevToolsWindowSync(
 DevToolsWindow* DevToolsWindowTesting::OpenDevToolsWindowSync(
     Profile* profile,
     scoped_refptr<content::DevToolsAgentHost> agent_host) {
-  DevToolsWindow::OpenDevToolsWindow(agent_host, profile);
+  DevToolsWindow::OpenDevToolsWindow(agent_host, profile,
+                                     DevToolsOpenedByAction::kUnknown);
   DevToolsWindow* window = DevToolsWindow::FindDevToolsWindow(agent_host.get());
   WaitForDevToolsWindowLoad(window);
   return window;
@@ -180,7 +178,8 @@ DevToolsWindow* DevToolsWindowTesting::OpenDevToolsWindowSync(
 // static
 DevToolsWindow* DevToolsWindowTesting::OpenDiscoveryDevToolsWindowSync(
     Profile* profile) {
-  DevToolsWindow* window = DevToolsWindow::OpenNodeFrontendWindow(profile);
+  DevToolsWindow* window = DevToolsWindow::OpenNodeFrontendWindow(
+      profile, DevToolsOpenedByAction::kUnknown);
   WaitForDevToolsWindowLoad(window);
   return window;
 }

@@ -6,11 +6,10 @@
 #define CHROME_BROWSER_ASH_POLICY_ENROLLMENT_ENROLLMENT_STATE_FETCHER_H_
 
 #include <memory>
-#include <string>
 
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
-#include "chrome/browser/ash/policy/enrollment/auto_enrollment_client.h"
+#include "chrome/browser/ash/policy/enrollment/auto_enrollment_state.h"
 #include "components/policy/core/common/cloud/device_management_service.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "third_party/private_membership/src/private_membership_rlwe.pb.h"
@@ -21,7 +20,7 @@ class PrefService;
 
 namespace ash {
 class DeviceSettingsService;
-class SystemClockClient;
+class OobeConfiguration;
 }
 
 namespace network {
@@ -72,6 +71,7 @@ class EnrollmentStateFetcher {
  public:
   using RlweClient = private_membership::rlwe::PrivateMembershipRlweClient;
   using RlweClientFactory = base::RepeatingCallback<std::unique_ptr<RlweClient>(
+      private_membership::rlwe::RlweUseCase,
       const private_membership::rlwe::RlwePlaintextId&)>;
   using Factory =
       base::RepeatingCallback<std::unique_ptr<EnrollmentStateFetcher>(
@@ -80,9 +80,9 @@ class EnrollmentStateFetcher {
           RlweClientFactory rlwe_client_factory,
           DeviceManagementService* device_management_service,
           scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-          ash::SystemClockClient* system_clock_client,
           ServerBackedStateKeysBroker* state_key_broker,
-          ash::DeviceSettingsService* device_settings_service)>;
+          ash::DeviceSettingsService* device_settings_service,
+          ash::OobeConfiguration* oobe_configuration)>;
 
   // Creates an instance of EnrollmentStateFetcher.
   //
@@ -93,9 +93,9 @@ class EnrollmentStateFetcher {
       RlweClientFactory rlwe_client_factory,
       DeviceManagementService* device_management_service,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      ash::SystemClockClient* system_clock_client,
       ServerBackedStateKeysBroker* state_key_broker,
-      ash::DeviceSettingsService* device_settings_service);
+      ash::DeviceSettingsService* device_settings_service,
+      ash::OobeConfiguration* oobe_configuration);
 
   static void RegisterPrefs(PrefRegistrySimple* registry);
 

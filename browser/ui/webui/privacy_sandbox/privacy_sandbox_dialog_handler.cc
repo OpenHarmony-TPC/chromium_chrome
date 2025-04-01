@@ -4,15 +4,28 @@
 
 #include "chrome/browser/ui/webui/privacy_sandbox/privacy_sandbox_dialog_handler.h"
 
+#include "base/metrics/histogram_functions.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/privacy_sandbox/privacy_sandbox_features.h"
 
 namespace {
 
 bool IsConsent(PrivacySandboxService::PromptType prompt_type) {
-  return prompt_type == PrivacySandboxService::PromptType::kConsent ||
-         prompt_type == PrivacySandboxService::PromptType::kM1Consent;
+  return prompt_type == PrivacySandboxService::PromptType::kM1Consent;
+}
+
+bool IsRestrictedNotice(PrivacySandboxService::PromptType prompt_type) {
+  return prompt_type == PrivacySandboxService::PromptType::kM1NoticeRestricted;
+}
+
+void NotifyServiceAboutPromptAction(
+    PrivacySandboxService::PromptAction action,
+    PrivacySandboxService* privacy_sandbox_service) {
+  DCHECK(privacy_sandbox_service);
+  privacy_sandbox_service->PromptActionOccurred(
+      action, PrivacySandboxService::SurfaceType::kDesktop);
 }
 
 }  // namespace
@@ -55,6 +68,41 @@ void PrivacySandboxDialogHandler::RegisterMessages() {
       "showDialog",
       base::BindRepeating(&PrivacySandboxDialogHandler::HandleShowDialog,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "recordPrivacyPolicyLoadTime",
+      base::BindRepeating(
+          &PrivacySandboxDialogHandler::HandleRecordPrivacyPolicyLoadTime,
+          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "shouldShowPrivacySandboxPrivacyPolicy",
+      base::BindRepeating(&PrivacySandboxDialogHandler::
+                              HandleShouldShowPrivacySandboxPrivacyPolicy,
+                          base::Unretained(this)));
+}
+
+void PrivacySandboxDialogHandler::HandleShouldShowPrivacySandboxPrivacyPolicy(
+    const base::Value::List& args) {
+  AllowJavascript();
+  ResolveJavascriptCallback(args[0],
+                            base::FeatureList::IsEnabled(
+                                privacy_sandbox::kPrivacySandboxPrivacyPolicy));
+}
+
+void PrivacySandboxDialogHandler::HandleRecordPrivacyPolicyLoadTime(
+    const base::Value::List& args) {
+  if (!IsJavascriptAllowed()) {
+    return;
+  }
+
+  auto privacy_policy_page_load_duration = args[0].GetDouble();
+  // This just means the page was already preloaded so there is no load time.
+  if (privacy_policy_page_load_duration < 0) {
+    privacy_policy_page_load_duration = 0;
+  }
+
+  base::UmaHistogramTimes(
+      "PrivacySandbox.PrivacyPolicy.LoadingTime",
+      base::Milliseconds(privacy_policy_page_load_duration));
 }
 
 void PrivacySandboxDialogHandler::OnJavascriptAllowed() {
@@ -72,10 +120,16 @@ void PrivacySandboxDialogHandler::OnJavascriptDisallowed() {
   // If user hasn't made a decision, notify the service.
   if (IsConsent(prompt_type_)) {
     NotifyServiceAboutPromptAction(
-        PrivacySandboxService::PromptAction::kConsentClosedNoDecision);
+        PrivacySandboxService::PromptAction::kConsentClosedNoDecision,
+        privacy_sandbox_service_);
+  } else if (IsRestrictedNotice(prompt_type_)) {
+    NotifyServiceAboutPromptAction(PrivacySandboxService::PromptAction::
+                                       kRestrictedNoticeClosedNoInteraction,
+                                   privacy_sandbox_service_);
   } else {
     NotifyServiceAboutPromptAction(
-        PrivacySandboxService::PromptAction::kNoticeClosedNoInteraction);
+        PrivacySandboxService::PromptAction::kNoticeClosedNoInteraction,
+        privacy_sandbox_service_);
   }
 }
 
@@ -90,6 +144,7 @@ void PrivacySandboxDialogHandler::HandlePromptActionOccurred(
 
   switch (action) {
     case PrivacySandboxService::PromptAction::kNoticeAcknowledge:
+    case PrivacySandboxService::PromptAction::kRestrictedNoticeAcknowledge:
     case PrivacySandboxService::PromptAction::kNoticeDismiss: {
       CloseDialog();
       break;
@@ -106,18 +161,14 @@ void PrivacySandboxDialogHandler::HandlePromptActionOccurred(
     }
     case PrivacySandboxService::PromptAction::kConsentAccepted:
     case PrivacySandboxService::PromptAction::kConsentDeclined: {
-      // Close the dialog after consent was resolved only for trials consent
-      // (kConsent). In case of kM1Consent, a notice step will be shown after
-      // the consent decision.
-      if (prompt_type_ == PrivacySandboxService::PromptType::kConsent)
-        CloseDialog();
+      did_user_make_decision_ = true;
       break;
     }
     default:
       break;
   }
 
-  NotifyServiceAboutPromptAction(action);
+  NotifyServiceAboutPromptAction(action, privacy_sandbox_service_);
 }
 
 void PrivacySandboxDialogHandler::HandleResizeDialog(
@@ -136,26 +187,8 @@ void PrivacySandboxDialogHandler::HandleShowDialog(
     const base::Value::List& args) {
   AllowJavascript();
 
-  // Notify the service that the DOM was loaded and the dialog was shown to
-  // user. Only for trials prompt types, other prompt types are handled in web
-  // UI.
-  if (prompt_type_ == PrivacySandboxService::PromptType::kConsent) {
-    NotifyServiceAboutPromptAction(
-        PrivacySandboxService::PromptAction::kConsentShown);
-  }
-  if (prompt_type_ == PrivacySandboxService::PromptType::kNotice) {
-    NotifyServiceAboutPromptAction(
-        PrivacySandboxService::PromptAction::kNoticeShown);
-  }
-
   DCHECK(show_dialog_callback_);
   std::move(show_dialog_callback_).Run();
-}
-
-void PrivacySandboxDialogHandler::NotifyServiceAboutPromptAction(
-    PrivacySandboxService::PromptAction action) {
-  DCHECK(privacy_sandbox_service_);
-  privacy_sandbox_service_->PromptActionOccurred(action);
 }
 
 void PrivacySandboxDialogHandler::CloseDialog() {

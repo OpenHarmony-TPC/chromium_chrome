@@ -152,6 +152,8 @@ class SyncFileSystemServiceTest : public testing::Test {
     EXPECT_CALL(*mock_remote_service(),
                 SetRemoteChangeProcessor(local_service.get())).Times(1);
 
+    EXPECT_CALL(*mock_remote_service(), SetSyncEnabled(false)).Times(1);
+
     sync_service_->Initialize(
         std::move(local_service),
         std::unique_ptr<RemoteFileSyncService>(remote_service_));
@@ -267,7 +269,8 @@ class SyncFileSystemServiceTest : public testing::Test {
   std::unique_ptr<CannedSyncableFileSystem> file_system_;
 
   // Their ownerships are transferred to SyncFileSystemService.
-  raw_ptr<StrictMock<MockRemoteFileSyncService>> remote_service_;
+  raw_ptr<StrictMock<MockRemoteFileSyncService>, DanglingUntriaged>
+      remote_service_;
   StrictMock<MockLocalChangeProcessor> local_change_processor_;
 
   std::unique_ptr<SyncFileSystemService> sync_service_;

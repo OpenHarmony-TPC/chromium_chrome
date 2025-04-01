@@ -18,11 +18,15 @@ TabStripModelChange::RemovedTab::RemovedTab(
     content::WebContents* contents,
     int index,
     RemoveReason remove_reason,
-    absl::optional<SessionID> session_id)
+    tabs::TabInterface::DetachReason tab_detach_reason,
+    std::optional<SessionID> session_id,
+    tabs::TabInterface* tab)
     : contents(contents),
       index(index),
       remove_reason(remove_reason),
-      session_id(session_id) {}
+      tab_detach_reason(tab_detach_reason),
+      session_id(session_id),
+      tab(tab) {}
 TabStripModelChange::RemovedTab::~RemovedTab() = default;
 TabStripModelChange::RemovedTab::RemovedTab(RemovedTab&& other) = default;
 
@@ -184,9 +188,9 @@ TabGroupChange::TabGroupChange(TabStripModel* model,
 TabStripModelObserver::TabStripModelObserver() {}
 
 TabStripModelObserver::~TabStripModelObserver() {
-  std::set<TabStripModel*> models(observed_models_.begin(),
-                                  observed_models_.end());
-  for (auto* model : models) {
+  std::set<raw_ptr<TabStripModel, SetExperimental>> models(
+      observed_models_.begin(), observed_models_.end());
+  for (TabStripModel* model : models) {
     model->RemoveObserver(this);
   }
 }
@@ -202,6 +206,12 @@ void TabStripModelObserver::OnTabWillBeRemoved(content::WebContents* contents,
                                                int index) {}
 
 void TabStripModelObserver::OnTabGroupChanged(const TabGroupChange& change) {}
+
+void TabStripModelObserver::OnTabGroupAdded(
+    const tab_groups::TabGroupId& group_id) {}
+
+void TabStripModelObserver::OnTabGroupWillBeRemoved(
+    const tab_groups::TabGroupId& group_id) {}
 
 void TabStripModelObserver::TabChangedAt(WebContents* contents,
                                          int index,
@@ -219,12 +229,15 @@ void TabStripModelObserver::TabBlockedStateChanged(WebContents* contents,
 }
 
 void TabStripModelObserver::TabGroupedStateChanged(
-    absl::optional<tab_groups::TabGroupId> group,
-    content::WebContents* contents,
+    std::optional<tab_groups::TabGroupId> group,
+    tabs::TabInterface* tab,
     int index) {}
 
 void TabStripModelObserver::TabStripEmpty() {
 }
+
+void TabStripModelObserver::TabCloseCancelled(
+    const content::WebContents* contents) {}
 
 void TabStripModelObserver::WillCloseAllTabs(TabStripModel* tab_strip_model) {}
 
@@ -254,7 +267,7 @@ int TabStripModelObserver::CountObservedModels(
 void TabStripModelObserver::StartedObserving(
     TabStripModelObserver::ModelPasskey,
     TabStripModel* model) {
-  // TODO(https://crbug.com/991308): Add this DCHECK here. This DCHECK enforces
+  // TODO(crbug.com/40639200): Add this DCHECK here. This DCHECK enforces
   // that a given TabStripModelObserver only observes a given TabStripModel
   // once.
   // DCHECK_EQ(observed_models_.count(model), 0U);
@@ -264,7 +277,7 @@ void TabStripModelObserver::StartedObserving(
 void TabStripModelObserver::StoppedObserving(
     TabStripModelObserver::ModelPasskey,
     TabStripModel* model) {
-  // TODO(https://crbug.com/991308): Add this DCHECK here. This DCHECK enforces
+  // TODO(crbug.com/40639200): Add this DCHECK here. This DCHECK enforces
   // that a given TabStripModelObserver is only removed from a given
   // TabStripModel once.
   // DCHECK_EQ(observed_models_.count(model), 1U);

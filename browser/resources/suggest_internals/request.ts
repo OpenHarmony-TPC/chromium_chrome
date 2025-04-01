@@ -3,18 +3,22 @@
 // found in the LICENSE file.
 
 import './icons.html.js';
+import '//resources/cr_elements/cr_collapse/cr_collapse.js';
 import '//resources/cr_elements/cr_expand_button/cr_expand_button.js';
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import '//resources/cr_elements/cr_icon/cr_icon.js';
 import '//resources/cr_elements/cr_shared_style.css.js';
 import '//resources/cr_elements/cr_shared_vars.css.js';
-import '//resources/polymer/v3_0/iron-collapse/iron-collapse.js';
-import '//resources/polymer/v3_0/iron-icon/iron-icon.js';
+import '//resources/cr_elements/icons.html.js';
+import '//resources/cr_elements/cr_chip/cr_chip.js';
 
 import {sanitizeInnerHtml} from '//resources/js/parse_html_subset.js';
 import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
+import {PageClassification} from './omnibox.mojom-webui.js';
 import {getTemplate} from './request.html.js';
-import {Request, RequestStatus} from './suggest_internals.mojom-webui.js';
+import type {Request} from './suggest_internals.mojom-webui.js';
+import {RequestStatus} from './suggest_internals.mojom-webui.js';
 
 // Displays a suggest request and its response.
 export class SuggestRequestElement extends PolymerElement {
@@ -30,21 +34,44 @@ export class SuggestRequestElement extends PolymerElement {
     return {
       request: Object,
 
+      requestDataJson_: {
+        type: String,
+        computed: `computeRquestDataJson_(request.data)`,
+      },
+
       responseJson_: {
         type: String,
         computed: `computeResponseJson_(request.response)`,
+      },
+
+      pgcl_: {
+        type: String,
+        computed: `computePageClassification_(request.url)`,
       },
     };
   }
 
   request: Request;
+  private requestDataJson_: string = '';
   private responseJson_: string = '';
+  private pgcl_: string = '';
+
+  private computeRquestDataJson_(): string {
+    try {
+      // Try to parse the request body, if any.
+      this.request.data['Request-Body'] =
+          JSON.parse(this.request.data['Request-Body']);
+    } finally {
+      // Pretty-print the parsed JSON.
+      return JSON.stringify(this.request.data, null, 2);
+    }
+  }
 
   private computeResponseJson_(): string {
     try {
       // Remove the magic XSSI guard prefix, if any, to get a valid JSON.
       const validJson = this.request.response.replace(')]}\'', '').trim();
-      // Try to parse and pretty-print the valid JSON.
+      // Try to parse the valid JSON.
       const parsedJson = JSON.parse(validJson);
       // Pretty-print the parsed JSON.
       return JSON.stringify(parsedJson, null, 2);
@@ -53,9 +80,53 @@ export class SuggestRequestElement extends PolymerElement {
     }
   }
 
-  private getRequestData_(): string {
-    const requestData = JSON.stringify(this.request.data, null, 2);
-    return requestData === '{}' ? '' : requestData;
+  private computePageClassification_(): string {
+    if (!this.request.url.url) {
+      return '';
+    }
+    // Find pgcl value in request url.
+    const url = new URL(this.request.url.url);
+    const queryMatches = url.search.match(/pgcl=(?<pgcl>[^&]*)/);
+    // If no pgcl value in request, set pgcl to empty
+    const pgcl = queryMatches?.groups ? queryMatches?.groups['pgcl'] : '';
+    return pgcl;
+  }
+
+  private getPageClassificationLabel_(): string {
+    return PageClassification[parseInt(this.pgcl_)];
+  }
+
+  private insertTextProtoLinks_(stringJSON: string): string {
+    // Create regex to match against strings of desired form
+    // Ex. "google:entityinfo" : "<base64 encoding>".
+    // Extract the type (groups or entity) and proto (base64 encoding).
+    const regexGroups =
+        /"(?<type>(?:google:entityinfo|google:groupsinfo|X-Client-Data))":\s"(?<proto>(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?)"/g;
+    // Replace base64 groupinfo or entityinfo encodings with links to
+    // textproto in protoshop and return final string.
+    return stringJSON.replace(
+        regexGroups, (_match, _p1, _p2, _offset, _string, groups) => {
+          let urlType = '';
+          switch (groups.type) {
+            case 'google:entityinfo':
+              urlType = 'gws.searchbox.chrome.EntityInfo';
+              break;
+            case 'google:groupsinfo':
+              urlType = 'gws.searchbox.chrome.GroupsInfo';
+              break;
+            case 'X-Client-Data':
+              urlType = 'webserver.gws.ClientDataHeader';
+          }
+          return `"${
+              groups
+                  .type}": <a target='_blank' href=https://protoshop.corp.google.com/embed?tabs=textproto&type=${
+              urlType}&protobytes=${groups.proto}>${groups.proto}</a>`;
+        });
+  }
+
+  private getRequestDataHtml_(): TrustedHTML {
+    const htmlJSON = this.insertTextProtoLinks_(this.requestDataJson_);
+    return sanitizeInnerHtml(htmlJSON);
   }
 
   private getRequestPath_(): string {
@@ -69,13 +140,16 @@ export class SuggestRequestElement extends PolymerElement {
   }
 
   private getResponseHtml_(): TrustedHTML {
-    return sanitizeInnerHtml(this.responseJson_);
+    const htmlJSON = this.insertTextProtoLinks_(this.responseJson_);
+    return sanitizeInnerHtml(htmlJSON);
   }
 
   private getStatusIcon_(): string {
     switch (this.request.status) {
       case RequestStatus.kHardcoded:
         return 'suggest:lock';
+      case RequestStatus.kCreated:
+        return 'cr:create';
       case RequestStatus.kSent:
         return 'cr:schedule';
       case RequestStatus.kSucceeded:
@@ -91,6 +165,8 @@ export class SuggestRequestElement extends PolymerElement {
     switch (this.request.status) {
       case RequestStatus.kHardcoded:
         return 'hardcoded';
+      case RequestStatus.kCreated:
+        return 'created';
       case RequestStatus.kSent:
         return 'pending';
       case RequestStatus.kSucceeded:
@@ -120,7 +196,7 @@ export class SuggestRequestElement extends PolymerElement {
   }
 
   private onCopyRequestClick_() {
-    navigator.clipboard.writeText(this.getRequestData_());
+    navigator.clipboard.writeText(this.requestDataJson_);
 
     this.dispatchEvent(new CustomEvent('show-toast', {
       bubbles: true,
@@ -147,18 +223,20 @@ export class SuggestRequestElement extends PolymerElement {
     }));
   }
 
-  private onViewRequestClick_() {
-    this.dispatchEvent(new CustomEvent('open-view-request-dialog', {
+  private onChipClick_(e: CustomEvent<string>) {
+    this.dispatchEvent(new CustomEvent('chip-click', {
       bubbles: true,
       composed: true,
+      detail: this.pgcl_,
     }));
-  }
-
-  private onViewResponseClick_() {
-    this.dispatchEvent(new CustomEvent('open-view-response-dialog', {
-      bubbles: true,
-      composed: true,
-    }));
+    // Allow chip to be found with aria label (originally hidden).
+    const button =
+        this.shadowRoot!.querySelector<HTMLElement>('cr-expand-button')!;
+    const label = button.shadowRoot!.querySelector<HTMLElement>('#label')!;
+    label.ariaHidden = 'false';
+    // Prevent cr-expand-button from being clicked when chip is clicked.
+    e.stopPropagation();
+    e.preventDefault();
   }
 }
 

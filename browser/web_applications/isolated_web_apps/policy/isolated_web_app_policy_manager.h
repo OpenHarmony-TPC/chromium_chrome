@@ -6,159 +6,100 @@
 #define CHROME_BROWSER_WEB_APPLICATIONS_ISOLATED_WEB_APPS_POLICY_ISOLATED_WEB_APP_POLICY_MANAGER_H_
 
 #include <memory>
-#include <string>
 #include <vector>
 
-#include "base/files/file.h"
-#include "base/files/file_path.h"
+#include "base/containers/circular_deque.h"
+#include "base/containers/queue.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_location.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
+#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_install_source.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_external_install_options.h"
+#include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_installer.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
-#include "services/data_decoder/public/cpp/data_decoder.h"
-#include "services/data_decoder/public/mojom/json_parser.mojom.h"
-
-namespace network {
-class SharedURLLoaderFactory;
-class SimpleURLLoader;
-}  // namespace network
+#include "components/prefs/pref_change_registrar.h"
+#include "net/base/backoff_entry.h"
 
 namespace web_app {
 
-// This component is responsible for installing, uninstalling, updating etc.
+// This class is responsible for installing, uninstalling, updating etc.
 // of the policy installed IWAs.
 class IsolatedWebAppPolicyManager {
  public:
-  enum class EphemeralAppInstallResult {
-    kSuccess,
-    kErrorNotEphemeralSession,
-    kErrorCantCreateRootDirectory,
-    kErrorUpdateManifestDownloadFailed,
-    kErrorUpdateManifestParsingFailed,
-    kErrorWebBundleUrlCantBeDetermined,
-    kErrorCantCreateIwaDirectory,
-    kErrorCantDownloadWebBundle,
-    kErrorCantInstallFromWebBundle,
-    kUnknown,
-  };
-  static constexpr char kEphemeralIwaRootDirectory[] = "EphemeralIWA";
-  static constexpr char kMainSignedWebBundleFileName[] = "main.swbn";
+  static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
-  // This pure virtual class represents the IWA installation logic.
-  // It is introduced primarily for testability reasons.
-  class IwaInstallCommandWrapper {
-   public:
-    IwaInstallCommandWrapper() = default;
-    IwaInstallCommandWrapper(const IwaInstallCommandWrapper&) = delete;
-    IwaInstallCommandWrapper& operator=(const IwaInstallCommandWrapper&) =
-        delete;
-    virtual ~IwaInstallCommandWrapper() = default;
-    virtual void Install(
-        const IsolatedWebAppLocation& location,
-        const IsolatedWebAppUrlInfo& url_info,
-        WebAppCommandScheduler::InstallIsolatedWebAppCallback callback) = 0;
-  };
-
-  class IwaInstallCommandWrapperImpl : public IwaInstallCommandWrapper {
-   public:
-    explicit IwaInstallCommandWrapperImpl(web_app::WebAppProvider* provider);
-    void Install(const IsolatedWebAppLocation& location,
-                 const IsolatedWebAppUrlInfo& url_info,
-                 WebAppCommandScheduler::InstallIsolatedWebAppCallback callback)
-        override;
-    ~IwaInstallCommandWrapperImpl() override = default;
-
-   private:
-    const raw_ptr<web_app::WebAppProvider> provider_;
-  };
-
-  IsolatedWebAppPolicyManager(
-      const base::FilePath& context_dir,
-      std::vector<IsolatedWebAppExternalInstallOptions>
-          ephemeral_iwa_install_options,
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      std::unique_ptr<IwaInstallCommandWrapper> installer,
-      base::OnceCallback<void(std::vector<EphemeralAppInstallResult>)>
-          ephemeral_install_cb);
-  ~IsolatedWebAppPolicyManager();
-
-  // Triggers installing of the IWAs in MGS. There is no callback as so far we
-  // don't care about the result of the installation: for MVP it is not critical
-  // to have a complex retry mechanism for the session that would exist for just
-  // several minutes.
-  void InstallEphemeralApps();
+  explicit IsolatedWebAppPolicyManager(Profile* profile);
 
   IsolatedWebAppPolicyManager(const IsolatedWebAppPolicyManager&) = delete;
   IsolatedWebAppPolicyManager& operator=(const IsolatedWebAppPolicyManager&) =
       delete;
+  ~IsolatedWebAppPolicyManager();
 
-  // Extracts the URL of the Web Bundle that corresponds to the latest version
-  // of the app in the Update Manifest.
-  static absl::optional<GURL> ExtractWebBundleURL(
-      const base::Value& parsed_update_manifest);
+  void Start(base::OnceClosure on_started_callback);
+  void SetProvider(base::PassKey<WebAppProvider>, WebAppProvider& provider);
+
+  base::Value GetDebugValue() const;
 
  private:
-  // Creating root directory where the ephemeral apps will be placed.
-  void CreateIwaEphemeralRootDirectory();
-  void OnIwaEphemeralRootDirectoryCreated(base::File::Error error);
+  void CleanupAndProcessPolicyOnSessionStart();
+  int GetPendingInitCount();
+  void SetPendingInitCount(int pending_count);
+  void ProcessPolicy(base::OnceClosure finished_closure);
+  void DoProcessPolicy(AllAppsLock& lock, base::Value::Dict& debug_info);
+  void OnPolicyProcessed();
 
-  // Downloading of the update manifest of the current app.
-  void DownloadUpdateManifest();
-  void OnUpdateManifestDownloaded(
-      std::unique_ptr<network::SimpleURLLoader> simple_loader,
-      std::unique_ptr<std::string>);
+  void LogAddPolicyInstallSourceResult(
+      web_package::SignedWebBundleId web_bundle_id);
 
-  // Parsing of the update manifest from JSON string to Value tree.
-  void ParseUpdateManifest(const std::string& manifest_content);
-  void OnUpdateManifestParsed(absl::optional<base::Value> result,
-                              const absl::optional<std::string>& error);
+  void LogRemoveInstallSourceResult(
+      web_package::SignedWebBundleId web_bundle_id,
+      WebAppManagement::Type source,
+      webapps::UninstallResultCode uninstall_code);
 
-  // Create a new directory for the exact instance of the IWA.
-  void CreateIwaDirectory();
-  void OnIwaDirectoryCreated(const base::FilePath& iwa_dir,
-                             base::File::Error error);
+  void OnInstallTaskCompleted(
+      web_package::SignedWebBundleId web_bundle_id,
+      base::RepeatingCallback<void(IwaInstaller::Result)> callback,
+      IwaInstaller::Result install_result);
+  void OnAllInstallTasksCompleted(
+      std::vector<IwaInstaller::Result> install_results);
 
-  // Downloading of the Signed Web Bundle.
-  void DownloadWebBundle();
-  void OnWebBundleDownloaded(
-      std::unique_ptr<network::SimpleURLLoader> simple_loader,
-      base::FilePath path);
+  void MaybeStartNextInstallTask();
 
-  // Installing of the IWA using the downloaded Signed Web Bundle.
-  void InstallIwa(base::FilePath path);
-  void OnIwaInstalled(base::expected<InstallIsolatedWebAppCommandSuccess,
-                                     InstallIsolatedWebAppCommandError> result);
+  void CleanupOrphanedBundles(base::OnceClosure finished_closure);
 
-  // Completely removes IWA directory.
-  void WipeCurrentIwaDirectory();
-  void OnCurrentIwaDirectoryWiped(bool wipe_result);
+  // Keeps track of the last few processing logs for debugging purposes.
+  // Automatically discards older logs to keep at most `kMaxEntries`.
+  class ProcessLogs {
+   public:
+    static constexpr size_t kMaxEntries = 10;
 
-  void SetResultAndContinue(EphemeralAppInstallResult result);
-  void SetResultForAllAndFinish(EphemeralAppInstallResult result);
-  void ContinueWithTheNextApp();
+    ProcessLogs();
+    ~ProcessLogs();
 
-  data_decoder::mojom::JsonParser* GetJsonParserPtr();
+    void AppendCompletedStep(base::Value::Dict log);
 
-  // Isolated Web Apps for installation in ephemeral managed guest session.
-  std::vector<IsolatedWebAppExternalInstallOptions>
-      ephemeral_iwa_install_options_;
-  std::vector<IsolatedWebAppExternalInstallOptions>::iterator current_app_;
-  const base::FilePath installation_dir_;
+    base::Value ToDebugValue() const;
 
-  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
+   private:
+    base::circular_deque<base::Value::Dict> logs_;
+  };
 
-  // The result vector contains the installation result for each app.
-  std::vector<EphemeralAppInstallResult> result_vector_;
-  std::unique_ptr<IwaInstallCommandWrapper> installer_;
-  base::OnceCallback<void(std::vector<EphemeralAppInstallResult>)>
-      ephemeral_install_cb_;
+  raw_ptr<Profile> profile_ = nullptr;
+  raw_ptr<WebAppProvider> provider_ = nullptr;
+  PrefChangeRegistrar pref_change_registrar_;
+  ProcessLogs process_logs_;
+  base::OnceClosure on_started_callback_;
 
-  data_decoder::DataDecoder data_decoder_;
-  // Dont use this variable directly. Use GetJsonParserPtr() instead.
-  mojo::Remote<data_decoder::mojom::JsonParser> json_parser_;
+  bool reprocess_policy_needed_ = false;
+  bool policy_is_being_processed_ = false;
+  base::Value::Dict current_process_log_;
 
-  base::WeakPtrFactory<IsolatedWebAppPolicyManager> weak_factory_{this};
+  net::BackoffEntry install_retry_backoff_entry_;
+
+  // We must execute install tasks in a queue, because each task uses a
+  // `WebContents`, and installing an unbound number of apps in parallel would
+  // use too many resources.
+  base::queue<std::unique_ptr<IwaInstaller>> install_tasks_;
+
+  base::WeakPtrFactory<IsolatedWebAppPolicyManager> weak_ptr_factory_{this};
 };
 
 }  // namespace web_app

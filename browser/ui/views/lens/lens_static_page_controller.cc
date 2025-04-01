@@ -8,6 +8,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/lens/lens_metrics.h"
 #include "ui/base/webui/web_ui_util.h"
 #include "ui/gfx/image/image.h"
 #include "ui/snapshot/snapshot.h"
@@ -28,25 +29,11 @@ void LensStaticPageController::OpenStaticPage() {
   content::WebContents* active_web_contents =
       browser_->tab_strip_model()->GetActiveWebContents();
   gfx::Rect fullscreen_size = gfx::Rect(active_web_contents->GetSize());
-  // TODO(crbug/1383279): Refactor screenshot code shared here with code in
-  // image_editor::ScreenshotFlow.
-#if BUILDFLAG(IS_MAC)
-  const gfx::NativeView& native_view =
-      active_web_contents->GetContentNativeView();
-  gfx::Image img;
-  bool rval = ui::GrabViewSnapshot(native_view, fullscreen_size, &img);
-  // If |img| is empty, clients should treat it as a canceled action, but
-  // we have a DCHECK for development as we expected this call to succeed.
-  DCHECK(rval);
-  LoadChromeLens(img);
-#else
-  ui::GrabWindowSnapshotAsyncCallback load_url_callback =
+  ui::GrabSnapshotImageCallback load_url_callback =
       base::BindOnce(&LensStaticPageController::LoadChromeLens,
                      weak_ptr_factory_.GetWeakPtr());
-  const gfx::NativeWindow& native_window = active_web_contents->GetNativeView();
-  ui::GrabWindowSnapshotAsync(native_window, fullscreen_size,
-                              std::move(load_url_callback));
-#endif
+  ui::GrabViewSnapshot(active_web_contents->GetNativeView(), fullscreen_size,
+                       std::move(load_url_callback));
 }
 
 void LensStaticPageController::LoadChromeLens(gfx::Image image) {
@@ -63,7 +50,8 @@ void LensStaticPageController::LoadChromeLens(gfx::Image image) {
       url, content::Referrer(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui::PAGE_TRANSITION_LINK, /*is_renderer_initiated=*/false);
   params.initiator_origin = url::Origin::Create(url);
-  content::WebContents* new_tab = browser_->OpenURL(params);
+  content::WebContents* new_tab =
+      browser_->OpenURL(params, /*navigation_handle_callback=*/{});
   // Observe the new web contents in order to start the region search controller
   // once it is properly loaded (this prevents the region search controller from
   // closing prematurely).
@@ -85,7 +73,10 @@ void LensStaticPageController::StartRegionSearch(
   lens_region_search_controller_->Start(
       contents,
       /*use_fullscreen_capture=*/false,
-      /*is_google_default_search_provider=*/true);
+      /*force_open_in_new_tab=*/false,
+      /*is_google_default_search_provider=*/true,
+      lens::AmbientSearchEntryPoint::
+          CONTEXT_MENU_SEARCH_REGION_WITH_GOOGLE_LENS);
 }
 
 }  // namespace lens

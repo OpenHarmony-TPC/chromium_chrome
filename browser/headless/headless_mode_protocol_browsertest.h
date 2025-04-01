@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_HEADLESS_HEADLESS_MODE_PROTOCOL_BROWSERTEST_H_
 
 #include <string>
+#include <string_view>
 
 #include "base/command_line.h"
 #include "base/values.h"
@@ -22,14 +23,16 @@ class HeadlessModeProtocolBrowserTest
  protected:
   void SetUpCommandLine(base::CommandLine* command_line) override;
 
+  void RunTestScript(std::string_view script_name);
+
   // Implement this for tests that need to pass extra parameters to
   // JavaScript code.
   virtual base::Value::Dict GetPageUrlExtraParams();
 
- private:
   // HeadlessModeDevTooledBrowserTest overrides.
   void RunDevTooledTest() override;
 
+ private:
   void OnLoadEventFired(const base::Value::Dict& params);
   void OnEvaluateResult(base::Value::Dict params);
   void OnConsoleAPICalled(const base::Value::Dict& params);
@@ -43,9 +46,12 @@ class HeadlessModeProtocolBrowserTest
 
 #define HEADLESS_MODE_PROTOCOL_TEST(TEST_NAME, SCRIPT_NAME)            \
   IN_PROC_BROWSER_TEST_F(HeadlessModeProtocolBrowserTest, TEST_NAME) { \
-    test_folder_ = "/protocol/";                                       \
-    script_name_ = SCRIPT_NAME;                                        \
-    RunTest();                                                         \
+    RunTestScript(SCRIPT_NAME);                                        \
+  }
+
+#define HEADLESS_MODE_PROTOCOL_TEST_F(TEST_FIXTURE, TEST_NAME, SCRIPT_NAME) \
+  IN_PROC_BROWSER_TEST_F(TEST_FIXTURE, TEST_NAME) {                         \
+    RunTestScript(SCRIPT_NAME);                                             \
   }
 
 }  // namespace headless

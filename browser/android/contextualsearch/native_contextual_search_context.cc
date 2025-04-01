@@ -7,10 +7,12 @@
 #include <string>
 
 #include "base/android/jni_string.h"
-#include "chrome/android/chrome_jni_headers/ContextualSearchContext_jni.h"
 #include "components/translate/core/common/translate_constants.h"
 #include "components/translate/core/language_detection/language_detection_util.h"
 #include "content/public/browser/browser_thread.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/ContextualSearchContext_jni.h"
 
 NativeContextualSearchContext::NativeContextualSearchContext(JNIEnv* env,
                                                              jobject obj) {
@@ -18,6 +20,11 @@ NativeContextualSearchContext::NativeContextualSearchContext(JNIEnv* env,
 }
 
 NativeContextualSearchContext::~NativeContextualSearchContext() = default;
+
+base::WeakPtr<ContextualSearchContext>
+NativeContextualSearchContext::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
 
 // static
 base::WeakPtr<NativeContextualSearchContext>
@@ -32,7 +39,7 @@ NativeContextualSearchContext::FromJavaContextualSearchContext(
           Java_ContextualSearchContext_getNativePointer(
               base::android::AttachCurrentThread(),
               j_contextual_search_context));
-  return base::AsWeakPtr(contextual_search_context);
+  return contextual_search_context->weak_ptr_factory_.GetWeakPtr();
 }
 
 void NativeContextualSearchContext::SetResolveProperties(

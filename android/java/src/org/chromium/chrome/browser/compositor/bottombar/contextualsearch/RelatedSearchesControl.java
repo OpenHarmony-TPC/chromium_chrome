@@ -22,7 +22,6 @@ import org.chromium.chrome.browser.compositor.bottombar.OverlayPanelInflater;
 import org.chromium.chrome.browser.compositor.bottombar.contextualsearch.ContextualSearchPanel.RelatedSearchesSectionHost;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchUma;
 import org.chromium.chrome.browser.contextualsearch.RelatedSearchesUma;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.widget.chips.ChipProperties;
 import org.chromium.components.browser_ui.widget.chips.ChipsCoordinator;
 import org.chromium.ui.base.LocalizationUtils;
@@ -43,6 +42,7 @@ import java.util.List;
 public class RelatedSearchesControl {
     private static final int INVALID_VIEW_ID = 0;
     private static final int NO_SELECTED_CHIP = -1;
+
     /**
      * In the carousel UI, the first chip is the default search, so the related search start from
      * the index 1.
@@ -51,13 +51,13 @@ public class RelatedSearchesControl {
 
     /** The Android {@link Context} used to inflate the View. */
     private final Context mContext;
+
     /** The container View used to inflate the View. */
     private final ViewGroup mViewContainer;
+
     /** The resource loader that will handle the snapshot capturing. */
     private final DynamicResourceLoader mResourceLoader;
 
-    /** Whether this control is enabled or not. Even if enabled it may not have a View created. */
-    private final boolean mIsEnabled;
     private final OverlayPanel mOverlayPanel;
 
     /** The pixel density. */
@@ -70,8 +70,7 @@ public class RelatedSearchesControl {
      * The inflated View, or {@code null} if the associated Feature is not enabled,
      * or {@link #destroy} has been called.
      */
-    @Nullable
-    private RelatedSearchesControlView mControlView;
+    @Nullable private RelatedSearchesControlView mControlView;
 
     /** The query suggestions for this feature, or {@code null} if we don't have any. */
     private @Nullable List<String> mRelatedSearchesSuggestions;
@@ -113,12 +112,15 @@ public class RelatedSearchesControl {
      * @param container         The container View used to inflate the View.
      * @param resourceLoader    The resource loader that will handle the snapshot capturing.
      */
-    RelatedSearchesControl(OverlayPanel panel, RelatedSearchesSectionHost panelSectionHost,
-            Context context, ViewGroup container, DynamicResourceLoader resourceLoader) {
+    RelatedSearchesControl(
+            OverlayPanel panel,
+            RelatedSearchesSectionHost panelSectionHost,
+            Context context,
+            ViewGroup container,
+            DynamicResourceLoader resourceLoader) {
         mContext = context;
         mViewContainer = container;
         mResourceLoader = resourceLoader;
-        mIsEnabled = ChromeFeatureList.isEnabled(ChromeFeatureList.RELATED_SEARCHES);
         mDpToPx = context.getResources().getDisplayMetrics().density;
         mOverlayPanel = panel;
         mPanelSectionHost = panelSectionHost;
@@ -159,8 +161,8 @@ public class RelatedSearchesControl {
     public float getRedundantPadding() {
         return !mIsVisible || mControlView == null
                 ? 0f
-                : mContext.getResources().getDimension(
-                        R.dimen.related_searches_in_bar_redundant_padding);
+                : mContext.getResources()
+                        .getDimension(R.dimen.related_searches_in_bar_redundant_padding);
     }
 
     /** Returns the ID of the view, or {@code INVALID_VIEW_ID} if there's no view. */
@@ -170,7 +172,6 @@ public class RelatedSearchesControl {
 
     /** Returns whether the SERP is showing due to a Related Searches suggestion. */
     public boolean isShowingRelatedSearchSerp() {
-        if (!mIsEnabled) return false;
         return mSelectedChip >= INDEX_OF_THE_FIRST_RELATED_SEARCHES;
     }
 
@@ -178,9 +179,7 @@ public class RelatedSearchesControl {
     // Package-private API
     // ============================================================================================
 
-    /**
-     * Shows the View. This includes inflating the View and setting its initial state.
-     */
+    /** Shows the View. This includes inflating the View and setting its initial state. */
     void show() {
         if (mIsVisible || !hasReleatedSearchesToShow()) return;
 
@@ -191,9 +190,7 @@ public class RelatedSearchesControl {
         mHeightPx = mContentHeightPx;
     }
 
-    /**
-     * Hides the View
-     */
+    /** Hides the View */
     void hide() {
         if (!mIsVisible) return;
 
@@ -209,10 +206,15 @@ public class RelatedSearchesControl {
      */
     void setRelatedSearchesSuggestions(@Nullable List<String> relatedSearches) {
         if (mControlView == null) {
-            mControlView = new RelatedSearchesControlView(mOverlayPanel, mContext, mViewContainer,
-                    mResourceLoader, R.layout.contextual_search_related_searches_view,
-                    R.id.contextual_search_related_searches_view_id,
-                    R.id.contextual_search_related_searches_view_control_id);
+            mControlView =
+                    new RelatedSearchesControlView(
+                            mOverlayPanel,
+                            mContext,
+                            mViewContainer,
+                            mResourceLoader,
+                            R.layout.contextual_search_related_searches_view,
+                            R.id.contextual_search_related_searches_view_id,
+                            R.id.contextual_search_related_searches_view_control_id);
         }
         assert mChipsSelected == 0 || hasReleatedSearchesToShow();
         mRelatedSearchesSuggestions = relatedSearches;
@@ -240,8 +242,7 @@ public class RelatedSearchesControl {
 
     /** Returns whether we have Related Searches to show or not.  */
     boolean hasReleatedSearchesToShow() {
-        return mIsEnabled && mRelatedSearchesSuggestions != null
-                && mRelatedSearchesSuggestions.size() > 0;
+        return mRelatedSearchesSuggestions != null && mRelatedSearchesSuggestions.size() > 0;
     }
 
     @VisibleForTesting
@@ -254,17 +255,14 @@ public class RelatedSearchesControl {
     // Test support API
     // ============================================================================================
 
-    @VisibleForTesting
     public void selectChipForTest(int chipIndex) {
         handleChipTapped(mChips.get(chipIndex).model);
     }
 
-    @VisibleForTesting
     public ModelList getChipsForTest() {
         return mControlView.getChipsForTest(); // IN-TEST
     }
 
-    @VisibleForTesting
     public int getSelectedChipForTest() {
         return mSelectedChip;
     }
@@ -305,9 +303,7 @@ public class RelatedSearchesControl {
         updateViewAndNativeAppearance(percentage);
     }
 
-    /**
-     * Destroys as much of this instance as possible.
-     */
+    /** Destroys as much of this instance as possible. */
     void destroy() {
         if (hasReleatedSearchesToShow()) {
             RelatedSearchesUma.logNumberOfSuggestionsClicked(mChipsSelected);
@@ -363,8 +359,9 @@ public class RelatedSearchesControl {
      */
     private void updateAppearance(float percentage) {
         if (mIsVisible) {
-            mHeightPx = Math.round(
-                    MathUtils.clamp(percentage * mContentHeightPx, 0.f, mContentHeightPx));
+            mHeightPx =
+                    Math.round(
+                            MathUtils.clamp(percentage * mContentHeightPx, 0.f, mContentHeightPx));
         } else {
             mHeightPx = 0.f;
         }
@@ -401,7 +398,7 @@ public class RelatedSearchesControl {
         }
 
         view.setTranslationX(offsetX);
-        view.setTranslationY(y);
+        view.setTranslationY(y - mOverlayPanel.getBarMarginBottomPx());
         view.setVisibility(View.VISIBLE);
 
         // NOTE: We need to call requestLayout, otherwise the View will not become visible.
@@ -411,9 +408,7 @@ public class RelatedSearchesControl {
         mViewY = y;
     }
 
-    /**
-     * Hides the Android View. See {@link #showView()}.
-     */
+    /** Hides the Android View. See {@link #showView()}. */
     private void hideView() {
         if (mControlView == null) return;
 
@@ -482,9 +477,11 @@ public class RelatedSearchesControl {
                         ChipsCoordinator.buildChipListItem(index, suggestion, selectedCallback);
 
                 if (index < INDEX_OF_THE_FIRST_RELATED_SEARCHES) {
-                    chip.model.set(ChipProperties.TEXT_MAX_WIDTH_PX,
-                            mContext.getResources().getDimensionPixelSize(
-                                    R.dimen.contextual_search_chip_max_width));
+                    chip.model.set(
+                            ChipProperties.TEXT_MAX_WIDTH_PX,
+                            mContext.getResources()
+                                    .getDimensionPixelSize(
+                                            R.dimen.contextual_search_chip_max_width));
                 }
                 mChips.add(chip);
             }
@@ -515,42 +512,49 @@ public class RelatedSearchesControl {
      */
     private class RelatedSearchesControlView extends OverlayPanelInflater {
         private final ChipsCoordinator mChipsCoordinator;
-        // TODO(donnd): track the offset of the carousel here, so we can use it for snapshotting
-        // and log that the user has scrolled it.
-        private float mLastOffset;
         private final int mControlId;
 
         /**
          * Constructs a view that can be shown in the panel.
-         * @param panel             The panel.
-         * @param context           The Android Context used to inflate the View.
-         * @param container         The container View used to inflate the View.
-         * @param resourceLoader    The resource loader that will handle the snapshot capturing.
-         * @param layoutId          The XML Layout that declares the View.
-         * @param viewId            The id of the root View of the Layout.
-         * @param controlId         The id of the control View.
+         *
+         * @param panel The panel.
+         * @param context The Android Context used to inflate the View.
+         * @param container The container View used to inflate the View.
+         * @param resourceLoader The resource loader that will handle the snapshot capturing.
+         * @param layoutId The XML Layout that declares the View.
+         * @param viewId The id of the root View of the Layout.
+         * @param controlId The id of the control View.
          */
-        RelatedSearchesControlView(OverlayPanel panel, Context context, ViewGroup container,
-                DynamicResourceLoader resourceLoader, int layoutId, int viewId, int controlId) {
+        RelatedSearchesControlView(
+                OverlayPanel panel,
+                Context context,
+                ViewGroup container,
+                DynamicResourceLoader resourceLoader,
+                int layoutId,
+                int viewId,
+                int controlId) {
             super(panel, layoutId, viewId, context, container, resourceLoader);
             mControlId = controlId;
 
             // Setup Chips handling
             mChipsCoordinator = new ChipsCoordinator(context, mChips);
             mChipsCoordinator.setSpaceItemDecoration(
-                    context.getResources().getDimensionPixelSize(
-                            R.dimen.contextual_search_chip_list_chip_spacing),
-                    context.getResources().getDimensionPixelSize(
-                            R.dimen.contextual_search_chip_list_side_padding));
+                    context.getResources()
+                            .getDimensionPixelSize(
+                                    R.dimen.contextual_search_chip_list_chip_spacing),
+                    context.getResources()
+                            .getDimensionPixelSize(
+                                    R.dimen.contextual_search_chip_list_side_padding));
 
             RecyclerView recyclerView = (RecyclerView) mChipsCoordinator.getView();
-            recyclerView.addOnScrollListener(new OnScrollListener() {
-                @Override
-                public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
-                    if (newState == RecyclerView.SCROLL_STATE_DRAGGING) mScrolled = true;
-                    if (newState == RecyclerView.SCROLL_STATE_IDLE) invalidate(false);
-                }
-            });
+            recyclerView.addOnScrollListener(
+                    new OnScrollListener() {
+                        @Override
+                        public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
+                            if (newState == RecyclerView.SCROLL_STATE_DRAGGING) mScrolled = true;
+                            if (newState == RecyclerView.SCROLL_STATE_IDLE) invalidate(false);
+                        }
+                    });
         }
 
         /**
@@ -626,8 +630,6 @@ public class RelatedSearchesControl {
         protected void onFinishInflate() {
             super.onFinishInflate();
 
-            View view = getControlView();
-
             calculateHeight();
         }
 
@@ -636,7 +638,6 @@ public class RelatedSearchesControl {
             return false;
         }
 
-        @VisibleForTesting
         ModelList getChipsForTest() {
             updateChips();
             return mChips;

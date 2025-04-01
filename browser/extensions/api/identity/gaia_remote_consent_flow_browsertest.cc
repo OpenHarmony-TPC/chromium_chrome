@@ -5,19 +5,18 @@
 #include "chrome/browser/extensions/api/identity/gaia_remote_consent_flow.h"
 
 #include "base/strings/strcat.h"
-#include "chrome/browser/extensions/api/identity/identity_private_api.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/keep_alive_registry/keep_alive_types.h"
+#include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
-#include "extensions/browser/api_test_utils.h"
 #include "google_apis/gaia/core_account_id.h"
 #include "google_apis/gaia/fake_gaia.h"
 #include "google_apis/gaia/gaia_auth_test_util.h"
@@ -26,14 +25,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/ash/components/network/portal_detector/mock_network_portal_detector.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
-// TODO(rsult): Issues with creating a primary account on Lacros on test setup.
-// Should be reworked asap to make it pass as this feature is available on
-// Lacros as well.
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
 namespace extensions {
 
 namespace {
@@ -57,31 +52,21 @@ class MockGaiaRemoteConsentFlowDelegate
                     const std::string& gaia_id));
 };
 
-class GaiaRemoteConsentFlowParamBrowserTest
-    : public InProcessBrowserTest,
-      public testing::WithParamInterface<bool> {
+class GaiaRemoteConsentFlowParamBrowserTest : public InProcessBrowserTest {
  public:
   GaiaRemoteConsentFlowParamBrowserTest()
       : fake_gaia_test_server_(net::EmbeddedTestServer::TYPE_HTTPS) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     std::unique_ptr<ash::MockNetworkPortalDetector>
         mock_network_portal_detector_ =
             std::make_unique<ash::MockNetworkPortalDetector>();
 
-    EXPECT_CALL(*mock_network_portal_detector_, GetCaptivePortalStatus())
-        .Times(testing::AnyNumber())
-        .WillRepeatedly(
-            testing::Return(ash::NetworkPortalDetector::CaptivePortalStatus::
-                                CAPTIVE_PORTAL_STATUS_ONLINE));
     ash::network_portal_detector::InitializeForTesting(
         mock_network_portal_detector_.release());
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
     fake_gaia_test_server()->AddDefaultHandlers(GetChromeTestDataDir());
     fake_gaia_test_server_.RegisterRequestHandler(base::BindRepeating(
         &FakeGaia::HandleRequest, base::Unretained(&fake_gaia_)));
-
-    scoped_feature_list_.InitWithFeatureState(
-        features::kWebAuthFlowInBrowserTab, GetParam());
   }
 
   void SetUp() override {
@@ -92,8 +77,8 @@ class GaiaRemoteConsentFlowParamBrowserTest
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
     fake_gaia_test_server_.StartAcceptingConnections();
-    fake_gaia_.SetFakeMergeSessionParams(kTestEmail, kTestAuthSIDCookie,
-                                         kTestAuthLSIDCookie);
+    fake_gaia_.SetConfigurationHelper(kTestEmail, kTestAuthSIDCookie,
+                                      kTestAuthLSIDCookie);
   }
 
   void TearDownOnMainThread() override {
@@ -138,17 +123,23 @@ class GaiaRemoteConsentFlowParamBrowserTest
     return primary_account_info;
   }
 
-  void LaunchAndWaitGaiaRemoteConsentFlow() {
+  void CreateGaiaRemoteConsentFlow(const GURL& url) {
     CoreAccountInfo account_info = CreateFakeAccountInfoAndSetAsPrimary();
     ExtensionTokenKey token_key("extension_id", account_info,
                                 std::set<std::string>());
     RemoteConsentResolutionData resolution_data;
-    resolution_data.url = fake_gaia_test_server()->GetURL("/title1.html");
+    resolution_data.url = url;
 
     flow_ = std::make_unique<GaiaRemoteConsentFlow>(&mock(), profile(),
-                                                    token_key, resolution_data);
+                                                    token_key, resolution_data,
+                                                    /*user_gesture=*/true);
+  }
 
-    content::TestNavigationObserver navigation_observer(resolution_data.url);
+  void LaunchAndWaitGaiaRemoteConsentFlow() {
+    GURL url = fake_gaia_test_server()->GetURL("/title1.html");
+    CreateGaiaRemoteConsentFlow(url);
+
+    content::TestNavigationObserver navigation_observer(url);
     navigation_observer.StartWatchingNewWebContents();
 
     flow_->Start();
@@ -157,30 +148,14 @@ class GaiaRemoteConsentFlowParamBrowserTest
   }
 
   void SimulateConsentResult(const std::string& consent_value) {
-    // When the auth flow is using the browser tab, we are able to properly test
-    // the JS injected script since we rely on the Gaia Origin to filter out
-    // unwanted urls, and in the test we are overriding the value of Gaia
-    // Origin, so we can bypass the filter for testing.
-    if (base::FeatureList::IsEnabled(features::kWebAuthFlowInBrowserTab)) {
-      // JS function is properly called but returns nullptr.
-      ASSERT_EQ(nullptr, content::EvalJs(
-                             flow()->GetWebAuthFlowForTesting()->web_contents(),
-                             "window.OAuthConsent.setConsentResult(\"" +
-                                 consent_value + "\")"));
-      return;
-    }
-
-    // Since we cannot bypass the filter that is added in the internal extension
-    // (in it's manifest) we do not directly test the JS function but instead
-    // the layer right above in the API through
-    // `IdentityPrivateSetConsentResultFunction`.
-    std::string consent_result =
-        "[\"" + consent_value + "\", \"" +
-        flow()->GetWebAuthFlowForTesting()->GetAppWindowKey() + "\"]";
-    scoped_refptr<ExtensionFunction> func =
-        base::MakeRefCounted<IdentityPrivateSetConsentResultFunction>();
-    ASSERT_TRUE(
-        api_test_utils::RunFunction(func.get(), consent_result, profile()));
+    // We are able to properly test the JS injected script since we rely on the
+    // Gaia Origin to filter out unwanted urls, and in the test we are
+    // overriding the value of Gaia Origin, so we can bypass the filter for
+    // testing. JS function is properly called but returns nullptr.
+    ASSERT_EQ(nullptr, content::EvalJs(
+                           flow()->GetWebAuthFlowForTesting()->web_contents(),
+                           "window.OAuthConsent.setConsentResult(\"" +
+                               consent_value + "\")"));
   }
 
   MockGaiaRemoteConsentFlowDelegate& mock() {
@@ -206,7 +181,7 @@ class GaiaRemoteConsentFlowParamBrowserTest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_P(GaiaRemoteConsentFlowParamBrowserTest,
+IN_PROC_BROWSER_TEST_F(GaiaRemoteConsentFlowParamBrowserTest,
                        SimulateInvalidConsent) {
   LaunchAndWaitGaiaRemoteConsentFlow();
 
@@ -216,7 +191,7 @@ IN_PROC_BROWSER_TEST_P(GaiaRemoteConsentFlowParamBrowserTest,
   SimulateConsentResult("invalid_consent");
 }
 
-IN_PROC_BROWSER_TEST_P(GaiaRemoteConsentFlowParamBrowserTest, SimulateNoGrant) {
+IN_PROC_BROWSER_TEST_F(GaiaRemoteConsentFlowParamBrowserTest, SimulateNoGrant) {
   LaunchAndWaitGaiaRemoteConsentFlow();
 
   EXPECT_CALL(mock(), OnGaiaRemoteConsentFlowFailed(
@@ -226,7 +201,7 @@ IN_PROC_BROWSER_TEST_P(GaiaRemoteConsentFlowParamBrowserTest, SimulateNoGrant) {
   SimulateConsentResult(declined_consent);
 }
 
-IN_PROC_BROWSER_TEST_P(GaiaRemoteConsentFlowParamBrowserTest,
+IN_PROC_BROWSER_TEST_F(GaiaRemoteConsentFlowParamBrowserTest,
                        SimulateAccessGranted) {
   LaunchAndWaitGaiaRemoteConsentFlow();
 
@@ -237,15 +212,20 @@ IN_PROC_BROWSER_TEST_P(GaiaRemoteConsentFlowParamBrowserTest,
   SimulateConsentResult(approved_consent);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ,
-    GaiaRemoteConsentFlowParamBrowserTest,
-    testing::Bool(),
-    [](const testing::TestParamInfo<
-        GaiaRemoteConsentFlowParamBrowserTest::ParamType>& info) {
-      return base::StrCat({"WebAuthFlowInBrowserTab_",
-                           info.param ? "FeatureOn" : "FeatureOff"});
-    });
+IN_PROC_BROWSER_TEST_F(GaiaRemoteConsentFlowParamBrowserTest,
+                       SimulateProfileShutdownWhileLoading) {
+  // We want to interrupt the flow before `auth_url` gets loaded. To ensure that
+  // an URL doesn't load prematurely, use a default test URL that never returns
+  // a response.
+  CreateGaiaRemoteConsentFlow(fake_gaia_test_server()->GetURL("/hung"));
+  flow()->Start();
+  // Delegate shouldn't be called after the profile is destroyed.
+  EXPECT_CALL(mock(), OnGaiaRemoteConsentFlowFailed).Times(0);
+  auto keep_alive = std::make_unique<ScopedKeepAlive>(
+      KeepAliveOrigin::BROWSER, KeepAliveRestartOption::DISABLED);
+  CloseBrowserSynchronously(browser());
+  base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(
+      FROM_HERE, std::move(keep_alive));
+}
 
 }  // namespace extensions
-#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)

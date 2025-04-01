@@ -4,28 +4,37 @@
 
 #include "chrome/browser/password_manager/android/password_infobar_utils.h"
 
-#include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/sync/sync_service_factory.h"
-#include "components/autofill/core/common/autofill_features.h"
-#include "components/password_manager/core/browser/password_bubble_experiment.h"
+#include <optional>
+
+#include "components/password_manager/core/browser/password_sync_util.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 
 namespace password_manager {
 
-AccountInfo GetAccountInfoForPasswordMessages(Profile* profile) {
-  DCHECK(profile);
-
-  if (!password_bubble_experiment::HasChosenToSyncPasswords(
-          SyncServiceFactory::GetForProfile(profile))) {
-    return AccountInfo();
+std::optional<AccountInfo> GetAccountInfoForPasswordMessages(
+    syncer::SyncService* sync_service,
+    signin::IdentityManager* identity_manager) {
+  if (!password_manager::sync_util::HasChosenToSyncPasswords(sync_service)) {
+    return std::nullopt;
   }
-  signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(profile);
   CoreAccountId account_id =
-      identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSync);
+      identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   return identity_manager->FindExtendedAccountInfoByAccountId(account_id);
+}
+
+std::string GetDisplayableAccountName(
+    syncer::SyncService* sync_service,
+    signin::IdentityManager* identity_manager) {
+  std::optional<AccountInfo> account_info =
+      password_manager::GetAccountInfoForPasswordMessages(sync_service,
+                                                          identity_manager);
+  if (!account_info.has_value()) {
+    return "";
+  }
+  return account_info->CanHaveEmailAddressDisplayed()
+             ? account_info.value().email
+             : account_info.value().full_name;
 }
 
 }  // namespace password_manager

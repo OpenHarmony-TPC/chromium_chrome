@@ -4,32 +4,30 @@
 
 package org.chromium.chrome.browser.tab;
 
+import android.util.SparseArray;
 import android.view.ViewGroup;
+import android.view.ViewStructure;
+import android.view.autofill.AutofillValue;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
 import org.chromium.chrome.browser.dragdrop.ChromeDragAndDropBrowserDelegate;
 import org.chromium.components.embedder_support.view.ContentView;
-import org.chromium.content_public.browser.ContentFeatureList;
+import org.chromium.content_public.browser.ContentFeatureMap;
 import org.chromium.content_public.common.ContentFeatures;
 import org.chromium.ui.base.ApplicationViewportInsetSupplier;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.ViewportInsets;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.dragdrop.DragAndDropBrowserDelegate;
-import org.chromium.ui.dragdrop.DragAndDropDelegate;
 import org.chromium.ui.dragdrop.DragStateTracker;
 
-/**
- * Implementation of the abstract class {@link ViewAndroidDelegate} for Chrome.
- */
+/** Implementation of the abstract class {@link ViewAndroidDelegate} for Chrome. */
 public class TabViewAndroidDelegate extends ViewAndroidDelegate {
     private final TabImpl mTab;
 
-    @Nullable
-    private DragAndDropBrowserDelegate mDragAndDropBrowserDelegate;
+    @Nullable private DragAndDropBrowserDelegate mDragAndDropBrowserDelegate;
 
     /**
      * The inset for the bottom of the Visual Viewport in pixels, or 0 for no insetting.
@@ -45,9 +43,13 @@ public class TabViewAndroidDelegate extends ViewAndroidDelegate {
         mTab = (TabImpl) tab;
         containerView.addOnDragListener(getDragStateTracker());
 
-        if (ContentFeatureList.isEnabled(ContentFeatures.TOUCH_DRAG_AND_CONTEXT_MENU)
-                && DragAndDropDelegate.isDragAndDropSupportedForOs()) {
-            mDragAndDropBrowserDelegate = new ChromeDragAndDropBrowserDelegate(tab.getContext());
+        if (ContentFeatureMap.isEnabled(ContentFeatures.TOUCH_DRAG_AND_CONTEXT_MENU)) {
+            mDragAndDropBrowserDelegate =
+                    new ChromeDragAndDropBrowserDelegate(
+                            () -> {
+                                if (mTab == null || mTab.getWindowAndroid() == null) return null;
+                                return mTab.getWindowAndroid().getActivity().get();
+                            });
             getDragAndDropDelegate().setDragAndDropBrowserDelegate(mDragAndDropBrowserDelegate);
         }
 
@@ -55,50 +57,54 @@ public class TabViewAndroidDelegate extends ViewAndroidDelegate {
         mCurrentInsetSupplier = tab.getWindowAndroid().getApplicationBottomInsetSupplier();
         mCurrentInsetSupplier.addObserver(insetObserver);
 
-        mTab.addObserver(new EmptyTabObserver() {
-            @Override
-            public void onActivityAttachmentChanged(Tab tab, @Nullable WindowAndroid window) {
-                if (window != null) {
-                    mCurrentInsetSupplier =
-                            tab.getWindowAndroid().getApplicationBottomInsetSupplier();
-                    mCurrentInsetSupplier.addObserver(insetObserver);
-                    updateVisualViewportBottomInset();
-                } else {
-                    mCurrentInsetSupplier.removeObserver(insetObserver);
-                    mCurrentInsetSupplier = null;
-                    updateVisualViewportBottomInset();
-                }
-            }
+        mTab.addObserver(
+                new EmptyTabObserver() {
+                    @Override
+                    public void onActivityAttachmentChanged(
+                            Tab tab, @Nullable WindowAndroid window) {
+                        if (window != null) {
+                            mCurrentInsetSupplier =
+                                    tab.getWindowAndroid().getApplicationBottomInsetSupplier();
+                            mCurrentInsetSupplier.addObserver(insetObserver);
+                            updateVisualViewportBottomInset();
+                        } else {
+                            mCurrentInsetSupplier.removeObserver(insetObserver);
+                            mCurrentInsetSupplier = null;
+                            updateVisualViewportBottomInset();
+                        }
+                    }
 
-            @Override
-            public void onShown(Tab tab, int type) {
-                updateVisualViewportBottomInset();
-            }
+                    @Override
+                    public void onShown(Tab tab, int type) {
+                        updateVisualViewportBottomInset();
+                    }
 
-            @Override
-            public void onHidden(Tab tab, int reason) {
-                updateVisualViewportBottomInset();
-            }
-        });
+                    @Override
+                    public void onHidden(Tab tab, int reason) {
+                        updateVisualViewportBottomInset();
+                    }
+                });
     }
 
     @Override
     public void onBackgroundColorChanged(int color) {
-        mTab.onBackgroundColorChanged(color);
+        mTab.changeWebContentBackgroundColor(color);
     }
 
     @Override
-    public void onTopControlsChanged(
-            int topControlsOffsetY, int contentOffsetY, int topControlsMinHeightOffsetY) {
-        TabBrowserControlsOffsetHelper.get(mTab).setTopOffset(
-                topControlsOffsetY, contentOffsetY, topControlsMinHeightOffsetY);
-    }
-
-    @Override
-    public void onBottomControlsChanged(
-            int bottomControlsOffsetY, int bottomControlsMinHeightOffsetY) {
-        TabBrowserControlsOffsetHelper.get(mTab).setBottomOffset(
-                bottomControlsOffsetY, bottomControlsMinHeightOffsetY);
+    public void onControlsChanged(
+            int topControlsOffsetY,
+            int contentOffsetY,
+            int topControlsMinHeightOffsetY,
+            int bottomControlsOffsetY,
+            int bottomControlsMinHeightOffsetY) {
+        TabBrowserControlsOffsetHelper.get(mTab)
+                .setOffsets(
+                        topControlsOffsetY,
+                        contentOffsetY,
+                        topControlsMinHeightOffsetY,
+                        bottomControlsOffsetY,
+                        bottomControlsMinHeightOffsetY);
     }
 
     @Override
@@ -108,9 +114,10 @@ public class TabViewAndroidDelegate extends ViewAndroidDelegate {
 
     /** Sets the Visual Viewport bottom inset. */
     private void updateVisualViewportBottomInset() {
-        int inset = mTab.isHidden() || mCurrentInsetSupplier == null
-                ? 0
-                : mCurrentInsetSupplier.get().visualViewportBottomInset;
+        int inset =
+                mTab.isHidden() || mCurrentInsetSupplier == null
+                        ? 0
+                        : mCurrentInsetSupplier.get().visualViewportBottomInset;
 
         if (inset == mVisualViewportInsetBottomPx) return;
 
@@ -135,9 +142,8 @@ public class TabViewAndroidDelegate extends ViewAndroidDelegate {
     public void updateAnchorViews(ViewGroup oldContainerView) {
         super.updateAnchorViews(oldContainerView);
 
-        assert oldContainerView
-                instanceof ContentView
-            : "TabViewAndroidDelegate does not host container views other than ContentView.";
+        assert oldContainerView instanceof ContentView
+                : "TabViewAndroidDelegate does not host container views other than ContentView.";
 
         // Transfer the drag state tracker to the new container view.
         ((ContentView) oldContainerView).removeOnDragListener(getDragStateTracker());
@@ -145,9 +151,8 @@ public class TabViewAndroidDelegate extends ViewAndroidDelegate {
     }
 
     private ContentView getContentView() {
-        assert getContainerView()
-                        instanceof ContentView
-            : "TabViewAndroidDelegate does not host container views other than ContentView.";
+        assert getContainerView() instanceof ContentView
+                : "TabViewAndroidDelegate does not host container views other than ContentView.";
 
         return (ContentView) getContainerView();
     }
@@ -165,7 +170,21 @@ public class TabViewAndroidDelegate extends ViewAndroidDelegate {
         }
     }
 
-    @VisibleForTesting
+    @Override
+    public void onProvideAutofillVirtualStructure(ViewStructure structure, int flags) {
+        mTab.onProvideAutofillVirtualStructure(structure, flags);
+    }
+
+    @Override
+    public void autofill(final SparseArray<AutofillValue> values) {
+        mTab.autofill(values);
+    }
+
+    @Override
+    public boolean providesAutofillStructure() {
+        return mTab.providesAutofillStructure();
+    }
+
     DragAndDropBrowserDelegate getDragAndDropBrowserDelegateForTesting() {
         return mDragAndDropBrowserDelegate;
     }

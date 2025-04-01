@@ -15,16 +15,16 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.test.annotation.UiThreadTest;
 import androidx.test.filters.SmallTest;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.chromium.base.test.UiThreadTest;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.chrome.R;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.test.util.BlankUiTestActivityTestCase;
@@ -51,26 +51,40 @@ public class ContextMenuItemViewTest extends BlankUiTestActivityTestCase {
     public void setUpTest() throws Exception {
         super.setUpTest();
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            getActivity().setContentView(R.layout.context_menu_share_row);
-            mShareItemView = getActivity().findViewById(android.R.id.content);
-            mText = mShareItemView.findViewById(R.id.menu_row_text);
-            mIcon = mShareItemView.findViewById(R.id.menu_row_share_icon);
-            mModel = new PropertyModel.Builder(ContextMenuItemWithIconButtonProperties.ALL_KEYS)
-                             .with(ContextMenuItemWithIconButtonProperties.TEXT, "")
-                             .with(ContextMenuItemWithIconButtonProperties.BUTTON_IMAGE, null)
-                             .with(ContextMenuItemWithIconButtonProperties.BUTTON_CONTENT_DESC, "")
-                             .with(ContextMenuItemWithIconButtonProperties.BUTTON_CLICK_LISTENER,
-                                     null)
-                             .build();
-            mMCP = PropertyModelChangeProcessor.create(
-                    mModel, mShareItemView, ContextMenuItemWithIconButtonViewBinder::bind);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    getActivity().setContentView(R.layout.context_menu_share_row);
+                    mShareItemView = getActivity().findViewById(android.R.id.content);
+                    mText = mShareItemView.findViewById(R.id.menu_row_text);
+                    mIcon = mShareItemView.findViewById(R.id.menu_row_share_icon);
+                    mModel =
+                            new PropertyModel.Builder(
+                                            ContextMenuItemWithIconButtonProperties.ALL_KEYS)
+                                    .with(ContextMenuItemWithIconButtonProperties.TEXT, "")
+                                    .with(ContextMenuItemWithIconButtonProperties.ENABLED, true)
+                                    .with(
+                                            ContextMenuItemWithIconButtonProperties.BUTTON_IMAGE,
+                                            null)
+                                    .with(
+                                            ContextMenuItemWithIconButtonProperties
+                                                    .BUTTON_CONTENT_DESC,
+                                            "")
+                                    .with(
+                                            ContextMenuItemWithIconButtonProperties
+                                                    .BUTTON_CLICK_LISTENER,
+                                            null)
+                                    .build();
+                    mMCP =
+                            PropertyModelChangeProcessor.create(
+                                    mModel,
+                                    mShareItemView,
+                                    ContextMenuItemWithIconButtonViewBinder::bind);
+                });
     }
 
     @Override
     public void tearDownTest() throws Exception {
-        TestThreadUtils.runOnUiThreadBlocking(mMCP::destroy);
+        ThreadUtils.runOnUiThreadBlocking(mMCP::destroy);
         super.tearDownTest();
     }
 
@@ -78,7 +92,7 @@ public class ContextMenuItemViewTest extends BlankUiTestActivityTestCase {
     @SmallTest
     @UiThreadTest
     public void testText() {
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> mModel.set(ContextMenuItemWithIconButtonProperties.TEXT, TEXT));
         assertThat("Incorrect item text.", mText.getText(), equalTo(TEXT));
     }
@@ -90,27 +104,36 @@ public class ContextMenuItemViewTest extends BlankUiTestActivityTestCase {
         assertThat("Incorrect initial icon visibility.", mIcon.getVisibility(), equalTo(View.GONE));
         final Bitmap bitmap = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888);
         final BitmapDrawable drawable = new BitmapDrawable(mIcon.getResources(), bitmap);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mModel.set(ContextMenuItemWithIconButtonProperties.BUTTON_IMAGE, drawable);
-            mModel.set(ContextMenuItemWithIconButtonProperties.BUTTON_CONTENT_DESC, APP);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mModel.set(ContextMenuItemWithIconButtonProperties.BUTTON_IMAGE, drawable);
+                    mModel.set(ContextMenuItemWithIconButtonProperties.BUTTON_CONTENT_DESC, APP);
+                });
         assertThat("Incorrect icon drawable.", mIcon.getDrawable(), equalTo(drawable));
         assertThat("Incorrect icon visibility.", mIcon.getVisibility(), equalTo(View.VISIBLE));
-        assertThat("Incorrect icon content description.", mIcon.getContentDescription(),
-                equalTo(mShareItemView.getContext().getString(
-                        R.string.accessibility_menu_share_via, APP)));
+        assertThat(
+                "Incorrect icon content description.",
+                mIcon.getContentDescription(),
+                equalTo(
+                        mShareItemView
+                                .getContext()
+                                .getString(R.string.accessibility_menu_share_via, APP)));
     }
 
     @Test
     @SmallTest
     @UiThreadTest
     public void testShareIconClick() {
-        assertFalse("Icon has onClickListeners when it shouldn't, yet, have.",
+        assertFalse(
+                "Icon has onClickListeners when it shouldn't, yet, have.",
                 mIcon.hasOnClickListeners());
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mModel.set(ContextMenuItemWithIconButtonProperties.BUTTON_CLICK_LISTENER, this::click);
-            mIcon.callOnClick();
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mModel.set(
+                            ContextMenuItemWithIconButtonProperties.BUTTON_CLICK_LISTENER,
+                            this::click);
+                    mIcon.callOnClick();
+                });
         assertTrue("Icon hasn't been clicked.", mIsClicked);
     }
 

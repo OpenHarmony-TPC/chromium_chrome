@@ -8,12 +8,12 @@
 #include <memory>
 
 #include "base/functional/callback_forward.h"
-#include "base/metrics/field_trial.h"
+#include "base/gtest_prod_util.h"
 #include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/signin/public/base/signin_buildflags.h"
 
@@ -22,12 +22,12 @@ class Profile;
 class SilentSyncEnabler;
 class ProfileNameResolver;
 
-namespace base {
-class FeatureList;
-}
-
 namespace version_info {
 enum class Channel;
+}
+
+namespace signin {
+class IdentityManager;
 }
 
 // Task to run after the FRE is exited, with `proceed` indicating whether it
@@ -38,8 +38,6 @@ using ResumeTaskCallback = base::OnceCallback<void(bool proceed)>;
 // It is not available on the other profiles.
 class FirstRunService : public KeyedService {
  public:
-  static constexpr char kSyntheticTrialName[] = "ForYouFreSynthetic";
-
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
   enum class EntryPoint {
@@ -65,36 +63,21 @@ class FirstRunService : public KeyedService {
     kFinishedFlow = 1,
     kProfileAlreadySetUp = 2,
     kSkippedByPolicies = 3,
-    kMaxValue = kSkippedByPolicies,
+    // This is currently only used when the feature
+    // `kForceSigninFlowInProfilePicker` is enabled.
+    kForceSignin = 4,
+
+    kMaxValue = kForceSignin,
   };
 
   static void RegisterLocalStatePrefs(PrefRegistrySimple* registry);
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  // Creates a field trial to control the ForYouFre and
-  // ForYouFreSyntheticTrialRegistration features. The trial is client
-  // controlled because ForYouFre controls the First Run Experience (FRE), which
-  // shows up before a variations seed is available.
-  //
-  // No persistence happens here, instead it happens if/when the attempt to show
-  // the FRE happens, and the client joins an experiment cohort through
-  // `JoinFirstRunCohort()`.
-  static void SetUpClientSideFieldTrialIfNeeded(
-      const base::FieldTrial::EntropyProvider& entropy_provider,
-      base::FeatureList* feature_list);
-
-  // Ensures that the user's experiment group is appropriately reported
-  // to track the effect of the first run experience over time. Should be called
-  // once per browser process startup.
-  static void EnsureStickToFirstRunCohort();
-#endif
-
-  explicit FirstRunService(Profile* profile);
+  FirstRunService(Profile& profile, signin::IdentityManager& identity_manager);
   ~FirstRunService() override;
 
   // Runs `::ShouldOpenFirstRun(Profile*)` with the profile associated with this
   // service instance.
-  bool ShouldOpenFirstRun() const;
+  virtual bool ShouldOpenFirstRun() const;
 
   // This function takes the user through the browser FRE.
   // 1) First, it checks whether the FRE flow can be skipped in the first place.
@@ -113,41 +96,16 @@ class FirstRunService : public KeyedService {
   //    again at the next startup.
   // When this method is called again while FRE is in progress, the previous
   // callback is aborted (called with false), and is replaced by `callback`.
-  void OpenFirstRunIfNeeded(EntryPoint entry_point,
-                            ResumeTaskCallback callback);
+  virtual void OpenFirstRunIfNeeded(EntryPoint entry_point,
+                                    ResumeTaskCallback callback);
 
   // Terminates the first run without re-opening a browser window.
-  void FinishFirstRunWithoutResumeTask();
+  virtual void FinishFirstRunWithoutResumeTask();
 
  private:
   friend class FirstRunServiceFactory;
-  FRIEND_TEST_ALL_PREFIXES(FirstRunFieldTrialCreatorTest, SetUpFromClientSide);
-  FRIEND_TEST_ALL_PREFIXES(FirstRunCohortSetupTest, JoinFirstRunCohort);
-
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  // Internal interface for `SetUpClientSideFieldTrialIfNeeded()`, exposed to
-  // allow for channel-independent testing.
-  static void SetUpClientSideFieldTrial(
-      const base::FieldTrial::EntropyProvider& entropy_provider,
-      base::FeatureList* feature_list,
-      version_info::Channel channel);
-
-  // Enrolls this client with a synthetic field trial based on the Finch params.
-  // Should be called when the FRE is launched, then the client needs to
-  // register again on each process startup by calling
-  // `RegisterSyntheticFieldTrial()`.
-  static void JoinFirstRunCohort();
-
-  // Reports to the launch study for the First Run rollout.
-  // Notes:
-  // - This is declared here so it can have access to some private functions
-  // that need to be friended to be used.
-  // - The function is Dice-only as on Lacros (where this build flag is not set)
-  // the ForYouFre feature rollout will not go through this study process. The
-  // feature only guards an internal refactoring that does not have a
-  // user-visible effect. If will only have a killswitch.
-  static void RegisterSyntheticFieldTrial(const std::string& group_name);
-#endif
+  FRIEND_TEST_ALL_PREFIXES(FirstRunServiceTest,
+                           ShouldPopulateProfileNameFromPrimaryAccount);
 
   // Asynchronously attempts to complete the first run silently.
   // By the time `callback` is run (if non-null), either:
@@ -177,7 +135,10 @@ class FirstRunService : public KeyedService {
 #endif
 
   // Owns of this instance via the KeyedService mechanism.
-  const raw_ptr<Profile> profile_;
+  const raw_ref<Profile> profile_;
+
+  // KeyedService(s) this service depends on:
+  const raw_ref<signin::IdentityManager> identity_manager_;
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
   std::unique_ptr<SilentSyncEnabler> silent_sync_enabler_;
@@ -210,7 +171,7 @@ class FirstRunServiceFactory : public ProfileKeyedServiceFactory {
   FirstRunServiceFactory();
   ~FirstRunServiceFactory() override;
 
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
   bool ServiceIsCreatedWithBrowserContext() const override;
 };

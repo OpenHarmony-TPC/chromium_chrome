@@ -5,9 +5,9 @@
 #ifndef CHROME_BROWSER_ASH_ARC_IDLE_MANAGER_ARC_WINDOW_OBSERVER_H_
 #define CHROME_BROWSER_ASH_ARC_IDLE_MANAGER_ARC_WINDOW_OBSERVER_H_
 
+#include "ash/components/arc/window/arc_window_watcher.h"
 #include "base/scoped_observation.h"
-#include "chrome/browser/ash/arc/util/arc_window_watcher.h"
-#include "chrome/browser/ash/throttle_observer.h"
+#include "chromeos/ash/components/throttle/throttle_observer.h"
 
 namespace arc {
 
@@ -31,6 +31,7 @@ class ArcWindowObserver : public ash::ThrottleObserver,
 
   // ash::ArcWindowWatcher::ArcWindowCountObserver:
   void OnArcWindowCountChanged(uint32_t count) override;
+  void OnWillDestroyWatcher() override;
 
  private:
   base::ScopedObservation<ash::ArcWindowWatcher,

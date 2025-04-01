@@ -9,12 +9,12 @@
  */
 
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import 'chrome://resources/cr_elements/cr_collapse/cr_collapse.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
-import 'chrome://resources/polymer/v3_0/iron-collapse/iron-collapse.js';
 import 'chrome://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
-import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import '../settings_shared.css.js';
 import './safety_check_extensions_child.js';
 import './safety_check_passwords_child.js';
@@ -28,13 +28,17 @@ import {flush, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/pol
 
 import {HatsBrowserProxyImpl, TrustSafetyInteraction} from '../hats_browser_proxy.js';
 import {loadTimeData} from '../i18n_setup.js';
-import {MetricsBrowserProxy, MetricsBrowserProxyImpl, SafetyCheckInteractions} from '../metrics_browser_proxy.js';
+import type {MetricsBrowserProxy} from '../metrics_browser_proxy.js';
+import {MetricsBrowserProxyImpl, SafetyCheckInteractions} from '../metrics_browser_proxy.js';
 import {routes} from '../route.js';
-import {Route, RouteObserverMixin, Router} from '../router.js';
-import {SiteSettingsPermissionsBrowserProxy, SiteSettingsPermissionsBrowserProxyImpl, UnusedSitePermissions} from '../site_settings/site_settings_permissions_browser_proxy.js';
-import {NotificationPermission, SiteSettingsPrefsBrowserProxy, SiteSettingsPrefsBrowserProxyImpl} from '../site_settings/site_settings_prefs_browser_proxy.js';
+import type {Route} from '../router.js';
+import {RouteObserverMixin, Router} from '../router.js';
+import type {NotificationPermission, SafetyHubBrowserProxy, UnusedSitePermissions} from '../safety_hub/safety_hub_browser_proxy.js';
+import {SafetyHubBrowserProxyImpl, SafetyHubEvent} from '../safety_hub/safety_hub_browser_proxy.js';
 
-import {SafetyCheckBrowserProxy, SafetyCheckBrowserProxyImpl, SafetyCheckCallbackConstants, SafetyCheckParentStatus} from './safety_check_browser_proxy.js';
+import type {SafetyCheckBrowserProxy} from './safety_check_browser_proxy.js';
+import {SafetyCheckBrowserProxyImpl, SafetyCheckCallbackConstants, SafetyCheckParentStatus} from './safety_check_browser_proxy.js';
+import {SafetyCheckExtensionsBrowserProxyImpl} from './safety_check_extensions_browser_proxy.js';
 import {getTemplate} from './safety_check_page.html.js';
 
 interface ParentChangedEvent {
@@ -66,21 +70,20 @@ export class SettingsSafetyCheckPageElement extends
       /** UI string to display for the parent status. */
       parentDisplayString_: String,
 
-      /** Boolean to check safety check notification permissions enabled . */
-      safetyCheckNotificationPermissionsEnabled_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean(
-              'safetyCheckNotificationPermissionsEnabled');
-        },
-      },
-
       /** Boolean to show/hide entry point for unused site permissions. */
       safetyCheckUnusedSitePermissionsEnabled_: {
         type: Boolean,
         value() {
           return loadTimeData.getBoolean(
               'safetyCheckUnusedSitePermissionsEnabled');
+        },
+      },
+
+      /** Boolean to show/hide extensions entry point. */
+      safetyCheckExtensionsReviewEnabled_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('safetyCheckExtensionsReviewEnabled');
         },
       },
 
@@ -91,15 +94,14 @@ export class SettingsSafetyCheckPageElement extends
 
   private parentStatus_: SafetyCheckParentStatus;
   private parentDisplayString_: string;
-  private safetyCheckNotificationPermissionsEnabled_: boolean;
   private safetyCheckUnusedSitePermissionsEnabled_: boolean;
+  private safetyCheckExtensionsReviewEnabled_: boolean;
+  private safetyCheckNumberOfExtensionsThatNeedReview_: number;
   private notificationPermissionSites_: NotificationPermission[] = [];
   private unusedSitePermissions_: UnusedSitePermissions[] = [];
   private shouldRecordMetrics_: boolean = false;
-  private siteSettingsBrowserProxy_: SiteSettingsPrefsBrowserProxy =
-      SiteSettingsPrefsBrowserProxyImpl.getInstance();
-  private permissionsBrowserProxy_: SiteSettingsPermissionsBrowserProxy =
-      SiteSettingsPermissionsBrowserProxyImpl.getInstance();
+  private permissionsBrowserProxy_: SafetyHubBrowserProxy =
+      SafetyHubBrowserProxyImpl.getInstance();
   private safetyCheckBrowserProxy_: SafetyCheckBrowserProxy =
       SafetyCheckBrowserProxyImpl.getInstance();
   private metricsBrowserProxy_: MetricsBrowserProxy =
@@ -116,6 +118,11 @@ export class SettingsSafetyCheckPageElement extends
         SafetyCheckCallbackConstants.PARENT_CHANGED,
         this.onSafetyCheckParentChanged_.bind(this));
 
+    // Register for safety check status updates.
+    this.addWebUiListener(
+        SafetyCheckCallbackConstants.EXTENSIONS_CHANGED,
+        this.shouldShowSafetyCheckExtensionsReview_.bind(this));
+
     // Configure default UI.
     this.parentDisplayString_ =
         this.i18n('safetyCheckParentPrimaryLabelBefore');
@@ -127,21 +134,25 @@ export class SettingsSafetyCheckPageElement extends
 
     // Register for notification permission review list updates.
     this.addWebUiListener(
-        'notification-permission-review-list-maybe-changed',
+        SafetyHubEvent.NOTIFICATION_PERMISSIONS_MAYBE_CHANGED,
         (sites: NotificationPermission[]) =>
             this.onReviewNotificationPermissionListChanged_(sites));
 
     this.notificationPermissionSites_ =
-        await this.siteSettingsBrowserProxy_.getNotificationPermissionReview();
+        await this.permissionsBrowserProxy_.getNotificationPermissionReview();
 
     // Register for updates on the unused site permission list.
     this.addWebUiListener(
-        'unused-permission-review-list-maybe-changed',
+        SafetyHubEvent.UNUSED_PERMISSIONS_MAYBE_CHANGED,
         (sites: UnusedSitePermissions[]) =>
             this.onUnusedSitePermissionListChanged_(sites));
 
     this.unusedSitePermissions_ = await this.permissionsBrowserProxy_
                                       .getRevokedUnusedSitePermissionsList();
+
+    this.safetyCheckNumberOfExtensionsThatNeedReview_ =
+        await SafetyCheckExtensionsBrowserProxyImpl.getInstance()
+            .getNumberOfExtensionsThatNeedReview();
 
     if (this.shouldRecordMetrics_) {
       this.metricsBrowserProxy_
@@ -229,8 +240,7 @@ export class SettingsSafetyCheckPageElement extends
   }
 
   private shouldShowNotificationPermissions_(): boolean {
-    return this.notificationPermissionSites_.length !== 0 &&
-        this.safetyCheckNotificationPermissionsEnabled_;
+    return this.notificationPermissionSites_.length !== 0;
   }
 
   private onUnusedSitePermissionListChanged_(sites: UnusedSitePermissions[]) {
@@ -240,6 +250,16 @@ export class SettingsSafetyCheckPageElement extends
   private shouldShowUnusedSitePermissions_(): boolean {
     return this.safetyCheckUnusedSitePermissionsEnabled_ &&
         this.unusedSitePermissions_.length !== 0;
+  }
+
+  private shouldShowSafetyCheckExtensionsReview_(): boolean {
+    if (this.safetyCheckExtensionsReviewEnabled_ &&
+        this.safetyCheckNumberOfExtensionsThatNeedReview_ !== 0) {
+      this.metricsBrowserProxy_.recordAction(
+          'Settings.SafetyCheck.ShownExtensionsReviewRow');
+      return true;
+    }
+    return false;
   }
 }
 

@@ -5,17 +5,16 @@
 #include "chrome/browser/ash/policy/enrollment/auto_enrollment_state_message_processor.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
-#include "ash/constants/ash_features.h"
 #include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/ash/policy/server_backed_state/server_backed_device_state.h"
 #include "components/policy/proto/device_management_backend.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-// TODO(crbug.com/1271134): Logging as "WARNING" throughout the file to make
+// TODO(crbug.com/40805389): Logging as "WARNING" throughout the file to make
 // sure it's preserved in the logs.
 
 namespace policy {
@@ -77,6 +76,9 @@ std::string ConvertInitialEnrollmentMode(
     case em::DeviceInitialEnrollmentStateResponse::
         INITIAL_ENROLLMENT_MODE_DISABLED:
       return kDeviceStateModeDisabled;
+    case em::DeviceInitialEnrollmentStateResponse::
+        INITIAL_ENROLLMENT_MODE_TOKEN_ENROLLMENT_ENFORCED:
+      return kDeviceStateInitialModeTokenEnrollment;
   }
 }
 
@@ -122,9 +124,11 @@ class InitialEnrollmentStateMessageProcessor
  public:
   InitialEnrollmentStateMessageProcessor(
       const std::string& device_serial_number,
-      const std::string& device_brand_code)
+      const std::string& device_brand_code,
+      std::optional<std::string> flex_enrollment_token)
       : device_serial_number_(device_serial_number),
-        device_brand_code_(device_brand_code) {}
+        device_brand_code_(device_brand_code),
+        flex_enrollment_token_(std::move(flex_enrollment_token)) {}
 
   DeviceManagementService::JobConfiguration::JobType GetJobType()
       const override {
@@ -137,20 +141,23 @@ class InitialEnrollmentStateMessageProcessor
         request->mutable_device_initial_enrollment_state_request();
     inner_request->set_brand_code(device_brand_code_);
     inner_request->set_serial_number(device_serial_number_);
+    if (flex_enrollment_token_.has_value()) {
+      inner_request->set_enrollment_token(flex_enrollment_token_.value());
+    }
   }
 
-  absl::optional<ParsedResponse> ParseResponse(
+  std::optional<ParsedResponse> ParseResponse(
       const em::DeviceManagementResponse& response) override {
     if (!response.has_device_initial_enrollment_state_response()) {
       LOG(ERROR) << "Server failed to provide initial enrollment response.";
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     return ParseInitialEnrollmentStateResponse(
         response.device_initial_enrollment_state_response());
   }
 
-  static absl::optional<ParsedResponse> ParseInitialEnrollmentStateResponse(
+  static std::optional<ParsedResponse> ParseInitialEnrollmentStateResponse(
       const em::DeviceInitialEnrollmentStateResponse& state_response) {
     ParsedResponse parsed_response;
 
@@ -212,6 +219,8 @@ class InitialEnrollmentStateMessageProcessor
   std::string device_serial_number_;
   // 4-character brand code of the device.
   std::string device_brand_code_;
+
+  const std::optional<std::string> flex_enrollment_token_;
 };
 
 // Generates a request to download the device state during Forced Re-Enrollment
@@ -232,11 +241,11 @@ class FREStateMessageProcessor : public AutoEnrollmentStateMessageProcessor {
         ->set_server_backed_state_key(server_backed_state_key_);
   }
 
-  absl::optional<ParsedResponse> ParseResponse(
+  std::optional<ParsedResponse> ParseResponse(
       const em::DeviceManagementResponse& response) override {
     if (!response.has_device_state_retrieval_response()) {
       LOG(ERROR) << "Server failed to provide auto-enrollment response.";
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     const em::DeviceStateRetrievalResponse& state_response =
@@ -268,12 +277,9 @@ class FREStateMessageProcessor : public AutoEnrollmentStateMessageProcessor {
       // Package license is not available during the re-enrollment
       parsed_response.is_license_packaged_with_device.reset();
 
-      if (ash::features::IsAutoEnrollmentKioskInOobeEnabled() &&
-          state_response.has_license_type()) {
+      if (state_response.has_license_type()) {
         parsed_response.license_type = ConvertAutoEnrollmentLicenseType(
             state_response.license_type().license_type());
-      } else {
-        parsed_response.license_type.reset();
       }
 
       LOG(WARNING) << "Received restore_mode=" << restore_mode << " ("
@@ -309,9 +315,11 @@ AutoEnrollmentStateMessageProcessor::CreateForFRE(
 std::unique_ptr<AutoEnrollmentStateMessageProcessor>
 AutoEnrollmentStateMessageProcessor::CreateForInitialEnrollment(
     const std::string& device_serial_number,
-    const std::string& device_brand_code) {
+    const std::string& device_brand_code,
+    std::optional<std::string> flex_enrollment_token) {
   return std::make_unique<InitialEnrollmentStateMessageProcessor>(
-      device_serial_number, device_brand_code);
+      device_serial_number, device_brand_code,
+      std::move(flex_enrollment_token));
 }
 
 }  // namespace policy

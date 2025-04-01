@@ -17,6 +17,8 @@ import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.browser.customtabs.CustomTabsService;
 import androidx.browser.customtabs.CustomTabsSessionToken;
 
+import dagger.Lazy;
+
 import org.chromium.base.Log;
 import org.chromium.chrome.browser.browserservices.SessionDataHolder;
 import org.chromium.chrome.browser.browserservices.SessionHandler;
@@ -35,8 +37,6 @@ import org.chromium.content_public.browser.NavigationEntry;
 
 import javax.inject.Inject;
 
-import dagger.Lazy;
-
 /**
  * Implements {@link SessionHandler} for the given instance of Custom Tab activity; registers and
  * unregisters itself in {@link SessionDataHolder}.
@@ -51,44 +51,38 @@ public class CustomTabSessionHandler implements SessionHandler, StartStopWithNat
     private final Lazy<CustomTabToolbarCoordinator> mToolbarCoordinator;
     private final Lazy<CustomTabBottomBarDelegate> mBottomBarDelegate;
     private final CustomTabIntentHandler mIntentHandler;
-    private final CustomTabsConnection mConnection;
-    private final SessionDataHolder mSessionDataHolder;
     private final Activity mActivity;
 
     @Inject
-    public CustomTabSessionHandler(BrowserServicesIntentDataProvider intentDataProvider,
-            CustomTabActivityTabProvider tabProvider,
+    public CustomTabSessionHandler(
+            BrowserServicesIntentDataProvider intentDataProvider,
             Lazy<CustomTabToolbarCoordinator> toolbarCoordinator,
             Lazy<CustomTabBottomBarDelegate> bottomBarDelegate,
             CustomTabIntentHandler intentHandler,
-            CustomTabsConnection connection,
-            Activity activity,
-            ActivityLifecycleDispatcher lifecycleDispatcher,
-            SessionDataHolder sessionDataHolder) {
+            BaseCustomTabActivity activity,
+            ActivityLifecycleDispatcher lifecycleDispatcher) {
         mIntentDataProvider = intentDataProvider;
-        mTabProvider = tabProvider;
+        mTabProvider = activity.getCustomTabActivityTabProvider();
         mToolbarCoordinator = toolbarCoordinator;
         mBottomBarDelegate = bottomBarDelegate;
         mIntentHandler = intentHandler;
-        mConnection = connection;
         mActivity = activity;
-        mSessionDataHolder = sessionDataHolder;
         lifecycleDispatcher.register(this);
 
         // The active handler will also get set in onStartWithNative, but since native may take some
         // time to initialize, we eagerly set it here to catch any messages the Custom Tabs Client
         // sends our way before that triggers.
-        mSessionDataHolder.setActiveHandler(this);
+        SessionDataHolder.getInstance().setActiveHandler(this);
     }
 
     @Override
     public void onStartWithNative() {
-        mSessionDataHolder.setActiveHandler(this);
+        SessionDataHolder.getInstance().setActiveHandler(this);
     }
 
     @Override
     public void onStopWithNative() {
-        mSessionDataHolder.removeActiveHandler(this);
+        SessionDataHolder.getInstance().removeActiveHandler(this);
     }
 
     @Override
@@ -113,8 +107,8 @@ public class CustomTabSessionHandler implements SessionHandler, StartStopWithNat
     }
 
     @Override
-    public boolean updateRemoteViews(RemoteViews remoteViews, int[] clickableIDs,
-            PendingIntent pendingIntent) {
+    public boolean updateRemoteViews(
+            RemoteViews remoteViews, int[] clickableIDs, PendingIntent pendingIntent) {
         return mBottomBarDelegate.get().updateRemoteViews(remoteViews, clickableIDs, pendingIntent);
     }
 
@@ -124,26 +118,22 @@ public class CustomTabSessionHandler implements SessionHandler, StartStopWithNat
     }
 
     @Override
-    @Nullable
-    public Tab getCurrentTab() {
+    public @Nullable Tab getCurrentTab() {
         return mTabProvider.getTab();
     }
 
     @Override
-    @Nullable
-    public String getCurrentUrl() {
+    public @Nullable String getCurrentUrl() {
         Tab tab = mTabProvider.getTab();
         return tab == null ? null : tab.getUrl().getSpec();
     }
 
     @Override
-    @Nullable
-    public String getPendingUrl() {
+    public @Nullable String getPendingUrl() {
         Tab tab = mTabProvider.getTab();
         if (tab == null || tab.getWebContents() == null) return null;
 
-        NavigationEntry entry = tab.getWebContents().getNavigationController()
-                .getPendingEntry();
+        NavigationEntry entry = tab.getWebContents().getNavigationController().getPendingEntry();
         return entry != null ? entry.getUrl().getSpec() : null;
     }
 
@@ -161,8 +151,9 @@ public class CustomTabSessionHandler implements SessionHandler, StartStopWithNat
     public boolean handleIntent(Intent intent) {
         // This method exists only for legacy reasons, see LaunchIntentDispatcher#
         // clearTopIntentsForCustomTabsEnabled.
-        CustomTabIntentDataProvider dataProvider = new CustomTabIntentDataProvider(intent,
-                mActivity, CustomTabsIntent.COLOR_SCHEME_LIGHT);
+        CustomTabIntentDataProvider dataProvider =
+                new CustomTabIntentDataProvider(
+                        intent, mActivity, CustomTabsIntent.COLOR_SCHEME_LIGHT);
 
         return mIntentHandler.onNewIntent(dataProvider);
     }
@@ -170,7 +161,8 @@ public class CustomTabSessionHandler implements SessionHandler, StartStopWithNat
     @Override
     public boolean canUseReferrer(Uri referrer) {
         CustomTabsSessionToken session = mIntentDataProvider.getSession();
-        String packageName = mConnection.getClientPackageNameForSession(session);
+        String packageName =
+                CustomTabsConnection.getInstance().getClientPackageNameForSession(session);
         if (TextUtils.isEmpty(packageName)) return false;
         Origin origin = Origin.create(referrer);
         if (origin == null) return false;

@@ -133,7 +133,6 @@ CancelCallbackOnce FakeDriveUploader::ResumeUploadFile(
   // At the moment, sync file system doesn't support resuming of the uploading.
   // So this method shouldn't be reached.
   NOTREACHED();
-  return CancelCallbackOnce();
 }
 
 }  // namespace drive_backend

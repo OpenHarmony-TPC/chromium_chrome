@@ -16,12 +16,12 @@
 
 class Profile;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 namespace chromeos {
 class DeviceLocalAccountManagementPolicyProvider;
 class SigninScreenPolicyProvider;
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace value_store {
 class ValueStoreFactory;
@@ -31,7 +31,6 @@ class ValueStoreFactoryImpl;
 namespace extensions {
 
 class ExtensionSystemSharedFactory;
-class NavigationObserver;
 class UninstallPingSender;
 class InstallGate;
 class ExtensionsPermissionsTracker;
@@ -80,9 +79,12 @@ class ExtensionSystemImpl : public ExtensionSystem {
                      InstallUpdateCallback install_update_callback) override;
   void PerformActionBasedOnOmahaAttributes(
       const std::string& extension_id,
-      const base::Value& attributes) override;
+      const base::Value::Dict& attributes) override;
   bool FinishDelayedInstallationIfReady(const std::string& extension_id,
                                         bool install_immediately) override;
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    ExtensionRegistryInfoManager* GetExtensionRegistryInfoManager() override;
+#endif
 
  private:
   friend class ExtensionSystemSharedFactory;
@@ -127,7 +129,6 @@ class ExtensionSystemImpl : public ExtensionSystem {
     std::unique_ptr<StateStore> rules_store_;
     std::unique_ptr<StateStore> dynamic_user_scripts_store_;
     scoped_refptr<value_store::ValueStoreFactoryImpl> store_factory_;
-    std::unique_ptr<NavigationObserver> navigation_observer_;
     std::unique_ptr<ServiceWorkerManager> service_worker_manager_;
     // Shared memory region manager for scripts statically declared in extension
     // manifests. This region is shared between all extensions.
@@ -144,7 +145,7 @@ class ExtensionSystemImpl : public ExtensionSystem {
 
     std::unique_ptr<UninstallPingSender> uninstall_ping_sender_;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     std::unique_ptr<chromeos::DeviceLocalAccountManagementPolicyProvider>
         device_local_account_management_policy_provider_;
     std::unique_ptr<chromeos::SigninScreenPolicyProvider>
@@ -160,6 +161,10 @@ class ExtensionSystemImpl : public ExtensionSystem {
   raw_ptr<Profile> profile_;
 
   raw_ptr<Shared> shared_;
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  std::unique_ptr<ExtensionRegistryInfoManager> extension_registry_info_manager_;
+#endif
 };
 
 }  // namespace extensions

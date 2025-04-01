@@ -8,7 +8,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/user_action_tester.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/ui/toolbar/test_toolbar_action_view_controller.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_button.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_unittest.h"
@@ -38,22 +37,21 @@ class ExtensionMenuItemViewTest : public ExtensionsToolbarUnitTest {
   const std::u16string initial_extension_name_;
   const std::u16string initial_tooltip_;
   std::unique_ptr<views::Widget> widget_;
-  raw_ptr<ExtensionsMenuButton> primary_button_ = nullptr;
-  raw_ptr<HoverButton> pin_button_ = nullptr;
-  raw_ptr<HoverButton> context_menu_button_ = nullptr;
-  raw_ptr<TestToolbarActionViewController> controller_ = nullptr;
+  raw_ptr<ExtensionsMenuButton, DanglingUntriaged> primary_button_ = nullptr;
+  raw_ptr<HoverButton, DanglingUntriaged> pin_button_ = nullptr;
+  raw_ptr<HoverButton, DanglingUntriaged> context_menu_button_ = nullptr;
+  raw_ptr<TestToolbarActionViewController, DanglingUntriaged> controller_ =
+      nullptr;
 };
 
 void ExtensionMenuItemViewTest::SetUp() {
   ExtensionsToolbarUnitTest::SetUp();
 
-  // TODO(crbug.com/1263310): This widget only tests behavior of
-  // MenuItemType::kExtensions. Once MenuItemType::kSiteAccess is implemented,
-  // add a separate widget and test accordingly.
   widget_ = std::make_unique<views::Widget>();
-  views::Widget::InitParams init_params(views::Widget::InitParams::TYPE_POPUP);
-  init_params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
-#if !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_MAC)
+  views::Widget::InitParams init_params(
+      views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+      views::Widget::InitParams::TYPE_POPUP);
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_MAC)
   // This was copied from BookmarkBarViewTest:
   // On Chrome OS, this always creates a NativeWidgetAura, but it should
   // create a DesktopNativeWidgetAura for Mash. We can get by without manually
@@ -82,7 +80,7 @@ void ExtensionMenuItemViewTest::TearDown() {
   // All windows need to be closed before tear down.
   widget_.reset();
 
-  TestWithBrowserView::TearDown();
+  ExtensionsToolbarUnitTest::TearDown();
 }
 
 TEST_F(ExtensionMenuItemViewTest, UpdatesToDisplayCorrectActionTitle) {

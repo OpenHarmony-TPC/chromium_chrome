@@ -5,10 +5,10 @@
 /** @fileoverview Suite of tests for extension-site-permissions-all-sites. */
 import 'chrome://extensions/extensions.js';
 
-import {ExtensionsSitePermissionsBySiteElement, navigation, Page} from 'chrome://extensions/extensions.js';
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import type {ExtensionsSitePermissionsBySiteElement} from 'chrome://extensions/extensions.js';
+import {navigation, Page} from 'chrome://extensions/extensions.js';
 import {assertDeepEquals, assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {isVisible} from 'chrome://webui-test/test_util.js';
+import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestService} from './test_service.js';
 
@@ -64,26 +64,25 @@ suite('SitePermissionsBySite', function() {
 
   test(
       'clicking close button navigates back to site permissions page',
-      function() {
+      async () => {
         let currentPage = null;
         listenerId = navigation.addListener(newPage => {
           currentPage = newPage;
         });
 
-        flush();
         const closeButton = element.$.closeButton;
         assertTrue(!!closeButton);
         assertTrue(isVisible(closeButton));
 
         closeButton.click();
-        flush();
+        await microtasksFinished();
 
         assertDeepEquals(currentPage, {page: Page.SITE_PERMISSIONS});
       });
 
   test('extension and user sites are present', async function() {
     await delegate.whenCalled('getUserAndExtensionSitesByEtld');
-    flush();
+    await microtasksFinished();
 
     const sitePermissionGroups =
         element.shadowRoot!.querySelectorAll<HTMLElement>(
@@ -95,7 +94,7 @@ suite('SitePermissionsBySite', function() {
       'extension and user sites update when userSiteSettingsChanged is fired',
       async function() {
         await delegate.whenCalled('getUserAndExtensionSitesByEtld');
-        flush();
+        await microtasksFinished();
         delegate.resetResolver('getUserAndExtensionSitesByEtld');
         delegate.siteGroups = [{
           etldPlusOne: 'random.com',
@@ -110,7 +109,7 @@ suite('SitePermissionsBySite', function() {
         delegate.userSiteSettingsChangedTarget.callListeners(
             {permittedSites: [], restrictedSites: ['www.random.com']});
         await delegate.whenCalled('getUserAndExtensionSitesByEtld');
-        flush();
+        await microtasksFinished();
 
         const sitePermissionGroups =
             element.shadowRoot!.querySelectorAll<HTMLElement>(
@@ -122,7 +121,7 @@ suite('SitePermissionsBySite', function() {
       'extension and user sites update when itemStateChanged is fired',
       async function() {
         await delegate.whenCalled('getUserAndExtensionSitesByEtld');
-        flush();
+        await microtasksFinished();
         delegate.resetResolver('getUserAndExtensionSitesByEtld');
         delegate.siteGroups = [{
           etldPlusOne: 'random.com',
@@ -141,7 +140,7 @@ suite('SitePermissionsBySite', function() {
           item_id: '',
         });
         await delegate.whenCalled('getUserAndExtensionSitesByEtld');
-        flush();
+        await microtasksFinished();
 
         const sitePermissionGroups =
             element.shadowRoot!.querySelectorAll<HTMLElement>(

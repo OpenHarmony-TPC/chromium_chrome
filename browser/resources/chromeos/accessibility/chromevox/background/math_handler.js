@@ -5,15 +5,17 @@
 /**
  * @fileoverview Handles math output and exploration.
  */
-import {AutomationPredicate} from '../../common/automation_predicate.js';
-import {CursorRange} from '../../common/cursors/range.js';
+import {AutomationPredicate} from '/common/automation_predicate.js';
+import {CursorRange} from '/common/cursors/range.js';
+
 import {Msgs} from '../common/msgs.js';
 import {QueueMode} from '../common/tts_types.js';
 
 import {ChromeVox} from './chromevox.js';
 
 /**
- * Initializes math for output and exploration.
+ * Handles specialized code to navigate, announce, and interact with math
+ * content (encoded in MathML).
  */
 export class MathHandler {
   /**
@@ -29,17 +31,7 @@ export class MathHandler {
    * @return {boolean} Whether any math was spoken.
    */
   speak() {
-    let mathml;
-
-    // Math can exist either as explicit innerHtml (handled by the Blink
-    // renderer for nodes with role math) or as a data attribute.
-    if (this.node_.role === chrome.automation.RoleType.MATH &&
-        this.node_.innerHtml) {
-      mathml = this.node_.innerHtml;
-    } else {
-      mathml = this.node_.htmlAttributes['data-mathml'];
-    }
-
+    const mathml = this.node_.mathContent;
     if (!mathml) {
       return false;
     }

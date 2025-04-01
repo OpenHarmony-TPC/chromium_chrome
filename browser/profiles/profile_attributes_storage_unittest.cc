@@ -2,9 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
+#include "chrome/browser/profiles/profile_attributes_storage.h"
+
 #include <stddef.h>
 
 #include <string>
+#include <string_view>
 #include <unordered_set>
 
 #include "base/files/file_util.h"
@@ -16,6 +24,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/with_feature_override.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/profiles/avatar_menu.h"
@@ -30,13 +39,13 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/account_id/account_id.h"
+#include "components/prefs/scoped_user_pref_update.h"
 #include "components/profile_metrics/state.h"
-#include "components/supervised_user/core/common/buildflags.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_utils.h"
-#include "profile_attributes_storage.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -46,7 +55,10 @@
 #include "ui/native_theme/native_theme.h"
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/ui/signin/profile_colors_util.h"
+#include "chrome/browser/ui/profiles/profile_colors_util.h"
+#endif
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
 #endif
 
 using ::testing::Mock;
@@ -170,7 +182,13 @@ std::u16string ConcatenateGaiaAndProfileNames(
 class ProfileAttributesStorageTest : public testing::Test {
  public:
   ProfileAttributesStorageTest()
-      : testing_profile_manager_(TestingBrowserProcess::GetGlobal()) {}
+      : testing_profile_manager_(TestingBrowserProcess::GetGlobal()) {
+#if BUILDFLAG(IS_CHROMEOS)
+    scoped_cros_settings_test_helper_ =
+        std::make_unique<ash::ScopedCrosSettingsTestHelper>();
+#endif
+  }
+
   ~ProfileAttributesStorageTest() override {}
 
  protected:
@@ -259,12 +277,33 @@ class ProfileAttributesStorageTest : public testing::Test {
       EnableObserver();
   }
 
+  void AddSimpleTestingProfileWithName(const std::u16string& profile_name) {
+    ProfileAttributesInitParams params;
+    params.profile_path = GetProfilePath(base::UTF16ToASCII(profile_name));
+    params.profile_name = profile_name;
+    storage()->AddProfile(std::move(params));
+  }
+
+  const std::vector<std::string> EntriesToKeys(
+      const std::vector<ProfileAttributesEntry*>& entries) {
+    std::vector<std::string> keys;
+    keys.reserve(entries.size());
+    for (const ProfileAttributesEntry* entry : entries) {
+      keys.push_back(storage()->StorageKeyFromProfilePath(entry->GetPath()));
+    }
+    return keys;
+  }
+
   TestingProfileManager& testing_profile_manager() {
     return testing_profile_manager_;
   }
 
  private:
   content::BrowserTaskEnvironment task_environment_;
+#if BUILDFLAG(IS_CHROMEOS)
+  std::unique_ptr<ash::ScopedCrosSettingsTestHelper>
+      scoped_cros_settings_test_helper_;
+#endif
   TestingProfileManager testing_profile_manager_;
   ProfileAttributesTestObserver observer_;
   base::ScopedObservation<ProfileAttributesStorage,
@@ -335,10 +374,8 @@ TEST_F(ProfileAttributesStorageTest, AddProfiles) {
 
 #endif  // !BUILDFLAG(IS_ANDROID)
     std::string supervised_user_id;
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
     if (i == 3u)
       supervised_user_id = supervised_user::kChildAccountSUID;
-#endif
 
     ProfileAttributesInitParams params;
     params.profile_path = profile_path;
@@ -366,12 +403,7 @@ TEST_F(ProfileAttributesStorageTest, AddProfiles) {
     EXPECT_EQ(icon->width(), actual_icon->width());
     EXPECT_EQ(icon->height(), actual_icon->height());
 #endif
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
     EXPECT_EQ(i == 3u, entry->IsSupervised());
-#else
-    EXPECT_FALSE(entry->IsSupervised());
-    EXPECT_FALSE(entry->IsOmitted());
-#endif  // BUILDFLAG(ENABLE_SUPERVISED_USERS)
     EXPECT_EQ(supervised_user_id, entry->GetSupervisedUserId());
   }
 
@@ -482,7 +514,11 @@ TEST_F(ProfileAttributesStorageTest, MultipleProfiles) {
     AddTestingProfile();
     EXPECT_EQ(i + 1, storage()->GetNumberOfProfiles());
     EXPECT_EQ(i + 1, storage()->GetAllProfilesAttributes().size());
-    EXPECT_EQ(i + 1, storage()->GetAllProfilesAttributesSortedByName().size());
+    EXPECT_EQ(
+        i + 1,
+        storage()->GetAllProfilesAttributesSortedByNameWithCheck().size());
+    EXPECT_EQ(i + 1,
+              storage()->GetAllProfilesAttributesSortedForDisplay().size());
   }
 
   EXPECT_EQ(5U, storage()->GetNumberOfProfiles());
@@ -502,10 +538,15 @@ TEST_F(ProfileAttributesStorageTest, MultipleProfiles) {
 
   std::vector<ProfileAttributesEntry*> entries =
       storage()->GetAllProfilesAttributes();
+  EXPECT_EQ(4U, entries.size());
   for (auto* attributes_entry : entries) {
     EXPECT_NE(GetProfilePath("testing_profile_path0"),
               attributes_entry->GetPath());
   }
+
+  EXPECT_EQ(4U,
+            storage()->GetAllProfilesAttributesSortedByNameWithCheck().size());
+  EXPECT_EQ(4U, storage()->GetAllProfilesAttributesSortedForDisplay().size());
 }
 
 TEST_F(ProfileAttributesStorageTest, AddStubProfile) {
@@ -547,7 +588,7 @@ TEST_F(ProfileAttributesStorageTest, AddStubProfile) {
       local_state->GetDict(prefs::kProfileAttributes);
   for (const auto kv : attributes) {
     const base::Value& info = kv.second;
-    const std::string* name = info.FindStringKey("name");
+    const std::string* name = info.GetDict().FindString("name");
     names.push_back(*name);
   }
 
@@ -891,7 +932,8 @@ TEST_F(ProfileAttributesStorageTest, ProfileActiveTime) {
   base::Time past = base::Time::Now() - base::Minutes(10);
   lower_bound = past - base::Seconds(1);
   upper_bound = past + base::Seconds(1);
-  ASSERT_TRUE(entry->SetDouble(kActiveTimeKey, past.ToDoubleT()));
+  ASSERT_TRUE(
+      entry->SetDouble(kActiveTimeKey, past.InSecondsFSinceUnixEpoch()));
   base::Time stored_time = entry->GetActiveTime();
   ASSERT_LE(lower_bound, stored_time);
   ASSERT_GE(upper_bound, stored_time);
@@ -1071,24 +1113,18 @@ TEST_F(ProfileAttributesStorageTest, SupervisedUsersAccessors) {
 
   entry->SetSupervisedUserId("");
   ASSERT_FALSE(entry->IsSupervised());
-  ASSERT_FALSE(entry->IsChild());
 
   EXPECT_CALL(observer(), OnProfileSupervisedUserIdChanged(path)).Times(1);
   entry->SetSupervisedUserId("some_supervised_user_id");
   VerifyAndResetCallExpectations();
   ASSERT_TRUE(entry->IsSupervised());
-  ASSERT_FALSE(entry->IsChild());
 
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
   EXPECT_CALL(observer(), OnProfileSupervisedUserIdChanged(path)).Times(1);
   entry->SetSupervisedUserId(supervised_user::kChildAccountSUID);
   VerifyAndResetCallExpectations();
   ASSERT_TRUE(entry->IsSupervised());
-  ASSERT_TRUE(entry->IsChild());
-#endif  // BUILDFLAG(ENABLE_SUPERVISED_USERS)
 }
 
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
 TEST_F(ProfileAttributesStorageTest, CreateSupervisedTestingProfile) {
   DisableObserver();  // This test doesn't test observers.
 
@@ -1113,7 +1149,6 @@ TEST_F(ProfileAttributesStorageTest, CreateSupervisedTestingProfile) {
     EXPECT_EQ(supervised_user_id, entry->GetSupervisedUserId());
   }
 }
-#endif
 
 TEST_F(ProfileAttributesStorageTest, ReSortTriggered) {
   DisableObserver();  // No need to test observers in this test.
@@ -1504,7 +1539,7 @@ TEST_F(ProfileAttributesStorageTest, LoadAvatarFromDiskTest) {
       "\x24\x00\x00\x00\x0A\x49\x44\x41\x54\x08\x1D\x63\x60\x00\x00\x00"
       "\x02\x00\x01\xCF\xC8\x35\xE5\x00\x00\x00\x00\x49\x45\x4E\x44\xAE"
       "\x42\x60\x82";
-  base::WriteFile(icon_path, base::StringPiece(bitmap, sizeof(bitmap)));
+  base::WriteFile(icon_path, std::string_view(bitmap, sizeof(bitmap)));
   ASSERT_TRUE(base::PathExists(icon_path));
 
   // Add a new profile.
@@ -1553,18 +1588,18 @@ TEST_F(ProfileAttributesStorageTest, ProfilesState_ActiveMultiProfile) {
   storage()->RecordProfilesState();
 
   // There are 5 profiles all together.
-  histogram_tester.ExpectTotalCount("Profile.State.Avatar_All", 5);
-  histogram_tester.ExpectTotalCount("Profile.State.Avatar_ActiveMultiProfile",
+  histogram_tester.ExpectTotalCount("Profile.State.LastUsed_All", 5);
+  histogram_tester.ExpectTotalCount("Profile.State.LastUsed_ActiveMultiProfile",
                                     5);
 
   // Other user segments get 0 records.
-  histogram_tester.ExpectTotalCount("Profile.State.Avatar_SingleProfile", 0);
-  histogram_tester.ExpectTotalCount("Profile.State.Avatar_LatentMultiProfile",
+  histogram_tester.ExpectTotalCount("Profile.State.LastUsed_SingleProfile", 0);
+  histogram_tester.ExpectTotalCount("Profile.State.LastUsed_LatentMultiProfile",
                                     0);
   histogram_tester.ExpectTotalCount(
-      "Profile.State.Avatar_LatentMultiProfileActive", 0);
+      "Profile.State.LastUsed_LatentMultiProfileActive", 0);
   histogram_tester.ExpectTotalCount(
-      "Profile.State.Avatar_LatentMultiProfileOthers", 0);
+      "Profile.State.LastUsed_LatentMultiProfileOthers", 0);
 }
 
 // On Android (at least on KitKat), all profiles are considered active (because
@@ -1584,16 +1619,18 @@ TEST_F(ProfileAttributesStorageTest, ProfilesState_LatentMultiProfile) {
   storage()->RecordProfilesState();
 
   // There are 5 profiles all together.
-  histogram_tester.ExpectTotalCount("Profile.State.Name_All", 5);
-  histogram_tester.ExpectTotalCount("Profile.State.Name_LatentMultiProfile", 5);
+  histogram_tester.ExpectTotalCount("Profile.State.LastUsed_All", 5);
+  histogram_tester.ExpectTotalCount("Profile.State.LastUsed_LatentMultiProfile",
+                                    5);
   histogram_tester.ExpectTotalCount(
-      "Profile.State.Name_LatentMultiProfileActive", 1);
+      "Profile.State.LastUsed_LatentMultiProfileActive", 1);
   histogram_tester.ExpectTotalCount(
-      "Profile.State.Name_LatentMultiProfileOthers", 4);
+      "Profile.State.LastUsed_LatentMultiProfileOthers", 4);
 
   // Other user segments get 0 records.
-  histogram_tester.ExpectTotalCount("Profile.State.Name_SingleProfile", 0);
-  histogram_tester.ExpectTotalCount("Profile.State.Name_ActiveMultiProfile", 0);
+  histogram_tester.ExpectTotalCount("Profile.State.LastUsed_SingleProfile", 0);
+  histogram_tester.ExpectTotalCount("Profile.State.LastUsed_ActiveMultiProfile",
+                                    0);
 }
 #endif
 
@@ -1654,10 +1691,10 @@ TEST_F(ProfileAttributesStorageTest, ProfileThemeColors) {
   native_theme->set_use_dark_colors(false);
   EXPECT_EQ(entry->GetProfileThemeColors(), colors);
 
-  // absl::nullopt resets the colors to default.
+  // std::nullopt resets the colors to default.
   EXPECT_CALL(observer(), OnProfileAvatarChanged(profile_path)).Times(1);
   EXPECT_CALL(observer(), OnProfileThemeColorsChanged(profile_path)).Times(1);
-  entry->SetProfileThemeColors(absl::nullopt);
+  entry->SetProfileThemeColors(std::nullopt);
   EXPECT_EQ(entry->GetProfileThemeColors(), GetDefaultProfileThemeColors());
   VerifyAndResetCallExpectations();
 }
@@ -1753,7 +1790,7 @@ TEST_F(ProfileAttributesStorageTest, PersistGAIAPicture) {
   VerifyAndResetCallExpectations();
   ProfileAttributesEntry* entry =
       storage()->GetProfileAttributesWithPath(profile_path);
-  gfx::Image gaia_image(gfx::test::CreateImage());
+  gfx::Image gaia_image(gfx::test::CreateImage(100, 50));
 
   EXPECT_CALL(observer(), OnProfileAvatarChanged(profile_path)).Times(1);
   EXPECT_CALL(observer(), OnProfileHighResAvatarLoaded(profile_path)).Times(1);
@@ -1795,7 +1832,7 @@ TEST_F(ProfileAttributesStorageTest, EmptyGAIAInfo) {
   ProfileAttributesEntry* entry =
       storage()->GetProfileAttributesWithPath(profile_path);
 
-  gfx::Image gaia_image(gfx::test::CreateImage());
+  gfx::Image gaia_image(gfx::test::CreateImage(100, 50));
   EXPECT_CALL(observer(), OnProfileAvatarChanged(profile_path)).Times(1);
   EXPECT_CALL(observer(), OnProfileHighResAvatarLoaded(profile_path)).Times(1);
   entry->SetGAIAPicture("GAIA_IMAGE_URL_WITH_SIZE_0", gaia_image);
@@ -1844,7 +1881,7 @@ TEST_F(ProfileAttributesStorageTest, GetGaiaImageForAvatarMenu) {
   ProfileAttributesEntry* entry =
       storage()->GetProfileAttributesWithPath(profile_path);
 
-  gfx::Image gaia_image(gfx::test::CreateImage());
+  gfx::Image gaia_image(gfx::test::CreateImage(100, 50));
   EXPECT_CALL(observer(), OnProfileAvatarChanged(profile_path)).Times(1);
   EXPECT_CALL(observer(), OnProfileHighResAvatarLoaded(profile_path)).Times(1);
   entry->SetGAIAPicture("GAIA_IMAGE_URL_WITH_SIZE_0", gaia_image);
@@ -1952,3 +1989,282 @@ TEST_F(ProfileAttributesStorageTest,
   EXPECT_EQ(actual_profile_names, expected_profile_names);
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
+
+TEST_F(ProfileAttributesStorageTest,
+       InitialSavedOrderValidWithAddRemoveProfiles) {
+  DisableObserver();
+
+  ASSERT_EQ(0U, storage()->GetNumberOfProfiles());
+  ASSERT_EQ(0U, storage()->GetAllProfilesAttributesSortedForDisplay().size());
+
+  const std::u16string profile1(u"D");
+  const std::u16string profile2(u"B");
+  const std::u16string profile3(u"C");
+
+  // Add two initial profiles.
+  AddSimpleTestingProfileWithName(profile1);
+  AddSimpleTestingProfileWithName(profile2);
+  ASSERT_EQ(2U, storage()->GetNumberOfProfiles());
+
+  // Check the initial saved order is the same as the profile insertion order
+  // and not based on the Profile Name.
+  {
+    auto saved_order_entries =
+        storage()->GetAllProfilesAttributesSortedForDisplay();
+    ASSERT_EQ(2U, saved_order_entries.size());
+    EXPECT_EQ(profile1, saved_order_entries[0]->GetLocalProfileName());
+    EXPECT_EQ(profile2, saved_order_entries[1]->GetLocalProfileName());
+  }
+
+  // Add a third profile.
+  AddSimpleTestingProfileWithName(profile3);
+  ASSERT_EQ(3U, storage()->GetNumberOfProfiles());
+
+  // Check after one more insertion.
+  {
+    auto saved_order_entries =
+        storage()->GetAllProfilesAttributesSortedForDisplay();
+    ASSERT_EQ(3U, saved_order_entries.size());
+    EXPECT_EQ(profile1, saved_order_entries[0]->GetLocalProfileName());
+    EXPECT_EQ(profile2, saved_order_entries[1]->GetLocalProfileName());
+    EXPECT_EQ(profile3, saved_order_entries[2]->GetLocalProfileName());
+  }
+
+  // Remove the second profile that was added.
+  storage()->RemoveProfile(GetProfilePath(base::UTF16ToASCII(profile2)));
+  ASSERT_EQ(2U, storage()->GetNumberOfProfiles());
+
+  // Check after removing the second profile profile.
+  {
+    auto saved_order_entries =
+        storage()->GetAllProfilesAttributesSortedForDisplay();
+    ASSERT_EQ(2U, saved_order_entries.size());
+    EXPECT_EQ(profile1, saved_order_entries[0]->GetLocalProfileName());
+    EXPECT_EQ(profile3, saved_order_entries[1]->GetLocalProfileName());
+  }
+}
+
+TEST_F(ProfileAttributesStorageTest, RecoverProfileOrderPrefAfterIssues) {
+  DisableObserver();
+
+  base::Value::List profile_keys;
+  profile_keys.with_capacity(3);
+  profile_keys.Append(u"D");
+  profile_keys.Append(u"B");
+  profile_keys.Append(u"C");
+
+  for (auto& profile_key : profile_keys) {
+    AddSimpleTestingProfileWithName(
+        base::ASCIIToUTF16(profile_key.GetString()));
+  }
+
+  PrefService* local_state = g_browser_process->local_state();
+  ScopedListPrefUpdate update(local_state, prefs::kProfilesOrder);
+  base::Value::List& profiles_order = update.Get();
+
+  ASSERT_EQ(profile_keys, profiles_order);
+
+  // After recovery, the expected order is modified to be alphabetically
+  // ordered.
+  base::Value::List expected_recovered_keys;
+  expected_recovered_keys.with_capacity(profile_keys.size());
+  expected_recovered_keys.Append(profile_keys[1].GetString());
+  expected_recovered_keys.Append(profile_keys[2].GetString());
+  expected_recovered_keys.Append(profile_keys[0].GetString());
+
+  {
+    // Simulate an issue with a lost profile in the pref.
+    profiles_order.EraseValue(profile_keys[0]);
+    ASSERT_NE(profiles_order.size(), expected_recovered_keys.size());
+    storage()->EnsureProfilesOrderPrefIsInitializedForTesting();
+    EXPECT_EQ(profiles_order, expected_recovered_keys);
+  }
+
+  {
+    // Simulate an issue where a key is duplicated.
+    profiles_order[0] = base::Value(profiles_order[1].GetString());
+    ASSERT_EQ(profiles_order[0], profiles_order[1]);
+    ASSERT_NE(profiles_order[0], expected_recovered_keys[0]);
+    ASSERT_NE(expected_recovered_keys[0], expected_recovered_keys[1]);
+    storage()->EnsureProfilesOrderPrefIsInitializedForTesting();
+    EXPECT_EQ(profiles_order, expected_recovered_keys);
+  }
+
+  {
+    // Simulate an issue where a key does not match an entry.
+    profiles_order[0] = base::Value(u"DBC");
+    ASSERT_NE(profiles_order[0], expected_recovered_keys[0]);
+    storage()->EnsureProfilesOrderPrefIsInitializedForTesting();
+    EXPECT_EQ(profiles_order, expected_recovered_keys);
+  }
+}
+
+TEST_F(ProfileAttributesStorageTest, UpdateProfilesOrderPref) {
+  DisableObserver();
+
+  AddSimpleTestingProfileWithName(u"A");
+  AddSimpleTestingProfileWithName(u"B");
+  AddSimpleTestingProfileWithName(u"C");
+  AddSimpleTestingProfileWithName(u"D");
+
+  base::HistogramTester histogram_tester;
+
+  {
+    std::vector<std::string> expected_keys{"A", "B", "C", "D"};
+    ASSERT_EQ(
+        EntriesToKeys(storage()->GetAllProfilesAttributesSortedForDisplay()),
+        expected_keys);
+    histogram_tester.ExpectUniqueSample("Profile.ProfilesOrderChanged", true,
+                                        0u);
+  }
+
+  {
+    storage()->UpdateProfilesOrderPref(0, 1);
+    std::vector<std::string> expected_keys{"B", "A", "C", "D"};
+    EXPECT_EQ(
+        EntriesToKeys(storage()->GetAllProfilesAttributesSortedForDisplay()),
+        expected_keys);
+    histogram_tester.ExpectUniqueSample("Profile.ProfilesOrderChanged", true,
+                                        1u);
+  }
+
+  {
+    storage()->UpdateProfilesOrderPref(3, 0);
+    std::vector<std::string> expected_keys{"D", "B", "A", "C"};
+    EXPECT_EQ(
+        EntriesToKeys(storage()->GetAllProfilesAttributesSortedForDisplay()),
+        expected_keys);
+    histogram_tester.ExpectUniqueSample("Profile.ProfilesOrderChanged", true,
+                                        2u);
+  }
+}
+
+// This test makes sure that performing the inverse of an action will result in
+// the same initial result. Makes sure that there is a way to come back to the
+// original state.
+TEST_F(ProfileAttributesStorageTest, UpdateProfilesOrderPrefIsSymetric) {
+  DisableObserver();
+
+  AddSimpleTestingProfileWithName(u"A");
+  AddSimpleTestingProfileWithName(u"B");
+  AddSimpleTestingProfileWithName(u"C");
+  AddSimpleTestingProfileWithName(u"D");
+
+  base::HistogramTester histogram_tester;
+
+  std::vector<std::string> initial_keys_order{"A", "B", "C", "D"};
+  ASSERT_EQ(
+      EntriesToKeys(storage()->GetAllProfilesAttributesSortedForDisplay()),
+      initial_keys_order);
+
+  int from_index = 1;
+  int to_index = 3;
+  {
+    // Initial shift.
+    storage()->UpdateProfilesOrderPref(from_index, to_index);
+    std::vector<std::string> expected_keys{"A", "C", "D", "B"};
+    EXPECT_EQ(
+        EntriesToKeys(storage()->GetAllProfilesAttributesSortedForDisplay()),
+        expected_keys);
+  }
+
+  // Perform the reverse of the initial shift by inverting the inputs.
+  storage()->UpdateProfilesOrderPref(to_index, from_index);
+  EXPECT_EQ(
+      EntriesToKeys(storage()->GetAllProfilesAttributesSortedForDisplay()),
+      initial_keys_order);
+
+  histogram_tester.ExpectUniqueSample("Profile.ProfilesOrderChanged", true, 2u);
+}
+
+TEST_F(ProfileAttributesStorageTest, UpdateProfilesOrderPrefSameIndex) {
+  DisableObserver();
+
+  AddSimpleTestingProfileWithName(u"A");
+  AddSimpleTestingProfileWithName(u"B");
+  AddSimpleTestingProfileWithName(u"C");
+
+  base::HistogramTester histogram_tester;
+
+  std::vector<std::string> initial_keys_order{"A", "B", "C"};
+  ASSERT_EQ(
+      EntriesToKeys(storage()->GetAllProfilesAttributesSortedForDisplay()),
+      initial_keys_order);
+
+  int index = 2;
+  // Use the same index as from and to.
+  storage()->UpdateProfilesOrderPref(index, index);
+
+  // No changes expected with the initial value.
+  EXPECT_EQ(
+      EntriesToKeys(storage()->GetAllProfilesAttributesSortedForDisplay()),
+      initial_keys_order);
+  histogram_tester.ExpectUniqueSample("Profile.ProfilesOrderChanged", true, 0u);
+}
+
+class ProfileAttributesStorageTestWithProfileReorderingParam
+    : public base::test::WithFeatureOverride,
+      public ProfileAttributesStorageTest {
+ public:
+  ProfileAttributesStorageTestWithProfileReorderingParam()
+      : base::test::WithFeatureOverride(kProfilesReordering) {}
+};
+
+// In this test we are checking the order of which the method
+// `GetAllProfilesAttributesSortedByLocalProfileNameWithCheck()` based on the
+// feature flag `kProfilesReordering`. When the feature is on, we expect the
+// order to be the same as the order of profile insertion. When the feature is
+// off, we expect the order to be alphabetically sorted based on the profile
+// name.
+TEST_P(ProfileAttributesStorageTestWithProfileReorderingParam,
+       ProfileOrderWith_GetAllProfilesAttributesSortedWithCheck) {
+  DisableObserver();
+
+  EXPECT_EQ(0U, storage()->GetNumberOfProfiles());
+  EXPECT_EQ(0U,
+            storage()
+                ->GetAllProfilesAttributesSortedByLocalProfileNameWithCheck()
+                .size());
+
+  const std::u16string profile1(u"D");
+  const std::u16string profile2(u"C");
+  const std::u16string profile3(u"B");
+
+  // Add two initial profiles "D" and "B".
+  AddSimpleTestingProfileWithName(profile1);
+  AddSimpleTestingProfileWithName(profile3);
+
+  {
+    auto sorted_entries =
+        storage()->GetAllProfilesAttributesSortedByLocalProfileNameWithCheck();
+    ASSERT_EQ(2U, sorted_entries.size());
+    if (IsParamFeatureEnabled()) {
+      EXPECT_EQ(profile1, sorted_entries[0]->GetLocalProfileName());
+      EXPECT_EQ(profile3, sorted_entries[1]->GetLocalProfileName());
+    } else {
+      EXPECT_EQ(profile3, sorted_entries[0]->GetLocalProfileName());
+      EXPECT_EQ(profile1, sorted_entries[1]->GetLocalProfileName());
+    }
+  }
+
+  // Add a third profile "C".
+  AddSimpleTestingProfileWithName(profile2);
+
+  {
+    auto sorted_entries =
+        storage()->GetAllProfilesAttributesSortedByLocalProfileNameWithCheck();
+    ASSERT_EQ(3U, sorted_entries.size());
+    if (IsParamFeatureEnabled()) {
+      EXPECT_EQ(profile1, sorted_entries[0]->GetLocalProfileName());
+      EXPECT_EQ(profile3, sorted_entries[1]->GetLocalProfileName());
+      EXPECT_EQ(profile2, sorted_entries[2]->GetLocalProfileName());
+    } else {
+      EXPECT_EQ(profile3, sorted_entries[0]->GetLocalProfileName());
+      EXPECT_EQ(profile2, sorted_entries[1]->GetLocalProfileName());
+      EXPECT_EQ(profile1, sorted_entries[2]->GetLocalProfileName());
+    }
+  }
+}
+
+INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(
+    ProfileAttributesStorageTestWithProfileReorderingParam);

@@ -6,11 +6,11 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
 #include "base/check.h"
-#include "base/cxx17_backports.h"
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -23,7 +23,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "cef/libcef/features/runtime.h"
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
 #include "chrome/browser/download/download_core_service_factory.h"
 #include "chrome/browser/download/download_core_service_impl.h"
@@ -51,17 +50,19 @@
 #include "chrome/browser/ash/drive/drive_integration_service.h"
 #include "chrome/browser/ash/drive/file_system_util.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
+#include "chrome/browser/ui/webui/ash/cloud_upload/cloud_upload_util.h"
 #include "chromeos/ash/components/dbus/cros_disks/cros_disks_client.h"
 #elif BUILDFLAG(IS_CHROMEOS_LACROS)
 #include "chrome/common/chrome_paths_lacros.h"
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/download/bubble/download_bubble_prefs.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/flags/android/chrome_feature_list.h"
 #endif
 
-#if BUILDFLAG(ENABLE_CEF)
-#include "cef/libcef/browser/alloy/alloy_download_util.h"
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/context_path/context_path_adapter.h"
+#include "ohos/adapter/permission_manager/permission_manager_adapter.h"
 #endif
 
 using content::BrowserContext;
@@ -69,20 +70,25 @@ using content::BrowserThread;
 using content::DownloadManager;
 using safe_browsing::FileTypePolicies;
 
+#if BUILDFLAG(IS_OHOS)
+namespace ohos_permission = ohos::adapter::permission;
+#endif
+
 namespace {
 
 // Consider downloads 'dangerous' if they go to the home directory on Linux and
 // to the desktop on any platform.
 bool DownloadPathIsDangerous(const base::FilePath& download_path) {
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   base::FilePath home_dir = base::GetHomeDir();
   if (download_path == home_dir) {
     return true;
   }
 #endif
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_OHOS)
   // Neither Fuchsia nor Android have a desktop dir.
+  // ohos file selector authorization can be considered secure
   return false;
 #else
   base::FilePath desktop_dir;
@@ -109,9 +115,11 @@ class DefaultDownloadDirectory {
   const base::FilePath& path() const { return path_; }
 
   void Initialize() {
+#if !BUILDFLAG(ARKWEB_EX_DOWNLOAD)
     if (!base::PathService::Get(chrome::DIR_DEFAULT_DOWNLOADS, &path_)) {
       base::GetTempDir(&path_);
     }
+#endif
     if (DownloadPathIsDangerous(path_)) {
       // This is only useful on platforms that support
       // DIR_DEFAULT_DOWNLOADS_SAFE.
@@ -148,13 +156,11 @@ DownloadPrefs::DownloadPrefs(Profile* profile) : profile_(profile) {
                                     prefs::kDownloadDefaultDirectory};
   for (const char* path_pref : kPathPrefs) {
     const PrefService::Preference* pref = prefs->FindPreference(path_pref);
-    const base::FilePath current = prefs->GetFilePath(path_pref);
-    base::FilePath migrated;
     // Update the download directory if the pref is from user pref store or
     // default pref.
-    LOG(ERROR) << "DownloadPrefs::DownloadPrefs" << pref->IsUserControlled()
-               << "," << pref->IsDefaultValue() << "," << current.value();
     if (pref->IsUserControlled()) {
+      const base::FilePath current = prefs->GetFilePath(path_pref);
+      base::FilePath migrated;
       if (!current.empty() &&
           file_manager::util::MigratePathFromOldFormat(
               profile_, GetDefaultDownloadDirectory(), current, &migrated)) {
@@ -213,16 +219,22 @@ DownloadPrefs::DownloadPrefs(Profile* profile) : profile_(profile) {
   prompt_for_download_android_.Init(prefs::kPromptForDownloadAndroid, prefs);
   RecordDownloadPromptStatus(
       static_cast<DownloadPromptStatus>(*prompt_for_download_android_));
+  auto_open_pdf_enabled_.Init(prefs::kAutoOpenPdfEnabled, prefs);
+#endif
+#if BUILDFLAG(IS_OHOS)
+  prompt_for_download_ohos_.Init(prefs::kPromptForDownloadOhos, prefs);
+  prompt_for_download_ohos_confirmed_.Init(
+      prefs::kDownloadDefaultDirectoryOhosConfirmed, prefs);
+  download_path_ohos_ =
+      prefs->GetFilePath(prefs::kDownloadDefaultDirectoryOhos);
 #endif
   download_path_.Init(prefs::kDownloadDefaultDirectory, prefs);
   save_file_path_.Init(prefs::kSaveFileDefaultDirectory, prefs);
   save_file_type_.Init(prefs::kSaveFileType, prefs);
   safebrowsing_for_trusted_sources_enabled_.Init(
       prefs::kSafeBrowsingForTrustedSourcesEnabled, prefs);
-  download_restriction_.Init(prefs::kDownloadRestrictions, prefs);
-  download_bubble_enabled_.Init(prefs::kDownloadBubbleEnabled, prefs);
-  prompt_for_duplicate_file_.Init(prefs::kDownloadDuplicateFilePromptEnabled,
-                                  prefs);
+  download_restriction_.Init(policy::policy_prefs::kDownloadRestrictions,
+                             prefs);
 
   pref_change_registrar_.Add(
       prefs::kDownloadExtensionsToOpenByPolicy,
@@ -265,7 +277,6 @@ DownloadPrefs::DownloadPrefs(Profile* profile) : profile_(profile) {
         base::FilePath::StringType(1, base::FilePath::kExtensionSeparator) +
         extension);
 
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
     // Note that the list of file types that are not allowed to open
     // automatically can change in the future. When the list is tightened, it is
     // expected that some entries in the users' auto open list will get dropped
@@ -274,7 +285,6 @@ DownloadPrefs::DownloadPrefs(Profile* profile) : profile_(profile) {
             filename_with_extension)) {
       auto_open_by_user_.insert(extension);
     }
-#endif
   }
 }
 
@@ -291,30 +301,40 @@ void DownloadPrefs::RegisterProfilePrefs(
   registry->RegisterListPref(prefs::kDownloadExtensionsToOpenByPolicy, {});
   registry->RegisterListPref(prefs::kDownloadAllowedURLsForOpenByPolicy, {});
   registry->RegisterBooleanPref(prefs::kDownloadDirUpgraded, false);
+#if BUILDFLAG(IS_OHOS)
+  registry->RegisterIntegerPref(prefs::kSaveFileType,
+                                content::SAVE_PAGE_TYPE_AS_MHTML);
+#else
   registry->RegisterIntegerPref(prefs::kSaveFileType,
                                 content::SAVE_PAGE_TYPE_AS_COMPLETE_HTML);
-  registry->RegisterIntegerPref(prefs::kDownloadRestrictions, 0);
-  registry->RegisterBooleanPref(prefs::kDownloadBubbleEnabled, true);
+#endif
+  registry->RegisterIntegerPref(policy::policy_prefs::kDownloadRestrictions, 0);
+  // The following two prefs are ignored on ChromeOS Lacros if SysUI integration
+  // is enabled.
+  // TODO(chlily): Clean them up once SysUI integration is enabled by default.
   registry->RegisterBooleanPref(prefs::kDownloadBubblePartialViewEnabled, true);
   registry->RegisterIntegerPref(prefs::kDownloadBubblePartialViewImpressions,
                                 0);
-  registry->RegisterBooleanPref(
-      prefs::kDownloadBubbleIphSuppression, false,
-      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
-  registry->RegisterBooleanPref(prefs::kDownloadDuplicateFilePromptEnabled,
-                                true);
+
   registry->RegisterBooleanPref(prefs::kSafeBrowsingForTrustedSourcesEnabled,
                                 true);
 
   const base::FilePath& default_download_path = GetDefaultDownloadDirectory();
   registry->RegisterFilePathPref(prefs::kDownloadDefaultDirectory,
                                  default_download_path);
+#if BUILDFLAG(IS_OHOS)
+  registry->RegisterBooleanPref(
+      prefs::kPromptForDownloadOhos, false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+  registry->RegisterFilePathPref(prefs::kDownloadDefaultDirectoryOhos,
+                                 default_download_path);
+  registry->RegisterBooleanPref(prefs::kDownloadDefaultDirectoryOhosConfirmed,
+                                false);
+#endif
   registry->RegisterFilePathPref(prefs::kSaveFileDefaultDirectory,
                                  default_download_path);
-  registry->RegisterTimePref(prefs::kDownloadLastCompleteTime,
-                             /*default_value=*/base::Time());
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_MAC)
+    BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
   registry->RegisterBooleanPref(prefs::kOpenPdfDownloadInSystemReader, false);
 #endif
 #if BUILDFLAG(IS_ANDROID)
@@ -327,6 +347,9 @@ void DownloadPrefs::RegisterProfilePrefs(
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 
   registry->RegisterBooleanPref(prefs::kShowMissingSdCardErrorAndroid, true);
+  registry->RegisterBooleanPref(prefs::kAutoOpenPdfEnabled, false);
+  registry->RegisterListPref(prefs::kDownloadAppVerificationPromptTimestamps,
+                             {});
 #endif
 }
 
@@ -342,6 +365,41 @@ base::FilePath DownloadPrefs::GetDefaultDownloadDirectoryForProfile() const {
 const base::FilePath& DownloadPrefs::GetDefaultDownloadDirectory() {
   return GetDefaultDownloadDirectorySingleton().path();
 }
+
+#if BUILDFLAG(IS_OHOS)
+bool DownloadPrefs::IsShouldCancel() {
+  return is_should_cancel_;
+}
+void DownloadPrefs::ResetDownloadPath() {
+  is_should_cancel_ = false;
+  PrefService* prefs = profile_->GetPrefs();
+  if (prefs->FindPreference(prefs::kDownloadDefaultDirectory)
+          ->IsUserControlled()) {
+    prompt_for_download_ohos_.SetValue(false);
+    download_path_ohos_ = prefs->GetFilePath(prefs::kDownloadDefaultDirectory);
+    return;
+  }
+  if (ohos_permission::PermissionManagerAdapter::RequestPermission(
+          ohos_permission::OHOSPermissionType::USER_DOWNLOAD_DIR)) {
+    base::FilePath path_ = base::FilePath(
+        ::ohos::adapter::ContextPathAdapter::GetUserDownloadDir());
+    download_path_ohos_ = path_;
+    prefs->SetFilePath(prefs::kDownloadDefaultDirectoryOhos, path_);
+    prompt_for_download_ohos_.SetValue(false);
+    prompt_for_download_ohos_confirmed_.SetValue(true);
+  } else {
+    if (*prompt_for_download_ohos_confirmed_) {
+      int index =
+          ohos_permission::PermissionManagerAdapter::OpenPermissionConfirm();
+      if (index == ohos_permission::CONFIRM_INDEX) {
+        is_should_cancel_ = true;
+      }
+    }
+    prompt_for_download_ohos_.SetValue(true);
+    prompt_for_download_ohos_confirmed_.SetValue(true);
+  }
+}
+#endif
 
 // static
 DownloadPrefs* DownloadPrefs::FromDownloadManager(
@@ -360,11 +418,6 @@ DownloadPrefs* DownloadPrefs::FromDownloadManager(
 // static
 DownloadPrefs* DownloadPrefs::FromBrowserContext(
     content::BrowserContext* context) {
-#if BUILDFLAG(ENABLE_CEF)
-  if (cef::IsAlloyRuntimeEnabled()) {
-    return alloy::GetDownloadPrefsFromBrowserContext(context);
-  }
-#endif
   return FromDownloadManager(context->GetDownloadManager());
 }
 
@@ -375,10 +428,22 @@ bool DownloadPrefs::IsFromTrustedSource(const download::DownloadItem& item) {
 }
 
 base::FilePath DownloadPrefs::DownloadPath() const {
+#if BUILDFLAG(IS_OHOS)
+  PrefService* prefs = profile_->GetPrefs();
+  if (!prefs->FindPreference(prefs::kDownloadDefaultDirectory)
+           ->IsUserControlled()) {
+    return SanitizeDownloadTargetPath(download_path_ohos_);
+  }
+#endif
   return SanitizeDownloadTargetPath(*download_path_);
 }
 
 void DownloadPrefs::SetDownloadPath(const base::FilePath& path) {
+#if BUILDFLAG(IS_OHOS)
+  PrefService* prefs = profile_->GetPrefs();
+  prefs->SetFilePath(prefs::kDownloadDefaultDirectoryOhos, path);
+  download_path_ohos_ = path;
+#endif
   download_path_.SetValue(path);
   SetSaveFilePath(path);
 }
@@ -393,15 +458,6 @@ void DownloadPrefs::SetSaveFilePath(const base::FilePath& path) {
 
 void DownloadPrefs::SetSaveFileType(int type) {
   save_file_type_.SetValue(type);
-}
-
-base::Time DownloadPrefs::GetLastCompleteTime() {
-  return profile_->GetPrefs()->GetTime(prefs::kDownloadLastCompleteTime);
-}
-
-void DownloadPrefs::SetLastCompleteTime(const base::Time& last_complete_time) {
-  profile_->GetPrefs()->SetTime(prefs::kDownloadLastCompleteTime,
-                                last_complete_time);
 }
 
 bool DownloadPrefs::PromptForDownload() const {
@@ -419,6 +475,11 @@ bool DownloadPrefs::PromptForDownload() const {
   // dialog shown, show the dialog.
   return *prompt_for_download_android_ !=
          static_cast<int>(DownloadPromptStatus::DONT_SHOW);
+#elif BUILDFLAG(IS_OHOS)
+  if (*prompt_for_download_) {
+    return *prompt_for_download_;
+  }
+  return *prompt_for_download_ohos_;
 #else
   return *prompt_for_download_;
 #endif
@@ -467,12 +528,11 @@ bool DownloadPrefs::IsAutoOpenByPolicy(const GURL& url,
 bool DownloadPrefs::EnableAutoOpenByUserBasedOnExtension(
     const base::FilePath& file_name) {
   base::FilePath::StringType extension = file_name.Extension();
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   if (!FileTypePolicies::GetInstance()->IsAllowedToOpenAutomatically(
           file_name)) {
     return false;
   }
-#endif
+
   DCHECK(extension[0] == base::FilePath::kExtensionSeparator);
   extension.erase(0, 1);
 
@@ -493,7 +553,7 @@ void DownloadPrefs::DisableAutoOpenByUserBasedOnExtension(
 }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_MAC)
+    BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
 void DownloadPrefs::SetShouldOpenPdfInSystemReader(bool should_open) {
   if (should_open_pdf_in_system_reader_ == should_open)
     return;
@@ -519,7 +579,7 @@ bool DownloadPrefs::ShouldOpenPdfInSystemReader() const {
 
 void DownloadPrefs::ResetAutoOpenByUser() {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_MAC)
+    BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
   SetShouldOpenPdfInSystemReader(false);
 #endif
   auto_open_by_user_.clear();
@@ -529,6 +589,12 @@ void DownloadPrefs::ResetAutoOpenByUser() {
 void DownloadPrefs::SkipSanitizeDownloadTargetPathForTesting() {
   skip_sanitize_download_target_path_for_testing_ = true;
 }
+
+#if BUILDFLAG(IS_ANDROID)
+bool DownloadPrefs::IsAutoOpenPdfEnabled() {
+  return *auto_open_pdf_enabled_;
+}
+#endif
 
 void DownloadPrefs::SaveAutoOpenState() {
   std::string extensions;
@@ -550,7 +616,8 @@ void DownloadPrefs::SaveAutoOpenState() {
 bool DownloadPrefs::CanPlatformEnableAutoOpenForPdf() const {
 #if BUILDFLAG(IS_CHROMEOS)
   return false;  // There is no UI for auto-open on ChromeOS.
-#elif BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+#elif BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
+    BUILDFLAG(IS_OHOS)
   return ShouldOpenPdfInSystemReader();
 #else
   return false;
@@ -563,12 +630,18 @@ base::FilePath DownloadPrefs::SanitizeDownloadTargetPath(
     return path;
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // TODO(https://crbug.com/1148848): Sort out path sanitization for Lacros.
+  // TODO(crbug.com/40731523): Sort out path sanitization for Lacros.
   // This will require refactoring the ash-only code below so it can be shared.
   base::FilePath migrated_drive_path;
   if (download_dir_util::ExpandDrivePolicyVariable(profile_, path,
                                                    &migrated_drive_path)) {
     return SanitizeDownloadTargetPath(migrated_drive_path);
+  }
+
+  base::FilePath onedrive_path;
+  if (download_dir_util::ExpandOneDrivePolicyVariable(profile_, path,
+                                                      &onedrive_path)) {
+    return SanitizeDownloadTargetPath(onedrive_path);
   }
 
   const base::FilePath default_downloads_path =
@@ -594,6 +667,14 @@ base::FilePath DownloadPrefs::SanitizeDownloadTargetPath(
   bool drivefs_mounted = chrome::GetDriveFsMountPointPath(&drivefs);
   if (drivefs_mounted && drivefs.IsParent(path))
     return path;
+
+  // Allow paths under OneDrive mount point if the feature flag is enabled.
+  base::FilePath odfs_path;
+  bool odfs_mounted = chrome::GetOneDriveMountPointPath(&odfs_path);
+  if (base::FeatureList::IsEnabled(features::kSkyVault) && odfs_mounted &&
+      ((odfs_path == path) || odfs_path.IsParent(path))) {
+    return path;
+  }
 
   // Allow paths for removable media devices.
   base::FilePath removable_media_path;
@@ -636,6 +717,12 @@ base::FilePath DownloadPrefs::SanitizeDownloadTargetPath(
     return SanitizeDownloadTargetPath(migrated_drive_path);
   }
 
+  base::FilePath onedrive_path;
+  if (download_dir_util::ExpandOneDrivePolicyVariable(profile_, path,
+                                                      &onedrive_path)) {
+    return SanitizeDownloadTargetPath(onedrive_path);
+  }
+
   // If |path| isn't absolute, fall back to the default directory.
   base::FilePath profile_myfiles_path =
       file_manager::util::GetMyFilesFolderForProfile(profile_);
@@ -652,6 +739,14 @@ base::FilePath DownloadPrefs::SanitizeDownloadTargetPath(
       drive::DriveIntegrationServiceFactory::FindForProfile(profile_);
   if (integration_service && integration_service->is_enabled() &&
       integration_service->GetMountPointPath().IsParent(path)) {
+    return path;
+  }
+
+  // Allow paths under /tmp if the feature flag is enabled.
+  base::FilePath temp_path;
+  if (base::FeatureList::IsEnabled(features::kSkyVault) &&
+      base::GetTempDir(&temp_path) &&
+      ((temp_path == path) || temp_path.IsParent(path))) {
     return path;
   }
 
@@ -715,15 +810,6 @@ void DownloadPrefs::UpdateAllowedURLsForOpenByPolicy() {
   }
 
   auto_open_allowed_by_urls_.swap(allowed_urls);
-}
-
-bool DownloadPrefs::PromptForDuplicateFile() const {
-#if BUILDFLAG(IS_ANDROID)
-  return false;
-#else
-  return download::IsDownloadBubbleV2Enabled(profile_) &&
-         prompt_for_duplicate_file_.GetValue();
-#endif
 }
 
 bool DownloadPrefs::AutoOpenCompareFunctor::operator()(

@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {BookmarkManagerApiProxyImpl, BookmarksItemElement, BookmarksListElement, Command} from 'chrome://bookmarks/bookmarks.js';
+import type {BookmarksItemElement, BookmarksListElement} from 'chrome://bookmarks/bookmarks.js';
+import {BookmarkManagerApiProxyImpl, Command} from 'chrome://bookmarks/bookmarks.js';
 import {isMac} from 'chrome://resources/js/platform.js';
-import {getDeepActiveElement} from 'chrome://resources/js/util_ts.js';
-import {keyDownOn} from 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
+import {getDeepActiveElement} from 'chrome://resources/js/util.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertDeepEquals, assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {keyDownOn} from 'chrome://webui-test/keyboard_mock_interactions.js';
+import type {ModifiersParam} from 'chrome://webui-test/keyboard_mock_interactions.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 import {TestBookmarkManagerApiProxy} from './test_bookmark_manager_api_proxy.js';
@@ -22,8 +24,7 @@ suite('<bookmarks-list>', function() {
   let testCommandManager: TestCommandManager;
   const multiKey = isMac ? 'meta' : 'ctrl';
 
-  function keydown(
-      item: HTMLElement, key: string, modifiers?: string|string[]) {
+  function keydown(item: HTMLElement, key: string, modifiers?: ModifiersParam) {
     keyDownOn(item, 0, modifiers, key);
   }
 

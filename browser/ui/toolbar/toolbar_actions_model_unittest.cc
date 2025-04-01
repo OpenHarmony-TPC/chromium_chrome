@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 
 #include <stddef.h>
@@ -30,7 +35,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/toolbar/test_toolbar_action_view_controller.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/test/base/testing_profile.h"
 #include "components/crx_file/id_util.h"
 #include "components/policy/core/common/policy_map.h"
 #include "components/prefs/scoped_user_pref_update.h"
@@ -48,7 +52,6 @@
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/manifest.h"
-#include "extensions/common/value_builder.h"
 #include "extensions/test/test_extension_dir.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -217,11 +220,7 @@ void ToolbarActionsModelUnitTest::Init() {
 void ToolbarActionsModelUnitTest::InitToolbarModelAndObserver() {
   toolbar_model_ =
       extensions::extension_action_test_util::CreateToolbarModelForProfile(
-          // ExtensionServiceTestBase::profile() returns a different profile on
-          // Ash if it's a guest session. testing_profile() gives use the same
-          // profile, but we must downcast to satisfy the
-          // CreateToolbarModelForProfile which expect a Profile.
-          static_cast<Profile*>(testing_profile()));
+          profile());
   model_observer_ =
       std::make_unique<ToolbarActionsModelTestObserver>(toolbar_model_);
 }
@@ -274,11 +273,11 @@ testing::AssertionResult ToolbarActionsModelUnitTest::RemoveExtension(
 testing::AssertionResult ToolbarActionsModelUnitTest::AddActionExtensions() {
   browser_action_extension_ =
       extensions::ExtensionBuilder("browser_action")
-          .SetAction(extensions::ActionInfo::TYPE_BROWSER)
+          .SetAction(extensions::ActionInfo::Type::kBrowser)
           .SetLocation(ManifestLocation::kInternal)
           .Build();
   page_action_extension_ = extensions::ExtensionBuilder("page_action")
-                               .SetAction(extensions::ActionInfo::TYPE_PAGE)
+                               .SetAction(extensions::ActionInfo::Type::kPage)
                                .SetLocation(ManifestLocation::kInternal)
                                .Build();
   no_action_extension_ = extensions::ExtensionBuilder("no_action")
@@ -296,15 +295,15 @@ testing::AssertionResult ToolbarActionsModelUnitTest::AddActionExtensions() {
 testing::AssertionResult
 ToolbarActionsModelUnitTest::AddBrowserActionExtensions() {
   browser_action_a_ = extensions::ExtensionBuilder("browser_actionA")
-                          .SetAction(extensions::ActionInfo::TYPE_BROWSER)
+                          .SetAction(extensions::ActionInfo::Type::kBrowser)
                           .SetLocation(ManifestLocation::kInternal)
                           .Build();
   browser_action_b_ = extensions::ExtensionBuilder("browser_actionB")
-                          .SetAction(extensions::ActionInfo::TYPE_BROWSER)
+                          .SetAction(extensions::ActionInfo::Type::kBrowser)
                           .SetLocation(ManifestLocation::kInternal)
                           .Build();
   browser_action_c_ = extensions::ExtensionBuilder("browser_actionC")
-                          .SetAction(extensions::ActionInfo::TYPE_BROWSER)
+                          .SetAction(extensions::ActionInfo::Type::kBrowser)
                           .SetLocation(ManifestLocation::kInternal)
                           .Build();
 
@@ -348,7 +347,7 @@ TEST_F(ToolbarActionsModelUnitTest, BasicToolbarActionsModelTest) {
   // Load an extension with a browser action.
   scoped_refptr<const extensions::Extension> extension =
       extensions::ExtensionBuilder("browser_action")
-          .SetAction(extensions::ActionInfo::TYPE_BROWSER)
+          .SetAction(extensions::ActionInfo::Type::kBrowser)
           .SetLocation(ManifestLocation::kInternal)
           .Build();
   ASSERT_TRUE(AddExtension(extension));
@@ -375,17 +374,17 @@ TEST_F(ToolbarActionsModelUnitTest, NewToolbarExtensionsAreUnpinned) {
   // Three extensions with actions.
   scoped_refptr<const extensions::Extension> extension_a =
       extensions::ExtensionBuilder("a")
-          .SetAction(extensions::ActionInfo::TYPE_BROWSER)
+          .SetAction(extensions::ActionInfo::Type::kBrowser)
           .SetLocation(ManifestLocation::kInternal)
           .Build();
   scoped_refptr<const extensions::Extension> extension_b =
       extensions::ExtensionBuilder("b")
-          .SetAction(extensions::ActionInfo::TYPE_BROWSER)
+          .SetAction(extensions::ActionInfo::Type::kBrowser)
           .SetLocation(ManifestLocation::kInternal)
           .Build();
   scoped_refptr<const extensions::Extension> extension_c =
       extensions::ExtensionBuilder("c")
-          .SetAction(extensions::ActionInfo::TYPE_BROWSER)
+          .SetAction(extensions::ActionInfo::Type::kBrowser)
           .SetLocation(ManifestLocation::kInternal)
           .Build();
 
@@ -432,14 +431,15 @@ TEST_F(ToolbarActionsModelUnitTest, TestToolbarExtensionTypesEnabledSwitch) {
                                     no_action()->id()));
 
   // Extensions that are installed by default shouldn't be given an icon.
-  extensions::DictionaryBuilder default_installed_manifest;
-  default_installed_manifest.Set("name", "default installed")
-      .Set("description", "A default installed extension")
-      .Set("manifest_version", 2)
-      .Set("version", "1.0.0.0");
+  auto default_installed_manifest =
+      base::Value::Dict()
+          .Set("name", "default installed")
+          .Set("description", "A default installed extension")
+          .Set("manifest_version", 2)
+          .Set("version", "1.0.0.0");
   scoped_refptr<const extensions::Extension> default_installed_extension =
       extensions::ExtensionBuilder()
-          .SetManifest(default_installed_manifest.Build())
+          .SetManifest(std::move(default_installed_manifest))
           .SetID(crx_file::id_util::GenerateId("default"))
           .SetLocation(ManifestLocation::kInternal)
           .AddFlags(extensions::Extension::WAS_INSTALLED_BY_DEFAULT)
@@ -564,7 +564,7 @@ TEST_F(ToolbarActionsModelUnitTest,
 TEST_F(ToolbarActionsModelUnitTest, ActionsToolbarIncognitoEnableExtension) {
   Init();
 
-  const char* kManifest =
+  static constexpr char kManifest[] =
       "{"
       "  \"name\": \"%s\","
       "  \"version\": \"1.0\","
@@ -682,9 +682,8 @@ TEST_F(ToolbarActionsModelUnitTest, AddUserScriptExtension) {
   scoped_refptr<const extensions::Extension> extension =
       extensions::ExtensionBuilder("a")
           .SetLocation(ManifestLocation::kInternal)
-          .MergeManifest(extensions::DictionaryBuilder()
-                             .Set("converted_from_user_script", true)
-                             .Build())
+          .MergeManifest(
+              base::Value::Dict().Set("converted_from_user_script", true))
           .Build();
 
   // We should start off without any actions.
@@ -986,7 +985,7 @@ TEST_F(ToolbarActionsModelUnitTest, PinStateErasedOnUninstallation) {
 
   scoped_refptr<const extensions::Extension> extension =
       extensions::ExtensionBuilder("extension")
-          .SetAction(extensions::ActionInfo::TYPE_BROWSER)
+          .SetAction(extensions::ActionInfo::Type::kBrowser)
           .SetLocation(ManifestLocation::kInternal)
           .Build();
 
@@ -1027,7 +1026,7 @@ TEST_F(ToolbarActionsModelUnitTest, ForcePinnedByPolicy) {
         }
       })",
       extension_id.c_str());
-  absl::optional<base::Value> parsed = base::JSONReader::Read(json);
+  std::optional<base::Value> parsed = base::JSONReader::Read(json);
   policy::PolicyMap map;
   map.Set("ExtensionSettings", policy::POLICY_LEVEL_MANDATORY,
           policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_PLATFORM,
@@ -1036,7 +1035,7 @@ TEST_F(ToolbarActionsModelUnitTest, ForcePinnedByPolicy) {
 
   scoped_refptr<const extensions::Extension> extension =
       extensions::ExtensionBuilder("test")
-          .SetAction(extensions::ActionInfo::TYPE_BROWSER)
+          .SetAction(extensions::ActionInfo::Type::kBrowser)
           .SetLocation(ManifestLocation::kInternal)
           .SetID(extension_id)
           .Build();

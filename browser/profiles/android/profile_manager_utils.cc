@@ -8,7 +8,6 @@
 #include "base/functional/bind.h"
 #include "base/ranges/algorithm.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/profiles/android/jni_headers/ProfileManagerUtils_jni.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "components/prefs/pref_service.h"
@@ -17,14 +16,13 @@
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/browser/profiles/android/jni_headers/ProfileManagerUtils_jni.h"
+
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 
 namespace {
-
-void FlushStoragePartition(content::StoragePartition* partition) {
-  partition->Flush();
-}
 
 void CommitPendingWritesForProfile(Profile* profile) {
   // These calls are asynchronous. They may not finish (and may not even
@@ -35,8 +33,7 @@ void CommitPendingWritesForProfile(Profile* profile) {
       ->GetCookieManagerForBrowserProcess()
       ->FlushCookieStore(
           network::mojom::CookieManager::FlushCookieStoreCallback());
-  profile->ForEachLoadedStoragePartition(
-      base::BindRepeating(FlushStoragePartition));
+  profile->ForEachLoadedStoragePartition(&content::StoragePartition::Flush);
 }
 
 void RemoveSessionCookiesForProfile(Profile* profile) {

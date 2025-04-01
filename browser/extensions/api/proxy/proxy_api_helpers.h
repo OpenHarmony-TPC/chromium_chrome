@@ -7,13 +7,14 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_API_PROXY_PROXY_API_HELPERS_H_
 #define CHROME_BROWSER_EXTENSIONS_API_PROXY_PROXY_API_HELPERS_H_
 
+#include <array>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/values.h"
 #include "components/proxy_config/proxy_prefs.h"
 #include "net/proxy_resolution/proxy_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class ProxyConfigDictionary;
 
@@ -31,9 +32,22 @@ enum {
   SCHEME_MAX = SCHEME_FALLBACK  // Keep this value up to date.
 };
 
-// The names of the JavaScript properties to extract from the proxy_rules.
-// These must be kept in sync with the SCHEME_* constants.
-extern const char* const field_name[];
+// The names of the schemes to be used to build the preference value string
+// for manual proxy settings.  These must be kept in sync with the SCHEME_*
+// constants.
+inline constexpr std::array kSchemeNames{"*error*", "http", "https", "ftp",
+                                         "socks"};
+
+inline constexpr std::array kFieldNames{"singleProxy", "proxyForHttp",
+                                        "proxyForHttps", "proxyForFtp",
+                                        "fallbackProxy"};
+
+static_assert(SCHEME_MAX == SCHEME_FALLBACK, "SCHEME_MAX is incorrect");
+static_assert(std::size(kFieldNames) == SCHEME_MAX + 1,
+              "kFieldNames array size is incorrect");
+static_assert(std::size(kSchemeNames) == SCHEME_MAX + 1,
+              "kSchemeNames array size is incorrect");
+static_assert(SCHEME_ALL == 0, "SCHEME_ALL must be the first value");
 
 // Conversion between PAC scripts and data-encoding URLs containing these
 // PAC scripts. Data-encoding URLs consist of a data:// prefix, a mime-type and
@@ -90,7 +104,7 @@ bool GetBypassListFromExtensionPref(const base::Value::Dict& proxy_config,
 // Creates and returns a ProxyConfig dictionary (as defined in the extension
 // API) from the given parameters. Ownership is passed to the caller.
 // Depending on the value of |mode_enum|, several of the strings may be empty.
-absl::optional<base::Value::Dict> CreateProxyConfigDict(
+std::optional<base::Value::Dict> CreateProxyConfigDict(
     ProxyPrefs::ProxyMode mode_enum,
     bool pac_mandatory,
     const std::string& pac_url,
@@ -123,18 +137,18 @@ bool JoinUrlList(const base::Value::List& list,
 // Creates and returns a ProxyRules dictionary as defined in the extension API
 // with the values of a ProxyConfigDictionary configured for fixed proxy
 // servers. Returns an empty object in case of failures.
-absl::optional<base::Value::Dict> CreateProxyRulesDict(
+std::optional<base::Value::Dict> CreateProxyRulesDict(
     const ProxyConfigDictionary& proxy_config);
 
 // Creates and returns a ProxyServer dictionary as defined in the extension API
-// with values from a net::ProxyServer object. Returns an empty dictionary on
+// with values from a net::ProxyChain object. Returns an empty dictionary on
 // error.
-base::Value::Dict CreateProxyServerDict(const net::ProxyServer& proxy);
+base::Value::Dict CreateProxyServerDict(const net::ProxyChain& proxy);
 
 // Creates and returns a PacScript dictionary as defined in the extension API
 // with the values of a ProxyconfigDictionary configured for pac scripts.
 // Returns an empty object in case of failures.
-absl::optional<base::Value::Dict> CreatePacScriptDict(
+std::optional<base::Value::Dict> CreatePacScriptDict(
     const ProxyConfigDictionary& proxy_config);
 
 // Tokenizes the |in| at delimiters |delims| and returns a new

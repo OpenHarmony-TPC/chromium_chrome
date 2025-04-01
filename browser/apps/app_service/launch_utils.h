@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_APPS_APP_SERVICE_LAUNCH_UTILS_H_
 
 #include <stdint.h>
+
 #include <string>
 #include <vector>
 
@@ -13,6 +14,7 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
+#include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "extensions/common/constants.h"
 #include "ui/base/window_open_disposition.h"
@@ -40,7 +42,7 @@ class WebContents;
 
 namespace apps {
 
-bool IsInstalledApp(Profile* profile, const std::string& app_id);
+LaunchContainer ConvertWindowModeToAppLaunchContainer(WindowMode window_mode);
 
 // Converts file arguments to an app on |command_line| into base::FilePaths.
 std::vector<base::FilePath> GetLaunchFilesFromCommandLine(
@@ -118,7 +120,7 @@ struct AppIdsToLaunchForUrl {
   // Apps that can handle a given URL.
   std::vector<std::string> candidates;
   // The users preference for an app to handle a given URL.
-  absl::optional<std::string> preferred;
+  std::optional<std::string> preferred;
 };
 
 // Takes a `url` and returns a vector of app IDs and the users preferred choice
@@ -132,8 +134,17 @@ AppIdsToLaunchForUrl FindAppIdsToLaunchForUrl(AppServiceProxy* proxy,
 void MaybeLaunchPreferredAppForUrl(Profile* profile,
                                    const GURL& url,
                                    LaunchSource launch_source);
-
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+// Launches `url` in a suitable installed app, or in the browser if no app is
+// installed. If one app is installed which can handle `url`, it will always be
+// opened. If multiple apps are installed, any app which is preferred by the
+// user will be opened.
+void LaunchUrlInInstalledAppOrBrowser(Profile* profile,
+                                      const GURL& url,
+                                      LaunchSource launch_source);
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 }  // namespace apps
 

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/media/router/discovery/discovery_network_list.h"
 
 #include <ifaddrs.h>
@@ -40,7 +45,6 @@ using sll = struct sockaddr_dl;
 #define SOCKET_ADDRESS(s) (LLADDR(s))
 #endif
 
-#if !BUILDFLAG(IS_OHOS)
 void GetDiscoveryNetworkInfoListImpl(
     const struct ifaddrs* if_list,
     std::vector<DiscoveryNetworkInfo>* network_info_list) {
@@ -89,14 +93,12 @@ void GetDiscoveryNetworkInfoListImpl(
                                SOCKET_ADDRESS_LEN(ll_addr))});
   }
 }
-#endif
 
 }  // namespace
 
 std::vector<DiscoveryNetworkInfo> GetDiscoveryNetworkInfoList() {
   std::vector<DiscoveryNetworkInfo> network_ids;
 
-#if !BUILDFLAG(IS_OHOS)
   struct ifaddrs* if_list;
   if (getifaddrs(&if_list)) {
     return network_ids;
@@ -105,9 +107,6 @@ std::vector<DiscoveryNetworkInfo> GetDiscoveryNetworkInfoList() {
   GetDiscoveryNetworkInfoListImpl(if_list, &network_ids);
   StableSortDiscoveryNetworkInfo(network_ids.begin(), network_ids.end());
   freeifaddrs(if_list);
-#else
-  LOG(INFO) << "GetDiscoveryNetworkInfoList TODO in OS_OHOS";
-#endif
   return network_ids;
 }
 

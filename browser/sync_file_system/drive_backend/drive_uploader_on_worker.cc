@@ -82,7 +82,6 @@ google_apis::CancelCallbackOnce DriveUploaderOnWorker::ResumeUploadFile(
     drive::UploadCompletionCallback callback,
     google_apis::ProgressCallback progress_callback) {
   NOTREACHED();
-  return google_apis::CancelCallbackOnce();
 }
 
 }  // namespace drive_backend

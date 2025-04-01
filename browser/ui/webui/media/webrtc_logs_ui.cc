@@ -289,11 +289,13 @@ base::Value::List WebRtcLogsDOMHandler::UpdateUIWithTextLogs() const {
       // 2012 when the feature was introduced and now.
       double seconds_since_epoch;
       if (base::StringToDouble(upload->local_id, &seconds_since_epoch)) {
-        base::Time capture_time = base::Time::FromDoubleT(seconds_since_epoch);
-        const base::Time::Exploded lower_limit = {2012, 1, 0, 1, 0, 0, 0, 0};
+        base::Time capture_time =
+            base::Time::FromSecondsSinceUnixEpoch(seconds_since_epoch);
+        static constexpr base::Time::Exploded kLowerLimit = {
+            .year = 2012, .month = 1, .day_of_month = 1};
         base::Time out_time;
         bool conversion_success =
-            base::Time::FromUTCExploded(lower_limit, &out_time);
+            base::Time::FromUTCExploded(kLowerLimit, &out_time);
         DCHECK(conversion_success);
         if (capture_time > out_time && capture_time < base::Time::Now()) {
           value_w = base::TimeFormatFriendlyDateAndTime(capture_time);
@@ -325,7 +327,7 @@ base::Value WebRtcLogsDOMHandler::EventLogUploadInfoToValue(
     const UploadList::UploadInfo& info) const {
   switch (info.state) {
     case UploadList::UploadInfo::State::Pending:
-      // TODO(crbug.com/775415): Display actively-written logs differently
+      // TODO(crbug.com/40545136): Display actively-written logs differently
       // than fully captured pending logs.
       return info.upload_time.is_null() ? FromPendingLog(info)
                                         : FromActivelyUploadedLog(info);

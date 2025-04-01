@@ -77,7 +77,6 @@ base::ReadOnlySharedMemoryRegion RenderPdfPagesToPwgRaster(
     switch (bitmap_settings.duplex_mode) {
       case mojom::DuplexMode::kUnknownDuplexMode:
         NOTREACHED();
-        break;
       case mojom::DuplexMode::kSimplex:
         // Already defaults to false/false.
         break;
@@ -145,6 +144,10 @@ void PdfToPwgRasterConverter::Convert(
   base::ReadOnlySharedMemoryRegion region = RenderPdfPagesToPwgRaster(
       std::move(pdf_region), pdf_settings, pwg_raster_settings, &page_count);
   std::move(callback).Run(std::move(region), page_count);
+}
+
+void PdfToPwgRasterConverter::SetUseSkiaRendererPolicy(bool use_skia) {
+  chrome_pdf::SetUseSkiaRendererPolicy(use_skia);
 }
 
 }  // namespace printing

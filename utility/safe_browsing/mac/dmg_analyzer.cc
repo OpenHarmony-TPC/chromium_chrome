@@ -18,8 +18,6 @@
 #include "chrome/common/safe_browsing/archive_analyzer_results.h"
 #include "chrome/common/safe_browsing/binary_feature_extractor.h"
 #include "chrome/common/safe_browsing/mach_o_image_reader_mac.h"
-#include "chrome/common/safe_browsing/rar_analyzer.h"
-#include "chrome/common/safe_browsing/zip_analyzer.h"
 #include "chrome/utility/safe_browsing/mac/dmg_iterator.h"
 #include "chrome/utility/safe_browsing/mac/read_stream.h"
 #include "components/safe_browsing/core/common/features.h"
@@ -73,7 +71,7 @@ MachOFeatureExtractor::~MachOFeatureExtractor() {}
 
 bool MachOFeatureExtractor::IsMachO(ReadStream* stream) {
   uint32_t magic = 0;
-  return stream->ReadType<uint32_t>(&magic) &&
+  return stream->ReadType<uint32_t>(magic) &&
          MachOImageReader::IsMachOMagicValue(magic);
 }
 
@@ -85,8 +83,7 @@ bool MachOFeatureExtractor::ExtractFeatures(
     return false;
 
   if (!bfe_->ExtractImageFeaturesFromData(
-          &buffer_[0], buffer_.size(), 0,
-          result->mutable_image_headers(),
+          buffer_, 0, result->mutable_image_headers(),
           result->mutable_signature()->mutable_signed_data())) {
     return false;
   }
@@ -113,12 +110,16 @@ bool MachOFeatureExtractor::HashAndCopyStream(
     size_t buffer_offset = buffer_.size();
 
     buffer_.resize(buffer_.size() + kBufferSize);
-    if (!stream->Read(&buffer_[buffer_offset], kBufferSize, &bytes_read))
+    base::span<uint8_t> read_buf = base::span(buffer_).last(kBufferSize);
+    if (!stream->Read(read_buf, &bytes_read)) {
       return false;
+    }
 
     buffer_.resize(buffer_offset + bytes_read);
-    if (bytes_read)
-      sha256->Update(&buffer_[buffer_offset], bytes_read);
+    read_buf = read_buf.first(bytes_read);
+    if (bytes_read) {
+      sha256->Update(read_buf.data(), read_buf.size());
+    }
   } while (bytes_read > 0);
 
   sha256->Finish(digest, crypto::kSHA256Length);
@@ -162,10 +163,12 @@ bool DMGAnalyzer::ResumeExtraction() {
     if (is_detached_code_signature_file) {
       results()->has_executable = true;
 
-      std::vector<uint8_t> signature_contents;
-      if (!ReadEntireStream(stream.get(), &signature_contents)) {
+      auto maybe_signature_contents = ReadEntireStream(*stream);
+      if (!maybe_signature_contents.has_value()) {
         continue;
       }
+      std::vector<uint8_t>& signature_contents =
+          maybe_signature_contents.value();
 
       if (signature_contents.size() < std::size(kDERPKCS7SignedData)) {
         continue;
@@ -194,14 +197,14 @@ bool DMGAnalyzer::ResumeExtraction() {
       } else {
         results()->archived_binary.RemoveLast();
       }
-    } else if (base::FeatureList::IsEnabled(kNestedArchives)) {
+    } else {
       DownloadFileType_InspectionType file_type =
           GetFileType(base::FilePath(path));
       if (file_type == DownloadFileType::ZIP ||
           file_type == DownloadFileType::RAR ||
           file_type == DownloadFileType::DMG ||
           file_type == DownloadFileType::SEVEN_ZIP) {
-        if (!CopyStreamToFile(iterator_->GetReadStream().get(), temp_file_)) {
+        if (!CopyStreamToFile(*stream, temp_file_)) {
           continue;
         }
 
@@ -209,11 +212,12 @@ bool DMGAnalyzer::ResumeExtraction() {
           continue;
         }
 
-        // TODO(crbug.com/1373671): Support file length here.
+        // TODO(crbug.com/40871873): Support file length here.
         return !UpdateResultsForEntry(
             temp_file_.Duplicate(), GetRootPath().Append(path),
             /*file_length=*/0,
-            /*is_encrypted=*/false, /*is_directory=*/false);
+            /*is_encrypted=*/false, /*is_directory=*/false,
+            /*contents_valid=*/true);
       }
     }
   }

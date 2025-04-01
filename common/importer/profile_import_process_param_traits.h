@@ -30,7 +30,6 @@ struct EnumTraits<chrome::mojom::ImportedPasswordForm::Scheme,
         break;
     }
     NOTREACHED();
-    return chrome::mojom::ImportedPasswordForm::Scheme::kHtml;
   }
 
   static bool FromMojom(chrome::mojom::ImportedPasswordForm::Scheme input,
@@ -44,7 +43,6 @@ struct EnumTraits<chrome::mojom::ImportedPasswordForm::Scheme,
         return true;
     }
     NOTREACHED();
-    return false;
   }
 };
 

@@ -89,14 +89,17 @@ MediaRouterIntegrationBrowserTest::MediaRouterIntegrationBrowserTest() {
     case UiForBrowserTest::kGmc:
       feature_list_.InitWithFeatures(
           {
-            media::kGlobalMediaControls, kGlobalMediaControlsCastStartStop,
+              media::kGlobalMediaControls,
+              kGlobalMediaControlsCastStartStop,
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-                // Without this flag, SodaInstaller::GetInstance() fails a
-                // DCHECK on Chrome OS.  The call to
-                // SodaInstaller::GetInstance() is in
-                // MediaDialogView::AddedToWidget(), which is called indirectly
-                // from MediaDialogView::ShowDialogForPresentationRequest().
-                ash::features::kOnDeviceSpeechRecognition,
+              // Without this flag, SodaInstaller::GetInstance() fails a DCHECK
+              // on Chrome OS. The call to SodaInstaller::GetInstance() is in
+              // MediaDialogView::AddedToWidget(), which is called indirectly
+              // from MediaDialogView::ShowDialogForPresentationRequest().
+              ash::features::kOnDeviceSpeechRecognition,
+#endif
+#if !BUILDFLAG(IS_CHROMEOS)
+              media::kGlobalMediaControlsUpdatedUI,
 #endif
           },
           {});
@@ -164,7 +167,7 @@ void MediaRouterIntegrationBrowserTest::SetUpInProcessBrowserTestFixture() {
 }
 
 void MediaRouterIntegrationBrowserTest::SetUpOnMainThread() {
-  MediaRouterMojoImpl* router = static_cast<MediaRouterMojoImpl*>(
+  MediaRouterDesktop* router = static_cast<MediaRouterDesktop*>(
       MediaRouterFactory::GetApiForBrowserContext(browser()->profile()));
   mojo::PendingRemote<mojom::MediaRouter> media_router_remote;
   mojo::PendingRemote<mojom::MediaRouteProvider> provider_remote;
@@ -230,7 +233,7 @@ void MediaRouterIntegrationBrowserTest::ExecuteJavaScriptAPI(
   // Read the test result, the test result set by javascript is a
   // JSON string with the following format:
   // {"passed": "<true/false>", "errorMessage": "<error_message>"}
-  absl::optional<base::Value> value =
+  std::optional<base::Value> value =
       base::JSONReader::Read(result, base::JSON_ALLOW_TRAILING_COMMAS);
 
   // Convert to dictionary.
@@ -240,7 +243,8 @@ void MediaRouterIntegrationBrowserTest::ExecuteJavaScriptAPI(
   // Extract the fields.
   const std::string* error_message = dict_value->FindString("errorMessage");
   ASSERT_TRUE(error_message);
-  ASSERT_THAT(dict_value->FindBool("passed"), Optional(true)) << error_message;
+  ASSERT_THAT(dict_value->FindBool("passed"), Optional(true))
+      << error_message->c_str();
 }
 
 void MediaRouterIntegrationBrowserTest::StartSessionAndAssertNotFoundError() {
@@ -314,7 +318,7 @@ void MediaRouterIntegrationBrowserTest::CheckStartFailed(
 base::FilePath MediaRouterIntegrationBrowserTest::GetResourceFile(
     base::FilePath::StringPieceType relative_path) const {
   const base::FilePath full_path =
-      base::PathService::CheckedGet(base::DIR_GEN_TEST_DATA_ROOT)
+      base::PathService::CheckedGet(base::DIR_OUT_TEST_DATA_ROOT)
           .Append(FILE_PATH_LITERAL("media_router/browser_test_resources/"))
           .Append(relative_path);
   {
@@ -328,16 +332,11 @@ base::FilePath MediaRouterIntegrationBrowserTest::GetResourceFile(
 void MediaRouterIntegrationBrowserTest::ExecuteScript(
     const content::ToRenderFrameHost& adapter,
     const std::string& script) {
-  ASSERT_TRUE(content::ExecuteScript(adapter, script));
+  ASSERT_TRUE(content::ExecJs(adapter, script));
 }
 
 bool MediaRouterIntegrationBrowserTest::IsRouteCreatedOnUI() {
   return !test_ui_->GetRouteIdForSink(receiver_).empty();
-}
-
-bool MediaRouterIntegrationBrowserTest::IsUIShowingIssue() {
-  std::string issue_text = test_ui_->GetIssueTextForSink(receiver_);
-  return !issue_text.empty();
 }
 
 void MediaRouterIntegrationBrowserTest::ParseCommandLine() {
@@ -458,7 +457,7 @@ IN_PROC_BROWSER_TEST_P(MediaRouterIntegrationBrowserTest, MAYBE_Basic) {
   RunBasicTest();
 }
 
-// TODO(crbug.com/1238728): Test is flaky on Windows and Linux.
+// TODO(crbug.com/40784325): Test is flaky on Windows and Linux.
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 #define MAYBE_SendAndOnMessage MANUAL_SendAndOnMessage
 #else
@@ -477,8 +476,8 @@ IN_PROC_BROWSER_TEST_P(MediaRouterIntegrationBrowserTest, CloseOnError) {
                        "sendMessageAndExpectConnectionCloseOnError()");
 }
 
-// TODO(crbug.com/1238688): Test is flaky on Windows and Linux.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
+// TODO(crbug.com/40784296): Test is flaky.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_Fail_SendMessage MANUAL_Fail_SendMessage
 #else
 #define MAYBE_Fail_SendMessage Fail_SendMessage
@@ -521,32 +520,7 @@ IN_PROC_BROWSER_TEST_P(MediaRouterIntegrationBrowserTest,
   StartSessionAndAssertNotFoundError();
 }
 
-Browser* MediaRouterIntegrationIncognitoBrowserTest::browser() {
-  if (!incognito_browser_)
-    incognito_browser_ = CreateIncognitoBrowser();
-  return incognito_browser_;
-}
-
-IN_PROC_BROWSER_TEST_P(MediaRouterIntegrationIncognitoBrowserTest, Basic) {
-  RunBasicTest();
-  // If we tear down before route observers are notified of route termination,
-  // MediaRouter will create another TerminateRoute() request which will have a
-  // dangling Mojo callback at shutdown. So we must wait for the update.
-  WaitUntilNoRoutes(GetActiveWebContents());
-}
-
-IN_PROC_BROWSER_TEST_P(MediaRouterIntegrationIncognitoBrowserTest,
-                       ReconnectSession) {
-  RunReconnectSessionTest();
-  // If we tear down before route observers are notified of route termination,
-  // MediaRouter will create another TerminateRoute() request which will have a
-  // dangling Mojo callback at shutdown. So we must wait for the update.
-  WaitUntilNoRoutes(GetActiveWebContents());
-}
-
 INSTANTIATE_MEDIA_ROUTER_INTEGRATION_BROWER_TEST_SUITE(
     MediaRouterIntegrationBrowserTest);
-INSTANTIATE_MEDIA_ROUTER_INTEGRATION_BROWER_TEST_SUITE(
-    MediaRouterIntegrationIncognitoBrowserTest);
 
 }  // namespace media_router

@@ -9,9 +9,9 @@
 
 #include "base/values.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/common/extensions/api/resources_private.h"
 #include "chrome/grit/generated_resources.h"
+#include "extensions/browser/extensions_browser_client.h"
 #include "pdf/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -20,18 +20,13 @@
 #if BUILDFLAG(ENABLE_PDF)
 #include "chrome/browser/pdf/pdf_extension_util.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_types_ash.h"
 #include "chrome/common/pref_names.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_types.h"
 #include "components/prefs/pref_service.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 #endif  // BUILDFLAG(ENABLE_PDF)
-
-#if BUILDFLAG(IS_OHOS)
-#include "base/command_line.h"
-#include "content/public/common/content_switches.h"
-#endif
 
 // To add a new component to this API, simply:
 // 1. Add your component to the Component enum in
@@ -50,14 +45,14 @@ void AddStringsForIdentity(base::Value::Dict* dict) {
 
 #if BUILDFLAG(ENABLE_PDF)
 bool IsPdfAnnotationsEnabled(content::BrowserContext* context) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   PrefService* prefs =
       context ? Profile::FromBrowserContext(context)->GetPrefs() : nullptr;
   if (prefs && prefs->IsManagedPreference(prefs::kPdfAnnotationsEnabled) &&
       !prefs->GetBoolean(prefs::kPdfAnnotationsEnabled)) {
     return false;
   }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
   return true;
 }
 #endif  // BUILDFLAG(ENABLE_PDF)
@@ -71,41 +66,36 @@ ResourcesPrivateGetStringsFunction::ResourcesPrivateGetStringsFunction() {}
 ResourcesPrivateGetStringsFunction::~ResourcesPrivateGetStringsFunction() {}
 
 ExtensionFunction::ResponseAction ResourcesPrivateGetStringsFunction::Run() {
-  absl::optional<get_strings::Params> params =
+  std::optional<get_strings::Params> params =
       get_strings::Params::Create(args());
   base::Value::Dict dict;
 
   api::resources_private::Component component = params->component;
 
   switch (component) {
-    case api::resources_private::COMPONENT_IDENTITY:
+    case api::resources_private::Component::kIdentity:
       AddStringsForIdentity(&dict);
       break;
-    case api::resources_private::COMPONENT_PDF: {
+    case api::resources_private::Component::kPdf: {
 #if BUILDFLAG(ENABLE_PDF)
       pdf_extension_util::AddStrings(pdf_extension_util::PdfViewerContext::kAll,
                                      &dict);
       bool enable_printing = true;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-      Profile* profile = Profile::FromBrowserContext(browser_context());
-      enable_printing = IsUserProfile(profile);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-#if BUILDFLAG(IS_OHOS)
-      // The printing service is temporarily not supported on mobile device.
-      enable_printing = (*base::CommandLine::ForCurrentProcess())
-                            .HasSwitch(switches::kEnablePrinting);
-#endif
+#if BUILDFLAG(IS_CHROMEOS)
+      enable_printing = ash::IsUserBrowserContext(browser_context());
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
       pdf_extension_util::AddAdditionalData(
           enable_printing, IsPdfAnnotationsEnabled(browser_context()), &dict);
 #endif  // BUILDFLAG(ENABLE_PDF)
       break;
     }
-    case api::resources_private::COMPONENT_NONE:
+    case api::resources_private::Component::kNone:
       NOTREACHED();
   }
 
-  const std::string& app_locale = g_browser_process->GetApplicationLocale();
+  std::string app_locale =
+      ExtensionsBrowserClient::Get()->GetApplicationLocale();
   webui::SetLoadTimeDataDefaults(app_locale, &dict);
 
   return RespondNow(WithArguments(std::move(dict)));

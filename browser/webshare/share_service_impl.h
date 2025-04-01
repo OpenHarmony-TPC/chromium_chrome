@@ -5,16 +5,16 @@
 #ifndef CHROME_BROWSER_WEBSHARE_SHARE_SERVICE_IMPL_H_
 #define CHROME_BROWSER_WEBSHARE_SHARE_SERVICE_IMPL_H_
 
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/memory/weak_ptr.h"
-#include "base/strings/string_piece.h"
 #include "build/build_config.h"
 #include "chrome/browser/webshare/safe_browsing_request.h"
 #include "content/public/browser/document_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/webshare/webshare.mojom.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -46,7 +46,7 @@ class ShareServiceImpl
       mojo::PendingReceiver<blink::mojom::ShareService> receiver);
 
   static bool IsDangerousFilename(const base::FilePath& path);
-  static bool IsDangerousMimeType(base::StringPiece content_type);
+  static bool IsDangerousMimeType(std::string_view content_type);
 
   // blink::mojom::ShareService:
   void Share(const std::string& title,
@@ -68,7 +68,7 @@ class ShareServiceImpl
                    mojo::PendingReceiver<blink::mojom::ShareService> receiver);
   ~ShareServiceImpl() override;
 
-  absl::optional<SafeBrowsingRequest> safe_browsing_request_;
+  std::optional<SafeBrowsingRequest> safe_browsing_request_;
 
 #if BUILDFLAG(IS_CHROMEOS)
   webshare::SharesheetClient sharesheet_client_;

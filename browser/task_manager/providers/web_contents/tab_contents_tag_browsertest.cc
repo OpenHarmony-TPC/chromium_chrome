@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 
 #include "base/files/file_util.h"
@@ -30,6 +35,7 @@
 #include "content/public/test/fenced_frame_test_util.h"
 #include "content/public/test/test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -180,7 +186,8 @@ class TabContentsTagTest : public InProcessBrowserTest {
 
   int tabs_count() const { return browser()->tab_strip_model()->count(); }
 
-  const std::vector<WebContentsTag*>& tracked_tags() const {
+  const std::vector<raw_ptr<WebContentsTag, VectorExperimental>>& tracked_tags()
+      const {
     return WebContentsTagsManager::GetInstance()->tracked_tags();
   }
 
@@ -273,8 +280,9 @@ IN_PROC_BROWSER_TEST_F(TabContentsTagTest, PostExistingTaskProviding) {
   EXPECT_EQ(kTestPagesLength, task_manager.tasks().size());
   const std::u16string closed_tab_title =
       GetTestPageExpectedTitle(kTestPages[kTestPagesLength - 1]);
-  for (const auto* task : task_manager.tasks())
+  for (const task_manager::Task* task : task_manager.tasks()) {
     EXPECT_NE(closed_tab_title, task->title());
+  }
 }
 
 // Test that the default favicon is shown in the task manager after navigating
@@ -308,17 +316,14 @@ IN_PROC_BROWSER_TEST_F(TabContentsTagTest, NavigateToPageNoFavicon) {
   // Check that the task manager uses the specified favicon for the page.
   base::FilePath test_dir;
   base::PathService::Get(chrome::DIR_TEST_DATA, &test_dir);
-  std::string favicon_string;
+  std::optional<std::vector<uint8_t>> favicon_data;
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
-    base::ReadFileToString(
-        test_dir.AppendASCII("favicon").AppendASCII("icon.png"),
-        &favicon_string);
+    favicon_data = base::ReadFileToBytes(
+        test_dir.AppendASCII("favicon").AppendASCII("icon.png"));
   }
-  SkBitmap favicon_bitmap;
-  gfx::PNGCodec::Decode(
-      reinterpret_cast<const unsigned char*>(favicon_string.data()),
-      favicon_string.length(), &favicon_bitmap);
+  SkBitmap favicon_bitmap = gfx::PNGCodec::Decode(favicon_data.value());
+  ASSERT_FALSE(favicon_bitmap.isNull());
   ASSERT_TRUE(
       gfx::test::AreBitmapsEqual(favicon_bitmap, *task->icon().bitmap()));
 

@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string_view>
+
 #include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/extensions/settings_api_bubble_helpers.h"
 #include "chrome/browser/ui/view_ids.h"
@@ -31,7 +35,7 @@ class OmniboxFocusInteractiveTest : public ExtensionBrowserTest {
 
  protected:
   void WriteExtensionFile(const base::FilePath::StringType& filename,
-                          base::StringPiece contents) {
+                          std::string_view contents) {
     test_dir_.WriteFile(filename, contents);
   }
 
@@ -47,8 +51,9 @@ class OmniboxFocusInteractiveTest : public ExtensionBrowserTest {
         } )";
     test_dir_.WriteManifest(kManifest);
     const Extension* extension = LoadExtension(test_dir_.UnpackedPath());
-    if (!extension)
+    if (!extension) {
       return nullptr;
+    }
 
     // Prevent a focus-stealing focus bubble that warns the user that "An
     // extension has changed what page is shown when you open a new tab."
@@ -347,7 +352,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxFocusInteractiveTest, OmniboxFocusStealing) {
       browser()->tab_strip_model()->GetActiveWebContents();
   content::TestFrameNavigationObserver nav_observer(
       web_contents->GetPrimaryMainFrame());
-  ASSERT_TRUE(content::ExecuteScript(
+  ASSERT_TRUE(content::ExecJs(
       web_contents, content::JsReplace("window.location = $1", web_url)));
   nav_observer.Wait();
   EXPECT_EQ(web_url, web_contents->GetLastCommittedURL());
@@ -428,7 +433,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxFocusInteractiveTest, TabFocusStealingFromOopif) {
   {
     content::TestFrameNavigationObserver nav_observer(
         web_contents->GetPrimaryMainFrame());
-    ASSERT_TRUE(content::ExecuteScript(
+    ASSERT_TRUE(content::ExecJs(
         subframe, content::JsReplace(kLinkClickingScriptTemplate, target_url)));
     nav_observer.Wait();
   }
@@ -479,7 +484,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxFocusInteractiveTest,
   {
     content::TestFrameNavigationObserver nav_observer(
         web_contents->GetPrimaryMainFrame());
-    ASSERT_TRUE(content::ExecuteScript(
+    ASSERT_TRUE(content::ExecJs(
         web_contents,
         content::JsReplace(kLinkClickingScriptTemplate, target_url)));
     nav_observer.Wait();
@@ -509,7 +514,8 @@ class OmniboxFocusInteractiveFencedFrameTest
     feature_list_.InitWithFeaturesAndParameters(
         {{blink::features::kFencedFrames, {}},
          {blink::features::kFencedFramesAPIChanges, {}},
-         {features::kPrivacySandboxAdsAPIsOverride, {}}},
+         {features::kPrivacySandboxAdsAPIsOverride, {}},
+         {blink::features::kFencedFramesDefaultMode, {}}},
         {/* disabled_features */});
   }
   ~OmniboxFocusInteractiveFencedFrameTest() override = default;
@@ -555,7 +561,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxFocusInteractiveFencedFrameTest,
   // The fenced frame navigation should not affect the view focus.
   GURL fenced_frame_url = https_server().GetURL("/fenced_frames/title1.html");
   content::TestNavigationManager navigation(web_contents, fenced_frame_url);
-  EXPECT_TRUE(content::ExecuteScript(
+  EXPECT_TRUE(content::ExecJs(
       web_contents->GetPrimaryMainFrame(),
       content::JsReplace(kAddFencedFrameScript, fenced_frame_url)));
   ASSERT_TRUE(navigation.WaitForNavigationFinished());

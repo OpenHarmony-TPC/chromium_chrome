@@ -7,7 +7,7 @@
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/version.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "components/version_info/version_info.h"
 #include "extensions/common/error_utils.h"
 #include "extensions/common/extension.h"
@@ -43,7 +43,6 @@ bool MinimumChromeVersionChecker::Parse(Extension* extension,
   const base::Version& current_version = version_info::GetVersion();
   if (!current_version.IsValid()) {
     NOTREACHED();
-    return false;
   }
 
   if (current_version.CompareTo(minimum_version) < 0) {

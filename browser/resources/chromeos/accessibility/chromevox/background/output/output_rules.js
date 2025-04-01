@@ -5,9 +5,12 @@
 /**
  * @fileoverview Contains the rules for output based on type information.
  */
+import {TestImportManager} from '/common/testing/test_import_manager.js';
+
 import {AbstractRole, ChromeVoxRole, CustomRole} from '../../common/role_type.js';
 
-import {OutputCustomEvent, OutputEventType, OutputFormatType} from './output_types.js';
+import {OutputRoleInfo} from './output_role_info.js';
+import {OutputCustomEvent, OutputFormatType, OutputNavigationType} from './output_types.js';
 
 const EventType = chrome.automation.EventType;
 const RoleType = chrome.automation.RoleType;
@@ -28,9 +31,9 @@ export class OutputRule {
     this.event_ = this.getEvent_(event);
     /** @protected {!ChromeVoxRole} */
     this.role_ = CustomRole.DEFAULT;
-    /** @protected {string|undefined} */
+    /** @protected {!OutputNavigationType|undefined} */
     this.navigation_;
-    /** @protected {string|undefined} */
+    /** @protected {!OutputFormatType|undefined} */
     this.output_;
   }
 
@@ -56,21 +59,24 @@ export class OutputRule {
     });
   }
 
+  /** @return {string} */
+  get formatString() {
+    return OutputRule.RULES[this.event_][this.role_][this.output_];
+  }
+
   /**
    * @param {ChromeVoxRole|undefined} role
-   * @param {ChromeVoxRole|undefined} parentRole
-   * @param {string|undefined} formatName
+   * @param {!OutputFormatType|!OutputNavigationType|undefined} formatName
    * @return {boolean} true if the role was set, false otherwise.
    */
-  populateRole(role, parentRole, formatName) {
-    const eventBlock = OutputRule.RULES[this.event_];
-    if (role && eventBlock[role] && eventBlock[role][formatName]) {
+  populateRole(role, formatName) {
+    if (this.hasRule_(role, formatName) && role) {
       this.role_ = role;
       return true;
     } else if (
-        parentRole && eventBlock[parentRole] &&
-        eventBlock[parentRole][formatName]) {
-      this.role_ = parentRole;
+        this.hasRule_(parent(role), formatName) &&
+        parent(role) !== CustomRole.NO_ROLE) {
+      this.role_ = parent(role);
       return true;
     }
     return false;
@@ -85,7 +91,7 @@ export class OutputRule {
     this.role_ = role;
   }
 
-  /** @param {string|undefined} output */
+  /** @param {!OutputFormatType|undefined} output */
   set output(output) {
     this.output_ = output;
   }
@@ -98,44 +104,60 @@ export class OutputRule {
   get role() {
     return this.role_;
   }
-  /** @return {string|undefined} */
+  /** @return {!OutputNavigationType|undefined} */
   get navigation() {
     return this.navigation_;
   }
-  /** @return {string|undefined} */
+  /** @return {!OutputFormatType|undefined} */
   get output() {
     return this.output_;
+  }
+
+  // ========= Private methods =========
+
+  /**
+   * @param {ChromeVoxRole|undefined} role
+   * @param {!OutputFormatType|!OutputNavigationType|undefined} format
+   * @return {boolean} Whether there is a rule for this role/format combo.
+   * @private
+   */
+  hasRule_(role, format) {
+    const eventBlock = OutputRule.RULES[this.event_];
+    return role && eventBlock[role] && eventBlock[role][format];
   }
 }
 
 export class AncestryOutputRule extends OutputRule {
   /**
    * @param {!OutputEventType} eventType
-   * @param {ChromeVoxRole|undefined} nodeRole
-   * @param {ChromeVoxRole|undefined} parentRole
-   * @param {string|undefined} formatName
+   * @param {ChromeVoxRole|undefined} role
+   * @param {!OutputNavigationType|undefined} navigationType
    * @param {boolean} tryBraille
    */
-  constructor(eventType, nodeRole, parentRole, formatName, tryBraille) {
+  constructor(eventType, role, navigationType, tryBraille) {
     super(eventType);
-    /** @private {string|undefined} */
-    this.formatName_ = formatName;
 
-    this.populateRole(nodeRole, parentRole, formatName);
-    this.populateNavigation(formatName);
+    this.populateRole(role, navigationType);
+    this.populateNavigation(navigationType);
     this.populateOutput(tryBraille);
   }
 
-  /** @param {string|undefined} formatName */
-  populateNavigation(formatName) {
-    if (formatName && OutputRule.RULES[this.event_][this.role_][formatName]) {
-      this.navigation_ = formatName;
+  /** @param {!OutputNavigationType|undefined} navigationType */
+  populateNavigation(navigationType) {
+    if (navigationType && OutputRule.RULES[this.event_][this.role_] &&
+        OutputRule.RULES[this.event_][this.role_][navigationType]) {
+      this.navigation_ = navigationType;
     }
   }
 
   /** @param {boolean} tryBraille */
   populateOutput(tryBraille) {
-    const rule = OutputRule.RULES[this.event_][this.role_][this.formatName_];
+    if (!OutputRule.RULES[this.event_][this.role_]) {
+      // Invalid rule case.
+      return;
+    }
+
+    const rule = OutputRule.RULES[this.event_][this.role_][this.navigation_];
     if (rule && rule.speak) {
       this.output_ = OutputFormatType.SPEAK;
     }
@@ -146,17 +168,27 @@ export class AncestryOutputRule extends OutputRule {
 
   /** @return {boolean} */
   get defined() {
-    return Boolean(OutputRule.RULES[this.event_][this.role_][this.formatName_]);
+    return Boolean(
+        OutputRule.RULES[this.event_][this.role_] &&
+        OutputRule.RULES[this.event_][this.role_][this.navigation_]);
   }
 
   /** @return {string} */
   get enterFormat() {
-    const rule = OutputRule.RULES[this.event_][this.role_][this.formatName_];
+    const rule = OutputRule.RULES[this.event_][this.role_][this.navigation_];
     if (this.output_) {
       return rule[this.output_];
     }
     return rule || '';
   }
+}
+
+/**
+ * @param {ChromeVoxRole|undefined} role
+ * @return {!ChromeVoxRole}
+ */
+function parent(role) {
+  return OutputRoleInfo[role]?.inherits ?? CustomRole.NO_ROLE;
 }
 
 /**
@@ -218,7 +250,7 @@ OutputRule.RULES = {
           $description $restriction`,
     },
     [AbstractRole.LIST]: {
-      startOf: `$nameFromNode $role @@list_with_items($setSize)
+      startOf: `$nameFromNode $role $if($setSize, @@list_with_items($setSize))
           $restriction $description`,
       endOf: `@end_of_container($role) @@list_nested_level($listNestedLevel)`,
     },
@@ -263,8 +295,7 @@ OutputRule.RULES = {
           $node(tableCellColumnHeaders) $roleDescription $state $description`,
       braille: `$state
           $name $cellIndexText $node(tableCellColumnHeaders) $roleDescription
-          $description
-          $if($selected, @aria_selected_true)`,
+          $description`,
     },
     [RoleType.CHECK_BOX]: {
       speak: `$if($checked, $earcon(CHECK_ON), $earcon(CHECK_OFF))
@@ -288,6 +319,20 @@ OutputRule.RULES = {
     [RoleType.GRID]: {
       speak: `$name $node(activeDescendant) $role $state $restriction
           $description`,
+    },
+    [RoleType.GRID_CELL]: {
+      enter: {
+        speak: `$cellIndexText $node(tableCellColumnHeaders) $nameFromNode
+            $roleDescription $state`,
+        braille: `$state $cellIndexText $node(tableCellColumnHeaders)
+            $nameFromNode $roleDescription`,
+      },
+      speak: `$nameFromNode $descendants $cellIndexText
+          $node(tableCellColumnHeaders) $roleDescription $state $description`,
+      braille: `$state
+          $name $cellIndexText $node(tableCellColumnHeaders) $roleDescription
+          $description
+          $if($selected, @aria_selected_true)`,
     },
     [RoleType.GROUP]: {
       enter: `$nameFromNode $roleDescription $state $restriction $description`,
@@ -363,12 +408,12 @@ OutputRule.RULES = {
           @describe_index($posInSet, $setSize)`,
     },
     [RoleType.MENU_LIST_OPTION]: {
-      speak: `$name $role @describe_index($posInSet, $setSize) $state
-          $nif($selected, @aria_selected_false)
-          $restriction $description`,
-      braille: `$name $role @describe_index($posInSet, $setSize) $state
-          $if($selected, @aria_selected_true, @aria_selected_false)
-          $restriction $description`,
+      speak: `$state $name $role @describe_index($posInSet, $setSize)
+          $description $restriction
+          $nif($selected, @aria_selected_false)`,
+      braille: `$state $name $role @describe_index($posInSet, $setSize)
+          $description $restriction
+          $if($selected, @aria_selected_true, @aria_selected_false)`,
     },
     [RoleType.PARAGRAPH]: {speak: `$nameOrDescendants $roleDescription`},
     [RoleType.RADIO_BUTTON]: {
@@ -445,6 +490,12 @@ OutputRule.RULES = {
       speak: `@describe_window($name) $description $earcon(OBJECT_OPEN)`,
     },
   },
+  [EventType.CONTROLS_CHANGED]: {
+    [RoleType.TAB]: {
+      speak: `@describe_tab($name) @describe_index($posInSet, $setSize)
+          @aria_selected_true`,
+    },
+  },
   [EventType.MENU_START]: {
     [CustomRole.DEFAULT]:
         {speak: `@chrome_menu_opened($name)  $earcon(OBJECT_OPEN)`},
@@ -452,15 +503,10 @@ OutputRule.RULES = {
   [EventType.MENU_END]: {
     [CustomRole.DEFAULT]: {speak: `@chrome_menu_closed $earcon(OBJECT_CLOSE)`},
   },
-  [EventType.MENU_LIST_VALUE_CHANGED]: {
-    [CustomRole.DEFAULT]: {
-      speak: `$value $name
-          $find({"state": {"selected": true, "invisible": false}},
-          @describe_index($posInSet, $setSize)) `,
-    },
-  },
   [EventType.ALERT]: {
     [CustomRole.DEFAULT]:
         {speak: `$earcon(ALERT_NONMODAL) $nameOrTextContent $description`},
   },
 };
+
+TestImportManager.exportForTesting(OutputRule);

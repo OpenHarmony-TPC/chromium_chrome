@@ -4,6 +4,7 @@
 
 #include "chrome/browser/lacros/cert/cert_db_initializer_impl.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/check.h"
@@ -16,6 +17,7 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "cert_db_initializer_io_impl.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #include "chromeos/crosapi/cpp/crosapi_constants.h"
 #include "chromeos/crosapi/mojom/cert_database.mojom.h"
 #include "chromeos/crosapi/mojom/crosapi.mojom.h"
@@ -25,7 +27,6 @@
 #include "content/public/browser/browser_thread.h"
 #include "crypto/scoped_nss_types.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using CrosapiCertDb = crosapi::mojom::CertDatabase;
 
@@ -67,7 +68,7 @@ void CertDbInitializerImpl::Start() {
     return InitializeReadOnlyCertDb();
   }
 
-  if (lacros_service->GetInterfaceVersion(CrosapiCertDb::Uuid_) >=
+  if (lacros_service->GetInterfaceVersion<CrosapiCertDb>() >=
       kAddAshCertDatabaseObserverMinVersion) {
     lacros_service->GetRemote<CrosapiCertDb>()->AddAshCertDatabaseObserver(
         receiver_.BindNewPipeAndPassRemote());
@@ -110,9 +111,20 @@ void CertDbInitializerImpl::InitializeReadOnlyCertDb() {
 }
 
 void CertDbInitializerImpl::InitializeForMainProfile() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+
   auto software_db_loaded_callback = base::BindPostTaskToCurrentDefault(
       base::BindOnce(&CertDbInitializerImpl::DidLoadSoftwareNssDb,
                      weak_factory_.GetWeakPtr()));
+
+  if (chromeos::IsKioskSession()) {
+    content::GetIOThreadTaskRunner({})->PostTask(
+        FROM_HERE,
+        base::BindOnce(&CertDbInitializerIOImpl::InitReadOnlyPublicSlot,
+                       base::Unretained(cert_db_initializer_io_.get()),
+                       std::move(software_db_loaded_callback)));
+    return;
+  }
 
   const chromeos::BrowserParamsProxy* init_params =
       chromeos::BrowserParamsProxy::Get();
@@ -165,7 +177,19 @@ CertDbInitializerImpl::CreateNssCertDatabaseGetterForIOThread() {
                         base::Unretained(cert_db_initializer_io_.get()));
 }
 
-void CertDbInitializerImpl::OnCertsChangedInAsh() {
+void CertDbInitializerImpl::OnCertsChangedInAsh(
+    crosapi::mojom::CertDatabaseChangeType change_type) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  net::CertDatabase::GetInstance()->NotifyObserversCertDBChanged();
+  switch (change_type) {
+    case crosapi::mojom::CertDatabaseChangeType::kUnknown:
+      net::CertDatabase::GetInstance()->NotifyObserversTrustStoreChanged();
+      net::CertDatabase::GetInstance()->NotifyObserversClientCertStoreChanged();
+      break;
+    case crosapi::mojom::CertDatabaseChangeType::kTrustStore:
+      net::CertDatabase::GetInstance()->NotifyObserversTrustStoreChanged();
+      break;
+    case crosapi::mojom::CertDatabaseChangeType::kClientCertStore:
+      net::CertDatabase::GetInstance()->NotifyObserversClientCertStoreChanged();
+      break;
+  }
 }

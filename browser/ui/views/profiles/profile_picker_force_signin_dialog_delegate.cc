@@ -6,6 +6,7 @@
 
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/safe_browsing/chrome_password_reuse_detection_manager_client.h"
+#include "chrome/browser/ui/autofill/chrome_autofill_client.h"
 #include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_force_signin_dialog_host.h"
 #include "chrome/browser/ui/webui/signin/signin_url_utils.h"
@@ -15,6 +16,8 @@
 #include "components/web_modal/modal_dialog_host.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/controls/webview/webview.h"
@@ -28,8 +31,8 @@ ProfilePickerForceSigninDialogDelegate::ProfilePickerForceSigninDialogDelegate(
     : host_(host) {
   SetHasWindowSizeControls(true);
   SetTitle(IDS_PROFILES_GAIA_SIGNIN_TITLE);
-  SetButtons(ui::DIALOG_BUTTON_NONE);
-  SetModalType(ui::MODAL_TYPE_WINDOW);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
+  SetModalType(ui::mojom::ModalType::kWindow);
   RegisterDeleteDelegateCallback(
       base::BindOnce(&ProfilePickerForceSigninDialogDelegate::OnDialogDestroyed,
                      base::Unretained(this)));
@@ -40,15 +43,13 @@ ProfilePickerForceSigninDialogDelegate::ProfilePickerForceSigninDialogDelegate(
 
   web_view_->GetWebContents()->SetDelegate(this);
 
-  ChromePasswordManagerClient::CreateForWebContentsWithAutofillClient(
-      web_view_->GetWebContents(),
-      autofill::ContentAutofillClient::FromWebContents(
-          web_view_->GetWebContents()));
+  autofill::ChromeAutofillClient::CreateForWebContents(
+      web_view_->GetWebContents());
+  ChromePasswordManagerClient::CreateForWebContents(
+      web_view_->GetWebContents());
 
-#if BUILDFLAG(FULL_SAFE_BROWSING)
   ChromePasswordReuseDetectionManagerClient::CreateForWebContents(
       web_view_->GetWebContents());
-#endif
 
   web_modal::WebContentsModalDialogManager::CreateForWebContents(
       web_view_->GetWebContents());
@@ -62,8 +63,8 @@ ProfilePickerForceSigninDialogDelegate::ProfilePickerForceSigninDialogDelegate(
 ProfilePickerForceSigninDialogDelegate::
     ~ProfilePickerForceSigninDialogDelegate() = default;
 
-gfx::Size ProfilePickerForceSigninDialogDelegate::CalculatePreferredSize()
-    const {
+gfx::Size ProfilePickerForceSigninDialogDelegate::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   return gfx::Size(ProfilePickerForceSigninDialog::kDialogWidth,
                    ProfilePickerForceSigninDialog::kDialogHeight);
 }
@@ -127,6 +128,10 @@ void ProfilePickerForceSigninDialogDelegate::OnDialogDestroyed() {
   }
 }
 
-BEGIN_METADATA(ProfilePickerForceSigninDialogDelegate,
-               views::DialogDelegateView)
+content::WebContents*
+ProfilePickerForceSigninDialogDelegate::GetWebContentsForTesting() const {
+  return web_view_->web_contents();
+}
+
+BEGIN_METADATA(ProfilePickerForceSigninDialogDelegate)
 END_METADATA
