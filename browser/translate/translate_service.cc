@@ -28,7 +28,7 @@
 #include "url/url_constants.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/file_manager/app_id.h"
+#include "chromeos/ash/components/file_manager/app_id.h"
 #include "extensions/common/constants.h"
 #endif
 
@@ -71,6 +71,8 @@ void TranslateService::Initialize() {
 // static
 void TranslateService::Shutdown() {
   translate::TranslateDownloadManager::GetInstance()->Shutdown();
+  delete g_translate_service;
+  g_translate_service = nullptr;
 }
 
 // static
@@ -90,7 +92,7 @@ void TranslateService::InitializeForTesting(
 
 // static
 void TranslateService::ShutdownForTesting() {
-  translate::TranslateDownloadManager::GetInstance()->Shutdown();
+  TranslateService::Shutdown();
 }
 
 void TranslateService::OnResourceRequestsAllowed() {
@@ -98,7 +100,6 @@ void TranslateService::OnResourceRequestsAllowed() {
       translate::TranslateDownloadManager::GetInstance()->language_list();
   if (!language_list) {
     NOTREACHED();
-    return;
   }
 
   language_list->SetResourceRequestsAllowed(

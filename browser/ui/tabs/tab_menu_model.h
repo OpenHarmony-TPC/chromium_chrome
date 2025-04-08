@@ -7,7 +7,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "ui/base/interaction/element_identifier.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 class TabStripModel;
 class TabMenuModelDelegate;
@@ -39,6 +39,7 @@ class TabMenuModel : public ui::SimpleMenuModel {
 
  private:
   void Build(TabStripModel* tab_strip, int index);
+  void BuildForWebApp(TabStripModel* tab_strip, int index);
 
   std::unique_ptr<ui::SimpleMenuModel> add_to_existing_group_submenu_;
   std::unique_ptr<ui::SimpleMenuModel> add_to_existing_window_submenu_;

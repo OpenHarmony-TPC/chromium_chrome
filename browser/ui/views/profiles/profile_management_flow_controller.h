@@ -11,7 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/profiles/profile_management_types.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_web_contents_host.h"
-#include "components/signin/public/base/signin_buildflags.h"
+#include "content/public/browser/web_contents.h"
 
 class Profile;
 class ProfileManagementStepController;
@@ -28,23 +28,22 @@ class ProfilePickerWebContentsHost;
 // the next steps.
 class ProfileManagementFlowController {
  public:
-  // TODO(https://crbug.com/1358843): Split the steps more granularly across
+  // TODO(crbug.com/40237131): Split the steps more granularly across
   // logical steps instead of according to implementation details.
   enum class Step {
     kUnknown,
     // Renders the `chrome://profile-picker` app, covering the profile picker,
     // the profile type choice at the beginning of the profile creation
-    // flow and the account selection on Lacros.
+    // flow and the account selection.
     kProfilePicker,
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
     // Renders the sign in screen on Dice platforms.
-    // TODO(https://crbug.com/1360773): Support the `kAccountSelection` step on
-    // Lacros. Picking an account during the `kLacrosSelectAvailableAccount`
-    // flow and the profile creation should be implemented as a standalone step.
     kAccountSelection,
     // Moves the rest of the flow to a browser tab so that the user can complete
     // the SAML sign in they started at the previous step.
     kFinishSamlSignin,
+    // Renders the reauth page.
+    kReauth,
 #endif
     // Renders all post-sign in screens: enterprise management consent, profile
     // switch, sync opt-in, etc.
@@ -52,6 +51,14 @@ class ProfileManagementFlowController {
 
     // Renders the beginning of the First Run Experience.
     kIntro,
+
+    // Renders a default browser promo.
+    kDefaultBrowser,
+
+    // Renders the search engine choice screen.
+    kSearchEngineChoice,
+
+    kFinishFlow,
   };
 
   // Creates a flow controller that will start showing UI when `Init()`-ed.
@@ -89,11 +96,21 @@ class ProfileManagementFlowController {
   // screen (if the original EntryPoint was to open the picker).
   virtual void CancelPostSignInFlow() = 0;
 
+  // Clears the current state and reset it to the initial state that shows the
+  // main screen. When calling this function the state should not be the
+  // initial one. Executes `callback` when the initial state is shown.
+  void Reset(StepSwitchFinishedCallback callback);
+
   // Returns a string to use as title for the window, for accessibility
   // purposes. It is used in case the host is not able to obtain a title from
   // the content it's rendering. As a final fallback, if this value is empty
   // (which is the default), the host will choose itself some generic title.
   virtual std::u16string GetFallbackAccessibleWindowTitle() const;
+
+  // A helper method to create a pop callback that will switch to the given
+  // step (can be used with `current_step()` to facilitate switching back to the
+  // current active step).
+  base::OnceClosure CreateSwitchToStepPopCallback(Step step);
 
  protected:
   void RegisterStep(Step step,
@@ -127,6 +144,13 @@ class ProfileManagementFlowController {
 
   ProfilePickerWebContentsHost* host() { return host_; }
 
+  // Creates the web contents associated with `profile` and stores them in
+  // `signed_out_flow_web_contents_`.
+  void CreateSignedOutFlowWebContents(Profile* profile);
+
+  // Returns a pointer to `signed_out_flow_web_contents_`.
+  content::WebContents* GetSignedOutFlowWebContents() const;
+
  private:
   // Called after a browser is open. Clears the host and then runs the callback.
   void CloseHostAndRunCallback(
@@ -134,6 +158,10 @@ class ProfileManagementFlowController {
       Browser* browser);
 
   Step current_step_ = Step::kUnknown;
+
+  // The signed out flow web contents are used in some steps inside
+  // `initialized_steps_`. They have to be destroyed after `initialized_steps_`.
+  std::unique_ptr<content::WebContents> signed_out_flow_web_contents_;
 
   raw_ptr<ProfilePickerWebContentsHost> host_;
   ClearHostClosure clear_host_callback_;

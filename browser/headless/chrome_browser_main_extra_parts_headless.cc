@@ -5,9 +5,7 @@
 #include "chrome/browser/headless/chrome_browser_main_extra_parts_headless.h"
 
 #include "chrome/browser/headless/headless_mode_util.h"
-#if !BUILDFLAG(IS_OHOS)
 #include "components/headless/clipboard/headless_clipboard.h"
-#endif  // !BUILDFLAG(IS_OHOS)
 
 namespace headless {
 
@@ -19,11 +17,9 @@ ChromeBrowserMainExtraPartsHeadless::~ChromeBrowserMainExtraPartsHeadless() =
 void ChromeBrowserMainExtraPartsHeadless::PreBrowserStart() {
   // Headless mode uses platform independent clipboard which we need to set
   // before generic clipboard implementation sets the platform specific one.
-#if !BUILDFLAG(IS_OHOS)
   if (IsHeadlessMode()) {
     SetHeadlessClipboardForCurrentThread();
   }
-#endif  // !BUILDFLAG(IS_OHOS)
 }
 
 }  // namespace headless

@@ -79,7 +79,7 @@ class UpgradeDetectorChromeos : public UpgradeDetector,
   // user that an update is available but deferred.
   void NotifyOnDeferredUpgrade();
 
-  absl::optional<InstalledVersionUpdater> installed_version_updater_;
+  std::optional<InstalledVersionUpdater> installed_version_updater_;
 
   // The time when elevated annoyance deadline is reached.
   base::Time elevated_deadline_;
@@ -102,9 +102,6 @@ class UpgradeDetectorChromeos : public UpgradeDetector,
   // call UpgradeDetector::NotifyUpgrade.
   base::OneShotTimer upgrade_notification_timer_;
   bool initialized_;
-
-  // Indicates whether the flag status has been sent to update engine.
-  bool toggled_update_flag_;
 
   // Indicates whether there is an update in progress.
   bool update_in_progress_;

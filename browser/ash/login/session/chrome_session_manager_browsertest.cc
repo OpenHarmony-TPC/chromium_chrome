@@ -18,8 +18,8 @@
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
-#include "chrome/browser/ash/login/ui/user_adding_screen.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
+#include "chrome/browser/ui/ash/login/user_adding_screen.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
 #include "chrome/test/base/fake_gaia_mixin.h"
 #include "chromeos/ash/components/system/fake_statistics_provider.h"
@@ -33,9 +33,9 @@
 
 #if BUILDFLAG(ENABLE_RLZ)
 #include "chrome/browser/ash/login/session/user_session_initializer.h"
-#include "chrome/browser/google/google_brand_chromeos.h"
+#include "chrome/browser/google/google_brand_chromeos.h"  // nogncheck
 #include "chrome/common/chrome_switches.h"
-#include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
+#include "chromeos/ash/components/install_attributes/stub_install_attributes.h"  // nogncheck
 #include "components/user_manager/user_names.h"
 #endif  // BUILDFLAG(ENABLE_RLZ)
 
@@ -105,8 +105,8 @@ IN_PROC_BROWSER_TEST_F(ChromeSessionManagerTest, OobeNewUser) {
 
   // Login via fake gaia to add a new user.
   fake_gaia_.SetupFakeGaiaForLoginManager();
-  fake_gaia_.fake_gaia()->SetFakeMergeSessionParams(
-      FakeGaiaMixin::kFakeUserEmail, "fake_sid", "fake_lsid");
+  fake_gaia_.fake_gaia()->SetConfigurationHelper(FakeGaiaMixin::kFakeUserEmail,
+                                                 "fake_sid", "fake_lsid");
   OobeScreenWaiter(OobeBaseTest::GetFirstSigninScreen()).Wait();
 
   LoginDisplayHost::default_host()
@@ -171,6 +171,23 @@ IN_PROC_BROWSER_TEST_F(ChromeSessionManagerExistingUsersTest,
   for (size_t i = 0; i < users.size(); ++i) {
     EXPECT_EQ(users[i].account_id, manager->sessions()[i].user_account_id);
   }
+}
+
+IN_PROC_BROWSER_TEST_F(ChromeSessionManagerExistingUsersTest,
+                       LoginExistingUsersWithLocalPassword) {
+  // Verify that session state is LOGIN_PRIMARY with existing user data dir.
+  session_manager::SessionManager* manager =
+      session_manager::SessionManager::Get();
+  EXPECT_EQ(session_manager::SessionState::LOGIN_PRIMARY,
+            manager->session_state());
+  EXPECT_EQ(0u, manager->sessions().size());
+
+  const auto& users = login_manager_.users();
+  // Verify that session state is ACTIVE with one user session after signing
+  // in a user with a local password.
+  LoginUserWithLocalPassword(users[0].account_id);
+  EXPECT_EQ(session_manager::SessionState::ACTIVE, manager->session_state());
+  EXPECT_EQ(1u, manager->sessions().size());
 }
 
 IN_PROC_BROWSER_TEST_F(ChromeSessionManagerExistingUsersTest,
@@ -318,7 +335,7 @@ class ChromeSessionManagerRlzTest : public ChromeSessionManagerTest {
 
     // Login via fake gaia to add a new user.
     fake_gaia_.SetupFakeGaiaForLoginManager();
-    fake_gaia_.fake_gaia()->SetFakeMergeSessionParams(
+    fake_gaia_.fake_gaia()->SetConfigurationHelper(
         FakeGaiaMixin::kFakeUserEmail, "fake_sid", "fake_lsid");
     OobeScreenWaiter(OobeBaseTest::GetFirstSigninScreen()).Wait();
 

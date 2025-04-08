@@ -123,9 +123,6 @@ class SyncEngine
   void SetRemoteChangeProcessor(RemoteChangeProcessor* processor) override;
   LocalChangeProcessor* GetLocalChangeProcessor() override;
   RemoteServiceState GetCurrentState() const override;
-  void GetOriginStatusMap(StatusMapCallback callback) override;
-  void DumpFiles(const GURL& origin, ListCallback callback) override;
-  void DumpDatabase(ListCallback callback) override;
   void SetSyncEnabled(bool enabled) override;
   void PromoteDemotedChanges(base::OnceClosure callback) override;
 
@@ -229,8 +226,10 @@ class SyncEngine
   std::unique_ptr<WorkerObserver> worker_observer_;
   std::unique_ptr<SyncWorkerInterface> sync_worker_;
 
-  base::ObserverList<SyncServiceObserver>::Unchecked service_observers_;
-  base::ObserverList<FileStatusObserver>::Unchecked file_status_observers_;
+  base::ObserverList<SyncServiceObserver>::UncheckedAndDanglingUntriaged
+      service_observers_;
+  base::ObserverList<FileStatusObserver>::UncheckedAndDanglingUntriaged
+      file_status_observers_;
   raw_ptr<leveldb::Env> env_override_;
 
   CallbackTracker callback_tracker_;

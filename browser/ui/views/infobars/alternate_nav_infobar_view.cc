@@ -52,10 +52,14 @@ void AlternateNavInfoBarView::ElideLabels(Labels* labels, int available_width) {
   views::Label* last_label = labels->back();
   labels->pop_back();
   int used_width = 0;
-  for (auto i(labels->begin()); i != labels->end(); ++i)
-    used_width += (*i)->GetPreferredSize().width();
-  int last_label_width = std::min(last_label->GetPreferredSize().width(),
-                                  available_width - used_width);
+  for (auto& label : *labels) {
+    used_width +=
+        label->GetPreferredSize(views::SizeBounds(label->width(), {})).width();
+  }
+  int last_label_width = std::min(
+      last_label->GetPreferredSize(views::SizeBounds(last_label->width(), {}))
+          .width(),
+      available_width - used_width);
   if (last_label_width < last_label->GetMinimumSize().width()) {
     last_label_width = 0;
     if (!labels->empty())
@@ -66,8 +70,8 @@ void AlternateNavInfoBarView::ElideLabels(Labels* labels, int available_width) {
     ElideLabels(labels, available_width - last_label_width);
 }
 
-void AlternateNavInfoBarView::Layout() {
-  InfoBarView::Layout();
+void AlternateNavInfoBarView::Layout(PassKey) {
+  LayoutSuperclass<InfoBarView>(this);
 
   label_1_->SetText(label_1_text_);
   link_->SetText(link_text_);

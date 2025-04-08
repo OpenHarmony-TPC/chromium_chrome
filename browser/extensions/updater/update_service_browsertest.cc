@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+#include <optional>
+
 #include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/json/json_reader.h"
@@ -26,7 +29,7 @@
 #include "components/update_client/net/url_loader_post_interceptor.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
-#include "extensions/browser/content_verifier.h"
+#include "extensions/browser/content_verifier/content_verifier.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/external_install_info.h"
 #include "extensions/browser/mock_external_provider.h"
@@ -36,7 +39,10 @@
 #include "extensions/common/extension_updater_uma.h"
 #include "extensions/common/extension_urls.h"
 #include "extensions/common/mojom/manifest.mojom-shared.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
+#endif
 
 using extensions::mojom::ManifestLocation;
 
@@ -45,8 +51,6 @@ namespace extensions {
 namespace {
 
 const char kExtensionId[] = "aohghmighlieiainnegkcijnfilokake";
-
-using UpdateClientEvents = update_client::UpdateClient::Observer::Events;
 
 }  // namespace
 
@@ -72,18 +76,18 @@ class UpdateServiceTest : public ExtensionUpdateClientBaseTest {
                   profile(), ProfileKeepAliveOrigin::kExtensionUpdater));
   }
 
-  absl::optional<base::Value::Dict> GetRequest(size_t index) {
+  std::optional<base::Value::Dict> GetRequest(size_t index) {
     const std::vector<
         update_client::URLLoaderPostInterceptor::InterceptedRequest>& requests =
         update_interceptor_->GetRequests();
     if (requests.size() < index) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     const std::string update_request = std::get<0>(requests[index]);
-    absl::optional<base::Value> root = base::JSONReader::Read(update_request);
+    std::optional<base::Value> root = base::JSONReader::Read(update_request);
     if (!root) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     return std::move(root.value()).TakeDict();
@@ -122,7 +126,7 @@ IN_PROC_BROWSER_TEST_F(UpdateServiceTest, NoUpdate) {
   extension_service()->updater()->CheckNow(std::move(params));
 
   // UpdateService should emit a not-updated event.
-  EXPECT_EQ(UpdateClientEvents::COMPONENT_ALREADY_UP_TO_DATE,
+  EXPECT_EQ(update_client::ComponentState::kUpToDate,
             WaitOnComponentUpdaterCompleteEvent(kExtensionId));
 
   ASSERT_EQ(1, update_interceptor_->GetCount())
@@ -133,7 +137,7 @@ IN_PROC_BROWSER_TEST_F(UpdateServiceTest, NoUpdate) {
   EXPECT_EQ(0, ping_interceptor_->GetCount())
       << ping_interceptor_->GetRequestsAsString();
 
-  const absl::optional<base::Value::Dict> root = GetRequest(0);
+  const std::optional<base::Value::Dict> root = GetRequest(0);
   ASSERT_TRUE(root);
   const base::Value::Dict& app = GetFirstApp(root.value());
   EXPECT_EQ(kExtensionId, CHECK_DEREF(app.FindString("appid")));
@@ -163,7 +167,7 @@ IN_PROC_BROWSER_TEST_F(UpdateServiceTest, UpdateCheckError) {
   extension_service()->updater()->CheckNow(std::move(params));
 
   // UpdateService should emit an error update event.
-  EXPECT_EQ(UpdateClientEvents::COMPONENT_UPDATE_ERROR,
+  EXPECT_EQ(update_client::ComponentState::kUpdateError,
             WaitOnComponentUpdaterCompleteEvent(kExtensionId));
 
   ASSERT_EQ(1, update_interceptor_->GetCount())
@@ -174,7 +178,7 @@ IN_PROC_BROWSER_TEST_F(UpdateServiceTest, UpdateCheckError) {
   EXPECT_EQ(0, ping_interceptor_->GetCount())
       << ping_interceptor_->GetRequestsAsString();
 
-  const absl::optional<base::Value::Dict> root = GetRequest(0);
+  const std::optional<base::Value::Dict> root = GetRequest(0);
   ASSERT_TRUE(root);
   const base::Value::Dict& app = GetFirstApp(root.value());
   EXPECT_EQ(kExtensionId, CHECK_DEREF(app.FindString("appid")));
@@ -270,7 +274,7 @@ IN_PROC_BROWSER_TEST_F(UpdateServiceTest, SuccessfulUpdate) {
 
   ExpectProfileKeepAlive(true);
 
-  EXPECT_EQ(UpdateClientEvents::COMPONENT_UPDATED,
+  EXPECT_EQ(update_client::ComponentState::kUpdated,
             WaitOnComponentUpdaterCompleteEvent(kExtensionId));
 
   run_loop.Run();
@@ -279,7 +283,7 @@ IN_PROC_BROWSER_TEST_F(UpdateServiceTest, SuccessfulUpdate) {
       << update_interceptor_->GetRequestsAsString();
   EXPECT_EQ(1, get_interceptor_count());
 
-  const absl::optional<base::Value::Dict> root = GetRequest(0);
+  const std::optional<base::Value::Dict> root = GetRequest(0);
   ASSERT_TRUE(root);
   const base::Value::Dict& app = GetFirstApp(root.value());
   EXPECT_EQ(kExtensionId, CHECK_DEREF(app.FindString("appid")));
@@ -346,7 +350,7 @@ IN_PROC_BROWSER_TEST_F(UpdateServiceTest, PolicyCorrupted) {
 
   // Make sure the extension then got re-installed, and that after reinstall it
   // is no longer disabled due to corruption.
-  EXPECT_EQ(UpdateClientEvents::COMPONENT_UPDATED,
+  EXPECT_EQ(update_client::ComponentState::kUpdated,
             WaitOnComponentUpdaterCompleteEvent(kExtensionId));
 
   reasons = prefs->GetDisableReasons(kExtensionId);
@@ -363,7 +367,7 @@ IN_PROC_BROWSER_TEST_F(UpdateServiceTest, PolicyCorrupted) {
   // - installedby="policy"
   // - enabled="0"
   // - <disabled reason="1024"/>
-  const absl::optional<base::Value::Dict> root = GetRequest(0);
+  const std::optional<base::Value::Dict> root = GetRequest(0);
   ASSERT_TRUE(root);
   const base::Value::Dict& app = GetFirstApp(root.value());
   EXPECT_EQ(kExtensionId, CHECK_DEREF(app.FindString("appid")));
@@ -402,7 +406,7 @@ IN_PROC_BROWSER_TEST_F(UpdateServiceTest, UninstallExtensionWhileUpdating) {
       kExtensionId, extensions::UNINSTALL_REASON_COMPONENT_REMOVED, nullptr);
 
   // Update client should issue an update error event for this extension.
-  ASSERT_EQ(UpdateClientEvents::COMPONENT_UPDATE_ERROR,
+  ASSERT_EQ(update_client::ComponentState::kUpdateError,
             WaitOnComponentUpdaterCompleteEvent(kExtensionId));
 
   run_loop.Run();
@@ -506,18 +510,18 @@ class PolicyUpdateServiceTest : public ExtensionUpdateClientBaseTest,
   }
 
  protected:
-  absl::optional<base::Value::Dict> GetRequest(size_t index) {
+  std::optional<base::Value::Dict> GetRequest(size_t index) {
     const std::vector<
         update_client::URLLoaderPostInterceptor::InterceptedRequest>& requests =
         update_interceptor_->GetRequests();
     if (requests.size() < index) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     const std::string update_request = std::get<0>(requests[index]);
-    absl::optional<base::Value> root = base::JSONReader::Read(update_request);
+    std::optional<base::Value> root = base::JSONReader::Read(update_request);
     if (!root) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     return std::move(root.value()).TakeDict();
@@ -538,6 +542,13 @@ class PolicyUpdateServiceTest : public ExtensionUpdateClientBaseTest,
   std::string id_ = "aohghmighlieiainnegkcijnfilokake";
 
  private:
+#if BUILDFLAG(IS_CHROMEOS)
+  // Set up managed environment.
+  std::unique_ptr<ash::ScopedStubInstallAttributes> install_attributes_ =
+      std::make_unique<ash::ScopedStubInstallAttributes>(
+          ash::StubInstallAttributes::CreateCloudManaged("fake-domain.com",
+                                                         "fake-id"));
+#endif
   testing::NiceMock<policy::MockConfigurationPolicyProvider> policy_provider_;
   content_verifier_test::DownloaderTestDelegate downloader_;
 };
@@ -578,7 +589,7 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, FailedUpdateRetries) {
   delay_tracker.StopWatching();
   delay_tracker.Proceed();
 
-  EXPECT_EQ(UpdateClientEvents::COMPONENT_UPDATED,
+  EXPECT_EQ(update_client::ComponentState::kUpdated,
             WaitOnComponentUpdaterCompleteEvent(id_));
 
   ASSERT_EQ(1, update_interceptor_->GetCount())
@@ -592,7 +603,7 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, FailedUpdateRetries) {
   // - installedby="policy"
   // - enabled="0"
   // - <disabled reason="1024"/>
-  const absl::optional<base::Value::Dict> root = GetRequest(0);
+  const std::optional<base::Value::Dict> root = GetRequest(0);
   ASSERT_TRUE(root);
   const base::Value::Dict& app = GetFirstApp(root.value());
   EXPECT_EQ(id_, CHECK_DEREF(app.FindString("appid")));
@@ -630,13 +641,14 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, Backoff) {
     // Resolve the request to |delay_tracker|, so the reinstallation can
     // proceed.
     delay_tracker.Proceed();
-    EXPECT_EQ(UpdateClientEvents::COMPONENT_UPDATED,
+    EXPECT_EQ(update_client::ComponentState::kUpdated,
               WaitOnComponentUpdaterCompleteEvent(id_));
   }
 
   ASSERT_EQ(4, update_interceptor_->GetCount())
       << update_interceptor_->GetRequestsAsString();
-  EXPECT_EQ(4, get_interceptor_count());
+  // Only one download because retries are cached.
+  EXPECT_EQ(1, get_interceptor_count());
 
   const std::vector<base::TimeDelta>& calls = delay_tracker.calls();
 
@@ -655,6 +667,7 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, Backoff) {
   }
 }
 
+#if !(defined(ADDRESS_SANITIZER) && BUILDFLAG(IS_CHROMEOS))
 // We want to test what happens at startup with a corroption-disabled policy
 // force installed extension. So we set that up in the PRE test here.
 IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, PRE_PolicyCorruptedOnStartup) {
@@ -697,7 +710,7 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, PolicyCorruptedOnStartup) {
   ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
   int disable_reasons = prefs->GetDisableReasons(id_);
   if (disable_reasons & disable_reason::DISABLE_CORRUPTED) {
-    EXPECT_EQ(UpdateClientEvents::COMPONENT_UPDATED,
+    EXPECT_EQ(update_client::ComponentState::kUpdated,
               WaitOnComponentUpdaterCompleteEvent(id_));
     disable_reasons = prefs->GetDisableReasons(id_);
   }
@@ -711,7 +724,7 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, PolicyCorruptedOnStartup) {
 
   const std::string update_request =
       std::get<0>(update_interceptor_->GetRequests()[0]);
-  const absl::optional<base::Value::Dict> root = GetRequest(0);
+  const std::optional<base::Value::Dict> root = GetRequest(0);
   ASSERT_TRUE(root);
   const base::Value::Dict& app = GetFirstApp(root.value());
   EXPECT_EQ(id_, CHECK_DEREF(app.FindString("appid")));
@@ -723,5 +736,6 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, PolicyCorruptedOnStartup) {
       CHECK_DEREF(app.FindList("disabled"))[0].GetDict();
   EXPECT_EQ(disable_reason::DISABLE_CORRUPTED, disabled.FindInt("reason"));
 }
+#endif  // !(defined(ADDRESS_SANITIZER) && BUILDFLAG(IS_CHROMEOS))
 
 }  // namespace extensions

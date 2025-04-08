@@ -23,7 +23,8 @@ AppRestoreArcTaskHandler* AppRestoreArcTaskHandlerFactory::GetForProfile(
 // static
 AppRestoreArcTaskHandlerFactory*
 AppRestoreArcTaskHandlerFactory::GetInstance() {
-  return base::Singleton<AppRestoreArcTaskHandlerFactory>::get();
+  static base::NoDestructor<AppRestoreArcTaskHandlerFactory> instance;
+  return instance.get();
 }
 
 AppRestoreArcTaskHandlerFactory::AppRestoreArcTaskHandlerFactory()
@@ -31,9 +32,12 @@ AppRestoreArcTaskHandlerFactory::AppRestoreArcTaskHandlerFactory()
           "AppRestoreArcTaskHandler",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(ArcAppListPrefsFactory::GetInstance());
   DependsOn(apps::AppServiceProxyFactory::GetInstance());
@@ -41,12 +45,14 @@ AppRestoreArcTaskHandlerFactory::AppRestoreArcTaskHandlerFactory()
 
 AppRestoreArcTaskHandlerFactory::~AppRestoreArcTaskHandlerFactory() = default;
 
-KeyedService* AppRestoreArcTaskHandlerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AppRestoreArcTaskHandlerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   if (!arc::IsArcAllowedForProfile(Profile::FromBrowserContext(context)))
     return nullptr;
 
-  return new AppRestoreArcTaskHandler(Profile::FromBrowserContext(context));
+  return std::make_unique<AppRestoreArcTaskHandler>(
+      Profile::FromBrowserContext(context));
 }
 
 }  // namespace ash::app_restore

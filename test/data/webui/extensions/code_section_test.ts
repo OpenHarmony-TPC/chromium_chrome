@@ -5,22 +5,11 @@
 /** @fileoverview Suite of tests for extensions-code-section. */
 import 'chrome://extensions/extensions.js';
 
-import {ExtensionsCodeSectionElement} from 'chrome://extensions/extensions.js';
+import type {ExtensionsCodeSectionElement} from 'chrome://extensions/extensions.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {isChildVisible} from 'chrome://webui-test/test_util.js';
+import {isChildVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-const extension_code_section_tests = {
-  suiteName: 'ExtensionCodeSectionTest',
-  TestNames: {
-    Layout: 'layout',
-    LongSource: 'long source',
-  },
-};
-
-Object.assign(
-    window, {extension_code_section_tests: extension_code_section_tests});
-
-suite(extension_code_section_tests.suiteName, function() {
+suite('ExtensionCodeSectionTest', function() {
   let codeSection: ExtensionsCodeSectionElement;
 
   const couldNotDisplayCode: string = 'No code here';
@@ -33,7 +22,7 @@ suite(extension_code_section_tests.suiteName, function() {
     document.body.appendChild(codeSection);
   });
 
-  test(extension_code_section_tests.TestNames.Layout, function() {
+  test('Layout', async () => {
     const code: chrome.developerPrivate.RequestFileSourceResponse = {
       beforeHighlight: 'this part before the highlight\nAnd this too\n',
       highlight: 'highlight this part\n',
@@ -52,11 +41,13 @@ suite(extension_code_section_tests.suiteName, function() {
 
     codeSection.code = code;
     codeSection.isActive = true;
+    await microtasksFinished();
+
     assertTrue(testIsVisible('#main'));
     assertFalse(testIsVisible('#no-code'));
 
     const codeSections =
-        codeSection.shadowRoot!.querySelectorAll('#source span span');
+        codeSection.shadowRoot!.querySelectorAll('#source > span > *');
 
     assertEquals(code.beforeHighlight, codeSections[0]!.textContent);
     assertEquals(code.highlight, codeSections[1]!.textContent);
@@ -69,7 +60,7 @@ suite(extension_code_section_tests.suiteName, function() {
                 '#line-numbers span')!.textContent!.trim());
   });
 
-  test(extension_code_section_tests.TestNames.LongSource, function() {
+  test('LongSource', async () => {
     let lineNums;
 
     function setCodeContent(beforeLineCount: number, afterLineCount: number):
@@ -91,6 +82,8 @@ suite(extension_code_section_tests.suiteName, function() {
     }
 
     codeSection.code = setCodeContent(0, 2000);
+    await microtasksFinished();
+
     lineNums =
         codeSection.shadowRoot!
             .querySelector<HTMLElement>('#line-numbers span')!.textContent!;
@@ -108,6 +101,8 @@ suite(extension_code_section_tests.suiteName, function() {
                         '#line-numbers .more-code.after')!.hidden);
 
     codeSection.code = setCodeContent(1000, 1000);
+    await microtasksFinished();
+
     lineNums =
         codeSection.shadowRoot!
             .querySelector<HTMLElement>('#line-numbers span')!.textContent!;
@@ -125,6 +120,8 @@ suite(extension_code_section_tests.suiteName, function() {
                         '#line-numbers .more-code.after')!.hidden);
 
     codeSection.code = setCodeContent(2000, 0);
+    await microtasksFinished();
+
     lineNums =
         codeSection.shadowRoot!
             .querySelector<HTMLElement>('#line-numbers span')!.textContent!;

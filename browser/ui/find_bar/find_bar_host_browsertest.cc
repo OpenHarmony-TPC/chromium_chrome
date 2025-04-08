@@ -26,6 +26,7 @@
 #include "chrome/browser/ui/find_bar/find_bar_controller.h"
 #include "chrome/browser/ui/find_bar/find_bar_host_unittest_util.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/find_result_waiter.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -35,8 +36,6 @@
 #include "components/find_in_page/find_types.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/download_manager.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
@@ -44,6 +43,7 @@
 #include "net/base/filename_util.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/views/layout/animating_layout_manager_test_util.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "ui/aura/window.h"
@@ -85,11 +85,16 @@ const int kMoveIterations = 30;
 
 class FindInPageControllerTest : public InProcessBrowserTest {
  public:
-  FindInPageControllerTest() {
-    chrome::DisableFindBarAnimationsDuringTesting(true);
-  }
+  FindInPageControllerTest() { DisableFindBarAnimationsDuringTesting(true); }
 
  protected:
+  void SetUpOnMainThread() override {
+    views::test::WaitForAnimatingLayoutManager(
+        BrowserView::GetBrowserViewForBrowser(browser())
+            ->toolbar()
+            ->pinned_toolbar_actions_container());
+  }
+
   bool GetFindBarWindowInfoForBrowser(
       Browser* browser, gfx::Point* position, bool* fully_visible) {
     const FindBarTesting* find_bar =
@@ -160,7 +165,7 @@ class FindInPageControllerTest : public InProcessBrowserTest {
                    bool forward,
                    bool case_sensitive,
                    int* ordinal) {
-    Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+    Browser* browser = chrome::FindBrowserWithTab(web_contents);
     browser->GetFindBarController()->find_bar()->SetFindTextAndSelectedRange(
         search_str, gfx::Range());
     return ui_test_utils::FindInPage(web_contents, search_str, forward,
@@ -345,7 +350,7 @@ IN_PROC_BROWSER_TEST_F(FindInPageControllerTest, NoAudibleAlertOnFrameChange) {
   constexpr char kRemoveFrameScript[] =
       "frame = document.getElementsByTagName(\"FRAME\")[0];\n"
       "frame.parentElement.removeChild(frame);\n";
-  ASSERT_TRUE(content::ExecuteScript(web_contents, kRemoveFrameScript));
+  ASSERT_TRUE(content::ExecJs(web_contents, kRemoveFrameScript));
 
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), GetURL("specialchar.html")));
@@ -495,12 +500,12 @@ IN_PROC_BROWSER_TEST_F(FindInPageControllerTest, SpanSearchable) {
 }
 
 // Find in a very large page.
-// TODO(crbug.com/1077855): Test is flaky on Mac debug builds.
+// TODO(crbug.com/40129326): Test is flaky on Mac debug builds.
 #if BUILDFLAG(IS_MAC) && !defined(NDEBUG)
 #define MAYBE_LargePage DISABLED_LargePage
 #elif BUILDFLAG(IS_LINUX) && (!defined(NDEBUG) || defined(ADDRESS_SANITIZER))
-// TODO(crbug.com/1181717): Test is flaky on Linux debug builds.
-// TODO(crbug.com/1198685): Test is flaky on Linux ASAN builds.
+// TODO(crbug.com/40751034): Test is flaky on Linux debug builds.
+// TODO(crbug.com/40760850): Test is flaky on Linux ASAN builds.
 #define MAYBE_LargePage DISABLED_LargePage
 #else
 #define MAYBE_LargePage LargePage
@@ -516,11 +521,11 @@ IN_PROC_BROWSER_TEST_F(FindInPageControllerTest, MAYBE_LargePage) {
 }
 
 // Find a very long string in a large page.
-// TODO(crbug.com/1096911): Test is flaky on Mac debug builds and Linux asan.
+// TODO(crbug.com/40700976): Test is flaky on Mac debug builds and Linux asan.
 #if (BUILDFLAG(IS_MAC) && !defined(NDEBUG)) || defined(ADDRESS_SANITIZER)
 #define MAYBE_FindLongString DISABLED_FindLongString
 #elif BUILDFLAG(IS_LINUX) && !defined(NDEBUG)
-// TODO(crbug.com/1181717): Test is flaky on Linux debug builds.
+// TODO(crbug.com/40751034): Test is flaky on Linux debug builds.
 #define MAYBE_FindLongString DISABLED_FindLongString
 #else
 #define MAYBE_FindLongString FindLongString
@@ -553,7 +558,7 @@ IN_PROC_BROWSER_TEST_F(FindInPageControllerTest, BigString) {
 }
 
 // Search Back and Forward on a single occurrence.
-// TODO(crbug.com/1119361): Test is flaky on ChromeOS.
+// TODO(crbug.com/40714133): Test is flaky on ChromeOS.
 #if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_MAC)
 #define MAYBE_SingleOccurrence DISABLED_SingleOccurrence
 #else
@@ -1041,8 +1046,14 @@ IN_PROC_BROWSER_TEST_F(FindInPageControllerTest,
   EXPECT_FALSE(fully_visible);
 }
 
+// TODO(crbug.com/353259716): Test is flaky on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_FindMovesWhenObscuring DISABLED_FindMovesWhenObscuring
+#else
+#define MAYBE_FindMovesWhenObscuring FindMovesWhenObscuring
+#endif
 // Make sure Find box moves out of the way if it is obscuring the active match.
-IN_PROC_BROWSER_TEST_F(FindInPageControllerTest, FindMovesWhenObscuring) {
+IN_PROC_BROWSER_TEST_F(FindInPageControllerTest, MAYBE_FindMovesWhenObscuring) {
   GURL url = GetURL(kMoveIfOver);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
@@ -1056,12 +1067,19 @@ IN_PROC_BROWSER_TEST_F(FindInPageControllerTest, FindMovesWhenObscuring) {
   bool fully_visible = false;
   int ordinal = 0;
 
-  // Make sure it is open.
-  EXPECT_TRUE(GetFindBarWindowInfo(&start_position, &fully_visible));
-  EXPECT_TRUE(fully_visible);
-
   WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Make a query so the Lens entrypoint disappears. If not, the start position,
+  // will be off since the Lens entrypoint will disappear on the first query,
+  // and the start_position vs position will be comparing the position of the
+  // find bar with vs without the Lens entrypoint.
+  // Make sure it is open.
+  FindInPageASCII(web_contents, "a", kFwd, kIgnoreCase, &ordinal);
+
+  // Make sure it is open and store starting position.
+  EXPECT_TRUE(GetFindBarWindowInfo(&start_position, &fully_visible));
+  EXPECT_TRUE(fully_visible);
 
   int moved_x_coord = FindInPageTillBoxMoves(web_contents, start_position.x(),
                                              "Chromium", kMoveIterations);
@@ -1393,12 +1411,10 @@ IN_PROC_BROWSER_TEST_F(FindInPageControllerTest, NoIncognitoPrepopulate) {
       browser()->profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
   Browser* incognito_browser =
       Browser::Create(Browser::CreateParams(incognito_profile, true));
-  content::WindowedNotificationObserver observer(
-      content::NOTIFICATION_LOAD_STOP,
-      content::NotificationService::AllSources());
   chrome::AddSelectedTabWithURL(incognito_browser, url,
                                 ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-  observer.Wait();
+  EXPECT_TRUE(content::WaitForLoadStop(
+      incognito_browser->tab_strip_model()->GetActiveWebContents()));
   incognito_browser->window()->Show();
 
   // Open the find box and make sure that it is prepopulated with "page".
@@ -1453,13 +1469,11 @@ IN_PROC_BROWSER_TEST_F(FindInPageControllerTest, FitWindow) {
   Browser::CreateParams params(Browser::TYPE_POPUP, browser()->profile(), true);
   params.initial_bounds = gfx::Rect(0, 0, 100, 500);
   Browser* popup = Browser::Create(params);
-  content::WindowedNotificationObserver observer(
-      content::NOTIFICATION_LOAD_STOP,
-      content::NotificationService::AllSources());
   chrome::AddSelectedTabWithURL(popup, GURL(url::kAboutBlankURL),
                                 ui::PAGE_TRANSITION_LINK);
   // Wait for the page to finish loading.
-  observer.Wait();
+  EXPECT_TRUE(content::WaitForLoadStop(
+      popup->tab_strip_model()->GetActiveWebContents()));
   popup->window()->Show();
 
   EnsureFindBoxOpenForBrowser(popup);
@@ -1469,7 +1483,7 @@ IN_PROC_BROWSER_TEST_F(FindInPageControllerTest, FitWindow) {
 }
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-// TODO(crbug.com/1341599): Flakily crashes on Lacros.
+// TODO(crbug.com/40230732): Flakily crashes on Lacros.
 #define MAYBE_FindMovesOnTabClose_Issue1343052 \
   DISABLED_FindMovesOnTabClose_Issue1343052
 #else

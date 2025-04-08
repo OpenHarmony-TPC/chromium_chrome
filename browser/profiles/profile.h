@@ -8,9 +8,11 @@
 #define CHROME_BROWSER_PROFILES_PROFILE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
@@ -30,6 +32,8 @@ class PrefStore;
 class ProfileDestroyer;
 class ProfileKey;
 class TestingProfile;
+class ThemeService;
+class InstantService;
 
 namespace base {
 class FilePath;
@@ -38,7 +42,6 @@ class Time;
 }
 
 namespace content {
-class ResourceContext;
 class WebUI;
 }
 
@@ -47,9 +50,9 @@ class SchemaRegistryService;
 class ProfilePolicyConnector;
 class ProfileCloudPolicyManager;
 class UserCloudPolicyManager;
+class CloudPolicyManager;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-class ActiveDirectoryPolicyManager;
+#if BUILDFLAG(IS_CHROMEOS)
 class UserCloudPolicyManagerAsh;
 #endif
 }  // namespace policy
@@ -69,18 +72,9 @@ class ProfileObserver;
 // http://dev.chromium.org/developers/design-documents/profile-architecture
 class Profile : public content::BrowserContext {
  public:
-  enum CreateStatus {
-    // Profile services were not created due to a local error (e.g., disk full).
-    CREATE_STATUS_LOCAL_FAIL,
-    // Profile created but before initializing extensions and promo resources.
-    CREATE_STATUS_CREATED,
-    // Profile is created, extensions and promo resources are initialized.
-    CREATE_STATUS_INITIALIZED,
-  };
-
-  enum CreateMode {
-    CREATE_MODE_SYNCHRONOUS,
-    CREATE_MODE_ASYNCHRONOUS
+  enum class CreateMode {
+    kSynchronous,
+    kAsynchronous,
   };
 
   // Defines an ID to distinguish different off-the-record profiles of a regular
@@ -88,7 +82,7 @@ class Profile : public content::BrowserContext {
   class OTRProfileID {
    public:
     // ID used by the Incognito and Guest profiles.
-    // TODO(https://crbug.com/1225171): To be replaced with |IncognitoID| if
+    // TODO(crbug.com/40775669): To be replaced with |IncognitoID| if
     // OTR Guest profiles are deprecated.
     static const OTRProfileID PrimaryID();
 
@@ -153,7 +147,7 @@ class Profile : public content::BrowserContext {
 
     // Constructs a string that represents OTRProfileID from the provided
     // OTRProfileID.
-    // TODO(crbug.com/1161104): Use one serialize function for both java and
+    // TODO(crbug.com/40162345): Use one serialize function for both java and
     // native side instead of having duplicate code.
     std::string Serialize() const;
 #endif
@@ -194,7 +188,7 @@ class Profile : public content::BrowserContext {
   // Key used to bind profile to the widget with which it is associated.
   static const char kProfileKey[];
 
-  Profile();
+  explicit Profile(const OTRProfileID* otr_profile_id);
   Profile(const Profile&) = delete;
   Profile& operator=(const Profile&) = delete;
   ~Profile() override;
@@ -203,10 +197,10 @@ class Profile : public content::BrowserContext {
   // time.
   static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
-  // Create a new profile given a path. If |create_mode| is
-  // CREATE_MODE_ASYNCHRONOUS then the profile is initialized asynchronously.
-  // Can return null if |create_mode| is CREATE_MODE_SYNCHRONOUS and the
-  // creation of the profile directory fails.
+  // Create a new profile given a path. If `create_mode` is kAsynchronous then
+  // the profile is initialized asynchronously.
+  // Can return null if `create_mode` is kSynchronous and the creation of
+  // the profile directory fails.
   static std::unique_ptr<Profile> CreateProfile(const base::FilePath& path,
                                                 Delegate* delegate,
                                                 CreateMode create_mode);
@@ -233,15 +227,13 @@ class Profile : public content::BrowserContext {
   // Similar to GetBaseName(), but returns a string for debugging.
   std::string GetDebugName() const;
 
-  // Return whether this context is off the record. Default is false.
+  // Return whether this context is off the record.
   // Note that for Chrome this covers BOTH Incognito mode and Guest sessions.
-  bool IsOffTheRecord() override = 0;
-  virtual bool IsOffTheRecord() const = 0;
-  virtual const OTRProfileID& GetOTRProfileID() const = 0;
+  bool IsOffTheRecord() final;
+  bool IsOffTheRecord() const { return otr_profile_id_.has_value(); }
+  const OTRProfileID& GetOTRProfileID() const;
 
   variations::VariationsClient* GetVariationsClient() override;
-
-  content::ResourceContext* GetResourceContext() override;
 
   // Returns the creation time of this profile. This will either be the creation
   // time of the profile directory or, for ephemeral off-the-record profiles,
@@ -352,18 +344,23 @@ class Profile : public content::BrowserContext {
   // Returns the SchemaRegistryService.
   virtual policy::SchemaRegistryService* GetPolicySchemaRegistryService() = 0;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Returns the UserCloudPolicyManagerAsh.
   virtual policy::UserCloudPolicyManagerAsh* GetUserCloudPolicyManagerAsh() = 0;
-
-  // Returns the ActiveDirectoryPolicyManager.
-  virtual policy::ActiveDirectoryPolicyManager*
-  GetActiveDirectoryPolicyManager() = 0;
 #else
   // Returns the UserCloudPolicyManager.
   virtual policy::UserCloudPolicyManager* GetUserCloudPolicyManager() = 0;
   virtual policy::ProfileCloudPolicyManager* GetProfileCloudPolicyManager() = 0;
 #endif
+
+  // Returns CloudPolicyManager.
+  // This function combine three Get*CloudPolicyManager functions above and
+  // always returns the one that is currently activated.
+  //
+  // Returns UserCloudPolicyManagerAsh on Ash.
+  // For others, returns UserCloudPolicyManager if it exists, otherwise use
+  // ProfileCloudPolicyManager.
+  virtual policy::CloudPolicyManager* GetCloudPolicyManager() = 0;
 
   virtual policy::ProfilePolicyConnector* GetProfilePolicyConnector() = 0;
   virtual const policy::ProfilePolicyConnector* GetProfilePolicyConnector()
@@ -374,24 +371,22 @@ class Profile : public content::BrowserContext {
   virtual void set_last_selected_directory(const base::FilePath& path) = 0;
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  enum AppLocaleChangedVia {
-    // Caused by chrome://settings change.
-    APP_LOCALE_CHANGED_VIA_SETTINGS,
-    // Locale has been reverted via LocaleChangeGuard.
-    APP_LOCALE_CHANGED_VIA_REVERT,
-    // From login screen.
-    APP_LOCALE_CHANGED_VIA_LOGIN,
-    // From login to a public session.
-    APP_LOCALE_CHANGED_VIA_PUBLIC_SESSION_LOGIN,
-    // From AllowedLanguages policy.
-    APP_LOCALE_CHANGED_VIA_POLICY,
-    // From demo session.
-    APP_LOCALE_CHANGED_VIA_DEMO_SESSION,
-    // From system tray.
-    APP_LOCALE_CHANGED_VIA_SYSTEM_TRAY,
-    // Source unknown.
-    APP_LOCALE_CHANGED_VIA_UNKNOWN
-  };
+  enum AppLocaleChangedVia{// Caused by chrome://settings change.
+                           APP_LOCALE_CHANGED_VIA_SETTINGS,
+                           // Locale has been reverted via LocaleChangeGuard.
+                           APP_LOCALE_CHANGED_VIA_REVERT,
+                           // From login screen.
+                           APP_LOCALE_CHANGED_VIA_LOGIN,
+                           // From login to a public session.
+                           APP_LOCALE_CHANGED_VIA_PUBLIC_SESSION_LOGIN,
+                           // From AllowedLanguages policy.
+                           APP_LOCALE_CHANGED_VIA_POLICY,
+                           // Locale is reverted in the next demo session.
+                           APP_LOCALE_CHANGED_VIA_DEMO_SESSION_REVERT,
+                           // From system tray.
+                           APP_LOCALE_CHANGED_VIA_SYSTEM_TRAY,
+                           // Source unknown.
+                           APP_LOCALE_CHANGED_VIA_UNKNOWN};
 
   // Changes application locale for a profile.
   virtual void ChangeAppLocale(
@@ -402,7 +397,7 @@ class Profile : public content::BrowserContext {
 
   // Initializes Chrome OS's preferences.
   virtual void InitChromeOSPreferences() = 0;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Returns the home page for this profile.
   virtual GURL GetHomePage() = 0;
@@ -414,7 +409,7 @@ class Profile : public content::BrowserContext {
   // IsRegularProfile(), IsSystemProfile(), IsIncognitoProfile(), and
   // IsGuestSession() are mutually exclusive.
   // Note: IsGuestSession() is not mutually exclusive with the rest of the
-  // methods mentioned above on Ash and Lacros. TODO(crbug.com/1348572).
+  // methods mentioned above on Ash. TODO(crbug.com/40233408).
   //
   // IsSystemProfile() returns true for both regular and off-the-record profile
   //   of the system profile.
@@ -438,25 +433,6 @@ class Profile : public content::BrowserContext {
 
   // Returns whether it is a system profile.
   bool IsSystemProfile() const;
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Returns `true` if this is the first/initial Profile path in Lacros, and -
-  // for regular sessions, if this Profile has the Device Account logged in.
-  // For non-regular sessions (Guest Sessions, Managed Guest Sessions) which do
-  // not have the concept of a Device Account, the latter condition is not
-  // checked.
-  static bool IsMainProfilePath(base::FilePath profile_path);
-
-  // Returns true if this is the main profile as defined above.
-  virtual bool IsMainProfile() const = 0;
-
-  // Returns true if the profile path is for an web app profile.
-  static bool IsWebAppProfilePath(const base::FilePath& profile_path);
-
-  // Returns true if the name of the profile (i.e. `profile_path.BaseName()`) is
-  // for an web app profile.
-  static bool IsWebAppProfileName(const std::string& profile_path);
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
   bool CanUseDiskWhenOffTheRecord() override;
 
@@ -509,7 +485,31 @@ class Profile : public content::BrowserContext {
 
   virtual void RecordPrimaryMainFrameNavigation() = 0;
 
+  base::WeakPtr<const Profile> GetWeakPtr() const;
   base::WeakPtr<Profile> GetWeakPtr();
+
+  // Experimental getters/setters to gauge the performance of caching
+  // frequently used KeyedServices in a Profile pointer.
+  void set_theme_service(ThemeService* theme_service) {
+    theme_service_ = theme_service;
+  }
+  const std::optional<raw_ptr<ThemeService>>& theme_service() {
+    return theme_service_;
+  }
+  void set_instant_service(InstantService* instant_service) {
+    instant_service_ = instant_service;
+  }
+  const std::optional<raw_ptr<InstantService>>& instant_service() {
+    return instant_service_;
+  }
+
+  // Returns a debug information in std::string.
+  std::string ToDebugString();
+
+#if BUILDFLAG(IS_ANDROID)
+  static Profile* FromJavaObject(const jni_zero::JavaRef<jobject>& obj);
+  jni_zero::ScopedJavaLocalRef<jobject> GetJavaObject() const;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   void NotifyOffTheRecordProfileCreated(Profile* off_the_record);
 
@@ -529,13 +529,15 @@ class Profile : public content::BrowserContext {
   // Returns whether the user has signed in this profile to an account.
   virtual bool IsSignedIn() = 0;
 
- private:
-  // Created on the UI thread, and returned by GetResourceContext(), but
-  // otherwise lives on and is destroyed on the IO thread.
-  //
-  // TODO(https://crbug.com/908955): Get rid of ResourceContext.
-  std::unique_ptr<content::ResourceContext> resource_context_;
+  const std::optional<OTRProfileID> otr_profile_id_;
 
+#if BUILDFLAG(IS_CHROMEOS)
+  // TODO(40233408): Remove this when migration is completed.
+  // True if the guest profile uses BrowserProfileType::kGuest.
+  bool new_guest_profile_impl_;
+#endif
+
+ private:
   bool restored_last_session_ = false;
 
   // Used to prevent the notification that this Profile is destroyed from
@@ -548,14 +550,29 @@ class Profile : public content::BrowserContext {
   // true or false, so that calls can be nested.
   int accessibility_pause_level_ = 0;
 
+  // Experimental objects to gauge the performance of caching frequently used
+  // KeyedServices in a Profile pointer.
+  std::optional<raw_ptr<ThemeService>> theme_service_;
+  std::optional<raw_ptr<InstantService>> instant_service_;
+
   base::ObserverList<ProfileObserver,
                      /*check_empty=*/true,
                      /*allow_reentrancy=*/false>
       observers_;
 
   class ChromeVariationsClient;
+
+  // This member is lazily created. Once it is is created its lifetime must
+  // match that of Profile itself.
   std::unique_ptr<variations::VariationsClient> chrome_variations_client_;
 
+#if BUILDFLAG(IS_ANDROID)
+  void InitJavaObject();
+  void NotifyJavaOnProfileWillBeDestroyed();
+  void DestroyJavaObject();
+
+  jni_zero::ScopedJavaGlobalRef<jobject> j_obj_;
+#endif
   base::WeakPtrFactory<Profile> weak_factory_{this};
 };
 
@@ -567,4 +584,19 @@ struct ProfileCompare {
 std::ostream& operator<<(std::ostream& out,
                          const Profile::OTRProfileID& profile_id);
 
+#if BUILDFLAG(IS_ANDROID)
+namespace jni_zero {
+template <>
+inline Profile* FromJniType<Profile*>(JNIEnv* env,
+                                      const JavaRef<jobject>& j_profile) {
+  return Profile::FromJavaObject(j_profile);
+}
+
+template <>
+inline ScopedJavaLocalRef<jobject> ToJniType<Profile>(JNIEnv* env,
+                                                      const Profile& profile) {
+  return profile.GetJavaObject();
+}
+}  // namespace jni_zero
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // CHROME_BROWSER_PROFILES_PROFILE_H_

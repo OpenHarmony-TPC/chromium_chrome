@@ -12,6 +12,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.widget.DialogTitle;
@@ -23,11 +24,8 @@ import org.chromium.ui.ElidedUrlTextView;
 import org.chromium.ui.widget.ButtonCompat;
 import org.chromium.url.GURL;
 
-/**
- * Bottom sheet content for the screen which allows a parent to approve or deny a website.
- */
+/** Bottom sheet content for the screen which allows a parent to approve or deny a website. */
 class WebsiteApprovalSheetContent implements BottomSheetContent {
-    private static final String TAG = "WebsiteApprovalSheetContent";
     private static final String ELLIPSIS = "...";
     static final int MAX_HOST_SIZE = 256;
     static final int SUBSTRING_LIMIT = 256;
@@ -48,8 +46,10 @@ class WebsiteApprovalSheetContent implements BottomSheetContent {
 
     public WebsiteApprovalSheetContent(Context context) {
         mContext = context;
-        mContentView = (LinearLayout) LayoutInflater.from(mContext).inflate(
-                R.layout.website_approval_bottom_sheet, null);
+        mContentView =
+                (LinearLayout)
+                        LayoutInflater.from(mContext)
+                                .inflate(R.layout.website_approval_bottom_sheet, null);
     }
 
     @Override
@@ -58,8 +58,7 @@ class WebsiteApprovalSheetContent implements BottomSheetContent {
     }
 
     @Override
-    @Nullable
-    public View getToolbarView() {
+    public @Nullable View getToolbarView() {
         return null;
     }
 
@@ -87,8 +86,7 @@ class WebsiteApprovalSheetContent implements BottomSheetContent {
     public void destroy() {}
 
     @Override
-    @ContentPriority
-    public int getPriority() {
+    public @ContentPriority int getPriority() {
         return ContentPriority.HIGH;
     }
 
@@ -100,8 +98,8 @@ class WebsiteApprovalSheetContent implements BottomSheetContent {
     }
 
     @Override
-    public int getSheetContentDescriptionStringId() {
-        return R.string.parent_website_approval_content_description;
+    public @NonNull String getSheetContentDescription(Context context) {
+        return context.getString(R.string.parent_website_approval_content_description);
     }
 
     @Override
@@ -190,7 +188,10 @@ class WebsiteApprovalSheetContent implements BottomSheetContent {
         fullUrlView.setUrl(specs.mFormattedString, specs.mVisibleUrlLength);
 
         LinearLayout urlWrapper = mContentView.findViewById(R.id.url_container);
-        urlWrapper.setOnClickListener(v -> { fullUrlView.toggleTruncation(); });
+        urlWrapper.setOnClickListener(
+                v -> {
+                    fullUrlView.toggleTruncation();
+                });
 
         // Set for accessibility announcement.
         fullUrlView.setContentDescription(specs.mFormattedString);

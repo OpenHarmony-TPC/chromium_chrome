@@ -17,20 +17,6 @@ namespace extensions {
 WebstoreInstallWithPrompt::WebstoreInstallWithPrompt(
     const std::string& webstore_item_id,
     Profile* profile,
-    Callback callback)
-    : WebstoreStandaloneInstaller(webstore_item_id,
-                                  profile,
-                                  std::move(callback)),
-      show_post_install_ui_(true),
-      dummy_web_contents_(
-          WebContents::Create(WebContents::CreateParams(profile))),
-      parent_window_(nullptr) {
-  set_install_source(WebstoreInstaller::INSTALL_SOURCE_OTHER);
-}
-
-WebstoreInstallWithPrompt::WebstoreInstallWithPrompt(
-    const std::string& webstore_item_id,
-    Profile* profile,
     gfx::NativeWindow parent_window,
     Callback callback)
     : WebstoreStandaloneInstaller(webstore_item_id,
@@ -42,6 +28,7 @@ WebstoreInstallWithPrompt::WebstoreInstallWithPrompt(
       parent_window_(parent_window) {
   if (parent_window_)
     parent_window_tracker_ = views::NativeWindowTracker::Create(parent_window);
+  dummy_web_contents_->SetOwnerLocationForDebug(FROM_HERE);
   set_install_source(WebstoreInstaller::INSTALL_SOURCE_OTHER);
 }
 

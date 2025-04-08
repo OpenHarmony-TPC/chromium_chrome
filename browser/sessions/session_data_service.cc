@@ -47,8 +47,7 @@ SessionDataService::SessionDataService(
 
   SetStatusPref(Status::kInitialized);
   auto* policy = profile_->GetSpecialStoragePolicy();
-  if (policy && policy->HasSessionOnlyOrigins() &&
-      base::FeatureList::IsEnabled(kDeleteSessionOnlyDataOnStartup)) {
+  if (policy && policy->HasSessionOnlyOrigins()) {
     MaybeContinueDeletionFromLastSesssion(last_status);
   }
 
@@ -119,7 +118,7 @@ void SessionDataService::OnBrowserRemoved(Browser* browser) {
     return;
 
   // Check for any open windows for the current profile.
-  for (auto* open_browser : *BrowserList::GetInstance()) {
+  for (Browser* open_browser : *BrowserList::GetInstance()) {
     if (open_browser->profile() == profile_)
       return;
   }

@@ -5,10 +5,11 @@
 #ifndef CHROME_BROWSER_PROFILES_REPORTING_UTIL_H_
 #define CHROME_BROWSER_PROFILES_REPORTING_UTIL_H_
 
+#include <optional>
+
 #include "base/values.h"
 #include "build/chromeos_buildflags.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class Profile;
 
@@ -30,16 +31,15 @@ enterprise_connectors::ClientMetadata GetContextAsClientMetadata(
 // * user corresponding to a `profile` is managed.
 // Otherwise returns empty optional. More about DMToken:
 // go/dmserver-domain-model#dmtoken.
-absl::optional<std::string> GetUserDmToken(Profile* profile);
-absl::optional<std::string> GetUserClientId(Profile* profile);
+std::optional<std::string> GetUserDmToken(Profile* profile);
+std::optional<std::string> GetUserClientId(Profile* profile);
 
-// TODO(crbug.com/1358833): Enable on Lacros.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // Returns the client id if the current session is a managed guest session. Must
 // not be called from other sessions.
 // Returns an empty optional if the device is managed by Active Directory or if
 // policies could not be retrieved from the policy store.
-absl::optional<std::string> GetMGSUserClientId();
+std::optional<std::string> GetMGSUserClientId();
 #endif
 
 }  // namespace reporting

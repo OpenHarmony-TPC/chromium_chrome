@@ -54,8 +54,7 @@ class PersonalDataLoadedObserverMock
   PersonalDataLoadedObserverMock();
   ~PersonalDataLoadedObserverMock() override;
 
-  MOCK_METHOD0(OnPersonalDataChanged, void());
-  MOCK_METHOD0(OnPersonalDataFinishedProfileTasks, void());
+  MOCK_METHOD(void, OnPersonalDataChanged, (), (override));
 };
 
 // Base class for any interactive PaymentRequest test that will need to open
@@ -225,7 +224,7 @@ class PaymentRequestBrowserTestBase
   std::vector<std::u16string> GetShippingOptionLabelValues(
       DialogViewID parent_view_id);
 
-  // TODO(crbug.com/1209835): Remove remaining test usage and delete these.
+  // TODO(crbug.com/40182225): Remove remaining test usage and delete these.
   void OpenCVCPromptWithCVC(const std::u16string& cvc,
                             PaymentRequestDialogView* dialog_view);
   void PayWithCreditCard(const std::u16string& cvc);
@@ -241,21 +240,20 @@ class PaymentRequestBrowserTestBase
   bool IsViewVisible(DialogViewID view_id, views::View* dialog_view) const;
 
   // Getting/setting the |value| in the textfield of a given |type|.
-  std::u16string GetEditorTextfieldValue(autofill::ServerFieldType type);
+  std::u16string GetEditorTextfieldValue(autofill::FieldType type);
   void SetEditorTextfieldValue(const std::u16string& value,
-                               autofill::ServerFieldType type);
+                               autofill::FieldType type);
   // Getting/setting the |value| in the combobox of a given |type|.
-  std::u16string GetComboboxValue(autofill::ServerFieldType type);
-  void SetComboboxValue(const std::u16string& value,
-                        autofill::ServerFieldType type);
+  std::u16string GetComboboxValue(autofill::FieldType type);
+  void SetComboboxValue(const std::u16string& value, autofill::FieldType type);
   // Special case for the billing address since the interesting value is not
   // the visible one accessible directly on the base combobox model.
   void SelectBillingAddress(const std::string& billing_address_id);
 
   // Whether the editor textfield/combobox for the given |type| is currently in
   // an invalid state.
-  bool IsEditorTextfieldInvalid(autofill::ServerFieldType type);
-  bool IsEditorComboboxInvalid(autofill::ServerFieldType type);
+  bool IsEditorTextfieldInvalid(autofill::FieldType type);
+  bool IsEditorComboboxInvalid(autofill::FieldType type);
 
   bool IsPayButtonEnabled();
 
@@ -279,7 +277,7 @@ class PaymentRequestBrowserTestBase
                                      views::View* dialog_view);
   const std::u16string& GetStyledLabelText(DialogViewID view_id);
   // Returns the error label text associated with a given field |type|.
-  const std::u16string& GetErrorLabelForType(autofill::ServerFieldType type);
+  const std::u16string& GetErrorLabelForType(autofill::FieldType type);
 
   net::EmbeddedTestServer* https_server() { return https_server_.get(); }
 
@@ -309,8 +307,8 @@ class PaymentRequestBrowserTestBase
   std::unique_ptr<autofill::EventWaiter<DialogEvent>> event_waiter_;
   std::unique_ptr<net::EmbeddedTestServer> https_server_;
   // Weak, owned by the PaymentRequest object.
-  raw_ptr<TestChromePaymentRequestDelegate, DanglingUntriaged> delegate_ =
-      nullptr;
+  raw_ptr<TestChromePaymentRequestDelegate, AcrossTasksDanglingUntriaged>
+      delegate_ = nullptr;
   syncer::TestSyncService sync_service_;
   sync_preferences::TestingPrefServiceSyncable prefs_;
   bool is_incognito_ = false;

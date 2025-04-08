@@ -12,7 +12,9 @@
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/ssl/security_state_tab_helper.h"
+#include "base/test/run_until.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -27,12 +29,14 @@
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/permissions/permission_request_manager.h"
+#include "components/security_state/content/security_state_tab_helper.h"
 #include "components/security_state/core/security_state.h"
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "net/cert/ct_policy_status.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/ssl/ssl_info.h"
@@ -46,6 +50,7 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "ui/base/pointer/touch_ui_controller.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/test/views_test_utils.h"
 
 class LocationBarViewBrowserTest : public InProcessBrowserTest {
@@ -67,6 +72,15 @@ class LocationBarViewBrowserTest : public InProcessBrowserTest {
         ->toolbar_button_provider()
         ->GetPageActionIconView(PageActionIconType::kZoom);
   }
+
+  ContentSettingImageView& GetContentSettingImageView(
+      ContentSettingImageModel::ImageType image_type) {
+    LocationBarView* location_bar_view =
+        BrowserView::GetBrowserViewForBrowser(browser())->GetLocationBarView();
+    return **base::ranges::find(
+        location_bar_view->GetContentSettingViewsForTest(), image_type,
+        &ContentSettingImageView::GetType);
+  }
 };
 
 // Ensure the location bar decoration is added when zooming, and is removed when
@@ -84,7 +98,7 @@ IN_PROC_BROWSER_TEST_F(LocationBarViewBrowserTest, LocationBarDecoration) {
 
   // Altering zoom should display a bubble. Note ZoomBubbleView closes
   // asynchronously, so precede checks with a run loop flush.
-  zoom_controller->SetZoomLevel(blink::PageZoomFactorToZoomLevel(1.5));
+  zoom_controller->SetZoomLevel(blink::ZoomFactorToZoomLevel(1.5));
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(zoom_view->GetVisible());
   EXPECT_TRUE(ZoomBubbleView::GetZoomBubble());
@@ -96,13 +110,13 @@ IN_PROC_BROWSER_TEST_F(LocationBarViewBrowserTest, LocationBarDecoration) {
   EXPECT_FALSE(ZoomBubbleView::GetZoomBubble());
 
   // Show the bubble again.
-  zoom_controller->SetZoomLevel(blink::PageZoomFactorToZoomLevel(2.0));
+  zoom_controller->SetZoomLevel(blink::ZoomFactorToZoomLevel(2.0));
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(zoom_view->GetVisible());
   EXPECT_TRUE(ZoomBubbleView::GetZoomBubble());
 
   // Remains visible at 100% until the bubble is closed.
-  zoom_controller->SetZoomLevel(blink::PageZoomFactorToZoomLevel(1.0));
+  zoom_controller->SetZoomLevel(blink::ZoomFactorToZoomLevel(1.0));
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(zoom_view->GetVisible());
   EXPECT_TRUE(ZoomBubbleView::GetZoomBubble());
@@ -125,7 +139,7 @@ IN_PROC_BROWSER_TEST_F(LocationBarViewBrowserTest, BubblesCloseOnHide) {
   ASSERT_TRUE(zoom_view);
   EXPECT_FALSE(zoom_view->GetVisible());
 
-  zoom_controller->SetZoomLevel(blink::PageZoomFactorToZoomLevel(1.5));
+  zoom_controller->SetZoomLevel(blink::ZoomFactorToZoomLevel(1.5));
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(zoom_view->GetVisible());
   EXPECT_TRUE(ZoomBubbleView::GetZoomBubble());
@@ -135,6 +149,39 @@ IN_PROC_BROWSER_TEST_F(LocationBarViewBrowserTest, BubblesCloseOnHide) {
 
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(ZoomBubbleView::GetZoomBubble());
+}
+
+// Check that the script blocked icon shows up when user disables javascript.
+// Regression test for http://crbug.com/35011
+IN_PROC_BROWSER_TEST_F(LocationBarViewBrowserTest, ScriptBlockedIcon) {
+  const char kHtml[] =
+      "<html>"
+      "<head>"
+      "<script>document.createElement('div');</script>"
+      "</head>"
+      "<body>"
+      "</body>"
+      "</html>";
+
+  GURL url(std::string("data:text/html,") + kHtml);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  // Get the script blocked icon on the omnibox. It should be hidden.
+  ContentSettingImageView& script_blocked_icon = GetContentSettingImageView(
+      ContentSettingImageModel::ImageType::JAVASCRIPT);
+  EXPECT_FALSE(script_blocked_icon.GetVisible());
+
+  // Disable javascript.
+  HostContentSettingsMapFactory::GetForProfile(browser()->profile())
+      ->SetDefaultContentSetting(ContentSettingsType::JAVASCRIPT,
+                                 CONTENT_SETTING_BLOCK);
+  // Reload the page
+  chrome::Reload(browser(), WindowOpenDisposition::CURRENT_TAB);
+
+  // Waits until the geolocation icon is visible, or aborts the tests otherwise.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return script_blocked_icon.GetVisible();
+  })) << "Timeout waiting for the script blocked icon to become visible.";
 }
 
 class TouchLocationBarViewBrowserTest : public LocationBarViewBrowserTest {
@@ -186,12 +233,20 @@ IN_PROC_BROWSER_TEST_F(TouchLocationBarViewBrowserTest,
   GetLocationBarView()->SetImeInlineAutocompletion(u"歌");
   EXPECT_TRUE(ime_inline_autocomplete_view->GetVisible());
 
-  GetLocationBarView()->Layout();
+  GetLocationBarView()->DeprecatedLayoutImmediately();
 
   // Make sure the IME inline autocomplete view starts at the end of
   // |omnibox_view_views|.
   EXPECT_EQ(omnibox_view_views->bounds().right(),
             ime_inline_autocomplete_view->x());
+}
+
+IN_PROC_BROWSER_TEST_F(TouchLocationBarViewBrowserTest, AccessibleProperties) {
+  auto* view = GetLocationBarView();
+  ui::AXNodeData data;
+
+  view->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(data.role, ax::mojom::Role::kGroup);
 }
 
 class SecurityIndicatorTest : public InProcessBrowserTest {
@@ -246,7 +301,7 @@ IN_PROC_BROWSER_TEST_F(SecurityIndicatorTest, CheckIndicatorText) {
 }
 
 class LocationBarViewGeolocationBackForwardCacheBrowserTest
-    : public InProcessBrowserTest {
+    : public LocationBarViewBrowserTest {
  public:
   LocationBarViewGeolocationBackForwardCacheBrowserTest()
       : geo_override_(0.0, 0.0) {
@@ -265,15 +320,6 @@ class LocationBarViewGeolocationBackForwardCacheBrowserTest
 
   content::WebContents* web_contents() const {
     return browser()->tab_strip_model()->GetActiveWebContents();
-  }
-
-  ContentSettingImageView& GetContentSettingImageView(
-      ContentSettingImageModel::ImageType image_type) {
-    LocationBarView* location_bar_view =
-        BrowserView::GetBrowserViewForBrowser(browser())->GetLocationBarView();
-    return **base::ranges::find(
-        location_bar_view->GetContentSettingViewsForTest(), image_type,
-        &ContentSettingImageView::GetTypeForTesting);
   }
 
  private:

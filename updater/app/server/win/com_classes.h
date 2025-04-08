@@ -6,6 +6,7 @@
 #define CHROME_UPDATER_APP_SERVER_WIN_COM_CLASSES_H_
 
 #include <windows.h>
+
 #include <wrl/implements.h>
 
 #include <string>
@@ -15,22 +16,13 @@
 #include "chrome/updater/update_service.h"
 #include "chrome/updater/util/win_util.h"
 
-// Definitions for native COM updater classes.
-
 namespace updater {
 
-// TODO(crbug.com/1065712): these classes do not have to be visible in the
-// updater namespace. Additionally, there is some code duplication for the
-// registration and unregistration code in both server and service_main
-// compilation units.
-//
 // This class implements the IUpdateState interface and exposes it as a COM
 // object. The purpose of this class is to remote the state of the
 // |UpdateService|. Instances of this class are typically passed as arguments
 // to RPC method calls which model COM events.
-class UpdateStateImpl : public DynamicIIDsImpl<IUpdateState,
-                                               __uuidof(IUpdateStateUser),
-                                               __uuidof(IUpdateStateSystem)> {
+class UpdateStateImpl : public DYNAMICIIDSIMPL(IUpdateState) {
  public:
   explicit UpdateStateImpl(const UpdateService::UpdateState& update_state)
       : update_state_(update_state) {}
@@ -58,10 +50,7 @@ class UpdateStateImpl : public DynamicIIDsImpl<IUpdateState,
 
 // This class implements the ICompleteStatus interface and exposes it as a COM
 // object.
-class CompleteStatusImpl
-    : public DynamicIIDsImpl<ICompleteStatus,
-                             __uuidof(ICompleteStatusUser),
-                             __uuidof(ICompleteStatusSystem)> {
+class CompleteStatusImpl : public DYNAMICIIDSIMPL(ICompleteStatus) {
  public:
   CompleteStatusImpl(int code, const std::wstring& message)
       : code_(code), message_(message) {}
@@ -80,21 +69,19 @@ class CompleteStatusImpl
 };
 
 // This class implements the IUpdater interface and exposes it as a COM object.
-class UpdaterImpl : public DynamicIIDsImpl<IUpdater,
-                                           __uuidof(IUpdaterUser),
-                                           __uuidof(IUpdaterSystem)> {
+class UpdaterImpl : public DYNAMICIIDSIMPL(IUpdater) {
  public:
   UpdaterImpl() = default;
   UpdaterImpl(const UpdaterImpl&) = delete;
   UpdaterImpl& operator=(const UpdaterImpl&) = delete;
 
-  // Returns S_OK if user, or for system, only if the COM caller is Admin.
-  // Otherwise, fails creation of this COM class.
   HRESULT RuntimeClassInitialize();
 
   // Overrides for IUpdater.
   IFACEMETHODIMP GetVersion(BSTR* version) override;
   IFACEMETHODIMP FetchPolicies(IUpdaterCallback* callback) override;
+
+  // Returns `E_ACCESSDENIED` if the COM caller is not admin for a `system` app.
   IFACEMETHODIMP RegisterApp(const wchar_t* app_id,
                              const wchar_t* brand_code,
                              const wchar_t* brand_path,
@@ -113,6 +100,8 @@ class UpdaterImpl : public DynamicIIDsImpl<IUpdater,
                         BOOL same_version_update_allowed,
                         IUpdaterObserver* observer) override;
   IFACEMETHODIMP UpdateAll(IUpdaterObserver* observer) override;
+
+  // Returns `E_ACCESSDENIED` if the COM caller is not admin for a `system` app.
   IFACEMETHODIMP Install(const wchar_t* app_id,
                          const wchar_t* brand_code,
                          const wchar_t* brand_path,
@@ -124,12 +113,15 @@ class UpdaterImpl : public DynamicIIDsImpl<IUpdater,
                          LONG priority,
                          IUpdaterObserver* observer) override;
   IFACEMETHODIMP CancelInstalls(const wchar_t* app_id) override;
+
+  // Returns `E_ACCESSDENIED` if the COM caller is not admin for a `system` app.
   IFACEMETHODIMP RunInstaller(const wchar_t* app_id,
                               const wchar_t* installer_path,
                               const wchar_t* install_args,
                               const wchar_t* install_data,
                               const wchar_t* install_settings,
                               IUpdaterObserver* observer) override;
+  IFACEMETHODIMP GetAppStates(IUpdaterAppStatesCallback* callback) override;
 
  private:
   ~UpdaterImpl() override = default;
@@ -137,17 +129,12 @@ class UpdaterImpl : public DynamicIIDsImpl<IUpdater,
 
 // This class implements the IUpdaterInternal interface and exposes it as a COM
 // object.
-class UpdaterInternalImpl
-    : public DynamicIIDsImpl<IUpdaterInternal,
-                             __uuidof(IUpdaterInternalUser),
-                             __uuidof(IUpdaterInternalSystem)> {
+class UpdaterInternalImpl : public DYNAMICIIDSIMPL(IUpdaterInternal) {
  public:
   UpdaterInternalImpl() = default;
   UpdaterInternalImpl(const UpdaterInternalImpl&) = delete;
   UpdaterInternalImpl& operator=(const UpdaterInternalImpl&) = delete;
 
-  // Returns S_OK if user, or for system, only if the COM caller is Admin.
-  // Otherwise, fails creation of this COM class.
   HRESULT RuntimeClassInitialize();
 
   // Overrides for IUpdaterInternal.

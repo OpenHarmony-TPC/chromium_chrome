@@ -5,17 +5,18 @@
 #include "chrome/common/conflicts/module_watcher_win.h"
 
 #include <windows.h>
+
 #include <tlhelp32.h>
 #include <winternl.h>  // For UNICODE_STRING.
 
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
@@ -113,7 +114,7 @@ constexpr char kLdrUnregisterDllNotification[] = "LdrUnregisterDllNotification";
 // Helper function for converting a UNICODE_STRING to a FilePath.
 base::FilePath ToFilePath(const UNICODE_STRING* str) {
   return base::FilePath(
-      base::WStringPiece(str->Buffer, str->Length / sizeof(wchar_t)));
+      std::wstring_view(str->Buffer, str->Length / sizeof(wchar_t)));
 }
 
 template <typename NotificationDataType>
@@ -254,7 +255,6 @@ void __stdcall ModuleWatcher::LoaderNotificationCallback(
       break;
 
     default:
-      // This is unexpected, but not a reason to crash.
       NOTREACHED() << "Unknown LDR_DLL_NOTIFICATION_REASON: "
                    << notification_reason;
   }

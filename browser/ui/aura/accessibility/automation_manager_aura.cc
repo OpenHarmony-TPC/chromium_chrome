@@ -10,7 +10,6 @@
 #include "base/no_destructor.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/crash/core/common/crash_key.h"
 #include "extensions/browser/api/automation_internal/automation_event_router_interface.h"
 #include "ui/accessibility/aura/aura_window_properties.h"
@@ -36,12 +35,6 @@
 #include "ui/wm/core/coordinate_conversion.h"
 #include "ui/wm/public/activation_client.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/crosapi/automation_ash.h"
-#include "chrome/browser/ash/crosapi/crosapi_ash.h"
-#include "chrome/browser/ash/crosapi/crosapi_manager.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
 // static
 AutomationManagerAura* AutomationManagerAura::GetInstance() {
   static base::NoDestructor<AutomationManagerAura> instance;
@@ -56,8 +49,10 @@ void AutomationManagerAura::Enable() {
   // GetTopLevelWindows() returns the correct values when automation is enabled
   // with multiple displays connected.
   if (send_window_state_on_enable_) {
-    for (auto* host : aura::Env::GetInstance()->window_tree_hosts())
+    for (aura::WindowTreeHost* host :
+         aura::Env::GetInstance()->window_tree_hosts()) {
       cache_->OnRootWindowObjCreated(host->window());
+    }
   }
 
   // Send this event immediately to push the initial desktop tree state.
@@ -72,7 +67,8 @@ void AutomationManagerAura::Enable() {
   const display::Display& display =
       display::Screen::GetScreen()->GetPrimaryDisplay();
   aura::Window* root_window = nullptr;
-  for (auto* host : aura::Env::GetInstance()->window_tree_hosts()) {
+  for (aura::WindowTreeHost* host :
+       aura::Env::GetInstance()->window_tree_hosts()) {
     if (display.id() == host->GetDisplayId()) {
       root_window = host->window();
       break;
@@ -98,7 +94,6 @@ void AutomationManagerAura::Enable() {
 
 void AutomationManagerAura::Disable() {
   enabled_ = false;
-  cache_ = std::make_unique<views::AXAuraObjCache>();
   if (tree_) {
     if (automation_event_router_interface_)
       automation_event_router_interface_->DispatchTreeDestroyedEvent(
@@ -107,16 +102,10 @@ void AutomationManagerAura::Disable() {
   }
   tree_serializer_.reset();
   alert_window_.reset();
+  cache_ = std::make_unique<views::AXAuraObjCache>();
 
   if (automation_event_router_observer_.IsObserving())
     automation_event_router_observer_.Reset();
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // CrosapiManager may not be initialized on unit testing.
-  // Propagate the Disable signal to crosapi clients.
-  if (crosapi::CrosapiManager::IsInitialized())
-    crosapi::CrosapiManager::Get()->crosapi_ash()->automation_ash()->Disable();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 }
 
 void AutomationManagerAura::OnViewEvent(views::View* view,
@@ -157,10 +146,15 @@ void AutomationManagerAura::AllAutomationExtensionsGone() {
 }
 
 void AutomationManagerAura::ExtensionListenerAdded() {
+  if (!enabled_) {
+    return;
+  }
+
   Reset(true /* reset serializer */);
 }
 
-void AutomationManagerAura::HandleEvent(ax::mojom::Event event_type) {
+void AutomationManagerAura::HandleEvent(ax::mojom::Event event_type,
+                                        bool from_user) {
   if (!enabled_)
     return;
 
@@ -169,7 +163,8 @@ void AutomationManagerAura::HandleEvent(ax::mojom::Event event_type) {
   if (!obj)
     return;
 
-  PostEvent(obj->GetUniqueId(), event_type);
+  PostEvent(obj->GetUniqueId(), event_type, /*action_request_id=*/-1,
+            /*from_user=*/from_user);
 }
 
 void AutomationManagerAura::HandleAlert(const std::string& text) {
@@ -225,6 +220,10 @@ void AutomationManagerAura::OnChildWindowRemoved(
 
 void AutomationManagerAura::OnEvent(views::AXAuraObjWrapper* aura_obj,
                                     ax::mojom::Event event_type) {
+  if (!enabled_) {
+    return;
+  }
+
   PostEvent(aura_obj->GetUniqueId(), event_type);
 }
 
@@ -240,7 +239,7 @@ void AutomationManagerAura::Reset(bool reset_serializer) {
   if (!tree_) {
     auto desktop_root = std::make_unique<AXRootObjWrapper>(this, cache_.get());
     tree_ = std::make_unique<views::AXTreeSourceViews>(
-        desktop_root.get(), ax_tree_id(), cache_.get());
+        desktop_root->GetUniqueId(), ax_tree_id(), cache_.get());
     cache_->CreateOrReplace(std::move(desktop_root));
   }
   if (reset_serializer) {
@@ -259,9 +258,10 @@ void AutomationManagerAura::Reset(bool reset_serializer) {
 
 void AutomationManagerAura::PostEvent(int id,
                                       ax::mojom::Event event_type,
-                                      int action_request_id) {
-  pending_events_.push_back(
-      {id, event_type, action_request_id, currently_performing_action_});
+                                      int action_request_id,
+                                      bool from_user) {
+  pending_events_.push_back({id, event_type, action_request_id,
+                             currently_performing_action_, from_user});
 
   if (processing_posted_)
     return;
@@ -282,11 +282,11 @@ void AutomationManagerAura::SendPendingEvents() {
 
   std::vector<ui::AXTreeUpdate> tree_updates;
   std::vector<ui::AXEvent> events;
-  auto pending_events_copy = pending_events_;
+  auto pending_events_copy = std::move(pending_events_);
   pending_events_.clear();
   for (auto& event_copy : pending_events_copy) {
-    int id = event_copy.id;
-    ax::mojom::Event event_type = event_copy.event_type;
+    const int id = event_copy.id;
+    const ax::mojom::Event event_type = event_copy.event_type;
     auto* aura_obj = cache_->Get(id);
 
     // Some events are important enough where even if their ax obj was
@@ -302,7 +302,7 @@ void AutomationManagerAura::SendPendingEvents() {
       OnSerializeFailure(event_type, update);
       return;
     }
-    tree_updates.push_back(update);
+    tree_updates.push_back(std::move(update));
 
     // Fire the event on the node, but only if it's actually in the tree.
     // Sometimes we get events fired on nodes with an ancestor that's
@@ -316,9 +316,11 @@ void AutomationManagerAura::SendPendingEvents() {
       if (event_copy.currently_performing_action != ax::mojom::Action::kNone) {
         event.event_from = ax::mojom::EventFrom::kAction;
         event.event_from_action = event_copy.currently_performing_action;
+      } else if (event_copy.from_user) {
+        event.event_from = ax::mojom::EventFrom::kUser;
       }
       event.action_request_id = event_copy.action_request_id;
-      events.push_back(event);
+      events.push_back(std::move(event));
     }
   }
 
@@ -327,7 +329,7 @@ void AutomationManagerAura::SendPendingEvents() {
   if (focus) {
     ui::AXTreeUpdate focused_node_update;
     tree_serializer_->SerializeChanges(focus, &focused_node_update);
-    tree_updates.push_back(focused_node_update);
+    tree_updates.push_back(std::move(focused_node_update));
   }
 
   if (automation_event_router_interface_) {
@@ -346,7 +348,8 @@ void AutomationManagerAura::PerformHitTest(
 
   // Require a window in |display|; prefer it also be focused.
   aura::Window* root_window = nullptr;
-  for (auto* host : aura::Env::GetInstance()->window_tree_hosts()) {
+  for (aura::WindowTreeHost* host :
+       aura::Env::GetInstance()->window_tree_hosts()) {
     if (display.id() == host->GetDisplayId()) {
       root_window = host->window();
       if (aura::client::GetFocusClient(root_window)->GetFocusedWindow())
@@ -387,8 +390,17 @@ void AutomationManagerAura::PerformHitTest(
     CHECK(action_handler);
 
     // Convert to pixels for the RenderFrameHost HitTest, if required.
-    if (action_handler->RequiresPerformActionPointInPixels())
-      window->GetHost()->ConvertDIPToPixels(&action.target_point);
+    if (action_handler->RequiresPerformActionPointInPixels()) {
+      // The point is in DIPs, so multiply by the device scale factor to
+      // get pixels. Don't apply magnification as the action_handler doesn't
+      // know about magnification scale (that's applied later in the stack).
+      // Specifically, we cannot use WindowTreeHost::ConvertDIPToPixels as that
+      // will re-apply the magnification transform. The local point has
+      // already been un-transformed when it was converted to local coordinates.
+      float device_scale_factor = window->GetHost()->device_scale_factor();
+      action.target_point.set_x(action.target_point.x() * device_scale_factor);
+      action.target_point.set_y(action.target_point.y() * device_scale_factor);
+    }
 
     action_handler->PerformAction(action);
     return;

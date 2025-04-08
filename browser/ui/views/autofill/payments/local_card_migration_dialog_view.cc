@@ -35,6 +35,8 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/color_palette.h"
@@ -62,8 +64,9 @@ namespace {
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 class AutofillMigrationHeaderView : public views::ImageView {
+  METADATA_HEADER(AutofillMigrationHeaderView, views::ImageView)
+
  public:
-  METADATA_HEADER(AutofillMigrationHeaderView);
   AutofillMigrationHeaderView() {
     constexpr int kImageBorderBottom = 8;
     SetBorder(views::CreateEmptyBorder(
@@ -82,7 +85,7 @@ class AutofillMigrationHeaderView : public views::ImageView {
   }
 };
 
-BEGIN_METADATA(AutofillMigrationHeaderView, views::ImageView)
+BEGIN_METADATA(AutofillMigrationHeaderView)
 END_METADATA
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
@@ -292,8 +295,9 @@ constexpr int kLegalMessageScrollViewHeight = 140;
 // LocalCardMigrationDialogView class when it offers the user the
 // option to upload all browser-saved credit cards.
 class LocalCardMigrationOfferView : public views::View {
+  METADATA_HEADER(LocalCardMigrationOfferView, views::View)
+
  public:
-  METADATA_HEADER(LocalCardMigrationOfferView);
   LocalCardMigrationOfferView(LocalCardMigrationDialogController* controller,
                               LocalCardMigrationDialogView* dialog_view) {
     DCHECK(controller);
@@ -329,9 +333,9 @@ class LocalCardMigrationOfferView : public views::View {
         AddChildView(std::make_unique<views::ScrollView>());
     legal_message_container->SetHorizontalScrollBarMode(
         views::ScrollView::ScrollBarMode::kDisabled);
-    legal_message_container->SetContents(std::make_unique<LegalMessageView>(
-        controller->GetLegalMessageLines(), /*user_email=*/absl::nullopt,
-        /*user_avatar=*/absl::nullopt,
+    legal_message_container->SetContents(CreateLegalMessageView(
+        controller->GetLegalMessageLines(), /*user_email=*/std::u16string(),
+        /*user_avatar=*/ui::ImageModel(),
         base::BindRepeating(
             &LocalCardMigrationDialogController::OnLegalMessageLinkClicked,
             base::Unretained(controller))));
@@ -350,8 +354,9 @@ class LocalCardMigrationOfferView : public views::View {
     for (views::View* child : card_list_view_->children()) {
       DCHECK(views::IsViewClass<MigratableCardView>(child));
       auto* card = static_cast<MigratableCardView*>(child);
-      if (card->GetSelected())
+      if (card->GetSelected()) {
         selected_cards.push_back(card->GetGuid());
+      }
     }
     return selected_cards;
   }
@@ -362,7 +367,7 @@ class LocalCardMigrationOfferView : public views::View {
   raw_ptr<views::View> card_list_view_ = nullptr;
 };
 
-BEGIN_METADATA(LocalCardMigrationOfferView, views::View)
+BEGIN_METADATA(LocalCardMigrationOfferView)
 ADD_READONLY_PROPERTY_METADATA(std::vector<std::string>, SelectedCardGuids)
 END_METADATA
 
@@ -370,10 +375,11 @@ LocalCardMigrationDialogView::LocalCardMigrationDialogView(
     LocalCardMigrationDialogController* controller)
     : controller_(controller) {
   SetButtons(controller_->AllCardsInvalid()
-                 ? ui::DIALOG_BUTTON_OK
-                 : ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL);
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, GetOkButtonLabel());
-  SetButtonLabel(ui::DIALOG_BUTTON_CANCEL, GetCancelButtonLabel());
+                 ? static_cast<int>(ui::mojom::DialogButton::kOk)
+                 : static_cast<int>(ui::mojom::DialogButton::kOk) |
+                       static_cast<int>(ui::mojom::DialogButton::kCancel));
+  SetButtonLabel(ui::mojom::DialogButton::kOk, GetOkButtonLabel());
+  SetButtonLabel(ui::mojom::DialogButton::kCancel, GetCancelButtonLabel());
   SetCancelCallback(
       base::BindOnce(&LocalCardMigrationDialogView::OnDialogCancelled,
                      base::Unretained(this)));
@@ -381,7 +387,7 @@ LocalCardMigrationDialogView::LocalCardMigrationDialogView(
       &LocalCardMigrationDialogView::OnDialogAccepted, base::Unretained(this)));
   // This should be a modal dialog blocking the browser since we don't want
   // users to lose progress in the migration workflow until they are done.
-  SetModalType(ui::MODAL_TYPE_WINDOW);
+  SetModalType(ui::mojom::ModalType::kWindow);
   set_close_on_deactivate(false);
   set_margins(gfx::Insets());
   set_fixed_width(ChromeLayoutProvider::Get()->GetDistanceMetric(
@@ -452,14 +458,14 @@ void LocalCardMigrationDialogView::DeleteCard(const std::string& guid) {
 }
 
 void LocalCardMigrationDialogView::OnCardCheckboxToggled() {
-  SetButtonEnabled(ui::DIALOG_BUTTON_OK, GetEnableOkButton());
+  SetButtonEnabled(ui::mojom::DialogButton::kOk, GetEnableOkButton());
 }
 
-// TODO(crbug.com/913571): Figure out a way to avoid two consecutive layouts.
+// TODO(crbug.com/41430966): Figure out a way to avoid two consecutive layouts.
 void LocalCardMigrationDialogView::UpdateLayout() {
-  Layout();
+  DeprecatedLayoutImmediately();
   // Since the dialog does not have anchor view or arrow, cannot use
-  // SizeToContents() for now. TODO(crbug.com/867194): Try to fix the
+  // SizeToContents() for now. TODO(crbug.com/40586517): Try to fix the
   // BubbleDialogDelegateView::GetBubbleBounds() when there is no anchor
   // view or arrow.
   GetWidget()->SetSize(GetWidget()->non_client_view()->GetPreferredSize());
@@ -488,7 +494,7 @@ void LocalCardMigrationDialogView::ConstructView() {
         std::make_unique<LocalCardMigrationOfferView>(controller_, this));
     offer_view_->SetID(DialogViewId::MAIN_CONTENT_VIEW_MIGRATION_OFFER_DIALOG);
     card_list_view_ = offer_view_->card_list_view_;
-    SetButtonEnabled(ui::DIALOG_BUTTON_OK, GetEnableOkButton());
+    SetButtonEnabled(ui::mojom::DialogButton::kOk, GetEnableOkButton());
   } else {
     AddChildView(CreateFeedbackContentView(controller_, this));
   }
@@ -523,7 +529,7 @@ LocalCardMigrationDialog* CreateLocalCardMigrationDialogView(
   return new LocalCardMigrationDialogView(controller);
 }
 
-BEGIN_METADATA(LocalCardMigrationDialogView, views::BubbleDialogDelegateView)
+BEGIN_METADATA(LocalCardMigrationDialogView)
 ADD_READONLY_PROPERTY_METADATA(bool, EnableOkButton)
 ADD_READONLY_PROPERTY_METADATA(std::u16string, OkButtonLabel)
 ADD_READONLY_PROPERTY_METADATA(std::u16string, CancelButtonLabel)

@@ -6,7 +6,6 @@
 
 #include "base/values.h"
 #include "chrome/browser/enterprise/identifiers/profile_id_service_factory.h"
-#include "chrome/browser/profiles/profiles_state.h"
 #include "components/enterprise/browser/identifiers/profile_id_service.h"
 #include "components/policy/core/browser/webui/policy_status_provider.h"
 #include "google_apis/gaia/gaia_auth_util.h"
@@ -18,7 +17,11 @@
 #include "components/user_manager/user_manager.h"
 #else
 #include "chrome/browser/enterprise/util/affiliation.h"
-#include "components/enterprise/browser/controller/browser_dm_token_storage.h"
+#include "chrome/browser/policy/dm_token_utils.h"
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #endif
 
 const char kDevicePolicyStatusDescription[] = "statusDevice";
@@ -26,7 +29,7 @@ const char kUserPolicyStatusDescription[] = "statusUser";
 
 void SetDomainExtractedFromUsername(base::Value::Dict& dict) {
 #if BUILDFLAG(IS_CHROMEOS)
-  if (profiles::IsKioskSession()) {
+  if (chromeos::IsKioskSession()) {
     // In kiosk session `username` is a website (for web kiosk) or an app id
     // (for ChromeApp kiosk). Since it's not a proper email address, it's
     // impossible to extract the domain name from it.
@@ -54,11 +57,11 @@ void GetUserAffiliationStatus(base::Value::Dict* dict, Profile* profile) {
   if (!profile->IsMainProfile())
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
   {
-    if (!policy::BrowserDMTokenStorage::Get()->RetrieveDMToken().is_valid())
+    if (!policy::GetDMToken(profile).is_valid()) {
       return;
+    }
   }
-  dict->Set("isAffiliated",
-            chrome::enterprise_util::IsProfileAffiliated(profile));
+  dict->Set("isAffiliated", enterprise_util::IsProfileAffiliated(profile));
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 }
 
@@ -86,7 +89,7 @@ void GetOffHoursStatus(base::Value::Dict* dict) {
 void GetUserManager(base::Value::Dict* dict, Profile* profile) {
   CHECK(profile);
 
-  absl::optional<std::string> account_manager =
+  std::optional<std::string> account_manager =
       chrome::GetAccountManagerIdentity(profile);
   if (account_manager) {
     dict->Set(policy::kEnterpriseDomainManagerKey, *account_manager);

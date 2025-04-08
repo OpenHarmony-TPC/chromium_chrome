@@ -69,9 +69,9 @@ class ArcTracingBridge : public KeyedService,
   static void EnsureFactoryBuilt();
 
  private:
-  // TODO(crbug.com/839086): Remove once we have replaced the legacy tracing
+  // TODO(crbug.com/41386726): Remove once we have replaced the legacy tracing
   // service with perfetto.
-  class ArcTracingAgent : public tracing::BaseAgent {
+  class ArcTracingAgent : public ::tracing::BaseAgent {
    public:
     explicit ArcTracingAgent(ArcTracingBridge* bridge);
 
@@ -84,7 +84,7 @@ class ArcTracingBridge : public KeyedService,
     // tracing::BaseAgent.
     void GetCategories(std::set<std::string>* category_set) override;
 
-    const raw_ptr<ArcTracingBridge, ExperimentalAsh> bridge_;
+    const raw_ptr<ArcTracingBridge> bridge_;
   };
 
   struct Category;
@@ -95,7 +95,7 @@ class ArcTracingBridge : public KeyedService,
   void OnArcTracingStarted(StartCallback callback, bool success);
   void OnArcTracingStopped(StopCallback callback, bool success);
 
-  const raw_ptr<ArcBridgeService, ExperimentalAsh>
+  const raw_ptr<ArcBridgeService>
       arc_bridge_service_;  // Owned by ArcServiceManager.
 
   // List of available categories.

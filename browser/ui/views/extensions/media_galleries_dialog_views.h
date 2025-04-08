@@ -10,6 +10,8 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/media_galleries/media_galleries_dialog_controller.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/views/context_menu_controller.h"
 #include "ui/views/window/dialog_delegate.h"
 
@@ -44,12 +46,13 @@ class MediaGalleriesDialogViews : public MediaGalleriesDialog,
   views::Widget* GetWidget() override;
   const views::Widget* GetWidget() const override;
   views::View* GetContentsView() override;
-  bool IsDialogButtonEnabled(ui::DialogButton button) const override;
+  bool IsDialogButtonEnabled(ui::mojom::DialogButton button) const override;
 
   // views::ContextMenuController:
-  void ShowContextMenuForViewImpl(views::View* source,
-                                  const gfx::Point& point,
-                                  ui::MenuSourceType source_type) override;
+  void ShowContextMenuForViewImpl(
+      views::View* source,
+      const gfx::Point& point,
+      ui::mojom::MenuSourceType source_type) override;
 
  private:
   friend class MediaGalleriesDialogTest;
@@ -72,7 +75,7 @@ class MediaGalleriesDialogViews : public MediaGalleriesDialog,
       int trailing_vertical_space);
 
   void ShowContextMenu(const gfx::Point& point,
-                       ui::MenuSourceType source_type,
+                       ui::mojom::MenuSourceType source_type,
                        MediaGalleryPrefId id);
 
   // Whether |controller_| has a valid WebContents or not.
@@ -89,14 +92,14 @@ class MediaGalleriesDialogViews : public MediaGalleriesDialog,
   raw_ptr<MediaGalleriesDialogController, DanglingUntriaged> controller_;
 
   // The contents of the dialog. Owned by the view hierarchy, except in tests.
-  raw_ptr<views::View, DanglingUntriaged> contents_;
+  raw_ptr<views::View, AcrossTasksDanglingUntriaged> contents_;
 
   // A map from gallery ID to views::Checkbox view.
   CheckboxMap checkbox_map_;
 
   // Pointer to the controller specific auxiliary button, NULL otherwise.
   // Owned by parent in the dialog views tree.
-  raw_ptr<views::LabelButton, DanglingUntriaged> auxiliary_button_;
+  raw_ptr<views::LabelButton, AcrossTasksDanglingUntriaged> auxiliary_button_;
 
   // This tracks whether the confirm button can be clicked. It starts as false
   // if no checkboxes are ticked. After there is any interaction, or some

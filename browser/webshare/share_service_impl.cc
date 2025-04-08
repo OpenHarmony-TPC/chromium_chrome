@@ -6,11 +6,11 @@
 
 #include <algorithm>
 #include <memory>
+#include <string_view>
 
 #include "base/feature_list.h"
 #include "base/files/safe_base_name.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "chrome/browser/bad_message.h"
@@ -123,7 +123,7 @@ bool ShareServiceImpl::IsDangerousFilename(const base::FilePath& path) {
 }
 
 // static
-bool ShareServiceImpl::IsDangerousMimeType(base::StringPiece content_type) {
+bool ShareServiceImpl::IsDangerousMimeType(std::string_view content_type) {
   constexpr std::array<const char*, 28> kPermitted = {
       "application/pdf",
       "audio/flac",
@@ -282,16 +282,27 @@ void ShareServiceImpl::OnSafeBrowsingResultReceived(
          blink::mojom::ShareError result) { std::move(callback).Run(result); },
       std::move(sharing_service_operation), std::move(callback)));
 #elif BUILDFLAG(IS_WIN)
+  // Drop fullscreen mode so the Share UI can be easily clicked away from,
+  // without clicking back into the web contents
+  base::ScopedClosureRunner fullscreen_block =
+      web_contents->ForSecurityDropFullscreen(
+          /*display_id=*/display::kInvalidDisplayId);
+
   auto share_operation = std::make_unique<webshare::ShareOperation>(
-      title, text, share_url, std::move(files), web_contents);
+      title, text, share_url, web_contents);
   auto* const share_operation_ptr = share_operation.get();
-  share_operation_ptr->Run(base::BindOnce(
-      [](std::unique_ptr<webshare::ShareOperation> share_operation,
-         ShareCallback callback,
-         blink::mojom::ShareError result) { std::move(callback).Run(result); },
-      std::move(share_operation), std::move(callback)));
+  share_operation_ptr->Run(
+      std::move(files),
+      base::BindOnce(
+          [](std::unique_ptr<webshare::ShareOperation> share_operation,
+             base::ScopedClosureRunner fullscreen_block, ShareCallback callback,
+             blink::mojom::ShareError result) {
+            fullscreen_block.RunAndReset();
+            std::move(callback).Run(result);
+          },
+          std::move(share_operation), std::move(fullscreen_block),
+          std::move(callback)));
 #else
   NOTREACHED();
-  std::move(callback).Run(blink::mojom::ShareError::INTERNAL_ERROR);
 #endif
 }

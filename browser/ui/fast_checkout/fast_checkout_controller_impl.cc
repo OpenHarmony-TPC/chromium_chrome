@@ -4,7 +4,7 @@
 
 #include "chrome/browser/ui/fast_checkout/fast_checkout_controller_impl.h"
 
-#include "chrome/browser/android/preferences/autofill/autofill_profile_bridge.h"
+#include "chrome/browser/android/preferences/autofill/settings_navigation_helper.h"
 #include "components/autofill/core/browser/autofill_data_util.h"
 #include "components/autofill/core/browser/data_model/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/credit_card.h"
@@ -18,7 +18,7 @@ FastCheckoutControllerImpl::FastCheckoutControllerImpl(
 FastCheckoutControllerImpl::~FastCheckoutControllerImpl() = default;
 
 void FastCheckoutControllerImpl::Show(
-    const std::vector<autofill::AutofillProfile*>& autofill_profiles,
+    const std::vector<const autofill::AutofillProfile*>& autofill_profiles,
     const std::vector<autofill::CreditCard*>& credit_cards) {
   GetOrCreateView()->Show(autofill_profiles, credit_cards);
 }
@@ -43,15 +43,11 @@ FastCheckoutView* FastCheckoutControllerImpl::GetOrCreateView() {
 }
 
 void FastCheckoutControllerImpl::OpenAutofillProfileSettings() {
-#if BUILDFLAG(IS_ANDROID)
   autofill::ShowAutofillProfileSettings(web_contents_);
-#endif
 }
 
 void FastCheckoutControllerImpl::OpenCreditCardSettings() {
-#if BUILDFLAG(IS_ANDROID)
   autofill::ShowAutofillCreditCardSettings(web_contents_);
-#endif
 }
 
 gfx::NativeView FastCheckoutControllerImpl::GetNativeView() {

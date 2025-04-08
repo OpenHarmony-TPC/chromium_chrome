@@ -5,31 +5,36 @@
 // clang-format off
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {AllSitesElement, ContentSetting, ContentSettingsTypes, SiteGroup, SiteSettingsPrefsBrowserProxyImpl, SortMethod} from 'chrome://settings/lazy_load.js';
-import {CrSettingsPrefs, Router, routes} from 'chrome://settings/settings.js';
+import type {AllSitesElement, SiteGroup} from 'chrome://settings/lazy_load.js';
+import {ContentSetting, ContentSettingsTypes, SiteSettingsPrefsBrowserProxyImpl, SortMethod} from 'chrome://settings/lazy_load.js';
+import {CrSettingsPrefs, DeleteBrowsingDataAction, MetricsBrowserProxyImpl, Router, routes} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {isChildVisible} from 'chrome://webui-test/test_util.js';
+import {isChildVisible, isVisible} from 'chrome://webui-test/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 import {TestSiteSettingsPrefsBrowserProxy} from './test_site_settings_prefs_browser_proxy.js';
-import {createContentSettingTypeToValuePair, createOriginInfo, createRawSiteException, createSiteGroup, createSiteSettingsPrefs, SiteSettingsPref} from './test_util.js';
+import type {SiteSettingsPref} from './test_util.js';
+import {createContentSettingTypeToValuePair, createOriginInfo, createRawSiteException, createSiteGroup, createSiteSettingsPrefs, groupingKey} from './test_util.js';
+import {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
+
 
 // clang-format on
 
-suite('AllSites_DisableFirstPartySets', function() {
+suite('DisableRelatedWebsiteSets', function() {
   /**
    * An example eTLD+1 Object with multiple origins grouped under it.
    */
-  const TEST_MULTIPLE_SITE_GROUP = createSiteGroup('example.com', [
-    'http://subdomain.example.com/',
-    'https://www.example.com/',
-    'https://login.example.com/',
-  ]);
+  const TEST_MULTIPLE_SITE_GROUP =
+      createSiteGroup('example.com', 'example.com', [
+        'http://subdomain.example.com/',
+        'https://www.example.com/',
+        'https://login.example.com/',
+      ]);
 
   /**
    * An example eTLD+1 Object with a single origin grouped under it.
    */
-  const TEST_SINGLE_SITE_GROUP = createSiteGroup('example.com', [
+  const TEST_SINGLE_SITE_GROUP = createSiteGroup('example.com', 'example.com', [
     'https://single.example.com/',
   ]);
 
@@ -40,6 +45,8 @@ suite('AllSites_DisableFirstPartySets', function() {
   let prefsVarious: SiteSettingsPref;
 
   let testElement: AllSitesElement;
+  let metricsBrowserProxy: TestMetricsBrowserProxy;
+
 
   /**
    * The mock proxy object to use during test.
@@ -87,6 +94,8 @@ suite('AllSites_DisableFirstPartySets', function() {
     ]);
     browserProxy = new TestSiteSettingsPrefsBrowserProxy();
     SiteSettingsPrefsBrowserProxyImpl.setInstance(browserProxy);
+    metricsBrowserProxy = new TestMetricsBrowserProxy();
+    MetricsBrowserProxyImpl.setInstance(metricsBrowserProxy);
     testElement = document.createElement('all-sites');
     assertTrue(!!testElement);
     document.body.appendChild(testElement);
@@ -175,15 +184,16 @@ suite('AllSites_DisableFirstPartySets', function() {
     // Add additional origins and artificially insert fake engagement scores
     // to sort.
     assertEquals(3, testElement.siteGroupMap.size);
-    const fooSiteGroup = testElement.siteGroupMap.get('foo.com')!;
+    const fooSiteGroup = testElement.siteGroupMap.get(groupingKey('foo.com'))!;
     fooSiteGroup.origins.push(
         createOriginInfo('https://login.foo.com', {engagement: 20}));
     assertEquals(2, fooSiteGroup.origins.length);
     fooSiteGroup.origins[0]!.engagement = 50.4;
-    const googleSiteGroup = testElement.siteGroupMap.get('google.com')!;
+    const googleSiteGroup =
+        testElement.siteGroupMap.get(groupingKey('google.com'))!;
     assertEquals(1, googleSiteGroup.origins.length);
     googleSiteGroup.origins[0]!.engagement = 55.1261;
-    const barSiteGroup = testElement.siteGroupMap.get('bar.com')!;
+    const barSiteGroup = testElement.siteGroupMap.get(groupingKey('bar.com'))!;
     assertEquals(1, barSiteGroup.origins.length);
     barSiteGroup.origins[0]!.engagement = 0.5235;
 
@@ -216,21 +226,21 @@ suite('AllSites_DisableFirstPartySets', function() {
 
     const clearAllButton = testElement.$.clearAllButton;
     assertEquals(
-        loadTimeData.getString('siteSettingsClearAllStorageLabel'),
+        loadTimeData.getString('siteSettingsDeleteAllStorageLabel'),
         clearAllButton.innerText.trim());
 
     // Setting a filter, text should change.
     testElement.filter = 'foo';
     await flushTasks();
     assertEquals(
-        loadTimeData.getString('siteSettingsClearDisplayedStorageLabel'),
+        loadTimeData.getString('siteSettingsDeleteDisplayedStorageLabel'),
         clearAllButton.innerText.trim());
 
     // Removing the filter.
     testElement.filter = '';
     await flushTasks();
     assertEquals(
-        loadTimeData.getString('siteSettingsClearAllStorageLabel'),
+        loadTimeData.getString('siteSettingsDeleteAllStorageLabel'),
         clearAllButton.innerText.trim());
   });
 
@@ -239,7 +249,7 @@ suite('AllSites_DisableFirstPartySets', function() {
     testElement.currentRouteChanged(routes.SITE_SETTINGS_ALL);
     await browserProxy.whenCalled('getAllSites');
     // Removing extra unwanted site entries.
-    testElement.siteGroupMap.delete('google.com');
+    testElement.siteGroupMap.delete(groupingKey('google.com'));
     testElement.forceListUpdateForTesting();
     await flushTasks();
 
@@ -287,48 +297,48 @@ suite('AllSites_DisableFirstPartySets', function() {
         filter: false,
         appInstalled: false,
         storage: true,
-        title: 'siteSettingsClearAllStorageDialogTitle',
-        description: 'siteSettingsClearAllStorageConfirmation',
+        title: 'siteSettingsDeleteAllStorageDialogTitle',
+        description: 'siteSettingsDeleteAllStorageConfirmation',
         signout: 'siteSettingsClearAllStorageSignOut',
       },
       {
         filter: false,
         appInstalled: true,
         storage: true,
-        title: 'siteSettingsClearAllStorageDialogTitle',
-        description: 'siteSettingsClearAllStorageConfirmationInstalled',
+        title: 'siteSettingsDeleteAllStorageDialogTitle',
+        description: 'siteSettingsDeleteAllStorageConfirmationInstalled',
         signout: 'siteSettingsClearAllStorageSignOut',
       },
       {
         filter: true,
         appInstalled: false,
         storage: true,
-        title: 'siteSettingsClearDisplayedStorageDialogTitle',
-        description: 'siteSettingsClearDisplayedStorageConfirmation',
+        title: 'siteSettingsDeleteDisplayedStorageDialogTitle',
+        description: 'siteSettingsDeleteDisplayedStorageConfirmation',
         signout: 'siteSettingsClearDisplayedStorageSignOut',
       },
       {
         filter: true,
         appInstalled: false,
         storage: false,
-        title: 'siteSettingsClearDisplayedStorageDialogTitle',
-        description: 'siteSettingsClearDisplayedStorageConfirmation',
+        title: 'siteSettingsDeleteDisplayedStorageDialogTitle',
+        description: 'siteSettingsDeleteDisplayedStorageConfirmation',
         signout: 'siteSettingsClearDisplayedStorageSignOut',
       },
       {
         filter: true,
         appInstalled: true,
         storage: false,
-        title: 'siteSettingsClearDisplayedStorageDialogTitle',
-        description: 'siteSettingsClearDisplayedStorageConfirmationInstalled',
+        title: 'siteSettingsDeleteDisplayedStorageDialogTitle',
+        description: 'siteSettingsDeleteDisplayedStorageConfirmationInstalled',
         signout: 'siteSettingsClearDisplayedStorageSignOut',
       },
       {
         filter: true,
         appInstalled: true,
         storage: true,
-        title: 'siteSettingsClearDisplayedStorageDialogTitle',
-        description: 'siteSettingsClearDisplayedStorageConfirmationInstalled',
+        title: 'siteSettingsDeleteDisplayedStorageDialogTitle',
+        description: 'siteSettingsDeleteDisplayedStorageConfirmationInstalled',
         signout: 'siteSettingsClearDisplayedStorageSignOut',
       },
     ];
@@ -337,7 +347,7 @@ suite('AllSites_DisableFirstPartySets', function() {
     testElement.currentRouteChanged(routes.SITE_SETTINGS_ALL);
     await browserProxy.whenCalled('getAllSites');
     // Removing extra unwanted site entries.
-    testElement.siteGroupMap.delete('google.com');
+    testElement.siteGroupMap.delete(groupingKey('google.com'));
 
     const clearAllButton =
         testElement.$.clearAllButton.querySelector('cr-button')!;
@@ -357,9 +367,9 @@ suite('AllSites_DisableFirstPartySets', function() {
         testElement.filter = state.filter ? 'foo' : '';
       }
 
-      testElement.siteGroupMap.get('foo.com')!.hasInstalledPWA =
+      testElement.siteGroupMap.get(groupingKey('foo.com'))!.hasInstalledPWA =
           state.appInstalled;
-      testElement.siteGroupMap.get('bar.com')!.hasInstalledPWA =
+      testElement.siteGroupMap.get(groupingKey('bar.com'))!.hasInstalledPWA =
           state.appInstalled;
 
       testElement.forceListUpdateForTesting();
@@ -389,14 +399,14 @@ suite('AllSites_DisableFirstPartySets', function() {
 
   test('clear data "no sites" string', async function() {
     testElement.siteGroupMap.set(
-        TEST_MULTIPLE_SITE_GROUP.etldPlus1,
-        JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP)));
-    const googleSiteGroup = createSiteGroup('google.com', [
+        TEST_MULTIPLE_SITE_GROUP.groupingKey,
+        structuredClone(TEST_MULTIPLE_SITE_GROUP));
+    const googleSiteGroup = createSiteGroup('google.com', 'google.com', [
       'https://www.google.com',
       'https://docs.google.com',
       'https://mail.google.com',
     ]);
-    testElement.siteGroupMap.set(googleSiteGroup.etldPlus1, googleSiteGroup);
+    testElement.siteGroupMap.set(googleSiteGroup.groupingKey, googleSiteGroup);
     testElement.filter = 'google';
     testElement.forceListUpdateForTesting();
     await flushTasks();
@@ -545,7 +555,7 @@ suite('AllSites_DisableFirstPartySets', function() {
     const STORAGE_SITE_GROUP_LIST: SiteGroup[] = [
       {
         // Test merging an existing site works, with overlapping origin lists.
-        etldPlus1: fooEtldPlus1,
+        groupingKey: groupingKey(fooEtldPlus1),
         displayName: fooEtldPlus1,
         origins: [
           createOriginInfo(fooOrigin),
@@ -556,7 +566,7 @@ suite('AllSites_DisableFirstPartySets', function() {
       },
       {
         // Test adding a new site entry works.
-        etldPlus1: addEtldPlus1,
+        groupingKey: groupingKey(addEtldPlus1),
         displayName: addEtldPlus1,
         origins: [createOriginInfo(addOrigin)],
         hasInstalledPWA: false,
@@ -569,13 +579,13 @@ suite('AllSites_DisableFirstPartySets', function() {
     siteEntries = testElement.$.listContainer.querySelectorAll('site-entry');
     assertEquals(4, siteEntries.length);
 
-    assertEquals(fooEtldPlus1, siteEntries[0]!.siteGroup.etldPlus1);
+    assertEquals(fooEtldPlus1, siteEntries[0]!.siteGroup.displayName);
     assertEquals(2, siteEntries[0]!.siteGroup.origins.length);
     assertEquals(fooOrigin, siteEntries[0]!.siteGroup.origins[0]!.origin);
     assertEquals(
         'https://foo.com', siteEntries[0]!.siteGroup.origins[1]!.origin);
 
-    assertEquals(addEtldPlus1, siteEntries[3]!.siteGroup.etldPlus1);
+    assertEquals(addEtldPlus1, siteEntries[3]!.siteGroup.displayName);
     assertEquals(1, siteEntries[3]!.siteGroup.origins.length);
     assertEquals(addOrigin, siteEntries[3]!.siteGroup.origins[0]!.origin);
   });
@@ -610,47 +620,51 @@ suite('AllSites_DisableFirstPartySets', function() {
 
   test('cancelling the confirm dialog on clear all data works', function() {
     testElement.siteGroupMap.set(
-        TEST_MULTIPLE_SITE_GROUP.etldPlus1,
-        JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP)));
+        TEST_MULTIPLE_SITE_GROUP.groupingKey,
+        structuredClone(TEST_MULTIPLE_SITE_GROUP));
     testElement.forceListUpdateForTesting();
     clearDataViaClearAllButton('cancel-button');
   });
 
-  test('clearing data via clear all dialog', function() {
+  test('clearing data via clear all dialog', async function() {
     // Test when all origins has no permission settings and no data.
     // Clone this object to avoid propagating changes made in this test.
     testElement.siteGroupMap.set(
-        TEST_MULTIPLE_SITE_GROUP.etldPlus1,
-        JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP)));
-    const googleSiteGroup = createSiteGroup('google.com', [
+        TEST_MULTIPLE_SITE_GROUP.groupingKey,
+        structuredClone(TEST_MULTIPLE_SITE_GROUP));
+    const googleSiteGroup = createSiteGroup('google.com', 'google.com', [
       'https://www.google.com',
       'https://docs.google.com',
       'https://mail.google.com',
     ]);
-    testElement.siteGroupMap.set(googleSiteGroup.etldPlus1, googleSiteGroup);
+    testElement.siteGroupMap.set(googleSiteGroup.groupingKey, googleSiteGroup);
     testElement.forceListUpdateForTesting();
     clearDataViaClearAllButton('action-button');
-    // Ensure a call was made to clearEtldPlus1DataAndCookies.
-    assertEquals(2, browserProxy.getCallCount('clearEtldPlus1DataAndCookies'));
+    // Ensure a call was made to clearSiteGroupDataAndCookies.
+    assertEquals(2, browserProxy.getCallCount('clearSiteGroupDataAndCookies'));
     assertEquals(testElement.$.allSitesList.items!.length, 0);
+
+    assertEquals(
+        DeleteBrowsingDataAction.SITES_SETTINGS_PAGE,
+        await metricsBrowserProxy.whenCalled('recordDeleteBrowsingDataAction'));
   });
 
   test(
       'clear data via clear all button (one origin has permission)',
-      function() {
+      async function() {
         // Test when there is one origin has permissions settings.
         // Clone this object to avoid propagating changes made in this test.
-        const siteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-        siteGroup.origins[0].hasPermissionSettings = true;
+        const siteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+        siteGroup.origins[0]!.hasPermissionSettings = true;
         testElement.siteGroupMap.set(
-            siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
-        const googleSiteGroup = createSiteGroup('google.com', [
+            siteGroup.groupingKey, structuredClone(siteGroup));
+        const googleSiteGroup = createSiteGroup('google.com', 'google.com', [
           'https://www.google.com',
           'https://docs.google.com',
           'https://mail.google.com',
         ]);
         testElement.siteGroupMap.set(
-            googleSiteGroup.etldPlus1, googleSiteGroup);
+            googleSiteGroup.groupingKey, googleSiteGroup);
         testElement.forceListUpdateForTesting();
         assertEquals(testElement.$.allSitesList.items!.length, 2);
         assertEquals(
@@ -659,7 +673,35 @@ suite('AllSites_DisableFirstPartySets', function() {
         clearDataViaClearAllButton('action-button');
         assertEquals(testElement.$.allSitesList.items!.length, 1);
         assertEquals(testElement.$.allSitesList.items![0].origins.length, 1);
+
+        assertEquals(
+            DeleteBrowsingDataAction.SITES_SETTINGS_PAGE,
+            await metricsBrowserProxy.whenCalled(
+                'recordDeleteBrowsingDataAction'));
       });
+
+  test('clear all button is hidden when the list is empty', async function() {
+    // Start with an empty list should hide clear all button.
+    assertEquals(testElement.$.allSitesList.items!.length, 0);
+    const clearAllButton = testElement.$.clearAllButton;
+    assertFalse(isVisible(clearAllButton));
+
+    // Add an entry to site group map.
+    const siteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+    testElement.siteGroupMap.set(
+        siteGroup.groupingKey, structuredClone(siteGroup));
+    testElement.forceListUpdateForTesting();
+    await flushTasks();
+
+    // Ensure list is populated and clear all button is shown.
+    assertEquals(testElement.$.allSitesList.items!.length, 1);
+    assertTrue(isVisible(clearAllButton));
+
+    // Clearing all data should re-hide the button.
+    clearDataViaClearAllButton('action-button');
+    assertEquals(testElement.$.allSitesList.items!.length, 0);
+    assertFalse(isVisible(clearAllButton));
+  });
 
   function removeFirstOrigin() {
     const siteEntries =
@@ -698,8 +740,8 @@ suite('AllSites_DisableFirstPartySets', function() {
 
   test('remove site group', function() {
     testElement.siteGroupMap.set(
-        TEST_MULTIPLE_SITE_GROUP.etldPlus1,
-        JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP)));
+        TEST_MULTIPLE_SITE_GROUP.groupingKey,
+        structuredClone(TEST_MULTIPLE_SITE_GROUP));
     testElement.forceListUpdateForTesting();
     flush();
 
@@ -710,17 +752,17 @@ suite('AllSites_DisableFirstPartySets', function() {
         TEST_MULTIPLE_SITE_GROUP.origins.length,
         browserProxy.getCallCount('setOriginPermissions'));
     assertEquals(0, testElement.$.allSitesList.items!.length);
-    assertEquals(1, browserProxy.getCallCount('clearEtldPlus1DataAndCookies'));
+    assertEquals(1, browserProxy.getCallCount('clearSiteGroupDataAndCookies'));
   });
 
   test('remove origin', async function() {
-    const siteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-    siteGroup.origins[0].numCookies = 1;
-    siteGroup.origins[1].numCookies = 2;
-    siteGroup.origins[2].numCookies = 3;
+    const siteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+    siteGroup.origins[0]!.numCookies = 1;
+    siteGroup.origins[1]!.numCookies = 2;
+    siteGroup.origins[2]!.numCookies = 3;
     siteGroup.numCookies = 6;
     testElement.siteGroupMap.set(
-        siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+        siteGroup.groupingKey, structuredClone(siteGroup));
     testElement.forceListUpdateForTesting();
     flush();
 
@@ -728,13 +770,13 @@ suite('AllSites_DisableFirstPartySets', function() {
     confirmDialog();
 
     assertEquals(
-        siteGroup.origins[0].origin,
+        siteGroup.origins[0]!.origin,
         await browserProxy.whenCalled(
             'clearUnpartitionedOriginDataAndCookies'));
 
     const [origin, types, setting] =
         await browserProxy.whenCalled('setOriginPermissions');
-    assertEquals(origin, siteGroup.origins[0].origin);
+    assertEquals(origin, siteGroup.origins[0]!.origin);
     assertEquals(types, null);  // Null affects all content types.
     assertEquals(setting, ContentSetting.DEFAULT);
 
@@ -745,15 +787,15 @@ suite('AllSites_DisableFirstPartySets', function() {
   });
 
   test('remove partitioned origin', async function() {
-    const siteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-    siteGroup.origins[0].isPartitioned = true;
-    siteGroup.origins[0].numCookies = 1;
-    siteGroup.origins[1].numCookies = 2;
-    siteGroup.origins[2].numCookies = 3;
+    const siteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+    siteGroup.origins[0]!.isPartitioned = true;
+    siteGroup.origins[0]!.numCookies = 1;
+    siteGroup.origins[1]!.numCookies = 2;
+    siteGroup.origins[2]!.numCookies = 3;
     siteGroup.numCookies = 6;
 
     testElement.siteGroupMap.set(
-        siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+        siteGroup.groupingKey, structuredClone(siteGroup));
     testElement.forceListUpdateForTesting();
     flush();
 
@@ -769,11 +811,11 @@ suite('AllSites_DisableFirstPartySets', function() {
                          '#removeOriginButton')!.click();
     confirmDialog();
 
-    const [origin, etldPlus1] =
+    const [origin, groupingKey] =
         await browserProxy.whenCalled('clearPartitionedOriginDataAndCookies');
 
-    assertEquals(siteGroup.origins[0].origin, origin);
-    assertEquals(siteGroup.etldPlus1, etldPlus1);
+    assertEquals(siteGroup.origins[0]!.origin, origin);
+    assertEquals(siteGroup.groupingKey, groupingKey);
     assertEquals(
         1, browserProxy.getCallCount('clearPartitionedOriginDataAndCookies'));
     assertEquals(0, browserProxy.getCallCount('setOriginPermissions'));
@@ -782,8 +824,8 @@ suite('AllSites_DisableFirstPartySets', function() {
 
   test('cancel remove site group', function() {
     testElement.siteGroupMap.set(
-        TEST_MULTIPLE_SITE_GROUP.etldPlus1,
-        JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP)));
+        TEST_MULTIPLE_SITE_GROUP.groupingKey,
+        structuredClone(TEST_MULTIPLE_SITE_GROUP));
     testElement.forceListUpdateForTesting();
     flush();
 
@@ -792,17 +834,17 @@ suite('AllSites_DisableFirstPartySets', function() {
 
     assertEquals(0, browserProxy.getCallCount('setOriginPermissions'));
     assertEquals(1, testElement.$.allSitesList.items!.length);
-    assertEquals(0, browserProxy.getCallCount('clearEtldPlus1DataAndCookies'));
+    assertEquals(0, browserProxy.getCallCount('clearSiteGroupDataAndCookies'));
   });
 
   test('cancel remove origin', function() {
-    const siteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-    siteGroup.origins[0].numCookies = 1;
-    siteGroup.origins[1].numCookies = 2;
-    siteGroup.origins[2].numCookies = 3;
+    const siteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+    siteGroup.origins[0]!.numCookies = 1;
+    siteGroup.origins[1]!.numCookies = 2;
+    siteGroup.origins[2]!.numCookies = 3;
     siteGroup.numCookies = 6;
     testElement.siteGroupMap.set(
-        siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+        siteGroup.groupingKey, structuredClone(siteGroup));
     testElement.forceListUpdateForTesting();
     flush();
 
@@ -816,10 +858,10 @@ suite('AllSites_DisableFirstPartySets', function() {
   });
 
   test('permissions bullet point visbility', function() {
-    const siteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-    siteGroup.origins[0].hasPermissionSettings = true;
+    const siteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+    siteGroup.origins[0]!.hasPermissionSettings = true;
     testElement.siteGroupMap.set(
-        siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+        siteGroup.groupingKey, structuredClone(siteGroup));
     testElement.forceListUpdateForTesting();
     flush();
 
@@ -833,9 +875,9 @@ suite('AllSites_DisableFirstPartySets', function() {
     assertTrue(isChildVisible(testElement, '#permissionsBulletPoint'));
     cancelDialog();
 
-    siteGroup.origins[0].hasPermissionSettings = false;
+    siteGroup.origins[0]!.hasPermissionSettings = false;
     testElement.siteGroupMap.set(
-        siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+        siteGroup.groupingKey, structuredClone(siteGroup));
     testElement.forceListUpdateForTesting();
     flush();
 
@@ -852,9 +894,9 @@ suite('AllSites_DisableFirstPartySets', function() {
 
   test('dynamic strings', async function() {
     // Single origin, no apps.
-    const siteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
+    const siteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
     testElement.siteGroupMap.set(
-        siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+        siteGroup.groupingKey, structuredClone(siteGroup));
     testElement.forceListUpdateForTesting();
     flush();
 
@@ -884,9 +926,9 @@ suite('AllSites_DisableFirstPartySets', function() {
     cancelDialog();
 
     // Single origin with app.
-    siteGroup.origins[0].isInstalled = true;
+    siteGroup.origins[0]!.isInstalled = true;
     testElement.siteGroupMap.set(
-        siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+        siteGroup.groupingKey, structuredClone(siteGroup));
     testElement.forceListUpdateForTesting();
     flush();
 
@@ -917,9 +959,9 @@ suite('AllSites_DisableFirstPartySets', function() {
     cancelDialog();
 
     // Site group, multiple sites, multiple apps.
-    siteGroup.origins[1].isInstalled = true;
+    siteGroup.origins[1]!.isInstalled = true;
     testElement.siteGroupMap.set(
-        siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+        siteGroup.groupingKey, structuredClone(siteGroup));
     testElement.forceListUpdateForTesting();
     flush();
 
@@ -936,11 +978,10 @@ suite('AllSites_DisableFirstPartySets', function() {
     cancelDialog();
 
     // Site group, single origin, no app.
-    const singleOriginSiteGroup =
-        JSON.parse(JSON.stringify(TEST_SINGLE_SITE_GROUP));
+    const singleOriginSiteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
     testElement.siteGroupMap.set(
-        singleOriginSiteGroup.etldPlus1,
-        JSON.parse(JSON.stringify(singleOriginSiteGroup)));
+        singleOriginSiteGroup.groupingKey,
+        structuredClone(singleOriginSiteGroup));
     testElement.forceListUpdateForTesting();
     flush();
 
@@ -957,10 +998,10 @@ suite('AllSites_DisableFirstPartySets', function() {
     cancelDialog();
 
     // Site group, single origin, one app.
-    singleOriginSiteGroup.origins[0].isInstalled = true;
+    singleOriginSiteGroup.origins[0]!.isInstalled = true;
     testElement.siteGroupMap.set(
-        singleOriginSiteGroup.etldPlus1,
-        JSON.parse(JSON.stringify(singleOriginSiteGroup)));
+        singleOriginSiteGroup.groupingKey,
+        structuredClone(singleOriginSiteGroup));
     testElement.forceListUpdateForTesting();
     flush();
 
@@ -977,29 +1018,32 @@ suite('AllSites_DisableFirstPartySets', function() {
   });
 });
 
-suite('AllSites_EnableFirstPartySets', function() {
+suite('EnableRelatedWebsiteSets', function() {
   /**
    * An example eTLD+1 Object with multiple origins grouped under it.
    */
-  const TEST_MULTIPLE_SITE_GROUP = createSiteGroup('example.com', [
-    'http://example.com',
-    'https://www.example.com',
-    'https://login.example.com',
-  ]);
+  const TEST_MULTIPLE_SITE_GROUP =
+      createSiteGroup('example.com', 'example.com', [
+        'http://example.com',
+        'https://www.example.com',
+        'https://login.example.com',
+      ]);
 
   /**
    * Example site groups with one owned SiteGroup.
    */
   const TEST_SITE_GROUPS: SiteGroup[] = [
     {
+      groupingKey: groupingKey('foo.com'),
       etldPlus1: 'foo.com',
       displayName: 'foo.com',
       origins: [createOriginInfo('https://foo.com')],
       numCookies: 0,
-      fpsOwner: 'foo.com',
+      rwsOwner: 'foo.com',
       hasInstalledPWA: false,
     },
     {
+      groupingKey: groupingKey('bar.com'),
       etldPlus1: 'bar.com',
       displayName: 'bar.com',
       origins: [createOriginInfo('https://bar.com')],
@@ -1007,6 +1051,7 @@ suite('AllSites_EnableFirstPartySets', function() {
       hasInstalledPWA: false,
     },
     {
+      groupingKey: groupingKey('example.com'),
       etldPlus1: 'example.com',
       displayName: 'example.com',
       origins: [createOriginInfo('https://example.com')],
@@ -1016,10 +1061,11 @@ suite('AllSites_EnableFirstPartySets', function() {
   ];
 
   /**
-   * Example first party set site groups.
+   * Example related website set site groups.
    */
-  const TEST_FPS_SITE_GROUPS: SiteGroup[] = [
+  const TEST_RWS_SITE_GROUPS: SiteGroup[] = [
     {
+      groupingKey: groupingKey('google.com'),
       etldPlus1: 'google.com',
       displayName: 'google.com',
       origins: [
@@ -1027,17 +1073,18 @@ suite('AllSites_EnableFirstPartySets', function() {
         createOriginInfo('https://translate.google.com'),
       ],
       numCookies: 4,
-      fpsOwner: 'google.com',
-      fpsNumMembers: 2,
+      rwsOwner: 'google.com',
+      rwsNumMembers: 2,
       hasInstalledPWA: false,
     },
     {
+      groupingKey: groupingKey('youtube.com'),
       etldPlus1: 'youtube.com',
       displayName: 'youtube.com',
       origins: [createOriginInfo('https://youtube.com')],
       numCookies: 0,
-      fpsOwner: 'google.com',
-      fpsNumMembers: 2,
+      rwsOwner: 'google.com',
+      rwsNumMembers: 2,
       hasInstalledPWA: false,
     },
   ];
@@ -1048,6 +1095,8 @@ suite('AllSites_EnableFirstPartySets', function() {
    * The mock proxy object to use during test.
    */
   let browserProxy: TestSiteSettingsPrefsBrowserProxy;
+
+  let metricsBrowserProxy: TestMetricsBrowserProxy;
 
   suiteSetup(function() {
     CrSettingsPrefs.setInitialized();
@@ -1068,6 +1117,8 @@ suite('AllSites_EnableFirstPartySets', function() {
 
     browserProxy = new TestSiteSettingsPrefsBrowserProxy();
     SiteSettingsPrefsBrowserProxyImpl.setInstance(browserProxy);
+    metricsBrowserProxy = new TestMetricsBrowserProxy();
+    MetricsBrowserProxyImpl.setInstance(metricsBrowserProxy);
     testElement = document.createElement('all-sites');
     assertTrue(!!testElement);
     document.body.appendChild(testElement);
@@ -1088,7 +1139,7 @@ suite('AllSites_EnableFirstPartySets', function() {
     assertTrue(siteEntries.length >= 1);
     const overflowMenuButton =
         siteEntries[0]!.shadowRoot!.querySelector<HTMLElement>(
-            '#fpsOverflowMenuButton')!;
+            '#rwsOverflowMenuButton')!;
     assertFalse(
         overflowMenuButton.closest<HTMLElement>('.row-aligned')!.hidden);
 
@@ -1134,52 +1185,60 @@ suite('AllSites_EnableFirstPartySets', function() {
   }
 
   test('remove site via overflow menu', async function() {
-    const siteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-    siteGroup.fpsOwner = 'google.com';
+    const siteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+    siteGroup.rwsOwner = 'google.com';
     testElement.siteGroupMap.set(
-        siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+        siteGroup.groupingKey, structuredClone(siteGroup));
     testElement.forceListUpdateForTesting();
     assertEquals(testElement.$.allSitesList.items!.length, 1);
     removeSiteViaOverflowMenu('action-button');
     assertEquals(testElement.$.allSitesList.items!.length, 0);
+
+    assertEquals(
+        DeleteBrowsingDataAction.SITES_SETTINGS_PAGE,
+        await metricsBrowserProxy.whenCalled('recordDeleteBrowsingDataAction'));
   });
 
   test(
       'cancelling the confirm dialog on removing site works', async function() {
-        const siteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-        siteGroup.fpsOwner = 'google.com';
+        const siteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+        siteGroup.rwsOwner = 'google.com';
         testElement.siteGroupMap.set(
-            siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+            siteGroup.groupingKey, structuredClone(siteGroup));
         testElement.forceListUpdateForTesting();
         removeSiteViaOverflowMenu('cancel-button');
       });
 
   test('click and remove site entry with remove button', async function() {
     testElement.siteGroupMap.set(
-        TEST_MULTIPLE_SITE_GROUP.etldPlus1,
-        JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP)));
+        TEST_MULTIPLE_SITE_GROUP.groupingKey,
+        structuredClone(TEST_MULTIPLE_SITE_GROUP));
     testElement.forceListUpdateForTesting();
     flush();
     removeFirstSiteGroup();
     confirmDialog();
+
+    assertEquals(
+        DeleteBrowsingDataAction.SITES_SETTINGS_PAGE,
+        await metricsBrowserProxy.whenCalled('recordDeleteBrowsingDataAction'));
   });
 
   test(
       'click and cancel dialog site entry with remove button',
       async function() {
         testElement.siteGroupMap.set(
-            TEST_MULTIPLE_SITE_GROUP.etldPlus1,
-            JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP)));
+            TEST_MULTIPLE_SITE_GROUP.groupingKey,
+            structuredClone(TEST_MULTIPLE_SITE_GROUP));
         testElement.forceListUpdateForTesting();
         flush();
         removeFirstSiteGroup();
         cancelDialog();
       });
 
-  test('filter sites by first party set owner', async function() {
+  test('filter sites by related website set owner', async function() {
     TEST_SITE_GROUPS.forEach(siteGroup => {
       testElement.siteGroupMap.set(
-          siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+          siteGroup.groupingKey, structuredClone(siteGroup));
     });
     testElement.forceListUpdateForTesting();
     flush();
@@ -1188,7 +1247,7 @@ suite('AllSites_EnableFirstPartySets', function() {
     assertEquals(3, siteEntries.length);
     const overflowMenuButton =
         siteEntries[0]!.shadowRoot!.querySelector<HTMLElement>(
-            '#fpsOverflowMenuButton')!;
+            '#rwsOverflowMenuButton')!;
     assertFalse(
         overflowMenuButton.closest<HTMLElement>('.row-aligned')!.hidden);
 
@@ -1218,7 +1277,7 @@ suite('AllSites_EnableFirstPartySets', function() {
     let hiddenSiteEntries = Array.from(
         testElement.shadowRoot!.querySelectorAll('site-entry[hidden]'));
     assertEquals(1, siteEntries.length - hiddenSiteEntries.length);
-    assertEquals('foo.com', siteEntries[0]!.siteGroup.fpsOwner);
+    assertEquals('foo.com', siteEntries[0]!.siteGroup.rwsOwner);
 
     // Clear filter and assert the list is back to 3 elements.
     testElement.filter = '';
@@ -1231,39 +1290,39 @@ suite('AllSites_EnableFirstPartySets', function() {
   });
 
   test(
-      'site entry first party set information updated on site deletion',
+      'site entry related website set information updated on site deletion',
       async function() {
-        TEST_FPS_SITE_GROUPS.forEach(siteGroup => {
+        TEST_RWS_SITE_GROUPS.forEach(siteGroup => {
           testElement.siteGroupMap.set(
-              siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+              siteGroup.groupingKey, structuredClone(siteGroup));
         });
         testElement.forceListUpdateForTesting();
         flush();
         let siteEntries =
             testElement.$.listContainer.querySelectorAll('site-entry');
         assertEquals(testElement.$.allSitesList.items!.length, 2);
-        await browserProxy.whenCalled('getFpsMembershipLabel');
+        await browserProxy.whenCalled('getRwsMembershipLabel');
         assertEquals(
             '· 2 sites in google.com\'s group',
-            siteEntries[1]!.$.fpsMembership.innerText.trim());
+            siteEntries[1]!.$.rwsMembership.innerText.trim());
 
         // Remove first site group.
         removeSiteViaOverflowMenu('action-button');
         siteEntries =
             testElement.$.listContainer.querySelectorAll('site-entry');
         assertEquals(testElement.$.allSitesList.items!.length, 1);
-        await browserProxy.whenCalled('getFpsMembershipLabel');
+        await browserProxy.whenCalled('getRwsMembershipLabel');
         assertEquals(
             '· 1 site in google.com\'s group',
-            siteEntries[1]!.$.fpsMembership.innerText.trim());
+            siteEntries[1]!.$.rwsMembership.innerText.trim());
       });
 
   test(
-      'site entry first party set constant member count on origin deletion',
+      'site entry related website set constant member count on origin deletion',
       async function() {
-        TEST_FPS_SITE_GROUPS.forEach(siteGroup => {
+        TEST_RWS_SITE_GROUPS.forEach(siteGroup => {
           testElement.siteGroupMap.set(
-              siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+              siteGroup.groupingKey, structuredClone(siteGroup));
         });
         testElement.forceListUpdateForTesting();
         flush();
@@ -1271,10 +1330,10 @@ suite('AllSites_EnableFirstPartySets', function() {
         let siteEntries =
             testElement.$.listContainer.querySelectorAll('site-entry');
         assertEquals(testElement.$.allSitesList.items!.length, 2);
-        await browserProxy.whenCalled('getFpsMembershipLabel');
+        await browserProxy.whenCalled('getRwsMembershipLabel');
         assertEquals(
             '· 2 sites in google.com\'s group',
-            siteEntries[1]!.$.fpsMembership.innerText.trim());
+            siteEntries[1]!.$.rwsMembership.innerText.trim());
 
         let originList = siteEntries[0]!.$.originList.get();
         flush();
@@ -1297,11 +1356,11 @@ suite('AllSites_EnableFirstPartySets', function() {
         originEntries = originList.querySelectorAll('.hr');
         assertEquals(1, originEntries.length);
 
-        // Ensure that first party set info is unaffected by origin removal.
-        await browserProxy.whenCalled('getFpsMembershipLabel');
+        // Ensure that related website set info is unaffected by origin removal.
+        await browserProxy.whenCalled('getRwsMembershipLabel');
         assertEquals(
             '· 2 sites in google.com\'s group',
-            siteEntries[1]!.$.fpsMembership.innerText.trim());
+            siteEntries[1]!.$.rwsMembership.innerText.trim());
 
         // Remove the last origin.
         siteEntries =
@@ -1316,48 +1375,48 @@ suite('AllSites_EnableFirstPartySets', function() {
 
         // Ensure that the site entry remains in the list as there are cookies
         // set at the eTLD+1 level so it converts to an ungrouped site entry and
-        // first party set information remain unchanged.
+        // related website set information remain unchanged.
         assertEquals(testElement.$.allSitesList.items!.length, 2);
-        await browserProxy.whenCalled('getFpsMembershipLabel');
+        await browserProxy.whenCalled('getRwsMembershipLabel');
         assertEquals(
             '· 2 sites in google.com\'s group',
-            siteEntries[1]!.$.fpsMembership.innerText.trim());
+            siteEntries[1]!.$.rwsMembership.innerText.trim());
       });
 
   test(
-      'show learn more about first party sets link when filtering by fps owner',
+      'show learn more about related website sets link when filtering by rws owner',
       function() {
         TEST_SITE_GROUPS.forEach(siteGroup => {
           testElement.siteGroupMap.set(
-              siteGroup.etldPlus1, JSON.parse(JSON.stringify(siteGroup)));
+              siteGroup.groupingKey, structuredClone(siteGroup));
         });
         testElement.forceListUpdateForTesting();
         flush();
-        let fpsLearnMore =
-            testElement.shadowRoot!.querySelector<HTMLElement>('#fpsLearnMore');
+        let relatedWebsiteSetsLearnMore =
+            testElement.shadowRoot!.querySelector<HTMLElement>('#relatedWebsiteSetsLearnMore');
         // When no filter is applied (as the test starts) the learn more link
         // should be hidden.
-        assertTrue(fpsLearnMore!.hidden);
+        assertTrue(relatedWebsiteSetsLearnMore!.hidden);
 
         testElement.filter = 'related:foo.com';
         flush();
 
-        fpsLearnMore =
-            testElement.shadowRoot!.querySelector<HTMLElement>('#fpsLearnMore');
-        assertFalse(fpsLearnMore!.hidden);
+        relatedWebsiteSetsLearnMore =
+            testElement.shadowRoot!.querySelector<HTMLElement>('#relatedWebsiteSetsLearnMore');
+        assertFalse(relatedWebsiteSetsLearnMore!.hidden);
         assertEquals(
             [
               loadTimeData.getStringF(
-                  'siteSettingsFirstPartySetsLearnMore', 'foo.com'),
+                  'siteSettingsRelatedWebsiteSetsLearnMore', 'foo.com'),
               loadTimeData.getString('learnMore'),
             ].join(' '),
-            fpsLearnMore!.innerText.trim());
+            relatedWebsiteSetsLearnMore!.innerText.trim());
 
         testElement.filter = 'related:bar.com';
         flush();
 
-        fpsLearnMore =
-            testElement.shadowRoot!.querySelector<HTMLElement>('#fpsLearnMore');
-        assertTrue(fpsLearnMore!.hidden);
+        relatedWebsiteSetsLearnMore =
+            testElement.shadowRoot!.querySelector<HTMLElement>('#relatedWebsiteSetsLearnMore');
+        assertTrue(relatedWebsiteSetsLearnMore!.hidden);
       });
 });

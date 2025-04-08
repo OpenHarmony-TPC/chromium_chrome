@@ -12,6 +12,8 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/user_metrics.h"
 #include "base/values.h"
+#include "base/version.h"
+#include "base/version_info/version_info.h"
 #include "chrome/browser/devtools/devtools_targets_ui.h"
 #include "chrome/browser/devtools/devtools_ui_bindings.h"
 #include "chrome/browser/devtools/devtools_window.h"
@@ -35,10 +37,34 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/views/widget/widget.h"
 
 using content::DevToolsAgentHost;
 using content::WebContents;
 using content::WebUIMessageHandler;
+
+namespace ui_devtools {
+
+// This class is a friend of views::Widget.
+class BubbleLocking {
+ public:
+  static void SetEnabled(bool enabled) {
+    views::Widget::SetDisableActivationChangeHandling(
+        enabled ? views::Widget::DisableActivationChangeHandlingType::
+                      kIgnoreDeactivationOnly
+                : views::Widget::DisableActivationChangeHandlingType::kNone);
+  }
+
+  static bool GetEnabled() {
+    return views::Widget::GetDisableActivationChangeHandling() !=
+           views::Widget::DisableActivationChangeHandlingType::kNone;
+  }
+
+ private:
+  BubbleLocking() = default;
+};
+
+}  // namespace ui_devtools
 
 namespace {
 
@@ -61,6 +87,7 @@ const char kInspectUiPortForwardingConfigCommand[] =
     "set-port-forwarding-config";
 const char kInspectUiDiscoverTCPTargetsEnabledCommand[] =
     "set-discover-tcp-targets-enabled";
+const char kInspectUiBubbleLockingCommand[] = "set-bubble-locking";
 const char kInspectUiTCPDiscoveryConfigCommand[] = "set-tcp-discovery-config";
 const char kInspectUiOpenNodeFrontendCommand[] = "open-node-frontend";
 const char kInspectUiLaunchUIDevToolsCommand[] = "launch-ui-devtools";
@@ -91,6 +118,9 @@ void CreateAndAddInspectUIHTMLSource(Profile* profile) {
   source->AddResourcePath("inspect.css", IDR_INSPECT_CSS);
   source->AddResourcePath("inspect.js", IDR_INSPECT_JS);
   source->SetDefaultResource(IDR_INSPECT_HTML);
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ScriptSrc,
+      "script-src chrome://resources chrome://webui-test 'self';");
 }
 
 // DevToolsFrontEndObserver ----------------------------------------
@@ -195,6 +225,7 @@ class InspectMessageHandler : public WebUIMessageHandler {
   void HandleTCPDiscoveryConfigCommand(const base::Value::List& args);
   void HandleOpenNodeFrontendCommand(const base::Value::List& args);
   void HandleLaunchUIDevToolsCommand(const base::Value::List& args);
+  void HandleSetBubbleLocking(const base::Value::List& args);
 
   void CreateNativeUIInspectionSession(const std::string& url);
   void OnFrontEndFinished();
@@ -273,6 +304,10 @@ void InspectMessageHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       kInspectUiInspectBrowser,
       base::BindRepeating(&InspectMessageHandler::HandleInspectBrowserCommand,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      kInspectUiBubbleLockingCommand,
+      base::BindRepeating(&InspectMessageHandler::HandleSetBubbleLocking,
                           base::Unretained(this)));
 }
 
@@ -409,7 +444,8 @@ void InspectMessageHandler::HandleOpenNodeFrontendCommand(
   Profile* profile = Profile::FromWebUI(web_ui());
   if (!profile)
     return;
-  DevToolsWindow::OpenNodeFrontendWindow(profile);
+  DevToolsWindow::OpenNodeFrontendWindow(profile,
+                                         DevToolsOpenedByAction::kInspectLink);
 }
 
 void InspectMessageHandler::HandleLaunchUIDevToolsCommand(
@@ -435,6 +471,12 @@ void InspectMessageHandler::HandleLaunchUIDevToolsCommand(
     CreateNativeUIInspectionSession(pairs[0].second);
 }
 
+void InspectMessageHandler::HandleSetBubbleLocking(
+    const base::Value::List& args) {
+  CHECK(args.size() == 1 && args[0].is_bool());
+  ui_devtools::BubbleLocking::SetEnabled(args[0].GetBool());
+}
+
 void InspectMessageHandler::CreateNativeUIInspectionSession(
     const std::string& url) {
   WebContents* inspect_ui = web_ui()->GetWebContents();
@@ -443,7 +485,8 @@ void InspectMessageHandler::CreateNativeUIInspectionSession(
       inspect_ui,
       content::OpenURLParams(gurl, content::Referrer(),
                              WindowOpenDisposition::NEW_FOREGROUND_TAB,
-                             ui::PAGE_TRANSITION_AUTO_TOPLEVEL, false));
+                             ui::PAGE_TRANSITION_AUTO_TOPLEVEL, false),
+      /*navigation_handle_callback=*/{});
   // When the front-end is started, disable the launch button.
   inspect_ui_->ShowNativeUILaunchButton(/* enabled = */ false);
 
@@ -479,6 +522,7 @@ InspectUI::~InspectUI() {
 }
 
 void InspectUI::InitUI() {
+  SetHostVersion(version_info::GetVersion().GetString());
   SetPortForwardingDefaults();
   StartListeningNotifications();
   UpdateDiscoverUsbDevicesEnabled();
@@ -486,6 +530,7 @@ void InspectUI::InitUI() {
   UpdatePortForwardingConfig();
   UpdateTCPDiscoveryEnabled();
   UpdateTCPDiscoveryConfig();
+  UpdateBubbleLockingCheckbox();
 }
 
 void InspectUI::Inspect(const std::string& source_id,
@@ -493,7 +538,8 @@ void InspectUI::Inspect(const std::string& source_id,
   scoped_refptr<DevToolsAgentHost> target = FindTarget(source_id, target_id);
   if (target) {
     Profile* profile = Profile::FromWebUI(web_ui());
-    DevToolsWindow::OpenDevToolsWindow(target, profile);
+    DevToolsWindow::OpenDevToolsWindow(target, profile,
+                                       DevToolsOpenedByAction::kInspectLink);
   }
 }
 
@@ -502,7 +548,8 @@ void InspectUI::InspectFallback(const std::string& source_id,
   scoped_refptr<DevToolsAgentHost> target = FindTarget(source_id, target_id);
   if (target) {
     Profile* profile = Profile::FromWebUI(web_ui());
-    DevToolsWindow::OpenDevToolsWindowWithBundledFrontend(target, profile);
+    DevToolsWindow::OpenDevToolsWindowWithBundledFrontend(
+        target, profile, DevToolsOpenedByAction::kInspectLink);
   }
 }
 
@@ -545,7 +592,8 @@ void InspectUI::Pause(const std::string& source_id,
   content::WebContents* web_contents = target->GetWebContents();
   if (web_contents) {
     DevToolsWindow::OpenDevToolsWindow(web_contents,
-                                       DevToolsToggleAction::PauseInDebugger());
+                                       DevToolsToggleAction::PauseInDebugger(),
+                                       DevToolsOpenedByAction::kInspectLink);
   }
 }
 
@@ -575,7 +623,8 @@ void InspectUI::InspectBrowserWithCustomFrontend(
       inspect_ui,
       content::OpenURLParams(frontend_url, content::Referrer(),
                              WindowOpenDisposition::NEW_FOREGROUND_TAB,
-                             ui::PAGE_TRANSITION_AUTO_TOPLEVEL, false));
+                             ui::PAGE_TRANSITION_AUTO_TOPLEVEL, false),
+      /*navigation_handle_callback=*/{});
 
   // Install devtools bindings.
   DevToolsUIBindingsEnabler* bindings_enabler =
@@ -585,10 +634,8 @@ void InspectUI::InspectBrowserWithCustomFrontend(
 
 void InspectUI::InspectDevices(Browser* browser) {
   base::RecordAction(base::UserMetricsAction("InspectDevices"));
-  NavigateParams params(GetSingletonTabNavigateParams(
-      browser, GURL(chrome::kChromeUIInspectURL)));
-  params.path_behavior = NavigateParams::IGNORE_AND_NAVIGATE;
-  ShowSingletonTabOverwritingNTP(browser, &params);
+  ShowSingletonTabOverwritingNTP(browser, GURL(chrome::kChromeUIInspectURL),
+                                 NavigateParams::IGNORE_AND_NAVIGATE);
 }
 
 void InspectUI::WebContentsDestroyed() {
@@ -689,6 +736,11 @@ void InspectUI::UpdateTCPDiscoveryConfig() {
       *GetPrefValue(prefs::kDevToolsTCPDiscoveryConfig));
 }
 
+void InspectUI::UpdateBubbleLockingCheckbox() {
+  web_ui()->CallJavascriptFunctionUnsafe(
+      "updateBubbleLockingCheckbox", ui_devtools::BubbleLocking::GetEnabled());
+}
+
 void InspectUI::SetPortForwardingDefaults() {
   Profile* profile = Profile::FromWebUI(web_ui());
   PrefService* prefs = profile->GetPrefs();
@@ -769,4 +821,8 @@ void InspectUI::ShowIncognitoWarning() {
 void InspectUI::ShowNativeUILaunchButton(bool enabled) {
   web_ui()->CallJavascriptFunctionUnsafe("showNativeUILaunchButton",
                                          base::Value(enabled));
+}
+
+void InspectUI::SetHostVersion(const std::string& source) {
+  web_ui()->CallJavascriptFunctionUnsafe("setHostVersion", base::Value(source));
 }

@@ -2,6 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// <if expr="enable_pdf_ink2">
+// The different types of annotation brushes.
+export enum AnnotationBrushType {
+  ERASER = 'eraser',
+  HIGHLIGHTER = 'highlighter',
+  PEN = 'pen',
+}
+
+export interface Color {
+  r: number;
+  g: number;
+  b: number;
+}
+
+// The brush with parameters. Colors are optional, since some brushes do not
+// need colors.
+export interface AnnotationBrush {
+  type: AnnotationBrushType;
+  color?: Color;
+  size: number;
+}
+// </if>
+
 export interface Attachment {
   name: string;
   size: number;
@@ -36,7 +59,19 @@ export enum FittingType {
   FIT_TO_WIDTH = 'fit-to-width',
   FIT_TO_HEIGHT = 'fit-to-height',
   FIT_TO_BOUNDING_BOX = 'fit-to-bounding-box',
-  FIT_TO_DEFAULT = 'fit-to-default',
+  FIT_TO_BOUNDING_BOX_WIDTH = 'fit-to-bounding-box-width',
+  FIT_TO_BOUNDING_BOX_HEIGHT = 'fit-to-bounding-box-height',
+}
+
+/**
+ * The different types of form fields that can be focused.
+ */
+export enum FormFieldFocusType {
+  // LINT.IfChange(FocusFieldTypes)
+  NONE = 'none',
+  NON_TEXT = 'non-text',
+  TEXT = 'text',
+  // LINT.ThenChange(//pdf/pdf_view_web_plugin.cc:FocusFieldTypes)
 }
 
 export interface NamedDestinationMessageData {
@@ -71,10 +106,3 @@ export type ExtendedKeyEvent = KeyboardEvent&{
   fromScriptingAPI?: boolean,
   fromPlugin?: boolean,
 };
-
-/**
- * Enumeration of screen's width for different devices.
- */
-export enum ScreenWidth {
-  PHONE_500 = 500,
-}

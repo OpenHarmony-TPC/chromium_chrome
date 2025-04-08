@@ -83,6 +83,7 @@ struct PreresolveJob {
                 int num_sockets,
                 bool allow_credentials,
                 net::NetworkAnonymizationKey network_anonymization_key,
+                net::NetworkTrafficAnnotationTag traffic_annotation_tag,
                 PreresolveInfo* info);
 
   PreresolveJob(const PreresolveJob&) = delete;
@@ -101,6 +102,7 @@ struct PreresolveJob {
   int num_sockets;
   bool allow_credentials;
   net::NetworkAnonymizationKey network_anonymization_key;
+  net::NetworkTrafficAnnotationTag traffic_annotation_tag;
   // Raw pointer usage is fine here because even though PreresolveJob can
   // outlive PreresolveInfo. It's only accessed on PreconnectManager class
   // context and PreresolveInfo lifetime is tied to PreconnectManager.
@@ -167,7 +169,7 @@ class PreconnectManager {
 
   virtual ~PreconnectManager();
 
-  // Starts preconnect and preresolve jobs keyed by |url|.
+  // Starts preconnect and preresolve jobs associated with |url|.
   virtual void Start(const GURL& url, std::vector<PreconnectRequest> requests);
 
   // Starts special preconnect and preresolve jobs that are not cancellable and
@@ -180,16 +182,19 @@ class PreconnectManager {
   // socket.
   virtual void StartPreresolveHost(
       const GURL& url,
-      const net::NetworkAnonymizationKey& network_anonymization_key);
+      const net::NetworkAnonymizationKey& network_anonymization_key,
+      net::NetworkTrafficAnnotationTag traffic_annotation);
   virtual void StartPreresolveHosts(
       const std::vector<GURL>& urls,
-      const net::NetworkAnonymizationKey& network_anonymization_key);
+      const net::NetworkAnonymizationKey& network_anonymization_key,
+      net::NetworkTrafficAnnotationTag traffic_annotation);
   virtual void StartPreconnectUrl(
       const GURL& url,
       bool allow_credentials,
-      net::NetworkAnonymizationKey network_anonymization_key);
+      net::NetworkAnonymizationKey network_anonymization_key,
+      net::NetworkTrafficAnnotationTag traffic_annotation);
 
-  // No additional jobs keyed by the |url| will be queued after this.
+  // No additional jobs associated with the |url| will be queued after this.
   virtual void Stop(const GURL& url);
 
   base::WeakPtr<PreconnectManager> GetWeakPtr() {
@@ -212,7 +217,8 @@ class PreconnectManager {
       const GURL& url,
       int num_sockets,
       bool allow_credentials,
-      const net::NetworkAnonymizationKey& network_anonymization_key) const;
+      const net::NetworkAnonymizationKey& network_anonymization_key,
+      const net::NetworkTrafficAnnotationTag& traffic_annotation) const;
   std::unique_ptr<ResolveHostClientImpl> PreresolveUrl(
       const GURL& url,
       const net::NetworkAnonymizationKey& network_anonymization_key,

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/enterprise/signals/context_info_fetcher.h"
 
 #include <memory>
@@ -37,11 +42,15 @@
 
 #if BUILDFLAG(IS_MAC)
 #include <CoreFoundation/CoreFoundation.h>
+
+#include "base/mac/mac_util.h"
+#include "base/process/launch.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
-#include <netfw.h>
 #include <windows.h>
+
+#include <netfw.h>
 #include <wrl/client.h>
 
 #include "net/dns/public/win_dns_system_settings.h"
@@ -55,12 +64,12 @@ namespace enterprise_signals {
 
 namespace {
 
-absl::optional<std::string> GetEnterpriseProfileId(Profile* profile) {
+std::optional<std::string> GetEnterpriseProfileId(Profile* profile) {
   auto* profile_id_service =
       enterprise::ProfileIdServiceFactory::GetForProfile(profile);
   if (profile_id_service)
     return profile_id_service->GetProfileId();
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 #if BUILDFLAG(IS_LINUX)
@@ -131,27 +140,63 @@ SettingValue GetWinOSFirewall() {
 
 #if BUILDFLAG(IS_MAC)
 SettingValue GetMacOSFirewall() {
-  // There is no official Apple documentation on how to obtain the enabled
-  // status of the firewall (System Preferences> Security & Privacy> Firewall).
-  // Reading globalstate from com.apple.alf is the closest way to get such an
-  // API in Chrome without delegating to potentially unstable commands.
+  if (base::mac::MacOSMajorVersion() < 15) {
+    // There is no official Apple documentation on how to obtain the enabled
+    // status of the firewall (System Preferences> Security & Privacy> Firewall)
+    // prior to MacOS versions 15. Reading globalstate from com.apple.alf is the
+    // closest way to get such an API in Chrome without delegating to
+    // potentially unstable commands. Values of "globalstate":
+    //   0 = de-activated
+    //   1 = on for specific services
+    //   2 = on for essential services
+    // You can get 2 by, e.g., enabling the "Block all incoming connections"
+    // firewall functionality.
+    Boolean key_exists_with_valid_format = false;
+    CFIndex globalstate = CFPreferencesGetAppIntegerValue(
+        CFSTR("globalstate"), CFSTR("com.apple.alf"),
+        &key_exists_with_valid_format);
 
-  Boolean key_exists_with_valid_format = false;
-  CFIndex globalstate = CFPreferencesGetAppIntegerValue(
-      CFSTR("globalstate"), CFSTR("com.apple.alf"),
-      &key_exists_with_valid_format);
-
-  if (!key_exists_with_valid_format)
-    return SettingValue::UNKNOWN;
-
-  switch (globalstate) {
-    case 0:
-      return SettingValue::DISABLED;
-    case 1:
-      return SettingValue::ENABLED;
-    default:
+    if (!key_exists_with_valid_format) {
       return SettingValue::UNKNOWN;
+    }
+
+    switch (globalstate) {
+      case 0:
+        return SettingValue::DISABLED;
+      case 1:
+      case 2:
+        return SettingValue::ENABLED;
+      default:
+        return SettingValue::UNKNOWN;
+    }
   }
+
+  // Based on this recommendation from Apple:
+  // https://developer.apple.com/documentation/macos-release-notes/macos-15-release-notes/#Application-Firewall
+  base::FilePath fw_util("/usr/libexec/ApplicationFirewall/socketfilterfw");
+  if (!base::PathExists(fw_util)) {
+    return SettingValue::UNKNOWN;
+  }
+
+  base::CommandLine command(fw_util);
+  command.AppendSwitch("getglobalstate");
+  std::string output;
+  if (!base::GetAppOutput(command, &output)) {
+    return SettingValue::UNKNOWN;
+  }
+
+  // State 1 is when the Firewall is simply enabled.
+  // State 2 is when the Firewall is enabled and all incoming connections are
+  // blocked.
+  if (output.find("(State = 1)") != std::string::npos ||
+      output.find("(State = 2)") != std::string::npos) {
+    return SettingValue::ENABLED;
+  }
+  if (output.find("(State = 0)") != std::string::npos) {
+    return SettingValue::DISABLED;
+  }
+
+  return SettingValue::UNKNOWN;
 }
 #endif
 
@@ -187,8 +232,6 @@ ContextInfoFetcher::~ContextInfoFetcher() = default;
 std::unique_ptr<ContextInfoFetcher> ContextInfoFetcher::CreateInstance(
     content::BrowserContext* browser_context,
     enterprise_connectors::ConnectorsService* connectors_service) {
-  // TODO(domfc): Add platform overrides of the class once they are needed for
-  // an attribute.
   return std::make_unique<ContextInfoFetcher>(browser_context,
                                               connectors_service);
 }
@@ -216,9 +259,7 @@ void ContextInfoFetcher::Fetch(ContextInfoCallback callback) {
       GetAnalysisConnectorProviders(enterprise_connectors::BULK_DATA_ENTRY);
   info.on_print_providers =
       GetAnalysisConnectorProviders(enterprise_connectors::PRINT);
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   info.realtime_url_check_mode = GetRealtimeUrlCheckMode();
-#endif
   info.on_security_event_providers = GetOnSecurityEventProviders();
   info.browser_version = version_info::GetVersionNumber();
   info.site_isolation_enabled =
@@ -230,13 +271,12 @@ void ContextInfoFetcher::Fetch(ContextInfoCallback callback) {
           PolicyBlocklistFactory::GetForBrowserContext(browser_context_));
   info.third_party_blocking_enabled =
       utils::GetThirdPartyBlockingEnabled(g_browser_process->local_state());
+
   Profile* profile = Profile::FromBrowserContext(browser_context_);
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   info.safe_browsing_protection_level =
       utils::GetSafeBrowsingProtectionLevel(profile->GetPrefs());
   info.password_protection_warning_trigger =
       utils::GetPasswordProtectionWarningTrigger(profile->GetPrefs());
-#endif
   info.enterprise_profile_id = GetEnterpriseProfileId(profile);
 
 #if BUILDFLAG(IS_WIN)
@@ -276,16 +316,13 @@ std::vector<std::string> ContextInfoFetcher::GetAnalysisConnectorProviders(
   return connectors_service_->GetAnalysisServiceProviderNames(connector);
 }
 
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
-safe_browsing::EnterpriseRealTimeUrlCheckMode
+enterprise_connectors::EnterpriseRealTimeUrlCheckMode
 ContextInfoFetcher::GetRealtimeUrlCheckMode() {
   return connectors_service_->GetAppliedRealTimeUrlCheck();
 }
-#endif
 
 std::vector<std::string> ContextInfoFetcher::GetOnSecurityEventProviders() {
-  return connectors_service_->GetReportingServiceProviderNames(
-      enterprise_connectors::ReportingConnector::SECURITY_EVENT);
+  return connectors_service_->GetReportingServiceProviderNames();
 }
 
 SettingValue ContextInfoFetcher::GetOSFirewall() {
@@ -318,7 +355,7 @@ std::vector<std::string> ContextInfoFetcher::GetDnsServers() {
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_OHOS)
   std::unique_ptr<net::ScopedResState> res = net::ResolvReader().GetResState();
   if (res) {
-    absl::optional<std::vector<net::IPEndPoint>> nameservers =
+    std::optional<std::vector<net::IPEndPoint>> nameservers =
         net::GetNameservers(res->state());
     if (nameservers) {
       // If any name server is 0.0.0.0, assume the configuration is invalid.
@@ -331,9 +368,9 @@ std::vector<std::string> ContextInfoFetcher::GetDnsServers() {
     }
   }
 #elif BUILDFLAG(IS_WIN)
-  absl::optional<std::vector<net::IPEndPoint>> nameservers;
-  absl::optional<net::WinDnsSystemSettings> settings =
-      net::ReadWinSystemDnsSettings();
+  std::optional<std::vector<net::IPEndPoint>> nameservers;
+  base::expected<net::WinDnsSystemSettings, net::ReadWinSystemDnsSettingsError>
+      settings = net::ReadWinSystemDnsSettings();
   if (settings.has_value()) {
     nameservers = settings->GetAllNameservers();
   }

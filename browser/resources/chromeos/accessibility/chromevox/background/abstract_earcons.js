@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-/**
- * @fileoverview Base class for implementing earcons.
- *
- * When adding earcons, please add them to getEarconName and getEarconId.
- *
- */
-import {LocalStorage} from '../../common/local_storage.js';
+import {LocalStorage} from '/common/local_storage.js';
+import {TestImportManager} from '/common/testing/test_import_manager.js';
+
 import {EarconId} from '../common/earcon_id.js';
 
+/**
+ * Base class for implementing earcons.
+ * When adding earcons, please add them to chromevox/common/earcon_id.js.
+ */
 export class AbstractEarcons {
   /**
    * Plays the specified earcon sound.
@@ -55,3 +55,5 @@ export class AbstractEarcons {
    */
   toggle() {}
 }
+
+TestImportManager.exportForTesting(AbstractEarcons);

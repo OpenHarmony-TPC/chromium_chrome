@@ -4,6 +4,9 @@
 
 #include "chrome/browser/ash/crosapi/desk_template_ash.h"
 
+#include "ui/base/mojom/window_show_state.mojom.h"
+#include "ui/base/ui_base_types.h"
+
 namespace crosapi {
 
 DeskTemplateAsh::Call::Call(
@@ -53,13 +56,15 @@ void DeskTemplateAsh::CreateBrowserWithRestoredData(
 
 void DeskTemplateAsh::GetFaviconImage(
     const GURL& url,
+    uint64_t lacros_profile_id,
     base::OnceCallback<void(const gfx::ImageSkia&)> callback) {
   if (remotes_.empty()) {
     std::move(callback).Run(gfx::ImageSkia());
     return;
   }
 
-  remotes_.begin()->get()->GetFaviconImage(url, std::move(callback));
+  remotes_.begin()->get()->GetFaviconImage(url, lacros_profile_id,
+                                           std::move(callback));
 }
 
 void DeskTemplateAsh::AddDeskTemplateClient(

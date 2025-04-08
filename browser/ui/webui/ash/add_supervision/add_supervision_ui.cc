@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/ash/add_supervision/add_supervision_ui.h"
 
 #include <memory>
@@ -18,7 +23,10 @@
 #include "chrome/browser/ui/webui/ash/add_supervision/add_supervision_handler_utils.h"
 #include "chrome/browser/ui/webui/ash/add_supervision/add_supervision_metrics_recorder.h"
 #include "chrome/browser/ui/webui/ash/add_supervision/confirm_signout_dialog.h"
+#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/add_supervision_resources.h"
+#include "chrome/grit/add_supervision_resources_map.h"
 #include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/supervision_resources.h"
@@ -27,6 +35,8 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/resources/grit/ui_resources.h"
 #include "ui/web_dialogs/web_dialog_delegate.h"
@@ -113,8 +123,8 @@ void AddSupervisionDialog::CloseNowForTesting() {
   }
 }
 
-ui::ModalType AddSupervisionDialog::GetDialogModalType() const {
-  return ui::ModalType::MODAL_TYPE_WINDOW;
+ui::mojom::ModalType AddSupervisionDialog::GetDialogModalType() const {
+  return ui::mojom::ModalType::kWindow;
 }
 
 void AddSupervisionDialog::GetDialogSize(gfx::Size* size) const {
@@ -136,9 +146,14 @@ bool AddSupervisionDialog::ShouldCloseDialogOnEscape() const {
   return should_close_on_escape_;
 }
 
+bool AddSupervisionDialog::ShouldShowDialogTitle() const {
+  return false;
+}
+
 AddSupervisionDialog::AddSupervisionDialog()
-    : SystemWebDialogDelegate(GURL(chrome::kChromeUIAddSupervisionURL),
-                              std::u16string()) {}
+    : SystemWebDialogDelegate(
+          GURL(chrome::kChromeUIAddSupervisionURL),
+          l10n_util::GetStringUTF16(IDS_ADD_SUPERVISION_PAGE_TITLE)) {}
 
 AddSupervisionDialog::~AddSupervisionDialog() = default;
 
@@ -192,6 +207,7 @@ void AddSupervisionUI::BindInterface(
 void AddSupervisionUI::SetUpResources() {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       Profile::FromWebUI(web_ui()), chrome::kChromeUIAddSupervisionHost);
+  webui::EnableTrustedTypesCSP(source);
 
   // Initialize supervision URL from the command-line arguments (if provided).
   supervision_url_ = GetAddSupervisionURL();
@@ -199,18 +215,17 @@ void AddSupervisionUI::SetUpResources() {
     DCHECK(supervision_url_.DomainIs("google.com"));
   }
 
-  source->DisableTrustedTypesCSP();
   source->EnableReplaceI18nInJS();
 
   // Forward data to the WebUI.
-  source->AddResourcePath("add_supervision_api_server.js",
-                          IDR_ADD_SUPERVISION_API_SERVER_JS);
-  source->AddResourcePath("add_supervision_ui.js", IDR_ADD_SUPERVISION_UI_JS);
-  source->AddResourcePath("add_supervision_app.js", IDR_ADD_SUPERVISION_APP_JS);
+  source->AddResourcePaths(
+      base::make_span(kAddSupervisionResources, kAddSupervisionResourcesSize));
   source->AddResourcePaths(
       base::make_span(kSupervisionResources, kSupervisionResourcesSize));
 
   source->AddLocalizedString("pageTitle", IDS_ADD_SUPERVISION_PAGE_TITLE);
+  source->AddLocalizedString("webviewLoadingMessage",
+                             IDS_ADD_SUPERVISION_WEBVIEW_LOADING_MESSAGE);
   source->AddLocalizedString("supervisedUserErrorDescription",
                              IDS_SUPERVISED_USER_ERROR_DESCRIPTION);
   source->AddLocalizedString("supervisedUserErrorTitle",
@@ -220,14 +235,8 @@ void AddSupervisionUI::SetUpResources() {
   source->AddLocalizedString("supervisedUserOfflineTitle",
                              IDS_SUPERVISED_USER_OFFLINE_TITLE);
 
-  // Full paths (relative to src) are important for Mojom generated files.
-  source->AddResourcePath(
-      "chrome/browser/ui/webui/ash/add_supervision/"
-      "add_supervision.mojom-lite.js",
-      IDR_ADD_SUPERVISION_MOJOM_LITE_JS);
-
   source->UseStringsJs();
-  source->SetDefaultResource(IDR_ADD_SUPERVISION_HTML);
+  source->SetDefaultResource(IDR_ADD_SUPERVISION_ADD_SUPERVISION_HTML);
   source->AddString("webviewUrl", supervision_url_.spec());
   source->AddString("eventOriginFilter",
                     supervision_url_.DeprecatedGetOriginAsURL().spec());

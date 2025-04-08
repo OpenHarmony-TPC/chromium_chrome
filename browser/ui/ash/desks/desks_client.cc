@@ -8,17 +8,18 @@
 #include <memory>
 #include <string>
 
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/desk_template.h"
 #include "ash/public/cpp/session/session_controller.h"
+#include "ash/public/cpp/window_properties.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/wm/desks/desk.h"
 #include "ash/wm/desks/desks_controller.h"
 #include "ash/wm/desks/desks_histogram_enums.h"
 #include "ash/wm/desks/desks_restore_util.h"
-#include "ash/wm/desks/legacy_desk_bar_view.h"
+#include "ash/wm/desks/overview_desk_bar_view.h"
 #include "ash/wm/desks/templates/saved_desk_util.h"
 #include "ash/wm/overview/overview_controller.h"
 #include "ash/wm/overview/overview_grid.h"
@@ -35,16 +36,25 @@
 #include "base/values.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/browser_app_instance_observer.h"
-#include "chrome/browser/apps/app_service/browser_app_instance_registry.h"
+#include "chrome/browser/apps/browser_instance/browser_app_instance.h"
+#include "chrome/browser/apps/browser_instance/browser_app_instance_observer.h"
+#include "chrome/browser/apps/browser_instance/browser_app_instance_registry.h"
 #include "chrome/browser/ash/crosapi/browser_util.h"
+#include "chrome/browser/ash/crosapi/crosapi_ash.h"
+#include "chrome/browser/ash/crosapi/crosapi_manager.h"
+#include "chrome/browser/ash/crosapi/desk_ash.h"
+#include "chrome/browser/ash/floating_workspace/floating_workspace_util.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
+#include "chrome/browser/chromeos/extensions/wm/wm_desks_private_events.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/sync/desk_sync_service_factory.h"
+#include "chrome/browser/ui/ash/desks/admin_template_service_factory.h"
 #include "chrome/browser/ui/ash/desks/desks_templates_app_launch_handler.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "components/app_constants/constants.h"
 #include "components/app_restore/app_restore_info.h"
 #include "components/app_restore/window_properties.h"
@@ -60,9 +70,6 @@
 namespace {
 
 DesksClient* g_desks_client_instance = nullptr;
-
-// Used to generate unique IDs for desk template launches.
-int32_t g_launch_id = 0;
 
 // Timeout time used in LaunchPerformanceTracker.
 constexpr base::TimeDelta kLaunchPerformanceTimeout = base::Minutes(3);
@@ -107,6 +114,18 @@ void RecordTimeToLoadTemplateHistogram(const base::Time time_started) {
                                 base::Time::Now() - time_started);
 }
 
+// Retrieves desk event router
+extensions::WMDesksEventsRouter* GetDeskEventsRouter() {
+  auto* profile = ProfileManager::GetActiveUserProfile();
+  if (profile) {
+    auto* wm_events_api = extensions::WMDesksPrivateEventsAPI::Get(profile);
+    if (wm_events_api && wm_events_api->desks_event_router()) {
+      return wm_events_api->desks_event_router();
+    }
+  }
+  return nullptr;
+}
+
 }  // namespace
 
 // Listens to `BrowserAppInstanceRegistry` events. Its job is to store app ids
@@ -125,6 +144,15 @@ class LacrosAppWindowObserver : public apps::BrowserAppInstanceObserver {
   ~LacrosAppWindowObserver() override = default;
 
   // BrowserAppInstanceObserver:
+  void OnBrowserWindowAdded(
+      const apps::BrowserWindowInstance& instance) override {
+    if (chromeos::features::IsDeskProfilesEnabled() ||
+        ash::floating_workspace_util::IsFloatingWorkspaceV2Enabled()) {
+      instance.window->SetProperty(ash::kLacrosProfileId,
+                                   instance.lacros_profile_id);
+    }
+  }
+
   void OnBrowserAppAdded(const apps::BrowserAppInstance& instance) override {
     if (!instance.app_id.empty()) {
       app_ids_by_window_[instance.window] = instance.app_id;
@@ -135,10 +163,10 @@ class LacrosAppWindowObserver : public apps::BrowserAppInstanceObserver {
     app_ids_by_window_.erase(instance.window);
   }
 
-  absl::optional<std::string> GetAppIdForWindow(aura::Window* window) const {
+  std::optional<std::string> GetAppIdForWindow(aura::Window* window) const {
     auto it = app_ids_by_window_.find(window);
     if (it == app_ids_by_window_.end()) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     return kCrxAppPrefix + it->second;
   }
@@ -221,12 +249,77 @@ class DesksClient::LaunchPerformanceTracker
   // Pointer back to the owning templates client. This is done to facilitate
   // this object's removal from the mapping of template id's to trackers after
   // this object has recorded its metric.
-  raw_ptr<DesksClient, ExperimentalAsh> templates_client_;
+  raw_ptr<DesksClient> templates_client_;
 
   base::ScopedObservation<app_restore::AppRestoreInfo,
                           app_restore::AppRestoreInfo::Observer>
       scoped_observation_{this};
   base::WeakPtrFactory<LaunchPerformanceTracker> weak_ptr_factory_{this};
+};
+
+// Observer for listening to desk related events.
+class DesksClient::DeskEventObserver : public ash::DesksController::Observer {
+ public:
+  explicit DeskEventObserver(ash::DesksController* source) {
+    // `DesksController` not initialized in unit test.
+    if (source) {
+      obs_.Observe(source);
+    }
+  }
+  DeskEventObserver(const DeskEventObserver& observer) = delete;
+  DeskEventObserver& operator=(const DeskEventObserver& observer) = delete;
+  // ScopedObservation handles stopping observing in destruction.
+  ~DeskEventObserver() override = default;
+
+  void OnDeskAdded(const ash::Desk* desk, bool from_undo) override {
+    // If there is listener in ash-chrome, dispatch events.
+    if (auto* desk_events_router = GetDeskEventsRouter()) {
+      desk_events_router->OnDeskAdded(desk->uuid(), from_undo);
+    }
+
+    // CrosapiManager is always constructed even if lacros flag is disabled but
+    // it's not constructed in unit test.
+    if (!crosapi::CrosapiManager::IsInitialized()) {
+      return;
+    }
+    crosapi::CrosapiManager::Get()->crosapi_ash()->desk_ash()->NotifyDeskAdded(
+        desk->uuid(), from_undo);
+  }
+
+  void OnDeskRemovalFinalized(const base::Uuid& uuid) override {
+    // TODO(b/287382267): Add E2E browser test.
+    if (auto* desk_events_router = GetDeskEventsRouter()) {
+      desk_events_router->OnDeskRemoved(uuid);
+    }
+
+    if (!crosapi::CrosapiManager::IsInitialized()) {
+      return;
+    }
+    crosapi::CrosapiManager::Get()
+        ->crosapi_ash()
+        ->desk_ash()
+        ->NotifyDeskRemoved(uuid);
+  }
+
+  void OnDeskActivationChanged(const ash::Desk* activated,
+                               const ash::Desk* deactivated) override {
+    if (auto* desk_events_router = GetDeskEventsRouter()) {
+      desk_events_router->OnDeskSwitched(activated->uuid(),
+                                         deactivated->uuid());
+    }
+
+    if (!crosapi::CrosapiManager::IsInitialized()) {
+      return;
+    }
+    crosapi::CrosapiManager::Get()
+        ->crosapi_ash()
+        ->desk_ash()
+        ->NotifyDeskSwitched(activated->uuid(), deactivated->uuid());
+  }
+
+ private:
+  base::ScopedObservation<ash::DesksController, ash::DesksController::Observer>
+      obs_{this};
 };
 
 DesksClient::DesksClient() : desks_controller_(ash::DesksController::Get()) {
@@ -235,6 +328,8 @@ DesksClient::DesksClient() : desks_controller_(ash::DesksController::Get()) {
   if (ash::SessionController::Get()) {
     ash::SessionController::Get()->AddObserver(this);
   }
+  desk_event_observer_ =
+      std::make_unique<DeskEventObserver>(ash::DesksController::Get());
 }
 
 DesksClient::~DesksClient() {
@@ -271,17 +366,19 @@ void DesksClient::OnActiveUserSessionChanged(const AccountId& account_id) {
       std::make_unique<desks_storage::LocalDeskDataManager>(
           active_profile_->GetPath(), account_id);
 
-  if (ash::saved_desk_util::AreDesksTemplatesEnabled() &&
-      ash::features::IsDeskTemplateSyncEnabled()) {
+  if (ash::features::IsDeskTemplateSyncEnabled() &&
+      (ash::saved_desk_util::AreDesksTemplatesEnabled() ||
+       ash::floating_workspace_util::IsFloatingWorkspaceV2Enabled())) {
     saved_desk_storage_manager_ =
         std::make_unique<desks_storage::DeskModelWrapper>(
             save_and_recall_desks_storage_manager_.get());
   }
 
-  auto policy_desk_templates_it =
-      preconfigured_desk_templates_json_.find(account_id);
-  if (policy_desk_templates_it != preconfigured_desk_templates_json_.end())
-    GetDeskModel()->SetPolicyDeskTemplates(policy_desk_templates_it->second);
+  // Ensure that admin templates are ready to go.  This will only query from the
+  // primary profile but it happens early enough to ensure that the model is
+  // loaded when the user logs in.
+  ash::AdminTemplateServiceFactory::GetForProfile(
+      ProfileManager::GetPrimaryUserProfile());
 }
 
 // TODO(aprilzhou): Refactor DesksClient to remove unnecessary callback. It's
@@ -313,7 +410,7 @@ void DesksClient::CaptureActiveDesk(
               return;
             }
 
-            std::move(callback).Run(absl::nullopt, std::move(desk_template));
+            std::move(callback).Run(std::nullopt, std::move(desk_template));
           },
           std::move(callback)),
       template_type,
@@ -345,8 +442,8 @@ void DesksClient::GetDeskTemplates(GetDeskTemplatesCallback callback) {
 
   std::move(callback).Run(
       result.status != desks_storage::DeskModel::GetAllEntriesStatus::kOk
-          ? absl::make_optional(DeskActionError::kStorageError)
-          : absl::nullopt,
+          ? std::make_optional(DeskActionError::kStorageError)
+          : std::nullopt,
       result.entries);
 }
 
@@ -408,9 +505,9 @@ DesksClient::LaunchEmptyDesk(const std::u16string& customized_desk_name) {
   return new_desk->uuid();
 }
 
-absl::optional<DesksClient::DeskActionError> DesksClient::RemoveDesk(
+std::optional<DesksClient::DeskActionError> DesksClient::RemoveDesk(
     const base::Uuid& desk_uuid,
-    bool combine_desk) {
+    ash::DeskCloseType close_type) {
   // Return error if `desk_uuid` is invalid.
   if (!desk_uuid.is_valid()) {
     return DeskActionError::kInvalidIdError;
@@ -433,10 +530,8 @@ absl::optional<DesksClient::DeskActionError> DesksClient::RemoveDesk(
     return DeskActionError::kDesksCountCheckFailedError;
   }
   desks_controller_->RemoveDesk(desk, ash::DesksCreationRemovalSource::kApi,
-                                combine_desk
-                                    ? ash::DeskCloseType::kCombineDesks
-                                    : ash::DeskCloseType::kCloseAllWindows);
-  return absl::nullopt;
+                                close_type);
+  return std::nullopt;
 }
 
 base::expected<std::vector<const ash::Desk*>, DesksClient::DeskActionError>
@@ -454,11 +549,10 @@ DesksClient::GetAllDesks() {
 void DesksClient::LaunchAppsFromTemplate(
     std::unique_ptr<ash::DeskTemplate> desk_template) {
   DCHECK(desk_template);
-  DCHECK_EQ(desk_template->launch_id(), 0);
 
   // Generate a unique ID for this launch. It is used to tell different template
   // launches apart.
-  desk_template->set_launch_id(++g_launch_id);
+  const int32_t launch_id = DesksTemplatesAppLaunchHandler::GetNextLaunchId();
 
   app_restore::RestoreData* restore_data =
       desk_template->mutable_desk_restore_data();
@@ -468,10 +562,9 @@ void DesksClient::LaunchAppsFromTemplate(
     return;
 
   // Since we default the browser to launch as ash chrome, we want to to check
-  // to see if lacros is enabled and primary. If so, update the app id of the
-  // browser app to launch lacros instead of ash.
-  if (crosapi::browser_util::IsLacrosEnabled() &&
-      crosapi::browser_util::IsLacrosPrimaryBrowser()) {
+  // if lacros is enabled. If so, update the app id of the browser app to launch
+  // lacros instead of ash.
+  if (crosapi::browser_util::IsLacrosEnabled()) {
     restore_data->UpdateBrowserAppIdToLacros();
   }
 
@@ -487,16 +580,16 @@ void DesksClient::LaunchAppsFromTemplate(
           desk_template->uuid(), this);
 
   DCHECK(active_profile_);
-  const int32_t launch_id = desk_template->launch_id();
 
   auto& handler = app_launch_handlers_[launch_id];
   // Some tests reach into this class and install a handler ahead of time. In
   // all other cases, we create a handler for the launch here.
   if (!handler) {
-    handler = std::make_unique<DesksTemplatesAppLaunchHandler>(active_profile_);
+    handler = std::make_unique<DesksTemplatesAppLaunchHandler>(
+        active_profile_, DesksTemplatesAppLaunchHandler::Type::kTemplate);
   }
 
-  handler->LaunchTemplate(*desk_template);
+  handler->LaunchTemplate(*desk_template, launch_id);
 
   // Install a timer that will clear the launch handler after a given duration.
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
@@ -507,17 +600,23 @@ void DesksClient::LaunchAppsFromTemplate(
 }
 
 desks_storage::DeskModel* DesksClient::GetDeskModel() {
-  if (!ash::saved_desk_util::AreDesksTemplatesEnabled() ||
-      !ash::features::IsDeskTemplateSyncEnabled()) {
+  // Get local storage only when 1) Desk templates sync is
+  // disabled or 2) Desk Templates and Floating workspace are disabled. If we
+  // are unable to get the desk sync service or its bridge, then we default to
+  // using the local storage.
+  desks_storage::DeskSyncService* desk_sync_service =
+      DeskSyncServiceFactory::GetForProfile(active_profile_);
+  if ((!desk_sync_service || !desk_sync_service->GetDeskModel()) ||
+      !ash::features::IsDeskTemplateSyncEnabled() ||
+      (!ash::saved_desk_util::AreDesksTemplatesEnabled() &&
+       !ash::floating_workspace_util::IsFloatingWorkspaceV2Enabled())) {
     DCHECK(save_and_recall_desks_storage_manager_.get());
     return save_and_recall_desks_storage_manager_.get();
   }
-    DCHECK(saved_desk_storage_manager_);
-    saved_desk_storage_manager_->SetDeskSyncBridge(
-        static_cast<desks_storage::DeskSyncBridge*>(
-            DeskSyncServiceFactory::GetForProfile(active_profile_)
-                ->GetDeskModel()));
-    return saved_desk_storage_manager_.get();
+  saved_desk_storage_manager_->SetDeskSyncBridge(
+      static_cast<desks_storage::DeskSyncBridge*>(
+          desk_sync_service->GetDeskModel()));
+  return saved_desk_storage_manager_.get();
 }
 
 // Sets the preconfigured desk template. Data contains the contents of the JSON
@@ -560,7 +659,7 @@ void DesksClient::NotifyMovedSingleInstanceApp(int32_t window_id) {
     id_to_tracker.second->OnMovedSingleInstanceApp(window_id);
 }
 
-absl::optional<DesksClient::DeskActionError>
+std::optional<DesksClient::DeskActionError>
 DesksClient::SetAllDeskPropertyByBrowserSessionId(SessionID browser_session_id,
                                                   bool all_desk) {
   if (!browser_session_id.is_valid()) {
@@ -575,7 +674,7 @@ DesksClient::SetAllDeskPropertyByBrowserSessionId(SessionID browser_session_id,
                       all_desk
                           ? aura::client::kWindowWorkspaceVisibleOnAllWorkspaces
                           : aura::client::kWindowWorkspaceUnassignedWorkspace);
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 base::Uuid DesksClient::GetActiveDesk() {
@@ -591,7 +690,7 @@ DesksClient::GetDeskByID(const base::Uuid& desk_uuid) const {
   return desk;
 }
 
-absl::optional<DesksClient::DeskActionError> DesksClient::SwitchDesk(
+std::optional<DesksClient::DeskActionError> DesksClient::SwitchDesk(
     const base::Uuid& desk_uuid) {
   ash::Desk* desk = desks_controller_->GetDeskByUuid(desk_uuid);
   if (!desk) {
@@ -605,14 +704,14 @@ absl::optional<DesksClient::DeskActionError> DesksClient::SwitchDesk(
   }
 
   desks_controller_->ActivateDesk(desk, ash::DesksSwitchSource::kApiSwitch);
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<std::string> DesksClient::GetAppIdForLacrosWindow(
+std::optional<std::string> DesksClient::GetAppIdForLacrosWindow(
     aura::Window* window) const {
   return lacros_app_window_observer_
              ? lacros_app_window_observer_->GetAppIdForWindow(window)
-             : absl::nullopt;
+             : std::nullopt;
 }
 
 void DesksClient::OnGetTemplateForDeskLaunch(
@@ -644,9 +743,9 @@ void DesksClient::OnGetTemplateForDeskLaunch(
     return;
   }
 
-  // Copy the index of the newly created desk to the saved desk. This ensures
+  // Copy the uuid of the newly created desk to the saved desk. This ensures
   // that apps appear on the right desk even if the user switches to another.
-  saved_desk->SetDeskIndex(desks_controller_->GetDeskIndex(new_desk));
+  saved_desk->SetDeskUuid(new_desk->uuid());
 
   const auto saved_desk_type = saved_desk->type();
   const auto uuid = saved_desk->uuid();
@@ -659,7 +758,7 @@ void DesksClient::OnGetTemplateForDeskLaunch(
                              weak_ptr_factory_.GetWeakPtr(),
                              std::move(callback), new_desk->uuid()));
   } else {
-    std::move(callback).Run(absl::nullopt, new_desk->uuid());
+    std::move(callback).Run(std::nullopt, new_desk->uuid());
   }
 }
 
@@ -685,7 +784,7 @@ void DesksClient::OnCaptureActiveDeskAndSaveTemplate(
               ash::OverviewStartAction::kDevTools,
               ash::OverviewEnterExitType::kImmediateEnterWithoutFocus)) {
         // If for whatever reason we didn't enter overview mode, bail.
-        std::move(callback).Run(absl::nullopt, std::move(desk_template));
+        std::move(callback).Run(std::nullopt, std::move(desk_template));
         return;
       }
       overview_session = overview_controller->overview_session();
@@ -713,7 +812,7 @@ void DesksClient::OnCaptureActiveDeskAndSaveTemplate(
         ash::DeskCloseType::kCloseAllWindows);
   }
 
-  std::move(callback).Run(absl::nullopt, std::move(desk_template));
+  std::move(callback).Run(std::nullopt, std::move(desk_template));
 }
 
 void DesksClient::OnDeleteDeskTemplate(
@@ -721,8 +820,8 @@ void DesksClient::OnDeleteDeskTemplate(
     desks_storage::DeskModel::DeleteEntryStatus status) {
   std::move(callback).Run(
       status != desks_storage::DeskModel::DeleteEntryStatus::kOk
-          ? absl::make_optional(DeskActionError::kNoCurrentUserError)
-          : absl::nullopt);
+          ? std::make_optional(DeskActionError::kNoCurrentUserError)
+          : std::nullopt);
 }
 
 void DesksClient::OnRecallSavedDesk(
@@ -731,14 +830,14 @@ void DesksClient::OnRecallSavedDesk(
     desks_storage::DeskModel::DeleteEntryStatus status) {
   std::move(callback).Run(
       status != desks_storage::DeskModel::DeleteEntryStatus::kOk
-          ? absl::make_optional(DeskActionError::kNoCurrentUserError)
-          : absl::nullopt,
+          ? std::make_optional(DeskActionError::kNoCurrentUserError)
+          : std::nullopt,
       desk_id);
 }
 
 void DesksClient::OnCapturedDeskTemplate(
     CaptureActiveDeskAndSaveTemplateCallback callback,
-    absl::optional<DesksClient::DeskActionError> error,
+    std::optional<DesksClient::DeskActionError> error,
     std::unique_ptr<ash::DeskTemplate> desk_template) {
   if (error) {
     std::move(callback).Run(error, {});
@@ -762,8 +861,8 @@ void DesksClient::OnGetTemplateJson(
     const base::Value& json_representation) {
   std::move(callback).Run(
       status != desks_storage::DeskModel::GetTemplateJsonStatus::kOk
-          ? absl::make_optional(DeskActionError::kStorageError)
-          : absl::nullopt,
+          ? std::make_optional(DeskActionError::kStorageError)
+          : std::nullopt,
       json_representation);
 }
 
@@ -778,7 +877,7 @@ void DesksClient::RemoveLaunchPerformanceTracker(
 
 aura::Window* DesksClient::GetWindowByBrowserSessionId(
     SessionID browser_session_id) {
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     if (browser->session_id() == browser_session_id)
       return browser->window()->GetNativeWindow();
   }

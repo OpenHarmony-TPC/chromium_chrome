@@ -4,8 +4,6 @@
 
 #include "chrome/browser/extensions/api/bookmarks/bookmark_api_helpers.h"
 
-#include <math.h>  // For floor()
-
 #include <memory>
 #include <utility>
 #include <vector>
@@ -13,7 +11,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
-#include "chrome/browser/extensions/api/bookmarks/bookmark_api_constants.h"
+#include "chrome/browser/extensions/bookmarks/bookmarks_error_constants.h"
 #include "chrome/common/extensions/api/bookmarks.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_utils.h"
@@ -73,21 +71,20 @@ void PopulateBookmarkTreeNode(
     out_bookmark_tree_node->url = node->url().spec();
     base::Time t = node->date_last_used();
     if (!t.is_null()) {
-      out_bookmark_tree_node->date_last_used = floor(t.ToDoubleT() * 1000);
+      out_bookmark_tree_node->date_last_used = t.InMillisecondsSinceUnixEpoch();
     }
   } else {
-    // Javascript Date wants milliseconds since the epoch, ToDoubleT is seconds.
     base::Time t = node->date_folder_modified();
     if (!t.is_null()) {
-      out_bookmark_tree_node->date_group_modified = floor(t.ToDoubleT() * 1000);
+      out_bookmark_tree_node->date_group_modified =
+          t.InMillisecondsSinceUnixEpoch();
     }
   }
 
   out_bookmark_tree_node->title = base::UTF16ToUTF8(node->GetTitle());
   if (!node->date_added().is_null()) {
-    // Javascript Date wants milliseconds since the epoch, ToDoubleT is seconds.
     out_bookmark_tree_node->date_added =
-        floor(node->date_added().ToDoubleT() * 1000);
+        node->date_added().InMillisecondsSinceUnixEpoch();
   }
 
   if (bookmarks::IsDescendantOf(node, managed->managed_node())) {
@@ -128,23 +125,24 @@ bool RemoveNode(BookmarkModel* model,
                 std::string* error) {
   const BookmarkNode* node = bookmarks::GetBookmarkNodeByID(model, id);
   if (!node) {
-    *error = bookmark_api_constants::kNoNodeError;
+    *error = bookmarks_errors::kNoNodeError;
     return false;
   }
   if (model->is_permanent_node(node)) {
-    *error = bookmark_api_constants::kModifySpecialError;
+    *error = bookmarks_errors::kModifySpecialError;
     return false;
   }
   if (bookmarks::IsDescendantOf(node, managed->managed_node())) {
-    *error = bookmark_api_constants::kModifyManagedError;
+    *error = bookmarks_errors::kModifyManagedError;
     return false;
   }
   if (node->is_folder() && !node->children().empty() && !recursive) {
-    *error = bookmark_api_constants::kFolderNotEmptyError;
+    *error = bookmarks_errors::kFolderNotEmptyError;
     return false;
   }
 
-  model->Remove(node, bookmarks::metrics::BookmarkEditSource::kExtension);
+  model->Remove(node, bookmarks::metrics::BookmarkEditSource::kExtension,
+                FROM_HERE);
   return true;
 }
 

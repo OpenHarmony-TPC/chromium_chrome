@@ -89,17 +89,18 @@ class CartDiscountFetcherTest {
       std::vector<CartDB::KeyAndValue> proto_pairs,
       double current_timestamp) {
     return CartDiscountFetcher::generatePostData(
-        std::move(proto_pairs), base::Time::FromDoubleT(current_timestamp));
+        std::move(proto_pairs),
+        base::Time::FromSecondsSinceUnixEpoch(current_timestamp));
   }
 
   static std::unique_ptr<EndpointFetcher> CreateEndpointFetcher(
       std::unique_ptr<network::PendingSharedURLLoaderFactory> pending_factory,
       std::vector<CartDB::KeyAndValue> proto_pairs,
       bool is_oauth_fetch,
-      const std::string fetch_for_locale) {
+      std::string fetch_for_locale) {
     return CartDiscountFetcher::CreateEndpointFetcher(
         std::move(pending_factory), std::move(proto_pairs), is_oauth_fetch,
-        fetch_for_locale, kVariationHeaders);
+        std::move(fetch_for_locale), kVariationHeaders);
   }
 
   static void OnDiscountsAvailable(

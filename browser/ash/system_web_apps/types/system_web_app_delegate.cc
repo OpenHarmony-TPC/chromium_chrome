@@ -58,7 +58,7 @@ bool SystemWebAppDelegate::ShouldShowInLauncher() const {
   return true;
 }
 
-bool SystemWebAppDelegate::ShouldShowInSearch() const {
+bool SystemWebAppDelegate::ShouldShowInSearchAndShelf() const {
   return true;
 }
 
@@ -74,7 +74,15 @@ bool SystemWebAppDelegate::ShouldAllowMaximize() const {
   return true;
 }
 
+bool SystemWebAppDelegate::ShouldAllowFullscreen() const {
+  return true;
+}
+
 bool SystemWebAppDelegate::ShouldHaveTabStrip() const {
+  return false;
+}
+
+bool SystemWebAppDelegate::ShouldHideNewTabButton() const {
   return false;
 }
 
@@ -90,9 +98,9 @@ bool SystemWebAppDelegate::ShouldHandleFileOpenIntents() const {
   return ShouldShowInLauncher();
 }
 
-absl::optional<SystemWebAppBackgroundTaskInfo>
+std::optional<SystemWebAppBackgroundTaskInfo>
 SystemWebAppDelegate::GetTimerInfo() const {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool SystemWebAppDelegate::IsAppEnabled() const {
@@ -123,10 +131,6 @@ bool SystemWebAppDelegate::ShouldRestoreOverrideUrl() const {
 }
 
 bool SystemWebAppDelegate::IsUrlInSystemAppScope(const GURL& url) const {
-  return false;
-}
-
-bool SystemWebAppDelegate::PreferManifestBackgroundColor() const {
   return false;
 }
 

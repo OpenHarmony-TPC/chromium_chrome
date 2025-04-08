@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ui/ash/assistant/assistant_test_mixin.h"
-#include "base/memory/raw_ptr.h"
 
 #include <utility>
 #include <vector>
@@ -15,10 +14,13 @@
 #include "ash/public/cpp/assistant/assistant_state.h"
 #include "ash/public/cpp/test/assistant_test_api.h"
 #include "base/auto_reset.h"
+#include "base/containers/to_vector.h"
+#include "base/memory/raw_ptr.h"
 #include "base/ranges/algorithm.h"
 #include "base/run_loop.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/scoped_run_loop_timeout.h"
+#include "base/test/test_timeouts.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/login/test/embedded_test_server_setup_mixin.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
@@ -78,7 +80,7 @@ class AssistantStatusWaiter : private AssistantStateObserver {
       std::move(quit_loop_).Run();
   }
 
-  const raw_ptr<AssistantState, ExperimentalAsh> state_;
+  const raw_ptr<AssistantState> state_;
   AssistantStatus const expected_status_;
 
   base::OnceClosure quit_loop_;
@@ -149,7 +151,7 @@ class ResponseWaiter : private views::ViewObserver {
   }
 
   std::string GetResponseTextRecursive(views::View* view) const {
-    absl::optional<std::string> response_maybe = GetResponseTextOfView(view);
+    std::optional<std::string> response_maybe = GetResponseTextOfView(view);
     if (response_maybe) {
       return response_maybe.value() + "\n";
     } else {
@@ -160,10 +162,10 @@ class ResponseWaiter : private views::ViewObserver {
     }
   }
 
-  virtual absl::optional<std::string> GetResponseTextOfView(
+  virtual std::optional<std::string> GetResponseTextOfView(
       views::View* view) const = 0;
 
-  raw_ptr<views::View, ExperimentalAsh> parent_view_;
+  raw_ptr<views::View> parent_view_;
   base::OnceClosure quit_loop_;
 };
 
@@ -218,12 +220,12 @@ class TypedResponseWaiter : public ResponseWaiter {
 
  private:
   // ResponseWaiter overrides:
-  absl::optional<std::string> GetResponseTextOfView(
+  std::optional<std::string> GetResponseTextOfView(
       views::View* view) const override {
     if (view->GetClassName() == class_name_) {
       return static_cast<AssistantUiElementView*>(view)->ToStringForTesting();
     }
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const std::string class_name_;
@@ -245,11 +247,11 @@ class TypedExpectedResponseWaiter : public ExpectedResponseWaiter {
 
  private:
   // ExpectedResponseWaiter overrides:
-  absl::optional<std::string> GetResponseTextOfView(
+  std::optional<std::string> GetResponseTextOfView(
       views::View* view) const override {
     if (view->GetClassName() == class_name_)
       return static_cast<AssistantUiElementView*>(view)->ToStringForTesting();
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const std::string class_name_;
@@ -290,7 +292,7 @@ class CallbackViewHierarchyChangedObserver : views::ViewObserver {
  private:
   base::RepeatingCallback<void(const views::ViewHierarchyChangedDetails&)>
       callback_;
-  raw_ptr<views::View, ExperimentalAsh> parent_view_;
+  raw_ptr<views::View> parent_view_;
 };
 
 }  // namespace
@@ -311,7 +313,7 @@ class LoggedInUserMixin : public InProcessBrowserTestMixin {
         test_base_(test_base),
         user_context_(LoginManagerMixin::CreateDefaultUserContext(user)) {
     // Tell LoginManagerMixin to launch the browser when the user is logged in.
-    login_manager_.set_should_launch_browser(true);
+    login_manager_.SetShouldLaunchBrowser(true);
   }
 
   ~LoggedInUserMixin() override = default;
@@ -360,7 +362,7 @@ class LoggedInUserMixin : public InProcessBrowserTestMixin {
   FakeGaiaMixin fake_gaia_;
 
   LoginManagerMixin::TestUserInfo user_;
-  const raw_ptr<InProcessBrowserTest, ExperimentalAsh> test_base_;
+  const raw_ptr<InProcessBrowserTest> test_base_;
   UserContext user_context_;
   std::string access_token_{FakeGaiaMixin::kFakeAllScopeAccessToken};
 };
@@ -435,8 +437,8 @@ void AssistantTestMixin::SendTextQuery(const std::string& query) {
 template <typename T>
 T AssistantTestMixin::SyncCall(
     base::OnceCallback<void(base::OnceCallback<void(T)>)> func) {
-  const base::test::ScopedRunLoopTimeout run_timeout(FROM_HERE,
-                                                     kDefaultWaitTimeout);
+  const base::test::ScopedRunLoopTimeout run_timeout(
+      FROM_HERE, TestTimeouts::action_timeout());
 
   base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
   T result;
@@ -455,8 +457,8 @@ T AssistantTestMixin::SyncCall(
   return result;
 }
 
-template absl::optional<double> AssistantTestMixin::SyncCall(
-    base::OnceCallback<void(base::OnceCallback<void(absl::optional<double>)>)>
+template std::optional<double> AssistantTestMixin::SyncCall(
+    base::OnceCallback<void(base::OnceCallback<void(std::optional<double>)>)>
         func);
 
 void AssistantTestMixin::ExpectCardResponse(
@@ -528,16 +530,12 @@ std::vector<base::TimeDelta> AssistantTestMixin::ExpectAndReturnTimersResponse(
                         base::SplitResult::SPLIT_WANT_ALL);
 
   // Transform the textual representation of our timers into TimeDelta objects.
-  std::vector<base::TimeDelta> timers;
-  base::ranges::transform(timers_as_strings, std::back_inserter(timers),
-                          [](const std::string& timer_as_string) {
-                            int seconds_remaining = 0;
-                            base::StringToInt(timer_as_string,
-                                              &seconds_remaining);
-                            return base::Seconds(seconds_remaining);
-                          });
-
-  return timers;
+  return base::ToVector(
+      timers_as_strings, [](const std::string& timer_as_string) {
+        int seconds_remaining = 0;
+        base::StringToInt(timer_as_string, &seconds_remaining);
+        return base::Seconds(seconds_remaining);
+      });
 }
 
 void AssistantTestMixin::PressAssistantKey() {

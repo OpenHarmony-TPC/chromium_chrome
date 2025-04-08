@@ -8,14 +8,14 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/user_manager/user.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace extensions::profile_util {
 
 bool ProfileCanUseNonComponentExtensions(const Profile* profile) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   if (!profile || !ash::ProfileHelper::IsUserProfile(profile)) {
     return false;
   }
@@ -31,17 +31,15 @@ bool ProfileCanUseNonComponentExtensions(const Profile* profile) {
   // includes guest and public users (which cannot use non-component
   // extensions) so instead only look for those user types that can use them.
   switch (user->GetType()) {
-    case user_manager::USER_TYPE_REGULAR:
-    case user_manager::USER_TYPE_CHILD:
-    case user_manager::USER_TYPE_ACTIVE_DIRECTORY:
+    case user_manager::UserType::kRegular:
+    case user_manager::UserType::kChild:
       return true;
 
-    case user_manager::USER_TYPE_GUEST:
-    case user_manager::USER_TYPE_PUBLIC_ACCOUNT:
-    case user_manager::USER_TYPE_KIOSK_APP:
-    case user_manager::USER_TYPE_ARC_KIOSK_APP:
-    case user_manager::USER_TYPE_WEB_KIOSK_APP:
-    case user_manager::NUM_USER_TYPES:
+    case user_manager::UserType::kGuest:
+    case user_manager::UserType::kPublicAccount:
+    case user_manager::UserType::kKioskApp:
+    case user_manager::UserType::kWebKioskApp:
+    case user_manager::UserType::kKioskIWA:
       return false;
   }
 }
@@ -51,6 +49,6 @@ bool ProfileCanUseNonComponentExtensions(const Profile* profile) {
   }
   return profile->IsRegularProfile();
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace extensions::profile_util

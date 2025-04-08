@@ -14,11 +14,13 @@
 #include "base/supports_user_data.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_tab_strip_tracker.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 
 TabStripModelStatsRecorder::TabStripModelStatsRecorder()
-    : browser_tab_strip_tracker_(this, nullptr) {
-  browser_tab_strip_tracker_.Init();
+    : browser_tab_strip_tracker_(
+          std::make_unique<BrowserTabStripTracker>(this, nullptr)) {
+  browser_tab_strip_tracker_->Init();
 }
 
 TabStripModelStatsRecorder::~TabStripModelStatsRecorder() {
@@ -72,7 +74,6 @@ void TabStripModelStatsRecorder::TabInfo::UpdateState(TabState new_state) {
     case TabState::CLOSED:
     case TabState::MAX:
       NOTREACHED();
-      break;
   }
 
   current_state_ = new_state;
@@ -100,22 +101,11 @@ void TabStripModelStatsRecorder::OnActiveTabChanged(
 
   DCHECK(new_contents);
   TabInfo* tab_info = TabInfo::Get(new_contents);
-
-  bool was_inactive = tab_info->state() == TabState::INACTIVE;
   tab_info->UpdateState(TabState::ACTIVE);
 
   // A UMA Histogram must be bounded by some number.
   // We chose 64 as our bound as 99.5% of the users open <64 tabs.
   const int kMaxTabHistory = 64;
-  auto it = base::ranges::find(active_tab_history_, new_contents);
-  int age = (it != active_tab_history_.cend()) ?
-      (it - active_tab_history_.cbegin()) : (kMaxTabHistory - 1);
-  if (was_inactive) {
-    UMA_HISTOGRAM_ENUMERATION(
-        "Tabs.StateTransfer.NumberOfOtherTabsActivatedBeforeMadeActive",
-        std::min(age, kMaxTabHistory - 1), kMaxTabHistory);
-  }
-
   active_tab_history_.insert(active_tab_history_.begin(), new_contents);
   if (active_tab_history_.size() > kMaxTabHistory)
     active_tab_history_.resize(kMaxTabHistory);

@@ -28,15 +28,6 @@
 #include "net/base/features.h"
 #include "net/base/ip_address.h"
 
-namespace {
-
-// Experiment with which event triggers the preconnect after commit.
-BASE_FEATURE(kPreconnectOnDidFinishNavigation,
-             "PreconnectOnDidFinishNavigation",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-}  // namespace
-
 NavigationPredictorPreconnectClient::NavigationPredictorPreconnectClient(
     content::WebContents* web_contents)
     : content::WebContentsObserver(web_contents),
@@ -80,7 +71,7 @@ void NavigationPredictorPreconnectClient::DidFinishNavigation(
   if (!navigation_handle->IsSameDocument()) {
     is_publicly_routable_ = false;
 
-    absl::optional<bool> is_publicly_routable =
+    std::optional<bool> is_publicly_routable =
         IsPubliclyRoutable(navigation_handle);
 
     if (is_publicly_routable) {
@@ -88,10 +79,7 @@ void NavigationPredictorPreconnectClient::DidFinishNavigation(
     }
   }
 
-  if ((!base::FeatureList::IsEnabled(
-           features::
-               kNavigationPredictorEnablePreconnectOnSameDocumentNavigations) &&
-       navigation_handle->IsSameDocument())) {
+  if (navigation_handle->IsSameDocument()) {
     return;
   }
 
@@ -101,15 +89,8 @@ void NavigationPredictorPreconnectClient::DidFinishNavigation(
   // New page, so stop the preconnect timer.
   timer_.Stop();
 
-  if (base::FeatureList::IsEnabled(kPreconnectOnDidFinishNavigation) ||
-      navigation_handle->IsSameDocument()) {
-    int delay_ms = base::GetFieldTrialParamByFeatureAsInt(
-        kPreconnectOnDidFinishNavigation, "delay_after_commit_in_ms", 3000);
-    if (delay_ms <= 0) {
-      MaybePreconnectNow(/*preconnects_attempted=*/0u);
-      return;
-    }
-
+  if (navigation_handle->IsSameDocument()) {
+    constexpr int delay_ms = 3000;
     timer_.Start(
         FROM_HERE, base::Milliseconds(delay_ms),
         base::BindOnce(&NavigationPredictorPreconnectClient::MaybePreconnectNow,
@@ -208,8 +189,8 @@ void NavigationPredictorPreconnectClient::MaybePreconnectNow(
     return;
 
   loading_predictor->PrepareForPageLoad(
-      preconnect_url_serialized, predictors::HintOrigin::NAVIGATION_PREDICTOR,
-      true);
+      preconnect_origin, preconnect_url_serialized,
+      predictors::HintOrigin::NAVIGATION_PREDICTOR, true);
 
   // The delay beyond the idle socket timeout that net uses when
   // re-preconnecting. If negative, no retries occur.
@@ -236,7 +217,7 @@ bool NavigationPredictorPreconnectClient::IsSearchEnginePage() const {
       web_contents()->GetLastCommittedURL());
 }
 
-absl::optional<bool> NavigationPredictorPreconnectClient::IsPubliclyRoutable(
+std::optional<bool> NavigationPredictorPreconnectClient::IsPubliclyRoutable(
     content::NavigationHandle* navigation_handle) const {
   net::IPEndPoint remote_endpoint = navigation_handle->GetSocketAddress();
   net::IPAddress page_ip_address_ = remote_endpoint.address();
@@ -244,7 +225,7 @@ absl::optional<bool> NavigationPredictorPreconnectClient::IsPubliclyRoutable(
   // Sometimes the IP address may not be set (e.g., if the socket is being
   // reused).
   if (!page_ip_address_.IsValid()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (!enable_preconnects_for_local_ips_for_testing_) {

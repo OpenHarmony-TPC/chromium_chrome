@@ -61,14 +61,15 @@ void PopulateExtensionInfo(
   extension_info->set_installed_by_default(
       extension.was_installed_by_default());
   extension_info->set_installed_by_oem(extension.was_installed_by_oem());
-  // TODO(crbug.com/1065748): Remove this setter.
+  // TODO(crbug.com/40124309): Remove this setter.
   extension_info->set_from_bookmark(false);
   extension_info->set_from_webstore(extension.from_webstore());
   extension_info->set_converted_from_user_script(
       extension.converted_from_user_script());
   extension_info->set_may_be_untrusted(extension.may_be_untrusted());
   extension_info->set_install_time_msec(
-      extension_prefs.GetLastUpdateTime(extension.id()).ToJavaTime());
+      extension_prefs.GetLastUpdateTime(extension.id())
+          .InMillisecondsSinceUnixEpoch());
 
   std::unique_ptr<extensions::InstallSignature> signature_from_prefs =
       extensions::InstallSignature::FromDict(

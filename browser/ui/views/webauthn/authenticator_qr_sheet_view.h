@@ -6,14 +6,17 @@
 #define CHROME_BROWSER_UI_VIEWS_WEBAUTHN_AUTHENTICATOR_QR_SHEET_VIEW_H_
 
 #include <memory>
+#include <string>
+#include <utility>
 
-#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/webauthn/authenticator_request_sheet_view.h"
 #include "chrome/browser/ui/webauthn/sheet_models.h"
-
-class AuthenticatorQRViewCentered;
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/views/view.h"
 
 class AuthenticatorQRSheetView : public AuthenticatorRequestSheetView {
+  METADATA_HEADER(AuthenticatorQRSheetView, AuthenticatorRequestSheetView)
+
  public:
   explicit AuthenticatorQRSheetView(
       std::unique_ptr<AuthenticatorQRSheetModel> model);
@@ -28,7 +31,6 @@ class AuthenticatorQRSheetView : public AuthenticatorRequestSheetView {
   std::pair<std::unique_ptr<views::View>, AutoFocus> BuildStepSpecificContent()
       override;
 
-  raw_ptr<AuthenticatorQRViewCentered> qr_view_ = nullptr;
   const std::string qr_string_;
 };
 

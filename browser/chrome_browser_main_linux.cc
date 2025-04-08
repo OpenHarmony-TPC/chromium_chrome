@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -17,13 +18,19 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/common/chrome_features.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
+#include "components/password_manager/core/browser/password_manager_switches.h"
 #include "content/public/browser/browser_thread.h"
 #include "device/bluetooth/dbus/bluez_dbus_manager.h"
 #include "device/bluetooth/dbus/bluez_dbus_thread_manager.h"
 #include "ui/base/l10n/l10n_util.h"
 
+#if BUILDFLAG(IS_LINUX)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/chromeos/tast_support/stack_sampling_recorder.h"
 #include "chrome/installer/util/google_update_settings.h"
 #endif
 
@@ -36,13 +43,11 @@
 #endif
 
 #if !BUILDFLAG(IS_CHROMEOS_ASH)
-#include "base/command_line.h"
 #include "base/linux_util.h"
 #include "chrome/common/chrome_paths_internal.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/os_crypt/sync/key_storage_config_linux.h"
 #include "components/os_crypt/sync/os_crypt.h"
-#include "content/public/browser/browser_thread.h"
 #endif
 
 ChromeBrowserMainPartsLinux::ChromeBrowserMainPartsLinux(
@@ -54,9 +59,16 @@ ChromeBrowserMainPartsLinux::~ChromeBrowserMainPartsLinux() {
 }
 
 void ChromeBrowserMainPartsLinux::PostCreateMainMessageLoop() {
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
-  // No-op: Ash and Lacros Bluetooth DBusManager initialization depend on
-  // FeatureList, and is done elsewhere.
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+#if BUILDFLAG(IS_CHROMEOS)
+  if (command_line->HasSwitch(
+          chromeos::tast_support::kRecordStackSamplingDataSwitch)) {
+    stack_sampling_recorder_ =
+        base::MakeRefCounted<chromeos::tast_support::StackSamplingRecorder>();
+    stack_sampling_recorder_->Start();
+  }
+  // Don't initialize DBus here. Ash and Lacros Bluetooth DBusManager
+  // initialization depend on FeatureList, and is done elsewhere.
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -71,22 +83,27 @@ void ChromeBrowserMainPartsLinux::PostCreateMainMessageLoop() {
   std::unique_ptr<os_crypt::Config> config =
       std::make_unique<os_crypt::Config>();
   // Forward to os_crypt the flag to use a specific password store.
-  config->store = base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-      switches::kPasswordStore);
+  config->store =
+      command_line->GetSwitchValueASCII(password_manager::kPasswordStore);
   // Forward the product name
   config->product_name = l10n_util::GetStringUTF8(IDS_PRODUCT_NAME);
-  // OSCrypt may target keyring, which requires calls from the main thread.
-  config->main_thread_runner = content::GetUIThreadTaskRunner({});
   // OSCrypt can be disabled in a special settings file.
   config->should_use_preference =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kEnableEncryptionSelection);
+          password_manager::kEnableEncryptionSelection);
   chrome::GetDefaultUserDataDirectory(&config->user_data_path);
   OSCrypt::SetConfig(std::move(config));
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
   ChromeBrowserMainPartsPosix::PostCreateMainMessageLoop();
 }
+
+#if BUILDFLAG(IS_LINUX)
+void ChromeBrowserMainPartsLinux::PostMainMessageLoopRun() {
+  ChromeBrowserMainPartsPosix::PostMainMessageLoopRun();
+  ui::OzonePlatform::GetInstance()->PostMainMessageLoopRun();
+}
+#endif
 
 void ChromeBrowserMainPartsLinux::PreProfileInit() {
 #if !BUILDFLAG(IS_CHROMEOS_ASH)
@@ -114,13 +131,12 @@ void ChromeBrowserMainPartsLinux::PostBrowserStart() {
         std::make_unique<DbusMemoryPressureEvaluatorLinux>(
             monitor->CreateVoter()));
   }
-
   ChromeBrowserMainPartsPosix::PostBrowserStart();
 }
-#endif  // defined(USE_DBUS) && !BUILDFLAG(IS_CHROMEOS)
+#endif  // (defined(USE_DBUS) && !BUILDFLAG(IS_CHROMEOS))
 
 void ChromeBrowserMainPartsLinux::PostDestroyThreads() {
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_CHROMEOS)
   // No-op; per PostBrowserStart() comment, this is done elsewhere.
 #else
   bluez::BluezDBusManager::Shutdown();

@@ -7,16 +7,18 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/locales.gni")
 import("//chrome/common/features.gni")
 import("//tools/grit/grit_rule.gni")
+import("//arkweb/build/features/features.gni")
 
 assert(!is_ios, "Chromium/iOS shouldn't use anything in //chrome")
+assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
 
 grit("locale_settings") {
   source = "locale_settings.grd"
   defines = chrome_grit_defines
   output_dir = "$root_gen_dir/chrome"
 
-  #ifdef ohos_i18n
-  if (is_ohos && ohos_i18n) {
+  #ifdef arkweb_i18n
+  if (arkweb_i18n) {
     all_chrome_locales += extra_locales
   }
 
@@ -38,15 +40,15 @@ grit("platform_locale_settings") {
     } else {
       source = "locale_settings_chromiumos.grd"
     }
-  } else if (is_posix || is_fuchsia) {
+  } else if (is_posix) {
     # All other POSIX systems and Fuchsia use the Linux one.
     source = "locale_settings_linux.grd"
   }
 
   defines = chrome_grit_defines
 
-  #ifdef ohos_i18n
-  if (is_ohos && ohos_i18n) {
+  #ifdef arkweb_i18n
+  if (arkweb_i18n) {
     locales_with_pseudolocales += extra_locales
   }
 

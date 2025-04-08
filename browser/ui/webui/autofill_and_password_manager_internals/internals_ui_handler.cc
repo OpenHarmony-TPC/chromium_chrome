@@ -13,6 +13,8 @@
 #include "components/autofill/core/browser/logging/log_router.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/grit/dev_ui_components_resources.h"
+#include "components/password_manager/core/common/password_manager_pref_names.h"
+#include "components/prefs/pref_service.h"
 #include "components/version_info/version_info.h"
 #include "components/version_ui/version_handler_helper.h"
 #include "components/version_ui/version_ui_constants.h"
@@ -20,9 +22,10 @@
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "services/network/public/mojom/content_security_policy.mojom.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "components/password_manager/core/browser/password_manager_eviction_util.h"
+#include "chrome/browser/password_manager/android/password_manager_eviction_util.h"
 #endif
 
 using autofill::LogRouter;
@@ -33,6 +36,9 @@ void CreateAndAddInternalsHTMLSource(Profile* profile,
                                      const std::string& source_name) {
   content::WebUIDataSource* source =
       content::WebUIDataSource::CreateAndAdd(profile, source_name);
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ScriptSrc,
+      "script-src chrome://resources chrome://webui-test 'self';");
   source->AddResourcePath("autofill_and_password_manager_internals.js",
                           IDR_AUTOFILL_AND_PASSWORD_MANAGER_INTERNALS_JS);
   source->SetDefaultResource(IDR_AUTOFILL_AND_PASSWORD_MANAGER_INTERNALS_HTML);
@@ -107,6 +113,10 @@ void InternalsUIHandler::RegisterMessages() {
       "resetUpmEviction",
       base::BindRepeating(&InternalsUIHandler::OnResetUpmEviction,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "resetAccountStorageNotice",
+      base::BindRepeating(&InternalsUIHandler::OnResetAccountStorageNotice,
+                          base::Unretained(this)));
 #endif
 }
 
@@ -133,9 +143,8 @@ void InternalsUIHandler::OnLoaded(const base::Value::List& args) {
 #if BUILDFLAG(IS_ANDROID)
   auto* prefs = Profile::FromWebUI(web_ui())->GetPrefs();
 
-  FireWebUIListener(
-      "enable-reset-upm-eviction-button",
-      base::Value(password_manager_upm_eviction::IsCurrentUserEvicted(prefs)));
+  FireWebUIListener("enable-reset-upm-eviction-button",
+                    password_manager_upm_eviction::IsCurrentUserEvicted(prefs));
 #endif
 }
 
@@ -155,8 +164,28 @@ void InternalsUIHandler::OnResetCacheDone(const std::string& message) {
 #if BUILDFLAG(IS_ANDROID)
 void InternalsUIHandler::OnResetUpmEviction(const base::Value::List& args) {
   auto* prefs = Profile::FromWebUI(web_ui())->GetPrefs();
-  password_manager_upm_eviction::ReenrollCurrentUser(prefs);
-  FireWebUIListener("enable-reset-upm-eviction-button", base::Value(false));
+  bool is_user_unenrolled =
+      password_manager_upm_eviction::IsCurrentUserEvicted(prefs);
+  if (is_user_unenrolled) {
+    prefs->ClearPref(password_manager::prefs::
+                         kUnenrolledFromGoogleMobileServicesDueToErrors);
+  } else {
+    prefs->SetBoolean(
+        password_manager::prefs::kUnenrolledFromGoogleMobileServicesDueToErrors,
+        true);
+    prefs->SetInteger(
+        password_manager::prefs::kCurrentMigrationVersionToGoogleMobileServices,
+        0);
+    prefs->SetDouble(password_manager::prefs::kTimeOfLastMigrationAttempt, 0.0);
+  }
+  FireWebUIListener("enable-reset-upm-eviction-button",
+                    base::Value(!is_user_unenrolled));
+}
+
+void InternalsUIHandler::OnResetAccountStorageNotice(
+    const base::Value::List& args) {
+  Profile::FromWebUI(web_ui())->GetPrefs()->ClearPref(
+      password_manager::prefs::kAccountStorageNoticeShown);
 }
 #endif
 

@@ -22,9 +22,7 @@ using extensions::SharedModuleInfo;
 namespace {
 
 std::string HashHost(const std::string& host) {
-  const std::string id_hash = base::SHA1HashString(host);
-  DCHECK_EQ(id_hash.length(), base::kSHA1Length);
-  return base::HexEncode(id_hash.c_str(), id_hash.length());
+  return base::HexEncode(base::SHA1Hash(base::as_byte_span(host)));
 }
 
 bool HostIsInSet(const std::string& host, const std::set<std::string>& set) {
@@ -37,7 +35,11 @@ bool IsExtensionOrSharedModuleAllowed(
     const GURL& url,
     const extensions::ExtensionSet* extension_set,
     const std::set<std::string>& allowlist) {
-  if (!url.is_valid() || !url.SchemeIs(extensions::kExtensionScheme))
+  if (!url.is_valid() || (!url.SchemeIs(extensions::kExtensionScheme)
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+                          && !url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+                              ))
     return false;
 
   const std::string host = url.host();
@@ -82,7 +84,11 @@ bool IsHostAllowedByCommandLine(const GURL& url,
   const std::string host = url.host();
   if (allowed_list == "*") {
     // For now, we only allow packaged and platform apps in this wildcard.
-    if (!extension_set || !url.SchemeIs(extensions::kExtensionScheme))
+    if (!extension_set || (!url.SchemeIs(extensions::kExtensionScheme)
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+                           && !url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+                               ))
       return false;
 
     const Extension* extension = extension_set->GetByID(host);

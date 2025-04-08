@@ -8,6 +8,8 @@ import android.content.res.Resources;
 
 import androidx.annotation.Nullable;
 
+import dagger.Lazy;
+
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browserservices.ui.TrustedWebActivityModel;
 import org.chromium.chrome.browser.dependency_injection.ActivityScope;
@@ -17,41 +19,40 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 
 import javax.inject.Inject;
 
-import dagger.Lazy;
-
 /**
- * Implements the new "Running in Chrome" Snackbar behavior, taking over from
- * {@link DisclosureInfobar}.
+ * Implements the new "Running in Chrome" Snackbar behavior, taking over from {@link
+ * DisclosureInfobar}.
  *
- * As opposed to {@link DisclosureInfobar} the Snackbar shown by this class is
- * transient (lasting 7 seconds) and only is shown at first launch (not on subsequent navigation
- * back to the verified origin).
+ * <p>As opposed to {@link DisclosureInfobar} the Snackbar shown by this class is transient (lasting
+ * 7 seconds) and only is shown at first launch (not on subsequent navigation back to the verified
+ * origin).
  *
- * Thread safety: All methods should be called on the UI thread.
+ * <p>Thread safety: All methods should be called on the UI thread.
  */
 @ActivityScope
 public class DisclosureSnackbar extends DisclosureInfobar {
-    // TODO(crbug.com/1068106): Once this feature is enabled by default, remove
+    // TODO(crbug.com/40125323): Once this feature is enabled by default, remove
     // TrustedWebActivityDisclosureView and simplify this class.
 
     private static final int DURATION_MS = 7000;
 
     private final Resources mResources;
-    private final TrustedWebActivityModel mModel;
 
     private boolean mShown;
 
     @Inject
-    DisclosureSnackbar(Resources resources, Lazy<SnackbarManager> snackbarManager,
-            TrustedWebActivityModel model, ActivityLifecycleDispatcher lifecycleDispatcher) {
+    DisclosureSnackbar(
+            Resources resources,
+            Lazy<SnackbarManager> snackbarManager,
+            TrustedWebActivityModel model,
+            ActivityLifecycleDispatcher lifecycleDispatcher) {
         super(resources, snackbarManager, model, lifecycleDispatcher);
         mResources = resources;
-        mModel = model;
     }
 
     @Override
-    @Nullable
-    protected Snackbar makeRunningInChromeInfobar(SnackbarManager.SnackbarController controller) {
+    protected @Nullable Snackbar makeRunningInChromeInfobar(
+            SnackbarManager.SnackbarController controller) {
         if (mShown) return null;
         mShown = true;
 

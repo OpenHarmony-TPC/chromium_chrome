@@ -10,9 +10,9 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/net/proxy_test_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -23,8 +23,6 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_source.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -50,7 +48,8 @@ namespace {
 
 // Verify kPACScript is installed as the PAC script.
 void VerifyProxyScript(Browser* browser) {
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser, GURL("http://google.com")));
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser, GURL("https://google.com")));
 
   // Verify we get the ERR_PROXY_CONNECTION_FAILED screen.
   EXPECT_EQ(true, content::EvalJs(
@@ -60,35 +59,6 @@ void VerifyProxyScript(Browser* browser) {
                       "textContent.indexOf('ERR_PROXY_CONNECTION_FAILED') >= 0;"
                       "hasError;"));
 }
-
-// This class observes chrome::NOTIFICATION_AUTH_NEEDED and supplies
-// the credential which is required by the test proxy server.
-// "foo:bar" is the required username and password for our test proxy server.
-class LoginPromptObserver : public content::NotificationObserver {
- public:
-  LoginPromptObserver() : auth_handled_(false) {}
-
-  LoginPromptObserver(const LoginPromptObserver&) = delete;
-  LoginPromptObserver& operator=(const LoginPromptObserver&) = delete;
-
-  void Observe(int type,
-               const content::NotificationSource& source,
-               const content::NotificationDetails& details) override {
-    if (type == chrome::NOTIFICATION_AUTH_NEEDED) {
-      LoginNotificationDetails* login_details =
-          content::Details<LoginNotificationDetails>(details).ptr();
-      // |login_details->handler()| is the associated LoginHandler object.
-      // SetAuth() will close the login dialog.
-      login_details->handler()->SetAuth(u"foo", u"bar");
-      auth_handled_ = true;
-    }
-  }
-
-  bool auth_handled() const { return auth_handled_; }
-
- private:
-  bool auth_handled_;
-};
 
 // Test that the browser can establish a WebSocket connection via a proxy
 // that requires basic authentication. This test also checks the headers
@@ -101,13 +71,6 @@ IN_PROC_BROWSER_TEST_F(ProxyBrowserTest, BasicAuthWSConnect) {
 
   content::WebContents* tab =
       browser()->tab_strip_model()->GetActiveWebContents();
-  content::NavigationController* controller = &tab->GetController();
-  content::NotificationRegistrar registrar;
-  // The proxy server will request basic authentication.
-  // |observer| supplies the credential.
-  LoginPromptObserver observer;
-  registrar.Add(&observer, chrome::NOTIFICATION_AUTH_NEEDED,
-                content::Source<content::NavigationController>(controller));
 
   content::TitleWatcher watcher(tab, u"PASS");
   watcher.AlsoWaitForTitle(u"FAIL");
@@ -120,13 +83,16 @@ IN_PROC_BROWSER_TEST_F(ProxyBrowserTest, BasicAuthWSConnect) {
       browser(), ws_server.GetURL("proxied_request_check.html")
                      .ReplaceComponents(replacements)));
 
+  ASSERT_TRUE(base::test::RunUntil(
+      []() { return LoginHandler::GetAllLoginHandlersForTest().size() == 1; }));
+  LoginHandler::GetAllLoginHandlersForTest().front()->SetAuth(u"foo", u"bar");
+
   const std::u16string result = watcher.WaitAndGetTitle();
   EXPECT_TRUE(base::EqualsASCII(result, "PASS"));
-  EXPECT_TRUE(observer.auth_handled());
 }
 
 // Fetches a PAC script via an http:// URL, and ensures that requests to
-// http://www.google.com fail with ERR_PROXY_CONNECTION_FAILED (by virtue of
+// https://www.google.com fail with ERR_PROXY_CONNECTION_FAILED (by virtue of
 // PAC file having selected a non-existent PROXY server).
 class BaseHttpProxyScriptBrowserTest : public InProcessBrowserTest {
  public:
@@ -157,7 +123,8 @@ class BaseHttpProxyScriptBrowserTest : public InProcessBrowserTest {
   net::EmbeddedTestServer http_server_;
 };
 
-// Tests the use of a PAC script that rejects requests to http://www.google.com/
+// Tests the use of a PAC script that rejects requests to
+// https://www.google.com/
 class HttpProxyScriptBrowserTest : public BaseHttpProxyScriptBrowserTest {
  public:
   HttpProxyScriptBrowserTest() = default;
@@ -180,7 +147,7 @@ IN_PROC_BROWSER_TEST_F(HttpProxyScriptBrowserTest, Verify) {
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 // Tests the use of a PAC script set via Web Proxy Autodiscovery Protocol.
-// TODO(crbug.com/991867): Add a test case for when DhcpWpadUrlClient
+// TODO(crbug.com/41475031): Add a test case for when DhcpWpadUrlClient
 // returns an empty PAC URL.
 class WPADHttpProxyScriptBrowserTest : public HttpProxyScriptBrowserTest {
  public:
@@ -218,8 +185,9 @@ IN_PROC_BROWSER_TEST_F(WPADHttpProxyScriptBrowserTest, Verify) {
 }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
-// Tests the use of a PAC script that rejects requests to http://www.google.com/
-// when myIpAddress() and myIpAddressEx() appear to be working.
+// Tests the use of a PAC script that rejects requests to
+// https://www.google.com/ when myIpAddress() and myIpAddressEx() appear to be
+// working.
 class MyIpAddressProxyScriptBrowserTest
     : public BaseHttpProxyScriptBrowserTest {
  public:

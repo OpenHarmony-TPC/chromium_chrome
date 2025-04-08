@@ -5,13 +5,14 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TABS_TAB_SLOT_CONTROLLER_H_
 #define CHROME_BROWSER_UI_VIEWS_TABS_TAB_SLOT_CONTROLLER_H_
 
+#include <optional>
 #include <string>
 
+#include "build/build_config.h"
 #include "chrome/browser/ui/tabs/tab_types.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkColor.h"
-#include "ui/base/ui_base_types.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 
 class Browser;
 class Tab;
@@ -95,7 +96,7 @@ class TabSlotController {
   virtual void ToggleTabGroupCollapsedState(
       const tab_groups::TabGroupId group,
       ToggleTabGroupCollapsedStateOrigin origin =
-          ToggleTabGroupCollapsedStateOrigin::kImplicitAction) = 0;
+          ToggleTabGroupCollapsedStateOrigin::kMenuAction) = 0;
 
   // Notify this controller of a tab group editor bubble opening/closing.
   virtual void NotifyTabGroupEditorBubbleOpened() = 0;
@@ -104,7 +105,7 @@ class TabSlotController {
   // Shows a context menu for the tab at the specified point in screen coords.
   virtual void ShowContextMenuForTab(Tab* tab,
                                      const gfx::Point& p,
-                                     ui::MenuSourceType source_type) = 0;
+                                     ui::mojom::MenuSourceType source_type) = 0;
 
   // Returns whether |tab| is the active tab. The active tab is the one whose
   // content is shown in the browser.
@@ -122,6 +123,9 @@ class TabSlotController {
   // Returns true if any tab or one of its children has focus.
   virtual bool IsFocusInTabs() const = 0;
 
+  // Returns true if The tab should have a compacted leading edge.
+  virtual bool ShouldCompactLeadingEdge() const = 0;
+
   // Potentially starts a drag for the specified Tab.
   virtual void MaybeStartDrag(
       TabSlotView* source,
@@ -131,7 +135,7 @@ class TabSlotController {
   // Continues dragging a Tab. May enter a nested event loop - returns
   // Liveness::kDeleted if `this` was destroyed during this nested event loop,
   // and Liveness::kAlive if `this` is still alive.
-  virtual Liveness ContinueDrag(
+  [[nodiscard]] virtual Liveness ContinueDrag(
       views::View* view,
       const ui::LocatedEvent& event) = 0;
 
@@ -156,9 +160,6 @@ class TabSlotController {
   // how the show, hide, or update will be processed.
   virtual void UpdateHoverCard(Tab* tab, HoverCardUpdateType update_type) = 0;
 
-  // Returns whether domain/origin should be shown in tab hover cards.
-  virtual bool ShowDomainInHoverCards() const = 0;
-
   // Returns true if the hover card is showing for the given tab.
   virtual bool HoverCardIsShowingForTab(Tab* tab) = 0;
 
@@ -179,18 +180,8 @@ class TabSlotController {
   // frame.
   virtual bool HasVisibleBackgroundTabShapes() const = 0;
 
-  // Returns whether the tab strip should be painted as if the window frame is
-  // active.
-  virtual bool ShouldPaintAsActiveFrame() const = 0;
-
   // Returns the color of the separator between the tabs.
   virtual SkColor GetTabSeparatorColor() const = 0;
-
-  // Returns the tab background color based on both the |tab_state| and the
-  // |active_state| of the window.
-  virtual SkColor GetTabBackgroundColor(
-      TabActive active,
-      BrowserFrameActiveState active_state) const = 0;
 
   // Returns the tab foreground color of the the text based on `active` and the
   // activation state of the window.
@@ -198,7 +189,7 @@ class TabSlotController {
 
   // Returns the background tab image resource ID if the image has been
   // customized, directly or indirectly, by the theme.
-  virtual absl::optional<int> GetCustomBackgroundId(
+  virtual std::optional<int> GetCustomBackgroundId(
       BrowserFrameActiveState active_state) const = 0;
 
   // Returns the accessible tab name for this tab.
@@ -243,6 +234,19 @@ class TabSlotController {
   virtual void ShiftGroupRight(const tab_groups::TabGroupId& group) = 0;
 
   virtual const Browser* GetBrowser() const = 0;
+
+  // Returns the current width of inactive tabs. An individual inactive tab may
+  // differ from this width slightly due to rounding.
+  virtual int GetInactiveTabWidth() const = 0;
+
+  // See BrowserNonClientFrameView::IsFrameCondensed().
+  virtual bool IsFrameCondensed() const = 0;
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Returns whether the current app instance is locked for OnTask. Only
+  // relevant for non-web browser scenarios.
+  virtual bool IsLockedForOnTask() = 0;
+#endif
 
  protected:
   virtual ~TabSlotController() = default;

@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/containers/adapters.h"
@@ -53,18 +54,14 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/web_contents_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/page_state/page_state.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chromeos/ash/components/login/login_state/login_state.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/startup/browser_init_params.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/components/kiosk/kiosk_test_utils.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 using content::NavigationEntry;
 using sessions::ContentTestHelper;
@@ -83,9 +80,8 @@ class SessionServiceTest : public BrowserWithTestWindowTest {
     helper_.SetService(session_service_.get());
 
     service()->SetWindowType(window_id, Browser::TYPE_NORMAL);
-    service()->SetWindowBounds(window_id,
-                               window_bounds,
-                               ui::SHOW_STATE_NORMAL);
+    service()->SetWindowBounds(window_id, window_bounds,
+                               ui::mojom::WindowShowState::kNormal);
     service()->SetWindowWorkspace(window_id, window_workspace);
   }
 
@@ -94,14 +90,14 @@ class SessionServiceTest : public BrowserWithTestWindowTest {
     BrowserWithTestWindowTest::TearDown();
   }
 
-  absl::optional<SessionServiceEvent> FindMostRecentEventOfType(
+  std::optional<SessionServiceEvent> FindMostRecentEventOfType(
       SessionServiceEventLogType type) {
     auto events = GetSessionServiceEvents(browser()->profile());
     for (const SessionServiceEvent& event : base::Reversed(events)) {
       if (event.type == type)
         return event;
     }
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   void DestroySessionService() {
@@ -191,28 +187,11 @@ class SessionServiceTest : public BrowserWithTestWindowTest {
 
     const gfx::Rect window2_bounds(3, 4, 5, 6);
     service()->SetWindowType(window2_id, Browser::TYPE_NORMAL);
-    service()->SetWindowBounds(window2_id,
-                               window2_bounds,
-                               ui::SHOW_STATE_MAXIMIZED);
+    service()->SetWindowBounds(window2_id, window2_bounds,
+                               ui::mojom::WindowShowState::kMaximized);
     helper_.PrepareTabInWindow(window2_id, tab2_id, 0, true);
     UpdateNavigation(window2_id, tab2_id, *nav2, true);
   }
-
-#if BUILDFLAG(IS_CHROMEOS)
-  void FakeKioskSession() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    ASSERT_TRUE(ash::LoginState::IsInitialized());
-    ash::LoginState::Get()->SetLoggedInState(
-        ash::LoginState::LoggedInState::LOGGED_IN_ACTIVE,
-        ash::LoginState::LoggedInUserType::LOGGED_IN_USER_KIOSK);
-#else   // BUILDFLAG(IS_CHROMEOS_LACROS)
-    crosapi::mojom::BrowserInitParamsPtr init_params =
-        chromeos::BrowserInitParams::GetForTests()->Clone();
-    init_params->session_type = crosapi::mojom::SessionType::kWebKioskSession;
-    chromeos::BrowserInitParams::SetInitParamsForTests(std::move(init_params));
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
   SessionService* service() { return helper_.service(); }
 
@@ -395,15 +374,15 @@ TEST_F(SessionServiceTest, TwoWindows) {
   sessions::SessionTab* rt2;
   if (windows[0]->window_id == window_id) {
     ASSERT_EQ(window2_id, windows[1]->window_id);
-    ASSERT_EQ(ui::SHOW_STATE_NORMAL, windows[0]->show_state);
-    ASSERT_EQ(ui::SHOW_STATE_MAXIMIZED, windows[1]->show_state);
+    ASSERT_EQ(ui::mojom::WindowShowState::kNormal, windows[0]->show_state);
+    ASSERT_EQ(ui::mojom::WindowShowState::kMaximized, windows[1]->show_state);
     rt1 = windows[0]->tabs[0].get();
     rt2 = windows[1]->tabs[0].get();
   } else {
     ASSERT_EQ(window2_id, windows[0]->window_id);
     ASSERT_EQ(window_id, windows[1]->window_id);
-    ASSERT_EQ(ui::SHOW_STATE_MAXIMIZED, windows[0]->show_state);
-    ASSERT_EQ(ui::SHOW_STATE_NORMAL, windows[1]->show_state);
+    ASSERT_EQ(ui::mojom::WindowShowState::kMaximized, windows[0]->show_state);
+    ASSERT_EQ(ui::mojom::WindowShowState::kNormal, windows[1]->show_state);
     rt1 = windows[1]->tabs[0].get();
     rt2 = windows[0]->tabs[0].get();
   }
@@ -429,9 +408,8 @@ TEST_F(SessionServiceTest, WindowWithNoTabsGetsPruned) {
 
   const gfx::Rect window2_bounds(3, 4, 5, 6);
   service()->SetWindowType(window2_id, Browser::TYPE_NORMAL);
-  service()->SetWindowBounds(window2_id,
-                             window2_bounds,
-                             ui::SHOW_STATE_NORMAL);
+  service()->SetWindowBounds(window2_id, window2_bounds,
+                             ui::mojom::WindowShowState::kNormal);
   helper_.PrepareTabInWindow(window2_id, tab2_id, 0, true);
 
   std::vector<std::unique_ptr<sessions::SessionWindow>> windows;
@@ -551,9 +529,8 @@ TEST_F(SessionServiceTest, WindowCloseCommittedAfterNavigate) {
   ASSERT_NE(window2_id, window_id);
 
   service()->SetWindowType(window2_id, Browser::TYPE_NORMAL);
-  service()->SetWindowBounds(window2_id,
-                             window_bounds,
-                             ui::SHOW_STATE_NORMAL);
+  service()->SetWindowBounds(window2_id, window_bounds,
+                             ui::mojom::WindowShowState::kNormal);
 
   SerializedNavigationEntry nav1 =
       ContentTestHelper::CreateNavigation("http://google.com", "abc");
@@ -912,14 +889,13 @@ TEST_F(SessionServiceTest, DontPersistDefault) {
       ContentTestHelper::CreateNavigation("http://google.com", "abc");
   helper_.PrepareTabInWindow(window_id, tab_id, 0, true);
   UpdateNavigation(window_id, tab_id, nav1, true);
-  service()->SetWindowBounds(window_id,
-                             window_bounds,
-                             ui::SHOW_STATE_DEFAULT);
+  service()->SetWindowBounds(window_id, window_bounds,
+                             ui::mojom::WindowShowState::kDefault);
 
   std::vector<std::unique_ptr<sessions::SessionWindow>> windows;
   ReadWindows(&windows, nullptr);
   ASSERT_EQ(1U, windows.size());
-  EXPECT_EQ(ui::SHOW_STATE_NORMAL, windows[0]->show_state);
+  EXPECT_EQ(ui::mojom::WindowShowState::kNormal, windows[0]->show_state);
 }
 
 TEST_F(SessionServiceTest, KeepPostDataWithoutPasswords) {
@@ -1160,15 +1136,15 @@ TEST_F(SessionServiceTest, TabGroupDefaultsToNone) {
 
   // Verify that the recorded tab has no group.
   sessions::SessionTab* tab = windows[0]->tabs[0].get();
-  EXPECT_EQ(absl::nullopt, tab->group);
+  EXPECT_EQ(std::nullopt, tab->group);
 }
 
 TEST_F(SessionServiceTest, TabGroupsSaved) {
   const tab_groups::TabGroupId group1 = tab_groups::TabGroupId::GenerateNew();
   const tab_groups::TabGroupId group2 = tab_groups::TabGroupId::GenerateNew();
   constexpr int kNumTabs = 5;
-  const std::array<absl::optional<tab_groups::TabGroupId>, kNumTabs> groups = {
-      absl::nullopt, group1, group1, absl::nullopt, group2};
+  const std::array<std::optional<tab_groups::TabGroupId>, kNumTabs> groups = {
+      std::nullopt, group1, group1, std::nullopt, group2};
 
   // Create |kNumTabs| tabs with group IDs in |groups|.
   for (int tab_ndx = 0; tab_ndx < kNumTabs; ++tab_ndx) {
@@ -1200,17 +1176,22 @@ TEST_F(SessionServiceTest, TabGroupMetadataSaved) {
                                      tab_groups::TabGroupColorId::kBlue),
       tab_groups::TabGroupVisualData(u"Bar",
                                      tab_groups::TabGroupColorId::kGreen)};
-  const std::array<absl::optional<std::string>, kNumGroups> saved_guids = {
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), absl::nullopt};
+  const std::array<std::optional<std::string>, kNumGroups> saved_guids = {
+      base::Uuid::GenerateRandomV4().AsLowercaseString(), std::nullopt};
 
   // Create |kNumGroups| tab groups, each with one tab.
   for (int group_ndx = 0; group_ndx < kNumGroups; ++group_ndx) {
     const SessionID tab_id =
         CreateTabWithTestNavigationData(window_id, group_ndx);
     service()->SetTabGroup(window_id, tab_id, group_ids[group_ndx]);
+
+    if (saved_guids[group_ndx]) {
+      service()->AddSavedTabGroupsMapping(group_ids[group_ndx],
+                                          saved_guids[group_ndx].value());
+    }
+
     service()->SetTabGroupMetadata(window_id, group_ids[group_ndx],
-                                   &visual_data[group_ndx],
-                                   saved_guids[group_ndx]);
+                                   &visual_data[group_ndx]);
   }
 
   std::vector<std::unique_ptr<sessions::SessionWindow>> windows;
@@ -1235,7 +1216,7 @@ TEST_F(SessionServiceTest, TabGroupMetadataSaved) {
       EXPECT_EQ(saved_guids[group_ndx],
                 tab_groups[group_id]->saved_guid.value());
     } else {
-      EXPECT_EQ(absl::nullopt, tab_groups[group_id]->saved_guid);
+      EXPECT_EQ(std::nullopt, tab_groups[group_id]->saved_guid);
     }
   }
 }
@@ -1479,7 +1460,18 @@ TEST_F(SessionServiceTest, DisableSaving) {
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
-TEST_F(SessionServiceTest, OpenedWindowNotRestoredInKiosk) {
+class SessionServiceKioskTest : public SessionServiceTest {
+ public:
+  void LogIn(const std::string& email) override {
+    chromeos::SetUpFakeKioskSession(email);
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+    ash_test_helper()->test_session_controller_client()->AddUserSession(
+        email, user_manager::UserType::kKioskApp);
+#endif
+  }
+};
+
+TEST_F(SessionServiceTest, OpenedWindowNotRestored) {
   // These preparation is necessary for `ShouldRestore` function to return true
   // in the regular user session.
   helper_.SetHasOpenTrackableBrowsers(false);
@@ -1487,8 +1479,13 @@ TEST_F(SessionServiceTest, OpenedWindowNotRestoredInKiosk) {
   service()->WindowClosed(window_id);
   // Make sure `ShouldRestore` returns true for the regular user session.
   EXPECT_TRUE(session_service_->ShouldRestore(browser()));
+}
 
-  FakeKioskSession();
+TEST_F(SessionServiceKioskTest, OpenedWindowNotRestored) {
+  helper_.SetHasOpenTrackableBrowsers(false);
+  service()->WindowClosing(window_id);
+  service()->WindowClosed(window_id);
+  // Make sure `ShouldRestore` returns true for the kiosk user session.
   EXPECT_FALSE(session_service_->ShouldRestore(browser()));
 }
 #endif  //  BUILDFLAG(IS_CHROMEOS)

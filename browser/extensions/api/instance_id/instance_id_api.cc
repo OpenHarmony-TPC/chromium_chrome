@@ -42,10 +42,9 @@ const char* InstanceIDResultToError(instance_id::InstanceID::Result result) {
     case instance_id::InstanceID::UNKNOWN_ERROR:
       return kUnknownError;
     default:
-       NOTREACHED() << "Unexpected value of result cannot be converted: "
-                    << result;
+      NOTREACHED() << "Unexpected value of result cannot be converted: "
+                   << result;
   }
-  return "";
 }
 
 }  // namespace
@@ -94,7 +93,7 @@ ExtensionFunction::ResponseAction InstanceIDGetCreationTimeFunction::DoWork() {
 
 void InstanceIDGetCreationTimeFunction::GetCreationTimeCompleted(
     const base::Time& creation_time) {
-  Respond(WithArguments(creation_time.ToDoubleT()));
+  Respond(WithArguments(creation_time.InSecondsFSinceUnixEpoch()));
 }
 
 InstanceIDGetTokenFunction::InstanceIDGetTokenFunction() {}
@@ -102,7 +101,7 @@ InstanceIDGetTokenFunction::InstanceIDGetTokenFunction() {}
 InstanceIDGetTokenFunction::~InstanceIDGetTokenFunction() {}
 
 ExtensionFunction::ResponseAction InstanceIDGetTokenFunction::DoWork() {
-  absl::optional<api::instance_id::GetToken::Params> params =
+  std::optional<api::instance_id::GetToken::Params> params =
       api::instance_id::GetToken::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -129,7 +128,7 @@ InstanceIDDeleteTokenFunction::InstanceIDDeleteTokenFunction() {}
 InstanceIDDeleteTokenFunction::~InstanceIDDeleteTokenFunction() {}
 
 ExtensionFunction::ResponseAction InstanceIDDeleteTokenFunction::DoWork() {
-  absl::optional<api::instance_id::DeleteToken::Params> params =
+  std::optional<api::instance_id::DeleteToken::Params> params =
       api::instance_id::DeleteToken::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 

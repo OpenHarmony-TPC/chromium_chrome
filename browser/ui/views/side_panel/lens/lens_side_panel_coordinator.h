@@ -12,24 +12,22 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/side_panel/lens/lens_unified_side_panel_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_observer.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_view_state_observer.h"
 #include "components/omnibox/browser/favicon_cache.h"
 #include "components/search_engines/template_url_service_observer.h"
 #include "ui/gfx/image/image.h"
 
 class Browser;
+class SidePanelCoordinator;
+class SidePanelEntryScope;
 
 // LensSidePanelCoordinator handles the creation and registration of the
 // LensUnifiedSidePanelEntry.
 class LensSidePanelCoordinator
     : public BrowserUserData<LensSidePanelCoordinator>,
-      public SidePanelViewStateObserver,
       public SidePanelEntryObserver,
       public TemplateURLServiceObserver {
  public:
   explicit LensSidePanelCoordinator(Browser* browser);
-  LensSidePanelCoordinator(const LensSidePanelCoordinator&) = delete;
-  LensSidePanelCoordinator& operator=(const LensSidePanelCoordinator&) = delete;
   ~LensSidePanelCoordinator() override;
 
   // Registers lens entry in the side panel and shows side panel with lens
@@ -46,6 +44,11 @@ class LensSidePanelCoordinator
 
   bool IsLaunchButtonEnabledForTesting();
 
+  base::WeakPtr<lens::LensUnifiedSidePanelView>
+  GetLensUnifiedSidePanelViewForTesting() {
+    return lens_side_panel_view_;
+  }
+
  private:
   friend class BrowserUserData<LensSidePanelCoordinator>;
 
@@ -61,10 +64,18 @@ class LensSidePanelCoordinator
   // Get the favicon to display in the side panel combobox dropdown.
   const ui::ImageModel GetFaviconImage();
 
+  // Get the lens action item that shows the lens sidepanel.
+  actions::ActionItem* GetActionItem();
+
+  // Updates the text and image of the lens sidepanel action item.
+  void UpdateActionItem();
+
   // This is a callback called after fetching favicon from favicon_cache.
   void OnFaviconFetched(const gfx::Image& favicon);
 
   BrowserView* GetBrowserView();
+
+  SidePanelCoordinator* GetSidePanelCoordinator();
 
   // Removes the lens entry from the side panel.
   void DeregisterLensFromSidePanel();
@@ -77,11 +88,9 @@ class LensSidePanelCoordinator
   // TemplateURLServiceObserver
   void OnTemplateURLServiceChanged() override;
 
-  // SidePanelViewStateObserver
-  void OnSidePanelDidClose() override;
-
   std::unique_ptr<views::View> CreateLensWebView(
-      const content::OpenURLParams& params);
+      const content::OpenURLParams& params,
+      SidePanelEntryScope& scope);
 
   raw_ptr<TemplateURLService> template_url_service_;
   base::WeakPtr<lens::LensUnifiedSidePanelView> lens_side_panel_view_;
@@ -93,4 +102,4 @@ class LensSidePanelCoordinator
   BROWSER_USER_DATA_KEY_DECL();
 };
 
-#endif  // CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_LENS_SIDE_PANEL_COORDINATOR_H_
+#endif  // CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_LENS_LENS_SIDE_PANEL_COORDINATOR_H_

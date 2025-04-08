@@ -15,10 +15,13 @@
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
+#include "chrome/browser/web_applications/os_integration/os_integration_test_override.h"
 #include "chrome/browser/web_applications/os_integration/web_app_protocol_handler_registration.h"
+#include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
+#include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "components/services/app_service/public/cpp/protocol_handler_info.h"
 #include "url/gurl.h"
@@ -48,22 +51,23 @@ void RecordProtocolHandlingResult(const std::string histogram_name,
 
 ProtocolHandlingSubManager::ProtocolHandlingSubManager(
     const base::FilePath& profile_path,
-    WebAppRegistrar& registrar)
-    : profile_path_(profile_path), registrar_(registrar) {}
+    WebAppProvider& provider)
+    : profile_path_(profile_path), provider_(provider) {}
 
 ProtocolHandlingSubManager::~ProtocolHandlingSubManager() = default;
 
 void ProtocolHandlingSubManager::Configure(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     proto::WebAppOsIntegrationState& desired_state,
     base::OnceClosure configure_done) {
   DCHECK(!desired_state.has_protocols_handled());
-  if (!registrar_->IsLocallyInstalled(app_id)) {
+  if (provider_->registrar_unsafe().GetInstallState(app_id) !=
+      proto::INSTALLED_WITH_OS_INTEGRATION) {
     std::move(configure_done).Run();
     return;
   }
 
-  const WebApp* web_app = registrar_->GetAppById(app_id);
+  const WebApp* web_app = provider_->registrar_unsafe().GetAppById(app_id);
   DCHECK(web_app);
 
   for (const auto& protocol_handler : web_app->protocol_handlers()) {
@@ -81,8 +85,8 @@ void ProtocolHandlingSubManager::Configure(
 }
 
 void ProtocolHandlingSubManager::Execute(
-    const AppId& app_id,
-    const absl::optional<SynchronizeOsOptions>& synchronize_options,
+    const webapps::AppId& app_id,
+    const std::optional<SynchronizeOsOptions>& synchronize_options,
     const proto::WebAppOsIntegrationState& desired_state,
     const proto::WebAppOsIntegrationState& current_state,
     base::OnceClosure callback) {
@@ -92,6 +96,8 @@ void ProtocolHandlingSubManager::Execute(
     std::move(callback).Run();
     return;
   }
+
+  CHECK_OS_INTEGRATION_ALLOWED();
 
   // Handle unregistration case.
   if (current_state.has_protocols_handled() &&
@@ -108,8 +114,8 @@ void ProtocolHandlingSubManager::Execute(
   if (!current_state.has_protocols_handled() &&
       desired_state.has_protocols_handled()) {
     RegisterProtocolHandlersWithOs(
-        app_id, registrar_->GetAppShortName(app_id), profile_path_,
-        GetApprovedProtocolHandlers(desired_state),
+        app_id, provider_->registrar_unsafe().GetAppShortName(app_id),
+        profile_path_, GetApprovedProtocolHandlers(desired_state),
         base::BindOnce(&RecordProtocolHandlingResult,
                        "WebApp.ProtocolHandlers.Registration.Result")
             .Then(std::move(callback)));
@@ -135,8 +141,8 @@ void ProtocolHandlingSubManager::Execute(
   // needs to happen.
   auto register_and_complete =
       base::BindOnce(&RegisterProtocolHandlersWithOs, app_id,
-                     registrar_->GetAppShortName(app_id), profile_path_,
-                     GetApprovedProtocolHandlers(desired_state),
+                     provider_->registrar_unsafe().GetAppShortName(app_id),
+                     profile_path_, GetApprovedProtocolHandlers(desired_state),
                      base::BindOnce(&RecordProtocolHandlingResult,
                                     "WebApp.ProtocolHandlers.Update.Result")
                          .Then(std::move(callback)));
@@ -145,10 +151,13 @@ void ProtocolHandlingSubManager::Execute(
       base::IgnoreArgs<Result>(std::move(register_and_complete)));
 }
 
-// TODO(b/279068663): Implement if needed.
-void ProtocolHandlingSubManager::ForceUnregister(const AppId& app_id,
+void ProtocolHandlingSubManager::ForceUnregister(const webapps::AppId& app_id,
                                                  base::OnceClosure callback) {
-  std::move(callback).Run();
+  UnregisterProtocolHandlersWithOs(
+      app_id, profile_path_,
+      base::BindOnce(&RecordProtocolHandlingResult,
+                     "WebApp.ProtocolHandlers.Unregistration.Result")
+          .Then(std::move(callback)));
 }
 
 }  // namespace web_app

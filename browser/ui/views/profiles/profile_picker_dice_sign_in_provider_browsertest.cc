@@ -13,12 +13,12 @@
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/signin/signin_features.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_web_contents_host.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/profile_deletion_observer.h"
 #include "components/signin/public/base/signin_metrics.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/test/browser_test.h"
@@ -52,6 +52,10 @@ class MockHost : public ProfilePickerWebContentsHost {
   MOCK_METHOD(web_modal::WebContentsModalDialogHost*,
               GetWebContentsModalDialogHost,
               ());
+  MOCK_METHOD(void, Reset, (StepSwitchFinishedCallback callback));
+  MOCK_METHOD(void,
+              ShowForceSigninErrorDialog,
+              (const ForceSigninUIError& error, bool success));
 };
 
 Profile* GetContentsProfile(content::WebContents* contents) {
@@ -60,20 +64,10 @@ Profile* GetContentsProfile(content::WebContents* contents) {
 
 }  // namespace
 
-class ProfilePickerDiceSignInProviderBrowserTest
-    : public InProcessBrowserTest,
-      public testing::WithParamInterface<bool> {
+class ProfilePickerDiceSignInProviderBrowserTest : public InProcessBrowserTest {
  public:
-  ProfilePickerDiceSignInProviderBrowserTest() {
-    if (should_use_promo_gaia_flow()) {
-      scoped_feature_list_.InitAndEnableFeature(kPromoGaiaFlow);
-    } else {
-      scoped_feature_list_.InitAndDisableFeature(kPromoGaiaFlow);
-    }
-  }
+  ProfilePickerDiceSignInProviderBrowserTest() = default;
   ~ProfilePickerDiceSignInProviderBrowserTest() override = default;
-
-  bool should_use_promo_gaia_flow() const { return GetParam(); }
 
   testing::NiceMock<MockHost>* host() { return &host_; }
 
@@ -82,7 +76,7 @@ class ProfilePickerDiceSignInProviderBrowserTest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_P(ProfilePickerDiceSignInProviderBrowserTest,
+IN_PROC_BROWSER_TEST_F(ProfilePickerDiceSignInProviderBrowserTest,
                        SwitchToSignInThenExit) {
   ProfileDeletionObserver observer;
   base::FilePath provider_profile_path;
@@ -105,11 +99,7 @@ IN_PROC_BROWSER_TEST_P(ProfilePickerDiceSignInProviderBrowserTest,
           EXPECT_NE(browser()->profile()->GetPath(), provider_profile_path);
 
           EXPECT_TRUE(url.spec().starts_with(kExpectedSigninBaseUrl));
-          if (should_use_promo_gaia_flow()) {
-            EXPECT_THAT(url.query(), HasSubstr("flow=promo"));
-          } else {
-            EXPECT_THAT(url.query(), Not(HasSubstr("flow")));
-          }
+          EXPECT_THAT(url.query(), HasSubstr("flow=promo"));
 
           std::move(callback).Run();
         });
@@ -131,7 +121,7 @@ IN_PROC_BROWSER_TEST_P(ProfilePickerDiceSignInProviderBrowserTest,
   EXPECT_EQ(entry, nullptr);
 }
 
-IN_PROC_BROWSER_TEST_P(ProfilePickerDiceSignInProviderBrowserTest,
+IN_PROC_BROWSER_TEST_F(ProfilePickerDiceSignInProviderBrowserTest,
                        SwitchToSignInThenExit_ForFirstRun) {
   base::FilePath provider_profile_path;
   base::RunLoop switch_finished_loop;
@@ -154,8 +144,6 @@ IN_PROC_BROWSER_TEST_P(ProfilePickerDiceSignInProviderBrowserTest,
           EXPECT_EQ(browser()->profile()->GetPath(), provider_profile_path);
 
           EXPECT_TRUE(url.spec().starts_with(kExpectedSigninBaseUrl));
-
-          // Regardless of `kPromoGaiaFlow`, we use the promo flow.
           EXPECT_THAT(url.query(), HasSubstr("flow=promo"));
 
           std::move(callback).Run();
@@ -171,11 +159,3 @@ IN_PROC_BROWSER_TEST_P(ProfilePickerDiceSignInProviderBrowserTest,
   // Since a profile has been passed in, the provider should not delete it.
   EXPECT_FALSE(IsProfileDirectoryMarkedForDeletion(provider_profile_path));
 }
-
-INSTANTIATE_TEST_SUITE_P(,
-                         ProfilePickerDiceSignInProviderBrowserTest,
-                         testing::Bool(),
-                         [](const ::testing::TestParamInfo<bool>& params) {
-                           return params.param ? "WithPromoGaiaFlow"
-                                               : "NoPromoGaiaFlow";
-                         });

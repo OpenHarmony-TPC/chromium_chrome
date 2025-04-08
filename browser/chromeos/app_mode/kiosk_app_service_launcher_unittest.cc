@@ -4,28 +4,42 @@
 
 #include "chrome/browser/chromeos/app_mode/kiosk_app_service_launcher.h"
 
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
-#include "ash/constants/app_types.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
+#include "base/time/time.h"
+#include "build/buildflag.h"
 #include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/app_service_test.h"
+#include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/apps/app_service/publishers/app_publisher.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
+#include "components/services/app_service/public/cpp/app.h"
+#include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"
+#include "components/services/app_service/public/cpp/icon_types.h"
+#include "components/services/app_service/public/cpp/instance.h"
+#include "components/services/app_service/public/cpp/instance_registry.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
+namespace chromeos {
 
 namespace {
 
 using ::testing::_;
+
+#define EXPECT_NO_CALLS(args...) EXPECT_CALL(args).Times(0);
 
 constexpr apps::AppType kTestAppType = apps::AppType::kChromeApp;
 constexpr char kTestAppId[] = "abcdefghabcdefghabcdefghabcdefgh";
@@ -34,7 +48,9 @@ class FakePublisher final : public apps::AppPublisher {
  public:
   FakePublisher(apps::AppServiceProxy* proxy, apps::AppType app_type)
       : AppPublisher(proxy) {
+#if !BUILDFLAG(IS_CHROMEOS_LACROS)
     RegisterPublisher(app_type);
+#endif
   }
 
   MOCK_METHOD4(Launch,
@@ -79,10 +95,19 @@ class KioskAppServiceLauncherTest : public BrowserWithTestWindowTest {
   void TearDown() override {
     publisher_.reset();
     launcher_.reset();
+    app_service_ = nullptr;
     BrowserWithTestWindowTest::TearDown();
   }
 
  protected:
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  void UpdateAppState(const char* app_id, apps::InstanceState state) {
+    apps::InstanceParams params(app_id, /*window=*/nullptr);
+    params.state = std::make_pair(state, base::Time::Now());
+    app_service_->InstanceRegistry().CreateOrUpdateInstance(std::move(params));
+  }
+#endif
+
   void UpdateAppReadiness(apps::Readiness readiness) {
     std::vector<apps::AppPtr> apps;
     auto app = std::make_unique<apps::App>(kTestAppType, kTestAppId);
@@ -90,12 +115,12 @@ class KioskAppServiceLauncherTest : public BrowserWithTestWindowTest {
     app->app_type = kTestAppType;
     app->readiness = readiness;
     apps.push_back(std::move(app));
-    app_service_->AppRegistryCache().OnApps(
-        std::move(apps), kTestAppType, false /* should_notify_initialized */);
+    app_service_->OnApps(std::move(apps), kTestAppType,
+                         /*should_notify_initialized=*/false);
   }
 
   apps::AppServiceTest app_service_test_;
-  raw_ptr<apps::AppServiceProxy, ExperimentalAsh> app_service_ = nullptr;
+  raw_ptr<apps::AppServiceProxy> app_service_ = nullptr;
 
   std::unique_ptr<FakePublisher> publisher_;
   std::unique_ptr<KioskAppServiceLauncher> launcher_;
@@ -164,4 +189,84 @@ TEST_F(KioskAppServiceLauncherTest, ShouldLaunchIfAppReady) {
                                apps::Readiness::kReady, 1);
 }
 
-}  // namespace ash
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+TEST_F(KioskAppServiceLauncherTest, ShouldInvokeVisibleCallback) {
+  base::MockOnceCallback<void()> visible_callback;
+
+  launcher_->CheckAndMaybeLaunchApp(kTestAppId, base::DoNothing(),
+                                    visible_callback.Get());
+
+  EXPECT_CALL(visible_callback, Run()).Times(1);
+
+  UpdateAppState(kTestAppId, apps::InstanceState::kVisible);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(KioskAppServiceLauncherTest,
+       ShouldNotInvokeVisibleCallbackForOtherAppStates) {
+  base::MockOnceCallback<void()> visible_callback;
+
+  launcher_->CheckAndMaybeLaunchApp(kTestAppId, base::DoNothing(),
+                                    visible_callback.Get());
+
+  EXPECT_NO_CALLS(visible_callback, Run);
+  UpdateAppState(kTestAppId, apps::InstanceState::kHidden);
+
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(KioskAppServiceLauncherTest,
+       ShouldNotInvokeVisibleCallbackForOtherApps) {
+  base::MockOnceCallback<void()> visible_callback;
+
+  launcher_->CheckAndMaybeLaunchApp(kTestAppId, base::DoNothing(),
+                                    visible_callback.Get());
+
+  EXPECT_NO_CALLS(visible_callback, Run);
+  UpdateAppState("AnotherAppId", apps::InstanceState::kVisible);
+
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(KioskAppServiceLauncherTest,
+       ShouldInvokeLaunchedCallbackFirstIfAppBecomesVisible) {
+  ::testing::InSequence enforce_call_order;
+
+  base::MockOnceCallback<void()> visible_callback;
+  base::MockOnceCallback<void(bool)> launched_callback;
+
+  launcher_->CheckAndMaybeLaunchApp(kTestAppId, launched_callback.Get(),
+                                    visible_callback.Get());
+
+  EXPECT_CALL(launched_callback, Run(true)).Times(1);
+  EXPECT_CALL(visible_callback, Run).Times(1);
+
+  UpdateAppState(kTestAppId, apps::InstanceState::kVisible);
+
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(KioskAppServiceLauncherTest,
+       ShouldNotInvokeLaunchedCallbackTwiceIfAppBecomesVisible) {
+  base::MockOnceCallback<void()> visible_callback;
+  base::MockOnceCallback<void(bool)> launched_callback;
+
+  launcher_->CheckAndMaybeLaunchApp(kTestAppId, launched_callback.Get(),
+                                    visible_callback.Get());
+
+  // Launched callback is invoked when the app is ready...
+  EXPECT_CALL(launched_callback, Run(true)).Times(1);
+  UpdateAppReadiness(apps::Readiness::kReady);
+  base::RunLoop().RunUntilIdle();
+  ::testing::Mock::VerifyAndClearExpectations(&launched_callback);
+
+  // So it should not be invoked a second time when the app becomes visible.
+  EXPECT_NO_CALLS(launched_callback, Run);
+  EXPECT_CALL(visible_callback, Run).Times(1);
+
+  UpdateAppState(kTestAppId, apps::InstanceState::kVisible);
+  base::RunLoop().RunUntilIdle();
+}
+#endif
+
+}  // namespace chromeos

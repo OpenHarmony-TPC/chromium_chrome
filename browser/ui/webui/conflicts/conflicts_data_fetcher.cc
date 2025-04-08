@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/webui/conflicts/conflicts_data_fetcher.h"
 
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/strings/string_util.h"
@@ -64,10 +65,10 @@ constexpr char kAllowedSameDirectory[] =
     "Allowed - In executable directory (dev builds only)";
 #endif
 
-void AppendString(base::StringPiece input, std::string* output) {
+void AppendString(std::string_view input, std::string* output) {
   if (!output->empty())
     *output += ", ";
-  output->append(input.data(), input.size());
+  output->append(input);
 }
 
 // Returns a string describing the current module blocking status: loaded or
@@ -103,7 +104,6 @@ std::string GetBlockingDecisionString(
   switch (blocking_state.blocking_decision) {
     case BlockingDecision::kUnknown:
       NOTREACHED();
-      break;
     case BlockingDecision::kNotLoaded:
       return kNotLoaded;
     case BlockingDecision::kAllowedInProcessType:
@@ -174,7 +174,6 @@ std::string GetModuleWarningDecisionString(
     case WarningDecision::kAddedToBlocklist:
     case WarningDecision::kUnknown:
       NOTREACHED();
-      break;
   }
 
   return std::string();
@@ -240,7 +239,7 @@ enum ThirdPartyFeaturesStatus {
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 ThirdPartyFeaturesStatus GetThirdPartyFeaturesStatus(
-    absl::optional<ThirdPartyConflictsManager::State>
+    std::optional<ThirdPartyConflictsManager::State>
         third_party_conflicts_manager_state) {
   // The ThirdPartyConflictsManager instance exists if we have its state.
   if (third_party_conflicts_manager_state.has_value()) {
@@ -273,7 +272,6 @@ ThirdPartyFeaturesStatus GetThirdPartyFeaturesStatus(
   // The above 3 cases are the only possible reasons why the manager wouldn't
   // exist.
   NOTREACHED();
-  return kFeatureDisabled;
 }
 #endif
 
@@ -326,7 +324,7 @@ void OnConflictsDataFetched(
 void OnModuleDataFetched(ConflictsDataFetcher::OnConflictsDataFetchedCallback
                              on_conflicts_data_fetched_callback,
                          base::Value::Dict results,
-                         absl::optional<ThirdPartyConflictsManager::State>
+                         std::optional<ThirdPartyConflictsManager::State>
                              third_party_conflicts_manager_state) {
   OnConflictsDataFetched(
       std::move(on_conflicts_data_fetched_callback), std::move(results),
@@ -405,7 +403,7 @@ void ConflictsDataFetcher::GetListOfModules() {
   module_list_ = base::Value::List();
 
   auto* module_database = ModuleDatabase::GetInstance();
-  module_database->ForceStartInspection();
+  module_database->StartInspection();
   module_database->AddObserver(this);
 }
 
@@ -462,7 +460,7 @@ void ConflictsDataFetcher::OnModuleDatabaseIdle() {
   base::Value::Dict results;
   results.Set("moduleCount", static_cast<int>(module_list_->size()));
   results.Set("moduleList", std::move(*module_list_));
-  module_list_ = absl::nullopt;
+  module_list_ = std::nullopt;
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // The state of third-party features must be determined on the UI thread.

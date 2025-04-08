@@ -77,7 +77,7 @@ class TestFaviconSource : public FaviconSource {
 
   ~TestFaviconSource() override {}
 
-  MOCK_METHOD2(LoadIconBytes, base::RefCountedMemory*(float, int));
+  MOCK_METHOD(base::RefCountedMemory*, LoadIconBytes, (float, int));
 
  protected:
   // FaviconSource:
@@ -95,25 +95,20 @@ class FaviconSourceTestBase : public testing::Test {
   explicit FaviconSourceTestBase(chrome::FaviconUrlFormat format)
       : source_(format, &profile_, &theme_) {
     // Setup testing factories for main dependencies.
-    BrowserContextKeyedServiceFactory::TestingFactory
-        history_ui_favicon_request_handler_factory =
-            base::BindRepeating([](content::BrowserContext*) {
-              return base::WrapUnique<KeyedService>(
-                  new NiceMock<MockHistoryUiFaviconRequestHandler>());
-            });
     mock_history_ui_favicon_request_handler_ =
         static_cast<NiceMock<MockHistoryUiFaviconRequestHandler>*>(
             HistoryUiFaviconRequestHandlerFactory::GetInstance()
                 ->SetTestingFactoryAndUse(
-                    &profile_, history_ui_favicon_request_handler_factory));
-    BrowserContextKeyedServiceFactory::TestingFactory favicon_service_factory =
-        base::BindRepeating([](content::BrowserContext*) {
-          return static_cast<std::unique_ptr<KeyedService>>(
-              std::make_unique<NiceMock<favicon::MockFaviconService>>());
-        });
+                    &profile_, base::BindOnce([](content::BrowserContext*) {
+                      return base::WrapUnique<KeyedService>(
+                          new NiceMock<MockHistoryUiFaviconRequestHandler>());
+                    })));
     mock_favicon_service_ = static_cast<NiceMock<favicon::MockFaviconService>*>(
         FaviconServiceFactory::GetInstance()->SetTestingFactoryAndUse(
-            &profile_, favicon_service_factory));
+            &profile_, base::BindOnce([](content::BrowserContext*) {
+              return static_cast<std::unique_ptr<KeyedService>>(
+                  std::make_unique<NiceMock<favicon::MockFaviconService>>());
+            })));
 
     // Setup TestWebContents.
     test_web_contents_ =
@@ -200,16 +195,6 @@ TEST_F(FaviconSourceTestWithLegacyFormat,
       test_web_contents_getter_, base::DoNothing());
 }
 
-TEST_F(FaviconSourceTestWithLegacyFormat,
-       ShouldRecordFaviconResourceHistogram_NonExtensionOrigin) {
-  base::HistogramTester tester;
-  source()->StartDataRequest(
-      GURL(base::StrCat({kDummyPrefix, "size/16@1x/https://www.google.com"})),
-      test_web_contents_getter_, base::DoNothing());
-  tester.ExpectBucketCount("Extensions.FaviconResourceRequested",
-                           extensions::Manifest::TYPE_EXTENSION, 0);
-}
-
 TEST_F(FaviconSourceTestWithLegacyFormat, ShouldNotQueryIfDesiredSizeTooLarge) {
   EXPECT_CALL(*mock_history_ui_favicon_request_handler_,
               GetRawFaviconForPageURL)
@@ -235,21 +220,6 @@ TEST_F(FaviconSourceTestWithLegacyFormat, ShouldNotQueryIfInvalidScaleFactor) {
   source()->StartDataRequest(
       GURL(base::StrCat({kDummyPrefix, "size/16@-2x/https://www.google.com"})),
       test_web_contents_getter_, base::DoNothing());
-}
-
-TEST_F(FaviconSourceTestWithLegacyFormat,
-       ShouldRecordFaviconResourceHistogram_ExtensionOrigin) {
-  scoped_refptr<const extensions::Extension> extension =
-      extensions::ExtensionBuilder("one").Build();
-  extensions::ExtensionRegistry::Get(&profile_)->AddEnabled(extension);
-  content::WebContentsTester::For(test_web_contents_.get())
-      ->SetLastCommittedURL(extension->url());
-  base::HistogramTester tester;
-  source()->StartDataRequest(
-      GURL(base::StrCat({kDummyPrefix, "size/16@1x/https://www.google.com"})),
-      test_web_contents_getter_, base::DoNothing());
-  tester.ExpectBucketCount("Extensions.FaviconResourceRequested",
-                           extensions::Manifest::TYPE_EXTENSION, 1);
 }
 
 TEST_F(FaviconSourceTestWithFavicon2Format,

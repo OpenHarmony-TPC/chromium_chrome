@@ -7,10 +7,10 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
+#include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/observer_list.h"
@@ -82,7 +82,7 @@ class ExtensionManagement : public KeyedService {
   //                     it afterwards.
   // * kForcePinned: Extension starts pinned to the toolbar, and the user
   //                 cannot unpin it.
-  // TODO(crbug.com/1071314): Add kDefaultPinned state.
+  // TODO(crbug.com/40126725): Add kDefaultPinned state.
   enum class ToolbarPinMode {
     kDefaultUnpinned = 0,
     kForcePinned,
@@ -164,7 +164,27 @@ class ExtensionManagement : public KeyedService {
                                 Manifest::Type manifest_type);
   bool IsAllowedManifestVersion(const Extension* extension);
 
+  // Returns true if the extension associated with the given `extension_id` is
+  // exempt from the MV2 deprecation because of an active admin policy.
+  bool IsExemptFromMV2DeprecationByPolicy(int manifest_version,
+                                          const std::string& extension_id,
+                                          Manifest::Type manifest_type);
+
   bool IsAllowedByUnpublishedAvailabilityPolicy(const Extension* extension);
+
+  // Returns false if the extension is loaded as unpacked and the developer mode
+  // is OFF.
+  bool IsAllowedByUnpackedDeveloperModePolicy(const Extension& extension);
+
+  // Returns true if a force-installed extension is in a low-trust environment.
+  bool IsForceInstalledInLowTrustEnvironment(const Extension& extension);
+
+  // Returns true if an off-store extension is force-installed in low trust
+  // environments. Only trusted environments like domain-joined devices or
+  // cloud-managed user profiles are allowed to force-install off-store
+  // extensions. All other devices and users may still install policy extensions
+  // but they must be hosted within the web store. See https://b/283274398.
+  bool ShouldBlockForceInstalledOffstoreExtension(const Extension& extension);
 
   // Returns the list of blocked API permissions for |extension|.
   APIPermissionSet GetBlockedAPIPermissions(const Extension* extension);
@@ -198,10 +218,6 @@ class ExtensionManagement : public KeyedService {
   // Returns false if an individual scoped setting isn't defined.
   bool UsesDefaultPolicyHostRestrictions(const Extension* extension);
 
-  // Checks if a URL is on the blocked host permissions list for a specific
-  // extension.
-  bool IsPolicyBlockedHost(const Extension* extension, const GURL& url);
-
   // Returns blocked permission set for |extension|.
   std::unique_ptr<const PermissionSet> GetBlockedPermissions(
       const Extension* extension);
@@ -233,13 +249,16 @@ class ExtensionManagement : public KeyedService {
   // aren't deferred).
   ExtensionIdSet GetForcePinnedList() const;
 
+  // Returns if an extension with |id| can navigate to file URLs.
+  bool IsFileUrlNavigationAllowed(const ExtensionId& id);
+
  private:
   using SettingsIdMap =
-      std::unordered_map<ExtensionId,
-                         std::unique_ptr<internal::IndividualSettings>>;
+      base::flat_map<ExtensionId,
+                     std::unique_ptr<internal::IndividualSettings>>;
   using SettingsUpdateUrlMap =
-      std::unordered_map<std::string,
-                         std::unique_ptr<internal::IndividualSettings>>;
+      base::flat_map<std::string,
+                     std::unique_ptr<internal::IndividualSettings>>;
   friend class ExtensionManagementServiceTest;
 
   // Load all extension management preferences from |pref_service|, and
@@ -315,7 +334,7 @@ class ExtensionManagement : public KeyedService {
   // A set of extension IDs whose parsing of settings and insertion into
   // |settings_by_id_| has been deferred until needed. We keep track of this to
   // avoid scanning the prefs repeatedly for entries that don't have a setting.
-  std::unordered_set<std::string> deferred_ids_;
+  base::flat_set<std::string> deferred_ids_;
 
   // Similar to |settings_by_id_|, but contains the settings for a group of
   // extensions with same update URL. The update url itself is used as index
@@ -364,7 +383,7 @@ class ExtensionManagementFactory : public ProfileKeyedServiceFactory {
   ~ExtensionManagementFactory() override;
 
   // BrowserContextKeyedServiceExtensionManagementFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
   void RegisterProfilePrefs(
       user_prefs::PrefRegistrySyncable* registry) override;

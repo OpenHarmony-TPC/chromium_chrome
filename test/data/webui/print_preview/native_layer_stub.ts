@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {CapabilitiesResponse, ExtensionDestinationInfo, GooglePromotedDestinationId, LocalDestinationInfo, NativeInitialSettings, NativeLayer, PageLayoutInfo, PrinterType} from 'chrome://print/print_preview.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import type {CapabilitiesResponse, ExtensionDestinationInfo, LocalDestinationInfo, NativeInitialSettings, NativeLayer, PageLayoutInfo} from 'chrome://print/print_preview.js';
+import {GooglePromotedDestinationId, PrinterType} from 'chrome://print/print_preview.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
@@ -53,15 +54,23 @@ export class NativeLayerStub extends TestBrowserProxy implements NativeLayer {
 
   private pageLayoutInfo_: PageLayoutInfo|null = null;
 
+  /**
+   * Rejects the promise for getPrinters() to simulate getting no response or a
+   * a slow response from the backend.
+   */
+  private simulateNoResponseForGetPrinters_: boolean = false;
+
   constructor() {
     super([
       'dialogClose',
+      'doPrint',
       'getInitialSettings',
       'getPrinters',
       'getPreview',
       'getPrinterCapabilities',
       'hidePreview',
-      'print',
+      'managePrinters',
+      'recordInHistogram',
       'saveAppState',
       'showSystemDialog',
     ]);
@@ -82,6 +91,10 @@ export class NativeLayerStub extends TestBrowserProxy implements NativeLayer {
   }
 
   getPrinters(type: PrinterType) {
+    if (this.simulateNoResponseForGetPrinters_) {
+      return Promise.reject();
+    }
+
     this.methodCalled('getPrinters', type);
     if (this.multipleGetPrintersPromise_) {
       this.multipleGetPrintersCount_--;
@@ -114,7 +127,8 @@ export class NativeLayerStub extends TestBrowserProxy implements NativeLayer {
     const pageRanges = printTicketParsed.pageRange;
     const requestId = printTicketParsed.requestID;
     if (this.pageLayoutInfo_) {
-      webUIListenerCallback('page-layout-ready', this.pageLayoutInfo_, false);
+      webUIListenerCallback(
+          'page-layout-ready', this.pageLayoutInfo_, false, false);
     }
     if (pageRanges.length === 0) {  // assume full length document, 1 page.
       webUIListenerCallback(
@@ -166,8 +180,8 @@ export class NativeLayerStub extends TestBrowserProxy implements NativeLayer {
         Promise.reject();
   }
 
-  print(printTicket: string) {
-    this.methodCalled('print', printTicket);
+  doPrint(printTicket: string) {
+    this.methodCalled('doPrint', printTicket);
     return Promise.resolve(undefined);
   }
 
@@ -179,7 +193,9 @@ export class NativeLayerStub extends TestBrowserProxy implements NativeLayer {
     this.methodCalled('showSystemDialog');
   }
 
-  recordInHistogram() {}
+  recordInHistogram(histogram: string, bucket: number) {
+    this.methodCalled('recordInHistogram', histogram, bucket);
+  }
 
   recordBooleanHistogram() {}
 
@@ -189,7 +205,13 @@ export class NativeLayerStub extends TestBrowserProxy implements NativeLayer {
 
   cancelPendingPrintRequest() {}
 
-  managePrinters() {}
+  managePrinters() {
+    this.methodCalled('managePrinters');
+  }
+
+  // <if expr="is_ohos">
+  systemPrint() {}
+  // </if>
 
   /**
    * settings The settings to return as a response to |getInitialSettings|.
@@ -268,5 +290,10 @@ export class NativeLayerStub extends TestBrowserProxy implements NativeLayer {
     this.multipleGetPrintersCount_ = count;
     this.multipleGetPrintersPromise_ = new PromiseResolver();
     return this.multipleGetPrintersPromise_.promise;
+  }
+
+  setSimulateNoResponseForGetPrinters(simulateNoResponseForGetPrinters:
+                                          boolean) {
+    this.simulateNoResponseForGetPrinters_ = simulateNoResponseForGetPrinters;
   }
 }

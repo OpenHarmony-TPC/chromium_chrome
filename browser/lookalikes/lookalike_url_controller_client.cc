@@ -9,6 +9,7 @@
 
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/lookalikes/lookalike_url_service.h"
+#include "chrome/browser/lookalikes/lookalike_url_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/url_constants.h"
 #include "components/security_interstitials/content/settings_page_helper.h"
@@ -52,11 +53,11 @@ void LookalikeUrlControllerClient::GoBack() {
 
   // Prevent the back button from returning to the bad site.
   params.should_replace_current_entry = true;
-  web_contents_->OpenURL(params);
+  web_contents_->OpenURL(params, /*navigation_handle_callback=*/{});
 }
 
 void LookalikeUrlControllerClient::Proceed() {
-  LookalikeUrlService::Get(
+  LookalikeUrlServiceFactory::GetForProfile(
       Profile::FromBrowserContext(web_contents_->GetBrowserContext()))
       ->SetUserIgnore(request_url_);
   Reload();

@@ -5,77 +5,41 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 
 #include "base/observer_list.h"
+#include "base/time/time.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_observer.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 
-SidePanelEntry::Key::Key(SidePanelEntry::Id id) : id_(id) {
-  DCHECK(id_ != SidePanelEntry::Id::kExtension);
-}
-
-SidePanelEntry::Key::Key(SidePanelEntry::Id id,
-                         extensions::ExtensionId extension_id)
-    : id_(id), extension_id_(extension_id) {
-  DCHECK(id_ == SidePanelEntry::Id::kExtension);
-}
-
-SidePanelEntry::Key::Key(const Key& other) = default;
-
-SidePanelEntry::Key::~Key() = default;
-
-SidePanelEntry::Key& SidePanelEntry::Key::operator=(const Key& other) = default;
-
-bool SidePanelEntry::Key::operator==(const Key& other) const {
-  if (id_ == other.id_) {
-    if (id_ == SidePanelEntry::Id::kExtension) {
-      DCHECK(extension_id_.has_value() && other.extension_id_.has_value());
-      return extension_id_.value() == other.extension_id_.value();
-    }
-    return true;
-  }
-  return false;
-}
-
-bool SidePanelEntry::Key::operator<(const Key& other) const {
-  if (id_ == other.id_ && id_ == SidePanelEntry::Id::kExtension) {
-    DCHECK(extension_id_.has_value() && other.extension_id_.has_value());
-    // TODO(corising): Updating extension sorting
-    return extension_id_.value() < other.extension_id_.value();
-  }
-  return id_ < other.id_;
-}
+DEFINE_UI_CLASS_PROPERTY_KEY(bool, kShouldShowTitleInSidePanelHeaderKey, true)
 
 SidePanelEntry::SidePanelEntry(
     Id id,
-    std::u16string name,
-    ui::ImageModel icon,
-    base::RepeatingCallback<std::unique_ptr<views::View>()>
-        create_content_callback,
-    base::RepeatingCallback<GURL()> open_in_new_tab_url_callback)
-    : key_(id),
-      name_(std::move(name)),
-      icon_(std::move(icon)),
-      create_content_callback_(std::move(create_content_callback)),
-      open_in_new_tab_url_callback_(std::move(open_in_new_tab_url_callback)) {}
+    CreateContentCallback create_content_callback,
+    std::optional<base::RepeatingCallback<GURL()>> open_in_new_tab_url_callback,
+    std::optional<base::RepeatingCallback<std::unique_ptr<ui::MenuModel>()>>
+        more_info_callback)
+    : key_(id), create_content_callback_(std::move(create_content_callback)) {
+  open_in_new_tab_url_callback_ =
+      open_in_new_tab_url_callback.value_or(base::NullCallbackAs<GURL()>());
+  more_info_callback_ = more_info_callback.value_or(
+      base::NullCallbackAs<std::unique_ptr<ui::MenuModel>()>());
+}
 
-SidePanelEntry::SidePanelEntry(
-    Key key,
-    std::u16string name,
-    ui::ImageModel icon,
-    base::RepeatingCallback<std::unique_ptr<views::View>()>
-        create_content_callback)
-    : key_(key),
-      name_(std::move(name)),
-      icon_(std::move(icon)),
-      create_content_callback_(std::move(create_content_callback)) {
+SidePanelEntry::SidePanelEntry(Key key,
+                               CreateContentCallback create_content_callback)
+    : key_(key), create_content_callback_(std::move(create_content_callback)) {
   DCHECK(create_content_callback_);
 }
 
 SidePanelEntry::~SidePanelEntry() = default;
 
 std::unique_ptr<views::View> SidePanelEntry::GetContent() {
-  if (content_view_)
+  CHECK(scope_);
+  if (content_view_) {
     return std::move(content_view_);
-  return create_content_callback_.Run();
+  }
+  entry_show_triggered_timestamp_ = base::TimeTicks::Now();
+  return create_content_callback_.Run(*scope_);
 }
 
 void SidePanelEntry::CacheView(std::unique_ptr<views::View> view) {
@@ -86,23 +50,24 @@ void SidePanelEntry::ClearCachedView() {
   content_view_.reset(nullptr);
 }
 
-void SidePanelEntry::ResetIcon(ui::ImageModel icon) {
-  icon_ = std::move(icon);
-  for (SidePanelEntryObserver& observer : observers_)
-    observer.OnEntryIconUpdated(this);
-}
-
 void SidePanelEntry::OnEntryShown() {
   entry_shown_timestamp_ = base::TimeTicks::Now();
-  SidePanelUtil::RecordEntryShownMetrics(key_.id());
-  for (SidePanelEntryObserver& observer : observers_)
-    observer.OnEntryShown(this);
+  SidePanelUtil::RecordEntryShownMetrics(key_.id(),
+                                         entry_show_triggered_timestamp_);
+  // After the initial load time is recorded, we need to reset the triggered
+  // timestamp so we don't keep recording this entry after its selected from the
+  // combobox.
+  ResetLoadTimestamp();
+  observers_.Notify(&SidePanelEntryObserver::OnEntryShown, this);
+}
+
+void SidePanelEntry::OnEntryWillHide(SidePanelEntryHideReason reason) {
+  observers_.Notify(&SidePanelEntryObserver::OnEntryWillHide, this, reason);
 }
 
 void SidePanelEntry::OnEntryHidden() {
   SidePanelUtil::RecordEntryHiddenMetrics(key_.id(), entry_shown_timestamp_);
-  for (SidePanelEntryObserver& observer : observers_)
-    observer.OnEntryHidden(this);
+  observers_.Notify(&SidePanelEntryObserver::OnEntryHidden, this);
 }
 
 void SidePanelEntry::AddObserver(SidePanelEntryObserver* observer) {
@@ -120,6 +85,22 @@ GURL SidePanelEntry::GetOpenInNewTabURL() const {
   return open_in_new_tab_url_callback_.Run();
 }
 
+std::unique_ptr<ui::MenuModel> SidePanelEntry::GetMoreInfoMenuModel() const {
+  if (more_info_callback_.is_null()) {
+    return nullptr;
+  }
+
+  return more_info_callback_.Run();
+}
+
 bool SidePanelEntry::SupportsNewTabButton() {
   return !open_in_new_tab_url_callback_.is_null();
+}
+
+bool SidePanelEntry::SupportsMoreInfoButton() {
+  return !more_info_callback_.is_null();
+}
+
+void SidePanelEntry::ResetLoadTimestamp() {
+  entry_show_triggered_timestamp_ = base::TimeTicks();
 }

@@ -40,6 +40,12 @@ constexpr DataType DATA_TYPE_ISOLATED_ORIGINS = DATA_TYPE_EMBEDDER_BEGIN << 10;
 constexpr DataType DATA_TYPE_ACCOUNT_PASSWORDS = DATA_TYPE_EMBEDDER_BEGIN << 11;
 constexpr DataType DATA_TYPE_LOCAL_CUSTOM_DICTIONARY = DATA_TYPE_EMBEDDER_BEGIN
                                                        << 12;
+constexpr DataType DATA_TYPE_ISOLATED_WEB_APP_COOKIES = DATA_TYPE_EMBEDDER_BEGIN
+                                                        << 13;
+constexpr DataType DATA_TYPE_READING_LIST = DATA_TYPE_EMBEDDER_BEGIN << 14;
+constexpr DataType DATA_TYPE_TABS = DATA_TYPE_EMBEDDER_BEGIN << 15;
+constexpr DataType DATA_TYPE_SEARCH_ENGINE_CHOICE = DATA_TYPE_EMBEDDER_BEGIN
+                                                    << 16;
 
 // Group datatypes.
 
@@ -54,6 +60,7 @@ constexpr DataType DATA_TYPE_SITE_DATA =
 #endif
     DATA_TYPE_SITE_USAGE_DATA | DATA_TYPE_DURABLE_PERMISSION |
     DATA_TYPE_EXTERNAL_PROTOCOL_DATA | DATA_TYPE_ISOLATED_ORIGINS |
+    DATA_TYPE_ISOLATED_WEB_APP_COOKIES |
     content::BrowsingDataRemover::DATA_TYPE_PRIVACY_SANDBOX;
 
 // Datatypes protected by Important Sites.
@@ -64,7 +71,8 @@ constexpr DataType IMPORTANT_SITES_DATA_TYPES =
 // whichever makes sense.
 constexpr DataType FILTERABLE_DATA_TYPES =
     DATA_TYPE_SITE_DATA | content::BrowsingDataRemover::DATA_TYPE_CACHE |
-    content::BrowsingDataRemover::DATA_TYPE_DOWNLOADS;
+    content::BrowsingDataRemover::DATA_TYPE_DOWNLOADS |
+    content::BrowsingDataRemover::DATA_TYPE_RELATED_WEBSITE_SETS_PERMISSIONS;
 
 // Datatypes with account-scoped data that needs to be removed
 // before Google cookies are deleted.
@@ -80,12 +88,14 @@ constexpr DataType ALL_DATA_TYPES =
     DATA_TYPE_SITE_DATA |  //
     content::BrowsingDataRemover::DATA_TYPE_CACHE |
     content::BrowsingDataRemover::DATA_TYPE_DOWNLOADS |
-    DATA_TYPE_FORM_DATA |         //
-    DATA_TYPE_HISTORY |           //
-    DATA_TYPE_PASSWORDS |         //
-    DATA_TYPE_CONTENT_SETTINGS |  //
-    DATA_TYPE_BOOKMARKS |         //
-    DATA_TYPE_LOCAL_CUSTOM_DICTIONARY;
+    DATA_TYPE_FORM_DATA |                //
+    DATA_TYPE_HISTORY |                  //
+    DATA_TYPE_PASSWORDS |                //
+    DATA_TYPE_CONTENT_SETTINGS |         //
+    DATA_TYPE_BOOKMARKS |                //
+    DATA_TYPE_LOCAL_CUSTOM_DICTIONARY |  //
+    DATA_TYPE_READING_LIST |             //
+    DATA_TYPE_SEARCH_ENGINE_CHOICE;
 
 // Includes all available remove options. Meant to be used when the Profile
 // is scheduled to be deleted, and all possible data should be wiped from

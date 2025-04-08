@@ -14,38 +14,63 @@ import org.chromium.components.browser_ui.widget.dragreorder.DragReorderableRecy
 import org.chromium.components.browser_ui.widget.selectable_list.SelectableListLayout;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectableListToolbar.SearchDelegate;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
+
+import java.util.function.BooleanSupplier;
 
 /** Responsible for the business logic for the BookmarkManagerToolbar. */
 public class BookmarkToolbarCoordinator {
     private final BookmarkToolbar mToolbar;
-    private final BookmarkToolbarMediator mMediator;
     private final PropertyModel mModel;
 
-    BookmarkToolbarCoordinator(Context context,
+    BookmarkToolbarCoordinator(
+            Context context,
             SelectableListLayout<BookmarkId> selectableListLayout,
-            SelectionDelegate selectionDelegate, SearchDelegate searchDelegate,
+            SelectionDelegate<BookmarkId> selectionDelegate,
+            SearchDelegate searchDelegate,
             DragReorderableRecyclerViewAdapter dragReorderableRecyclerViewAdapter,
-            boolean isDialogUi, OneshotSupplier<BookmarkDelegate> bookmarkDelegateSupplier,
-            BookmarkModel bookmarkModel, BookmarkOpener bookmarkOpener,
-            BookmarkUiPrefs bookmarkUiPrefs) {
-        mToolbar = (BookmarkToolbar) selectableListLayout.initializeToolbar(
-                R.layout.bookmark_toolbar, selectionDelegate, 0, R.id.normal_menu_group,
-                R.id.selection_mode_menu_group, null, isDialogUi);
+            boolean isDialogUi,
+            OneshotSupplier<BookmarkDelegate> bookmarkDelegateSupplier,
+            BookmarkModel bookmarkModel,
+            BookmarkOpener bookmarkOpener,
+            BookmarkUiPrefs bookmarkUiPrefs,
+            ModalDialogManager modalDialogManager,
+            Runnable endSearchRunnable,
+            BookmarkMoveSnackbarManager bookmarkMoveSnackbarManager,
+            BooleanSupplier incognitoEnabledSupplier) {
+        mToolbar =
+                (BookmarkToolbar)
+                        selectableListLayout.initializeToolbar(
+                                R.layout.bookmark_toolbar,
+                                selectionDelegate,
+                                0,
+                                R.id.normal_menu_group,
+                                R.id.selection_mode_menu_group,
+                                null,
+                                isDialogUi);
         mToolbar.initializeSearchView(
                 searchDelegate, R.string.bookmark_toolbar_search, R.id.search_menu_id);
 
         mModel = new PropertyModel.Builder(BookmarkToolbarProperties.ALL_KEYS).build();
-        mModel.set(BookmarkToolbarProperties.BOOKMARK_MODEL, bookmarkModel);
-        mModel.set(BookmarkToolbarProperties.BOOKMARK_OPENER, bookmarkOpener);
         mModel.set(BookmarkToolbarProperties.SELECTION_DELEGATE, selectionDelegate);
         mModel.set(BookmarkToolbarProperties.BOOKMARK_UI_MODE, BookmarkUiMode.LOADING);
         mModel.set(BookmarkToolbarProperties.IS_DIALOG_UI, isDialogUi);
         mModel.set(BookmarkToolbarProperties.DRAG_ENABLED, false);
-        mMediator = new BookmarkToolbarMediator(context, mModel, dragReorderableRecyclerViewAdapter,
-                bookmarkDelegateSupplier, selectionDelegate, bookmarkModel, bookmarkOpener,
-                bookmarkUiPrefs);
+        new BookmarkToolbarMediator(
+                context,
+                mModel,
+                dragReorderableRecyclerViewAdapter,
+                bookmarkDelegateSupplier,
+                selectionDelegate,
+                bookmarkModel,
+                bookmarkOpener,
+                bookmarkUiPrefs,
+                new BookmarkAddNewFolderCoordinator(context, modalDialogManager, bookmarkModel),
+                endSearchRunnable,
+                bookmarkMoveSnackbarManager,
+                incognitoEnabledSupplier);
 
         PropertyModelChangeProcessor.create(mModel, mToolbar, BookmarkToolbarViewBinder::bind);
     }

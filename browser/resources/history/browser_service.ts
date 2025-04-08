@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 import {sendWithPromise} from 'chrome://resources/js/cr.js';
+
 import {RESULTS_PER_PAGE} from './constants.js';
-import {ForeignSession, HistoryEntry, HistoryQuery} from './externs.js';
+import type {ForeignSession, HistoryEntry, HistoryQuery} from './externs.js';
 
 export type RemoveVisitsRequest = Array<{
   url: string,
@@ -25,6 +26,7 @@ export interface BrowserService {
   getForeignSessions(): Promise<ForeignSession[]>;
   removeBookmark(url: string): void;
   removeVisits(removalList: RemoveVisitsRequest): Promise<void>;
+  setLastSelectedTab(lastSelectedTab: number): void;
   openForeignSessionAllTabs(sessionTag: string): void;
   openForeignSessionTab(sessionTag: string, tabId: number, e: MouseEvent): void;
   deleteForeignSession(sessionTag: string): void;
@@ -36,7 +38,7 @@ export interface BrowserService {
   navigateToUrl(url: string, target: string, e: MouseEvent): void;
   otherDevicesInitialized(): void;
   queryHistoryContinuation(): Promise<QueryResult>;
-  queryHistory(searchTerm: string): Promise<QueryResult>;
+  queryHistory(searchTerm: string, beginTime?: number): Promise<QueryResult>;
   startTurnOnSyncFlow(): void;
 }
 
@@ -55,6 +57,10 @@ export class BrowserServiceImpl implements BrowserService {
    */
   removeVisits(removalList: RemoveVisitsRequest) {
     return sendWithPromise('removeVisits', removalList);
+  }
+
+  setLastSelectedTab(lastSelectedTab: number) {
+    chrome.send('setLastSelectedTab', [lastSelectedTab]);
   }
 
   openForeignSessionAllTabs(sessionTag: string) {
@@ -121,8 +127,9 @@ export class BrowserServiceImpl implements BrowserService {
     return sendWithPromise('queryHistoryContinuation');
   }
 
-  queryHistory(searchTerm: string) {
-    return sendWithPromise('queryHistory', searchTerm, RESULTS_PER_PAGE);
+  queryHistory(searchTerm: string, beginTime?: number) {
+    return sendWithPromise(
+        'queryHistory', searchTerm, RESULTS_PER_PAGE, beginTime);
   }
 
   startTurnOnSyncFlow() {

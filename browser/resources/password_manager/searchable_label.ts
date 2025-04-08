@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {quoteString} from 'chrome://resources/js/util_ts.js';
+import {quoteString} from 'chrome://resources/js/util.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 export class SearchableLabelElement extends PolymerElement {
@@ -42,7 +42,7 @@ export class SearchableLabelElement extends PolymerElement {
     const titleText = this.title;
 
     if (!this.searchTerm) {
-      this.textContent = titleText;
+      this.textContent = ` ${titleText} `;
       return;
     }
 

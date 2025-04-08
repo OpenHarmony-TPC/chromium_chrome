@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/url_identity.h"
 
+#include <optional>
 #include <string>
 
 #include "base/strings/string_util.h"
@@ -13,17 +14,19 @@
 #include "chrome/common/url_constants.h"
 #include "components/url_formatter/elide_url.h"
 #include "components/url_formatter/url_formatter.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "extensions/buildflags/buildflags.h"
 #include "url/gurl.h"
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
-#include "extensions/browser/extension_registry.h"
+#include "chrome/browser/web_applications/web_app_registrar.h"
+#include "components/webapps/common/web_app_id.h"
+#include "extensions/browser/extension_registry.h"  // nogncheck
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 using Type = UrlIdentity::Type;
 using DefaultFormatOptions = UrlIdentity::DefaultFormatOptions;
@@ -46,6 +49,10 @@ UrlIdentity CreateDefaultUrlIdentityFromUrl(const GURL& url,
         url, url_formatter::SchemeDisplay::OMIT_CRYPTOGRAPHIC);
   } else if (options.default_options.Has(DefaultFormatOptions::kHostname)) {
     name = url_formatter::IDNToUnicode(url.host());
+  } else if (options.default_options.Has(
+                 DefaultFormatOptions::kOmitSchemePathAndTrivialSubdomains)) {
+    name = url_formatter::FormatUrlForDisplayOmitSchemePathAndTrivialSubdomains(
+        url);
   } else {
     name = url_formatter::FormatUrlForSecurityDisplay(url);
   }
@@ -53,11 +60,15 @@ UrlIdentity CreateDefaultUrlIdentityFromUrl(const GURL& url,
   return UrlIdentity{.type = Type::kDefault, .name = name};
 }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 UrlIdentity CreateChromeExtensionIdentityFromUrl(Profile* profile,
                                                  const GURL& url,
                                                  const FormatOptions& options) {
-  DCHECK(url.SchemeIs(extensions::kExtensionScheme));
+  DCHECK(url.SchemeIs(extensions::kExtensionScheme)
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+         || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  );
 
   DCHECK(profile) << "Profile cannot be null when type is Chrome Extensions.";
 
@@ -77,11 +88,11 @@ UrlIdentity CreateChromeExtensionIdentityFromUrl(Profile* profile,
                          base::UTF8ToUTF16(extension->name()), false)};
 }
 
-absl::optional<web_app::AppId> GetIsolatedWebAppIdFromUrl(const GURL& url) {
+std::optional<webapps::AppId> GetIsolatedWebAppIdFromUrl(const GURL& url) {
   base::expected<web_app::IsolatedWebAppUrlInfo, std::string> url_info =
       web_app::IsolatedWebAppUrlInfo::Create(url);
-  return url_info.has_value() ? absl::make_optional(url_info.value().app_id())
-                              : absl::nullopt;
+  return url_info.has_value() ? std::make_optional(url_info.value().app_id())
+                              : std::nullopt;
 }
 
 UrlIdentity CreateIsolatedWebAppIdentityFromUrl(Profile* profile,
@@ -99,7 +110,7 @@ UrlIdentity CreateIsolatedWebAppIdentityFromUrl(Profile* profile,
     return CreateDefaultUrlIdentityFromUrl(url, options);
   }
 
-  absl::optional<web_app::AppId> app_id = GetIsolatedWebAppIdFromUrl(url);
+  std::optional<webapps::AppId> app_id = GetIsolatedWebAppIdFromUrl(url);
   if (!app_id.has_value()) {  // fallback to default
     return CreateDefaultUrlIdentityFromUrl(url, options);
   }
@@ -118,7 +129,7 @@ UrlIdentity CreateIsolatedWebAppIdentityFromUrl(Profile* profile,
               provider->registrar_unsafe().GetAppShortName(app_id.value())),
           false)};
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 UrlIdentity CreateFileIdentityFromUrl(Profile* profile,
                                       const GURL& url,
@@ -136,8 +147,12 @@ UrlIdentity UrlIdentity::CreateFromUrl(Profile* profile,
                                        const GURL& url,
                                        const TypeSet& allowed_types,
                                        const FormatOptions& options) {
-#if !BUILDFLAG(IS_ANDROID)
-  if (url.SchemeIs(extensions::kExtensionScheme)) {
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  if (url.SchemeIs(extensions::kExtensionScheme)
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      || url.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     DCHECK(allowed_types.Has(Type::kChromeExtension));
     return CreateChromeExtensionIdentityFromUrl(profile, url, options);
   }
@@ -146,7 +161,7 @@ UrlIdentity UrlIdentity::CreateFromUrl(Profile* profile,
     DCHECK(allowed_types.Has(Type::kIsolatedWebApp));
     return CreateIsolatedWebAppIdentityFromUrl(profile, url, options);
   }
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   if (url.SchemeIsFile()) {
     DCHECK(allowed_types.Has(Type::kFile));

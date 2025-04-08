@@ -10,6 +10,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
+#include "chrome/browser/ash/policy/enrollment/auto_enrollment_state.h"
 
 class PrefService;
 
@@ -21,29 +22,13 @@ namespace policy::psm {
 class RlweDmserverClient;
 }
 
+namespace ash {
+class OobeConfiguration;
+}  // namespace ash
+
 namespace policy {
 
 class DeviceManagementService;
-
-// Indicates the current state of the auto-enrollment check.
-enum class AutoEnrollmentState {
-  // TODO(b/265923216): Deprecate kIdle and kPending states after fully
-  // migrating to EnrollmentStateFetcher and removing AutoEnrollmentClient.
-  // Not yet started.
-  kIdle = 0,
-  // Working, another event will be fired eventually.
-  kPending = 1,
-  // Failed to connect to DMServer or to synchronize the system clock.
-  kConnectionError = 2,
-  // Connection successful, but the server failed to generate a valid reply.
-  kServerError = 3,
-  // Check completed successfully, enrollment should be triggered.
-  kEnrollment = 4,
-  // Check completed successfully, enrollment not applicable.
-  kNoEnrollment = 5,
-  // Check completed successfully, device is disabled.
-  kDisabled = 6,
-};
 
 // Interacts with the device management service and determines whether this
 // machine should automatically enter the Enterprise Enrollment screen during
@@ -87,7 +72,8 @@ class AutoEnrollmentClient {
         scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
         const std::string& device_serial_number,
         const std::string& device_brand_code,
-        std::unique_ptr<psm::RlweDmserverClient> psm_rlwe_dmserver_client) = 0;
+        std::unique_ptr<psm::RlweDmserverClient> psm_rlwe_dmserver_client,
+        ash::OobeConfiguration* oobe_config) = 0;
   };
 
   virtual ~AutoEnrollmentClient() {}
@@ -100,6 +86,12 @@ class AutoEnrollmentClient {
   // Triggers a retry of the currently pending step. This is intended to be
   // called by consumers when they become aware of environment changes (such as
   // captive portal setup being complete).
+  // It is safe to call the retry at any point of the client lifetime:
+  // 1. If the client is idle, the retry will trigger the auto-enrollment check.
+  // 2. If the client is in progress, the retry will be ignored.
+  // 3. If the client failed the check, the retry will trigger the last failed
+  //    step to be re-executed.
+  // 4. If the client finished, the retry will be ignored.
   virtual void Retry() = 0;
 };
 

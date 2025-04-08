@@ -13,6 +13,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
@@ -24,26 +25,20 @@ import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.batch.BlankCTATabInitialStateRule;
 import org.chromium.chrome.test.util.InfoBarTestAnimationListener;
 import org.chromium.components.infobars.InfoBar;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.concurrent.TimeoutException;
 
-/**
- * Tests for the appearance of InfoBars.
- */
-// clang-format off
+/** Tests for the appearance of InfoBars. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
 public class InfoBarAppearanceTest {
-    // clang-format on
 
     @ClassRule
     public static ChromeTabbedActivityTestRule sActivityTestRule =
             new ChromeTabbedActivityTestRule();
 
-    @ClassRule
-    public static ScreenShooter sScreenShooter = new ScreenShooter();
+    @ClassRule public static ScreenShooter sScreenShooter = new ScreenShooter();
 
     @Rule
     public BlankCTATabInitialStateRule mInitialStateRule =
@@ -56,21 +51,23 @@ public class InfoBarAppearanceTest {
     public void setUp() throws InterruptedException {
         mListener = new InfoBarTestAnimationListener();
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mTab = sActivityTestRule.getActivity().getActivityTab();
-            sActivityTestRule.getInfoBarContainer().addAnimationListener(mListener);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mTab = sActivityTestRule.getActivity().getActivityTab();
+                    sActivityTestRule.getInfoBarContainer().addAnimationListener(mListener);
+                });
     }
 
     @After
     public void tearDown() {
         InfoBarContainer container = sActivityTestRule.getInfoBarContainer();
         if (container != null) {
-            TestThreadUtils.runOnUiThreadBlocking(() -> {
-                container.removeAnimationListener(mListener);
-                InfoBarContainer.removeInfoBarContainerForTesting(
-                        sActivityTestRule.getActivity().getActivityTab());
-            });
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        container.removeAnimationListener(mListener);
+                        InfoBarContainer.removeInfoBarContainerForTesting(
+                                sActivityTestRule.getActivity().getActivityTab());
+                    });
         }
     }
 
@@ -78,19 +75,19 @@ public class InfoBarAppearanceTest {
     @MediumTest
     @Feature({"InfoBars", "UiCatalogue"})
     public void testOomInfoBar() throws TimeoutException {
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> InfoBarContainer.get(mTab).addInfoBarForTesting(new NearOomInfoBar()));
         mListener.addInfoBarAnimationFinished("InfoBar was not added.");
         sScreenShooter.shoot("oom_infobar");
     }
 
     private void captureMiniAndRegularInfobar(InfoBar infobar) throws TimeoutException {
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> InfoBarContainer.get(mTab).addInfoBarForTesting(infobar));
         mListener.addInfoBarAnimationFinished("InfoBar was not added.");
         sScreenShooter.shoot("compact");
 
-        TestThreadUtils.runOnUiThreadBlocking(infobar::onLinkClicked);
+        ThreadUtils.runOnUiThreadBlocking(infobar::onLinkClicked);
         mListener.swapInfoBarAnimationFinished("InfoBar did not expand.");
         sScreenShooter.shoot("expanded");
     }

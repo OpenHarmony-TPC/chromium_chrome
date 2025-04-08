@@ -18,7 +18,8 @@
 #include "chrome/browser/ash/arc/policy/arc_policy_util.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/notifications/notification_display_service.h"
-#include "chrome/browser/ui/ash/arc_vm_data_migration_confirmation_dialog.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
+#include "chrome/browser/ui/ash/arc/arc_vm_data_migration_confirmation_dialog.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -35,16 +36,13 @@ constexpr char kNotifierId[] = "arc_vm_data_migration_notifier";
 constexpr char kNotificationId[] = "arc_vm_data_migration_notification";
 
 bool ShouldShowNotification(Profile* profile) {
-  // Do not show a notification for managed users.
-  if (policy_util::IsAccountManaged(profile)) {
-    return false;
-  }
-
   switch (GetArcVmDataMigrationStatus(profile->GetPrefs())) {
     case ArcVmDataMigrationStatus::kUnnotified:
     case ArcVmDataMigrationStatus::kNotified:
     case ArcVmDataMigrationStatus::kConfirmed:
-      return true;
+      return !policy_util::IsAccountManaged(profile) ||
+             GetArcVmDataMigrationStrategy(profile->GetPrefs()) ==
+                 ArcVmDataMigrationStrategy::kPrompt;
     case ArcVmDataMigrationStatus::kStarted:
     case ArcVmDataMigrationStatus::kFinished:
       return false;
@@ -157,20 +155,15 @@ void ArcVmDataMigrationNotifier::ShowNotification() {
   notification.SetSystemPriority();
   // Set no timeout so that the notification never disappears spontaneously.
   notification.set_never_timeout(true);
-  if (!ArcVmDataMigrationShouldBeDismissible(days_until_deadline)) {
-    // Pin the notification so that it is moved from the desktop to the
-    // notification list when the close button is clicked.
-    notification.set_pinned(true);
-  }
 
-  NotificationDisplayService::GetForProfile(profile_)->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Display(
       NotificationHandler::Type::TRANSIENT, notification,
       nullptr /* metadata */);
 }
 
 void ArcVmDataMigrationNotifier::CloseNotification() {
   auto* notification_display_service =
-      NotificationDisplayService::GetForProfile(profile_);
+      NotificationDisplayServiceFactory::GetForProfile(profile_);
   if (notification_display_service) {
     notification_display_service->Close(NotificationHandler::Type::TRANSIENT,
                                         kNotificationId);
@@ -178,7 +171,7 @@ void ArcVmDataMigrationNotifier::CloseNotification() {
 }
 
 void ArcVmDataMigrationNotifier::OnNotificationClicked(
-    absl::optional<int> button_index) {
+    std::optional<int> button_index) {
   if (!button_index) {
     // Notification message body is clicked.
     return;

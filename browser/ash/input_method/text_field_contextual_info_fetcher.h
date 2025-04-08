@@ -5,14 +5,12 @@
 #ifndef CHROME_BROWSER_ASH_INPUT_METHOD_TEXT_FIELD_CONTEXTUAL_INFO_FETCHER_H_
 #define CHROME_BROWSER_ASH_INPUT_METHOD_TEXT_FIELD_CONTEXTUAL_INFO_FETCHER_H_
 
+#include <optional>
 #include <string>
 
-#include "ash/constants/app_types.h"
 #include "base/functional/callback.h"
-#include "chrome/browser/ash/crosapi/browser_manager.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_window.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "chromeos/ui/base/app_types.h"
 #include "url/gurl.h"
 
 namespace ash {
@@ -23,7 +21,7 @@ struct TextFieldContextualInfo {
   ~TextFieldContextualInfo();
 
   // Type of app associated with the text field.
-  ash::AppType app_type;
+  chromeos::AppType app_type;
   // Optional, key of the app associated with this text field.
   std::string app_key;
   // Optional, tab's url where this text field is.
@@ -41,13 +39,7 @@ using TextFieldContextualInfoCallback =
 void GetTextFieldContextualInfo(TextFieldContextualInfoCallback cb);
 
 // Get the current tab url if the text field is hosted by a tab.
-absl::optional<GURL> GetUrlForTextFieldOnAshChrome();
-
-using TextFieldTabUrlCallback =
-    base::OnceCallback<void(const absl::optional<GURL>& url)>;
-// Get the current tab url if the text field is hosted by a tab from Lacros.
-// This query requires a further call over IPC.
-void GetUrlForTextFieldOnLacros(TextFieldTabUrlCallback cb);
+std::optional<GURL> GetUrlForTextFieldOnAshChrome();
 
 }  // namespace input_method
 }  // namespace ash

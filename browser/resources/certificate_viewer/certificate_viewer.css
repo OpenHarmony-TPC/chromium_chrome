@@ -60,6 +60,11 @@ h3 {
   white-space: pre-wrap;
 }
 
+.hashvalue {
+  display: table-cell;
+  overflow-wrap: anywhere;
+}
+
 /* Used so that 100% width within tabpanel will correspond to usable space. */
 div[slot='panel'] {
   height: 100%;
@@ -73,6 +78,20 @@ div[slot='panel'] {
   height: 100%;
   position: relative;
   width: 100%;
+}
+
+.horizontal-row {
+  color: #616161;
+  display: flex;
+  flex-direction: row;
+  align-content: flex-start;
+  padding-top: 10px;
+  padding-inline-start: 20px;
+  padding-bottom: 10px;
+}
+
+.modifications-row-label {
+  width: 150px;
 }
 
 #hierarchy {

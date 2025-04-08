@@ -5,6 +5,7 @@
 #include "chrome/browser/notifications/scheduler/internal/display_decider.h"
 
 #include "base/memory/raw_ptr.h"
+#include "base/not_fatal_until.h"
 #include "base/ranges/algorithm.h"
 #include "base/time/clock.h"
 #include "chrome/browser/notifications/scheduler/internal/impression_types.h"
@@ -60,7 +61,7 @@ class DecisionHelper {
         continue;
       }
 
-      for (const auto* notification : pair.second) {
+      for (const notifications::NotificationEntry* notification : pair.second) {
         DCHECK(notification);
         DCHECK_NE(notification->schedule_params.priority,
                   ScheduleParams::Priority::kNoThrottle);
@@ -113,7 +114,7 @@ class DecisionHelper {
     // Circling around all clients to find new notification to show.
     do {
       // Move the iterator to next client type.
-      DCHECK(it != clients_.end());
+      CHECK(it != clients_.end(), base::NotFatalUntil::M130);
       if (++it == clients_.end())
         it = clients_.begin();
       ++steps;
@@ -186,13 +187,13 @@ class DisplayDeciderImpl : public DisplayDecider {
     Notifications throttled_notifications;
     for (const auto& pair : notifications) {
       auto type = pair.first;
-      for (auto* notification : pair.second) {
+      for (const notifications::NotificationEntry* notification : pair.second) {
         // Move unthrottled notifications to results directly.
         if (notification->schedule_params.priority ==
             ScheduleParams::Priority::kNoThrottle) {
           results->emplace(notification->guid);
         } else {
-          throttled_notifications[type].emplace_back(std::move(notification));
+          throttled_notifications[type].emplace_back(notification);
         }
       }
     }

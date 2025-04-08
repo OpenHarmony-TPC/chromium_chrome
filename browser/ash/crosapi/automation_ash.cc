@@ -4,6 +4,9 @@
 
 #include "chrome/browser/ash/crosapi/automation_ash.h"
 
+#include "ui/accessibility/ax_location_and_scroll_updates.h"
+#include "ui/accessibility/ax_tree_id.h"
+
 namespace crosapi {
 
 AutomationAsh::AutomationAsh() {
@@ -47,6 +50,7 @@ void AutomationAsh::Disable() {
   for (auto& client : automation_client_remotes_) {
     client->Disable();
   }
+  desktop_enabled_ = false;
 }
 
 void AutomationAsh::DispatchAccessibilityEvents(
@@ -62,12 +66,12 @@ void AutomationAsh::DispatchAccessibilityLocationChange(
     const base::UnguessableToken& tree_id,
     int32_t node_id,
     const ui::AXRelativeBounds& bounds) {
-  ExtensionMsg_AccessibilityLocationChangeParams params;
-  params.tree_id = ui::AXTreeID::FromToken(tree_id);
-  params.id = node_id;
-  params.new_location = bounds;
+  ui::AXLocationChange details;
+  details.id = node_id;
+  details.new_location = bounds;
+  ui::AXTreeID ui_tree_id = ui::AXTreeID::FromToken(tree_id);
   extensions::AutomationEventRouter::GetInstance()
-      ->DispatchAccessibilityLocationChange(params);
+      ->DispatchAccessibilityLocationChange(ui_tree_id, details);
 }
 
 void AutomationAsh::DispatchTreeDestroyedEvent(
@@ -95,8 +99,11 @@ void AutomationAsh::BindAutomation(
     mojo::PendingReceiver<crosapi::mojom::Automation> automation) {
   mojo::Remote<mojom::AutomationClient> remote(std::move(automation_client));
 
-  if (desktop_enabled_)
+  if (desktop_enabled_) {
     remote->Enable();
+  } else {
+    remote->Disable();
+  }
 
   automation_client_remotes_.Add(std::move(remote));
   automation_receivers_.Add(this, std::move(automation));

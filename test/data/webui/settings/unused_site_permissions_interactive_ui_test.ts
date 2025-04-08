@@ -5,17 +5,18 @@
 // clang-format off
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {SettingsUnusedSitePermissionsElement, ContentSettingsTypes, SiteSettingsPermissionsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
+import type {SettingsUnusedSitePermissionsElement} from 'chrome://settings/lazy_load.js';
+import {ContentSettingsTypes, SafetyHubBrowserProxyImpl, SafetyHubEvent} from 'chrome://settings/lazy_load.js';
 
-import {TestSiteSettingsPermissionsBrowserProxy} from './test_site_settings_permissions_browser_proxy.js';
+import {TestSafetyHubBrowserProxy} from './test_safety_hub_browser_proxy.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 // clang-format on
 
 suite('CrSettingsUnusedSitePermissionsInteractiveUITest', function() {
   // The mock proxy object to use during test.
-  let browserProxy: TestSiteSettingsPermissionsBrowserProxy;
+  let browserProxy: TestSafetyHubBrowserProxy;
 
   let testElement: SettingsUnusedSitePermissionsElement;
 
@@ -54,9 +55,9 @@ suite('CrSettingsUnusedSitePermissionsInteractiveUITest', function() {
   }
 
   setup(async function() {
-    browserProxy = new TestSiteSettingsPermissionsBrowserProxy();
+    browserProxy = new TestSafetyHubBrowserProxy();
     browserProxy.setUnusedSitePermissions(mockData);
-    SiteSettingsPermissionsBrowserProxyImpl.setInstance(browserProxy);
+    SafetyHubBrowserProxyImpl.setInstance(browserProxy);
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     testElement = document.createElement('settings-unused-site-permissions');
@@ -80,7 +81,7 @@ suite('CrSettingsUnusedSitePermissionsInteractiveUITest', function() {
     // Click on "Undo" button.
     testElement.$.undoToast.querySelector('cr-button')!.click();
     webUIListenerCallback(
-        'unused-permission-review-list-maybe-changed', mockData);
+        SafetyHubEvent.UNUSED_PERMISSIONS_MAYBE_CHANGED, mockData);
     await focusPromise;
     assertExpandButtonFocus();
   });
@@ -91,15 +92,16 @@ suite('CrSettingsUnusedSitePermissionsInteractiveUITest', function() {
    */
   test('Undo Got It Click Refocus', async function() {
     // Click "Got it" button.
-    const button = testElement.shadowRoot!.querySelector(
-                       '.bulk-action-button') as HTMLElement;
+    const button = testElement.shadowRoot!.querySelector<HTMLElement>(
+        '.bulk-action-button');
+    assertTrue(!!button);
     button.click();
 
     const focusPromise = waitForFocusEventOnExpandButton();
     // Click on "Undo" button.
     testElement.$.undoToast.querySelector('cr-button')!.click();
     webUIListenerCallback(
-        'unused-permission-review-list-maybe-changed', mockData);
+        SafetyHubEvent.UNUSED_PERMISSIONS_MAYBE_CHANGED, mockData);
     await focusPromise;
     assertExpandButtonFocus();
   });

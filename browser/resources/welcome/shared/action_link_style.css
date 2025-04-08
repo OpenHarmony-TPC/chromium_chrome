@@ -3,9 +3,8 @@
  * found in the LICENSE file. */
 
 /* #css_wrapper_metadata_start
- * #type=style
+ * #type=style-lit
  * #import=chrome://resources/cr_elements/cr_shared_vars.css.js
- * #import=chrome://resources/polymer/v3_0/paper-styles/color.js
  * #css_wrapper_metadata_end */
 
 button.action-link {
@@ -17,12 +16,6 @@ button.action-link {
   display: inline-block;
   font-family: inherit;
   text-decoration: underline;
-}
-
-button.action-link[disabled] {
-  color: var(--paper-grey-600);
-  cursor: default;
-  opacity: 0.65;
 }
 
 :host-context(html:not(.focus-outline-visible)) button.action-link {

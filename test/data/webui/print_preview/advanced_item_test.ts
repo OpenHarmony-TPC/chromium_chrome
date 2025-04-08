@@ -4,30 +4,15 @@
 
 import 'chrome://print/print_preview.js';
 
-import {PrintPreviewAdvancedSettingsItemElement, PrintPreviewModelElement} from 'chrome://print/print_preview.js';
+import type {PrintPreviewAdvancedSettingsItemElement, PrintPreviewModelElement} from 'chrome://print/print_preview.js';
+import {stripDiacritics} from 'chrome://resources/js/search_highlight_utils.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {fakeDataBind} from 'chrome://webui-test/polymer_test_util.js';
 
 import {getCddTemplateWithAdvancedSettings} from './print_preview_test_utils.js';
 
-const advanced_item_test = {
-  suiteName: 'AdvancedItemTest',
-  TestNames: {
-    DisplaySelect: 'display select',
-    DisplayInput: 'display input',
-    DisplayCheckbox: 'display checkbox',
-    UpdateSelect: 'update select',
-    UpdateInput: 'update input',
-    UpdateCheckbox: 'update checkbox',
-    QueryName: 'query name',
-    QueryOption: 'query option',
-  },
-};
-
-Object.assign(window, {advanced_item_test: advanced_item_test});
-
-suite(advanced_item_test.suiteName, function() {
+suite('AdvancedItemTest', function() {
   let item: PrintPreviewAdvancedSettingsItemElement;
 
   /** @override */
@@ -51,7 +36,7 @@ suite(advanced_item_test.suiteName, function() {
   });
 
   // Test that a select capability is displayed correctly.
-  test(advanced_item_test.TestNames.DisplaySelect, function() {
+  test('DisplaySelect', function() {
     const label = item.shadowRoot!.querySelector('.label')!;
     assertEquals('Paper Type', label.textContent);
 
@@ -69,7 +54,7 @@ suite(advanced_item_test.suiteName, function() {
         item.shadowRoot!.querySelector('cr-checkbox')!.parentElement!.hidden);
   });
 
-  test(advanced_item_test.TestNames.DisplayInput, function() {
+  test('DisplayInput', function() {
     // Create capability
     item.capability = getCddTemplateWithAdvancedSettings(3, 'FooDevice')
                           .capabilities!.printer.vendor_capability![2]!;
@@ -89,7 +74,7 @@ suite(advanced_item_test.suiteName, function() {
         item.shadowRoot!.querySelector('cr-checkbox')!.parentElement!.hidden);
   });
 
-  test(advanced_item_test.TestNames.DisplayCheckbox, function() {
+  test('DisplayCheckbox', function() {
     // Create capability
     item.capability = getCddTemplateWithAdvancedSettings(4, 'FooDevice')
                           .capabilities!.printer.vendor_capability![3]!;
@@ -111,7 +96,7 @@ suite(advanced_item_test.suiteName, function() {
 
   // Test that a select capability updates correctly when the setting is
   // updated (e.g. when sticky settings are set).
-  test(advanced_item_test.TestNames.UpdateSelect, function() {
+  test('UpdateSelect', function() {
     // Check that the default option is selected.
     const select = item.shadowRoot!.querySelector('select')!;
     assertEquals(0, select.selectedIndex);
@@ -123,7 +108,7 @@ suite(advanced_item_test.suiteName, function() {
 
   // Test that an input capability updates correctly when the setting is
   // updated (e.g. when sticky settings are set).
-  test(advanced_item_test.TestNames.UpdateInput, function() {
+  test('UpdateInput', async () => {
     // Create capability
     item.capability = getCddTemplateWithAdvancedSettings(3, 'FooDevice')
                           .capabilities!.printer.vendor_capability![2]!;
@@ -135,12 +120,13 @@ suite(advanced_item_test.suiteName, function() {
 
     // Update the setting.
     item.set('settings.vendorItems.value', {watermark: 'ABCD'});
+    await input.updateComplete;
     assertEquals('ABCD', input.inputElement.value);
   });
 
   // Test that an checkbox capability updates correctly when the setting is
   // updated (e.g. when sticky settings are set).
-  test(advanced_item_test.TestNames.UpdateCheckbox, function() {
+  test('UpdateCheckbox', function() {
     // Create capability
     item.capability = getCddTemplateWithAdvancedSettings(4, 'FooDevice')
                           .capabilities!.printer.vendor_capability![3]!;
@@ -157,7 +143,7 @@ suite(advanced_item_test.suiteName, function() {
 
   // Test that the setting is displayed correctly when the search query
   // matches its display name.
-  test(advanced_item_test.TestNames.QueryName, function() {
+  test('QueryName', function() {
     const query = /(Type)/ig;
     assertTrue(item.hasMatch(query));
     item.updateHighlighting(query, new Map());
@@ -180,7 +166,7 @@ suite(advanced_item_test.suiteName, function() {
 
   // Test that the setting is displayed correctly when the search query
   // matches one of the select options.
-  test(advanced_item_test.TestNames.QueryOption, function() {
+  test('QueryOption', function() {
     const query = /(cycle)/ig;
     assertTrue(item.hasMatch(query));
     item.updateHighlighting(query, new Map());
@@ -197,5 +183,23 @@ suite(advanced_item_test.suiteName, function() {
     const searchBubbleHits = control.querySelectorAll('.search-bubble');
     assertEquals(1, searchBubbleHits.length);
     assertEquals('1 result', searchBubbleHits[0]!.textContent);
+  });
+
+  // Test that certain Japanese characters can be searched after normalizing
+  // and removing diacritics (see b/353394050).
+  test('QueryJapaneseCharacters', function() {
+    const settingName = 'ジョブシート';
+    item.capability = {
+      display_name: settingName,
+      id: 'capability',
+      type: 'SELECT',
+      select_cap: {
+        option: [],
+      },
+    };
+
+    const queryText = stripDiacritics(settingName);
+    const query = new RegExp(`(${queryText})`, 'ig');
+    assertTrue(item.hasMatch(query));
   });
 });

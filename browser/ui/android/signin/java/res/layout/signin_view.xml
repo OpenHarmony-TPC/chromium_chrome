@@ -10,6 +10,7 @@ found in the LICENSE file.
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@macro/signin_body_background"
     android:orientation="vertical">
 
     <org.chromium.chrome.browser.ui.signin.SigninScrollView
@@ -82,7 +83,7 @@ found in the LICENSE file.
                 android:layout_marginTop="16dp"
                 android:layout_marginEnd="16dp"
                 android:textAppearance="@style/TextAppearance.TextLarge.Primary"
-                tools:text="@string/signin_sync_title"/>
+                tools:text="@string/signin_sync_title_without_passwords"/>
             <TextView
                 android:id="@+id/signin_sync_description"
                 android:layout_width="match_parent"

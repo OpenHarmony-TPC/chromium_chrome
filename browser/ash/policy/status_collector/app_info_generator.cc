@@ -45,6 +45,7 @@ em::AppInfo::Status ExtractStatus(const apps::Readiness readiness) {
     case apps::Readiness::kDisabledByPolicy:
     case apps::Readiness::kDisabledByUser:
     case apps::Readiness::kTerminated:
+    case apps::Readiness::kDisabledByLocalSettings:
       return em::AppInfo::Status::AppInfo_Status_STATUS_DISABLED;
     case apps::Readiness::kUnknown:
       return em::AppInfo::Status::AppInfo_Status_STATUS_UNKNOWN;
@@ -71,7 +72,6 @@ em::AppInfo::AppType ExtractAppType(const apps::AppType app_type) {
       return em::AppInfo::AppType::AppInfo_AppType_TYPE_BOREALIS;
     case apps::AppType::kBruschetta:
       return em::AppInfo::AppType::AppInfo_AppType_TYPE_BRUSCHETTA;
-    case apps::AppType::kMacOs:
     case apps::AppType::kStandaloneBrowser:
     case apps::AppType::kExtension:
     case apps::AppType::kStandaloneBrowserExtension:
@@ -122,11 +122,11 @@ void AppInfoGenerator::RegisterProfilePrefs(PrefRegistrySimple* registry) {
 const AppInfoGenerator::Result AppInfoGenerator::Generate() const {
   if (!should_report_) {
     VLOG(1) << "App usage reporting is not enabled for this user.";
-    return absl::nullopt;
+    return std::nullopt;
   }
   if (!provider_) {
     VLOG(1) << "No affiliated user session. Returning empty app list.";
-    return absl::nullopt;
+    return std::nullopt;
   }
   auto activity_periods = provider_->activity_storage.GetActivityPeriods();
   auto activity_compare = [](const em::TimePeriod& time_period1,
@@ -164,7 +164,8 @@ void AppInfoGenerator::OnReportedSuccessfully(const base::Time report_time) {
     return;
   }
   provider_->activity_storage.TrimActivityPeriods(
-      report_time.ToJavaTime(), base::Time::Max().ToJavaTime());
+      report_time.InMillisecondsSinceUnixEpoch(),
+      base::Time::Max().InMillisecondsSinceUnixEpoch());
 }
 
 void AppInfoGenerator::OnWillReport() {

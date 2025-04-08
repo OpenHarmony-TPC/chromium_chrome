@@ -120,7 +120,11 @@ function startTest() {
     function removePluginAtDocumentEnd() {
       if (maybeSkipPluginTest())
         return;
-      testRemoveSelf('plugin_frame.html?end', /<embed/);
+      // TODO(crbug.com/360265881): Change this back to an exact background
+      // color.
+      testRemoveSelf(
+          'plugin_frame.html?end',
+          /background-color: rgb\((\d{1,2}), (\d{1,2}), (\d{1,2})\)/);
     },
 
     // Plain text

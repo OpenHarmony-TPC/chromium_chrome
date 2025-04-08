@@ -7,10 +7,12 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 
+#include "base/functional/callback_forward.h"
 #include "chrome/common/extensions/api/autofill_private.h"
 #include "components/autofill/core/browser/personal_data_manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/device_reauth/device_authenticator.h"
 
 namespace extensions {
 
@@ -20,14 +22,19 @@ using AddressEntryList = std::vector<api::autofill_private::AddressEntry>;
 using CountryEntryList = std::vector<api::autofill_private::CountryEntry>;
 using CreditCardEntryList = std::vector<api::autofill_private::CreditCardEntry>;
 using IbanEntryList = std::vector<api::autofill_private::IbanEntry>;
+using CallbackAfterSuccessfulUserAuth = base::OnceCallback<void(bool)>;
 
 // Uses |personal_data| to generate a list of up-to-date AddressEntry objects.
 AddressEntryList GenerateAddressList(
     const autofill::PersonalDataManager& personal_data);
 
-// Uses |personal_data| to generate a list of up-to-date CountryEntry objects.
+// Uses `personal_data` to generate a list of up-to-date CountryEntry objects.
+// Depending on the `for_account_address_profile` and
+// `AutofillEnableAccountStorageForIneligibleCountries`, unsupported countries
+// are filtered from the resulting list.
 CountryEntryList GenerateCountryList(
-    const autofill::PersonalDataManager& personal_data);
+    const autofill::PersonalDataManager& personal_data,
+    bool for_account_address_profile);
 
 // Uses |personal_data| to generate a list of up-to-date CreditCardEntry
 // objects.
@@ -40,8 +47,14 @@ IbanEntryList GenerateIbanList(
     const autofill::PersonalDataManager& personal_data);
 
 // Uses |personal_data| to get primary account info.
-absl::optional<api::autofill_private::AccountInfo> GetAccountInfo(
+std::optional<api::autofill_private::AccountInfo> GetAccountInfo(
     const autofill::PersonalDataManager& personal_data);
+
+// Returns a `CreditCardEntry` object which is UI compatible.
+api::autofill_private::CreditCardEntry CreditCardToCreditCardEntry(
+    const autofill::CreditCard& credit_card,
+    const autofill::PersonalDataManager& personal_data,
+    bool mask_local_cards);
 
 }  // namespace autofill_util
 

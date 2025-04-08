@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/bookmarks/bookmark_menu_controller_views.h"
 
+#include "base/memory/ptr_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/bookmarks/bookmark_stats.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
@@ -14,12 +15,12 @@
 #include "content/public/browser/page_navigator.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/views/controls/button/menu_button.h"
 #include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/widget/widget.h"
 
-using base::UserMetricsAction;
 using bookmarks::BookmarkNode;
 using content::PageNavigator;
 using views::MenuItemView;
@@ -40,8 +41,8 @@ BookmarkMenuController::BookmarkMenuController(Browser* browser,
   int run_type = 0;
   if (for_drop)
     run_type |= views::MenuRunner::FOR_DROP;
-  menu_runner_ =
-      std::make_unique<views::MenuRunner>(menu_delegate_->menu(), run_type);
+  menu_runner_ = std::make_unique<views::MenuRunner>(
+      base::WrapUnique<MenuItemView>(menu_delegate_->menu()), run_type);
 }
 
 void BookmarkMenuController::RunMenuAt(BookmarkBarView* bookmark_bar) {
@@ -59,7 +60,7 @@ void BookmarkMenuController::RunMenuAt(BookmarkBarView* bookmark_bar) {
   // the return value.
   menu_runner_->RunMenuAt(menu_delegate_->parent(),
                           menu_button->button_controller(), bounds, anchor,
-                          ui::MENU_SOURCE_NONE);
+                          ui::mojom::MenuSourceType::kNone);
 }
 
 void BookmarkMenuController::Cancel() {
@@ -127,10 +128,11 @@ views::View::DropCallback BookmarkMenuController::GetDropCallback(
   return drop_cb;
 }
 
-bool BookmarkMenuController::ShowContextMenu(MenuItemView* source,
-                                             int id,
-                                             const gfx::Point& p,
-                                             ui::MenuSourceType source_type) {
+bool BookmarkMenuController::ShowContextMenu(
+    MenuItemView* source,
+    int id,
+    const gfx::Point& p,
+    ui::mojom::MenuSourceType source_type) {
   return menu_delegate_->ShowContextMenu(source, id, p, source_type);
 }
 

@@ -17,6 +17,10 @@
 #include "extensions/buildflags/buildflags.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(ENABLE_COMPOSE)
+#include "chrome/browser/compose/chrome_compose_client.h"
+#endif
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/context_menu_matcher.h"
 #endif
@@ -82,7 +86,7 @@ class TestRenderViewContextMenu : public RenderViewContextMenu {
   // value is true and the model and index where it appears in that model are
   // returned in |found_model| and |found_index|. Otherwise returns false.
   bool GetMenuModelAndItemIndex(int command_id,
-                                ui::MenuModel** found_model,
+                                raw_ptr<ui::MenuModel>* found_model,
                                 size_t* found_index);
 
   // Returns the command id of the menu item with the specified |path|.
@@ -113,6 +117,9 @@ class TestRenderViewContextMenu : public RenderViewContextMenu {
   void set_dlp_rules_manager(policy::DlpRulesManager* dlp_rules_manager);
 #endif
 
+#if BUILDFLAG(ENABLE_COMPOSE)
+  void SetChromeComposeClient(ChromeComposeClient* compose_client);
+#endif
   // If `browser` is not null, sets it as the return value of GetBrowser(),
   // overriding the base class behavior. If the Browser object is destroyed
   // before this class is, then SetBrowser(nullptr) should be called. If
@@ -123,12 +130,19 @@ class TestRenderViewContextMenu : public RenderViewContextMenu {
   // RenderViewContextMenu:
   Browser* GetBrowser() const override;
 
+#if BUILDFLAG(ENABLE_COMPOSE)
+  ChromeComposeClient* GetChromeComposeClient() const override;
+#endif
+
  private:
   raw_ptr<Browser> browser_ = nullptr;
 
 #if BUILDFLAG(IS_CHROMEOS)
-  raw_ptr<policy::DlpRulesManager, ExperimentalAsh> dlp_rules_manager_ =
-      nullptr;
+  raw_ptr<policy::DlpRulesManager> dlp_rules_manager_ = nullptr;
+#endif
+
+#if BUILDFLAG(ENABLE_COMPOSE)
+  raw_ptr<ChromeComposeClient> compose_client_ = nullptr;
 #endif
 };
 

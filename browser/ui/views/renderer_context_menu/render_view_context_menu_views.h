@@ -6,7 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_RENDERER_CONTEXT_MENU_RENDER_VIEW_CONTEXT_MENU_VIEWS_H_
 
 #include "chrome/browser/renderer_context_menu/render_view_context_menu.h"
-#include "ui/base/ui_base_types.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 
 namespace aura {
 class Window;
@@ -39,12 +39,13 @@ class RenderViewContextMenuViews : public RenderViewContextMenu {
 
   void RunMenuAt(views::Widget* parent,
                  const gfx::Point& point,
-                 ui::MenuSourceType type);
+                 ui::mojom::MenuSourceType type);
 
   void ExecuteCommand(int command_id, int event_flags) override;
 
   // RenderViewContextMenuBase implementation.
   void Show() override;
+  bool IsRunning() override;
 
  protected:
   RenderViewContextMenuViews(content::RenderFrameHost& render_frame_host,
@@ -60,7 +61,6 @@ class RenderViewContextMenuViews : public RenderViewContextMenu {
   void AppendPlatformEditableItems() override;
   bool IsCommandIdChecked(int command_id) const override;
   bool IsCommandIdEnabled(int command_id) const override;
-  void ExecOpenInReadAnything() override;
 
   // Gets the AcceleratorProvider for the browser. May be null.
   ui::AcceleratorProvider* GetBrowserAcceleratorProvider() const;

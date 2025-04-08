@@ -32,7 +32,7 @@ class ExternalPrefLoader : public ExternalLoader {
     // owned by root and not writable by any non-root user.
     ENSURE_PATH_CONTROLLED_BY_ADMIN = 1 << 0,
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     // Delay external preference load. It delays default apps installation
     // to not overload the system on first time user login.
     DELAY_LOAD_UNTIL_PRIORITY_SYNC = 1 << 1,
@@ -73,7 +73,7 @@ class ExternalPrefLoader : public ExternalLoader {
   friend class ExternalTestingLoader;
   friend class TestExternalPrefLoader;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   class PrioritySyncReadyWaiter;
 #endif
 
@@ -110,7 +110,7 @@ class ExternalPrefLoader : public ExternalLoader {
   // Must be called from the File thread.
   void ReadStandaloneExtensionPrefFiles(base::Value::Dict& prefs);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void OnPrioritySyncReady(PrioritySyncReadyWaiter* waiter);
 #endif
 
@@ -120,7 +120,7 @@ class ExternalPrefLoader : public ExternalLoader {
 
   // Profile that loads these external prefs.
   // Needed for waiting for waiting priority sync.
-  raw_ptr<Profile, DanglingUntriaged> profile_;
+  raw_ptr<Profile, FlakyDanglingUntriaged> profile_;
 
   // User type determined by |profile_|. Used to filter extensions. In some unit
   // tests may not be set.
@@ -129,7 +129,7 @@ class ExternalPrefLoader : public ExternalLoader {
   // Task runner for tasks that touch file.
   scoped_refptr<base::SequencedTaskRunner> file_task_runner_;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   std::vector<std::unique_ptr<PrioritySyncReadyWaiter>> pending_waiter_list_;
 #endif
 };

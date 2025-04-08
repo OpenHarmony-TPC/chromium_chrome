@@ -226,7 +226,15 @@ WebAuthenticationProxyRegistrarFactory::WebAuthenticationProxyRegistrarFactory()
           // as Guest. So while we do return a `WebAuthenticationProxyRegistrar`
           // for those profile types `IsActive()` will always return false
           // there.
-          ProfileSelections::BuildRedirectedToOriginal()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(ExtensionRegistryFactory::GetInstance());
 }
 
@@ -241,9 +249,10 @@ WebAuthenticationProxyRegistrarFactory::GetForBrowserContext(
           ->GetServiceForBrowserContext(context, true));
 }
 
-KeyedService* WebAuthenticationProxyRegistrarFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+WebAuthenticationProxyRegistrarFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new WebAuthenticationProxyRegistrar(
+  return std::make_unique<WebAuthenticationProxyRegistrar>(
       Profile::FromBrowserContext(context));
 }
 
@@ -305,7 +314,7 @@ void WebAuthenticationProxyService::CompleteCreateRequest(
              blink::mojom::WebAuthnDOMExceptionDetails::New(
                  details.error->name, details.error->message),
              nullptr);
-    std::move(respond_callback).Run(absl::nullopt);
+    std::move(respond_callback).Run(std::nullopt);
     return;
   }
   if (!details.response_json) {
@@ -339,7 +348,7 @@ void WebAuthenticationProxyService::CompleteGetRequest(
                             blink::mojom::WebAuthnDOMExceptionDetails::New(
                                 details.error->name, details.error->message),
                             nullptr);
-    std::move(respond_callback).Run(absl::nullopt);
+    std::move(respond_callback).Run(std::nullopt);
     return;
   }
   if (!details.response_json) {
@@ -471,7 +480,7 @@ void WebAuthenticationProxyService::OnParseCreateResponse(
       absl::get<CreateCallback>(std::move(callback_it->second));
   pending_callbacks_.erase(callback_it);
   std::move(create_callback).Run(request_id, nullptr, std::move(response));
-  std::move(respond_callback).Run(absl::nullopt);
+  std::move(respond_callback).Run(std::nullopt);
 }
 
 void WebAuthenticationProxyService::OnParseGetResponse(
@@ -504,7 +513,7 @@ void WebAuthenticationProxyService::OnParseGetResponse(
       absl::get<GetCallback>(std::move(callback_it->second));
   pending_callbacks_.erase(callback_it);
   std::move(get_callback).Run(request_id, nullptr, std::move(response));
-  std::move(respond_callback).Run(absl::nullopt);
+  std::move(respond_callback).Run(std::nullopt);
 }
 
 bool WebAuthenticationProxyService::IsActive(const url::Origin& caller_origin) {
@@ -602,7 +611,15 @@ WebAuthenticationProxyServiceFactory::GetInstance() {
 WebAuthenticationProxyServiceFactory::WebAuthenticationProxyServiceFactory()
     : ProfileKeyedServiceFactory(
           "WebAuthenticationProxyService",
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOwnInstance)
+              .Build()) {
   DependsOn(EventRouterFactory::GetInstance());
   DependsOn(ExtensionRegistryFactory::GetInstance());
 }

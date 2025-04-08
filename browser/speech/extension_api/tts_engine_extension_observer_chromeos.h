@@ -24,8 +24,6 @@ class TtsEngineExtensionObserverChromeOS
       public extensions::EventRouter::Observer,
       public extensions::ExtensionRegistryObserver {
  public:
-  static TtsEngineExtensionObserverChromeOS* GetInstance(Profile* profile);
-
   TtsEngineExtensionObserverChromeOS(
       const TtsEngineExtensionObserverChromeOS&) = delete;
   TtsEngineExtensionObserverChromeOS& operator=(
@@ -62,8 +60,6 @@ class TtsEngineExtensionObserverChromeOS
     return &tts_service_;
   }
 
-  static void EnsureFactoryBuilt();
-
  private:
   explicit TtsEngineExtensionObserverChromeOS(Profile* profile);
   ~TtsEngineExtensionObserverChromeOS() override;
@@ -79,7 +75,7 @@ class TtsEngineExtensionObserverChromeOS
                           extensions::ExtensionRegistryObserver>
       extension_registry_observation_{this};
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
 
   std::set<std::string> engine_extension_ids_;
 

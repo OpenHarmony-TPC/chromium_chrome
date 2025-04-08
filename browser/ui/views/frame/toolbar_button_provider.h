@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_FRAME_TOOLBAR_BUTTON_PROVIDER_H_
 #define CHROME_BROWSER_UI_VIEWS_FRAME_TOOLBAR_BUTTON_PROVIDER_H_
 
+#include <optional>
+
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 
 class AppMenuButton;
@@ -13,7 +15,6 @@ class DownloadToolbarButtonView;
 class ExtensionsToolbarContainer;
 class IntentChipButton;
 class PageActionIconView;
-class SidePanelToolbarButton;
 class ReloadButton;
 class ToolbarButton;
 
@@ -59,13 +60,11 @@ class ToolbarButtonProvider {
   virtual views::AccessiblePaneView* GetAsAccessiblePaneView() = 0;
 
   // Returns the appropriate anchor view for the page action icon.
-  virtual views::View* GetAnchorView(PageActionIconType type) = 0;
+  virtual views::View* GetAnchorView(
+      std::optional<PageActionIconType> type) = 0;
 
   // See comment in browser_window.h for more info.
   virtual void ZoomChangedForActiveTab(bool can_show_bubble) = 0;
-
-  // Returns the side panel button.
-  virtual SidePanelToolbarButton* GetSidePanelButton() = 0;
 
   // Returns the avatar button.
   virtual AvatarToolbarButton* GetAvatarToolbarButton() = 0;

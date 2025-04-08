@@ -84,8 +84,9 @@ std::string ChromeZoomLevelPrefs::GetPartitionKeyForTesting(
 }
 
 void ChromeZoomLevelPrefs::SetDefaultZoomLevelPref(double level) {
-  if (blink::PageZoomValuesEqual(level, host_zoom_map_->GetDefaultZoomLevel()))
+  if (blink::ZoomValuesEqual(level, host_zoom_map_->GetDefaultZoomLevel())) {
     return;
+  }
 
   ScopedDictPrefUpdate update(pref_service_, prefs::kPartitionDefaultZoomLevel);
   update->Set(partition_key_, level);
@@ -125,7 +126,7 @@ void ChromeZoomLevelPrefs::OnZoomLevelChanged(
   base::Value::Dict& host_zoom_dictionaries = update.Get();
 
   bool modification_is_removal =
-      blink::PageZoomValuesEqual(level, host_zoom_map_->GetDefaultZoomLevel());
+      blink::ZoomValuesEqual(level, host_zoom_map_->GetDefaultZoomLevel());
 
   base::Value::Dict* host_zoom_dictionary_weak =
       host_zoom_dictionaries.FindDict(partition_key_);
@@ -154,7 +155,7 @@ void ChromeZoomLevelPrefs::ExtractPerHostZoomLevels(
   std::vector<std::string> keys_to_remove;
   base::Value::Dict host_zoom_dictionary_copy = host_zoom_dictionary.Clone();
   for (auto [host, value] : host_zoom_dictionary_copy) {
-    absl::optional<double> maybe_zoom;
+    std::optional<double> maybe_zoom;
     base::Time last_modified;
 
     if (value.is_dict()) {
@@ -177,8 +178,8 @@ void ChromeZoomLevelPrefs::ExtractPerHostZoomLevels(
     // will ignore type B values, thus, to have consistency with HostZoomMap's
     // internal state, these values must also be removed from Prefs.
     if (host.empty() || !maybe_zoom.has_value() ||
-        blink::PageZoomValuesEqual(maybe_zoom.value_or(0),
-                                   host_zoom_map_->GetDefaultZoomLevel())) {
+        blink::ZoomValuesEqual(maybe_zoom.value_or(0),
+                               host_zoom_map_->GetDefaultZoomLevel())) {
       keys_to_remove.push_back(host);
       continue;
     }

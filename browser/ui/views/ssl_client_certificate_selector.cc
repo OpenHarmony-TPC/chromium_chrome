@@ -30,9 +30,9 @@
 namespace {
 
 // Returns the storage of a test hook for `ShowSSLClientCertificateSelector()`.
-chrome::ShowSSLClientCertificateSelectorTestingHook&
+ShowSSLClientCertificateSelectorTestingHook&
 GetShowSSLClientCertificateSelectorTestingHook() {
-  static base::NoDestructor<chrome::ShowSSLClientCertificateSelectorTestingHook>
+  static base::NoDestructor<ShowSSLClientCertificateSelectorTestingHook>
       instance;
   return *instance;
 }
@@ -158,8 +158,6 @@ base::OnceClosure SSLClientCertificateSelector::GetCancellationCallback() {
                         weak_factory_.GetWeakPtr());
 }
 
-namespace chrome {
-
 base::OnceClosure ShowSSLClientCertificateSelector(
     content::WebContents* contents,
     net::SSLCertRequestInfo* cert_request_info,
@@ -171,6 +169,13 @@ base::OnceClosure ShowSSLClientCertificateSelector(
     return GetShowSSLClientCertificateSelectorTestingHook().Run(
         contents, cert_request_info, std::move(client_certs),
         std::move(delegate));
+  }
+
+  // Don't bother prompting the user if there are no certs to choose from.
+  // Just continue with no certificate.
+  if (client_certs.empty()) {
+    delegate->ContinueWithCertificate(nullptr, nullptr);
+    return base::OnceClosure();
   }
 
   // Not all WebContentses can show modal dialogs.
@@ -193,5 +198,3 @@ void SetShowSSLClientCertificateSelectorHookForTest(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   GetShowSSLClientCertificateSelectorTestingHook() = std::move(hook);
 }
-
-}  // namespace chrome

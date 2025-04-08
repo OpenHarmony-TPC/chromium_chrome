@@ -4,11 +4,11 @@
 
 #include "chrome/updater/app/app_install.h"
 
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "base/check.h"
-#include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -19,8 +19,11 @@
 #include "base/task/thread_pool.h"
 #include "base/version.h"
 #include "build/build_config.h"
+#include "chrome/updater/activity.h"
 #include "chrome/updater/constants.h"
 #include "chrome/updater/external_constants.h"
+#include "chrome/updater/lock.h"
+#include "chrome/updater/persisted_data.h"
 #include "chrome/updater/prefs.h"
 #include "chrome/updater/registration_data.h"
 #include "chrome/updater/service_proxy_factory.h"
@@ -31,75 +34,95 @@
 #include "chrome/updater/updater_version.h"
 #include "chrome/updater/util/util.h"
 #include "components/prefs/pref_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace updater {
 
 #if !BUILDFLAG(IS_WIN)
 namespace {
 
-class SplashScreenImpl : public SplashScreen {
- public:
-  // Overrides for SplashScreen.
-  void Show() override {}
-  void Dismiss(base::OnceClosure callback) override {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, std::move(callback));
-  }
-};
-
 class AppInstallControllerImpl : public AppInstallController {
  public:
-  explicit AppInstallControllerImpl(
-      scoped_refptr<UpdateService> /*update_service*/) {}
+  AppInstallControllerImpl() = default;
+
   // Override for AppInstallController.
-  void InstallApp(const std::string& /*app_id*/,
+  void Initialize() override {}
+
+  void InstallApp(const std::string& app_id,
                   const std::string& /*app_name*/,
                   base::OnceCallback<void(int)> callback) override {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), 0));
+    // TODO(crbug.com/40282228): Factor out common code from app_install_win.cc.
+    RegistrationRequest request;
+    request.app_id = app_id;
+    request.version = base::Version(kNullVersion);
+    std::optional<tagging::AppArgs> app_args = GetAppArgs(app_id);
+    std::optional<tagging::TagArgs> tag_args = GetTagArgs().tag_args;
+    if (app_args) {
+      request.ap = app_args->ap;
+    }
+    if (tag_args) {
+      request.brand_code = tag_args->brand_code;
+    }
+    update_service_->Install(request, GetDecodedInstallDataFromAppArgs(app_id),
+                             GetInstallDataIndexFromAppArgs(app_id),
+                             UpdateService::Priority::kForeground,
+                             base::DoNothing(),
+                             base::BindOnce([](UpdateService::Result result) {
+                               return static_cast<int>(result);
+                             }).Then(std::move(callback)));
   }
 
   void InstallAppOffline(const std::string& app_id,
-                         const std::string& app_name,
+                         const std::string& /*app_name*/,
                          base::OnceCallback<void(int)> callback) override {
+    // TODO(crbug.com/40282228): Implement this.
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), 0));
+  }
+
+  void Exit(int /*exit_code*/) override {}
+
+  void set_update_service(
+      scoped_refptr<UpdateService> update_service) override {
+    update_service_ = update_service;
   }
 
  protected:
   ~AppInstallControllerImpl() override = default;
+
+ private:
+  scoped_refptr<UpdateService> update_service_;
 };
 
 }  // namespace
 
 scoped_refptr<App> MakeAppInstall(bool /*is_silent_install*/) {
   return base::MakeRefCounted<AppInstall>(
-      base::BindRepeating(
-          [](const std::string& /*app_name*/) -> std::unique_ptr<SplashScreen> {
-            return std::make_unique<SplashScreenImpl>();
-          }),
-      base::BindRepeating([](scoped_refptr<UpdateService> update_service)
-                              -> scoped_refptr<AppInstallController> {
-        return base::MakeRefCounted<AppInstallControllerImpl>(update_service);
+      base::BindRepeating([]() -> scoped_refptr<AppInstallController> {
+        return base::MakeRefCounted<AppInstallControllerImpl>();
       }));
 }
 #endif  // !BUILDFLAG(IS_WIN)
 
-AppInstall::AppInstall(SplashScreen::Maker splash_screen_maker,
-                       AppInstallController::Maker app_install_controller_maker)
-    : splash_screen_maker_(std::move(splash_screen_maker)),
-      app_install_controller_maker_(app_install_controller_maker),
+AppInstall::AppInstall(AppInstallController::Maker app_install_controller_maker)
+    : app_install_controller_maker_(app_install_controller_maker),
       external_constants_(CreateExternalConstants()) {
-  CHECK(splash_screen_maker_);
   CHECK(app_install_controller_maker_);
 }
 
 AppInstall::~AppInstall() = default;
 
-void AppInstall::Initialize() {
+void AppInstall::Shutdown(int exit_code) {
+  app_install_controller_->Exit(exit_code);
+  App::Shutdown(exit_code);
+}
+
+int AppInstall::Initialize() {
+  app_install_controller_ = app_install_controller_maker_.Run();
+  app_install_controller_->Initialize();
+
   setup_lock_ =
-      ScopedLock::Create(kSetupMutex, updater_scope(), kWaitForSetupLock);
+      CreateScopedLock(kSetupMutex, updater_scope(), kWaitForSetupLock);
+  return kErrorOk;
 }
 
 void AppInstall::FirstTaskRun() {
@@ -120,8 +143,7 @@ void AppInstall::FirstTaskRun() {
     return;
   }
 
-  const TagParsingResult tag_parsing_result =
-      GetTagArgsForCommandLine(GetCommandLineLegacyCompatible());
+  const TagParsingResult tag_parsing_result(GetTagArgs());
 
   // A tag parsing error is handled as an fatal error.
   if (tag_parsing_result.error != tagging::ErrorCode::kSuccess) {
@@ -131,8 +153,7 @@ void AppInstall::FirstTaskRun() {
   const tagging::TagArgs tag_args =
       tag_parsing_result.tag_args.value_or(tagging::TagArgs());
   if (!tag_args.apps.empty()) {
-    // TODO(crbug.com/1128631): support bundles. For now, assume one app.
-    CHECK_EQ(tag_args.apps.size(), size_t{1});
+    // Assume only one app is present since bundles are not supported.
     const tagging::AppArgs& app_args = tag_args.apps.front();
     app_id_ = app_args.app_id;
     app_name_ = app_args.app_name;
@@ -142,36 +163,27 @@ void AppInstall::FirstTaskRun() {
         kAppIdSwitch);
   }
 
-  splash_screen_ = splash_screen_maker_.Run(app_name_);
-  splash_screen_->Show();
-
-  // Creating instances of `UpdateServiceProxy` is possible only after task
-  // scheduling has been initialized.
-  update_service_ = CreateUpdateServiceProxy(
-      updater_scope(), external_constants_->OverinstallTimeout());
+  CreateUpdateServiceProxy();
   update_service_->GetVersion(
       base::BindOnce(&AppInstall::GetVersionDone, this));
 }
 
+void AppInstall::CreateUpdateServiceProxy() {
+  update_service_ = updater::CreateUpdateServiceProxy(
+      updater_scope(), external_constants_->OverinstallTimeout());
+  app_install_controller_->set_update_service(update_service_);
+}
+
 void AppInstall::GetVersionDone(const base::Version& version) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  VLOG_IF(1, (version.IsValid()))
-      << "Found active version: " << version.GetString();
+  VLOG_IF(1, version.IsValid()) << "Active version: " << version.GetString();
   if (version.IsValid() && version >= base::Version(kUpdaterVersion)) {
-    splash_screen_->Dismiss(base::BindOnce(&AppInstall::MaybeInstallApp, this));
+    MaybeInstallApp();
     return;
   }
-
-  InstallCandidate(
-      updater_scope(),
-      base::BindOnce(
-          [](SplashScreen* splash_screen, base::OnceCallback<void(int)> done,
-             int result) {
-            splash_screen->Dismiss(base::BindOnce(std::move(done), result));
-          },
-          splash_screen_.get(),
-          base::BindOnce(&AppInstall::InstallCandidateDone, this,
-                         version.IsValid())));
+  InstallCandidate(updater_scope(),
+                   base::BindOnce(&AppInstall::InstallCandidateDone, this,
+                                  version.IsValid()));
 }
 
 void AppInstall::InstallCandidateDone(bool valid_version, int result) {
@@ -188,8 +200,9 @@ void AppInstall::InstallCandidateDone(bool valid_version, int result) {
   }
 
   // It's possible that a previous updater existed but is nonresponsive. In
-  // this case, clear the active version in global prefs so that the system can
-  // recover.
+  // this case, set the active version in global prefs so that this instance
+  // will take over without qualification. Also, if EULA acceptance is still
+  // required, record so here.
   base::ThreadPool::CreateSequencedTaskRunner(
       {base::MayBlock(), base::WithBaseSyncPrimitives()})
       ->PostTaskAndReply(
@@ -198,7 +211,14 @@ void AppInstall::InstallCandidateDone(bool valid_version, int result) {
               [](UpdaterScope scope) {
                 scoped_refptr<GlobalPrefs> prefs = CreateGlobalPrefs(scope);
                 if (prefs) {
-                  prefs->SetActiveVersion("");
+                  prefs->SetActiveVersion(kUpdaterVersion);
+                  prefs->SetSwapping(true);
+                  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+                          kEulaRequiredSwitch)) {
+                    base::MakeRefCounted<PersistedData>(
+                        scope, prefs->GetPrefService(), nullptr)
+                        ->SetEulaRequired(true);
+                  }
                   PrefsCommitPendingWrites(prefs->GetPrefService());
                 }
               },
@@ -210,17 +230,10 @@ void AppInstall::WakeCandidate() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // Invoke UpdateServiceInternal::Hello to wake this version of the updater,
-  // qualify, and possibly promote this version as a result. The
-  // |UpdateServiceInternal| instance has sequence affinity. Bind it in the
-  // closure to ensure it is released in this sequence.
-  scoped_refptr<UpdateServiceInternal> update_service_internal =
-      CreateUpdateServiceInternalProxy(updater_scope());
-  update_service_internal->Hello(base::BindOnce(
-      [](scoped_refptr<UpdateServiceInternal> /*update_service_internal*/,
-         scoped_refptr<AppInstall> app_install) {
-        app_install->FetchPolicies();
-      },
-      update_service_internal, base::WrapRefCounted(this)));
+  // qualify, and possibly promote this version as a result.
+  CreateUpdateServiceInternalProxy(updater_scope())
+      ->Hello(base::BindOnce(&AppInstall::CreateUpdateServiceProxy, this)
+                  .Then(base::BindOnce(&AppInstall::FetchPolicies, this)));
 }
 
 void AppInstall::FetchPolicies() {
@@ -264,8 +277,6 @@ void AppInstall::MaybeInstallApp() {
     Shutdown(kErrorOk);
     return;
   }
-  app_install_controller_ = app_install_controller_maker_.Run(update_service_);
-
   const base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
   if (cmd_line->HasSwitch(kOfflineDirSwitch)) {
     // Presence of "offlinedir" in command line indicates this is an offline

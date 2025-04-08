@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_EXTENSIONS_API_IDENTITY_IDENTITY_GET_AUTH_TOKEN_FUNCTION_H_
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -24,14 +25,9 @@
 #include "extensions/browser/extension_function_histogram_value.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "google_apis/gaia/oauth2_mint_token_flow.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/crosapi/device_oauth2_token_service_ash.h"
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chrome/browser/lacros/device_oauth2_token_service_lacros.h"
 #endif
 
 namespace signin {
@@ -42,15 +38,9 @@ struct AccessTokenInfo;
 namespace extensions {
 class IdentityGetAuthTokenError;
 
-BASE_DECLARE_FEATURE(kGetAuthTokenCheckInteractivity);
-
 // Exposed for testing
-constexpr base::TimeDelta kDefaultGetAuthTokenInactivityThreshold =
+inline constexpr base::TimeDelta kGetAuthTokenInactivityTime =
     base::Minutes(10);
-extern const char kGetAuthTokenActivityStatusHistogramBaseName[];
-extern const char kGetAuthTokenIdleTimeHistogramBaseName[];
-extern const char kGetAuthTokenHistogramConsentSuffix[];
-extern const char kGetAuthTokenHistogramSigninSuffix[];
 
 // identity.getAuthToken fetches an OAuth 2 function for the
 // caller. The request has three sub-flows: non-interactive,
@@ -78,9 +68,6 @@ class IdentityGetAuthTokenFunction : public ExtensionFunction,
   // Interactive requests showing UIs (like a signin tab or a consent window)
   // may be rejected to avoid creating unwanted or out-of-context user
   // interruption.
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-  // Exposed for testing.
   enum class InteractivityStatus {
     // Interactivity was not requested.
     kNotRequested = 0,
@@ -95,11 +82,6 @@ class IdentityGetAuthTokenFunction : public ExtensionFunction,
     // Interactivity was requested. There is no user gesture but it is allowed
     // because the user was recently active.
     kAllowedWithActivity = 4,
-    // Interactivity was requested, and it is allowed because the idle checks
-    // are disabled.
-    kAllowedNoIdleCheck = 5,
-
-    kMaxValue = kAllowedNoIdleCheck,
   };
 
   DECLARE_EXTENSION_FUNCTION("identity.getAuthToken",
@@ -135,7 +117,7 @@ class IdentityGetAuthTokenFunction : public ExtensionFunction,
 
   // Invoked on completion of the access token fetcher.
   // Exposed for testing.
-  void OnGetAccessTokenComplete(const absl::optional<std::string>& access_token,
+  void OnGetAccessTokenComplete(const std::optional<std::string>& access_token,
                                 base::Time expiration_time,
                                 const GoogleServiceAuthError& error);
 
@@ -155,14 +137,8 @@ class IdentityGetAuthTokenFunction : public ExtensionFunction,
   // Exposed for testing.
   std::string GetSelectedUserId() const;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  using DeviceOAuth2TokenFetcher = crosapi::DeviceOAuth2TokenServiceAsh;
-#endif
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  using DeviceOAuth2TokenFetcher = DeviceOAuth2TokenServiceLacros;
-#endif
-
 #if BUILDFLAG(IS_CHROMEOS)
+  using DeviceOAuth2TokenFetcher = crosapi::DeviceOAuth2TokenServiceAsh;
   std::unique_ptr<DeviceOAuth2TokenFetcher> device_oauth2_token_fetcher_;
 #endif
 
@@ -185,24 +161,14 @@ class IdentityGetAuthTokenFunction : public ExtensionFunction,
 
   enum class InteractionType { kSignin, kConsent };
 
-  // Request the primary account info.
-  // |extension_gaia_id|: The GAIA ID that was set in the parameters for this
-  // instance, or empty if this was not in the parameters.
-  void GetAuthTokenForPrimaryAccount(const std::string& extension_gaia_id);
-
-  // Wrapper to FindExtendedAccountInfoByGaiaId() to avoid a synchronous call to
-  // IdentityManager in RunAsync().
-  void FetchExtensionAccountInfo(const std::string& gaia_id);
-
-  // Called when the AccountInfo that this instance should use is available.
-  void OnReceivedExtensionAccountInfo(const CoreAccountInfo& account_info);
+  // If `gaia_id` is empty or the account is not present in Chrome, this will
+  // use the primary account if it exists. Otherwise, interactive sign in flow
+  // might be started.
+  void GetAuthTokenForAccount(const std::string& gaia_id);
 
   // signin::IdentityManager::Observer implementation:
   void OnRefreshTokenUpdatedForAccount(
       const CoreAccountInfo& account_info) override;
-  void OnAccountsInCookieUpdated(
-      const signin::AccountsInCookieJarInfo& accounts_in_cookie_jar_info,
-      const GoogleServiceAuthError& error) override;
   void OnPrimaryAccountChanged(
       const signin::PrimaryAccountChangeEvent& event_details) override;
 
@@ -233,9 +199,8 @@ class IdentityGetAuthTokenFunction : public ExtensionFunction,
   void StartMintToken(IdentityMintRequestQueue::MintType type) override;
 
   // OAuth2MintTokenFlow::Delegate implementation:
-  void OnMintTokenSuccess(const std::string& access_token,
-                          const std::set<std::string>& granted_scopes,
-                          int time_to_live) override;
+  void OnMintTokenSuccess(
+      const OAuth2MintTokenFlow::MintTokenResult& result) override;
   void OnMintTokenFailure(const GoogleServiceAuthError& error) override;
   void OnRemoteConsentSuccess(
       const RemoteConsentResolutionData& resolution_data) override;
@@ -246,6 +211,14 @@ class IdentityGetAuthTokenFunction : public ExtensionFunction,
   // 1. Enterprise kiosk mode.
   // 2. Allowlisted first party apps in public session.
   virtual void StartDeviceAccessTokenRequest();
+#endif
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  // This dialog prompts the user to sign in with an account that is already
+  // present in the identity manager. This is different from the signin dialog
+  // shown when there are no accounts in the identity manager.
+  void MaybeShowChromeSigninDialog();
+  void OnChromeSigninDialogDestroyed();
 #endif
 
   // Methods for invoking UI. Overridable for testing.
@@ -261,13 +234,10 @@ class IdentityGetAuthTokenFunction : public ExtensionFunction,
   // Returns true if extensions are restricted to the primary account.
   bool IsPrimaryAccountOnly() const;
 
-  // Records metrics related to user activity.
-  void RecordInteractivityMetrics(InteractionType interaction_type);
-
   // Computes the interactivity status for consent and sign-in based on the
   // "interactive" parameter, the idle state and whether signin is allowed.
   void ComputeInteractivityStatus(
-      const absl::optional<api::identity::TokenDetails>& details);
+      const std::optional<api::identity::TokenDetails>& details);
 
   // Returns an error for cases when interactivity is not allowed. Must not be
   // called when interactivity is allowed.
@@ -291,9 +261,6 @@ class IdentityGetAuthTokenFunction : public ExtensionFunction,
   // extension.
   std::string selected_gaia_id_;
 
-  // Shown in the extension login prompt.
-  std::string email_for_default_web_account_;
-
   ExtensionTokenKey token_key_{/*extension_id=*/"",
                                /*account_info=*/CoreAccountInfo(),
                                /*scopes=*/{}};
@@ -313,16 +280,7 @@ class IdentityGetAuthTokenFunction : public ExtensionFunction,
                           signin::IdentityManager::Observer>
       scoped_identity_manager_observation_{this};
 
-  // This class can be listening to account changes, but only for one type of
-  // events at a time.
-  enum class AccountListeningMode {
-    kNotListening,            // Not listening account changes
-    kListeningCookies,        // Listening cookie changes
-    kListeningTokens,         // Listening token changes
-    kListeningPrimaryAccount  // Listening primary account changes
-  };
-  AccountListeningMode account_listening_mode_ =
-      AccountListeningMode::kNotListening;
+  bool waiting_on_account_ = false;
 
   base::WeakPtrFactory<IdentityGetAuthTokenFunction> weak_ptr_factory_{this};
 };

@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/views/payments/payment_request_browsertest_base.h"
 #include "chrome/browser/ui/views/payments/payment_request_dialog_view_ids.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/autofill/core/browser/address_data_manager.h"
 #include "components/autofill/core/browser/autofill_test_utils.h"
 #include "components/autofill/core/browser/data_model/autofill_profile.h"
 #include "components/autofill/core/browser/personal_data_manager.h"
@@ -23,8 +24,9 @@ namespace payments {
 
 namespace {
 
-const base::Time kSomeDate = base::Time::FromDoubleT(1484505871);
-const base::Time kSomeLaterDate = base::Time::FromDoubleT(1497552271);
+const base::Time kSomeDate = base::Time::FromSecondsSinceUnixEpoch(1484505871);
+const base::Time kSomeLaterDate =
+    base::Time::FromSecondsSinceUnixEpoch(1497552271);
 
 }  // namespace
 
@@ -32,7 +34,9 @@ using PaymentRequestShippingAddressUseStatsTest = PaymentRequestBrowserTestBase;
 
 // Tests that use stats for the shipping address used in a Payment Request are
 // properly updated upon completion.
-IN_PROC_BROWSER_TEST_F(PaymentRequestShippingAddressUseStatsTest, RecordUse) {
+// Flaky. https://crbug.com/1495539.
+IN_PROC_BROWSER_TEST_F(PaymentRequestShippingAddressUseStatsTest,
+                       DISABLED_RecordUse) {
   std::string payment_method_name;
   InstallPaymentApp("a.com", "/payment_request_success_responder.js",
                     &payment_method_name);
@@ -52,8 +56,9 @@ IN_PROC_BROWSER_TEST_F(PaymentRequestShippingAddressUseStatsTest, RecordUse) {
   AddAutofillProfile(shipping_address2);
 
   // Check that the initial use stats were set correctly.
-  autofill::AutofillProfile* initial_shipping =
-      GetDataManager()->GetProfileByGUID(shipping_address2.guid());
+  const autofill::AutofillProfile* initial_shipping =
+      GetDataManager()->address_data_manager().GetProfileByGUID(
+          shipping_address2.guid());
   EXPECT_EQ(3U, initial_shipping->use_count());
   EXPECT_EQ(kSomeDate, initial_shipping->use_date());
 
@@ -67,8 +72,9 @@ IN_PROC_BROWSER_TEST_F(PaymentRequestShippingAddressUseStatsTest, RecordUse) {
   WaitForOnPersonalDataChanged();
 
   // Check that the usage of the profile was recorded.
-  autofill::AutofillProfile* updated_shipping =
-      GetDataManager()->GetProfileByGUID(shipping_address2.guid());
+  const autofill::AutofillProfile* updated_shipping =
+      GetDataManager()->address_data_manager().GetProfileByGUID(
+          shipping_address2.guid());
   EXPECT_EQ(4U, updated_shipping->use_count());
   EXPECT_EQ(kSomeLaterDate, updated_shipping->use_date());
 }
@@ -77,7 +83,9 @@ using PaymentRequestContactAddressUseStatsTest = PaymentRequestBrowserTestBase;
 
 // Tests that use stats for the contact address used in a Payment Request are
 // properly updated upon completion.
-IN_PROC_BROWSER_TEST_F(PaymentRequestContactAddressUseStatsTest, RecordUse) {
+// Flaky. https://crbug.com/1495539.
+IN_PROC_BROWSER_TEST_F(PaymentRequestContactAddressUseStatsTest,
+                       DISABLED_RecordUse) {
   std::string payment_method_name;
   InstallPaymentApp("a.com", "/payment_request_success_responder.js",
                     &payment_method_name);
@@ -96,8 +104,9 @@ IN_PROC_BROWSER_TEST_F(PaymentRequestContactAddressUseStatsTest, RecordUse) {
   AddAutofillProfile(contact_address2);
 
   // Check that the initial use stats were set correctly.
-  autofill::AutofillProfile* initial_contact =
-      GetDataManager()->GetProfileByGUID(contact_address2.guid());
+  const autofill::AutofillProfile* initial_contact =
+      GetDataManager()->address_data_manager().GetProfileByGUID(
+          contact_address2.guid());
   EXPECT_EQ(3U, initial_contact->use_count());
   EXPECT_EQ(kSomeDate, initial_contact->use_date());
 
@@ -111,8 +120,9 @@ IN_PROC_BROWSER_TEST_F(PaymentRequestContactAddressUseStatsTest, RecordUse) {
   WaitForOnPersonalDataChanged();
 
   // Check that the usage of the profile was recorded.
-  autofill::AutofillProfile* updated_contact =
-      GetDataManager()->GetProfileByGUID(contact_address2.guid());
+  const autofill::AutofillProfile* updated_contact =
+      GetDataManager()->address_data_manager().GetProfileByGUID(
+          contact_address2.guid());
   EXPECT_EQ(4U, updated_contact->use_count());
   EXPECT_EQ(kSomeLaterDate, updated_contact->use_date());
 }
@@ -122,8 +132,9 @@ using PaymentRequestSameShippingAndContactAddressUseStatsTest =
 
 // Tests that use stats for an address that was used both as a shipping and
 // contact address in a Payment Request are properly updated upon completion.
+// Flaky. https://crbug.com/1495539.
 IN_PROC_BROWSER_TEST_F(PaymentRequestSameShippingAndContactAddressUseStatsTest,
-                       RecordUse) {
+                       DISABLED_RecordUse) {
   std::string payment_method_name;
   InstallPaymentApp("a.com", "/payment_request_success_responder.js",
                     &payment_method_name);
@@ -141,8 +152,9 @@ IN_PROC_BROWSER_TEST_F(PaymentRequestSameShippingAndContactAddressUseStatsTest,
   AddAutofillProfile(multi_address2);
 
   // Check that the initial use stats were set correctly.
-  autofill::AutofillProfile* initial_multi =
-      GetDataManager()->GetProfileByGUID(multi_address2.guid());
+  const autofill::AutofillProfile* initial_multi =
+      GetDataManager()->address_data_manager().GetProfileByGUID(
+          multi_address2.guid());
   EXPECT_EQ(3U, initial_multi->use_count());
   EXPECT_EQ(kSomeDate, initial_multi->use_date());
 
@@ -156,8 +168,9 @@ IN_PROC_BROWSER_TEST_F(PaymentRequestSameShippingAndContactAddressUseStatsTest,
   WaitForOnPersonalDataChanged();
 
   // Check that the usage of the profile was only recorded once.
-  autofill::AutofillProfile* updated_multi =
-      GetDataManager()->GetProfileByGUID(multi_address2.guid());
+  const autofill::AutofillProfile* updated_multi =
+      GetDataManager()->address_data_manager().GetProfileByGUID(
+          multi_address2.guid());
   EXPECT_EQ(4U, updated_multi->use_count());
   EXPECT_EQ(kSomeLaterDate, updated_multi->use_date());
 }

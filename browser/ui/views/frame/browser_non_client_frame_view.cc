@@ -7,7 +7,6 @@
 #include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/avatar_menu.h"
@@ -104,7 +103,7 @@ bool BrowserNonClientFrameView::HasVisibleBackgroundTabShapes(
   TabStrip* const tab_strip = browser_view_->tabstrip();
 
   const bool active = ShouldPaintAsActive(active_state);
-  const absl::optional<int> bg_id =
+  const std::optional<int> bg_id =
       tab_strip->GetCustomBackgroundId(active_state);
   if (bg_id.has_value()) {
     // If the theme has a custom tab background image, assume tab shapes are
@@ -134,8 +133,10 @@ bool BrowserNonClientFrameView::HasVisibleBackgroundTabShapes(
 
   // Background tab shapes are visible iff the tab color differs from the frame
   // color.
-  return tab_strip->GetTabBackgroundColor(TabActive::kInactive, active_state) !=
-         GetFrameColor(active_state);
+  return TabStyle::Get()->GetTabBackgroundColor(
+             TabStyle::TabSelectionState::kInactive,
+             /*hovered=*/false, ShouldPaintAsActive(active_state),
+             *GetColorProvider()) != GetFrameColor(active_state);
 }
 
 bool BrowserNonClientFrameView::EverHasVisibleBackgroundTabShapes() const {
@@ -163,7 +164,7 @@ SkColor BrowserNonClientFrameView::GetFrameColor(
                                           : ui::kColorFrameInactive);
 }
 
-absl::optional<int> BrowserNonClientFrameView::GetCustomBackgroundId(
+std::optional<int> BrowserNonClientFrameView::GetCustomBackgroundId(
     BrowserFrameActiveState active_state) const {
   const ui::ThemeProvider* tp = GetThemeProvider();
   const bool incognito = browser_view_->GetIncognito();
@@ -185,7 +186,7 @@ absl::optional<int> BrowserNonClientFrameView::GetCustomBackgroundId(
       tp->HasCustomImage(id) || (!active && tp->HasCustomImage(active_id)) ||
       tp->HasCustomImage(IDR_THEME_FRAME) ||
       (incognito && tp->HasCustomImage(IDR_THEME_FRAME_INCOGNITO));
-  return has_custom_image ? absl::make_optional(id) : absl::nullopt;
+  return has_custom_image ? std::make_optional(id) : std::nullopt;
 }
 
 void BrowserNonClientFrameView::UpdateMinimumSize() {}
@@ -200,24 +201,25 @@ void BrowserNonClientFrameView::VisibilityChanged(views::View* starting_from,
     OnProfileAvatarChanged(base::FilePath());
 }
 
-TabSearchBubbleHost* BrowserNonClientFrameView::GetTabSearchBubbleHost() {
-  return nullptr;
-}
-
-gfx::Insets BrowserNonClientFrameView::MirroredFrameBorderInsets() const {
-  NOTREACHED_NORETURN();
+gfx::Insets BrowserNonClientFrameView::RestoredMirroredFrameBorderInsets()
+    const {
+  NOTREACHED();
 }
 
 gfx::Insets BrowserNonClientFrameView::GetInputInsets() const {
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 
 SkRRect BrowserNonClientFrameView::GetRestoredClipRegion() const {
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 
 int BrowserNonClientFrameView::GetTranslucentTopAreaHeight() const {
   return 0;
+}
+
+void BrowserNonClientFrameView::SetFrameBounds(const gfx::Rect& bounds) {
+  frame_->SetBounds(bounds);
 }
 
 void BrowserNonClientFrameView::PaintAsActiveChanged() {
@@ -295,7 +297,7 @@ void BrowserNonClientFrameView::OnGestureEvent(ui::GestureEvent* event) {
   // This opens the title bar system context menu on long press in the titlebar.
   // NonClientHitTest returns HTCAPTION if `event_loc` is in the empty space on
   // the titlebar.
-  if (event->type() == ui::ET_GESTURE_LONG_TAP &&
+  if (event->type() == ui::EventType::kGestureLongTap &&
       NonClientHitTest(event_loc) == HTCAPTION) {
     views::View::ConvertPointToScreen(this, &event_loc);
     event_loc = display::win::ScreenWin::DIPToScreenPoint(event_loc);
@@ -315,5 +317,5 @@ int BrowserNonClientFrameView::GetSystemMenuY() const {
 }
 #endif  // BUILDFLAG(IS_WIN)
 
-BEGIN_METADATA(BrowserNonClientFrameView, views::NonClientFrameView)
+BEGIN_METADATA(BrowserNonClientFrameView)
 END_METADATA

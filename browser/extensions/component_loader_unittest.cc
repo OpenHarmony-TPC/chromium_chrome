@@ -5,7 +5,9 @@
 #include "chrome/browser/extensions/component_loader.h"
 
 #include <stddef.h>
+
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/command_line.h"
@@ -21,7 +23,6 @@
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/test/base/testing_profile.h"
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_registry_observer.h"
@@ -30,7 +31,6 @@
 #include "extensions/common/extension_set.h"
 #include "extensions/common/manifest_handlers/background_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace extensions {
 class ExtensionUnloadedObserver : public ExtensionRegistryObserver {
@@ -65,8 +65,8 @@ class ComponentLoaderTest : public ExtensionServiceUserTestBase {
   void SetUp() override {
     ExtensionServiceUserTestBase::InitializeEmptyExtensionService();
     ExtensionServiceUserTestBase::SetUp();
-    extension_system_ = static_cast<TestExtensionSystem*>(
-        ExtensionSystem::Get(testing_profile()));
+    extension_system_ =
+        static_cast<TestExtensionSystem*>(ExtensionSystem::Get(profile()));
 
     extension_path_ =
         GetBasePath().AppendASCII("good")
@@ -99,7 +99,7 @@ class ComponentLoaderTest : public ExtensionServiceUserTestBase {
   // (users for ChromeOS Ash).
   void RunEmitUserHistogramsTest(int nonuser_expected_total_count,
                                  int user_expected_total_count) {
-    service_->component_loader()->set_profile_for_testing(testing_profile());
+    service_->component_loader()->set_profile_for_testing(profile());
     base::HistogramTester histograms;
     service_->component_loader()->LoadAll();
     histograms.ExpectTotalCount("Extensions.LoadAllComponentTime", 1);
@@ -111,7 +111,7 @@ class ComponentLoaderTest : public ExtensionServiceUserTestBase {
 };
 
 TEST_F(ComponentLoaderTest, ParseManifest) {
-  absl::optional<base::Value::Dict> manifest;
+  std::optional<base::Value::Dict> manifest;
 
   // Test invalid JSON.
   manifest =
@@ -162,7 +162,7 @@ TEST_F(ComponentLoaderTest, AddWhenNotReady) {
   std::string extension_id =
       service_->component_loader()->Add(manifest_contents_, extension_path_);
   EXPECT_NE("", extension_id);
-  ExtensionRegistry* registry = ExtensionRegistry::Get(testing_profile());
+  ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
   EXPECT_EQ(0u, registry->enabled_extensions().size());
 }
 
@@ -172,13 +172,13 @@ TEST_F(ComponentLoaderTest, AddWhenReady) {
   std::string extension_id =
       service_->component_loader()->Add(manifest_contents_, extension_path_);
   EXPECT_NE("", extension_id);
-  ExtensionRegistry* registry = ExtensionRegistry::Get(testing_profile());
+  ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
   EXPECT_EQ(1u, registry->enabled_extensions().size());
   EXPECT_TRUE(registry->enabled_extensions().GetByID(extension_id));
 }
 
 TEST_F(ComponentLoaderTest, Remove) {
-  ExtensionRegistry* registry = ExtensionRegistry::Get(testing_profile());
+  ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
 
   // Removing an extension that was never added should be ok.
   service_->component_loader()->Remove(extension_path_);
@@ -204,7 +204,7 @@ TEST_F(ComponentLoaderTest, Remove) {
 }
 
 TEST_F(ComponentLoaderTest, LoadAll) {
-  ExtensionRegistry* registry = ExtensionRegistry::Get(testing_profile());
+  ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
 
   // No extensions should be loaded if none were added.
   service_->component_loader()->LoadAll();
@@ -239,7 +239,7 @@ TEST_F(ComponentLoaderTest, LoadAll_NonUserEmitHistograms) {
 
 // Test is flaky. https://crbug.com/1306983
 TEST_F(ComponentLoaderTest, DISABLED_AddOrReplace) {
-  ExtensionRegistry* registry = ExtensionRegistry::Get(testing_profile());
+  ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
   ExtensionUnloadedObserver unload_observer(registry);
   EXPECT_EQ(0u, service_->component_loader()->registered_extensions_count());
 

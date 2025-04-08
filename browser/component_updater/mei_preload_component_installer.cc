@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/component_updater/mei_preload_component_installer.h"
 
 #include <memory>
@@ -129,8 +134,9 @@ MediaEngagementPreloadComponentInstallerPolicy::GetInstallerAttributes() const {
 
 void RegisterMediaEngagementPreloadComponent(ComponentUpdateService* cus,
                                              base::OnceClosure on_load) {
-  if (!base::FeatureList::IsEnabled(media::kPreloadMediaEngagementData))
+  if (!base::FeatureList::IsEnabled(media::kPreloadMediaEngagementData)) {
     return;
+  }
 
   auto installer = base::MakeRefCounted<ComponentInstaller>(
       std::make_unique<MediaEngagementPreloadComponentInstallerPolicy>(

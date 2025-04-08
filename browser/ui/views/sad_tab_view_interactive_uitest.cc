@@ -22,6 +22,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "ui/views/controls/button/md_text_button.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 
 namespace test {
@@ -85,34 +86,29 @@ class SadTabViewInteractiveUITest : public InProcessBrowserTest {
 
   views::View* GetFocusedView() { return GetFocusManager()->GetFocusedView(); }
 
-  const char* ActionButtonClassName() {
-    return views::MdTextButton::kViewClassName;
-  }
-
-  bool IsFocusedViewInsideViewClass(const char* view_class) {
+  template <typename T>
+  bool IsFocusedViewInsideViewClass() {
     views::View* view = GetFocusedView();
     while (view) {
-      if (view->GetClassName() == view_class)
+      if (views::IsViewClass<T>(view)) {
         return true;
+      }
       view = view->parent();
     }
     return false;
   }
 
   bool IsFocusedViewInsideSadTab() {
-    return IsFocusedViewInsideViewClass(SadTabView::kViewClassName);
+    return IsFocusedViewInsideViewClass<SadTabView>();
   }
 
   bool IsFocusedViewInsideBrowserToolbar() {
-    return IsFocusedViewInsideViewClass(
-        BrowserView::GetBrowserViewForBrowser(browser())
-            ->toolbar()
-            ->GetClassName());
+    return IsFocusedViewInsideViewClass<ToolbarView>();
   }
 
   bool IsFocusedViewOnActionButtonInSadTab() {
-    return IsFocusedViewInsideViewClass(SadTabView::kViewClassName) &&
-           IsFocusedViewInsideViewClass(ActionButtonClassName());
+    return IsFocusedViewInsideViewClass<SadTabView>() &&
+           IsFocusedViewInsideViewClass<views::MdTextButton>();
   }
 
   void ClickOnActionButtonInSadTab() {
@@ -153,23 +149,15 @@ IN_PROC_BROWSER_TEST_F(SadTabViewInteractiveUITest,
   KillRendererForActiveWebContentsSync();
 
   // Focus should now be on a MdText button inside the sad tab.
-  ASSERT_STREQ(GetFocusedView()->GetClassName(), ActionButtonClassName());
+  ASSERT_TRUE(views::IsViewClass<views::MdTextButton>(GetFocusedView()));
   ASSERT_TRUE(IsFocusedViewInsideSadTab());
   ASSERT_FALSE(IsFocusedViewInsideBrowserToolbar());
 
   // Pressing the Tab key should cycle focus back to the toolbar or the browser
   // frame if the tab search caption button is enabled.
   PressTab();
-  if (WindowFrameUtil::IsWin10TabSearchCaptionButtonEnabled(browser())) {
-    const auto* frame_view = BrowserView::GetBrowserViewForBrowser(browser())
-                                 ->frame()
-                                 ->GetFrameView();
-    ASSERT_FALSE(IsFocusedViewInsideSadTab());
-    ASSERT_TRUE(frame_view->Contains(GetFocusedView()));
-  } else {
-    ASSERT_FALSE(IsFocusedViewInsideSadTab());
-    ASSERT_TRUE(IsFocusedViewInsideBrowserToolbar());
-  }
+  ASSERT_FALSE(IsFocusedViewInsideSadTab());
+  ASSERT_TRUE(IsFocusedViewInsideBrowserToolbar());
 
   // Keep pressing the Tab key and make sure we make it back to the sad tab.
   while (!IsFocusedViewInsideSadTab())
@@ -182,7 +170,7 @@ IN_PROC_BROWSER_TEST_F(SadTabViewInteractiveUITest,
   ASSERT_TRUE(IsFocusedViewInsideBrowserToolbar());
 }
 
-// TODO(crbug.com/1184132): flaky test.
+// TODO(crbug.com/40752417): flaky test.
 IN_PROC_BROWSER_TEST_F(SadTabViewInteractiveUITest,
                        DISABLED_ReloadMultipleSadTabs) {
   ASSERT_TRUE(embedded_test_server()->Start());

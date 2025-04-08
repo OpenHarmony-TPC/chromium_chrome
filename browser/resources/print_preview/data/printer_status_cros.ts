@@ -1,7 +1,7 @@
 // Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
 /**
  *  These values must be kept in sync with the Reason enum in
@@ -106,7 +106,7 @@ export const ERROR_STRING_KEY_MAP: Map<PrinterStatusReason, string> = new Map([
 export function getStatusReasonFromPrinterStatus(printerStatus: PrinterStatus):
     PrinterStatusReason {
   if (!printerStatus.printerId) {
-    // TODO(crbug.com/1027400): Remove console.warn once bug is confirmed fix.
+    // TODO(crbug.com/40660201): Remove console.warn once bug is confirmed fix.
     console.warn('Received printer status missing printer id');
     return PrinterStatusReason.UNKNOWN_REASON;
   }
@@ -146,6 +146,36 @@ export function computePrinterState(
   return PrinterState.ERROR;
 }
 
+// Based on printer status icon colors in
+// chrome/browser/resources/print_preview/ui/icons.html.
+type StatusColor = 'green'|'grey'|'orange'|'red';
+
+// Mapping based on http://go/printer-settings-revamp-2023-dd "Determining
+// Printer Status" section.
+const PRINTER_STATUS_REASON_COLOR_MAP =
+    new Map<PrinterStatusReason, StatusColor>([
+      [PrinterStatusReason.UNKNOWN_REASON, 'green'],
+      [PrinterStatusReason.DEVICE_ERROR, 'orange'],
+      [PrinterStatusReason.DOOR_OPEN, 'orange'],
+      [PrinterStatusReason.LOW_ON_INK, 'orange'],
+      [PrinterStatusReason.LOW_ON_PAPER, 'orange'],
+      [PrinterStatusReason.NO_ERROR, 'green'],
+      [PrinterStatusReason.OUT_OF_INK, 'orange'],
+      [PrinterStatusReason.OUT_OF_PAPER, 'orange'],
+      [PrinterStatusReason.OUTPUT_ALMOST_FULL, 'orange'],
+      [PrinterStatusReason.OUTPUT_FULL, 'orange'],
+      [PrinterStatusReason.PAPER_JAM, 'orange'],
+      [PrinterStatusReason.PAUSED, 'orange'],
+      [PrinterStatusReason.PRINTER_QUEUE_FULL, 'orange'],
+      [PrinterStatusReason.PRINTER_UNREACHABLE, 'red'],
+      [PrinterStatusReason.STOPPED, 'orange'],
+      [PrinterStatusReason.TRAY_MISSING, 'orange'],
+    ]);
+
+/**
+ * Returns the print-preview icon matching the printer's PrinterStatusReason,
+ * enterprise status, and color scheme.
+ */
 export function getPrinterStatusIcon(
     printerStatusReason: PrinterStatusReason|null, isEnterprisePrinter: boolean,
     prefersDarkColorScheme: boolean): string {
@@ -153,14 +183,24 @@ export function getPrinterStatusIcon(
       'print-preview:business-printer-status-' :
       'print-preview:printer-status-';
   const darkModeSuffix = prefersDarkColorScheme ? '-dark' : '';
-  switch (computePrinterState(printerStatusReason)) {
-    case PrinterState.GOOD:
-      return `${printerTypePrefix}green${darkModeSuffix}`;
-    case PrinterState.ERROR:
-      return `${printerTypePrefix}red${darkModeSuffix}`;
-    case PrinterState.UNKNOWN:
-      return `${printerTypePrefix}grey${darkModeSuffix}`;
-    default:
-      assertNotReached();
+  const iconColor = printerStatusReason === null ?
+      'grey' :
+      PRINTER_STATUS_REASON_COLOR_MAP.get(printerStatusReason);
+  assert(iconColor);
+  return `${printerTypePrefix}${iconColor}${darkModeSuffix}`;
+}
+
+/**
+ * Returns class name matching icon color for the printer's
+ * PrinterStatusReason.
+ */
+export function getStatusTextColorClass(
+    printerStatusReason: PrinterStatusReason|null): string {
+  if (printerStatusReason === null) {
+    return '';
   }
+
+  const color = PRINTER_STATUS_REASON_COLOR_MAP.get(printerStatusReason);
+  assert(color);
+  return `status-${color}`;
 }

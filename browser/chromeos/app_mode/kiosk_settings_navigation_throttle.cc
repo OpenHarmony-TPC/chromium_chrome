@@ -23,7 +23,7 @@ KioskSettingsNavigationThrottle::SettingsPage kSettingsPages[] = {
     {"chrome-extension://gjjabgpgjpampikjhjpfhneeoapjbjaf/", true},
     {"chrome-extension://dakbfdmgjiabojdgbiljlhgjbokobjpg/", true}};
 
-// This list is used in tests to replace default |kSettingsPages| items.
+// This list is used in tests to replace default `kSettingsPages` items.
 std::vector<KioskSettingsNavigationThrottle::SettingsPage>*
     g_test_settings_pages = nullptr;
 
@@ -73,7 +73,7 @@ KioskSettingsNavigationThrottle::MaybeCreateThrottleFor(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   // Kiosk check.
-  if (!chrome::IsRunningInForcedAppMode()) {
+  if (!IsRunningInForcedAppMode()) {
     return nullptr;
   }
   // If the web contents were previously marked as restricted, attach a throttle

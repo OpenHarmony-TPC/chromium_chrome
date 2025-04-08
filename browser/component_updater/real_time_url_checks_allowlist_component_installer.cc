@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/component_updater/real_time_url_checks_allowlist_component_installer.h"
 
 #include <memory>
@@ -19,7 +24,6 @@
 #include "base/task/thread_pool.h"
 #include "base/values.h"
 #include "components/safe_browsing/android/real_time_url_checks_allowlist.h"
-#include "components/safe_browsing/core/common/features.h"
 
 using component_updater::ComponentUpdateService;
 
@@ -42,8 +46,9 @@ const char kRealTimeUrlChecksAllowlistManifestName[] =
 
 void LoadFromDisk(const base::FilePath& pb_path) {
   base::UmaHistogramBoolean(kInstallerLoadFromDiskPbFileEmpty, pb_path.empty());
-  if (pb_path.empty())
+  if (pb_path.empty()) {
     return;
+  }
 
   std::string binary_pb;
   if (!base::ReadFileToString(pb_path, &binary_pb)) {
@@ -126,12 +131,9 @@ RealTimeUrlChecksAllowlistComponentInstallerPolicy::GetInstallerAttributes()
 }
 
 void RegisterRealTimeUrlChecksAllowlistComponent(ComponentUpdateService* cus) {
-  if (base::FeatureList::IsEnabled(
-          safe_browsing::kComponentUpdaterAndroidProtegoAllowlist)) {
-    auto installer = base::MakeRefCounted<ComponentInstaller>(
-        std::make_unique<RealTimeUrlChecksAllowlistComponentInstallerPolicy>());
-    installer->Register(cus, base::OnceClosure());
-  }
+  auto installer = base::MakeRefCounted<ComponentInstaller>(
+      std::make_unique<RealTimeUrlChecksAllowlistComponentInstallerPolicy>());
+  installer->Register(cus, base::OnceClosure());
 }
 
 }  // namespace component_updater

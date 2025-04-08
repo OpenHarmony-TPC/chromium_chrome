@@ -7,6 +7,8 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/version_info/channel.h"
@@ -76,13 +78,13 @@ IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesApiTest,
   auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   static constexpr char kScriptTemplate[] = R"(
     // Verify that web accessible resource can be fetched.
-    async function run(expectOk, filename) {
+    async function run(isAllowed, filename) {
       return new Promise(async resolve => {
         const url = `chrome-extension://%s/${filename}`;
 
         // Fetch and verify the contents of fetched web accessible resources.
         const verifyFetch = (actual) => {
-          if (expectOk == (filename == actual)) {
+          if (isAllowed == (filename == actual)) {
             resolve();
           } else {
             reject(`Unexpected result. File: ${filename}. Found: ${actual}`);
@@ -150,13 +152,13 @@ IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesApiTest,
   test_dir.WriteFile(FILE_PATH_LITERAL("service_worker.js"), "");
   const char* kTestJs = R"(
     // Verify that web accessible resource can be fetched.
-    async function run(expectOk, filename) {
+    async function run(isAllowed, filename) {
       return new Promise(async resolve => {
         const url = chrome.runtime.getURL(filename);
 
         // Fetch and verify the contents of fetched web accessible resources.
         const verifyFetch = (actual) => {
-          chrome.test.assertEq(expectOk, filename == actual);
+          chrome.test.assertEq(isAllowed, filename == actual);
           resolve();
         };
         fetch(url)
@@ -189,22 +191,21 @@ IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesApiTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), gurl));
   auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   const int tab_id = ExtensionTabUtil::GetTabId(web_contents);
-  std::string script = base::StringPrintf(
-      R"(
-      (async () => {
+  static constexpr char kScript[] =
+      R"((async () => {
         await chrome.scripting.executeScript(
           {target: {tabId: %d}, files: ['test.js']})
-      })();
-    )",
-      tab_id);
+      })();)";
   BackgroundScriptExecutor::ExecuteScriptAsync(
-      profile(), extension->id(), base::StringPrintf(script.c_str(), tab_id));
+      profile(), extension->id(), base::StringPrintf(kScript, tab_id));
   ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
 
-class WebAccessibleResourcesDynamicUrlApiTest : public ExtensionApiTest {
+// Useful for testing web accessible resources loaded from a content script.
+class WebAccessibleResourcesDynamicUrlScriptingApiTest
+    : public ExtensionApiTest {
  public:
-  WebAccessibleResourcesDynamicUrlApiTest() {
+  WebAccessibleResourcesDynamicUrlScriptingApiTest() {
     feature_list_.InitAndEnableFeature(
         extensions_features::kExtensionDynamicURLRedirection);
   }
@@ -218,7 +219,7 @@ class WebAccessibleResourcesDynamicUrlApiTest : public ExtensionApiTest {
  protected:
   const Extension* GetExtension(const char* manifest_piece) {
     // manifest.json.
-    const char* kManifestStub = R"({
+    static constexpr char kManifestStub[] = R"({
       "name": "Test",
       "version": "1.0",
       "manifest_version": 3,
@@ -240,18 +241,18 @@ class WebAccessibleResourcesDynamicUrlApiTest : public ExtensionApiTest {
     test_dir_.WriteManifest(kManifest);
 
     // content.js
-    const char* kTestScript = R"(
+    static constexpr char kTestScript[] = R"(
       // Verify that web accessible resource can be fetched.
-      async function run(expectOk, filename, identifier) {
+      async function run(isAllowed, filename, identifier) {
         return new Promise(async resolve => {
           // Verify URL.
           let expected = chrome.runtime.getURL(filename);
           let url = `chrome-extension://${identifier}/${filename}`;
-          chrome.test.assertEq(expectOk, expected == url);
+          chrome.test.assertEq(isAllowed, expected == url);
 
           // Verify contents of fetched web accessible resource.
           const verify = (actual) => {
-            chrome.test.assertEq(expectOk, filename == actual);
+            chrome.test.assertEq(isAllowed, filename == actual);
             resolve();
           };
 
@@ -268,7 +269,7 @@ class WebAccessibleResourcesDynamicUrlApiTest : public ExtensionApiTest {
       const dynamicId = chrome.runtime.dynamicId;
       chrome.test.assertTrue(id != dynamicId);
 
-      // Run tests.
+      // Run tests with arguments [[isAllowed, filename, identifier]].
       const testCases = [
         [true, 'dynamic_web_accessible_resource.html', dynamicId],
         [true, 'web_accessible_resource.html', id],
@@ -302,8 +303,9 @@ class WebAccessibleResourcesDynamicUrlApiTest : public ExtensionApiTest {
 };
 
 // Load dynamic web accessible resource from a content script.
-IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesDynamicUrlApiTest, ContentScript) {
-  const char* kManifest = R"(
+IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesDynamicUrlScriptingApiTest,
+                       ContentScript) {
+  static constexpr char kManifest[] = R"(
     "content_scripts": [
       {
         "matches": ["<all_urls>"],
@@ -322,10 +324,11 @@ IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesDynamicUrlApiTest, ContentScript) {
 }
 
 // Load dynamic web accessible resources via chrome.scripting.executeScript().
-IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesDynamicUrlApiTest, ExecuteScript) {
+IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesDynamicUrlScriptingApiTest,
+                       ExecuteScript) {
   // Load extension.
   WriteFile(FILE_PATH_LITERAL("worker.js"), "// Intentionally blank.");
-  const char* kManifest = R"(
+  static constexpr char kManifest[] = R"(
     "permissions": ["scripting"],
     "background": {"service_worker": "worker.js"}
   )";
@@ -338,16 +341,13 @@ IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesDynamicUrlApiTest, ExecuteScript) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), gurl));
   auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   const int tab_id = ExtensionTabUtil::GetTabId(web_contents);
-  std::string script = base::StringPrintf(
-      R"(
-      (async () => {
+  static constexpr char kScript[] =
+      R"((async () => {
         await chrome.scripting.executeScript(
           {target: {tabId: %d}, files: ['content.js']})
-      })();
-    )",
-      tab_id);
+      })();)";
   BackgroundScriptExecutor::ExecuteScriptAsync(
-      profile(), extension->id(), base::StringPrintf(script.c_str(), tab_id));
+      profile(), extension->id(), base::StringPrintf(kScript, tab_id));
   ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
 

@@ -22,7 +22,6 @@ EnumTraits<mac_notifications::mojom::NotificationOperation,
       break;
   }
   NOTREACHED();
-  return mac_notifications::mojom::NotificationOperation::kClick;
 }
 
 // static
@@ -42,7 +41,6 @@ bool EnumTraits<mac_notifications::mojom::NotificationOperation,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 }  // namespace mojo

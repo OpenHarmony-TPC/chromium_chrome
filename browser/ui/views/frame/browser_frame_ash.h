@@ -7,6 +7,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/frame/native_browser_frame.h"
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/views/widget/native_widget_aura.h"
 
 class BrowserFrame;
@@ -35,12 +36,12 @@ class BrowserFrameAsh : public views::NativeWidgetAura,
   bool UsesNativeSystemMenu() const override;
   int GetMinimizeButtonOffset() const override;
   bool ShouldSaveWindowPlacement() const override;
-  void GetWindowPlacement(gfx::Rect* bounds,
-                          ui::WindowShowState* show_state) const override;
+  void GetWindowPlacement(
+      gfx::Rect* bounds,
+      ui::mojom::WindowShowState* show_state) const override;
   content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
-      const content::NativeWebKeyboardEvent& event) override;
-  bool HandleKeyboardEvent(
-      const content::NativeWebKeyboardEvent& event) override;
+      const input::NativeWebKeyboardEvent& event) override;
+  bool HandleKeyboardEvent(const input::NativeWebKeyboardEvent& event) override;
   bool ShouldRestorePreviousBrowserWidgetState() const override;
   bool ShouldUseInitialVisibleOnAllWorkspaces() const override;
 
@@ -49,7 +50,7 @@ class BrowserFrameAsh : public views::NativeWidgetAura,
   void SetWindowAutoManaged();
 
   // The BrowserView is our ClientView. This is a pointer to it.
-  raw_ptr<BrowserView, ExperimentalAsh> browser_view_;
+  raw_ptr<BrowserView> browser_view_;
 
   // Set true when dragging a tab to create a browser window.
   bool created_from_drag_ = false;

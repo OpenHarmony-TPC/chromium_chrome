@@ -24,7 +24,6 @@
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/app_service_test.h"
 #include "chrome/browser/apps/app_service/intent_util.h"
-#include "chrome/browser/ash/file_manager/app_id.h"
 #include "chrome/browser/ash/fileapi/file_system_backend.h"
 #include "chrome/browser/ash/fileapi/file_system_backend_delegate.h"
 #include "chrome/browser/chrome_content_browser_client.h"
@@ -136,9 +135,8 @@ class PlatformUtilTestBase : public BrowserWithTestWindowTest {
     app->intent_filters =
         apps_util::CreateIntentFiltersForChromeApp(extension.get());
     apps.push_back(std::move(app));
-    app_service_proxy_->AppRegistryCache().OnApps(
-        std::move(apps), apps::AppType::kChromeApp,
-        /*should_notify_initialized=*/false);
+    app_service_proxy_->OnApps(std::move(apps), apps::AppType::kChromeApp,
+                               /*should_notify_initialized=*/false);
   }
 
   void SetUp() override {
@@ -159,10 +157,10 @@ class PlatformUtilTestBase : public BrowserWithTestWindowTest {
 
  private:
   std::unique_ptr<content::ContentBrowserClient> content_browser_client_;
-  raw_ptr<content::ContentBrowserClient, ExperimentalAsh>
-      old_content_browser_client_ = nullptr;
+  raw_ptr<content::ContentBrowserClient> old_content_browser_client_ = nullptr;
   apps::AppServiceTest app_service_test_;
-  raw_ptr<apps::AppServiceProxy, ExperimentalAsh> app_service_proxy_ = nullptr;
+  raw_ptr<apps::AppServiceProxy, DanglingUntriaged> app_service_proxy_ =
+      nullptr;
 };
 
 #else

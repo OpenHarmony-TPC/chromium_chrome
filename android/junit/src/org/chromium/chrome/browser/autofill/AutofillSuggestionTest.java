@@ -32,9 +32,26 @@ public class AutofillSuggestionTest {
         BitmapDrawable drawableIcon = mock(BitmapDrawable.class);
         when(drawableIcon.getBitmap()).thenReturn(bitmapIcon);
 
-        AutofillSuggestion suggestion = new AutofillSuggestion("label", "secondary_label",
-                "sublabel", "secondary_sublabel", "item_tag", 1, true, 1, true, true, true,
-                "feature_for_iph", mock(GURL.class), drawableIcon);
+        AutofillSuggestion suggestion =
+                new AutofillSuggestion(
+                        "label",
+                        "secondary_label",
+                        "sublabel",
+                        "secondary_sublabel",
+                        "label_content_description",
+                        "item_tag",
+                        /* iconId= */ 1,
+                        /* isIconAtStart= */ true,
+                        /* popupItemId= */ 1,
+                        /* isDeletable= */ true,
+                        /* isMultilineLabel= */ true,
+                        /* isBoldLabel= */ true,
+                        /* applyDeactivatedStyle= */ false,
+                        /* shouldDisplayTermsAvailable= */ false,
+                        "feature_for_iph",
+                        "iph_description",
+                        mock(GURL.class),
+                        drawableIcon);
         assertEquals(suggestion.toBuilder().build(), suggestion);
     }
 }

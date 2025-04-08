@@ -64,7 +64,7 @@ chrome.test.getConfig(function(config) {
           chrome.pageCapture.saveAsMHTML({tabId: tab.id}, function(data) {
             if (config.customArg == 'ONLY_PAGE_CAPTURE_PERMISSION') {
               chrome.test.assertLastError(
-                `Don't have permissions required to capture this page.`);
+                  `Don't have permissions required to capture this page.`);
               chrome.test.succeed();
             } else {
               verifyPageCapture(data, true /* isFile */);
@@ -72,7 +72,7 @@ chrome.test.getConfig(function(config) {
           });
         }
       });
-      chrome.tabs.create({url: captureUrl});
+      chrome.test.openFileUrl(captureUrl);
     },
 
     function saveAsMHTML_RestrictedUrlReturnsError() {

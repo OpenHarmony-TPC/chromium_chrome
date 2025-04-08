@@ -12,7 +12,6 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
-#include "media/cdm/media_foundation_cdm_data.h"
 #include "media/media_buildflags.h"
 
 #if BUILDFLAG(ENABLE_CDM_STORAGE_ID)
@@ -27,7 +26,7 @@
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
@@ -53,6 +52,7 @@
 #include "base/win/sid.h"
 #include "chrome/browser/media/cdm_pref_service_helper.h"
 #include "chrome/browser/media/media_foundation_service_monitor.h"
+#include "media/cdm/media_foundation_cdm_data.h"
 #include "media/cdm/win/media_foundation_cdm.h"
 #include "sandbox/policy/win/lpac_capability.h"
 #endif  // BUILDFLAG(IS_WIN)
@@ -162,7 +162,7 @@ void CdmDocumentServiceImpl::ChallengePlatform(
   DVLOG(2) << __func__;
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  // TODO(crbug.com/676224). This should be commented out at the mojom
+  // TODO(crbug.com/40499115). This should be commented out at the mojom
   // level so that it's only available for ChromeOS.
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -178,8 +178,8 @@ void CdmDocumentServiceImpl::ChallengePlatform(
   auto* lacros_service = chromeos::LacrosService::Get();
   if (lacros_service &&
       lacros_service->IsAvailable<crosapi::mojom::ContentProtection>() &&
-      lacros_service->GetInterfaceVersion(
-          crosapi::mojom::ContentProtection::Uuid_) >=
+      lacros_service
+              ->GetInterfaceVersion<crosapi::mojom::ContentProtection>() >=
           static_cast<int>(crosapi::mojom::ContentProtection::
                                kChallengePlatformMinVersion)) {
     lacros_service->GetRemote<crosapi::mojom::ContentProtection>()
@@ -254,7 +254,7 @@ void CdmDocumentServiceImpl::GetStorageId(uint32_t version,
   DVLOG(2) << __func__ << " version: " << version;
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  // TODO(crbug.com/676224). This should be commented out at the mojom
+  // TODO(crbug.com/40499115). This should be commented out at the mojom
   // level so that it's only available if Storage Id is available.
 
 #if BUILDFLAG(ENABLE_CDM_STORAGE_ID)
@@ -301,8 +301,8 @@ void CdmDocumentServiceImpl::IsVerifiedAccessEnabled(
   auto* lacros_service = chromeos::LacrosService::Get();
   if (lacros_service &&
       lacros_service->IsAvailable<crosapi::mojom::ContentProtection>() &&
-      lacros_service->GetInterfaceVersion(
-          crosapi::mojom::ContentProtection::Uuid_) >=
+      lacros_service
+              ->GetInterfaceVersion<crosapi::mojom::ContentProtection>() >=
           static_cast<int>(crosapi::mojom::ContentProtection::
                                kIsVerifiedAccessEnabledMinVersion)) {
     lacros_service->GetRemote<crosapi::mojom::ContentProtection>()
@@ -399,16 +399,17 @@ void CdmDocumentServiceImpl::OnCdmEvent(media::CdmEvent event,
     return;
   }
 
+  auto site = render_frame_host().GetSiteInstance()->GetSiteURL();
   switch (event) {
     case media::CdmEvent::kSignificantPlayback:
-      monitor->OnSignificantPlayback();
+      monitor->OnSignificantPlayback(site);
       break;
     case media::CdmEvent::kPlaybackError:
     case media::CdmEvent::kCdmError:
-      monitor->OnPlaybackOrCdmError(static_cast<HRESULT>(hresult));
+      monitor->OnPlaybackOrCdmError(site, static_cast<HRESULT>(hresult));
       break;
     case media::CdmEvent::kHardwareContextReset:
-      monitor->OnUnexpectedHardwareContextReset();
+      monitor->OnUnexpectedHardwareContextReset(site);
       break;
   }
 }
@@ -445,7 +446,7 @@ void DeleteMediaFoundationCdmData(
       continue;
 
     DVLOG(2) << __func__ << ": Processing: " << file_path;
-    absl::optional<url::Origin> origin = absl::nullopt;
+    std::optional<url::Origin> origin = std::nullopt;
     if (origin_id_mapping.count(origin_id_string) != 0)
       origin = origin_id_mapping.at(origin_id_string);
 

@@ -22,6 +22,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/extension_util.h"
+#include "extensions/browser/install_prefs_helper.h"
 #include "extensions/browser/test_extension_registry_observer.h"
 #include "extensions/browser/user_script_loader.h"
 #include "extensions/browser/user_script_manager.h"
@@ -36,6 +37,60 @@
 
 namespace extensions {
 
+namespace {
+
+class ExtensionLoadedObserver : public ExtensionRegistryObserver {
+ public:
+  using ExtensionCallback = base::OnceCallback<void(const Extension*)>;
+
+  ExtensionLoadedObserver(ExtensionRegistry* registry,
+                          const base::FilePath& file_path)
+      : file_path_(file_path) {
+    extension_registry_observation_.Observe(registry);
+  }
+
+  static void ObserveOnce(std::unique_ptr<ExtensionLoadedObserver> observer,
+                          ExtensionCallback callback) {
+    auto* observer_ptr = observer.get();
+    observer_ptr->ObserveOnce(std::move(callback).Then(
+        // Keep |observer| alive until it made its observation.
+        base::BindOnce([](std::unique_ptr<ExtensionLoadedObserver>) {},
+                       std::move(observer))));
+  }
+
+ private:
+  void ObserveOnce(ExtensionCallback callback) {
+    if (extension_) {
+      std::move(callback).Run(extension_.get());
+      // |this| will be deleted here.
+      return;
+    }
+    callback_ = std::move(callback);
+  }
+
+  // ExtensionRegistryObserver:
+  void OnExtensionLoaded(content::BrowserContext* browser_context,
+                         const Extension* extension) override {
+    if (extension->path() == file_path_) {
+      extension_registry_observation_.Reset();
+      if (callback_) {
+        std::move(callback_).Run(extension);
+        // |this| will be deleted here.
+        return;
+      }
+      extension_ = extension;
+    }
+  }
+
+  const base::FilePath file_path_;
+  scoped_refptr<const Extension> extension_;
+  ExtensionCallback callback_;
+  base::ScopedObservation<ExtensionRegistry, ExtensionRegistryObserver>
+      extension_registry_observation_{this};
+};
+
+}  // namespace
+
 ChromeTestExtensionLoader::ChromeTestExtensionLoader(
     content::BrowserContext* browser_context)
     : browser_context_(browser_context),
@@ -49,6 +104,16 @@ ChromeTestExtensionLoader::~ChromeTestExtensionLoader() {
   base::ScopedAllowBlockingForTesting allow_blocking;
   if (temp_dir_.IsValid())
     EXPECT_TRUE(temp_dir_.Delete());
+}
+
+void ChromeTestExtensionLoader::LoadUnpackedExtensionAsync(
+    const base::FilePath& file_path,
+    base::OnceCallback<void(const Extension*)> callback) {
+  auto observer =
+      std::make_unique<ExtensionLoadedObserver>(extension_registry_, file_path);
+  UnpackedInstaller::Create(extension_service_)->Load(file_path);
+  ExtensionLoadedObserver::ObserveOnce(std::move(observer),
+                                       std::move(callback));
 }
 
 scoped_refptr<const Extension> ChromeTestExtensionLoader::LoadExtension(
@@ -79,7 +144,7 @@ scoped_refptr<const Extension> ChromeTestExtensionLoader::LoadExtension(
 
   // Permissions and the install param are handled by the unpacked installer
   // before the extension is installed.
-  // TODO(https://crbug.com/1157606): Fix CrxInstaller to enable this for
+  // TODO(crbug.com/40160904): Fix CrxInstaller to enable this for
   // packed extensions.
   if (!is_unpacked) {
     // Trying to reload a shared module (as we do when adjusting extension
@@ -95,8 +160,8 @@ scoped_refptr<const Extension> ChromeTestExtensionLoader::LoadExtension(
 
     if (install_param_.has_value()) {
       DCHECK(!install_param_->empty());
-      ExtensionPrefs::Get(browser_context_)
-          ->SetInstallParam(extension_id_, *install_param_);
+      SetInstallParam(ExtensionPrefs::Get(browser_context_), extension_id_,
+                      *install_param_);
       // Reload the extension so listeners of the loaded notification have
       // access to the install param.
       TestExtensionRegistryObserver registry_observer(extension_registry_,
@@ -246,15 +311,15 @@ scoped_refptr<const Extension> ChromeTestExtensionLoader::LoadCrx(
           CrxInstaller::OffStoreInstallAllowedInTest);
     }
 
-    base::test::TestFuture<absl::optional<CrxInstallError>>
+    base::test::TestFuture<std::optional<CrxInstallError>>
         installer_done_future;
     installer->AddInstallerCallback(
         installer_done_future
-            .GetCallback<const absl::optional<CrxInstallError>&>());
+            .GetCallback<const std::optional<CrxInstallError>&>());
 
     installer->InstallCrx(file_path);
 
-    absl::optional<CrxInstallError> error = installer_done_future.Get();
+    std::optional<CrxInstallError> error = installer_done_future.Get();
     if (error) {
       return nullptr;
     }
@@ -347,7 +412,7 @@ bool ChromeTestExtensionLoader::CheckInstallWarnings(
   std::string install_warnings_string;
   for (const InstallWarning& warning : install_warnings) {
     // Don't fail on the manifest v2 deprecation warning in tests for now.
-    // TODO(https://crbug.com/1269161): Stop skipping this warning when all
+    // TODO(crbug.com/40804030): Stop skipping this warning when all
     // tests are updated to MV3.
     if (warning.message == manifest_errors::kManifestV2IsDeprecatedWarning)
       continue;

@@ -10,13 +10,13 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/range/range.h"
 
 class TabGroupController;
@@ -42,8 +42,10 @@ class TabGroup {
   // method is called from the user explicitly setting the data and defaults to
   // false for callsites that may set the data such as tab restore. Once set to
   // true, |is_customized| cannot be reset to false.
-  void SetVisualData(const tab_groups::TabGroupVisualData& visual_data,
+  void SetVisualData(tab_groups::TabGroupVisualData visual_data,
                      bool is_customized = false);
+  void SetGroupIsClosing(bool is_closing);
+  bool IsGroupClosing() { return is_closing_; }
 
   // Returns a user-visible string describing the contents of the group, such as
   // "Google Search and 3 other tabs". Used for accessibly describing the group,
@@ -72,12 +74,12 @@ class TabGroup {
   // Gets the model index of this group's first tab, or nullopt if it is
   // empty. Similar to ListTabs() it traverses through TabStripModel's
   // tabs. Unlike ListTabs() this is always safe to call.
-  absl::optional<int> GetFirstTab() const;
+  std::optional<int> GetFirstTab() const;
 
   // Gets the model index of this group's last tab, or nullopt if it is
   // empty. Similar to ListTabs() it traverses through TabStripModel's
   // tabs. Unlike ListTabs() this is always safe to call.
-  absl::optional<int> GetLastTab() const;
+  std::optional<int> GetLastTab() const;
 
   // Returns the range of tab model indices this group contains. Notably
   // does not rely on the TabGroup's internal metadata, but rather
@@ -106,6 +108,7 @@ class TabGroup {
 
   int tab_count_ = 0;
 
+  bool is_closing_ = false;
   bool is_customized_ = false;
 };
 

@@ -7,6 +7,8 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -17,6 +19,7 @@
 #include "components/permissions/chooser_controller.h"
 #include "extensions/buildflags/buildflags.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/bubble/bubble_frame_view.h"
 #include "ui/views/controls/button/label_button.h"
@@ -26,7 +29,7 @@
 #include "ui/views/widget/widget.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/chrome_extension_chooser_dialog.h"
+#include "chrome/browser/ui/extensions/extensions_dialogs.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_container.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
@@ -52,9 +55,9 @@ gfx::Rect GetChooserAnchorRect(Browser* browser) {
 // View implementation for the chooser bubble.
 class ChooserBubbleUiViewDelegate : public LocationBarBubbleDelegateView,
                                     public views::TableViewObserver {
- public:
-  METADATA_HEADER(ChooserBubbleUiViewDelegate);
+  METADATA_HEADER(ChooserBubbleUiViewDelegate, LocationBarBubbleDelegateView)
 
+ public:
   ChooserBubbleUiViewDelegate(
       Browser* browser,
       content::WebContents* web_contents,
@@ -73,7 +76,7 @@ class ChooserBubbleUiViewDelegate : public LocationBarBubbleDelegateView,
   std::u16string GetWindowTitle() const override;
 
   // views::DialogDelegate:
-  bool IsDialogButtonEnabled(ui::DialogButton button) const override;
+  bool IsDialogButtonEnabled(ui::mojom::DialogButton button) const override;
   views::View* GetInitiallyFocusedView() override;
 
   // views::TableViewObserver:
@@ -116,8 +119,9 @@ ChooserBubbleUiViewDelegate::ChooserBubbleUiViewDelegate(
   // | Get help                         |
   // ------------------------------------
 
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, chooser_controller->GetOkButtonLabel());
-  SetButtonLabel(ui::DIALOG_BUTTON_CANCEL,
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
+                 chooser_controller->GetOkButtonLabel());
+  SetButtonLabel(ui::mojom::DialogButton::kCancel,
                  chooser_controller->GetCancelButtonLabel());
 
   SetLayoutManager(std::make_unique<views::FillLayout>());
@@ -153,7 +157,7 @@ views::View* ChooserBubbleUiViewDelegate::GetInitiallyFocusedView() {
 }
 
 bool ChooserBubbleUiViewDelegate::IsDialogButtonEnabled(
-    ui::DialogButton button) const {
+    ui::mojom::DialogButton button) const {
   return device_chooser_content_view_->IsDialogButtonEnabled(button);
 }
 
@@ -184,7 +188,7 @@ void ChooserBubbleUiViewDelegate::Close() {
     GetWidget()->CloseWithReason(views::Widget::ClosedReason::kUnspecified);
 }
 
-BEGIN_METADATA(ChooserBubbleUiViewDelegate, LocationBarBubbleDelegateView)
+BEGIN_METADATA(ChooserBubbleUiViewDelegate)
 END_METADATA
 
 namespace chrome {
@@ -197,7 +201,7 @@ base::OnceClosure ShowDeviceChooserDialogForExtension(
     const extensions::Extension* extension,
     std::unique_ptr<permissions::ChooserController> controller) {
   auto* contents = content::WebContents::FromRenderFrameHost(owner);
-  auto* browser = chrome::FindBrowserWithWebContents(contents);
+  auto* browser = chrome::FindBrowserWithTab(contents);
   if (!browser)
     return base::DoNothing();
 
@@ -235,14 +239,19 @@ base::OnceClosure ShowDeviceChooserDialog(
   auto* browser_context = owner->GetBrowserContext();
   if (extensions::AppWindowRegistry::Get(browser_context)
           ->GetAppWindowForWebContents(contents)) {
-    ShowConstrainedDeviceChooserDialog(contents, std::move(controller));
+    extensions::ShowConstrainedDeviceChooserDialog(contents,
+                                                   std::move(controller));
     // This version of the chooser dialog does not support being closed by the
     // code which created it.
     return base::DoNothing();
   }
 
   auto origin = owner->GetMainFrame()->GetLastCommittedOrigin();
-  if (origin.scheme() == extensions::kExtensionScheme) {
+  if (origin.scheme() == extensions::kExtensionScheme
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      || origin.scheme() == extensions::kArkwebExtensionScheme
+#endif
+  ) {
     const auto* extension =
         extensions::ExtensionRegistry::Get(browser_context)
             ->GetExtensionById(origin.host(),
@@ -253,7 +262,7 @@ base::OnceClosure ShowDeviceChooserDialog(
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
-  auto* browser = chrome::FindBrowserWithWebContents(contents);
+  auto* browser = chrome::FindBrowserWithTab(contents);
   if (!browser)
     return base::DoNothing();
 
@@ -278,6 +287,18 @@ base::OnceClosure ShowDeviceChooserDialog(
     widget->Show();
   else
     widget->ShowInactive();
+
+  // If we're opening this device chooser dialog on a picture-in-picture window,
+  // then our widget is also always-on-top and needs to be tracked by the
+  // PictureInPictureOcclusionTracker so it can handle our widget occluding
+  // other widgets.
+  if (browser->is_type_picture_in_picture()) {
+    PictureInPictureOcclusionTracker* tracker =
+        PictureInPictureWindowManager::GetInstance()->GetOcclusionTracker();
+    if (tracker) {
+      tracker->OnPictureInPictureWidgetOpened(widget);
+    }
+  }
 
   return close_closure;
 }

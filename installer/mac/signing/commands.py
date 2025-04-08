@@ -13,11 +13,18 @@ import stat
 import subprocess
 import tempfile
 
-from . import logger
+from signing import logger
 
 
 def file_exists(path):
     return os.path.exists(path)
+
+
+def delete_file_if_exists(path):
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
 
 
 def copy_files(source, dest):
@@ -95,19 +102,6 @@ def run_command_output(args, **kwargs):
     return subprocess.check_output(args, **kwargs)
 
 
-def run_password_command_output(args, password, **kwargs):
-    """Runs a command that expects a password on stdin. This function feeds
-    |password| to that command and returns the output like
-    run_command_output().
-    """
-    assert 'stdin' not in kwargs
-    return run_command_output(
-        args,
-        start_new_session=True,
-        input=(password + '\n').encode('utf8'),
-        **kwargs)
-
-
 def lenient_run_command_output(args, **kwargs):
     """Runs a command, being fairly tolerant of errors.
 
@@ -150,8 +144,7 @@ def write_plist(data, path, format):
     # so if more than one hardlink points to destination all of them will be
     # modified. This is not what is expected, so delete destination file if
     # it does exist.
-    if os.path.exists(path):
-        os.unlink(path)
+    delete_file_if_exists(path)
     with open(path, 'wb') as f:
         plist_format = {
             'binary1': plistlib.FMT_BINARY,

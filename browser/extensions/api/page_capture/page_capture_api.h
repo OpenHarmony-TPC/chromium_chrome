@@ -40,13 +40,11 @@ class PageCaptureSaveAsMHTMLFunction : public ExtensionFunction {
   };
   static void SetTestDelegate(TestDelegate* delegate);
 
-  // ExtensionFunction:
-  void OnServiceWorkerAck() override;
-
  private:
+  // ExtensionFunction:
   ~PageCaptureSaveAsMHTMLFunction() override;
   ResponseAction Run() override;
-  bool OnMessageReceived(const IPC::Message& message) override;
+  void OnResponseAck() override;
 
   // Returns whether or not the extension has permission to capture the current
   // page. Sets |*error| to an error value on failure.
@@ -73,7 +71,7 @@ class PageCaptureSaveAsMHTMLFunction : public ExtensionFunction {
   // hasn't navigated before the capture completes.
   ExtensionApiFrameIdMap::DocumentId document_id_;
 
-  absl::optional<extensions::api::page_capture::SaveAsMHTML::Params> params_;
+  std::optional<extensions::api::page_capture::SaveAsMHTML::Params> params_;
 
   // The path to the temporary file containing the MHTML data.
   base::FilePath mhtml_path_;

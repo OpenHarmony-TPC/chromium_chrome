@@ -54,12 +54,12 @@ public abstract class ListItem {
     }
 
     /** A {@link ListItem} that involves a {@link Date}. */
-    private abstract static class DateListItem extends ListItem {
+    public abstract static class DateListItem extends ListItem {
         public final Date date;
 
         /**
-         * Creates a {@link DateListItem} instance. with a predefined {@code stableId} and
-         * {@code date}.
+         * Creates a {@link DateListItem} instance. with a predefined {@code stableId} and {@code
+         * date}.
          */
         public DateListItem(long stableId, Date date) {
             super(stableId);
@@ -68,7 +68,7 @@ public abstract class ListItem {
     }
 
     /** A {@link ListItem} representing group card decoration such as header or footer. */
-    private static class CardDecorationListItem extends ListItem {
+    public static class CardDecorationListItem extends ListItem {
         public final Pair<Date, String> dateAndDomain;
 
         /** Creates a {@link CardDecorationListItem} instance. */
@@ -110,8 +110,8 @@ public abstract class ListItem {
             TOP,
 
             /**
-               Represents the line divider between two items in a group card. It also contains
-               two side bars on left and right to make up for the padding between two items.
+             * Represents the line divider between two items in a group card. It also contains
+             * two side bars on left and right to make up for the padding between two items.
              */
             MIDDLE,
 
@@ -128,9 +128,7 @@ public abstract class ListItem {
         }
     }
 
-    /**
-     * The type of the section header.
-     */
+    /** The type of the section header. */
     @IntDef({SectionHeaderType.INVALID, SectionHeaderType.DATE, SectionHeaderType.JUST_NOW})
     @Retention(RetentionPolicy.SOURCE)
     public @interface SectionHeaderType {
@@ -143,9 +141,7 @@ public abstract class ListItem {
     public static class SectionHeaderListItem extends DateListItem {
         public @SectionHeaderType int type;
 
-        /**
-         * Creates a {@link SectionHeaderListItem} instance for a given {@code timestamp}.
-         */
+        /** Creates a {@link SectionHeaderListItem} instance for a given {@code timestamp}. */
         public SectionHeaderListItem(long timestamp, @SectionHeaderType int type) {
             super(generateStableId(type, timestamp), new Date(timestamp));
             this.type = type;

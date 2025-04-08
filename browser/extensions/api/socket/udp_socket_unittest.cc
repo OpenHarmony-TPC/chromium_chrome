@@ -142,8 +142,7 @@ static void SendMulticastPacket(base::OnceClosure quit_run_loop,
                                 UDPSocket* src,
                                 int result) {
   if (result == 0) {
-    scoped_refptr<net::IOBuffer> data =
-        base::MakeRefCounted<net::WrappedIOBuffer>(kTestMessage);
+    auto data = base::MakeRefCounted<net::WrappedIOBuffer>(kTestMessage);
     src->Write(data, kTestMessageLength, base::BindOnce(&OnSendCompleted));
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
@@ -169,7 +168,7 @@ static void OnMulticastReadCompleted(base::OnceClosure quit_run_loop,
   std::move(quit_run_loop).Run();
 }
 
-// TODO(https://crbug.com/1210643): Test is flaky on Mac.
+// TODO(crbug.com/40182531): Test is flaky on Mac.
 #if BUILDFLAG(IS_MAC)
 #define MAYBE_TestUDPMulticastRecv DISABLED_TestUDPMulticastRecv
 #else

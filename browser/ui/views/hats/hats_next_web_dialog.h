@@ -11,7 +11,9 @@
 #include "base/timer/timer.h"
 #include "chrome/browser/profiles/profile_observer.h"
 #include "chrome/browser/ui/hats/hats_service.h"
+#include "chrome/browser/ui/webui/hats/hats_page_handler.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/webview/web_dialog_view.h"
@@ -33,11 +35,15 @@ class Widget;
 // to the user.
 class HatsNextWebDialog : public views::BubbleDialogDelegateView,
                           public content::WebContentsDelegate,
-                          public ProfileObserver {
+                          public ProfileObserver,
+                          public HatsPageHandlerDelegate {
+  METADATA_HEADER(HatsNextWebDialog, views::BubbleDialogDelegateView)
+
  public:
-  METADATA_HEADER(HatsNextWebDialog);
   HatsNextWebDialog(Browser* browser,
                     const std::string& trigger_id,
+                    const std::optional<std::string>& hats_histogram_name,
+                    const std::optional<uint64_t> hats_survey_ukm_id,
                     base::OnceClosure success_callback,
                     base::OnceClosure failure_callback,
                     const SurveyBitsData& product_specific_bits_data,
@@ -47,20 +53,64 @@ class HatsNextWebDialog : public views::BubbleDialogDelegateView,
   HatsNextWebDialog& operator=(const HatsNextWebDialog&) = delete;
 
   // BubbleDialogDelegateView:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
 
   // ProfileObserver:
   void OnProfileWillBeDestroyed(Profile* profile) override;
 
+  // HatsPageHandlerDelegate:
+  std::string GetTriggerId() override;
+  bool GetEnableTesting() override;
+  std::vector<std::string> GetLanguageList() override;
+  base::Value::Dict GetProductSpecificDataJson() override;
+  std::optional<std::string> GetHistogramName();
+  void OnSurveyLoaded() override;
+  void OnSurveyCompleted() override;
+  void OnSurveyClosed() override;
+  void OnSurveyQuestionAnswered(const std::string& state);
+
+  static bool ParseSurveyQuestionAnswer(const std::string& input,
+                                        int* question,
+                                        std::vector<int>* answers);
+
+  static uint64_t EncodeUkmQuestionAnswers(
+      const std::vector<int>& question_answers);
+
+  enum class SurveyHistogramEnumeration {
+    kSurveyLoadedEnumeration = 2,
+    kSurveyCompletedEnumeration = 3,
+    kSurveyQuestionAnswerParseError = 8,
+    kSurveyUnknownState = 9
+  };
+
  protected:
   friend class MockHatsNextWebDialog;
   FRIEND_TEST_ALL_PREFIXES(HatsNextWebDialogBrowserTest, SurveyLoaded);
+  FRIEND_TEST_ALL_PREFIXES(HatsNextWebDialogBrowserTest,
+                           SurveyLoadedWithHistogramName);
+  FRIEND_TEST_ALL_PREFIXES(HatsNextWebDialogBrowserTest,
+                           SurveyQuestionAnsweredFirstQuestionHistograms);
+  FRIEND_TEST_ALL_PREFIXES(
+      HatsNextWebDialogBrowserTest,
+      SurveyQuestionAnsweredSingleSelectQuestionHistograms);
+  FRIEND_TEST_ALL_PREFIXES(
+      HatsNextWebDialogBrowserTest,
+      SurveyQuestionAnsweredMultipleSelectQuestionHistograms);
+  FRIEND_TEST_ALL_PREFIXES(HatsNextWebDialogBrowserTest,
+                           SurveyQuestionAnsweredMultipleQuestionsHistograms);
+  FRIEND_TEST_ALL_PREFIXES(HatsNextWebDialogBrowserTest,
+                           SurveyLoadedWithHistogramName);
+  FRIEND_TEST_ALL_PREFIXES(HatsNextWebDialogBrowserTest,
+                           SurveyQuestionAnsweredMultipleQuestions);
   FRIEND_TEST_ALL_PREFIXES(HatsNextWebDialogBrowserTest, DialogResize);
   FRIEND_TEST_ALL_PREFIXES(HatsNextWebDialogBrowserTest, MaximumSize);
   FRIEND_TEST_ALL_PREFIXES(HatsNextWebDialogBrowserTest, ZoomLevel);
 
   HatsNextWebDialog(Browser* browser,
                     const std::string& trigger_id,
+                    const std::optional<std::string>& hats_histogram_name,
+                    const std::optional<uint64_t> hats_survey_ukm_id,
                     const GURL& hats_survey_url_,
                     const base::TimeDelta& timeout,
                     base::OnceClosure success_callback,
@@ -91,15 +141,15 @@ class HatsNextWebDialog : public views::BubbleDialogDelegateView,
   virtual void ShowWidget();
 
   // Called by the dialog to close the widget due to timeout or the survey being
-  // closed. Virtual to allow mocking in tests.
+  // closed. After the widget is closed, both the widget and this class are
+  // destroyed. Virtual to allow mocking in tests.
   virtual void CloseWidget();
-
-  // Updates dialog size to desired contents size. Virtual to allow mocking in
-  // tests.
-  virtual void UpdateWidgetSize();
 
   // Returns whether the dialog is still waiting for the survey to load.
   bool IsWaitingForSurveyForTesting();
+
+  // Returns the UMA histogram bucket for a question/answer combination.
+  int GetHistogramBucket(int question, int answer);
 
  private:
   // A timer to prevent unresponsive loading of survey dialog.
@@ -112,6 +162,12 @@ class HatsNextWebDialog : public views::BubbleDialogDelegateView,
 
   // The HaTS Next survey trigger ID that is provided to the HaTS webpage.
   const std::string trigger_id_;
+
+  // The UMA histogram name associated with the HaTS survey.
+  const std::optional<std::string> hats_histogram_name_;
+
+  // The UKM id associated with the HaTS survey.
+  const std::optional<uint64_t> hats_survey_ukm_id_;
 
   // Whether the web contents has communicated a loaded state.
   bool received_survey_loaded_ = false;
@@ -136,6 +192,8 @@ class HatsNextWebDialog : public views::BubbleDialogDelegateView,
 
   SurveyBitsData product_specific_bits_data_;
   SurveyStringData product_specific_string_data_;
+
+  ukm::builders::Feedback_HappinessTrackingSurvey ukm_hats_builder_;
 
   base::WeakPtrFactory<HatsNextWebDialog> weak_factory_{this};
 };

@@ -30,6 +30,13 @@ class ChromeCrashReporterClient : public crash_reporter::CrashReporterClient {
   static bool ShouldPassCrashLoopBefore(const std::string& process_type);
 #endif
 
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+  // Returns whether the user has given consent to collect UMA data and send
+  // crash dumps to Google. This method reads the information from Ash's
+  // user data directory, typically `/home/chronos` in ChromeOS.
+  static bool GetCollectStatsConsentFromAshDir();
+#endif
+
   // crash_reporter::CrashReporterClient implementation.
 #if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
   void SetCrashReporterClientIdFromGUID(
@@ -59,10 +66,6 @@ class ChromeCrashReporterClient : public crash_reporter::CrashReporterClient {
 
 #if BUILDFLAG(IS_MAC)
   bool ReportingIsEnforcedByPolicy(bool* breakpad_enabled) override;
-#endif
-
-#if BUILDFLAG(IS_ANDROID)
-  int GetAndroidMinidumpDescriptor() override;
 #endif
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)

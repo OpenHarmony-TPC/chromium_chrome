@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
 #include "chrome/browser/web_applications/web_app_origin_association_manager.h"
 
 #include "base/containers/contains.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/webapps/services/web_app_origin_association/test/test_web_app_origin_association_fetcher.h"
 #include "content/public/test/browser_test.h"
@@ -24,27 +24,21 @@ const std::string& kValidAndInvalidAppsUrl = "https://c.com";
 
 constexpr char kInvalidFileContent[] = "invalid";
 constexpr char kValidAppFileContent[] =
-    "{\"web_apps\": ["
-    "  {"
-    "    \"web_app_identity\": \"https://foo.com/index\""
-    "  }"
-    "]}";
+    R"({
+      "https://foo.com/index": {}
+    })";
 constexpr char kValidAndInvalidAppsFileContent[] =
-    "{\"web_apps\": ["
+    R"({
     // 1st app is valid.
-    "  {"
-    "    \"web_app_identity\": \"https://foo.com/index\""
-    "  },"
+      "https://foo.com/index": {},
     // 2nd app is invalid since kWebAppIdentity doesn't match.
-    "  {"
-    "    \"web_app_identity\": \"https://bar.com/\""
-    "  }"
-    "]}";
+      "https://bar.com/": {}
+    })";
 }  // namespace
 
 namespace web_app {
 
-class WebAppOriginAssociationManagerTest : public WebAppControllerBrowserTest {
+class WebAppOriginAssociationManagerTest : public WebAppBrowserTestBase {
  public:
   WebAppOriginAssociationManagerTest() {
     manager_ = std::make_unique<WebAppOriginAssociationManager>();

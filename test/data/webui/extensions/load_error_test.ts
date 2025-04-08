@@ -6,24 +6,15 @@
 
 import 'chrome://extensions/extensions.js';
 
-import {ExtensionsLoadErrorElement} from 'chrome://extensions/extensions.js';
+import type {LoadErrorElement} from 'chrome://extensions/extensions.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestService} from './test_service.js';
 import {isElementVisible} from './test_util.js';
 
-const extension_load_error_tests = {
-  suiteName: 'ExtensionLoadErrorTests',
-  TestNames: {
-    RetryError: 'RetryError',
-    RetrySuccess: 'RetrySuccess',
-    CodeSection: 'Code Section',
-  },
-};
-Object.assign(window, {extension_load_error_tests});
-
-suite(extension_load_error_tests.suiteName, function() {
-  let loadError: ExtensionsLoadErrorElement;
+suite('ExtensionLoadErrorTests', function() {
+  let loadError: LoadErrorElement;
 
   let mockDelegate: TestService;
 
@@ -44,7 +35,7 @@ suite(extension_load_error_tests.suiteName, function() {
     document.body.appendChild(loadError);
   });
 
-  test(extension_load_error_tests.TestNames.RetryError, async function() {
+  test('RetryError', async function() {
     const dialogElement =
         loadError.shadowRoot!.querySelector('cr-dialog')!.getNative();
     assertFalse(isElementVisible(dialogElement));
@@ -60,7 +51,7 @@ suite(extension_load_error_tests.suiteName, function() {
     assertFalse(isElementVisible(dialogElement));
   });
 
-  test(extension_load_error_tests.TestNames.RetrySuccess, async function() {
+  test('RetrySuccess', async function() {
     const dialogElement =
         loadError.shadowRoot!.querySelector('cr-dialog')!.getNative();
     assertFalse(isElementVisible(dialogElement));
@@ -73,7 +64,7 @@ suite(extension_load_error_tests.suiteName, function() {
     assertFalse(isElementVisible(dialogElement));
   });
 
-  test(extension_load_error_tests.TestNames.CodeSection, function() {
+  test('CodeSection', async () => {
     assertTrue(loadError.$.code.shadowRoot!
                    .querySelector<HTMLElement>('#scroll-container')!.hidden);
     const loadErrorWithSource = {
@@ -88,7 +79,44 @@ suite(extension_load_error_tests.suiteName, function() {
     };
 
     loadError.loadError = loadErrorWithSource;
+    await microtasksFinished();
     assertFalse(loadError.$.code.shadowRoot!
                     .querySelector<HTMLElement>('#scroll-container')!.hidden);
+  });
+
+  test('PathWithoutSource', async () => {
+    loadError.loadError = stubLoadError;
+    await microtasksFinished();
+
+    // File should be visible with name.
+    const fileRow = loadError.shadowRoot!.querySelector<HTMLElement>('#file')!;
+    assertFalse(fileRow.hidden);
+    assertEquals(
+        fileRow.querySelector<HTMLSpanElement>('.row-value')!.innerText,
+        'some/path/');
+  });
+
+  test('GenericError', async () => {
+    assertTrue(loadError.$.code.shadowRoot!
+                   .querySelector<HTMLElement>('#scroll-container')!.hidden);
+
+    loadError.loadError = new Error('Some generic error');
+    await microtasksFinished();
+
+    // Code section should still be hidden because there is no source.
+    assertTrue(loadError.$.code.shadowRoot!
+                   .querySelector<HTMLElement>('#scroll-container')!.hidden);
+
+    // File row should be hidden because there is no specific file.
+    assertTrue(
+        loadError.shadowRoot!.querySelector<HTMLElement>('#file')!.hidden);
+
+    // Error should be visible with message.
+    const errorRow =
+        loadError.shadowRoot!.querySelector<HTMLElement>('#error')!;
+    assertFalse(errorRow.hidden);
+    assertEquals(
+        errorRow.querySelector<HTMLSpanElement>('.row-value')!.innerText,
+        'Some generic error');
   });
 });

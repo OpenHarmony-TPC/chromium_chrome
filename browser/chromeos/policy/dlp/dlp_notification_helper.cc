@@ -7,11 +7,13 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_policy_constants.h"
 #include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/color/color_id.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/message_center/public/cpp/notification.h"
 #include "ui/message_center/public/cpp/notification_types.h"
@@ -62,7 +64,7 @@ void OnNotificationClicked(const std::string id) {
   Navigate(&navigate_params);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
-  NotificationDisplayService::GetForProfile(
+  NotificationDisplayServiceFactory::GetForProfile(
       ProfileManager::GetActiveUserProfile())
       ->Close(NotificationHandler::Type::TRANSIENT, id);
 }
@@ -86,14 +88,14 @@ void ShowDlpNotification(const std::string& id,
       base::MakeRefCounted<message_center::HandleNotificationClickDelegate>(
           base::BindRepeating(&OnNotificationClicked, id)));
   // Set critical warning color.
-  notification.set_accent_color(gfx::kGoogleRed700);
+  notification.set_accent_color_id(ui::kColorSysError);
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   notification.set_system_notification_warning_level(
       message_center::SystemNotificationWarningLevel::CRITICAL_WARNING);
 #endif
   notification.set_vector_small_image(vector_icons::kBusinessIcon);
   notification.set_renotify(true);
-  NotificationDisplayService::GetForProfile(
+  NotificationDisplayServiceFactory::GetForProfile(
       ProfileManager::GetActiveUserProfile())
       ->Display(NotificationHandler::Type::TRANSIENT, notification,
                 /*metadata=*/nullptr);
@@ -126,7 +128,7 @@ void ShowDlpScreenShareDisabledNotification(const std::u16string& app_title) {
 
 void HideDlpScreenSharePausedNotification(const std::string& share_id) {
   auto* notification_display_service =
-      NotificationDisplayService::GetForProfile(
+      NotificationDisplayServiceFactory::GetForProfile(
           ProfileManager::GetActiveUserProfile());
   if (notification_display_service) {
     notification_display_service->Close(
@@ -146,7 +148,7 @@ void ShowDlpScreenSharePausedNotification(const std::string& share_id,
 
 void HideDlpScreenShareResumedNotification(const std::string& share_id) {
   auto* notification_display_service =
-      NotificationDisplayService::GetForProfile(
+      NotificationDisplayServiceFactory::GetForProfile(
           ProfileManager::GetActiveUserProfile());
   if (notification_display_service) {
     notification_display_service->Close(

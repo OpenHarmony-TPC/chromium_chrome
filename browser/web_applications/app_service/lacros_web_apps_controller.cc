@@ -15,12 +15,13 @@
 #include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/browser_app_instance_tracker.h"
 #include "chrome/browser/apps/app_service/intent_util.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
 #include "chrome/browser/apps/app_service/menu_item_constants.h"
+#include "chrome/browser/apps/browser_instance/browser_app_instance_tracker.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/startup/first_run_service.h"
+// TODO(crbug.com/40251079): Remove circular dependencies on //c/b/ui.
+#include "chrome/browser/ui/startup/first_run_service.h"  // nogncheck
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
@@ -47,7 +48,7 @@ namespace {
 // this callback. See `LacrosWebAppsController::ReturnLaunchResults()` for more
 // details.
 using CommandFinishedCallback =
-    base::OnceCallback<void(const std::vector<content::WebContents*>&)>;
+    base::OnceCallback<void(std::vector<content::WebContents*>)>;
 
 // Helper to run `execute_command_callback`, with the option to bypass it if
 // `proceed` is false by running `command_finished_callback` right away and
@@ -71,10 +72,7 @@ namespace web_app {
 LacrosWebAppsController::LacrosWebAppsController(Profile* profile)
     : profile_(profile),
       provider_(WebAppProvider::GetForWebApps(profile)),
-      publisher_helper_(profile,
-                        provider_,
-                        this,
-                        /*observe_media_requests=*/true) {
+      publisher_helper_(profile, provider_, this) {
   DCHECK(provider_);
   DCHECK_EQ(publisher_helper_.app_type(), apps::AppType::kWeb);
 }
@@ -92,7 +90,7 @@ void LacrosWebAppsController::Init() {
     }
 
     remote_publisher_version_ =
-        service->GetInterfaceVersion(crosapi::mojom::AppPublisher::Uuid_);
+        service->GetInterfaceVersion<crosapi::mojom::AppPublisher>();
 
     service->GetRemote<crosapi::mojom::AppPublisher>()->RegisterAppController(
         receiver_.BindNewPipeAndPassRemoteWithVersion());
@@ -153,20 +151,13 @@ void LacrosWebAppsController::UnpauseApp(const std::string& app_id) {
   publisher_helper().UnpauseApp(app_id);
 }
 
-void LacrosWebAppsController::LoadIcon(const std::string& app_id,
-                                       apps::IconKeyPtr icon_key,
-                                       apps::IconType icon_type,
-                                       int32_t size_hint_in_dip,
-                                       apps::LoadIconCallback callback) {
-  if (!icon_key) {
-    // On failure, we still run the callback, with an empty IconValue.
-    std::move(callback).Run(std::make_unique<apps::IconValue>());
-    return;
-  }
-
-  publisher_helper().LoadIcon(app_id, icon_type, size_hint_in_dip,
-                              static_cast<IconEffects>(icon_key->icon_effects),
-                              std::move(callback));
+void LacrosWebAppsController::DEPRECATED_LoadIcon(
+    const std::string& app_id,
+    apps::IconKeyPtr icon_key,
+    apps::IconType icon_type,
+    int32_t size_hint_in_dip,
+    apps::LoadIconCallback callback) {
+  NOTREACHED();
 }
 
 void LacrosWebAppsController::GetCompressedIcon(
@@ -180,6 +171,10 @@ void LacrosWebAppsController::GetCompressedIcon(
 
 void LacrosWebAppsController::OpenNativeSettings(const std::string& app_id) {
   publisher_helper().OpenNativeSettings(app_id);
+}
+
+void LacrosWebAppsController::UpdateAppSize(const std::string& app_id) {
+  return publisher_helper().UpdateAppSize(app_id);
 }
 
 void LacrosWebAppsController::SetWindowMode(const std::string& app_id,
@@ -242,10 +237,18 @@ void LacrosWebAppsController::ExecuteContextMenuCommandInternal(
   publisher_helper().ExecuteContextMenuCommand(
       app_id, id, display::kDefaultDisplayId,
       base::BindOnce(
-          [](base::OnceCallback<void(const std::vector<content::WebContents*>&)>
+          [](base::OnceCallback<void(std::vector<content::WebContents*>)>
                  callback,
              content::WebContents* contents) {
-            std::move(callback).Run({contents});
+            // These calls are piped through LaunchWebAppCommand and can end
+            // early during an Abort due to various reasons (like
+            // FirstRunService not completed), in which case there will be no
+            // web contents.
+            if (contents) {
+              std::move(callback).Run({contents});
+            } else {
+              std::move(callback).Run({});
+            }
           },
           std::move(callback)));
 }
@@ -259,7 +262,7 @@ void LacrosWebAppsController::SetPermission(const std::string& app_id,
   publisher_helper().SetPermission(app_id, std::move(permission));
 }
 
-// TODO(crbug.com/1144877): Clean up the multiple launch interfaces and remove
+// TODO(crbug.com/40155636): Clean up the multiple launch interfaces and remove
 // duplicated code.
 void LacrosWebAppsController::Launch(
     crosapi::mojom::LaunchParamsPtr launch_params,
@@ -310,27 +313,37 @@ void LacrosWebAppsController::LaunchInternal(const std::string& app_id,
   publisher_helper().LaunchAppWithParams(
       std::move(params),
       base::BindOnce(
-          [](base::OnceCallback<void(const std::vector<content::WebContents*>&)>
+          [](base::OnceCallback<void(std::vector<content::WebContents*>)>
                  callback,
              content::WebContents* contents) {
-            std::move(callback).Run({contents});
+            // These calls are piped through LaunchWebAppCommand and can end
+            // early during an Abort due to various reasons (like
+            // FirstRunService not completed), in which case there will be no
+            // web contents.
+            if (contents) {
+              std::move(callback).Run({contents});
+            } else {
+              std::move(callback).Run({});
+            }
           },
           std::move(callback)));
 }
 
 void LacrosWebAppsController::ReturnLaunchResults(
     base::OnceCallback<void(crosapi::mojom::LaunchResultPtr)> callback,
-    const std::vector<content::WebContents*>& web_contentses) {
+    std::vector<content::WebContents*> web_contentses) {
   auto* app_instance_tracker =
       apps::AppServiceProxyFactory::GetForProfile(profile_)
           ->BrowserAppInstanceTracker();
   auto launch_result = crosapi::mojom::LaunchResult::New();
   launch_result->instance_id = base::UnguessableToken::Create();
   launch_result->instance_ids = std::vector<base::UnguessableToken>();
-  launch_result->state = crosapi::mojom::LaunchResultState::kSuccess;
+  launch_result->state = web_contentses.size()
+                             ? crosapi::mojom::LaunchResultState::kSuccess
+                             : crosapi::mojom::LaunchResultState::kFailed;
 
-  // TODO(crbug.com/1144877): Replaced with DCHECK when the app instance tracker
-  // flag is turned on.
+  // TODO(crbug.com/40155636): Replaced with DCHECK when the app instance
+  // tracker flag is turned on.
   if (app_instance_tracker) {
     for (content::WebContents* web_contents : web_contentses) {
       const apps::BrowserAppInstance* app_instance =
@@ -390,7 +403,8 @@ void LacrosWebAppsController::OnShortcutsMenuIconsRead(
   std::move(callback).Run(std::move(menu_items));
 }
 
-const WebApp* LacrosWebAppsController::GetWebApp(const AppId& app_id) const {
+const WebApp* LacrosWebAppsController::GetWebApp(
+    const webapps::AppId& app_id) const {
   return registrar().GetAppById(app_id);
 }
 
@@ -414,8 +428,8 @@ void LacrosWebAppsController::PublishWebApp(apps::AppPtr app) {
 
 void LacrosWebAppsController::ModifyWebAppCapabilityAccess(
     const std::string& app_id,
-    absl::optional<bool> accessing_camera,
-    absl::optional<bool> accessing_microphone) {
+    std::optional<bool> accessing_camera,
+    std::optional<bool> accessing_microphone) {
   if (!remote_publisher_) {
     return;
   }

@@ -19,6 +19,7 @@
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
+#include "components/safe_browsing/content/browser/web_ui/safe_browsing_ui.h"
 #include "components/safe_browsing/core/browser/realtime/url_lookup_service.h"
 #include "components/safe_browsing/core/browser/sync/safe_browsing_primary_account_token_fetcher.h"
 #include "components/safe_browsing/core/browser/sync/sync_utils.h"
@@ -39,7 +40,8 @@ RealTimeUrlLookupService* RealTimeUrlLookupServiceFactory::GetForProfile(
 // static
 RealTimeUrlLookupServiceFactory*
 RealTimeUrlLookupServiceFactory::GetInstance() {
-  return base::Singleton<RealTimeUrlLookupServiceFactory>::get();
+  static base::NoDestructor<RealTimeUrlLookupServiceFactory> instance;
+  return instance.get();
 }
 
 RealTimeUrlLookupServiceFactory::RealTimeUrlLookupServiceFactory()
@@ -47,9 +49,12 @@ RealTimeUrlLookupServiceFactory::RealTimeUrlLookupServiceFactory()
           "RealTimeUrlLookupService",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(IdentityManagerFactory::GetInstance());
   DependsOn(SyncServiceFactory::GetInstance());
@@ -61,19 +66,17 @@ RealTimeUrlLookupServiceFactory::RealTimeUrlLookupServiceFactory()
   DependsOn(NetworkContextServiceFactory::GetInstance());
 }
 
-KeyedService* RealTimeUrlLookupServiceFactory::BuildServiceInstanceFor(
+RealTimeUrlLookupServiceFactory::~RealTimeUrlLookupServiceFactory() = default;
+
+std::unique_ptr<KeyedService>
+RealTimeUrlLookupServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   if (!g_browser_process->safe_browsing_service()) {
     return nullptr;
   }
   Profile* profile = Profile::FromBrowserContext(context);
-  auto url_loader_factory =
-      std::make_unique<network::CrossThreadPendingSharedURLLoaderFactory>(
-          g_browser_process->safe_browsing_service()->GetURLLoaderFactory(
-              profile));
-  return new RealTimeUrlLookupService(
-      network::SharedURLLoaderFactory::Create(std::move(url_loader_factory)),
+  return std::make_unique<RealTimeUrlLookupService>(
+      GetURLLoaderFactory(context),
       VerdictCacheManagerFactory::GetForProfile(profile),
       base::BindRepeating(
           &safe_browsing::GetUserPopulationForProfileWithCookieTheftExperiments,
@@ -85,20 +88,29 @@ KeyedService* RealTimeUrlLookupServiceFactory::BuildServiceInstanceFor(
                               AreSigninAndSyncSetUpForSafeBrowsingTokenFetches,
                           SyncServiceFactory::GetForProfile(profile),
                           IdentityManagerFactory::GetForProfile(profile)),
-      profile->IsOffTheRecord(),
-      base::BindRepeating(
-          &RealTimeUrlLookupServiceFactory::GetVariationsService),
+      profile->IsOffTheRecord(), g_browser_process->variations_service(),
       SafeBrowsingNavigationObserverManagerFactory::GetForBrowserContext(
-          profile));
-#else
-  return nullptr;
-#endif
+          profile),
+      WebUIInfoSingleton::GetInstance());
 }
 
-// static
-variations::VariationsService*
-RealTimeUrlLookupServiceFactory::GetVariationsService() {
-  return g_browser_process->variations_service();
+scoped_refptr<network::SharedURLLoaderFactory>
+RealTimeUrlLookupServiceFactory::GetURLLoaderFactory(
+    content::BrowserContext* context) const {
+  if (testing_url_loader_factory_) {
+    return testing_url_loader_factory_;
+  }
+  Profile* profile = Profile::FromBrowserContext(context);
+  auto url_loader_factory =
+      std::make_unique<network::CrossThreadPendingSharedURLLoaderFactory>(
+          g_browser_process->safe_browsing_service()->GetURLLoaderFactory(
+              profile));
+  return network::SharedURLLoaderFactory::Create(std::move(url_loader_factory));
+}
+
+void RealTimeUrlLookupServiceFactory::SetURLLoaderFactoryForTesting(
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
+  testing_url_loader_factory_ = url_loader_factory;
 }
 
 }  // namespace safe_browsing

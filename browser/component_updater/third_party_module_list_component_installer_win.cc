@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/not_fatal_until.h"
 #include "base/ranges/algorithm.h"
 #include "base/values.h"
 #include "base/version.h"
@@ -35,7 +36,7 @@ base::Version GetComponentVersion(
 
   auto components = component_update_service->GetComponents();
   auto iter = base::ranges::find(components, kComponentId, &ComponentInfo::id);
-  DCHECK(iter != components.end());
+  CHECK(iter != components.end(), base::NotFatalUntil::M130);
 
   return iter->version;
 }
@@ -45,8 +46,9 @@ void OnModuleListComponentReady(const base::FilePath& module_list_path) {
 
   ThirdPartyConflictsManager* manager =
       ModuleDatabase::GetInstance()->third_party_conflicts_manager();
-  if (!manager)
+  if (!manager) {
     return;
+  }
 
   manager->LoadModuleList(module_list_path);
 }
@@ -57,8 +59,9 @@ void OnModuleListComponentRegistered(const base::Version& component_version) {
   // Notify the ThirdPartyConflictsManager.
   ThirdPartyConflictsManager* manager =
       ModuleDatabase::GetInstance()->third_party_conflicts_manager();
-  if (!manager)
+  if (!manager) {
     return;
+  }
 
   manager->OnModuleListComponentRegistered(kComponentId, component_version);
 }

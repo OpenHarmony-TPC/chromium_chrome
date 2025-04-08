@@ -44,7 +44,7 @@ class VirtualKeyboardWaiter : public ui::VirtualKeyboardControllerObserver {
   }
   void OnKeyboardHidden() override { std::move(quit_closure_).Run(); }
 
-  raw_ptr<ui::VirtualKeyboardController, ExperimentalAsh> controller_ = nullptr;
+  raw_ptr<ui::VirtualKeyboardController> controller_ = nullptr;
   base::RepeatingClosure quit_closure_;
 };
 
@@ -68,7 +68,7 @@ class BrowserAppMenuButtonVirtualKeyboardBrowserTest
     web_contents_ = browser()->tab_strip_model()->GetActiveWebContents();
     ASSERT_TRUE(web_contents_);
 
-    // TODO(crbug.com/1349102): Make it work without needing a fake controller.
+    // TODO(crbug.com/40233608): Make it work without needing a fake controller.
     GetWebContentInputMethod()->SetVirtualKeyboardControllerForTesting(
         std::make_unique<ui::VirtualKeyboardControllerStub>());
 
@@ -90,8 +90,7 @@ class BrowserAppMenuButtonVirtualKeyboardBrowserTest
   }
 
  protected:
-  raw_ptr<content::WebContents, DanglingUntriaged | ExperimentalAsh>
-      web_contents_ = nullptr;
+  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_ = nullptr;
 };
 
 // Regression test for crbug.com/1334994.

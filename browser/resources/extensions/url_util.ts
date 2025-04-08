@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {getFaviconForPageURL} from 'arkweb://resources/js/icon.js';
+import {getFaviconForPageURL} from 'chrome://resources/js/icon.js';
 
 export const SUBDOMAIN_SPECIFIER = '*.';
 
 /**
  * Returns a favicon url for a given site.
  */
-export function getFaviconUrl(site: string, size: number = 20): string {
+export function getFaviconUrl(site: string): string {
   // Use 'http' as the scheme if `site` has a wildcard scheme.
   let faviconUrl =
       site.startsWith('*://') ? site.replace('*://', 'http://') : site;
@@ -21,7 +21,7 @@ export function getFaviconUrl(site: string, size: number = 20): string {
 
   return getFaviconForPageURL(
       faviconUrl, /*isSyncedUrlForHistoryUi=*/ false,
-      /*remoteIconUrlForUma=*/ '', size);
+      /*remoteIconUrlForUma=*/ '', /*size=*/ 20);
 }
 
 /**

@@ -26,6 +26,12 @@
 #include "extensions/browser/view_type_utils.h"
 #include "extensions/common/mojom/view_type.mojom.h"
 #include "net/base/net_errors.h"
+#include "pdf/buildflags.h"
+
+#if BUILDFLAG(ENABLE_PDF)
+#include "components/pdf/common/pdf_util.h"
+#include "pdf/pdf_features.h"
+#endif  // BUILDFLAG(ENABLE_PDF)
 
 namespace GetFrame = extensions::api::web_navigation::GetFrame;
 namespace GetAllFrames = extensions::api::web_navigation::GetAllFrames;
@@ -430,11 +436,11 @@ bool WebNavigationTabObserver::IsReferenceFragmentNavigation(
 }
 
 void WebNavigationTabObserver::RenderFrameHostPendingDeletion(
-    content::RenderFrameHost* pending_delete_rfh) {
-  // The |pending_delete_rfh| and its children are now pending deletion.
-  // Stop tracking them.
+    content::RenderFrameHost* pending_delete_render_frame_host) {
+  // The |pending_delete_render_frame_host| and its children are now pending
+  // deletion. Stop tracking them.
 
-  pending_delete_rfh->ForEachRenderFrameHost(
+  pending_delete_render_frame_host->ForEachRenderFrameHost(
       [this](content::RenderFrameHost* render_frame_host) {
         auto* navigation_state =
             FrameNavigationState::GetForCurrentDocument(render_frame_host);
@@ -446,7 +452,7 @@ void WebNavigationTabObserver::RenderFrameHostPendingDeletion(
 }
 
 ExtensionFunction::ResponseAction WebNavigationGetFrameFunction::Run() {
-  absl::optional<GetFrame::Params> params = GetFrame::Params::Create(args());
+  std::optional<GetFrame::Params> params = GetFrame::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
   int tab_id = api::tabs::TAB_ID_NONE;
@@ -545,7 +551,7 @@ ExtensionFunction::ResponseAction WebNavigationGetFrameFunction::Run() {
 }
 
 ExtensionFunction::ResponseAction WebNavigationGetAllFramesFunction::Run() {
-  absl::optional<GetAllFrames::Params> params =
+  std::optional<GetAllFrames::Params> params =
       GetAllFrames::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
   int tab_id = params->details.tab_id;
@@ -572,6 +578,19 @@ ExtensionFunction::ResponseAction WebNavigationGetAllFramesFunction::Run() {
               return content::RenderFrameHost::FrameIterationAction::
                   kSkipChildren;
             }
+
+#if BUILDFLAG(ENABLE_PDF)
+            if (chrome_pdf::features::IsOopifPdfEnabled()) {
+              // Don't expose any child frames of the PDF extension frame, such
+              // as the PDF content frame.
+              content::RenderFrameHost* parent = render_frame_host->GetParent();
+              if (parent &&
+                  IsPdfExtensionOrigin(parent->GetLastCommittedOrigin())) {
+                return content::RenderFrameHost::FrameIterationAction::
+                    kSkipChildren;
+              }
+            }
+#endif  // BUILDFLAG(ENABLE_PDF)
 
             auto* navigation_state =
                 FrameNavigationState::GetForCurrentDocument(render_frame_host);

@@ -23,6 +23,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager_observer.h"
 #include "chrome/browser/profiles/profile_observer.h"
+#include "chrome/browser/safe_browsing/phishy_interaction_tracker.h"
 #include "chrome/browser/safe_browsing/services_delegate.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/content/browser/safe_browsing_service_interface.h"
@@ -53,7 +54,6 @@ namespace network {
 namespace mojom {
 class NetworkContext;
 }
-class PendingSharedURLLoaderFactory;
 class SharedURLLoaderFactory;
 }  // namespace network
 
@@ -68,7 +68,6 @@ class SafeBrowsingPrivateApiUnitTest;
 }  // namespace extensions
 
 namespace safe_browsing {
-class VerdictCacheManager;
 #if BUILDFLAG(FULL_SAFE_BROWSING)
 class DownloadProtectionService;
 #endif
@@ -80,20 +79,24 @@ class TriggerManager;
 class HashRealTimeService;
 
 // Construction needs to happen on the main thread.
-// The SafeBrowsingService owns both the UI and Database managers which do
+// The SafeBrowsingServiceImpl owns both the UI and Database managers which do
 // the heavylifting of safebrowsing service. Both of these managers stay
-// alive until SafeBrowsingService is destroyed, however, they are disabled
+// alive until SafeBrowsingServiceImpl is destroyed, however, they are disabled
 // permanently when Shutdown method is called.
-class SafeBrowsingService : public SafeBrowsingServiceInterface,
-                            public ProfileManagerObserver,
-                            public ProfileObserver {
+class SafeBrowsingServiceImpl : public SafeBrowsingServiceInterface,
+                                public ProfileManagerObserver,
+                                public ProfileObserver {
  public:
-  SafeBrowsingService(const SafeBrowsingService&) = delete;
-  SafeBrowsingService& operator=(const SafeBrowsingService&) = delete;
+  SafeBrowsingServiceImpl(const SafeBrowsingServiceImpl&) = delete;
+  SafeBrowsingServiceImpl& operator=(const SafeBrowsingServiceImpl&) = delete;
 
   static base::FilePath GetCookieFilePathForTesting();
 
   static base::FilePath GetBaseFilename();
+
+  // Helper function to determine if a user meets the requirements to be shown
+  // a ESB promo.
+  static bool IsUserEligibleForESBPromo(Profile* profile);
 
   // Called on the UI thread to initialize the service.
   void Initialize();
@@ -123,8 +126,8 @@ class SafeBrowsingService : public SafeBrowsingServiceInterface,
   }
 
 #if BUILDFLAG(FULL_SAFE_BROWSING)
-  // The DownloadProtectionService is not valid after the SafeBrowsingService
-  // is destroyed.
+  // The DownloadProtectionService is not valid after the
+  // SafeBrowsingServiceImpl is destroyed.
   DownloadProtectionService* download_protection_service() const {
     return services_delegate_->GetDownloadService();
   }
@@ -141,16 +144,21 @@ class SafeBrowsingService : public SafeBrowsingServiceInterface,
   void FlushNetworkInterfaceForTesting(
       content::BrowserContext* browser_context);
 
+  void SetURLLoaderFactoryForTesting(
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
+    url_loader_factory_for_testing_ = url_loader_factory;
+  }
+
   const scoped_refptr<SafeBrowsingUIManager>& ui_manager() const;
 
-  virtual const scoped_refptr<SafeBrowsingDatabaseManager>& database_manager()
-      const;
+  const scoped_refptr<SafeBrowsingDatabaseManager>& database_manager()
+      const override;
 
   ReferrerChainProvider* GetReferrerChainProviderFromBrowserContext(
       content::BrowserContext* browser_context) override;
 
 #if BUILDFLAG(IS_ANDROID)
-  LoginReputationClientRequest::ReferringAppInfo GetReferringAppInfo(
+  ReferringAppInfo GetReferringAppInfo(
       content::WebContents* web_contents) override;
 #endif
 
@@ -188,28 +196,66 @@ class SafeBrowsingService : public SafeBrowsingServiceInterface,
       const base::RepeatingClosure& callback);
 
 #if BUILDFLAG(FULL_SAFE_BROWSING)
-  // Sends download report to backend. Returns true if the report is sent
-  // successfully.
-  virtual bool SendDownloadReport(
+  // Sends download report to backend.
+  // TODO(crbug.com/355577227): Rename to MaybeSendDownloadReport.
+  virtual void SendDownloadReport(
       download::DownloadItem* download,
       ClientSafeBrowsingReportRequest::ReportType report_type,
       bool did_proceed,
-      absl::optional<bool> show_download_in_folder);
+      std::optional<bool> show_download_in_folder);
+
+  // Persists download report on disk and sends it to backend on next startup.
+  // TODO(crbug.com/355577227): Rename to
+  // MaybePersistDownloadReportAndSendOnNextStartup.
+  virtual void PersistDownloadReportAndSendOnNextStartup(
+      download::DownloadItem* download,
+      ClientSafeBrowsingReportRequest::ReportType report_type,
+      bool did_proceed,
+      std::optional<bool> show_download_in_folder);
+
+  // Sends phishy site report to backend. Returns true if the report is sent
+  // successfully.
+  virtual bool SendPhishyInteractionsReport(
+      Profile* profile,
+      const GURL& url,
+      const GURL& page_url,
+      const PhishySiteInteractionMap& phishy_interaction_data);
 #endif
+
+  // Sends NOTIFICATION_PERMISSION_ACCEPTED report to backend if the user
+  // bypassed a warning before granting a notification permission. Returns true
+  // if the report is sent successfully. The profile and render_frame_host are
+  // used to help fill the referrer_chain. The profile also help us obtain the
+  // browser's ChromePingManagerFactory for sending the report. The other
+  // parameters are for filling in their respective
+  // NOTIFICATION_PERMISSION_ACCEPTED report fields.
+  virtual bool MaybeSendNotificationsAcceptedReport(
+      content::RenderFrameHost* render_frame_host,
+      Profile* profile,
+      const GURL& url,
+      const GURL& page_url,
+      const GURL& permission_prompt_origin,
+      base::TimeDelta permission_prompt_display_duration_sec);
 
   // Create the default v4 protocol config struct. This just calls into a helper
   // function, but it's still useful so that TestSafeBrowsingService can
   // override it.
   virtual V4ProtocolConfig GetV4ProtocolConfig() const;
 
-  // Get the cache manager by profile.
-  VerdictCacheManager* GetVerdictCacheManager(Profile* profile) const;
+  // Report the external app redirect to Safe Browsing if the following
+  // conditions are met:
+  // - User is opted in to ESB and not Incognito
+  // - The user has not redirected to this app recently
+  // - Neither the current page nor the destination app are allowlisted.
+  void ReportExternalAppRedirect(content::WebContents* web_contents,
+                                 std::string_view app_name,
+                                 std::string_view uri) override;
 
  protected:
   // Creates the safe browsing service.  Need to initialize before using.
-  SafeBrowsingService();
+  SafeBrowsingServiceImpl();
 
-  ~SafeBrowsingService() override;
+  ~SafeBrowsingServiceImpl() override;
 
   virtual SafeBrowsingUIManager* CreateUIManager();
 
@@ -223,7 +269,7 @@ class SafeBrowsingService : public SafeBrowsingServiceInterface,
   friend class SafeBrowsingServiceFactoryImpl;
   friend struct content::BrowserThread::DeleteOnThread<
       content::BrowserThread::UI>;
-  friend class base::DeleteHelper<SafeBrowsingService>;
+  friend class base::DeleteHelper<SafeBrowsingServiceImpl>;
   friend class SafeBrowsingBlockingPageTestBase;
   friend class SafeBrowsingBlockingQuietPageTest;
   friend class extensions::SafeBrowsingPrivateApiUnitTest;
@@ -232,31 +278,25 @@ class SafeBrowsingService : public SafeBrowsingServiceInterface,
   friend class TestSafeBrowsingService;
   friend class TestSafeBrowsingServiceFactory;
   friend class V4SafeBrowsingServiceTest;
+  friend class SendNotificationsAcceptedTest;
+
+  FRIEND_TEST_ALL_PREFIXES(
+      SafeBrowsingServiceTest,
+      SaveExtendedReportingPrefValueOnProfileAddedFeatureFlagEnabled);
+  FRIEND_TEST_ALL_PREFIXES(
+      SafeBrowsingServiceTest,
+      SaveExtendedReportingPrefValueOnProfileAddedFeatureFlagDisabled);
 
   void SetDatabaseManagerForTest(SafeBrowsingDatabaseManager* database_manager);
-
-  // Called to initialize objects that are used on the io_thread. This may be
-  // called multiple times during the life of the SafeBrowsingService.
-  // |sb_url_loader_factory| is a SharedURLLoaderFactory attached to the Safe
-  // Browsing NetworkContexts, and |browser_url_loader_factory| is attached to
-  // the global browser process.
-  void StartOnIOThread(std::unique_ptr<network::PendingSharedURLLoaderFactory>
-                           browser_url_loader_factory);
-
-  // Called to stop or shutdown operations on the io_thread. This may be called
-  // multiple times to stop during the life of the SafeBrowsingService. If
-  // shutdown is true, then the operations on the io thread are shutdown
-  // permanently and cannot be restarted.
-  void StopOnIOThread(bool shutdown);
 
   // Start up SafeBrowsing objects. This can be called at browser start, or when
   // the user checks the "Enable SafeBrowsing" option in the Advanced options
   // UI.
   void Start();
 
-  // Stops the SafeBrowsingService. This can be called when the safe browsing
-  // preference is disabled. When shutdown is true, operation is permanently
-  // shutdown and cannot be restarted.
+  // Stops the SafeBrowsingServiceImpl. This can be called when the safe
+  // browsing preference is disabled. When shutdown is true, operation is
+  // permanently shutdown and cannot be restarted.
   void Stop(bool shutdown);
 
   // ProfileManagerObserver:
@@ -269,6 +309,11 @@ class SafeBrowsingService : public SafeBrowsingServiceInterface,
   // Creates services for |profile|, which may be normal or off the record.
   void CreateServicesForProfile(Profile* profile);
 
+  // Refreshes the state (calls RefreshState()) and potentially shows a toast
+  // about Enhanced Protection setting changes when its preference value
+  // updates.
+  void EnhancedProtectionPrefChange(Profile* profile);
+
   // Checks if any profile is currently using the safe browsing service, and
   // starts or stops the service accordingly.
   void RefreshState();
@@ -279,6 +324,30 @@ class SafeBrowsingService : public SafeBrowsingServiceInterface,
   // use.
   network::mojom::NetworkContextParamsPtr CreateNetworkContextParams();
 
+  // Logs metrics related to cookies.
+  void RecordStartupCookieMetrics(Profile* profile);
+
+  // Fills out_referrer_chain with the referrer chain value.
+  void FillReferrerChain(Profile* profile,
+                         content::RenderFrameHost* render_frame_host,
+                         google::protobuf::RepeatedPtrField<ReferrerChainEntry>*
+                             out_referrer_chain);
+
+  // Helper method that allows us to return true for tests. If not for tests,
+  // check with the ui manager.
+  bool IsURLAllowlisted(const GURL& url,
+                        content::RenderFrameHost* primary_main_frame);
+
+  void SetUrlIsAllowlistedForTesting() {
+    url_is_allowlisted_for_testing_ = true;
+  }
+
+  void MaybeSendExternalAppRedirectReport(
+      Profile* profile,
+      const std::string& app_name,
+      std::unique_ptr<ClientSafeBrowsingReportRequest> report,
+      bool should_send);
+
   std::unique_ptr<ProxyConfigMonitor> proxy_config_monitor_;
 
   // Whether SafeBrowsing Extended Reporting is enabled by the current set of
@@ -288,8 +357,8 @@ class SafeBrowsingService : public SafeBrowsingServiceInterface,
   // Whether the service has been shutdown.
   bool shutdown_;
 
-  // Whether the service is running. 'enabled_' is used by SafeBrowsingService
-  // on the IO thread during normal operations.
+  // Whether the service is running. 'enabled_' is used by
+  // SafeBrowsingServiceImpl on the IO thread during normal operations.
   bool enabled_;
 
   // Whether SafeBrowsing is enabled by the current set of profiles.
@@ -319,6 +388,21 @@ class SafeBrowsingService : public SafeBrowsingServiceInterface,
       observed_profiles_{this};
 
   std::unique_ptr<TriggerManager> trigger_manager_;
+
+  bool url_is_allowlisted_for_testing_ = false;
+
+  scoped_refptr<network::SharedURLLoaderFactory>
+      url_loader_factory_for_testing_;
+};
+
+// TODO(crbug.com/41437292): Remove this once dependencies are using the
+// SafeBrowsingServiceInterface.
+class SafeBrowsingService : public SafeBrowsingServiceImpl {
+ public:
+  SafeBrowsingService() = default;
+
+ protected:
+  ~SafeBrowsingService() override = default;
 };
 
 SafeBrowsingServiceFactory* GetSafeBrowsingServiceFactory();

@@ -15,6 +15,8 @@
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
+#include "base/not_fatal_until.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -355,7 +357,8 @@ const TaskIdList& TaskManagerImpl::GetTaskIdsList() const {
     for (const auto& groups_pair : task_groups_by_proc_id_) {
       // The first task in the group (per |comparator|) is the one used for
       // sorting the group relative to other groups.
-      const std::vector<Task*>& tasks = groups_pair.second->tasks();
+      const std::vector<raw_ptr<Task, VectorExperimental>>& tasks =
+          groups_pair.second->tasks();
       Task* group_task =
           *std::min_element(tasks.begin(), tasks.end(), comparator);
       tasks_to_visit.push_back(group_task);
@@ -363,14 +366,15 @@ const TaskIdList& TaskManagerImpl::GetTaskIdsList() const {
       // Build the parent-to-child map, for use later.
       for (const Task* task : tasks) {
         if (task->HasParentTask())
-          children[task->GetParentTask()].push_back(task);
+          children[task->GetParentTask().get()].push_back(task);
         else
           DCHECK(!group_task->HasParentTask());
       }
     }
 
     for (const auto& groups_pair : arc_vm_task_groups_by_proc_id_) {
-      const std::vector<Task*>& tasks = groups_pair.second->tasks();
+      const std::vector<raw_ptr<Task, VectorExperimental>>& tasks =
+          groups_pair.second->tasks();
       Task* group_task =
           *std::min_element(tasks.begin(), tasks.end(), comparator);
       tasks_to_visit.push_back(group_task);
@@ -387,7 +391,8 @@ const TaskIdList& TaskManagerImpl::GetTaskIdsList() const {
     sorted_task_ids_.reserve(num_tasks);
     std::unordered_set<TaskGroup*> visited_groups;
     visited_groups.reserve(num_groups);
-    std::vector<Task*> current_group_tasks;  // Outside loop for fewer mallocs.
+    std::vector<raw_ptr<Task, VectorExperimental>>
+        current_group_tasks;  // Outside loop for fewer mallocs.
     while (visited_groups.size() < num_groups) {
       DCHECK(!tasks_to_visit.empty());
       TaskGroup* current_group =
@@ -545,6 +550,10 @@ void TaskManagerImpl::TaskUnresponsive(Task* task) {
   NotifyObserversOnTaskUnresponsive(task->task_id());
 }
 
+void TaskManagerImpl::ActiveTaskFetched(TaskId active_task_id) {
+  NotifyObserversOnActiveTaskFetched(active_task_id);
+}
+
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 void TaskManagerImpl::TaskIdsListToBeInvalidated() {
   sorted_task_ids_.clear();
@@ -685,7 +694,7 @@ Task* TaskManagerImpl::GetTaskByRoute(
 
 TaskGroup* TaskManagerImpl::GetTaskGroupByTaskId(TaskId task_id) const {
   auto it = task_groups_by_task_id_.find(task_id);
-  DCHECK(it != task_groups_by_task_id_.end());
+  CHECK(it != task_groups_by_task_id_.end(), base::NotFatalUntil::M130);
   return it->second;
 }
 

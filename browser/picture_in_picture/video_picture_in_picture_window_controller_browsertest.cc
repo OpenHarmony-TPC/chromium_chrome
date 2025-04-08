@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "content/public/browser/picture_in_picture_window_controller.h"
-
 #include "base/barrier_closure.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/scoped_observation.h"
+#include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -31,8 +30,8 @@
 #include "components/viz/common/frame_sinks/copy_output_request.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/media_session.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/overlay_window.h"
+#include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
@@ -72,6 +71,16 @@ using ::testing::_;
 
 namespace {
 
+typedef base::ScopedObservation<PictureInPictureWindowManager,
+                                PictureInPictureWindowManager::Observer>
+    PictureInPictureWindowManagerdObservation;
+
+class MockPictureInPictureWindowManagerObserver
+    : public PictureInPictureWindowManager::Observer {
+ public:
+  MOCK_METHOD(void, OnEnterPictureInPicture, (), (override));
+};
+
 class MockVideoPictureInPictureWindowController
     : public content::VideoPictureInPictureWindowController {
  public:
@@ -94,6 +103,8 @@ class MockVideoPictureInPictureWindowController
   MOCK_METHOD0(GetWebContents, content::WebContents*());
   MOCK_METHOD0(GetChildWebContents, content::WebContents*());
   MOCK_METHOD0(TogglePlayPause, bool());
+  MOCK_METHOD0(Play, void());
+  MOCK_METHOD0(Pause, void());
   MOCK_METHOD0(SkipAd, void());
   MOCK_METHOD0(NextTrack, void());
   MOCK_METHOD0(PreviousTrack, void());
@@ -102,8 +113,12 @@ class MockVideoPictureInPictureWindowController
   MOCK_METHOD0(HangUp, void());
   MOCK_METHOD0(PreviousSlide, void());
   MOCK_METHOD0(NextSlide, void());
+  MOCK_METHOD1(SeekTo, void(base::TimeDelta time));
   MOCK_CONST_METHOD0(GetSourceBounds, const gfx::Rect&());
-  MOCK_METHOD0(GetWindowBounds, absl::optional<gfx::Rect>());
+  MOCK_METHOD0(GetWindowBounds, std::optional<gfx::Rect>());
+  MOCK_METHOD0(GetOrigin, std::optional<url::Origin>());
+  MOCK_METHOD1(SetOnWindowCreatedNotifyObserversCallback,
+               void(base::OnceClosure));
 };
 
 const base::FilePath::CharType kPictureInPictureWindowSizePage[] =
@@ -195,6 +210,35 @@ void WaitForTitle(content::WebContents* web_contents,
       expected_title,
       content::TitleWatcher(web_contents, expected_title).WaitAndGetTitle());
 }
+
+class OverlayControlsBecomingVisibleObserver : public views::ViewObserver {
+ public:
+  OverlayControlsBecomingVisibleObserver(views::View* controls_container,
+                                         base::OnceClosure cb)
+      : visibility_changed_callback_(std::move(cb)) {
+    observation_.Observe(controls_container);
+  }
+  OverlayControlsBecomingVisibleObserver(
+      const OverlayControlsBecomingVisibleObserver&) = delete;
+  OverlayControlsBecomingVisibleObserver& operator=(
+      const OverlayControlsBecomingVisibleObserver&) = delete;
+
+  ~OverlayControlsBecomingVisibleObserver() override = default;
+
+  void OnViewVisibilityChanged(views::View*,
+                               views::View* controls_container) override {
+    if (controls_container->GetVisible()) {
+      std::move(visibility_changed_callback_).Run();
+    } else {
+      LOG(WARNING) << "Expected to receive callback after container is "
+                      "visible, but did not";
+    }
+  }
+
+ private:
+  base::ScopedObservation<views::View, views::ViewObserver> observation_{this};
+  base::OnceClosure visibility_changed_callback_;
+};
 
 }  // namespace
 
@@ -293,19 +337,20 @@ class VideoPictureInPictureWindowControllerBrowserTest
   void MoveMouseOverOverlayWindow() {
     auto* const window = GetOverlayWindow();
     const gfx::Point p(window->GetBounds().origin());
-    ui::MouseEvent moved_over(ui::ET_MOUSE_MOVED, p, p, ui::EventTimeForNow(),
-                              ui::EF_NONE, ui::EF_NONE);
+    ui::MouseEvent moved_over(ui::EventType::kMouseMoved, p, p,
+                              ui::EventTimeForNow(), ui::EF_NONE, ui::EF_NONE);
     window->OnMouseEvent(&moved_over);
   }
 
   void ClickButton(views::Button* button) {
-    const ui::MouseEvent event(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
-                               ui::EventTimeForNow(), 0, 0);
+    const ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(),
+                               gfx::Point(), ui::EventTimeForNow(), 0, 0);
     views::test::ButtonTestApi(button).NotifyClick(event);
   }
 
  private:
-  raw_ptr<content::VideoPictureInPictureWindowController, DanglingUntriaged>
+  raw_ptr<content::VideoPictureInPictureWindowController,
+          AcrossTasksDanglingUntriaged>
       pip_window_controller_ = nullptr;
   MockVideoPictureInPictureWindowController mock_controller_;
 };
@@ -346,6 +391,15 @@ IN_PROC_BROWSER_TEST_F(VideoPictureInPictureWindowControllerBrowserTest,
 
   EXPECT_FALSE(GetOverlayWindow()->AreControlsVisible());
   MoveMouseOverOverlayWindow();
+
+  // Wait for controls to become visible. This might not be immediate, if the
+  // window has been moved.
+  base::RunLoop run_loop;
+  OverlayControlsBecomingVisibleObserver observer(
+      GetOverlayWindow()->GetControlsContainerView(),
+      base::BindLambdaForTesting([&] { run_loop.Quit(); }));
+  run_loop.Run();
+
   EXPECT_TRUE(GetOverlayWindow()->AreControlsVisible());
 }
 
@@ -364,7 +418,7 @@ class PictureInPicturePixelComparisonBrowserTest
 
   base::FilePath GetFilePath(base::FilePath::StringPieceType relative_path) {
     base::FilePath base_dir;
-    CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &base_dir));
+    CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &base_dir));
     // The path relative to <chromium src> for pixel test data.
     const base::FilePath::StringPieceType kTestDataPath =
         FILE_PATH_LITERAL("chrome/test/data/media/picture-in-picture/");
@@ -386,13 +440,11 @@ class PictureInPicturePixelComparisonBrowserTest
     quit_run_loop.Run();
   }
 
-  bool ReadImageFile(const base::FilePath& file_path, SkBitmap* read_image) {
+  SkBitmap ReadImageFile(const base::FilePath& file_path) {
     base::ScopedAllowBlockingForTesting allow_blocking;
-    std::string png_string;
-    base::ReadFileToString(file_path, &png_string);
-    return gfx::PNGCodec::Decode(
-        reinterpret_cast<const unsigned char*>(png_string.data()),
-        png_string.length(), read_image);
+    std::optional<std::vector<uint8_t>> png_data =
+        base::ReadFileToBytes(file_path);
+    return gfx::PNGCodec::Decode(png_data.value());
   }
 
   void TakeOverlayWindowScreenshot(const gfx::Size& window_size,
@@ -495,10 +547,10 @@ IN_PROC_BROWSER_TEST_F(PictureInPicturePixelComparisonBrowserTest, VideoPlay) {
 
   TakeOverlayWindowScreenshot({402, 268}, /*controls_visible=*/false);
 
-  SkBitmap expected_image;
   base::FilePath expected_image_path =
       GetFilePath(FILE_PATH_LITERAL("pixel_expected_video_play.png"));
-  ASSERT_TRUE(ReadImageFile(expected_image_path, &expected_image));
+  SkBitmap expected_image = ReadImageFile(expected_image_path);
+  ASSERT_FALSE(expected_image.isNull());
   EXPECT_TRUE(CompareImages(GetResultBitmap(), expected_image));
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -534,6 +586,31 @@ IN_PROC_BROWSER_TEST_F(VideoPictureInPictureWindowControllerBrowserTest,
 
   // Reload page should not crash.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_page_url));
+}
+
+// Tests that when the window is created for picture-in-picture, the callback is
+// called to inform the observers about it.
+IN_PROC_BROWSER_TEST_F(VideoPictureInPictureWindowControllerBrowserTest,
+                       NotifyCallback) {
+  GURL test_page_url = ui_test_utils::GetTestUrl(
+      base::FilePath(base::FilePath::kCurrentDirectory),
+      base::FilePath(kPictureInPictureWindowSizePage));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_page_url));
+
+  content::WebContents* active_web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(active_web_contents);
+
+  SetUpWindowController(active_web_contents);
+  ASSERT_TRUE(window_controller());
+
+  PictureInPictureWindowManager* picture_in_picture_window_manager =
+      PictureInPictureWindowManager::GetInstance();
+  MockPictureInPictureWindowManagerObserver observer;
+  PictureInPictureWindowManagerdObservation observation{&observer};
+  observation.Observe(picture_in_picture_window_manager);
+  EXPECT_CALL(observer, OnEnterPictureInPicture).Times(1);
+  ASSERT_EQ(true, EvalJs(active_web_contents, "enterPictureInPicture();"));
 }
 
 // Tests that when creating a Picture-in-Picture window a size is sent to the
@@ -1234,7 +1311,7 @@ IN_PROC_BROWSER_TEST_F(VideoPictureInPictureWindowControllerBrowserTest,
 // changing source willproperly update the associated media player id. This is
 // checked by closing the window because the test it at a too high level to be
 // able to check the actual media player id being used.
-// TODO(crbug.com/1311308) Fix flakiness on ChromeOS and reenable this test.
+// TODO(crbug.com/40830975) Fix flakiness on ChromeOS and reenable this test.
 #if BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_PreloadNoneSrcChangeThenLoad DISABLED_PreloadNoneSrcChangeThenLoad
 #else
@@ -1537,8 +1614,16 @@ class PictureInPictureWindowControllerPrerenderBrowserTest
   content::test::PrerenderTestHelper prerender_helper_;
 };
 
+// TODO(crbug.com/40902928): Reenable once Linux MSAN failure is fixed.
+#if BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER)
+#define MAYBE_EnterPipThenNavigateAwayCloseWindow \
+  DISABLED_EnterPipThenNavigateAwayCloseWindow
+#else
+#define MAYBE_EnterPipThenNavigateAwayCloseWindow \
+  EnterPipThenNavigateAwayCloseWindow
+#endif
 IN_PROC_BROWSER_TEST_F(PictureInPictureWindowControllerPrerenderBrowserTest,
-                       EnterPipThenNavigateAwayCloseWindow) {
+                       MAYBE_EnterPipThenNavigateAwayCloseWindow) {
   GURL test_page_url = embedded_test_server()->GetURL(
       "example.com", "/media/picture-in-picture/window-size.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_page_url));
@@ -1608,7 +1693,7 @@ class MediaSessionVideoPictureInPictureWindowControllerBrowserTest
     VideoPictureInPictureWindowControllerBrowserTest::SetUpCommandLine(
         command_line);
     command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
-                                    "MediaSession,SkipAd,MediaSessionSlides");
+                                    "MediaSession,SkipAd");
     scoped_feature_list_.InitWithFeatures(
         {media_session::features::kMediaSessionService}, {});
   }
@@ -1844,7 +1929,7 @@ IN_PROC_BROWSER_TEST_F(
 // calls the Media Session actions "play" and "pause" handler functions.
 IN_PROC_BROWSER_TEST_F(
     MediaSessionVideoPictureInPictureWindowControllerBrowserTest,
-    // TODO(crbug.com/1384370): Re-enable this test
+    // TODO(crbug.com/40878458): Re-enable this test
     DISABLED_PlayPauseHandlersCalled) {
   LoadTabAndEnterPictureInPicture(
       browser(), base::FilePath(kPictureInPictureWindowSizePage));
@@ -2068,7 +2153,7 @@ IN_PROC_BROWSER_TEST_F(VideoPictureInPictureWindowControllerBrowserTest,
   ASSERT_NE(GetOverlayWindow(), nullptr);
   ASSERT_FALSE(GetOverlayWindow()->GetFocusManager()->GetFocusedView());
 
-  ui::KeyEvent space_key_pressed(ui::ET_KEY_PRESSED, ui::VKEY_SPACE,
+  ui::KeyEvent space_key_pressed(ui::EventType::kKeyPressed, ui::VKEY_SPACE,
                                  ui::DomCode::SPACE, ui::EF_NONE);
   GetOverlayWindow()->OnKeyEvent(&space_key_pressed);
 
@@ -2076,9 +2161,8 @@ IN_PROC_BROWSER_TEST_F(VideoPictureInPictureWindowControllerBrowserTest,
 }
 
 // Test that video conferencing action buttons function correctly.
-// TODO(crbug.com/1312401): Test is flaky.
 IN_PROC_BROWSER_TEST_F(VideoPictureInPictureWindowControllerBrowserTest,
-                       DISABLED_VideoConferencingActions) {
+                       VideoConferencingActions) {
   // Enter PiP.
   LoadTabAndEnterPictureInPicture(
       browser(), base::FilePath(kPictureInPictureVideoConferencingPage));

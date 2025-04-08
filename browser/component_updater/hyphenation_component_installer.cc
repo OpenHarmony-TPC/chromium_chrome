@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/component_updater/hyphenation_component_installer.h"
 
 #include "base/files/file_util.h"
@@ -38,16 +43,18 @@ class HyphenationDirectory {
     DVLOG(1) << __func__;
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     callbacks_.push_back(std::move(callback));
-    if (!dir_.empty())
+    if (!dir_.empty()) {
       FireCallbacks();
+    }
   }
 
   void Set(const base::FilePath& new_dir) {
     DVLOG(1) << __func__ << "\"" << new_dir << "\"";
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     CHECK(!new_dir.empty());
-    if (new_dir == dir_)
+    if (new_dir == dir_) {
       return;
+    }
     dir_ = new_dir;
     FireCallbacks();
   }

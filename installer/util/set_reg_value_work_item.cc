@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/installer/util/set_reg_value_work_item.h"
 
 #include "base/debug/alias.h"
@@ -152,7 +157,7 @@ bool SetRegValueWorkItem::DoImpl() {
     if (!size) {
       previous_type_ = type;
     } else {
-      // TODO(crbug.com/1106328): Remove after bug is resolved.
+      // TODO(crbug.com/40706274): Remove after bug is resolved.
       DEBUG_ALIAS_FOR_CSTR(key_path_copy, base::WideToUTF8(key_path_).c_str(),
                            255);
       DEBUG_ALIAS_FOR_CSTR(value_name_copy,

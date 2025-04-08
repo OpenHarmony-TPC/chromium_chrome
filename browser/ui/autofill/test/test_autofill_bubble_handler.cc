@@ -4,7 +4,11 @@
 
 #include "chrome/browser/ui/autofill/test/test_autofill_bubble_handler.h"
 
+#include "chrome/browser/ui/autofill/add_new_address_bubble_controller.h"
+#include "chrome/browser/ui/autofill/autofill_prediction_improvements/save_autofill_prediction_improvements_controller.h"
 #include "chrome/browser/ui/autofill/payments/save_iban_ui.h"
+#include "chrome/browser/ui/autofill/save_address_bubble_controller.h"
+#include "chrome/browser/ui/autofill/update_address_bubble_controller.h"
 
 namespace autofill {
 
@@ -51,26 +55,29 @@ AutofillBubbleBase* TestAutofillBubbleHandler::ShowOfferNotificationBubble(
   return offer_notification_bubble_view_.get();
 }
 
-SaveUPIBubble* TestAutofillBubbleHandler::ShowSaveUPIBubble(
-    content::WebContents* contents,
-    SaveUPIBubbleController* controller) {
-  if (!save_upi_bubble_)
-    save_upi_bubble_ = std::make_unique<TestSaveUPIBubble>();
-  return save_upi_bubble_.get();
-}
-
 AutofillBubbleBase* TestAutofillBubbleHandler::ShowSaveAddressProfileBubble(
     content::WebContents* contents,
-    SaveUpdateAddressProfileBubbleController* controller,
+    std::unique_ptr<SaveAddressBubbleController> controller,
     bool is_user_gesture) {
   if (!save_address_profile_bubble_view_)
     save_address_profile_bubble_view_ = std::make_unique<TestAutofillBubble>();
   return save_address_profile_bubble_view_.get();
 }
 
+AutofillBubbleBase*
+TestAutofillBubbleHandler::ShowSaveAutofillPredictionImprovementsBubble(
+    content::WebContents* contents,
+    SaveAutofillPredictionImprovementsController* controller) {
+  if (!save_autofill_prediction_improvements_bubble_view_) {
+    save_autofill_prediction_improvements_bubble_view_ =
+        std::make_unique<TestAutofillBubble>();
+  }
+  return save_autofill_prediction_improvements_bubble_view_.get();
+}
+
 AutofillBubbleBase* TestAutofillBubbleHandler::ShowUpdateAddressProfileBubble(
     content::WebContents* contents,
-    SaveUpdateAddressProfileBubbleController* controller,
+    std::unique_ptr<UpdateAddressBubbleController> controller,
     bool is_user_gesture) {
   if (!update_address_profile_bubble_view_) {
     update_address_profile_bubble_view_ =
@@ -79,24 +86,26 @@ AutofillBubbleBase* TestAutofillBubbleHandler::ShowUpdateAddressProfileBubble(
   return update_address_profile_bubble_view_.get();
 }
 
-AutofillBubbleBase* TestAutofillBubbleHandler::ShowEditAddressProfileDialog(
+AutofillBubbleBase* TestAutofillBubbleHandler::ShowAddNewAddressProfileBubble(
     content::WebContents* contents,
-    EditAddressProfileDialogController* controller) {
-  if (!edit_address_profile_bubble_view_)
-    edit_address_profile_bubble_view_ = std::make_unique<TestAutofillBubble>();
-  return edit_address_profile_bubble_view_.get();
-}
-
-AutofillBubbleBase*
-TestAutofillBubbleHandler::ShowVirtualCardManualFallbackBubble(
-    content::WebContents* web_contents,
-    VirtualCardManualFallbackBubbleController* controller,
+    std::unique_ptr<AddNewAddressBubbleController> controller,
     bool is_user_gesture) {
-  if (!virtual_card_manual_fallback_bubble_view_) {
-    virtual_card_manual_fallback_bubble_view_ =
+  if (!add_new_address_profile_bubble_view_) {
+    add_new_address_profile_bubble_view_ =
         std::make_unique<TestAutofillBubble>();
   }
-  return virtual_card_manual_fallback_bubble_view_.get();
+  return add_new_address_profile_bubble_view_.get();
+}
+
+AutofillBubbleBase* TestAutofillBubbleHandler::ShowFilledCardInformationBubble(
+    content::WebContents* web_contents,
+    FilledCardInformationBubbleController* controller,
+    bool is_user_gesture) {
+  if (!filled_card_information_bubble_view_) {
+    filled_card_information_bubble_view_ =
+        std::make_unique<TestAutofillBubble>();
+  }
+  return filled_card_information_bubble_view_.get();
 }
 
 AutofillBubbleBase* TestAutofillBubbleHandler::ShowVirtualCardEnrollBubble(
@@ -109,6 +118,46 @@ AutofillBubbleBase* TestAutofillBubbleHandler::ShowVirtualCardEnrollBubble(
   return virtual_card_enroll_bubble_view_.get();
 }
 
-void TestAutofillBubbleHandler::OnPasswordSaved() {}
+AutofillBubbleBase*
+TestAutofillBubbleHandler::ShowVirtualCardEnrollConfirmationBubble(
+    content::WebContents* web_contents,
+    VirtualCardEnrollBubbleController* controller) {
+  if (!virtual_card_enroll_confirmation_bubble_view_) {
+    virtual_card_enroll_confirmation_bubble_view_ =
+        std::make_unique<TestAutofillBubble>();
+  }
+  return virtual_card_enroll_confirmation_bubble_view_.get();
+}
+
+AutofillBubbleBase* TestAutofillBubbleHandler::ShowMandatoryReauthBubble(
+    content::WebContents* web_contents,
+    MandatoryReauthBubbleController* controller,
+    bool is_user_gesture,
+    MandatoryReauthBubbleType bubble_type) {
+  if (!mandatory_reauth_bubble_view_) {
+    mandatory_reauth_bubble_view_ = std::make_unique<TestAutofillBubble>();
+  }
+  return mandatory_reauth_bubble_view_.get();
+}
+
+AutofillBubbleBase* TestAutofillBubbleHandler::ShowSaveCardConfirmationBubble(
+    content::WebContents* web_contents,
+    SaveCardBubbleController* controller) {
+  if (!save_card_confirmation_bubble_view_) {
+    save_card_confirmation_bubble_view_ =
+        std::make_unique<TestAutofillBubble>();
+  }
+  return save_card_confirmation_bubble_view_.get();
+}
+
+AutofillBubbleBase* TestAutofillBubbleHandler::ShowSaveIbanConfirmationBubble(
+    content::WebContents* web_contents,
+    IbanBubbleController* controller) {
+  if (!save_iban_confirmation_bubble_view_) {
+    save_iban_confirmation_bubble_view_ =
+        std::make_unique<TestAutofillBubble>();
+  }
+  return save_iban_confirmation_bubble_view_.get();
+}
 
 }  // namespace autofill

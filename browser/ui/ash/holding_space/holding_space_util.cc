@@ -11,10 +11,9 @@
 #include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
-#include "chrome/browser/ash/file_manager/app_id.h"
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/ui/ash/thumbnail_loader.h"
+#include "chrome/browser/ui/ash/thumbnail_loader/thumbnail_loader.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/user.h"
 #include "storage/browser/file_system/file_system_context.h"
@@ -24,6 +23,64 @@
 
 namespace ash {
 namespace holding_space_util {
+namespace {
+
+// Helpers ---------------------------------------------------------------------
+
+HoldingSpaceFile::FileSystemType ToHoldingSpaceFileSystemType(
+    storage::FileSystemType file_system_type) {
+  switch (file_system_type) {
+    case storage::FileSystemType::kFileSystemTypeArcContent:
+      return HoldingSpaceFile::FileSystemType::kArcContent;
+    case storage::FileSystemType::kFileSystemTypeArcDocumentsProvider:
+      return HoldingSpaceFile::FileSystemType::kArcDocumentsProvider;
+    case storage::FileSystemType::kFileSystemTypeDeviceMedia:
+      return HoldingSpaceFile::FileSystemType::kDeviceMedia;
+    case storage::FileSystemType::kFileSystemTypeDeviceMediaAsFileStorage:
+      return HoldingSpaceFile::FileSystemType::kDeviceMediaAsFileStorage;
+    case storage::FileSystemType::kFileSystemTypeDragged:
+      return HoldingSpaceFile::FileSystemType::kDragged;
+    case storage::FileSystemType::kFileSystemTypeDriveFs:
+      return HoldingSpaceFile::FileSystemType::kDriveFs;
+    case storage::FileSystemType::kFileSystemTypeExternal:
+      return HoldingSpaceFile::FileSystemType::kExternal;
+    case storage::FileSystemType::kFileSystemTypeForTransientFile:
+      return HoldingSpaceFile::FileSystemType::kForTransientFile;
+    case storage::FileSystemType::kFileSystemTypeFuseBox:
+      return HoldingSpaceFile::FileSystemType::kFuseBox;
+    case storage::FileSystemType::kFileSystemTypeIsolated:
+      return HoldingSpaceFile::FileSystemType::kIsolated;
+    case storage::FileSystemType::kFileSystemTypeLocal:
+      return HoldingSpaceFile::FileSystemType::kLocal;
+    case storage::FileSystemType::kFileSystemTypeLocalForPlatformApp:
+      return HoldingSpaceFile::FileSystemType::kLocalForPlatformApp;
+    case storage::FileSystemType::kFileSystemTypeLocalMedia:
+      return HoldingSpaceFile::FileSystemType::kLocalMedia;
+    case storage::FileSystemType::kFileSystemTypePersistent:
+      return HoldingSpaceFile::FileSystemType::kPersistent;
+    case storage::FileSystemType::kFileSystemTypeProvided:
+      return HoldingSpaceFile::FileSystemType::kProvided;
+    case storage::FileSystemType::kFileSystemTypeSmbFs:
+      return HoldingSpaceFile::FileSystemType::kSmbFs;
+    case storage::FileSystemType::kFileSystemTypeSyncable:
+      return HoldingSpaceFile::FileSystemType::kSyncable;
+    case storage::FileSystemType::kFileSystemTypeSyncableForInternalSync:
+      return HoldingSpaceFile::FileSystemType::kSyncableForInternalSync;
+    case storage::FileSystemType::kFileSystemTypeTemporary:
+      return HoldingSpaceFile::FileSystemType::kTemporary;
+    case storage::FileSystemType::kFileSystemTypeTest:
+      return HoldingSpaceFile::FileSystemType::kTest;
+    case storage::FileSystemType::kFileSystemTypeUnknown:
+      return HoldingSpaceFile::FileSystemType::kUnknown;
+    case storage::FileSystemType::kFileSystemInternalTypeEnumStart:
+    case storage::FileSystemType::kFileSystemInternalTypeEnumEnd:
+      NOTREACHED();
+  }
+}
+
+}  // namespace
+
+// ValidityRequirement ---------------------------------------------------------
 
 ValidityRequirement::ValidityRequirement() = default;
 ValidityRequirement::ValidityRequirement(const ValidityRequirement&) = default;
@@ -53,7 +110,7 @@ void FilePathValid(Profile* profile,
       //                           be supported by holding space.
       // TODO(http://b/274011722): Investigate if we can remove time based
       //                           validation of items in holding space.
-      storage::FileSystemOperation::GET_METADATA_FIELD_LAST_MODIFIED,
+      {storage::FileSystemOperation::GetMetadataField::kLastModified},
       base::BindOnce(
           [](FilePathValidCallback callback,
              FilePathWithValidityRequirement file_path_with_requirement,
@@ -169,6 +226,15 @@ void PartitionFilePathsByValidity(
   }
 }
 
+HoldingSpaceFile::FileSystemType ResolveFileSystemType(
+    Profile* profile,
+    const GURL& file_system_url) {
+  return ToHoldingSpaceFileSystemType(
+      file_manager::util::GetFileManagerFileSystemContext(profile)
+          ->CrackURLInFirstPartyContext(file_system_url)
+          .type());
+}
+
 GURL ResolveFileSystemUrl(Profile* profile, const base::FilePath& file_path) {
   GURL file_system_url;
   if (!file_manager::util::ConvertAbsoluteFilePathToFileSystemUrl(
@@ -211,8 +277,8 @@ std::unique_ptr<HoldingSpaceImage> ResolveImageWithPlaceholderImageSkiaResolver(
           [](HoldingSpaceImage::PlaceholderImageSkiaResolver
                  placeholder_image_skia_resolver,
              const base::FilePath& file_path, const gfx::Size& size,
-             const absl::optional<bool>& dark_background,
-             const absl::optional<bool>& is_folder) {
+             const std::optional<bool>& dark_background,
+             const std::optional<bool>& is_folder) {
             // When the initial placeholder is being created during
             // construction, `dark_background` and `is_folder` will be absent.
             // In that case, don't show a placeholder to minimize jank.

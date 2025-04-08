@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+#include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 
 #include "base/command_line.h"
-#include "base/containers/flat_map.h"
+#include "base/containers/fixed_flat_map.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/utf_string_conversions.h"
@@ -37,6 +40,8 @@
 #include "chrome/browser/ui/tab_sharing/tab_sharing_infobar_delegate.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/test/test_infobar.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -53,7 +58,6 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "ppapi/buildflags/buildflags.h"
 #include "sandbox/policy/switches.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(ENABLE_PLUGINS)
@@ -63,7 +67,7 @@
 #endif
 
 #if !BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ui/startup/default_browser_infobar_delegate.h"
+#include "chrome/browser/ui/startup/default_browser_prompt/default_browser_infobar_delegate.h"
 #endif
 
 #if BUILDFLAG(IS_MAC) && BUILDFLAG(ENABLE_UPDATER)
@@ -125,7 +129,7 @@ IN_PROC_BROWSER_TEST_F(InfoBarsTest, TestInfoBarsCloseOnNewTheme) {
                              InfoBarObserver::Type::kInfoBarAdded);
     InstallExtension("theme.crx");
     observer.Wait();
-    EXPECT_EQ(1u, infobar_manager1->infobar_count());
+    EXPECT_EQ(1u, infobar_manager1->infobars().size());
   }
 
   infobars::ContentInfoBarManager* infobar_manager2 = nullptr;
@@ -145,8 +149,8 @@ IN_PROC_BROWSER_TEST_F(InfoBarsTest, TestInfoBarsCloseOnNewTheme) {
     InstallExtension("theme2.crx");
     observer_removed.Wait();
     observer_added.Wait();
-    EXPECT_EQ(0u, infobar_manager1->infobar_count());
-    EXPECT_EQ(1u, infobar_manager2->infobar_count());
+    EXPECT_EQ(0u, infobar_manager1->infobars().size());
+    EXPECT_EQ(1u, infobar_manager2->infobars().size());
   }
 
   // Switching back to the default theme should close the infobar.
@@ -155,7 +159,7 @@ IN_PROC_BROWSER_TEST_F(InfoBarsTest, TestInfoBarsCloseOnNewTheme) {
                              InfoBarObserver::Type::kInfoBarRemoved);
     ThemeServiceFactory::GetForProfile(browser()->profile())->UseDefaultTheme();
     observer.Wait();
-    EXPECT_EQ(0u, infobar_manager2->infobar_count());
+    EXPECT_EQ(0u, infobar_manager2->infobars().size());
   }
 }
 
@@ -168,6 +172,7 @@ class InfoBarUiTest : public TestInfoBar {
 
   // TestInfoBar:
   void ShowUi(const std::string& name) override;
+  bool VerifyUi() override;
 
  private:
   using IBD = infobars::InfoBarDelegate;
@@ -183,38 +188,39 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
     return;
   }
 
-  const base::flat_map<std::string, IBD::InfoBarIdentifier> kIdentifiers = {
-    {"dev_tools", IBD::DEV_TOOLS_INFOBAR_DELEGATE},
-    {"extension_dev_tools", IBD::EXTENSION_DEV_TOOLS_INFOBAR_DELEGATE},
-    {"incognito_connectability",
-     IBD::INCOGNITO_CONNECTABILITY_INFOBAR_DELEGATE},
-    {"theme_installed", IBD::THEME_INSTALLED_INFOBAR_DELEGATE},
-    {"nacl", IBD::NACL_INFOBAR_DELEGATE},
-    {"file_access_disabled", IBD::FILE_ACCESS_DISABLED_INFOBAR_DELEGATE},
-    {"keystone_promotion", IBD::KEYSTONE_PROMOTION_INFOBAR_DELEGATE_MAC},
-    {"collected_cookies", IBD::COLLECTED_COOKIES_INFOBAR_DELEGATE},
-    {"installation_error", IBD::INSTALLATION_ERROR_INFOBAR_DELEGATE},
-    {"bad_flags", IBD::BAD_FLAGS_INFOBAR_DELEGATE},
-    {"default_browser", IBD::DEFAULT_BROWSER_INFOBAR_DELEGATE},
-    {"google_api_keys", IBD::GOOGLE_API_KEYS_INFOBAR_DELEGATE},
-    {"obsolete_system", IBD::OBSOLETE_SYSTEM_INFOBAR_DELEGATE},
-    {"page_info", IBD::PAGE_INFO_INFOBAR_DELEGATE},
-    {"translate", IBD::TRANSLATE_INFOBAR_DELEGATE_NON_AURA},
-    {"automation", IBD::AUTOMATION_INFOBAR_DELEGATE},
-    {"tab_sharing", IBD::TAB_SHARING_INFOBAR_DELEGATE},
+  constexpr auto kIdentifiers =
+      base::MakeFixedFlatMap<std::string_view, IBD::InfoBarIdentifier>({
+          {"dev_tools", IBD::DEV_TOOLS_INFOBAR_DELEGATE},
+          {"extension_dev_tools", IBD::EXTENSION_DEV_TOOLS_INFOBAR_DELEGATE},
+          {"incognito_connectability",
+           IBD::INCOGNITO_CONNECTABILITY_INFOBAR_DELEGATE},
+          {"theme_installed", IBD::THEME_INSTALLED_INFOBAR_DELEGATE},
+          {"nacl", IBD::NACL_INFOBAR_DELEGATE},
+          {"file_access_disabled", IBD::FILE_ACCESS_DISABLED_INFOBAR_DELEGATE},
+          {"keystone_promotion", IBD::KEYSTONE_PROMOTION_INFOBAR_DELEGATE_MAC},
+          {"collected_cookies", IBD::COLLECTED_COOKIES_INFOBAR_DELEGATE},
+          {"installation_error", IBD::INSTALLATION_ERROR_INFOBAR_DELEGATE},
+          {"bad_flags", IBD::BAD_FLAGS_INFOBAR_DELEGATE},
+          {"default_browser", IBD::DEFAULT_BROWSER_INFOBAR_DELEGATE},
+          {"google_api_keys", IBD::GOOGLE_API_KEYS_INFOBAR_DELEGATE},
+          {"obsolete_system", IBD::OBSOLETE_SYSTEM_INFOBAR_DELEGATE},
+          {"page_info", IBD::PAGE_INFO_INFOBAR_DELEGATE},
+          {"translate", IBD::TRANSLATE_INFOBAR_DELEGATE_NON_AURA},
+          {"automation", IBD::AUTOMATION_INFOBAR_DELEGATE},
+          {"tab_sharing", IBD::TAB_SHARING_INFOBAR_DELEGATE},
 
 #if BUILDFLAG(ENABLE_PLUGINS)
-    {"hung_plugin", IBD::HUNG_PLUGIN_INFOBAR_DELEGATE},
-    {"reload_plugin", IBD::RELOAD_PLUGIN_INFOBAR_DELEGATE},
-    {"plugin_observer", IBD::PLUGIN_OBSERVER_INFOBAR_DELEGATE},
+          {"hung_plugin", IBD::HUNG_PLUGIN_INFOBAR_DELEGATE},
+          {"reload_plugin", IBD::RELOAD_PLUGIN_INFOBAR_DELEGATE},
+          {"plugin_observer", IBD::PLUGIN_OBSERVER_INFOBAR_DELEGATE},
 #endif  // BUILDFLAG(ENABLE_PLUGINS)
-  };
-  auto id_entry = kIdentifiers.find(name);
+      });
+  const auto id_entry = kIdentifiers.find(name);
   if (id_entry == kIdentifiers.end()) {
     ADD_FAILURE() << "Unexpected infobar " << name;
     return;
   }
-  auto infobar_identifier = id_entry->second;
+  const auto infobar_identifier = id_entry->second;
   AddExpectedInfoBar(infobar_identifier);
   switch (infobar_identifier) {
     case IBD::DEV_TOOLS_INFOBAR_DELEGATE:
@@ -304,17 +310,16 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
     }
 
     case IBD::BAD_FLAGS_INFOBAR_DELEGATE:
-      chrome::ShowBadFlagsInfoBar(GetWebContents(),
-                                  IDS_BAD_FLAGS_WARNING_MESSAGE,
-                                  sandbox::policy::switches::kNoSandbox);
+      ShowBadFlagsInfoBar(GetWebContents(), IDS_BAD_FLAGS_WARNING_MESSAGE,
+                          sandbox::policy::switches::kNoSandbox);
       break;
 
     case IBD::DEFAULT_BROWSER_INFOBAR_DELEGATE:
 #if BUILDFLAG(IS_CHROMEOS_ASH)
       ADD_FAILURE() << "This infobar is not supported on this OS.";
 #else
-      chrome::DefaultBrowserInfoBarDelegate::Create(GetInfoBarManager(),
-                                                    browser()->profile());
+      DefaultBrowserInfoBarDelegate::Create(GetInfoBarManager(),
+                                            browser()->profile());
 #endif
       break;
 
@@ -358,12 +363,16 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
     case IBD::TAB_SHARING_INFOBAR_DELEGATE:
       TabSharingInfoBarDelegate::Create(
           /*infobar_manager=*/GetInfoBarManager(),
-          /*shared_tab_name=*/u"example.com", /*app_name=*/u"application.com",
-          /*shared_tab=*/false,
+          /*old_infobar=*/nullptr,
+          /*shared_tab_name=*/u"example.com",
+          /*capturer_name=*/u"application.com",
+          /*web_contents=*/nullptr,
+          /*role=*/TabSharingInfoBarDelegate::TabRole::kOtherTab,
           /*share_this_tab_instead_button_state=*/
           TabSharingInfoBarDelegate::ButtonState::ENABLED,
-          /*focus_target=*/absl::nullopt, /*ui=*/nullptr,
-          TabSharingInfoBarDelegate::TabShareType::CAPTURE);
+          /*focus_target=*/std::nullopt,
+          /*captured_surface_control_active=*/false,
+          /*ui=*/nullptr, TabSharingInfoBarDelegate::TabShareType::CAPTURE);
       break;
 
     default:
@@ -372,7 +381,24 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
   }
 }
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_dev_tools) {
+bool InfoBarUiTest::VerifyUi() {
+  const auto* const test_info =
+      testing::UnitTest::GetInstance()->current_test_info();
+  return TestInfoBar::VerifyUi() &&
+         (VerifyPixelUi(BrowserView::GetBrowserViewForBrowser(browser())
+                            ->infobar_container(),
+                        test_info->test_suite_name(),
+                        test_info->name()) != ui::test::ActionResult::kFailed);
+}
+
+#if BUILDFLAG(IS_WIN)
+// TODO(crbug.com/40261456): This test case has been frequently failing on
+// "Win10 Tests x64" since 2024-05-08.
+#define MAYBE_InvokeUi_dev_tools DISABLED_InvokeUi_dev_tools
+#else
+#define MAYBE_InvokeUi_dev_tools InvokeUi_dev_tools
+#endif
+IN_PROC_BROWSER_TEST_F(InfoBarUiTest, MAYBE_InvokeUi_dev_tools) {
   ShowAndVerifyUi();
 }
 
@@ -454,11 +480,24 @@ IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_translate) {
 }
 #endif
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_automation) {
+#if BUILDFLAG(IS_WIN)
+// TODO(crbug.com/40261456): This test case has been frequently failing on
+// "Win10 Tests x64" since 2024-05-08.
+#define MAYBE_InvokeUi_automation DISABLED_InvokeUi_automation
+#else
+#define MAYBE_InvokeUi_automation InvokeUi_automation
+#endif
+IN_PROC_BROWSER_TEST_F(InfoBarUiTest, MAYBE_InvokeUi_automation) {
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_tab_sharing) {
+// Consistently failing on Windows https://crbug.com/1462107.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_InvokeUi_tab_sharing DISABLED_InvokeUi_tab_sharing
+#else
+#define MAYBE_InvokeUi_tab_sharing InvokeUi_tab_sharing
+#endif
+IN_PROC_BROWSER_TEST_F(InfoBarUiTest, MAYBE_InvokeUi_tab_sharing) {
   ShowAndVerifyUi();
 }
 

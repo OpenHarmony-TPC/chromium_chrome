@@ -4,6 +4,7 @@
 
 #include "chrome/browser/lacros/account_manager/add_account_helper.h"
 
+#include <optional>
 #include <string>
 
 #include "base/check.h"
@@ -14,8 +15,7 @@
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "components/account_manager_core/account.h"
-#include "components/account_manager_core/account_addition_result.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/account_manager_core/account_upsertion_result.h"
 
 AddAccountHelper::AddAccountHelper(
     IsAccountInCacheCallback is_account_in_cache_callback,
@@ -48,7 +48,7 @@ void AddAccountHelper::Start(
         << " to profile " << profile_path;
     OnShowAddAccountDialogCompleted(
         profile_path,
-        account_manager::AccountAdditionResult::FromAccount(*account));
+        account_manager::AccountUpsertionResult::FromAccount(*account));
   } else {
     account_manager_facade_->ShowAddAccountDialog(
         absl::get<account_manager::AccountManagerFacade::AccountAdditionSource>(
@@ -72,7 +72,7 @@ void AddAccountHelper::UpsertAccountForTesting(
       account, token_value);
   OnShowAddAccountDialogCompleted(
       profile_path,
-      account_manager::AccountAdditionResult::FromAccount(account));
+      account_manager::AccountUpsertionResult::FromAccount(account));
 }
 
 void AddAccountHelper::OnAccountCacheUpdated() {
@@ -87,16 +87,16 @@ void AddAccountHelper::OnAccountCacheUpdated() {
 
 void AddAccountHelper::OnShowAddAccountDialogCompleted(
     const base::FilePath& profile_path,
-    const account_manager::AccountAdditionResult& result) {
+    const account_manager::AccountUpsertionResult& result) {
   DCHECK(!account_);
 
   bool add_account_failure =
       result.status() !=
-          account_manager::AccountAdditionResult::Status::kSuccess ||
+          account_manager::AccountUpsertionResult::Status::kSuccess ||
       result.account()->key.account_type() !=
           account_manager::AccountType::kGaia;
   if (add_account_failure) {
-    std::move(callback_).Run(absl::nullopt);
+    std::move(callback_).Run(std::nullopt);
     // `this` may be deleted.
     return;
   }
@@ -122,10 +122,6 @@ void AddAccountHelper::OnNewProfileInitialized(Profile* new_profile) {
   DCHECK(account_);
   if (!new_profile) {
     NOTREACHED() << "Error creating new profile";
-    profile_path_ = base::FilePath();
-    MaybeCompleteAddAccount();
-    // `this` may be deleted.
-    return;
   }
 
   OnShowAddAccountDialogCompletedWithProfilePath(new_profile->GetPath());
@@ -148,7 +144,7 @@ void AddAccountHelper::MaybeCompleteAddAccount() {
   DCHECK_EQ(account_->key.account_type(), account_manager::AccountType::kGaia);
   const std::string& gaia_id = account_->key.id();
   DCHECK(!gaia_id.empty());
-  absl::optional<AccountProfileMapper::AddAccountResult> result;
+  std::optional<AccountProfileMapper::AddAccountResult> result;
 
   ProfileAttributesEntry* entry =
       profile_attributes_storage_->GetProfileAttributesWithPath(

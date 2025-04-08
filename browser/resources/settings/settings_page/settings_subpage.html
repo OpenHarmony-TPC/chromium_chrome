@@ -61,11 +61,6 @@
         margin-inline-start: -10px;
       }
 
-      paper-spinner-lite {
-        height: var(--cr-icon-size);
-        width: var(--cr-icon-size);
-      }
-
       h1 {
         flex: 1;  /* Push other items to the end. */
       }
@@ -92,8 +87,9 @@
       <h1 class="cr-title-text">[[pageTitle]]</h1>
       <slot name="subpage-title-extra"></slot>
       <template is="dom-if" if="[[learnMoreUrl]]">
-        <cr-icon-button iron-icon="cr:help-outline" dir="ltr"
-            aria-label="[[getLearnMoreAriaLabel_(pageTitle)]]" on-click="onHelpClick_">
+        <cr-icon-button iron-icon="cr:help-outline" suppress-rtl-flip
+            aria-label="[[getLearnMoreAriaLabel_(pageTitle)]]"
+            aria-description="$i18n{opensInNewTab}" on-click="onHelpClick_">
         </cr-icon-button>
       </template>
       <template is="dom-if" if="[[searchLabel]]">
@@ -101,10 +97,6 @@
             on-search-changed="onSearchChanged_"
             clear-label="$i18n{clearSearch}">
         </cr-search-field>
-      </template>
-      <template is="dom-if" if="[[showSpinner]]">
-        <paper-spinner-lite active title$="[[spinnerTitle]]">
-        </paper-spinner-lite>
       </template>
     </div>
     <slot></slot>

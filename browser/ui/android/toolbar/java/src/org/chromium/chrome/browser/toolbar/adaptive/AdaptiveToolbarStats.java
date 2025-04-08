@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.toolbar.adaptive;
 
+import android.content.Context;
+
 import androidx.annotation.IntDef;
 
 import org.chromium.base.metrics.RecordHistogram;
@@ -16,15 +18,23 @@ import java.lang.annotation.RetentionPolicy;
 public class AdaptiveToolbarStats {
     // Please treat this list as append only and keep it in sync with
     // AdaptiveToolbarRadioButtonState in enums.xml.
-    @IntDef({AdaptiveToolbarRadioButtonState.UNKNOWN,
-            AdaptiveToolbarRadioButtonState.AUTO_WITH_NEW_TAB,
-            AdaptiveToolbarRadioButtonState.AUTO_WITH_SHARE,
-            AdaptiveToolbarRadioButtonState.AUTO_WITH_VOICE,
-            AdaptiveToolbarRadioButtonState.NEW_TAB, AdaptiveToolbarRadioButtonState.SHARE,
-            AdaptiveToolbarRadioButtonState.VOICE, AdaptiveToolbarRadioButtonState.TRANSLATE,
-            AdaptiveToolbarRadioButtonState.AUTO_WITH_TRANSLATE,
-            AdaptiveToolbarRadioButtonState.ADD_TO_BOOKMARKS,
-            AdaptiveToolbarRadioButtonState.AUTO_WITH_ADD_TO_BOOKMARKS})
+    @IntDef({
+        AdaptiveToolbarRadioButtonState.UNKNOWN,
+        AdaptiveToolbarRadioButtonState.AUTO_WITH_NEW_TAB,
+        AdaptiveToolbarRadioButtonState.AUTO_WITH_SHARE,
+        AdaptiveToolbarRadioButtonState.AUTO_WITH_VOICE,
+        AdaptiveToolbarRadioButtonState.NEW_TAB,
+        AdaptiveToolbarRadioButtonState.SHARE,
+        AdaptiveToolbarRadioButtonState.VOICE,
+        AdaptiveToolbarRadioButtonState.TRANSLATE,
+        AdaptiveToolbarRadioButtonState.AUTO_WITH_TRANSLATE,
+        AdaptiveToolbarRadioButtonState.ADD_TO_BOOKMARKS,
+        AdaptiveToolbarRadioButtonState.AUTO_WITH_ADD_TO_BOOKMARKS,
+        AdaptiveToolbarRadioButtonState.READ_ALOUD,
+        AdaptiveToolbarRadioButtonState.AUTO_WITH_READ_ALOUD,
+        AdaptiveToolbarRadioButtonState.PAGE_SUMMARY,
+        AdaptiveToolbarRadioButtonState.AUTO_WITH_PAGE_SUMMARY,
+    })
     @Retention(RetentionPolicy.SOURCE)
     private @interface AdaptiveToolbarRadioButtonState {
         int UNKNOWN = 0;
@@ -38,7 +48,11 @@ public class AdaptiveToolbarStats {
         int AUTO_WITH_TRANSLATE = 8;
         int ADD_TO_BOOKMARKS = 9;
         int AUTO_WITH_ADD_TO_BOOKMARKS = 10;
-        int NUM_ENTRIES = 11;
+        int READ_ALOUD = 11;
+        int AUTO_WITH_READ_ALOUD = 12;
+        int PAGE_SUMMARY = 13;
+        int AUTO_WITH_PAGE_SUMMARY = 14;
+        int NUM_ENTRIES = 15;
     }
 
     /**
@@ -48,13 +62,17 @@ public class AdaptiveToolbarStats {
      */
     public static void recordRadioButtonStateAsync(
             AdaptiveToolbarStatePredictor adaptiveToolbarStatePredictor, boolean onStartup) {
-        String histogramName = onStartup ? "Android.AdaptiveToolbarButton.Settings.Startup"
-                                         : "Android.AdaptiveToolbarButton.Settings.Changed";
-        adaptiveToolbarStatePredictor.recomputeUiState(uiState -> {
-            RecordHistogram.recordEnumeratedHistogram(histogramName,
-                    getRadioButtonStateForMetrics(uiState),
-                    AdaptiveToolbarRadioButtonState.NUM_ENTRIES);
-        });
+        String histogramName =
+                onStartup
+                        ? "Android.AdaptiveToolbarButton.Settings.Startup"
+                        : "Android.AdaptiveToolbarButton.Settings.Changed";
+        adaptiveToolbarStatePredictor.recomputeUiState(
+                uiState -> {
+                    RecordHistogram.recordEnumeratedHistogram(
+                            histogramName,
+                            getRadioButtonStateForMetrics(uiState),
+                            AdaptiveToolbarRadioButtonState.NUM_ENTRIES);
+                });
     }
 
     /**
@@ -62,22 +80,24 @@ public class AdaptiveToolbarStats {
      * @param onStartup Whether this is called on startup.
      */
     public static void recordToolbarShortcutToggleState(boolean onStartup) {
-        String histogramName = onStartup ? "Android.AdaptiveToolbarButton.SettingsToggle.Startup"
-                                         : "Android.AdaptiveToolbarButton.SettingsToggle.Changed";
+        String histogramName =
+                onStartup
+                        ? "Android.AdaptiveToolbarButton.SettingsToggle.Startup"
+                        : "Android.AdaptiveToolbarButton.SettingsToggle.Changed";
         RecordHistogram.recordBooleanHistogram(
                 histogramName, AdaptiveToolbarPrefs.isCustomizationPreferenceEnabled());
     }
 
-    /**
-     * Called on startup to record the selected segment from the backend.
-     */
+    /** Called on startup to record the selected segment from the backend. */
     public static void recordSelectedSegmentFromSegmentationPlatformAsync(
-            AdaptiveToolbarStatePredictor adaptiveToolbarStatePredictor) {
-        adaptiveToolbarStatePredictor.readFromSegmentationPlatform(result -> {
-            RecordHistogram.recordEnumeratedHistogram(
-                    "SegmentationPlatform.AdaptiveToolbar.SegmentSelected.Startup", result.second,
-                    AdaptiveToolbarButtonVariant.MAX_VALUE + 1);
-        });
+            Context context, AdaptiveToolbarStatePredictor adaptiveToolbarStatePredictor) {
+        adaptiveToolbarStatePredictor.readFromSegmentationPlatform(
+                result -> {
+                    RecordHistogram.recordEnumeratedHistogram(
+                            "SegmentationPlatform.AdaptiveToolbar.SegmentSelected.Startup",
+                            AdaptiveToolbarFeatures.getTopSegmentationResult(context, result),
+                            AdaptiveToolbarButtonVariant.MAX_VALUE + 1);
+                });
     }
 
     private static @AdaptiveToolbarRadioButtonState int getRadioButtonStateForMetrics(
@@ -93,6 +113,10 @@ public class AdaptiveToolbarStats {
                 return AdaptiveToolbarRadioButtonState.ADD_TO_BOOKMARKS;
             case AdaptiveToolbarButtonVariant.TRANSLATE:
                 return AdaptiveToolbarRadioButtonState.TRANSLATE;
+            case AdaptiveToolbarButtonVariant.READ_ALOUD:
+                return AdaptiveToolbarRadioButtonState.READ_ALOUD;
+            case AdaptiveToolbarButtonVariant.PAGE_SUMMARY:
+                return AdaptiveToolbarRadioButtonState.PAGE_SUMMARY;
             case AdaptiveToolbarButtonVariant.AUTO:
                 switch (uiState.autoButtonCaption) {
                     case AdaptiveToolbarButtonVariant.NEW_TAB:
@@ -105,6 +129,10 @@ public class AdaptiveToolbarStats {
                         return AdaptiveToolbarRadioButtonState.AUTO_WITH_ADD_TO_BOOKMARKS;
                     case AdaptiveToolbarButtonVariant.TRANSLATE:
                         return AdaptiveToolbarRadioButtonState.AUTO_WITH_TRANSLATE;
+                    case AdaptiveToolbarButtonVariant.READ_ALOUD:
+                        return AdaptiveToolbarRadioButtonState.AUTO_WITH_READ_ALOUD;
+                    case AdaptiveToolbarButtonVariant.PAGE_SUMMARY:
+                        return AdaptiveToolbarRadioButtonState.AUTO_WITH_PAGE_SUMMARY;
                 }
         }
         assert false : "Invalid radio button state";

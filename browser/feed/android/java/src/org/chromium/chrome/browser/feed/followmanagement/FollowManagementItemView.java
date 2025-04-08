@@ -16,14 +16,11 @@ import android.widget.TextView;
 
 import org.chromium.chrome.browser.feed.R;
 
-/**
- * View class for the individual line items in the following management activity.
- */
+/** View class for the individual line items in the following management activity. */
 public class FollowManagementItemView extends LinearLayout {
     private TextView mTitle;
     private TextView mUrl;
     private TextView mStatus;
-    private boolean mChecked;
     private ImageView mFavicon;
     private CheckBox mSubscribedCheckbox;
 

@@ -5,26 +5,29 @@
 /**
  * @fileoverview Handles automation from a desktop automation node.
  */
-import {AsyncUtil} from '../../../common/async_util.js';
-import {AutomationPredicate} from '../../../common/automation_predicate.js';
-import {AutomationUtil} from '../../../common/automation_util.js';
-import {constants} from '../../../common/constants.js';
-import {WrappingCursor} from '../../../common/cursors/cursor.js';
-import {CursorRange} from '../../../common/cursors/range.js';
-import {LocalStorage} from '../../../common/local_storage.js';
-import {Command} from '../../common/command_store.js';
+import {AsyncUtil} from '/common/async_util.js';
+import {AutomationPredicate} from '/common/automation_predicate.js';
+import {AutomationUtil} from '/common/automation_util.js';
+import {constants} from '/common/constants.js';
+import {WrappingCursor} from '/common/cursors/cursor.js';
+import {CursorRange} from '/common/cursors/range.js';
+import {LocalStorage} from '/common/local_storage.js';
+import {TestImportManager} from '/common/testing/test_import_manager.js';
+
+import {Command} from '../../common/command.js';
 import {ChromeVoxEvent, CustomAutomationEvent} from '../../common/custom_automation_event.js';
 import {EventSourceType} from '../../common/event_source_type.js';
 import {Msgs} from '../../common/msgs.js';
-import {QueueMode, TtsCategory} from '../../common/tts_types.js';
+import {Personality, QueueMode, TtsCategory} from '../../common/tts_types.js';
 import {AutoScrollHandler} from '../auto_scroll_handler.js';
 import {AutomationObjectConstructorInstaller} from '../automation_object_constructor_installer.js';
 import {ChromeVox} from '../chromevox.js';
 import {ChromeVoxRange} from '../chromevox_range.js';
 import {ChromeVoxState} from '../chromevox_state.js';
-import {CommandHandlerInterface} from '../command_handler_interface.js';
-import {TextEditHandler} from '../editing/editing.js';
+import {TextEditHandler} from '../editing/text_edit_handler.js';
 import {EventSource} from '../event_source.js';
+import {CommandHandlerInterface} from '../input/command_handler_interface.js';
+import {LiveRegions} from '../live_regions.js';
 import {Output} from '../output/output.js';
 import {OutputCustomEvent} from '../output/output_types.js';
 
@@ -72,16 +75,6 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
     /** @private {string} */
     this.lastAlertText_ = '';
 
-    /**
-     * The last time we handled a live region changed event.
-     * @type {!Date}
-     * @private
-     */
-    this.liveRegionChange_ = new Date();
-
-    /** @private {string}*/
-    this.lastLiveRegionChangeText_ = '';
-
     /** @private {string} */
     this.lastRootUrl_ = '';
 
@@ -107,21 +100,24 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
     this.addListener_(EventType.ALERT, event => this.onAlert_(event));
     this.addListener_(EventType.BLUR, event => this.onBlur_(event));
     this.addListener_(
-        EventType.DOCUMENT_SELECTION_CHANGED, this.onDocumentSelectionChanged);
-    this.addListener_(EventType.FOCUS, this.onFocus);
+        EventType.DOCUMENT_SELECTION_CHANGED,
+        event => this.onDocumentSelectionChanged_(event));
+    this.addListener_(EventType.FOCUS, event => this.onFocus_(event));
 
     // Note that live region changes from views are really announcement
     // events. Their target nodes contain no live region semantics and have no
     // relation to live regions which are supported in |LiveRegions|.
-    this.addListener_(EventType.LIVE_REGION_CHANGED, this.onLiveRegionChanged);
+    this.addListener_(
+        EventType.LIVE_REGION_CHANGED,
+        event => this.onLiveRegionChanged_(event));
 
-    this.addListener_(EventType.LOAD_COMPLETE, this.onLoadComplete);
-    this.addListener_(EventType.FOCUS_AFTER_MENU_CLOSE, this.onMenuEnd);
-    this.addListener_(EventType.MENU_START, event => {
-      Output.forceModeForNextSpeechUtterance(QueueMode.CATEGORY_FLUSH);
-      this.onEventDefault(event);
-    });
-    this.addListener_(EventType.RANGE_VALUE_CHANGED, this.onValueChanged);
+    this.addListener_(
+        EventType.LOAD_COMPLETE, event => this.onLoadComplete_(event));
+    this.addListener_(
+        EventType.FOCUS_AFTER_MENU_CLOSE, event => this.onMenuEnd_(event));
+    this.addListener_(EventType.MENU_START, event => this.onMenuStart_(event));
+    this.addListener_(
+        EventType.RANGE_VALUE_CHANGED, event => this.onValueChanged_(event));
     this.addListener_(
         EventType.SCROLL_POSITION_CHANGED, this.onScrollPositionChanged);
     this.addListener_(
@@ -137,10 +133,12 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
         EventType.TEXT_SELECTION_CHANGED, this.onEditableChanged_);
     this.addListener_(
         EventType.VALUE_IN_TEXT_FIELD_CHANGED, this.onEditableChanged_);
-    this.addListener_(EventType.VALUE_CHANGED, this.onValueChanged);
+    this.addListener_(
+        EventType.VALUE_CHANGED, event => this.onValueChanged_(event));
     this.addListener_(
         EventType.AUTOFILL_AVAILABILITY_CHANGED,
         this.onAutofillAvailabilityChanged);
+    this.addListener_(EventType.ORIENTATION_CHANGED, this.onOrientationChanged);
 
     await AutomationObjectConstructorInstaller.init(node);
     const focus = await AsyncUtil.getFocus();
@@ -148,7 +146,7 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
       const event = new CustomAutomationEvent(
           EventType.FOCUS, focus,
           {eventFrom: 'page', eventFromAction: ActionType.FOCUS});
-      this.onFocus(event);
+      this.onFocus_(event);
     }
   }
 
@@ -216,22 +214,16 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
    */
   onAlert_(evt) {
     const node = evt.target;
-
-    if (node.role === RoleType.ALERT && node.root.role === RoleType.DESKTOP) {
-      // Exclude alerts in the desktop tree that are inside of menus.
-      let ancestor = node;
-      while (ancestor) {
-        if (ancestor.role === RoleType.MENU) {
-          return;
-        }
-        ancestor = ancestor.parent;
-      }
-    }
-
     const range = CursorRange.fromNode(node);
-    const output = new Output()
-                       .withSpeechCategory(TtsCategory.LIVE)
-                       .withSpeechAndBraille(range, null, evt.type);
+    const output = new Output();
+    // Whenever chromevox is running together with dictation, we want to
+    // announce the hints provided by the Dictation feature in a different voice
+    // to differentiate them from regular UI text.
+    if (node.className === 'DictationHintView') {
+      output.withInitialSpeechProperties(Personality.DICTATION_HINT);
+    }
+    output.withSpeechCategory(TtsCategory.LIVE)
+        .withSpeechAndBraille(range, null, evt.type);
 
     const alertDelayMet = new Date() - this.lastAlertTime_ >
         DesktopAutomationHandler.MIN_ALERT_DELAY_MS;
@@ -263,8 +255,9 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
 
   /**
    * @param {!ChromeVoxEvent} evt
+   * @private
    */
-  onDocumentSelectionChanged(evt) {
+  onDocumentSelectionChanged_(evt) {
     let selectionStart = evt.target.selectionStartObject;
 
     // No selection.
@@ -281,7 +274,7 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
     // Editable selection.
     if (selectionStart.state[StateType.EDITABLE]) {
       selectionStart =
-          AutomationUtil.getEditableRoot(selectionStart) || selectionStart;
+          AutomationUtil.getEditableRoot(selectionStart) ?? selectionStart;
       this.onEditableChanged_(
           new CustomAutomationEvent(evt.type, selectionStart, {
             eventFrom: evt.eventFrom,
@@ -296,8 +289,9 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
   /**
    * Provides all feedback once a focus event fires.
    * @param {!ChromeVoxEvent} evt
+   * @private
    */
-  onFocus(evt) {
+  onFocus_(evt) {
     let node = evt.target;
     const isRootWebArea = node.role === RoleType.ROOT_WEB_AREA;
     const isFrame = isRootWebArea && node.parent && node.parent.root &&
@@ -309,14 +303,14 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
     }
 
     // Invalidate any previous editable text handler state.
-    if (!this.createTextEditHandlerIfNeeded_(evt.target, true)) {
+    if (!this.createTextEditHandlerIfNeeded_(node, true)) {
       this.textEditHandler_ = null;
     }
 
     // Discard focus events on embeddedObject and webView.
-    if (node.role === RoleType.EMBEDDED_OBJECT ||
-        node.role === RoleType.PLUGIN_OBJECT ||
-        node.role === RoleType.WEB_VIEW) {
+    const shouldDiscard = AutomationPredicate.roles(
+        [RoleType.EMBEDDED_OBJECT, RoleType.PLUGIN_OBJECT, RoleType.WEB_VIEW]);
+    if (shouldDiscard(node)) {
       return;
     }
 
@@ -341,7 +335,7 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
     }
 
     // Update the focused root url, which gets used as part of focus recovery.
-    this.lastRootUrl_ = node.root.docUrl || '';
+    this.lastRootUrl_ = node.root.docUrl ?? '';
 
     // Consider the case when a user presses tab rapidly. The key events may
     // come in far before the accessibility focus events. We therefore must
@@ -361,53 +355,18 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
 
   /**
    * @param {!ChromeVoxEvent} evt
+   * @private
    */
-  onLiveRegionChanged(evt) {
-    if (evt.target.root.role === RoleType.DESKTOP ||
-        evt.target.root.role === RoleType.APPLICATION) {
-      if (evt.target.containerLiveStatus !== 'assertive' &&
-          evt.target.containerLiveStatus !== 'polite') {
-        return;
-      }
-
-      const output = new Output();
-      if (evt.target.containerLiveStatus === 'assertive') {
-        output.withQueueMode(QueueMode.CATEGORY_FLUSH);
-      } else {
-        output.withQueueMode(QueueMode.QUEUE);
-      }
-      const liveRegionChange = (new Date() - this.liveRegionChange_) <
-          DesktopAutomationHandler.LIVE_REGION_DELAY_MS;
-
-      output
-          .withRichSpeechAndBraille(
-              CursorRange.fromNode(evt.target), null, evt.type)
-          .withSpeechCategory(TtsCategory.LIVE);
-      if (liveRegionChange &&
-          output.toString() === this.lastLiveRegionChangeText_) {
-        return;
-      }
-
-      this.liveRegionChange_ = new Date();
-      this.lastLiveRegionChangeText_ = output.toString();
-      output.go();
-    }
+  onLiveRegionChanged_(evt) {
+    LiveRegions.announceDesktopLiveRegionChanged(evt.target);
   }
 
   /**
    * Provides all feedback once a load complete event fires.
    * @param {!ChromeVoxEvent} evt
+   * @private
    */
-  onLoadComplete(evt) {
-    // A load complete gets fired on the desktop node when display metrics
-    // change.
-    if (evt.target.role === RoleType.DESKTOP) {
-      const msg = evt.target.state[StateType.HORIZONTAL] ? 'device_landscape' :
-                                                           'device_portrait';
-      new Output().format('@' + msg).go();
-      return;
-    }
-
+  onLoadComplete_(evt) {
     // We are only interested in load completes on valid top level roots.
     const top = AutomationUtil.getTopLevelRoot(evt.target);
     if (!top || top !== evt.target.root || !top.docUrl) {
@@ -569,8 +528,9 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
    * Provides all feedback once a rangeValueChanged or a valueInTextFieldChanged
    * event fires.
    * @param {!ChromeVoxEvent} evt
+   * @private
    */
-  onValueChanged(evt) {
+  onValueChanged_(evt) {
     // Skip root web areas.
     if (evt.target.role === RoleType.ROOT_WEB_AREA) {
       return;
@@ -580,6 +540,25 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
     // exception of spin buttons.
     if (evt.target.state[StateType.EDITABLE] &&
         evt.target.role !== RoleType.SPIN_BUTTON) {
+      // If a value changed event came from NTP Searchbox input, announce the
+      // new value. This is a special behavior for NTP Searchbox to announce
+      // its suggestions when users navigate them using the up/down arrow key.
+      // `evt.intents` is empty when NTP Searchbox gets auto-completed by
+      // navigating a list of suggestions; it won't be empty if users type,
+      // delete, or paste text in NTP Searchbox.
+      // TODO(crbug.com/328824322): Remove the special behavior and implement
+      // the active-descendant-based approach in NTP Searchbox when
+      // crbug.com/346835896 lands in the stable.
+      if (evt.target.root.url === DesktopAutomationHandler.NTP_URL &&
+          evt.target.htmlTag === 'input' && !evt.intents?.length) {
+        new Output()
+            .withString(evt.target.value)
+            .withSpeechCategory(TtsCategory.NAV)
+            .withQueueMode(QueueMode.CATEGORY_FLUSH)
+            .withoutFocusRing()
+            .go();
+        return;
+      }
       this.onEditableChanged_(evt);
       return;
     }
@@ -710,15 +689,22 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
 
       // TableView fires selection events on rows/cells
       // and we want to ignore those because it also fires focus events.
-      if (isDesktop && target.role === RoleType.CELL ||
-          target.role === RoleType.ROW) {
+      const skip = AutomationPredicate.roles(
+          [RoleType.CELL, RoleType.GRID_CELL, RoleType.ROW]);
+      if (isDesktop && skip(target)) {
         return;
       }
 
-      // Menu items and IME candidates always announce on selection events,
-      // independent of focus.
-      if (AutomationPredicate.menuItem(target) ||
-          target.role === RoleType.IME_CANDIDATE) {
+      // IME candidates are announced, independent of focus.
+      // This shouldn't move ChromeVoxRange to keep editing work.
+      if (target.role === RoleType.IME_CANDIDATE) {
+        const range = CursorRange.fromNode(target);
+        new Output().withRichSpeech(range, null, evt.type).go();
+        return;
+      }
+
+      // Menu items always announce on selection events, independent of focus.
+      if (AutomationPredicate.menuItem(target)) {
         override = true;
       }
 
@@ -743,7 +729,10 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
           target.className === 'PopupFooterView' ||
           target.className === 'PopupWarningView' ||
           target.className === 'PopupBaseView' ||
-          target.className === 'PopupCellView' ||
+          target.className === 'PopupRowView' ||
+          target.className === 'PopupRowContentView' ||
+          target.className === 'PopupRowPredictionImprovementsFeedbackView' ||
+          target.className === 'PredictionImprovementsLoadingStateView' ||
           target.className ===
               'PasswordGenerationPopupViewViews::GeneratedPasswordBox') {
         override = true;
@@ -765,13 +754,14 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
   /**
    * Provides all feedback once a menu end event fires.
    * @param {!ChromeVoxEvent} evt
+   * @private
    */
-  onMenuEnd(evt) {
+  onMenuEnd_(evt) {
     // This is a work around for Chrome context menus not firing a focus event
     // after you close them.
     chrome.automation.getFocus(focus => {
       if (focus) {
-        // Directly output the node here; do not go through |onFocus| as it
+        // Directly output the node here; do not go through |onFocus_| as it
         // contains a lot of logic that can move the selection (if in an
         // editable).
         const range = CursorRange.fromNode(focus);
@@ -781,6 +771,15 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
         ChromeVoxRange.set(range);
       }
     });
+  }
+
+  /**
+   * @param {!ChromeVoxEvent} event
+   * @private
+   */
+  onMenuStart_(event) {
+    Output.forceModeForNextSpeechUtterance(QueueMode.CATEGORY_FLUSH);
+    this.onEventDefault(event);
   }
 
   /**
@@ -823,6 +822,20 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
           .withLocation(currentRange, null, evt.type)
           .withQueueMode(QueueMode.QUEUE)
           .go();
+    }
+  }
+
+  /**
+   * Handles orientation changes on the desktop node.
+   * @param {!ChromeVoxEvent} evt
+   */
+  onOrientationChanged(evt) {
+    // Changes on display metrics result in the desktop node's
+    // vertical/horizontal states changing.
+    if (evt.target.role === RoleType.DESKTOP) {
+      const msg = evt.target.state[StateType.HORIZONTAL] ? 'device_landscape' :
+                                                           'device_portrait';
+      new Output().format('@' + msg).go();
     }
   }
 
@@ -957,15 +970,9 @@ DesktopAutomationHandler.MIN_VALUE_CHANGE_DELAY_MS = 50;
 DesktopAutomationHandler.MIN_ALERT_DELAY_MS = 50;
 
 /**
- * Time to wait until processing more live region change events on the same
- * text content.
- * @const {number}
+ * URL for NTP (New tap page).
+ * @const {string}
  */
-DesktopAutomationHandler.LIVE_REGION_DELAY_MS = 100;
+DesktopAutomationHandler.NTP_URL = 'chrome://new-tab-page/';
 
-/**
- * Time to wait before announcing attribute changes that are otherwise too
- * disruptive.
- * @const {number}
- */
-DesktopAutomationHandler.ATTRIBUTE_DELAY_MS = 1500;
+TestImportManager.exportForTesting(DesktopAutomationHandler);

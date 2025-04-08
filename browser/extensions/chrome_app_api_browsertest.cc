@@ -133,7 +133,7 @@ IN_PROC_BROWSER_TEST_F(ChromeAppAPITest, IsInstalled) {
       content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
                       kGetAppDetails)
           .ExtractString();
-  absl::optional<base::Value> result_value = base::JSONReader::Read(result);
+  std::optional<base::Value> result_value = base::JSONReader::Read(result);
   ASSERT_TRUE(result_value && result_value->is_dict());
   base::Value::Dict& app_details = result_value.value().GetDict();
 
@@ -243,10 +243,11 @@ IN_PROC_BROWSER_TEST_F(ChromeAppAPITest, InstallAndRunningState) {
 
   // With --site-per-process, the iframe on nonapp.com will currently swap
   // processes and go into the hosted app process.
-  if (content::AreAllSitesIsolatedForTesting())
+  if (content::AreAllSitesIsolatedForTesting()) {
     EXPECT_TRUE(IsAppInstalledInIFrame());
-  else
+  } else {
     EXPECT_FALSE(IsAppInstalledInIFrame());
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(ChromeAppAPITest, InstallAndRunningStateFrame) {
@@ -270,6 +271,7 @@ class ChromeAppAPIFencedFrameTest : public ChromeAppAPITest {
     feature_list_.InitWithFeaturesAndParameters(
         {{blink::features::kFencedFrames, {}},
          {blink::features::kFencedFramesAPIChanges, {}},
+         {blink::features::kFencedFramesDefaultMode, {}},
          {features::kPrivacySandboxAdsAPIsOverride, {}}},
         {/* disabled_features */});
   }

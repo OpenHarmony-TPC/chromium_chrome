@@ -12,8 +12,8 @@
 #include "components/permissions/features.h"
 #include "components/permissions/permission_manager.h"
 #include "components/permissions/permission_request_manager.h"
-#include "components/permissions/permission_result.h"
 #include "components/permissions/test/mock_permission_prompt_factory.h"
+#include "content/public/browser/permission_request_description.h"
 #include "content/public/browser/permission_result.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
@@ -23,6 +23,11 @@
 #include "components/location/android/location_settings_dialog_outcome.h"
 #include "components/location/android/mock_location_settings.h"
 #include "components/permissions/contexts/geolocation_permission_context_android.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/geolocation/geolocation_permission_context_delegate.h"
+#include "components/permissions/contexts/geolocation_permission_context.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -41,6 +46,48 @@ class TestSearchEngineDelegate
 }  // namespace
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+class MockGeolocationPermissionContextOHOS
+    : public permissions::GeolocationPermissionContext {
+ public:
+  MockGeolocationPermissionContextOHOS(content::BrowserContext* browser_context,
+                                       std::unique_ptr<Delegate> delegate)
+      : permissions::GeolocationPermissionContext(browser_context,
+                                                  std::move(delegate)) {}
+
+  MockGeolocationPermissionContextOHOS(
+      const MockGeolocationPermissionContextOHOS&) = delete;
+  MockGeolocationPermissionContextOHOS& operator=(
+      const MockGeolocationPermissionContextOHOS&) = delete;
+
+  ~MockGeolocationPermissionContextOHOS() override = default;
+};
+
+permissions::PermissionManager::PermissionContextMap
+CreatePermissionContextsOHOS(Profile* profile) {
+  permissions::PermissionManager::PermissionContextMap permission_contexts;
+  permission_contexts[ContentSettingsType::GEOLOCATION] =
+      std::make_unique<MockGeolocationPermissionContextOHOS>(
+          profile,
+          std::make_unique<GeolocationPermissionContextDelegate>(profile));
+  return permission_contexts;
+}
+
+class MockPermissionMangerOHOS : public permissions::PermissionManager {
+ public:
+  explicit MockPermissionMangerOHOS(Profile* profile)
+      : permissions::PermissionManager(profile,
+                                       CreatePermissionContextsOHOS(profile)) {}
+  ~MockPermissionMangerOHOS() override = default;
+};
+
+std::unique_ptr<KeyedService> CreateTestingPermissionManagerOHOS(
+    content::BrowserContext* context) {
+  Profile* profile = Profile::FromBrowserContext(context);
+  return std::make_unique<MockPermissionMangerOHOS>(profile);
+}
+#endif
+
 class GeolocationPermissionContextDelegateTests
     : public ChromeRenderViewHostTestHarness {
  protected:
@@ -51,19 +98,26 @@ class GeolocationPermissionContextDelegateTests
     permissions::PermissionRequestManager::CreateForWebContents(web_contents());
     content_settings::PageSpecificContentSettings::CreateForWebContents(
         web_contents(),
-        std::make_unique<chrome::PageSpecificContentSettingsDelegate>(
-            web_contents()));
+        std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
 #if BUILDFLAG(IS_ANDROID)
     static_cast<permissions::GeolocationPermissionContextAndroid*>(
         PermissionManagerFactory::GetForProfile(profile())
             ->GetPermissionContextForTesting(ContentSettingsType::GEOLOCATION))
         ->SetLocationSettingsForTesting(
             std::make_unique<MockLocationSettings>());
-    MockLocationSettings::SetLocationStatus(true, true);
+    MockLocationSettings::SetLocationStatus(
+        /*has_android_coarse_location_permission=*/true,
+        /*has_android_fine_location_permission=*/true,
+        /*is_system_location_setting_enabled=*/true);
     MockLocationSettings::SetCanPromptForAndroidPermission(true);
     MockLocationSettings::SetLocationSettingsDialogStatus(false /* enabled */,
                                                           GRANTED);
     MockLocationSettings::ClearHasShownLocationSettingsDialog();
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+    PermissionManagerFactory::GetInstance()->SetTestingFactory(
+        profile(), base::BindRepeating(&CreateTestingPermissionManagerOHOS));
 #endif
   }
 
@@ -74,7 +128,8 @@ class GeolocationPermissionContextDelegateTests
       base::OnceCallback<void(blink::mojom::PermissionStatus)> callback) {
     PermissionManagerFactory::GetForProfile(profile())
         ->RequestPermissionsFromCurrentDocument(
-            {permission}, render_frame_host, user_gesture,
+            render_frame_host,
+            content::PermissionRequestDescription(permission, user_gesture),
             base::BindOnce(
                 [](base::OnceCallback<void(blink::mojom::PermissionStatus)>
                        callback,
@@ -90,7 +145,8 @@ class GeolocationPermissionContextDelegateTests
       blink::PermissionType permission,
       const url::Origin& origin) {
     return PermissionManagerFactory::GetForProfile(profile)
-        ->GetPermissionResultForOriginWithoutContext(permission, origin);
+        ->GetPermissionResultForOriginWithoutContext(permission, origin,
+                                                     origin);
   }
 };
 
@@ -123,7 +179,7 @@ TEST_F(GeolocationPermissionContextDelegateTests, TabContentSettingIsUpdated) {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-// TODO(https://crbug.com/1318240): Flaky.
+// TODO(crbug.com/40835241): Flaky.
 TEST_F(GeolocationPermissionContextDelegateTests,
        DISABLED_SearchGeolocationInIncognito) {
   url::Origin requesting_frame_url = url::Origin::Create(GURL(kDSETestUrl));

@@ -108,7 +108,7 @@ bool TabCaptureAccessHandler::SupportsStreamType(
 
 bool TabCaptureAccessHandler::CheckMediaAccessPermission(
     content::RenderFrameHost* render_frame_host,
-    const GURL& security_origin,
+    const url::Origin& security_origin,
     blink::mojom::MediaStreamType type,
     const extensions::Extension* extension) {
   return false;
@@ -127,10 +127,6 @@ void TabCaptureAccessHandler::HandleRequest(
       extensions::TabCaptureRegistry::Get(profile);
   if (!tab_capture_registry) {
     NOTREACHED();
-    std::move(callback).Run(
-        blink::mojom::StreamDevicesSet(),
-        blink::mojom::MediaStreamRequestResult::INVALID_STATE, /*ui=*/nullptr);
-    return;
   }
 
   AllowedScreenCaptureLevel capture_level =
@@ -154,7 +150,7 @@ void TabCaptureAccessHandler::HandleRequest(
 
   // |extension| may be null if the tabCapture starts with
   // tabCapture.getMediaStreamId().
-  // TODO(crbug.com/831722): Deprecate tabCaptureRegistry soon.
+  // TODO(crbug.com/40571241): Deprecate tabCaptureRegistry soon.
   const std::string extension_id = extension ? extension->id() : "";
   if (!tab_capture_registry->VerifyRequest(
           request.render_process_id, request.render_frame_id, extension_id)) {

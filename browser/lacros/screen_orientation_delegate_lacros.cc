@@ -7,7 +7,6 @@
 #include "content/public/browser/web_contents.h"
 #include "ui/display/tablet_state.h"
 #include "ui/platform_window/extensions/wayland_extension.h"
-#include "ui/views/widget/desktop_aura/desktop_window_tree_host_lacros.h"
 #include "ui/views/widget/widget.h"
 
 namespace {
@@ -34,7 +33,6 @@ ui::WaylandOrientationLockType ToWaylandOrientationLockType(
       return ui::WaylandOrientationLockType::kNatural;
   }
   NOTREACHED();
-  return ui::WaylandOrientationLockType::kAny;
 }
 
 }  // namespace
@@ -52,24 +50,16 @@ bool ScreenOrientationDelegateLacros::FullScreenRequired(
   return true;
 }
 
-ui::WaylandExtension* GetWaylandExtensionFromWebContents(
+ui::WaylandToplevelExtension* GetWaylandToplevelExtensionFromWebContents(
     content::WebContents* web_contents) {
-  aura::Window* window = web_contents->GetNativeView();
-  if (!window->GetHost())
-    return nullptr;
-
-  auto* dwth_platform =
-      views::DesktopWindowTreeHostLacros::From(window->GetHost());
-  if (!dwth_platform)
-    return nullptr;
-
-  return dwth_platform->GetWaylandExtension();
+  return nullptr;
 }
 
 void ScreenOrientationDelegateLacros::Lock(
     content::WebContents* web_contents,
     device::mojom::ScreenOrientationLockType orientation_lock) {
-  auto* wayland_extension = GetWaylandExtensionFromWebContents(web_contents);
+  auto* wayland_extension =
+      GetWaylandToplevelExtensionFromWebContents(web_contents);
   if (!wayland_extension)
     return;
 
@@ -78,7 +68,8 @@ void ScreenOrientationDelegateLacros::Lock(
 
 bool ScreenOrientationDelegateLacros::ScreenOrientationProviderSupported(
     content::WebContents* web_contents) {
-  auto* wayland_extension = GetWaylandExtensionFromWebContents(web_contents);
+  auto* wayland_extension =
+      GetWaylandToplevelExtensionFromWebContents(web_contents);
   if (!wayland_extension)
     return false;
 
@@ -87,7 +78,8 @@ bool ScreenOrientationDelegateLacros::ScreenOrientationProviderSupported(
 
 void ScreenOrientationDelegateLacros::Unlock(
     content::WebContents* web_contents) {
-  auto* wayland_extension = GetWaylandExtensionFromWebContents(web_contents);
+  auto* wayland_extension =
+      GetWaylandToplevelExtensionFromWebContents(web_contents);
   if (wayland_extension == nullptr)
     return;
 

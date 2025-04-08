@@ -14,6 +14,7 @@
 #include "chrome/browser/navigation_predictor/navigation_predictor_keyed_service_factory.h"
 #include "chrome/browser/predictors/loading_predictor.h"
 #include "chrome/browser/predictors/loading_predictor_factory.h"
+#include "chrome/browser/predictors/predictors_traffic_annotations.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/common/pref_names.h"
@@ -39,6 +40,9 @@ namespace features {
 BASE_FEATURE(kPreconnectToSearch,
              "PreconnectToSearch",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kPreconnectToSearchWithPrivacyModeEnabled,
+             "PreconnectToSearchWithPrivacyModeEnabled",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 }  // namespace features
 
 SearchEnginePreconnector::SearchEnginePreconnector(
@@ -108,7 +112,16 @@ void SearchEnginePreconnector::PreconnectDSE() {
     auto network_anonymziation_key =
         net::NetworkAnonymizationKey::CreateSameSite(schemeful_site);
     loading_predictor->PreconnectURLIfAllowed(
-        preconnect_url, /*allow_credentials=*/true, network_anonymziation_key);
+        preconnect_url, /*allow_credentials=*/true, network_anonymziation_key,
+        predictors::kSearchEnginePreconnectTrafficAnnotation);
+
+    if (base::FeatureList::IsEnabled(
+            features::kPreconnectToSearchWithPrivacyModeEnabled)) {
+      loading_predictor->PreconnectURLIfAllowed(
+          preconnect_url,
+          /*allow_credentials=*/false, network_anonymziation_key,
+          predictors::kSearchEnginePreconnectTrafficAnnotation);
+    }
   }
 
   // The delay beyond the idle socket timeout that net uses when

@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_WEB_APPS_FRAME_TOOLBAR_WEB_APP_TOOLBAR_BUTTON_CONTAINER_H_
 #define CHROME_BROWSER_UI_VIEWS_WEB_APPS_FRAME_TOOLBAR_WEB_APP_TOOLBAR_BUTTON_CONTAINER_H_
 
+#include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
@@ -16,6 +17,7 @@
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
 #include "chrome/browser/ui/web_applications/web_app_menu_model.h"
+#include "components/webapps/common/web_app_id.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/layout/flex_layout_types.h"
@@ -29,6 +31,7 @@ class WebAppMenuButton;
 class WebAppOriginText;
 class WindowControlsOverlayToggleButton;
 class SystemAppAccessibleName;
+class ExtensionsToolbarCoordinator;
 
 class WebAppToolbarButtonContainer : public views::View,
                                      public IconLabelBubbleView::Delegate,
@@ -36,9 +39,9 @@ class WebAppToolbarButtonContainer : public views::View,
                                      public ImmersiveModeController::Observer,
                                      public PageActionIconView::Delegate,
                                      public PageActionIconContainer {
- public:
-  METADATA_HEADER(WebAppToolbarButtonContainer);
+  METADATA_HEADER(WebAppToolbarButtonContainer, views::View)
 
+ public:
   // Timing parameters for the origin fade animation.
   // These control how long it takes for the origin text and menu button
   // highlight to fade in, pause then fade out.
@@ -76,6 +79,10 @@ class WebAppToolbarButtonContainer : public views::View,
     return extensions_container_;
   }
 
+  ExtensionsToolbarCoordinator* extensions_toolbar_coordinator() {
+    return extensions_toolbar_coordinator_.get();
+  }
+
   DownloadToolbarButtonView* download_button() {
     return download_button_.get();
   }
@@ -88,7 +95,7 @@ class WebAppToolbarButtonContainer : public views::View,
 
   AvatarToolbarButton* avatar_button() { return avatar_button_; }
 
-  static void DisableAnimationForTesting();
+  static void DisableAnimationForTesting(bool disable);
 
  private:
   friend class ImmersiveModeControllerChromeosWebAppBrowserTest;
@@ -135,6 +142,10 @@ class WebAppToolbarButtonContainer : public views::View,
   // views::View:
   void AddedToWidget() override;
 
+#if BUILDFLAG(IS_MAC)
+  void AppShimChanged(const webapps::AppId& changed_app_id);
+#endif
+
   // Timers for synchronising their respective parts of the titlebar animation.
   base::OneShotTimer animation_start_delay_;
   base::OneShotTimer icon_fade_in_delay_;
@@ -148,6 +159,12 @@ class WebAppToolbarButtonContainer : public views::View,
 
   std::unique_ptr<PageActionIconController> page_action_icon_controller_;
   int page_action_insertion_point_ = 0;
+
+  std::unique_ptr<ExtensionsToolbarCoordinator> extensions_toolbar_coordinator_;
+
+#if BUILDFLAG(IS_MAC)
+  base::CallbackListSubscription app_shim_registry_observation_;
+#endif
 
   // All remaining members are owned by the views hierarchy.
   raw_ptr<WebAppOriginText> web_app_origin_text_ = nullptr;

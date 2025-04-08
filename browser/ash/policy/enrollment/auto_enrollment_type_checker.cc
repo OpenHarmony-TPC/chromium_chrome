@@ -5,37 +5,70 @@
 #include "chrome/browser/ash/policy/enrollment/auto_enrollment_type_checker.h"
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "base/command_line.h"
+#include "base/functional/callback.h"
+#include "base/json/json_reader.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "build/branding_buildflags.h"
+#include "chrome/browser/ash/login/configuration_keys.h"
+#include "chrome/browser/ash/login/oobe_configuration.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/net/system_network_context_manager.h"
 #include "chromeos/ash/components/system/factory_ping_embargo_check.h"
 #include "chromeos/ash/components/system/statistics_provider.h"
+#include "components/policy/core/common/cloud/enterprise_metrics.h"
+#include "net/base/load_flags.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "services/network/public/cpp/simple_url_loader.h"
+#include "services/network/public/mojom/fetch_api.mojom-shared.h"
+#include "url/gurl.h"
 
 namespace policy {
 
 namespace {
 
 // Returns true if this is an official build and the device has Chrome firmware.
-bool IsGoogleBrandedChrome() {
+static bool IsOfficialGoogleChrome() {
 #if !BUILDFLAG(GOOGLE_CHROME_BRANDING)
   return false;
 #else
-  const absl::optional<base::StringPiece> firmware_type =
+  const std::optional<std::string_view> firmware_type =
       ash::system::StatisticsProvider::GetInstance()->GetMachineStatistic(
           ash::system::kFirmwareTypeKey);
   return firmware_type != ash::system::kFirmwareTypeValueNonchrome;
 #endif  // !BUILDFLAG(GOOGLE_CHROME_BRANDING)
 }
 
-std::string FRERequirementToString(
+// Returns true if this is an official Flex build.
+static bool IsOfficialGoogleFlex() {
+#if !BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  return false;
+#else
+  return ash::switches::IsRevenBranding();
+#endif  // !BUILDFLAG(GOOGLE_CHROME_BRANDING)
+}
+
+// Returns true if this is an official Google OS.
+static bool IsOfficialGoogleOS() {
+  return IsOfficialGoogleChrome() || IsOfficialGoogleFlex();
+}
+
+// A helpful function to dump FRE requirements in human readable form.
+static std::string FRERequirementToString(
     AutoEnrollmentTypeChecker::FRERequirement requirement) {
   using FRERequirement = AutoEnrollmentTypeChecker::FRERequirement;
   switch (requirement) {
     case FRERequirement::kDisabled:
-      return "Forced Re-Enrollment disabled via command line.";
+      return "Forced Re-Enrollment disabled by the OS or command line.";
     case FRERequirement::kRequired:
       return "Forced Re-Enrollment required.";
     case FRERequirement::kNotRequired:
@@ -47,7 +80,22 @@ std::string FRERequirementToString(
   }
 }
 
-absl::optional<bool> g_unified_enrollment_kill_switch_;
+// Returns true if we are on an officially branded Flex and FRE is enabled
+// on Flex.
+static bool IsOfficialGoogleFlexAndFREOnFlexIsEnabled() {
+  return IsOfficialGoogleFlex() &&
+         // FRE on Flex is enabled unless explicitly disabled ("never" enabled).
+         base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+             ash::switches::kEnterpriseEnableForcedReEnrollmentOnFlex) !=
+             AutoEnrollmentTypeChecker::kForcedReEnrollmentNever;
+}
+
+// Returns true if FRE state keys are supported.
+static bool AreFREStateKeysSupported() {
+  // TODO(b/331677599): Return IsOfficialGoogleOS().
+  return IsOfficialGoogleChrome() ||
+         IsOfficialGoogleFlexAndFREOnFlexIsEnabled();
+}
 
 }  // namespace
 
@@ -57,32 +105,38 @@ bool AutoEnrollmentTypeChecker::IsUnifiedStateDeterminationEnabled() {
   std::string command_line_mode = command_line->GetSwitchValueASCII(
       ash::switches::kEnterpriseEnableUnifiedStateDetermination);
   if (command_line_mode == kUnifiedStateDeterminationAlways) {
+    base::UmaHistogramEnumeration(kUMAStateDeterminationStatus,
+                                  USDStatus::kEnabledViaAlwaysSwitch);
     return true;
   }
   if (command_line_mode == kUnifiedStateDeterminationNever) {
-    return false;
-  }
-  if (IsUnifiedStateDeterminationDisabledByKillSwitch()) {
+    base::UmaHistogramEnumeration(kUMAStateDeterminationStatus,
+                                  USDStatus::kDisabledViaNeverSwitch);
     return false;
   }
 
-  // Non-Google-branded Chrome indicates that we're running on non-Chrome
-  // hardware. In that environment, it doesn't make sense to enable state
-  // determination as state key generation is likely to fail.
-  return IsGoogleBrandedChrome();
+#if !BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  base::UmaHistogramEnumeration(kUMAStateDeterminationStatus,
+                                USDStatus::kDisabledOnUnbrandedBuild);
+#else
+  if (IsOfficialGoogleChrome()) {
+    base::UmaHistogramEnumeration(kUMAStateDeterminationStatus,
+                                  USDStatus::kEnabledOnOfficialGoogleChrome);
+  } else if (IsOfficialGoogleFlex()) {
+    base::UmaHistogramEnumeration(kUMAStateDeterminationStatus,
+                                  USDStatus::kEnabledOnOfficialGoogleFlex);
+  } else {
+    base::UmaHistogramEnumeration(kUMAStateDeterminationStatus,
+                                  USDStatus::kDisabledOnNonChromeDevice);
+  }
+#endif
+
+  // Official Google OSes support unified state determination.
+  return IsOfficialGoogleOS();
 }
 
 // static
 bool AutoEnrollmentTypeChecker::IsFREEnabled() {
-  // To support legacy code that does not support unified enrollment yet, we
-  // pretend FRE is explicitly enabled, when unified enrollment is enabled. For
-  // example, this enables state keys to be uploaded with the policy fetches.
-  // TODO(b/265923216): Migrate legacy code to support unified state
-  // determination.
-  if (IsUnifiedStateDeterminationEnabled()) {
-    return true;
-  }
-
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
 
   std::string command_line_mode = command_line->GetSwitchValueASCII(
@@ -92,7 +146,7 @@ bool AutoEnrollmentTypeChecker::IsFREEnabled() {
   }
   if (command_line_mode.empty() ||
       command_line_mode == kForcedReEnrollmentOfficialBuild) {
-    return IsGoogleBrandedChrome();
+    return AreFREStateKeysSupported();
   }
 
   if (command_line_mode == kForcedReEnrollmentNever)
@@ -100,16 +154,11 @@ bool AutoEnrollmentTypeChecker::IsFREEnabled() {
 
   LOG(FATAL) << "Unknown Forced Re-Enrollment mode: " << command_line_mode
              << ".";
-  return false;
 }
 
 // static
 bool AutoEnrollmentTypeChecker::IsInitialEnrollmentEnabled() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-
-  if (!command_line->HasSwitch(
-          ash::switches::kEnterpriseEnableInitialEnrollment))
-    return IsGoogleBrandedChrome();
 
   std::string command_line_mode = command_line->GetSwitchValueASCII(
       ash::switches::kEnterpriseEnableInitialEnrollment);
@@ -118,14 +167,13 @@ bool AutoEnrollmentTypeChecker::IsInitialEnrollmentEnabled() {
 
   if (command_line_mode.empty() ||
       command_line_mode == kInitialEnrollmentOfficialBuild) {
-    return IsGoogleBrandedChrome();
+    return IsOfficialGoogleOS();
   }
 
   if (command_line_mode == kInitialEnrollmentNever)
     return false;
 
   LOG(FATAL) << "Unknown Initial Enrollment mode: " << command_line_mode << ".";
-  return false;
 }
 
 // static
@@ -137,21 +185,39 @@ bool AutoEnrollmentTypeChecker::IsEnabled() {
 AutoEnrollmentTypeChecker::FRERequirement
 AutoEnrollmentTypeChecker::GetFRERequirementAccordingToVPD(
     ash::system::StatisticsProvider* statistics_provider) {
-  // To support legacy code that does not support unified enrollment yet, we
-  // pretend FRE is explicitly enabled, when unified enrollment is enabled. For
-  // example, this disables powerwash and TPM firmware updates during OOBE
-  // (since admin could have forbidden both).
+  // To support legacy code that does not support unified state determination
+  // yet, we pretend FRE is explicitly required, when unified state
+  // determination is enabled. For example, this disables powerwash and TPM
+  // firmware updates during OOBE (since admin could have forbidden both).
+  //
+  // However, we don't do that if the platform doesn't support state keys,
+  // because legacy state determination will not work then anyways.
+  //
   // TODO(b/265923216): Migrate legacy code to support unified state
   // determination.
   if (IsUnifiedStateDeterminationEnabled()) {
-    // Flex devices do not support FRE.
-    if (ash::switches::IsRevenBranding()) {
-      return FRERequirement::kRequired;
+    if (AreFREStateKeysSupported()) {
+      LOG(WARNING) << "Unified state determination is enabled."
+                      " Forcing legacy re-enrollment check.";
+      return FRERequirement::kExplicitlyRequired;
+    } else {
+      LOG(WARNING) << "Unified state determination is enabled, but the device"
+                      " does not support state keys."
+                      " Disabling legacy re-enrollment check.";
+      return FRERequirement::kDisabled;
     }
-    return FRERequirement::kExplicitlyRequired;
   }
 
-  const absl::optional<base::StringPiece> check_enrollment_value =
+  // FRE on Flex is not supported without unified state determination because
+  // we do not have ways to store whether an FRE check should be done or not,
+  // and the legacy path would then make a check on consumer devices without
+  // using the PSM privacy-friendly protocol.
+  if (ash::switches::IsRevenBranding()) {
+    LOG(WARNING) << "Legacy re-enrollment on Flex is not supported.";
+    return FRERequirement::kDisabled;
+  }
+
+  const std::optional<std::string_view> check_enrollment_value =
       statistics_provider->GetMachineStatistic(
           ash::system::kCheckEnrollmentKey);
 
@@ -164,17 +230,9 @@ AutoEnrollmentTypeChecker::GetFRERequirementAccordingToVPD(
     }
 
     LOG(ERROR) << "Unexpected value for " << ash::system::kCheckEnrollmentKey
-               << ": " << check_enrollment_value.value();
-    LOG(WARNING) << "Forcing auto enrollment check.";
+               << ": " << check_enrollment_value.value()
+               << ". Forcing re-enrollment check.";
     return FRERequirement::kExplicitlyRequired;
-  }
-
-  // FRE fails on reven, do not force FRE check.
-  if (ash::switches::IsRevenBranding() &&
-      statistics_provider->GetVpdStatus() !=
-          ash::system::StatisticsProvider::VpdStatus::kValid) {
-    LOG(WARNING) << "Re-enrollment is not forced on reven device";
-    return FRERequirement::kRequired;
   }
 
   // The FRE flag is not found. If VPD is in valid state, do not require FRE
@@ -209,7 +267,13 @@ AutoEnrollmentTypeChecker::GetFRERequirementAccordingToVPD(
       LOG(ERROR) << "VPD could not be read, forcing auto-enrollment check.";
       return FRERequirement::kExplicitlyRequired;
     case ash::system::StatisticsProvider::VpdStatus::kUnknown:
-      NOTREACHED() << "VPD status is unknown";
+      // TODO(crbug.com/40580068): It looks like this is hit on
+      // ChromeSessionManagerRlzTest.DeviceIsUnlocked for instance (on the
+      // "linux-chromeos-chrome" bot) but doesn't seem to be hit in the wild. If
+      // the test setup is bad and this truly shouldn't be unreachable we should
+      // upgrade this to a NOTREACHED(), otherwise we should probably add a
+      // comment for why this can happen and remove the invariant.
+      DUMP_WILL_BE_NOTREACHED() << "VPD status is unknown";
       return FRERequirement::kRequired;
   }
 }
@@ -219,7 +283,7 @@ AutoEnrollmentTypeChecker::FRERequirement
 AutoEnrollmentTypeChecker::GetFRERequirement(
     ash::system::StatisticsProvider* statistics_provider,
     bool dev_disable_boot) {
-  // Skip FRE check if it is not enabled by command-line switch.
+  // Skip FRE check if FRE is not enabled on this device.
   if (!IsFREEnabled()) {
     LOG(WARNING) << "FRE disabled.";
     return FRERequirement::kDisabled;
@@ -258,8 +322,8 @@ AutoEnrollmentTypeChecker::GetInitialStateDeterminationRequirement(
     return InitialStateDeterminationRequirement::kDisabled;
   }
   const ash::system::FactoryPingEmbargoState embargo_state =
-      ash::system::GetEnterpriseManagementPingEmbargoState(statistics_provider);
-  const absl::optional<base::StringPiece> serial_number =
+      ash::system::GetRlzPingEmbargoState(statistics_provider);
+  const std::optional<std::string_view> serial_number =
       statistics_provider->GetMachineID();
   if (!serial_number || serial_number->empty()) {
     LOG(WARNING)
@@ -267,12 +331,23 @@ AutoEnrollmentTypeChecker::GetInitialStateDeterminationRequirement(
     return InitialStateDeterminationRequirement::kNotRequired;
   }
 
-  const absl::optional<base::StringPiece> rlz_brand_code =
+  const std::optional<std::string_view> rlz_brand_code =
       statistics_provider->GetMachineStatistic(ash::system::kRlzBrandCodeKey);
   if (!rlz_brand_code || rlz_brand_code->empty()) {
     LOG(WARNING)
         << "Skip Initial State Determination due to missing brand code.";
     return InitialStateDeterminationRequirement::kNotRequired;
+  }
+
+  if (IsOfficialGoogleFlex()) {
+    const std::string* enrollment_token =
+        ash::OobeConfiguration::Get()->configuration().FindString(
+            ash::configuration::kEnrollmentToken);
+    if (!enrollment_token || enrollment_token->empty()) {
+      LOG(WARNING) << "Skipping Initial State Determination on Flex as no Flex "
+                      "token was found.";
+      return InitialStateDeterminationRequirement::kNotRequired;
+    }
   }
 
   switch (embargo_state) {
@@ -291,8 +366,8 @@ AutoEnrollmentTypeChecker::GetInitialStateDeterminationRequirement(
         return InitialStateDeterminationRequirement::
             kUnknownDueToMissingSystemClockSync;
       }
-      LOG(WARNING)
-          << "Skip Initial State Determination due to invalid embargo date.";
+      LOG(WARNING) << "Skip Initial State Determination because the device is "
+                      "in the embargo period.";
       return InitialStateDeterminationRequirement::kNotRequired;
     case ash::system::FactoryPingEmbargoState::kInvalid:
       if (!is_system_clock_synchronized) {
@@ -301,8 +376,7 @@ AutoEnrollmentTypeChecker::GetInitialStateDeterminationRequirement(
         return InitialStateDeterminationRequirement::
             kUnknownDueToMissingSystemClockSync;
       }
-      LOG(WARNING) << "Skip Initial State Determination because the device is "
-                      "in the embargo period.";
+      LOG(WARNING) << "Skip Initial State Determination due to invalid embargo date.";
       return InitialStateDeterminationRequirement::kNotRequired;
   }
 }
@@ -314,8 +388,8 @@ AutoEnrollmentTypeChecker::DetermineAutoEnrollmentCheckType(
     ash::system::StatisticsProvider* statistics_provider,
     bool dev_disable_boot) {
   // The only user of this function is AutoEnrollmentController and it should
-  // not be calling it when unified enrollment is enabled. Instead, we fake
-  // explicitly forced re-enrollment to prevent users from skipping it.
+  // not be calling it when unified state determination is enabled. Instead, we
+  // fake explicitly forced re-enrollment to prevent users from skipping it.
   DCHECK(!IsUnifiedStateDeterminationEnabled());
 
   // Skip everything if neither FRE nor Initial Enrollment are enabled.
@@ -348,10 +422,10 @@ AutoEnrollmentTypeChecker::DetermineAutoEnrollmentCheckType(
       // fixed.
       break;
     case FRERequirement::kExplicitlyRequired:
-      LOG(WARNING) << "Proceeding with FRE check.";
+      LOG(WARNING) << "Proceeding with explicit FRE check.";
       return CheckType::kForcedReEnrollmentExplicitlyRequired;
     case FRERequirement::kRequired:
-      LOG(WARNING) << "Proceeding with FRE check.";
+      LOG(WARNING) << "Proceeding with implicit FRE check.";
       return CheckType::kForcedReEnrollmentImplicitlyRequired;
   }
 
@@ -372,24 +446,6 @@ AutoEnrollmentTypeChecker::DetermineAutoEnrollmentCheckType(
 
   // Neither FRE nor initial state determination checks are needed.
   return CheckType::kNone;
-}
-
-// static
-void AutoEnrollmentTypeChecker::
-    SetUnifiedStateDeterminationKillSwitchForTesting(bool enabled) {
-  g_unified_enrollment_kill_switch_ = enabled;
-}
-
-// static
-// As of today, the unified state determination is "killed" by default.
-// TODO(b/265923216): Implement fetching server-based kill switch.
-bool AutoEnrollmentTypeChecker::
-    IsUnifiedStateDeterminationDisabledByKillSwitch() {
-  if (!g_unified_enrollment_kill_switch_.has_value()) {
-    g_unified_enrollment_kill_switch_ = true;
-  }
-
-  return g_unified_enrollment_kill_switch_.value();
 }
 
 }  // namespace policy

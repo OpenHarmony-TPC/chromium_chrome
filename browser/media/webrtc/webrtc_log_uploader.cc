@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/media/webrtc/webrtc_log_uploader.h"
 
 #include <stddef.h>
 #include <cstdlib>
 #include <utility>
 
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -41,7 +47,7 @@
 
 namespace {
 
-const int kLogCountLimit = 5;
+const int kLogCountLimit = 20;
 const uint32_t kIntermediateCompressionBufferBytes = 256 * 1024;  // 256 KB
 const int kLogListLimitLines = 50;
 
@@ -52,20 +58,22 @@ const char kWebrtcLogMultipartBoundary[] =
 // Adds the header section for a gzip file to the multipart |post_data|.
 void AddMultipartFileContentHeader(std::string* post_data,
                                    const std::string& content_name) {
-  post_data->append("--");
-  post_data->append(kWebrtcLogMultipartBoundary);
-  post_data->append("\r\nContent-Disposition: form-data; name=\"");
-  post_data->append(content_name);
-  post_data->append("\"; filename=\"");
-  post_data->append(content_name + ".gz");
-  post_data->append("\"\r\nContent-Type: application/gzip\r\n\r\n");
+  base::StrAppend(post_data, {
+                                 "--",
+                                 kWebrtcLogMultipartBoundary,
+                                 "\r\nContent-Disposition: form-data; name=\"",
+                                 content_name,
+                                 "\"; filename=\"",
+                                 content_name,
+                                 ".gz",
+                                 "\"\r\nContent-Type: application/gzip\r\n\r\n",
+                             });
 }
 
 // Adds |compressed_log| to |post_data|.
 void AddLogData(std::string* post_data, const std::string& compressed_log) {
   AddMultipartFileContentHeader(post_data, "webrtc_log");
-  post_data->append(compressed_log);
-  post_data->append("\r\n");
+  base::StrAppend(post_data, {compressed_log, "\r\n"});
 }
 
 // Adds the RTP dump data to |post_data|.
@@ -73,8 +81,7 @@ void AddRtpDumpData(std::string* post_data,
                     const std::string& name,
                     const std::string& dump_data) {
   AddMultipartFileContentHeader(post_data, name);
-  post_data->append(dump_data.data(), dump_data.size());
-  post_data->append("\r\n");
+  base::StrAppend(post_data, {dump_data, "\r\n"});
 }
 
 // Helper for WebRtcLogUploader::CompressLog().
@@ -88,10 +95,57 @@ void ResizeForNextOutput(std::string* compressed_log, z_stream* stream) {
 
 }  // namespace
 
+BASE_FEATURE(kWebRTCLogUploadSuffix,
+             "WebRTCLogUploadSuffix",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+std::string GetLogUploadProduct() {
+#if BUILDFLAG(IS_WIN)
+  const char product[] = "Chrome";
+#elif BUILDFLAG(IS_MAC)
+  const char product[] = "Chrome_Mac";
+// TODO(crbug.com/40118868): Revisit the macro expression once build flag switch
+// of lacros-chrome is complete.
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if !defined(ADDRESS_SANITIZER)
+  const char product[] = "Chrome_Linux";
+#else
+  const char product[] = "Chrome_Linux_ASan";
+#endif
+#elif BUILDFLAG(IS_ANDROID)
+  const char product[] = "Chrome_Android";
+#elif BUILDFLAG(IS_CHROMEOS_ASH)
+  const char product[] = "Chrome_ChromeOS";
+#elif BUILDFLAG(IS_OHOS)
+  const char product[] = "Chrome_OHOS";
+#else
+#error Platform not supported.
+#endif
+  if (base::FeatureList::IsEnabled(kWebRTCLogUploadSuffix)) {
+    return base::StrCat({product, "_webrtc"});
+  }
+  return product;
+}
+
+std::string GetLogUploadVersion() {
+  if (base::FeatureList::IsEnabled(kWebRTCLogUploadSuffix)) {
+    return std::string(version_info::GetVersionNumber());
+  }
+  return base::StrCat({version_info::GetVersionNumber(), "-webrtc"});
+}
+
 WebRtcLogUploader::UploadDoneData::UploadDoneData() = default;
 WebRtcLogUploader::UploadDoneData::UploadDoneData(
     WebRtcLogUploader::UploadDoneData&& other) = default;
 WebRtcLogUploader::UploadDoneData::~UploadDoneData() = default;
+
+// static
+WebRtcLogUploader* WebRtcLogUploader::GetInstance() {
+  if (!g_browser_process) {
+    return nullptr;
+  }
+  return g_browser_process->webrtc_log_uploader();
+}
 
 WebRtcLogUploader::WebRtcLogUploader()
     : main_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
@@ -106,11 +160,16 @@ WebRtcLogUploader::~WebRtcLogUploader() {
 
 bool WebRtcLogUploader::ApplyForStartLogging() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
+  bool success = false;
   if (log_count_ < kLogCountLimit && !shutdown_) {
     ++log_count_;
-    return true;
+    base::UmaHistogramCounts100("WebRtcTextLogging.ConcurrentLogCount",
+                                log_count_);
+    success = true;
   }
-  return false;
+  base::UmaHistogramBoolean("WebRtcTextLogging.ApplyForStartLoggingSuccess",
+                            success);
+  return success;
 }
 
 void WebRtcLogUploader::LoggingStoppedDontUpload() {
@@ -134,7 +193,8 @@ void WebRtcLogUploader::OnLoggingStopped(
   if (base::PathExists(upload_done_data.paths.directory)) {
     webrtc_logging::DeleteOldWebRtcLogFiles(upload_done_data.paths.directory);
 
-    local_log_id = base::NumberToString(base::Time::Now().ToDoubleT());
+    local_log_id =
+        base::NumberToString(base::Time::Now().InSecondsFSinceUnixEpoch());
     base::FilePath log_file_path =
         upload_done_data.paths.directory.AppendASCII(local_log_id)
             .AddExtension(FILE_PATH_LITERAL(".gz"));
@@ -231,7 +291,8 @@ void WebRtcLogUploader::UploadStoredLog(
             .AddExtension(FILE_PATH_LITERAL(".meta"));
     if (base::ReadFileToString(meta_path, &meta_data_contents) &&
         !meta_data_contents.empty()) {
-      base::Pickle pickle(&meta_data_contents[0], meta_data_contents.size());
+      base::Pickle pickle = base::Pickle::WithUnownedBuffer(
+          base::as_byte_span(meta_data_contents));
       base::PickleIterator it(pickle);
       std::string key, value;
       while (it.ReadString(&key) && it.ReadString(&value))
@@ -293,9 +354,7 @@ void WebRtcLogUploader::LoggingStoppedDoStore(
     base::FilePath meta_path =
         log_paths.directory.AppendASCII(log_id).AddExtension(
             FILE_PATH_LITERAL(".meta"));
-    base::WriteFile(meta_path,
-                    base::make_span(static_cast<const uint8_t*>(pickle.data()),
-                                    pickle.size()));
+    base::WriteFile(meta_path, pickle);
   }
 
   main_task_runner_->PostTask(
@@ -322,7 +381,7 @@ void WebRtcLogUploader::OnSimpleLoaderComplete(
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
   DCHECK(!shutdown_);
   network::SimpleURLLoader* loader = it->get();
-  absl::optional<int> response_code;
+  std::optional<int> response_code;
   if (loader->ResponseInfo() && loader->ResponseInfo()->headers) {
     response_code = loader->ResponseInfo()->headers->response_code();
   }
@@ -354,34 +413,10 @@ void WebRtcLogUploader::SetupMultipart(
     const base::FilePath& incoming_rtp_dump,
     const base::FilePath& outgoing_rtp_dump,
     const std::map<std::string, std::string>& meta_data) {
-#if BUILDFLAG(IS_WIN)
-  const char product[] = "Chrome";
-#elif BUILDFLAG(IS_MAC)
-  const char product[] = "Chrome_Mac";
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
-#if !defined(ADDRESS_SANITIZER)
-  const char product[] = "Chrome_Linux";
-#else
-  const char product[] = "Chrome_Linux_ASan";
-#endif
-#elif BUILDFLAG(IS_ANDROID)
-  const char product[] = "Chrome_Android";
-#elif BUILDFLAG(IS_CHROMEOS_ASH)
-  const char product[] = "Chrome_ChromeOS";
-#elif BUILDFLAG(IS_OHOS)
-  const char product[] = "Chrome_Ohos";
-#elif BUILDFLAG(IS_FUCHSIA)
-  const char product[] = "Chrome_Fuchsia";
-#else
-#error Platform not supported.
-#endif
-  net::AddMultipartValueForUpload("prod", product, kWebrtcLogMultipartBoundary,
-                                  "", post_data);
-  net::AddMultipartValueForUpload(
-      "ver", base::StrCat({version_info::GetVersionNumber(), "-webrtc"}),
-      kWebrtcLogMultipartBoundary, "", post_data);
+  net::AddMultipartValueForUpload("prod", GetLogUploadProduct(),
+                                  kWebrtcLogMultipartBoundary, "", post_data);
+  net::AddMultipartValueForUpload("ver", GetLogUploadVersion(),
+                                  kWebrtcLogMultipartBoundary, "", post_data);
   net::AddMultipartValueForUpload("guid", "0", kWebrtcLogMultipartBoundary, "",
                                   post_data);
   net::AddMultipartValueForUpload("type", "webrtc_log",
@@ -567,8 +602,9 @@ void WebRtcLogUploader::AddLocallyStoredLogInfoToUploadListFile(
 
   // Write the log ID and capture time to the log list file. Leave the upload
   // time and report ID empty.
-  contents += ",," + local_log_id + "," +
-              base::NumberToString(base::Time::Now().ToDoubleT()) + '\n';
+  contents +=
+      ",," + local_log_id + "," +
+      base::NumberToString(base::Time::Now().InSecondsFSinceUnixEpoch()) + '\n';
 
   if (!base::WriteFile(upload_list_path, contents)) {
     DPLOG(WARNING) << "Could not write data to WebRTC log list file.";
@@ -597,7 +633,8 @@ void WebRtcLogUploader::AddUploadedLogInfoToUploadListFile(
   // to find the local log ID, in that case insert the data into the existing
   // line. Otherwise add it in the end.
   base::Time time_now = base::Time::Now();
-  std::string time_now_str = base::NumberToString(time_now.ToDoubleT());
+  std::string time_now_str =
+      base::NumberToString(time_now.InSecondsFSinceUnixEpoch());
   size_t pos = contents.find(",," + local_log_id);
   if (pos != std::string::npos) {
     contents.insert(pos, time_now_str);
@@ -612,7 +649,7 @@ void WebRtcLogUploader::AddUploadedLogInfoToUploadListFile(
 }
 
 void WebRtcLogUploader::NotifyUploadDoneAndLogStats(
-    absl::optional<int> response_code,
+    std::optional<int> response_code,
     int network_error_code,
     const std::string& report_id,
     WebRtcLogUploader::UploadDoneData upload_done_data) {

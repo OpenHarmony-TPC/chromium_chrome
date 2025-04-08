@@ -6,11 +6,11 @@ package org.chromium.chrome.browser;
 
 import androidx.test.filters.SmallTest;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
@@ -18,7 +18,6 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.concurrent.TimeoutException;
 
@@ -36,16 +35,17 @@ public class OmahaServiceStartDelayerIntegrationTest {
     @Feature({"Omaha"})
     public void testEnsureOmahaServiceStartDelayerIsInitializedWhenLaunched() throws Exception {
         final CallbackHelper callback = new CallbackHelper();
-        OmahaServiceStartDelayer receiver = TestThreadUtils.runOnUiThreadBlocking(
-                ()
-                        -> ChromeActivitySessionTracker.getInstance()
-                                   .getOmahaServiceStartDelayerForTesting());
+        OmahaServiceStartDelayer receiver =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () ->
+                                ChromeActivitySessionTracker.getInstance()
+                                        .getOmahaServiceStartDelayerForTesting());
         receiver.setOmahaRunnableForTesting(() -> callback.notifyCalled());
         mActivityTestRule.startMainActivityOnBlankPage();
         try {
-            callback.waitForFirst();
+            callback.waitForOnly();
         } catch (TimeoutException e) {
-            Assert.fail("OmahaServiceStartDelayer never initialized");
+            throw new AssertionError("OmahaServiceStartDelayer never initialized", e);
         }
     }
 }

@@ -50,14 +50,13 @@ class ProfileBubbleInteractiveUiTest : public InProcessBrowserTest {
   }
 
   // Returns dummy parameters for the interception bubble.
-  DiceWebSigninInterceptor::Delegate::BubbleParameters
-  GetTestBubbleParameters() {
+  WebSigninInterceptor::Delegate::BubbleParameters GetTestBubbleParameters() {
     AccountInfo account;
     account.account_id = CoreAccountId::FromGaiaId("ID1");
     AccountInfo primary_account;
     primary_account.account_id = CoreAccountId::FromGaiaId("ID2");
-    return DiceWebSigninInterceptor::Delegate::BubbleParameters(
-        DiceWebSigninInterceptor::SigninInterceptionType::kMultiUser, account,
+    return WebSigninInterceptor::Delegate::BubbleParameters(
+        WebSigninInterceptor::SigninInterceptionType::kMultiUser, account,
         primary_account);
   }
 
@@ -182,9 +181,9 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuInteractiveUiTest, OtherProfileFocus) {
       profile_menu_view()->GetFocusManager()->GetFocusedView();
   ASSERT_TRUE(focused_view);
   focused_view->OnKeyPressed(
-      ui::KeyEvent(ui::ET_KEY_PRESSED, ui::VKEY_RETURN, ui::EF_NONE));
+      ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_RETURN, ui::EF_NONE));
   focused_view->OnKeyReleased(
-      ui::KeyEvent(ui::ET_KEY_RELEASED, ui::VKEY_RETURN, ui::EF_NONE));
+      ui::KeyEvent(ui::EventType::kKeyReleased, ui::VKEY_RETURN, ui::EF_NONE));
   base::RunLoop().RunUntilIdle();
 
   histogram_tester.ExpectUniqueSample(

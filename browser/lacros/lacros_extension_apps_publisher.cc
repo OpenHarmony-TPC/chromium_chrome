@@ -4,37 +4,54 @@
 
 #include "chrome/browser/lacros/lacros_extension_apps_publisher.h"
 
+#include <set>
 #include <utility>
 
 #include "base/check.h"
 #include "base/containers/extend.h"
+#include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/not_fatal_until.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
 #include "chrome/browser/apps/app_service/extension_apps_utils.h"
 #include "chrome/browser/apps/app_service/intent_util.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/chromeos/extensions/web_file_handlers/intent_util.h"
 #include "chrome/browser/extensions/extension_ui_util.h"
 #include "chrome/browser/extensions/launch_util.h"
 #include "chrome/browser/lacros/lacros_extensions_util.h"
+#include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
+#include "chrome/browser/policy/system_features_disable_list_policy_handler.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/lacros/window_utility.h"
+#include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chromeos/crosapi/mojom/app_window_tracker.mojom.h"
 #include "chromeos/lacros/lacros_service.h"
+#include "components/app_constants/constants.h"
+#include "components/policy/core/common/policy_pref_names.h"
+#include "components/prefs/pref_change_registrar.h"
+#include "components/services/app_service/public/cpp/app_capability_access_cache.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/icon_types.h"
 #include "components/services/app_service/public/cpp/intent_filter.h"
+#include "components/services/app_service/public/cpp/package_id.h"
+#include "content/public/browser/web_contents.h"
 #include "extensions/browser/app_window/app_window.h"
 #include "extensions/browser/app_window/app_window_registry.h"
+#include "extensions/browser/extension_file_task_runner.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_prefs_observer.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_registry_observer.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/management_policy.h"
+#include "extensions/browser/path_util.h"
 #include "extensions/browser/unloaded_extension_reason.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/manifest_handlers/app_display_info.h"
+#include "extensions/common/manifest_handlers/web_file_handlers_info.h"
 
 namespace {
 
@@ -76,6 +93,20 @@ class LacrosExtensionAppsPublisher::ProfileTracker
     registry_observation_.Observe(extensions::ExtensionRegistry::Get(profile_));
     app_window_registry_observation_.Observe(
         extensions::AppWindowRegistry::Get(profile_));
+    if (auto* local_state = g_browser_process->local_state()) {
+      local_state_pref_change_registrar_.Init(local_state);
+      local_state_pref_change_registrar_.Add(
+          policy::policy_prefs::kSystemFeaturesDisableList,
+          base::BindRepeating(&LacrosExtensionAppsPublisher::ProfileTracker::
+                                  OnSystemFeaturesPrefChanged,
+                              weak_factory_.GetWeakPtr()));
+      local_state_pref_change_registrar_.Add(
+          policy::policy_prefs::kSystemFeaturesDisableMode,
+          base::BindRepeating(&LacrosExtensionAppsPublisher::ProfileTracker::
+                                  OnSystemFeaturesPrefChanged,
+                              weak_factory_.GetWeakPtr()));
+      OnSystemFeaturesPrefChanged();
+    }
 
     // Populate initial conditions [e.g. installed apps prior to starting
     // observation].
@@ -211,13 +242,11 @@ class LacrosExtensionAppsPublisher::ProfileTracker
     // The extension also has to match.
     if (!which_type_.Matches(app_window->GetExtension()))
       return;
-    std::string muxed_id =
-        lacros_extensions_util::MuxId(profile_, app_window->GetExtension());
     std::string window_id = lacros_window_utility::GetRootWindowUniqueId(
         app_window->GetNativeWindow());
     app_window_id_cache_[app_window] = window_id;
 
-    publisher_->OnAppWindowAdded(muxed_id, window_id);
+    publisher_->OnAppWindowAdded(app_window->GetExtension()->id(), window_id);
   }
 
   void OnAppWindowRemoved(extensions::AppWindow* app_window) override {
@@ -231,9 +260,8 @@ class LacrosExtensionAppsPublisher::ProfileTracker
     if (it == app_window_id_cache_.end())
       return;
 
-    std::string muxed_id = apps::MuxId(profile_, app_window->extension_id());
     std::string window_id = it->second;
-    publisher_->OnAppWindowRemoved(muxed_id, window_id);
+    publisher_->OnAppWindowRemoved(app_window->extension_id(), window_id);
 
     app_window_id_cache_.erase(app_window);
   }
@@ -276,25 +304,22 @@ class LacrosExtensionAppsPublisher::ProfileTracker
     apps::AppType app_type = which_type_.ChooseForChromeAppOrExtension(
         apps::AppType::kStandaloneBrowserChromeApp,
         apps::AppType::kStandaloneBrowserExtension);
-    auto app = std::make_unique<apps::App>(
-        app_type, lacros_extensions_util::MuxId(profile_, extension));
-    app->readiness = readiness;
+    auto app = std::make_unique<apps::App>(app_type, extension->id());
+
+    const bool is_app_disabled =
+        base::Contains(disabled_apps_, extension->id());
+    app->readiness = is_app_disabled ? Readiness::kDisabledByPolicy : readiness;
     app->name = extension->name();
     app->short_name = extension->short_name();
+    app->installer_package_id =
+        apps::PackageId(apps::PackageType::kChromeApp, extension->id());
 
-    // TODO(crbug.com/1367337): Work out how pinning interacts with Lacros
+    // TODO(crbug.com/40240007): Work out how pinning interacts with Lacros
     // multi-profile support once there is a product decision on what that looks
     // like.
     app->policy_ids = {extension->id()};
 
-    // We always use an empty icon key since we currently do not support
-    // dynamically changing icons or modifying the appearance of icons.
-    // This bug is tracked at https://crbug.com/1248499, but given that Chrome
-    // Apps is deprecated, it's unclear if we'll ever get around to implementing
-    // this functionality.
-    app->icon_key =
-        apps::IconKey(/*timeline=*/0, apps::IconKey::kInvalidResourceId,
-                      apps::IconEffects::kCrOsStandardIcon);
+    app->icon_key = apps::IconKey(GetIconEffects(extension));
 
     auto* prefs = extensions::ExtensionPrefs::Get(profile_);
     if (prefs) {
@@ -310,13 +335,21 @@ class LacrosExtensionAppsPublisher::ProfileTracker
     app->searchable = true;
     app->paused = false;
 
-    bool show = ShouldShow(extension);
-    app->show_in_launcher = show;
-    app->show_in_shelf = show;
-    app->show_in_search = show;
-    app->show_in_management =
-        extensions::AppDisplayInfo::ShouldDisplayInAppLauncher(*extension);
-    app->handles_intents = which_type_.IsExtensions() || show;
+    if (is_app_disabled && is_disabled_apps_mode_hidden_) {
+      app->show_in_launcher = false;
+      app->show_in_search = false;
+      app->show_in_shelf = false;
+      app->handles_intents = false;
+      app->show_in_management = false;
+    } else {
+      bool show = ShouldShow(extension);
+      app->show_in_launcher = show;
+      app->show_in_shelf = show;
+      app->show_in_search = show;
+      app->show_in_management =
+          extensions::AppDisplayInfo::ShouldDisplayInAppLauncher(*extension);
+      app->handles_intents = which_type_.IsExtensions() || show;
+    }
 
     if (which_type_.IsChromeApps()) {
       app->is_platform_app = extension->is_platform_app();
@@ -336,14 +369,88 @@ class LacrosExtensionAppsPublisher::ProfileTracker
     app->allow_uninstall = (policy->UserMayModifySettings(extension, nullptr) &&
                             !policy->MustRemainInstalled(extension, nullptr));
 
-    // Add file_handlers for Chrome Apps and quickoffice, or
-    // file_browser_handler for Extensions.
+    app->allow_close = true;
+
+    // Add file_handlers for either of the following:
+    //   a) Chrome Apps and quickoffice.
+    //   b) Web File Handlers or file_browser_handler for Extensions.
     base::Extend(app->intent_filters,
                  which_type_.ChooseIntentFilter(
-                     extension_misc::IsQuickOfficeExtension(extension->id()),
+                     extensions::IsLegacyQuickOfficeExtension(*extension),
                      apps_util::CreateIntentFiltersForChromeApp,
                      apps_util::CreateIntentFiltersForExtension)(extension));
     return app;
+  }
+
+  apps::IconEffects GetIconEffects(const extensions::Extension* extension) {
+    apps::IconEffects icon_effects = apps::IconEffects::kNone;
+    icon_effects = static_cast<apps::IconEffects>(
+        icon_effects | apps::IconEffects::kCrOsStandardIcon);
+
+    if (base::Contains(disabled_apps_, extension->id())) {
+      icon_effects = static_cast<apps::IconEffects>(
+          icon_effects | apps::IconEffects::kBlocked);
+    }
+    return icon_effects;
+  }
+
+  void OnSystemFeaturesPrefChanged() {
+    PrefService* const local_state = g_browser_process->local_state();
+    if (!local_state || !local_state->FindPreference(
+                            policy::policy_prefs::kSystemFeaturesDisableList)) {
+      return;
+    }
+
+    const base::Value::List& disabled_system_features =
+        local_state->GetList(policy::policy_prefs::kSystemFeaturesDisableList);
+
+    const bool is_pref_disabled_mode_hidden =
+        local_state->GetString(
+            policy::policy_prefs::kSystemFeaturesDisableMode) ==
+        policy::kHiddenDisableMode;
+    const bool is_disabled_mode_changed =
+        (is_pref_disabled_mode_hidden != is_disabled_apps_mode_hidden_);
+    is_disabled_apps_mode_hidden_ = is_pref_disabled_mode_hidden;
+
+    UpdateAppDisabledState(disabled_system_features,
+                           static_cast<int>(policy::SystemFeature::kWebStore),
+                           extensions::kWebStoreAppId,
+                           is_disabled_mode_changed);
+  }
+
+  void UpdateAppDisabledState(
+      const base::Value::List& disabled_system_features_pref,
+      int feature,
+      const std::string& app_id,
+      bool is_disabled_mode_changed) {
+    const bool is_disabled =
+        base::Contains(disabled_system_features_pref, base::Value(feature));
+    // Sometimes the policy is updated before the app is installed, so this way
+    // the disabled_apps_ is updated regardless the Publish should happen or not
+    // and the app will be published with the correct readiness upon its
+    // installation.
+    const bool should_publish =
+        (base::Contains(disabled_apps_, app_id) != is_disabled) ||
+        is_disabled_mode_changed;
+
+    if (is_disabled) {
+      disabled_apps_.insert(app_id);
+    } else {
+      disabled_apps_.erase(app_id);
+    }
+
+    if (!should_publish) {
+      return;
+    }
+
+    const auto* extension =
+        lacros_extensions_util::MaybeGetExtension(profile_, app_id);
+    if (!extension) {
+      return;
+    }
+
+    Publish(extension,
+            is_disabled ? Readiness::kDisabledByPolicy : Readiness::kReady);
   }
 
   // This pointer is guaranteed to be valid and to outlive this object.
@@ -355,6 +462,19 @@ class LacrosExtensionAppsPublisher::ProfileTracker
   // State to decide which extension type (e.g., Chrome Apps vs. Extensions)
   // to support.
   const ForWhichExtensionType which_type_;
+
+  // Tracks apps that have been disabled from installing by enterprise policy.
+  // The values come from local state and are set by updating the
+  // SystemFeaturesDisableList policy.
+  std::set<std::string> disabled_apps_;
+
+  // Boolean signifying whether the preferred user experience mode of disabled
+  // apps is hidden (true) or blocked (false). The value comes from local state
+  // and is set by updating the SystemFeaturesDisableMode policy.
+  bool is_disabled_apps_mode_hidden_ = false;
+
+  // Registrar used to monitor the local state prefs.
+  PrefChangeRegistrar local_state_pref_change_registrar_;
 
   // Observes both extension prefs and registry for events that affect
   // extensions.
@@ -373,6 +493,9 @@ class LacrosExtensionAppsPublisher::ProfileTracker
   // Records the window id associated with an app window. This is needed since
   // the app window destruction callback occurs after the window is destroyed.
   std::map<extensions::AppWindow*, std::string> app_window_id_cache_;
+
+  base::WeakPtrFactory<LacrosExtensionAppsPublisher::ProfileTracker>
+      weak_factory_{this};
 };
 
 // static
@@ -399,7 +522,7 @@ void LacrosExtensionAppsPublisher::Initialize() {
   profile_manager_observation_.Observe(g_browser_process->profile_manager());
   auto profiles = g_browser_process->profile_manager()->GetLoadedProfiles();
   for (auto* profile : profiles) {
-    // TODO(https://crbug.com/1254894): The app id is not stable for secondary
+    // TODO(crbug.com/40199791): The app id is not stable for secondary
     // profiles and cannot be stored in sync. Thus, the app cannot be published
     // at all.
     if (!profile->IsMainProfile())
@@ -407,12 +530,19 @@ void LacrosExtensionAppsPublisher::Initialize() {
     profile_trackers_[profile] =
         std::make_unique<ProfileTracker>(profile, this, which_type_);
   }
+
+  // Only track the media usage for the chrome apps.
+  if (which_type_.IsChromeApps()) {
+    media_dispatcher_.Observe(MediaCaptureDevicesDispatcher::GetInstance()
+                                  ->GetMediaStreamCaptureIndicator()
+                                  .get());
+  }
 }
 
 bool LacrosExtensionAppsPublisher::InitializeCrosapi() {
   // Ash is too old to support the chrome app publisher interface.
-  int crosapiVersion = chromeos::LacrosService::Get()->GetInterfaceVersion(
-      crosapi::mojom::Crosapi::Uuid_);
+  int crosapiVersion = chromeos::LacrosService::Get()
+                           ->GetInterfaceVersion<crosapi::mojom::Crosapi>();
   int minRequiredVersion =
       static_cast<int>(which_type_.ChooseForChromeAppOrExtension(
           crosapi::mojom::Crosapi::kBindChromeAppPublisherMinVersion,
@@ -446,6 +576,11 @@ void LacrosExtensionAppsPublisher::Publish(std::vector<apps::AppPtr> apps) {
   publisher_->OnApps(std::move(apps));
 }
 
+void LacrosExtensionAppsPublisher::PublishCapabilityAccesses(
+    std::vector<apps::CapabilityAccessPtr> accesses) {
+  publisher_->OnCapabilityAccesses(std::move(accesses));
+}
+
 void LacrosExtensionAppsPublisher::OnAppWindowAdded(
     const std::string& app_id,
     const std::string& window_id) {
@@ -463,7 +598,7 @@ void LacrosExtensionAppsPublisher::OnAppWindowRemoved(
 }
 
 void LacrosExtensionAppsPublisher::OnProfileAdded(Profile* profile) {
-  // TODO(https://crbug.com/1254894): The app id is not stable for secondary
+  // TODO(crbug.com/40199791): The app id is not stable for secondary
   // profiles and cannot be stored in sync. Thus, the app cannot be published
   // at all.
   if (!profile->IsMainProfile())
@@ -487,7 +622,8 @@ void LacrosExtensionAppsPublisher::UpdateAppWindowMode(
     apps::WindowMode window_mode) {
   Profile* profile = nullptr;
   const extensions::Extension* extension = nullptr;
-  bool success = lacros_extensions_util::DemuxId(app_id, &profile, &extension);
+  bool success = lacros_extensions_util::GetProfileAndExtension(
+      app_id, &profile, &extension);
   if (!success)
     return;
 
@@ -501,6 +637,93 @@ void LacrosExtensionAppsPublisher::UpdateAppWindowMode(
 
   // Republish the app.
   auto matched = profile_trackers_.find(profile);
-  DCHECK(matched != profile_trackers_.end());
+  CHECK(matched != profile_trackers_.end(), base::NotFatalUntil::M130);
   matched->second->Publish(extension, apps::Readiness::kReady);
+}
+
+void LacrosExtensionAppsPublisher::UpdateAppSize(const std::string& app_id) {
+  Profile* profile = nullptr;
+  const extensions::Extension* extension = nullptr;
+  bool success = lacros_extensions_util::GetProfileAndExtension(
+      app_id, &profile, &extension);
+  if (!success) {
+    return;
+  }
+
+  extensions::path_util::CalculateExtensionDirectorySize(
+      extension->path(),
+      base::BindOnce(&LacrosExtensionAppsPublisher::OnSizeCalculated,
+                     weak_ptr_factory_.GetWeakPtr(), extension->id()));
+}
+
+void LacrosExtensionAppsPublisher::OnIsCapturingVideoChanged(
+    content::WebContents* web_contents,
+    bool is_capturing_video) {
+  auto app_id = MaybeGetAppId(web_contents);
+  if (!app_id.has_value()) {
+    return;
+  }
+
+  auto result = media_requests_.UpdateCameraState(app_id.value(), web_contents,
+                                                  is_capturing_video);
+  ModifyCapabilityAccess(app_id.value(), result.camera, result.microphone);
+}
+
+void LacrosExtensionAppsPublisher::OnIsCapturingAudioChanged(
+    content::WebContents* web_contents,
+    bool is_capturing_audio) {
+  auto app_id = MaybeGetAppId(web_contents);
+  if (!app_id.has_value()) {
+    return;
+  }
+
+  auto result = media_requests_.UpdateMicrophoneState(
+      app_id.value(), web_contents, is_capturing_audio);
+  ModifyCapabilityAccess(app_id.value(), result.camera, result.microphone);
+}
+
+void LacrosExtensionAppsPublisher::OnSizeCalculated(const std::string& app_id,
+                                                    int64_t size) {
+  std::vector<apps::AppPtr> apps;
+  apps::AppType app_type = which_type_.ChooseForChromeAppOrExtension(
+      apps::AppType::kStandaloneBrowserChromeApp,
+      apps::AppType::kStandaloneBrowserExtension);
+  auto app = std::make_unique<apps::App>(app_type, app_id);
+  app->app_size_in_bytes = size;
+  apps.push_back(std::move(app));
+  Publish(std::move(apps));
+}
+
+std::optional<std::string> LacrosExtensionAppsPublisher::MaybeGetAppId(
+    content::WebContents* web_contents) {
+  // The web app publisher is responsible to handle `web_contents` for web
+  // apps.
+  const webapps::AppId* web_app_id =
+      web_app::WebAppTabHelper::GetAppId(web_contents);
+  if (web_app_id) {
+    return std::nullopt;
+  }
+
+  const auto* extension =
+      lacros_extensions_util::MaybeGetExtension(web_contents);
+  return (extension && which_type_.Matches(extension))
+             ? std::make_optional<std::string>(extension->id())
+             : std::nullopt;
+}
+
+void LacrosExtensionAppsPublisher::ModifyCapabilityAccess(
+    const std::string& app_id,
+    std::optional<bool> accessing_camera,
+    std::optional<bool> accessing_microphone) {
+  if (!accessing_camera.has_value() && !accessing_microphone.has_value()) {
+    return;
+  }
+
+  std::vector<apps::CapabilityAccessPtr> capability_accesses;
+  auto capability_access = std::make_unique<apps::CapabilityAccess>(app_id);
+  capability_access->camera = accessing_camera;
+  capability_access->microphone = accessing_microphone;
+  capability_accesses.push_back(std::move(capability_access));
+
+  PublishCapabilityAccesses(std::move(capability_accesses));
 }

@@ -154,7 +154,6 @@ UploadJobImpl::UploadJobImpl(
   DCHECK(delegate_);
   SYSLOG(INFO) << "Upload job created.";
   if (!upload_url_.is_valid()) {
-    state_ = ERROR;
     NOTREACHED() << upload_url_ << " is not a valid URL.";
   }
 }

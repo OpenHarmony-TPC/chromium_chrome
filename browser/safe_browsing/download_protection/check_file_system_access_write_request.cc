@@ -45,12 +45,19 @@ CheckFileSystemAccessWriteRequest::CheckFileSystemAccessWriteRequest(
               service,
               *item)),
       item_(std::move(item)),
-      referrer_chain_data_(service->IdentifyReferrerChain(*item_)) {
+      referrer_chain_data_(
+          IdentifyReferrerChain(*item_,
+                                DownloadProtectionService::
+                                    GetDownloadAttributionUserGestureLimit())) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 }
 
 CheckFileSystemAccessWriteRequest ::~CheckFileSystemAccessWriteRequest() =
     default;
+
+download::DownloadItem* CheckFileSystemAccessWriteRequest::item() const {
+  return nullptr;
+}
 
 bool CheckFileSystemAccessWriteRequest::IsSupportedDownload(
     DownloadCheckResultReason* reason) {
@@ -88,22 +95,22 @@ void CheckFileSystemAccessWriteRequest::SetDownloadProtectionData(
     const std::string& token,
     const ClientDownloadResponse::Verdict& verdict,
     const ClientDownloadResponse::TailoredVerdict& tailored_verdict) {
-  // TODO(https://crbug.com/996797): Actually store token for
+  // TODO(crbug.com/41477698): Actually store token for
   // IncidentReportingService usage.
 }
 
-void CheckFileSystemAccessWriteRequest::MaybeStorePingsForDownload(
+void CheckFileSystemAccessWriteRequest::MaybeBeginFeedbackForDownload(
     DownloadCheckResult result,
     bool upload_requested,
     const std::string& request_data,
     const std::string& response_body) {
-  // TODO(https://crbug.com/996797): Integrate with DownloadFeedbackService.
+  // TODO(crbug.com/41477698): Integrate with DownloadFeedbackService.
 }
 
-absl::optional<enterprise_connectors::AnalysisSettings>
+std::optional<enterprise_connectors::AnalysisSettings>
 CheckFileSystemAccessWriteRequest::ShouldUploadBinary(
     DownloadCheckResultReason reason) {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void CheckFileSystemAccessWriteRequest::UploadBinary(
@@ -111,8 +118,28 @@ void CheckFileSystemAccessWriteRequest::UploadBinary(
     DownloadCheckResultReason reason,
     enterprise_connectors::AnalysisSettings settings) {}
 
+bool CheckFileSystemAccessWriteRequest::ShouldImmediatelyDeepScan(
+    bool server_requests_prompt,
+    bool log_metrics) const {
+  return false;
+}
+
 bool CheckFileSystemAccessWriteRequest::ShouldPromptForDeepScanning(
     bool server_requests_prompt) const {
+  return false;
+}
+
+bool CheckFileSystemAccessWriteRequest::ShouldPromptForLocalDecryption(
+    bool server_requests_prompt) const {
+  return false;
+}
+
+bool CheckFileSystemAccessWriteRequest::ShouldPromptForIncorrectPassword()
+    const {
+  return false;
+}
+
+bool CheckFileSystemAccessWriteRequest::ShouldShowScanFailure() const {
   return false;
 }
 
@@ -128,6 +155,11 @@ bool CheckFileSystemAccessWriteRequest::IsAllowlistedByPolicy() const {
   if (!profile)
     return false;
   return IsURLAllowlistedByPolicy(item_->frame_url, *profile->GetPrefs());
+}
+
+void CheckFileSystemAccessWriteRequest::LogDeepScanningPrompt(
+    bool did_prompt) const {
+  NOTREACHED();
 }
 
 }  // namespace safe_browsing

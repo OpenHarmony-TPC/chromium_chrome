@@ -13,6 +13,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/focus_ring.h"
@@ -29,7 +30,9 @@ namespace {
 // ensure that no data is inaccessible.
 std::u16string GetAccessibleNameFromTree(views::View* view) {
   if (views::IsViewClass<views::Label>(view))
-    return static_cast<views::Label*>(view)->GetAccessibleName();
+    return static_cast<views::Label*>(view)
+        ->GetViewAccessibility()
+        .GetCachedName();
 
   std::u16string accessible_name;
   for (views::View* child : view->children()) {
@@ -80,6 +83,10 @@ void PaymentRequestRowView::SetClickable(bool clickable) {
   OnPropertyChanged(&clickable_, views::PropertyEffects::kPropertyEffectsPaint);
 }
 
+base::WeakPtr<PaymentRequestRowView> PaymentRequestRowView::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 gfx::Insets PaymentRequestRowView::GetRowInsets() const {
   return row_insets_;
 }
@@ -103,7 +110,7 @@ void PaymentRequestRowView::UpdateBottomSeparatorVisualState() {
   // border is needed to correctly compute the bounds of the ScrollView in the
   // PaymentRequestSheetController which is done before this is added to its
   // Widget.
-  // TODO(crbug.com/1213247): Update PaymentRequestSheetController to recompute
+  // TODO(crbug.com/40768647): Update PaymentRequestSheetController to recompute
   // the bounds of its ScrollView in response to changes in preferred size.
   SetBorder(
       bottom_separator_visible_ && GetWidget()
@@ -135,11 +142,6 @@ void PaymentRequestRowView::UpdateButtonState() {
                                      : views::Button::STATE_DISABLED);
 }
 
-void PaymentRequestRowView::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  Button::GetAccessibleNodeData(node_data);
-  node_data->SetNameChecked(GetAccessibleNameFromTree(this));
-}
-
 void PaymentRequestRowView::StateChanged(ButtonState old_state) {
   Button::StateChanged(old_state);
   if (!GetClickable())
@@ -154,15 +156,19 @@ void PaymentRequestRowView::OnThemeChanged() {
   UpdateBottomSeparatorVisualState();
 }
 
+void PaymentRequestRowView::ViewHierarchyChanged(
+    const views::ViewHierarchyChangedDetails& details) {
+  views::Button::ViewHierarchyChanged(details);
+  GetViewAccessibility().SetName(GetAccessibleNameFromTree(this));
+}
+
 void PaymentRequestRowView::OnFocus() {
   if (GetClickable())
     SetHighlighted(true);
   View::OnFocus();
-  views::FocusRing* focus_ring = views::FocusRing::Get(this);
-  views::TableLayout* layout =
-      static_cast<views::TableLayout*>(GetLayoutManager());
-  if (focus_ring && layout)
-    layout->SetChildViewIgnoredByLayout(focus_ring, true);
+  if (views::FocusRing* focus_ring = views::FocusRing::Get(this)) {
+    focus_ring->SetProperty(views::kViewIgnoredByLayoutKey, true);
+  }
 }
 
 void PaymentRequestRowView::OnBlur() {
@@ -170,7 +176,7 @@ void PaymentRequestRowView::OnBlur() {
     SetHighlighted(false);
 }
 
-BEGIN_METADATA(PaymentRequestRowView, views::Button)
+BEGIN_METADATA(PaymentRequestRowView)
 ADD_PROPERTY_METADATA(bool, Clickable)
 ADD_PROPERTY_METADATA(gfx::Insets, RowInsets)
 END_METADATA

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -86,8 +91,6 @@ constexpr base::TimeDelta kSixAm = base::Hours(6);
 
 // Time delta representing 1 hour time interval.
 constexpr base::TimeDelta kHour = base::Hours(1);
-
-constexpr int64_t kMillisecondsPerDay = Time::kMicrosecondsPerDay / 1000;
 
 constexpr int kIdlePollIntervalSeconds = 30;
 
@@ -369,13 +372,15 @@ class ChildStatusCollectorTest : public testing::Test {
   }
 
   void AddChildUser(const AccountId& account_id) {
-    AddUserWithTypeAndAffiliation(account_id, user_manager::USER_TYPE_CHILD,
+    AddUserWithTypeAndAffiliation(account_id, user_manager::UserType::kChild,
                                   false);
     GetFakeUserManager()->set_current_user_child(true);
   }
 
   // Convenience method.
-  int64_t ActivePeriodMilliseconds() { return kIdlePollIntervalSeconds * 1000; }
+  static int64_t ActivePeriodMilliseconds() {
+    return kIdlePollIntervalSeconds * base::Time::kMillisecondsPerSecond;
+  }
 
   void ExpectChildScreenTimeMilliseconds(int64_t duration) {
     pref_service()->CommitPendingWrite(
@@ -659,9 +664,9 @@ TEST_F(ChildStatusCollectorTest, ActivityCrossingMidnight) {
 
   // Ensure that the start and end times for the period are a day apart.
   EXPECT_EQ(timespan0period.end_timestamp() - timespan0period.start_timestamp(),
-            kMillisecondsPerDay);
+            base::Time::kMillisecondsPerDay);
   EXPECT_EQ(timespan1period.end_timestamp() - timespan1period.start_timestamp(),
-            kMillisecondsPerDay);
+            base::Time::kMillisecondsPerDay);
   ExpectChildScreenTimeMilliseconds(0.5 * ActivePeriodMilliseconds());
 }
 
@@ -714,9 +719,11 @@ TEST_F(ChildStatusCollectorTest, ReportingAppActivity) {
       EXPECT_EQ(3, app_activity.active_time_periods_size());
       Time start = start_time;
       for (const auto& active_period : app_activity.active_time_periods()) {
-        EXPECT_EQ(start.ToJavaTime(), active_period.start_timestamp());
+        EXPECT_EQ(start.InMillisecondsSinceUnixEpoch(),
+                  active_period.start_timestamp());
         const Time end = start + app1_interval;
-        EXPECT_EQ(end.ToJavaTime(), active_period.end_timestamp());
+        EXPECT_EQ(end.InMillisecondsSinceUnixEpoch(),
+                  active_period.end_timestamp());
         start = end + app2_interval;
       }
       continue;
@@ -728,9 +735,11 @@ TEST_F(ChildStatusCollectorTest, ReportingAppActivity) {
       EXPECT_EQ(2, app_activity.active_time_periods_size());
       Time start = start_time + app1_interval;
       for (const auto& active_period : app_activity.active_time_periods()) {
-        EXPECT_EQ(start.ToJavaTime(), active_period.start_timestamp());
+        EXPECT_EQ(start.InMillisecondsSinceUnixEpoch(),
+                  active_period.start_timestamp());
         const Time end = start + app2_interval;
-        EXPECT_EQ(end.ToJavaTime(), active_period.end_timestamp());
+        EXPECT_EQ(end.InMillisecondsSinceUnixEpoch(),
+                  active_period.end_timestamp());
         start = end + app1_interval;
       }
       continue;

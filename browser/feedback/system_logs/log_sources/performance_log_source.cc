@@ -27,6 +27,7 @@ std::string BoolToString(bool value) {
   return value ? "true" : "false";
 }
 
+#if !BUILDFLAG(IS_CHROMEOS_ASH)
 std::string BatterySaverModeStateToString(BatterySaverModeState state) {
   switch (state) {
     case BatterySaverModeState::kDisabled:
@@ -41,9 +42,13 @@ std::string BatterySaverModeStateToString(BatterySaverModeState state) {
       return "unknown_battery_saver_mode_state";
   }
 }
+#endif  //  !BUILDFLAG(IS_CHROMEOS_ASH)
+
 }  // namespace
 
 PerformanceLogSource::PerformanceLogSource() : SystemLogsSource("Performance") {
+  battery_saver_mode_manager_ =
+      performance_manager::user_tuning::BatterySaverModeManager::GetInstance();
   tuning_manager_ = performance_manager::user_tuning::
       UserPerformanceTuningManager::GetInstance();
 }
@@ -57,22 +62,25 @@ void PerformanceLogSource::Fetch(SysLogsSourceCallback callback) {
   auto response = std::make_unique<SystemLogsResponse>();
   CHECK(tuning_manager_);
   PopulatePerformanceSettingLogs(response.get());
+#if !BUILDFLAG(IS_CHROMEOS_ASH)
   PopulateBatteryDetailLogs(response.get());
-
+#endif
   std::move(callback).Run(std::move(response));
 }
 
 void PerformanceLogSource::PopulatePerformanceSettingLogs(
     SystemLogsResponse* response) {
-  response->emplace(
-      "high_efficiency_mode_active",
-      BoolToString(tuning_manager_->IsHighEfficiencyModeActive()));
+  response->emplace("high_efficiency_mode_active",
+                    BoolToString(tuning_manager_->IsMemorySaverModeActive()));
 
+#if !BUILDFLAG(IS_CHROMEOS_ASH)
+  // Battery and battery saver logs are not used on ChromeOS.
   PrefService* local_prefs = g_browser_process->local_state();
   int battery_saver_state = local_prefs->GetInteger(kBatterySaverModeState);
-  bool is_battery_saver_active = tuning_manager_->IsBatterySaverActive();
+  bool is_battery_saver_active =
+      battery_saver_mode_manager_->IsBatterySaverActive();
   bool is_battery_saver_disabled_for_session =
-      tuning_manager_->IsBatterySaverModeDisabledForSession();
+      battery_saver_mode_manager_->IsBatterySaverModeDisabledForSession();
 
   response->emplace(
       "battery_saver_state",
@@ -82,13 +90,17 @@ void PerformanceLogSource::PopulatePerformanceSettingLogs(
                     BoolToString(is_battery_saver_active));
   response->emplace("battery_saver_disabled_for_session",
                     BoolToString(is_battery_saver_disabled_for_session));
+#endif  //  !BUILDFLAG(IS_CHROMEOS_ASH)
 }
 
+#if !BUILDFLAG(IS_CHROMEOS_ASH)
 void PerformanceLogSource::PopulateBatteryDetailLogs(
     SystemLogsResponse* response) {
-  bool has_battery = tuning_manager_->DeviceHasBattery();
-  bool is_using_battery_power = tuning_manager_->IsUsingBatteryPower();
-  int battery_percentage = tuning_manager_->SampledBatteryPercentage();
+  bool has_battery = battery_saver_mode_manager_->DeviceHasBattery();
+  bool is_using_battery_power =
+      battery_saver_mode_manager_->IsUsingBatteryPower();
+  int battery_percentage =
+      battery_saver_mode_manager_->SampledBatteryPercentage();
 
   response->emplace("device_has_battery", BoolToString(has_battery));
   response->emplace("device_using_battery_power",
@@ -96,4 +108,6 @@ void PerformanceLogSource::PopulateBatteryDetailLogs(
   response->emplace("device_battery_percentage",
                     base::NumberToString(battery_percentage));
 }
+#endif  //  !BUILDFLAG(IS_CHROMEOS_ASH)
+
 }  // namespace system_logs

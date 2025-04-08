@@ -1,8 +1,6 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
-#include "chrome/browser/ui/views/commerce/price_tracking_icon_view.h"
 
 #include <memory>
 
@@ -13,8 +11,11 @@
 #include "chrome/browser/commerce/shopping_service_factory.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/commerce/price_tracking/mock_shopping_list_ui_tab_helper.h"
+#include "chrome/browser/ui/commerce/mock_commerce_ui_tab_helper.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/tabs/public/tab_interface.h"
 #include "chrome/browser/ui/views/commerce/price_tracking_bubble_dialog_view.h"
+#include "chrome/browser/ui/views/commerce/price_tracking_icon_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/test_with_browser_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -22,6 +23,7 @@
 #include "components/bookmarks/test/bookmark_test_helpers.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/commerce/core/mock_shopping_service.h"
+#include "components/commerce/core/price_tracking_utils.h"
 #include "components/commerce/core/test_utils.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/strings/grit/components_strings.h"
@@ -29,6 +31,7 @@
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/views/interaction/element_tracker_views.h"
 
@@ -40,7 +43,9 @@ const char kNonTrackableUrl[] = "about:blank";
 
 class PriceTrackingIconViewIntegrationTest : public TestWithBrowserView {
  public:
-  PriceTrackingIconViewIntegrationTest() = default;
+  PriceTrackingIconViewIntegrationTest() {
+    MockCommerceUiTabHelper::ReplaceFactory();
+  }
 
   PriceTrackingIconViewIntegrationTest(
       const PriceTrackingIconViewIntegrationTest&) = delete;
@@ -53,8 +58,11 @@ class PriceTrackingIconViewIntegrationTest : public TestWithBrowserView {
     test_features_.InitAndEnableFeature(commerce::kShoppingList);
     TestWithBrowserView::SetUp();
     AddTab(browser(), GURL(kNonTrackableUrl));
-    mock_tab_helper_ = AttachTabHelperToWebContents(
-        browser()->tab_strip_model()->GetActiveWebContents());
+    mock_tab_helper_ =
+        static_cast<MockCommerceUiTabHelper*>(browser()
+                                                  ->GetActiveTabInterface()
+                                                  ->GetTabFeatures()
+                                                  ->commerce_ui_tab_helper());
   }
 
   TestingProfile::TestingFactories GetTestingFactories() override {
@@ -111,12 +119,13 @@ class PriceTrackingIconViewIntegrationTest : public TestWithBrowserView {
 
   void SimulateSubscriptionChangeEvent(bool is_subscribed) {
     if (is_subscribed) {
-      GetTabHelper()->OnSubscribe(commerce::CreateUserTrackedSubscription(0L),
-                                  true);
+      GetTabHelper()->GetPriceTrackingControllerForTesting()->OnSubscribe(
+          commerce::BuildUserSubscriptionForClusterId(0L), true);
     } else {
-      GetTabHelper()->OnUnsubscribe(commerce::CreateUserTrackedSubscription(0L),
-                                    true);
+      GetTabHelper()->GetPriceTrackingControllerForTesting()->OnUnsubscribe(
+          commerce::BuildUserSubscriptionForClusterId(0L), true);
     }
+    base::RunLoop().RunUntilIdle();
   }
 
   void VerifyIconState(PriceTrackingIconView* icon_view,
@@ -126,34 +135,27 @@ class PriceTrackingIconViewIntegrationTest : public TestWithBrowserView {
       EXPECT_EQ(icon_view->GetIconLabelForTesting(),
                 l10n_util::GetStringUTF16(IDS_OMNIBOX_TRACKING_PRICE));
       EXPECT_STREQ(icon_view->GetVectorIcon().name,
-                   omnibox::kPriceTrackingEnabledFilledIcon.name);
+                   omnibox::kPriceTrackingEnabledRefreshIcon.name);
       EXPECT_EQ(icon_view->GetTextForTooltipAndAccessibleName(),
                 l10n_util::GetStringUTF16(IDS_OMNIBOX_TRACKING_PRICE));
     } else {
       EXPECT_EQ(icon_view->GetIconLabelForTesting(),
                 l10n_util::GetStringUTF16(IDS_OMNIBOX_TRACK_PRICE));
       EXPECT_STREQ(icon_view->GetVectorIcon().name,
-                   omnibox::kPriceTrackingDisabledIcon.name);
+                   omnibox::kPriceTrackingDisabledRefreshIcon.name);
       EXPECT_EQ(icon_view->GetTextForTooltipAndAccessibleName(),
                 l10n_util::GetStringUTF16(IDS_OMNIBOX_TRACK_PRICE));
     }
   }
 
-  MockShoppingListUiTabHelper* GetTabHelper() { return mock_tab_helper_.get(); }
+  MockCommerceUiTabHelper* GetTabHelper() { return mock_tab_helper_.get(); }
 
  protected:
-  raw_ptr<MockShoppingListUiTabHelper> mock_tab_helper_;
+  raw_ptr<MockCommerceUiTabHelper, DanglingUntriaged> mock_tab_helper_;
   base::UserActionTester user_action_tester_;
 
  private:
   base::test::ScopedFeatureList test_features_;
-
-  MockShoppingListUiTabHelper* AttachTabHelperToWebContents(
-      content::WebContents* web_contents) {
-    MockShoppingListUiTabHelper::CreateForWebContents(web_contents);
-    return static_cast<MockShoppingListUiTabHelper*>(
-        MockShoppingListUiTabHelper::FromWebContents(web_contents));
-  }
 };
 
 TEST_F(PriceTrackingIconViewIntegrationTest,

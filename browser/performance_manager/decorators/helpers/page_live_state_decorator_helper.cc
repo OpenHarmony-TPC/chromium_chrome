@@ -7,11 +7,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
-#include "components/content_settings/core/browser/content_settings_observer.h"
-#include "components/content_settings/core/browser/content_settings_type_set.h"
-#include "components/content_settings/core/browser/host_content_settings_map.h"
-#include "components/content_settings/core/common/content_settings_pattern.h"
-#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/performance_manager/public/decorators/page_live_state_decorator.h"
 #include "components/performance_manager/public/performance_manager.h"
 #include "components/permissions/permissions_client.h"
@@ -38,7 +33,7 @@ class ActiveTabObserver : public TabStripModelObserver,
  public:
   ActiveTabObserver() {
     BrowserList::AddObserver(this);
-    for (auto* browser : *BrowserList::GetInstance()) {
+    for (Browser* browser : *BrowserList::GetInstance()) {
       AddBrowserTabStripObservation(browser);
     }
   }
@@ -102,8 +97,7 @@ class ActiveTabObserver : public TabStripModelObserver,
 // and updates the PageLiveStateDecorator accordingly. Destroys itself when the
 // WebContents it observes is destroyed.
 class PageLiveStateDecoratorHelper::WebContentsObserver
-    : public content::WebContentsObserver,
-      public content_settings::Observer {
+    : public content::WebContentsObserver {
  public:
   explicit WebContentsObserver(content::WebContents* web_contents,
                                PageLiveStateDecoratorHelper* outer)
@@ -117,14 +111,6 @@ class PageLiveStateDecoratorHelper::WebContentsObserver
       next_->prev_ = this;
     }
     outer_->first_web_contents_observer_ = this;
-
-    // The service might not be constructed for irregular profiles, e.g. the
-    // System Profile.
-    if (HostContentSettingsMap* service =
-            permissions::PermissionsClient::Get()->GetSettingsMap(
-                web_contents->GetBrowserContext())) {
-      content_settings_observation_.Observe(service);
-    }
   }
 
   WebContentsObserver(const WebContentsObserver&) = delete;
@@ -134,41 +120,13 @@ class PageLiveStateDecoratorHelper::WebContentsObserver
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   }
 
-  // content_settings::Observer:
-  void OnContentSettingChanged(
-      const ContentSettingsPattern& primary_pattern,
-      const ContentSettingsPattern& secondary_pattern,
-      ContentSettingsTypeSet content_type_set) override {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    GURL url = web_contents()->GetLastCommittedURL();
-    if (content_type_set.Contains(ContentSettingsType::NOTIFICATIONS) &&
-        primary_pattern.Matches(url)) {
-      // This web contents is affected by this content settings change, get the
-      // latest value and send it over to the PageLiveStateDecorator so it can
-      // be attached to the corresponding PageNode.
-      ContentSetting setting =
-          permissions::PermissionsClient::Get()
-              ->GetSettingsMap(web_contents()->GetBrowserContext())
-              ->GetContentSetting(url, url, ContentSettingsType::NOTIFICATIONS);
-
-      PageLiveStateDecorator::SetContentSettings(
-          web_contents(), {{ContentSettingsType::NOTIFICATIONS, setting}});
-    }
-  }
-
   // content::WebContentsObserver:
-  void OnIsConnectedToBluetoothDeviceChanged(
-      bool is_connected_to_bluetooth_device) override {
+  void OnCapabilityTypesChanged(
+      content::WebContents::CapabilityType capability_type,
+      bool used) override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    PageLiveStateDecorator::OnIsConnectedToBluetoothDeviceChanged(
-        web_contents(), is_connected_to_bluetooth_device);
-  }
-
-  void OnIsConnectedToUsbDeviceChanged(
-      bool is_connected_to_usb_device) override {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    PageLiveStateDecorator::OnIsConnectedToUSBDeviceChanged(
-        web_contents(), is_connected_to_usb_device);
+    PageLiveStateDecorator::OnCapabilityTypesChanged(web_contents(),
+                                                     capability_type, used);
   }
 
   void WebContentsDestroyed() override {
@@ -198,9 +156,6 @@ class PageLiveStateDecoratorHelper::WebContentsObserver
   const raw_ptr<PageLiveStateDecoratorHelper> outer_;
   raw_ptr<WebContentsObserver> prev_;
   raw_ptr<WebContentsObserver> next_;
-
-  base::ScopedObservation<HostContentSettingsMap, content_settings::Observer>
-      content_settings_observation_{this};
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

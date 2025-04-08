@@ -9,23 +9,17 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "cef/libcef/features/runtime.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/net/proxy_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/proxy_config/pref_proxy_config_tracker_impl.h"
 #include "content/public/browser/browser_thread.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if BUILDFLAG(ENABLE_CEF)
-#include "cef/libcef/common/extensions/extensions_util.h"
-#endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/api/proxy/proxy_api.h"
@@ -91,18 +85,13 @@ void ProxyConfigMonitor::AddToNetworkContextParams(
       proxy_config_client.InitWithNewPipeAndPassReceiver();
   proxy_config_client_set_.Add(std::move(proxy_config_client));
 
-  if (!base::FeatureList::IsEnabled(
-          network::features::kLessChattyNetworkService) ||
-      proxy_config_service_->UsesPolling()) {
+  if (proxy_config_service_->UsesPolling()) {
     poller_receiver_set_.Add(this,
                              network_context_params->proxy_config_poller_client
                                  .InitWithNewPipeAndPassReceiver());
   }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#if BUILDFLAG(ENABLE_CEF)
-  if (!cef::IsAlloyRuntimeEnabled() || extensions::ExtensionsEnabled())
-#endif
   error_receiver_set_.Add(this, network_context_params->proxy_error_client
                                     .InitWithNewPipeAndPassReceiver());
 #endif
@@ -134,7 +123,6 @@ void ProxyConfigMonitor::OnProxyConfigChanged(
         break;
       case net::ProxyConfigService::CONFIG_PENDING:
         NOTREACHED();
-        break;
     }
   }
 }
@@ -148,8 +136,7 @@ void ProxyConfigMonitor::OnPACScriptError(int32_t line_number,
                                           const std::string& details) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   extensions::ProxyEventRouter::GetInstance()->OnPACScriptError(
-      g_browser_process->extension_event_router_forwarder(), profile_,
-      line_number, base::UTF8ToUTF16(details));
+      profile_, line_number, base::UTF8ToUTF16(details));
 }
 
 void ProxyConfigMonitor::OnRequestMaybeFailedDueToProxySettings(
@@ -164,8 +151,7 @@ void ProxyConfigMonitor::OnRequestMaybeFailedDueToProxySettings(
     return;
   }
 
-  extensions::ProxyEventRouter::GetInstance()->OnProxyError(
-      g_browser_process->extension_event_router_forwarder(), profile_,
-      net_error);
+  extensions::ProxyEventRouter::GetInstance()->OnProxyError(profile_,
+                                                            net_error);
 }
 #endif

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/views/accelerator_table.h"
 
 #include <stddef.h>
@@ -63,6 +68,22 @@ TEST(AcceleratorTableTest, PrintKeySupport) {
 #else   // !BUILDFLAG(IS_CHROMEOS)
   EXPECT_EQ(-1, command_id);
 #endif  // BUILDFLAG(IS_CHROMEOS)
+}
+
+TEST(AcceleratorTableTest, OpenFeedbackWithSearchBasedAccelerator) {
+  int command_id = -1;
+  for (const auto& entry : GetAcceleratorList()) {
+    if (entry.keycode == ui::VKEY_I &&
+        entry.modifiers == (ui::EF_CONTROL_DOWN | ui::EF_COMMAND_DOWN)) {
+      command_id = entry.command_id;
+    }
+  }
+
+#if BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  EXPECT_EQ(IDC_FEEDBACK, command_id);
+#else   // !BUILDFLAG(IS_CHROMEOS) || !BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  EXPECT_EQ(-1, command_id);
+#endif  // BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
 }
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -149,6 +170,35 @@ TEST(AcceleratorTableTest, DontUseKeysWithUnstablePositions) {
     }
   }
 }
+
+#else
+
+// A test fixture for testing GetAcceleratorList().
+class GetAcceleratorListTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    // Make sure that previous tests don't affect this test.
+    ClearAcceleratorListForTesting();
+  }
+
+  void TearDown() override {
+    // Make sure that this test doesn't affect following tests.
+    ClearAcceleratorListForTesting();
+  }
+};
+
+
+
+// Verify that the shortcuts for DevTools are enabled.
+TEST_F(GetAcceleratorListTest, DevToolsAreEnabled) {
+  // Verify there is a mapping that is associated to IDC_DEV_TOOLS_TOGGLE.
+  std::vector<AcceleratorMapping> list = GetAcceleratorList();
+  auto iter = std::find_if(list.begin(), list.end(), [](auto mapping) {
+    return mapping.command_id == IDC_DEV_TOOLS_TOGGLE;
+  });
+  EXPECT_NE(iter, list.end());
+}
+
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 }  // namespace chrome

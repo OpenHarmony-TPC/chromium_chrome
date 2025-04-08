@@ -20,19 +20,16 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * Given a list of {@link ListItem}, returns a list that has date headers for each date.
- * Also adds Just Now header for recently completed items. Note that this class must be called on
- * the list before adding any other labels such as card header/footer/pagination etc.
+ * Given a list of {@link ListItem}, returns a list that has date headers for each date. Also adds
+ * Just Now header for recently completed items. Note that this class must be called on the list
+ * before adding any other labels such as card header/footer/pagination etc.
  */
 public class DateLabelAdder implements ListConsumer {
-    private final DownloadManagerUiConfig mConfig;
-    @Nullable
-    private final JustNowProvider mJustNowProvider;
+    @Nullable private final JustNowProvider mJustNowProvider;
     private ListConsumer mListConsumer;
 
     public DateLabelAdder(
             DownloadManagerUiConfig config, @Nullable JustNowProvider justNowProvider) {
-        mConfig = config;
         mJustNowProvider = justNowProvider;
     }
 
@@ -66,12 +63,12 @@ public class DateLabelAdder implements ListConsumer {
         return listWithHeaders;
     }
 
-    private void maybeAddSectionHeader(List<ListItem> listWithHeaders,
-            @NonNull OfflineItem currentItem, @Nullable OfflineItem previousItem) {
-        @SectionHeaderType
-        int currentHeaderType = getSectionHeaderType(currentItem);
-        @SectionHeaderType
-        int previousHeaderType = getSectionHeaderType(previousItem);
+    private void maybeAddSectionHeader(
+            List<ListItem> listWithHeaders,
+            @NonNull OfflineItem currentItem,
+            @Nullable OfflineItem previousItem) {
+        @SectionHeaderType int currentHeaderType = getSectionHeaderType(currentItem);
+        @SectionHeaderType int previousHeaderType = getSectionHeaderType(previousItem);
 
         // Add a section header when starting a new section.
         if (currentHeaderType != previousHeaderType) {
@@ -90,8 +87,9 @@ public class DateLabelAdder implements ListConsumer {
     private void addSectionHeader(
             List<ListItem> listWithHeaders, @NonNull OfflineItem currentItem) {
         Date day = CalendarUtils.getStartOfDay(currentItem.creationTimeMs).getTime();
-        ListItem.SectionHeaderListItem sectionHeaderItem = new ListItem.SectionHeaderListItem(
-                day.getTime(), getSectionHeaderType(currentItem));
+        ListItem.SectionHeaderListItem sectionHeaderItem =
+                new ListItem.SectionHeaderListItem(
+                        day.getTime(), getSectionHeaderType(currentItem));
         listWithHeaders.add(sectionHeaderItem);
     }
 
@@ -109,9 +107,10 @@ public class DateLabelAdder implements ListConsumer {
     private static boolean startOfNewDay(
             OfflineItem currentItem, @Nullable OfflineItem previousItem) {
         Date currentDay = CalendarUtils.getStartOfDay(currentItem.creationTimeMs).getTime();
-        Date previousDay = previousItem == null
-                ? null
-                : CalendarUtils.getStartOfDay(previousItem.creationTimeMs).getTime();
+        Date previousDay =
+                previousItem == null
+                        ? null
+                        : CalendarUtils.getStartOfDay(previousItem.creationTimeMs).getTime();
         return !currentDay.equals(previousDay);
     }
 }

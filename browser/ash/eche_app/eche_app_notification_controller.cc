@@ -7,9 +7,10 @@
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/new_window_delegate.h"
 #include "ash/webui/eche_app_ui/eche_alert_generator.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/multidevice/logging/logging.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -50,7 +51,7 @@ EcheAppNotificationController::EcheAppNotificationController(
 EcheAppNotificationController::~EcheAppNotificationController() = default;
 
 void EcheAppNotificationController::LaunchSettings() {
-  // TODO(crbug.com/1241352): Wait for UX confirm.
+  // TODO(crbug.com/40785967): Wait for UX confirm.
   chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
       profile_, chromeos::settings::mojom::kSecurityAndSignInSubpagePathV2);
 }
@@ -65,8 +66,8 @@ void EcheAppNotificationController::LaunchTryAgain() {
 }
 
 void EcheAppNotificationController::ShowNotificationFromWebUI(
-    const absl::optional<std::u16string>& title,
-    const absl::optional<std::u16string>& message,
+    const std::optional<std::u16string>& title,
+    const std::optional<std::u16string>& message,
     absl::variant<LaunchAppHelper::NotificationInfo::NotificationType,
                   mojom::WebNotificationType> type) {
   auto web_type = absl::get<mojom::WebNotificationType>(type);
@@ -148,27 +149,27 @@ void EcheAppNotificationController::ShowScreenLockNotification(
 void EcheAppNotificationController::ShowNotification(
     std::unique_ptr<message_center::Notification> notification) {
   notification->SetSystemPriority();
-  NotificationDisplayService::GetForProfile(profile_)->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Display(
       NotificationHandler::Type::TRANSIENT, *notification,
       /*metadata=*/nullptr);
 }
 
 void EcheAppNotificationController::CloseNotification(
     const std::string& notification_id) {
-  NotificationDisplayService::GetForProfile(profile_)->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Close(
       NotificationHandler::Type::TRANSIENT, notification_id);
 }
 
 void EcheAppNotificationController::
     CloseConnectionOrLaunchErrorNotifications() {
-  NotificationDisplayService::GetForProfile(profile_)->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Close(
       NotificationHandler::Type::TRANSIENT, kEcheAppRetryConnectionNotifierId);
-  NotificationDisplayService::GetForProfile(profile_)->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Close(
       NotificationHandler::Type::TRANSIENT, kEcheAppInactivityNotifierId);
-  NotificationDisplayService::GetForProfile(profile_)->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Close(
       NotificationHandler::Type::TRANSIENT,
       kEcheAppFromWebWithoutButtonNotifierId);
-  NotificationDisplayService::GetForProfile(profile_)->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Close(
       NotificationHandler::Type::TRANSIENT, kEcheAppNetworkSettingNotifierId);
 }
 

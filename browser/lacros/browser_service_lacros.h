@@ -11,7 +11,7 @@
 #include "base/callback_list.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/browser_list_observer.h"
-#include "chromeos/crosapi/mojom/crosapi.mojom.h"
+#include "chromeos/crosapi/mojom/browser_service.mojom.h"
 #include "components/feedback/system_logs/system_logs_source.h"
 #include "components/policy/core/common/values_util.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -31,15 +31,16 @@ class BrowserServiceLacros : public crosapi::mojom::BrowserService,
   ~BrowserServiceLacros() override;
 
   // crosapi::mojom::BrowserService:
-  void REMOVED_0(REMOVED_0Callback callback) override;
-  void REMOVED_2(crosapi::mojom::BrowserInitParamsPtr) override;
+  void REMOVED_0() override;
+  void REMOVED_2() override;
   void REMOVED_7(bool should_trigger_session_restore,
-                 NewTabCallback callback) override;
+                 base::OnceClosure callback) override;
   void REMOVED_16(base::flat_map<policy::PolicyNamespace, std::vector<uint8_t>>
                       policy) override;
   void NewWindow(bool incognito,
                  bool should_trigger_session_restore,
                  int64_t target_display_id,
+                 std::optional<uint64_t> profile_id,
                  NewWindowCallback callback) override;
   void NewFullscreenWindow(const GURL& url,
                            int64_t target_display_id,
@@ -50,8 +51,11 @@ class BrowserServiceLacros : public crosapi::mojom::BrowserService,
       const std::u16string& tab_id,
       const std::u16string& group_id,
       NewWindowForDetachingTabCallback callback) override;
-  void NewTab(NewTabCallback callback) override;
-  void Launch(int64_t target_display_id, LaunchCallback callback) override;
+  void NewTab(std::optional<uint64_t> profile_id,
+              NewTabCallback callback) override;
+  void Launch(int64_t target_display_id,
+              std::optional<uint64_t> profile_id,
+              LaunchCallback callback) override;
   void OpenUrl(const GURL& url,
                crosapi::mojom::OpenUrlParamsPtr params,
                OpenUrlCallback callback) override;
@@ -64,6 +68,9 @@ class BrowserServiceLacros : public crosapi::mojom::BrowserService,
   void NotifyPolicyFetchAttempt() override;
   void UpdateKeepAlive(bool enabled) override;
   void OpenForFullRestore(bool skip_crash_restore) override;
+  void OpenProfileManager() override;
+  void OpenCaptivePortalSignin(const GURL& url,
+                               OpenUrlCallback callback) override;
 
  private:
   struct PendingOpenUrl;
@@ -105,6 +112,9 @@ class BrowserServiceLacros : public crosapi::mojom::BrowserService,
                           crosapi::mojom::OpenUrlParamsPtr params,
                           OpenUrlCallback callback,
                           Profile* profile);
+  void OpenCaptivePortalSigninWithProfile(const GURL& url,
+                                          OpenUrlCallback callback,
+                                          Profile* profile);
   void RestoreTabWithProfile(RestoreTabCallback callback, Profile* profile);
   void OpenForFullRestoreWithProfile(bool skip_crash_restore, Profile* profile);
   void UpdateComponentPolicy(policy::ComponentPolicyMap policy) override;

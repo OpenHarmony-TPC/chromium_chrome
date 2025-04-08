@@ -52,8 +52,7 @@ void OnSodaResponse(const char* serialized_proto,
   ASSERT_TRUE(callback_handle);
   speech::soda::chrome::SodaResponse response;
   if (!response.ParseFromArray(serialized_proto, length)) {
-    LOG(ERROR) << "Unable to parse result from SODA.";
-    NOTREACHED();
+    NOTREACHED() << "Unable to parse result from SODA.";
   }
 
   if (response.soda_type() == speech::soda::chrome::SodaResponse::RECOGNITION) {
@@ -73,7 +72,8 @@ void SodaClientUnitTest::AddRecognitionResult(std::string result) {
 }
 
 void SodaClientUnitTest::SetUp() {
-  ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir_));
+  ASSERT_TRUE(
+      base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_dir_));
   auto libsoda_path =
       test_data_dir_.Append(base::FilePath(soda::kSodaResourcePath))
           .Append(base::FilePath(soda::kSodaTestBinaryRelativePath));

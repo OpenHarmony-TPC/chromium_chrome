@@ -23,6 +23,7 @@
 #include "extensions/browser/extension_registry_observer.h"
 #include "extensions/browser/unloaded_extension_reason.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_id.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
@@ -57,7 +58,7 @@ class VpnServiceForExtension
   void OnConfigRemoved(const std::string& configuration_name) override;
   void OnPlatformMessage(const std::string& configuration_name,
                          int32_t platform_message,
-                         const absl::optional<std::string>& error) override;
+                         const std::optional<std::string>& error) override;
   void OnPacketReceived(const std::vector<uint8_t>& data) override;
 
   mojo::Remote<crosapi::mojom::VpnServiceForExtension>& Proxy() {
@@ -67,7 +68,7 @@ class VpnServiceForExtension
  private:
   void DispatchEvent(std::unique_ptr<extensions::Event>) const;
 
-  const std::string extension_id_;
+  const extensions::ExtensionId extension_id_;
   raw_ptr<content::BrowserContext> browser_context_;
 
   mojo::Remote<crosapi::mojom::VpnServiceForExtension> vpn_service_;

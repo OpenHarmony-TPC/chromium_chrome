@@ -4,9 +4,11 @@
 
 #include "chrome/browser/ui/webui/access_code_cast/access_code_cast_handler.h"
 
+#include "base/memory/raw_ptr.h"
 #include "base/ranges/algorithm.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/test/test_simple_task_runner.h"
@@ -75,6 +77,8 @@ class MockPage : public access_code_cast::mojom::Page {
 };
 
 const char kEmail[] = "mock_email@gmail.com";
+constexpr char histogram[] =
+    "AccessCodeCast.Session.NewDeviceRouteCreationDuration";
 
 }  // namespace
 
@@ -91,6 +95,9 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
                                              discovery_network_monitor_.get(),
                                              &dual_media_sink_service_)) {
     mock_cast_socket_service_->SetTaskRunnerForTest(mock_time_task_runner_);
+    // `identity_test_environment_` starts signed-out while `sync_service_`
+    // starts signed-in, make them consistent.
+    sync_service_.SetSignedOut();
   }
 
   void SetUp() override {
@@ -151,7 +158,7 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
         std::make_unique<MockAccessCodeCastSinkService>(
             profile_, router_, mock_cast_media_sink_service_impl_.get(),
             discovery_network_monitor_.get());
-    access_code_cast_sink_service_->SetTaskRunnerForTest(
+    access_code_cast_sink_service_->SetTaskRunnerForTesting(
         mock_time_task_runner_);
 
     std::unique_ptr<MediaRouteStarter> starter =
@@ -167,7 +174,7 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
   AccessCodeCastHandler* handler() { return handler_.get(); }
 
   MediaRouteStarter* media_route_starter() {
-    return handler_->media_route_starter_.get();
+    return handler_->GetMediaRouteStarterForTesting();
   }
 
   TestingProfileManager* profile_manager() { return profile_manager_.get(); }
@@ -182,8 +189,8 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
     return access_code_cast_sink_service_.get();
   }
 
-  signin::IdentityTestEnvironment& identity_test_env() {
-    return identity_test_env_;
+  signin::IdentityManager* identity_manager() {
+    return identity_test_env_.identity_manager();
   }
 
   syncer::SyncService& sync_service() { return sync_service_; }
@@ -212,11 +219,11 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
     set_screen_capture_allowed_for_testing(true);
 
     UpdateSinks({cast_sink_1().sink()}, std::vector<url::Origin>());
-    handler()->set_sink_id_for_testing(cast_sink_1().sink().id());
+    handler()->SetSinkIdForTesting(cast_sink_1().sink().id());
 
     EXPECT_CALL(*router(),
                 CreateRouteInternal(source.id(), cast_sink_1().sink().id(), _,
-                                    web_contents(), _, timeout, false));
+                                    web_contents(), _, timeout));
 
     handler()->CastToSink(mock_callback.Get());
   }
@@ -229,7 +236,7 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
                   std::move(start_presentation_context));
 
     UpdateSinks({cast_sink_1().sink()}, {request.frame_origin});
-    handler()->set_sink_id_for_testing(cast_sink_1().sink().id());
+    handler()->SetSinkIdForTesting(cast_sink_1().sink().id());
 
     auto source =
         MediaSource::ForPresentationUrl(*(request.presentation_urls.begin()));
@@ -237,7 +244,7 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
     EXPECT_CALL(*router(),
                 CreateRouteInternal(source.id(), cast_sink_1().sink().id(),
                                     request.frame_origin, web_contents(), _,
-                                    base::Seconds(20), false));
+                                    base::Seconds(20)));
     handler()->CastToSink(mock_callback.Get());
   }
 
@@ -258,16 +265,13 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
     }
   }
 
-  void SetProfileConsent(signin::ConsentLevel consent_level) {
-    identity_test_env_.SetPrimaryAccount(kEmail, consent_level);
+  void SignIn(signin::ConsentLevel consent_level) {
+    CoreAccountInfo account_info =
+        identity_test_env_.SetPrimaryAccount(kEmail, consent_level);
+    sync_service_.SetSignedIn(consent_level, account_info);
   }
 
-  void SetPausedSynServiceState() {
-    sync_service_.SetTransportState(
-        syncer::SyncService::TransportState::PAUSED);
-  }
-
-  void SetSyncConsent() { sync_service_.SetHasSyncConsent(true); }
+  void SetPausedSynServiceState() { sync_service_.SetPersistentAuthError(); }
 
   const MediaSinkInternal& cast_sink_1() { return cast_sink_1_; }
   const MediaSinkInternal& cast_sink_2() { return cast_sink_2_; }
@@ -296,13 +300,13 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
     // Handler so MockMediaRouter will respond to requests to create a route.
     // Will construct a RouteRequestResult based on the set result code and
     // then call the handler's callback, which should call the page's callback.
-    ON_CALL(*router(), CreateRouteInternal(_, _, _, _, _, _, _))
+    ON_CALL(*router(), CreateRouteInternal(_, _, _, _, _, _))
         .WillByDefault([this](const MediaSource::Id& source_id,
                               const MediaSink::Id& sink_id,
                               const url::Origin& origin,
                               content::WebContents* web_contents,
                               MediaRouteResponseCallback& callback,
-                              base::TimeDelta timeout, bool incognito) {
+                              base::TimeDelta timeout) {
           std::unique_ptr<RouteRequestResult> result;
           if (result_code_ == mojom::RouteRequestResultCode::OK) {
             MediaSource source(source_id);
@@ -320,9 +324,12 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
 
   scoped_refptr<base::TestMockTimeTaskRunner> mock_time_task_runner_;
 
-  raw_ptr<MockMediaRouter> router_;
+  raw_ptr<MockMediaRouter, AcrossTasksDanglingUntriaged> router_;
   std::unique_ptr<LoggerImpl> logger_;
+  // `identity_test_env_` and `sync_service_` must stay private, so they are
+  // always controlled together by SignIn().
   signin::IdentityTestEnvironment identity_test_env_;
+  syncer::TestSyncService sync_service_;
 
   static std::vector<DiscoveryNetworkInfo> GetFakeNetworkInfo() {
     return {
@@ -345,16 +352,16 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
   NiceMock<cast_channel::MockCastMessageHandler> message_handler_;
   std::unique_ptr<StrictMock<MockPage>> page_;
   std::unique_ptr<TestingProfileManager> profile_manager_;
-  raw_ptr<Profile> profile_;
+  raw_ptr<Profile, AcrossTasksDanglingUntriaged> profile_;
   std::unique_ptr<MockCastMediaSinkServiceImpl>
       mock_cast_media_sink_service_impl_;
   std::unique_ptr<MockWebContentsPresentationManager> presentation_manager_;
-  std::vector<MediaSinksObserver*> media_sinks_observers_;
+  std::vector<raw_ptr<MediaSinksObserver, VectorExperimental>>
+      media_sinks_observers_;
   mojom::RouteRequestResultCode result_code_ =
       mojom::RouteRequestResultCode::OK;
   MediaSinkInternal cast_sink_1_;
   MediaSinkInternal cast_sink_2_;
-  syncer::TestSyncService sync_service_;
 };
 
 TEST_F(AccessCodeCastHandlerTest, OnSinkAddedResult) {
@@ -365,16 +372,16 @@ TEST_F(AccessCodeCastHandlerTest, OnSinkAddedResult) {
 
   EXPECT_CALL(mock_callback_failure,
               Run(AddSinkResultCode::CHANNEL_OPEN_ERROR));
-  handler()->OnSinkAddedResult(AddSinkResultCode::CHANNEL_OPEN_ERROR,
-                               absl::nullopt);
-  EXPECT_FALSE(handler()->sink_id_.has_value());
+  handler()->OnSinkAddedResultForTesting(AddSinkResultCode::CHANNEL_OPEN_ERROR,
+                                         std::nullopt);
+  EXPECT_FALSE(handler()->GetSinkIdForTesting().has_value());
 
   MockAddSinkCallback mock_callback_ok;
   handler()->SetSinkCallbackForTesting(mock_callback_ok.Get());
 
   EXPECT_CALL(mock_callback_ok, Run(AddSinkResultCode::OK)).Times(0);
-  handler()->OnSinkAddedResult(AddSinkResultCode::OK, "123456");
-  EXPECT_EQ(handler()->sink_id_.value(), "123456");
+  handler()->OnSinkAddedResultForTesting(AddSinkResultCode::OK, "123456");
+  EXPECT_EQ(handler()->GetSinkIdForTesting().value(), "123456");
 }
 
 // Demonstrates that if the expected device is added to the media router,
@@ -388,8 +395,8 @@ TEST_F(AccessCodeCastHandlerTest, DiscoveredDeviceAdded) {
   MediaSinkWithCastModes sink_with_cast_modes(cast_sink_1().sink());
   sink_with_cast_modes.cast_modes = {MediaCastMode::DESKTOP_MIRROR};
 
-  handler()->set_sink_id_for_testing(cast_sink_1().sink().id());
-  handler()->OnSinksUpdated({sink_with_cast_modes});
+  handler()->SetSinkIdForTesting(cast_sink_1().sink().id());
+  handler()->OnSinksUpdatedForTesting({sink_with_cast_modes});
 }
 
 // Demonstrates that if handler is notified about a device other than the
@@ -399,12 +406,12 @@ TEST_F(AccessCodeCastHandlerTest, OtherDevicesIgnored) {
   EXPECT_CALL(mock_callback, Run(_)).Times(Exactly(0));
   handler()->SetSinkCallbackForTesting(mock_callback.Get());
 
-  handler()->set_sink_id_for_testing(cast_sink_1().sink().id());
+  handler()->SetSinkIdForTesting(cast_sink_1().sink().id());
 
   MediaSinkWithCastModes sink_with_cast_modes(cast_sink_2().sink());
   sink_with_cast_modes.cast_modes = {MediaCastMode::DESKTOP_MIRROR};
 
-  handler()->OnSinksUpdated({sink_with_cast_modes});
+  handler()->OnSinksUpdatedForTesting({sink_with_cast_modes});
 }
 
 // Demonstrates that desktop mirroring attempts call media router with the
@@ -512,7 +519,7 @@ TEST_F(AccessCodeCastHandlerTest, RouteAlreadyExists) {
   CreateHandler({MediaCastMode::DESKTOP_MIRROR});
   set_screen_capture_allowed_for_testing(true);
   UpdateSinks({access_code_sink.sink()}, std::vector<url::Origin>());
-  handler()->set_sink_id_for_testing(access_code_sink.sink().id());
+  handler()->SetSinkIdForTesting(access_code_sink.sink().id());
 
   MediaRoute media_route_access = CreateRouteForTesting(access_code_sink.id());
   std::vector<MediaRoute> route_list = {media_route_access};
@@ -526,11 +533,10 @@ TEST_F(AccessCodeCastHandlerTest, RouteAlreadyExists) {
 // for the profile.
 TEST_F(AccessCodeCastHandlerTest, ProfileSyncError) {
   MockAddSinkCallback mock_callback_failure;
-  handler()->SetIdentityManagerForTesting(
-      identity_test_env().identity_manager());
+  handler()->SetIdentityManagerForTesting(identity_manager());
   handler()->SetSyncServiceForTesting(&sync_service());
 
-  SetProfileConsent(signin::ConsentLevel::kSignin);
+  SignIn(signin::ConsentLevel::kSignin);
 
   EXPECT_CALL(mock_callback_failure,
               Run(AddSinkResultCode::PROFILE_SYNC_ERROR));
@@ -544,10 +550,9 @@ TEST_F(AccessCodeCastHandlerTest, ProfileSyncError) {
 // for the profile.
 TEST_F(AccessCodeCastHandlerTest, ProfileSyncPaused) {
   MockAddSinkCallback mock_callback_failure;
-  handler()->SetIdentityManagerForTesting(
-      identity_test_env().identity_manager());
+  handler()->SetIdentityManagerForTesting(identity_manager());
   handler()->SetSyncServiceForTesting(&sync_service());
-  SetProfileConsent(signin::ConsentLevel::kSync);
+  SignIn(signin::ConsentLevel::kSync);
   SetPausedSynServiceState();
 
   EXPECT_CALL(mock_callback_failure,
@@ -562,12 +567,10 @@ TEST_F(AccessCodeCastHandlerTest, ProfileSyncPaused) {
 // for the profile.
 TEST_F(AccessCodeCastHandlerTest, ProfileSyncSuccess) {
   MockAddSinkCallback mock_callback_success;
-  handler()->SetIdentityManagerForTesting(
-      identity_test_env().identity_manager());
+  handler()->SetIdentityManagerForTesting(identity_manager());
   handler()->SetSyncServiceForTesting(&sync_service());
 
-  SetProfileConsent(signin::ConsentLevel::kSync);
-  SetSyncConsent();
+  SignIn(signin::ConsentLevel::kSync);
 
   EXPECT_CALL(mock_callback_success, Run(AddSinkResultCode::UNKNOWN_ERROR))
       .Times(1);
@@ -576,13 +579,27 @@ TEST_F(AccessCodeCastHandlerTest, ProfileSyncSuccess) {
           [](const std::string& access_code,
              AccessCodeCastSinkService::AddSinkResultCallback callback) {
             std::move(callback).Run(AddSinkResultCode::UNKNOWN_ERROR,
-                                    absl::nullopt);
+                                    std::nullopt);
           });
   EXPECT_CALL(*access_service(), DiscoverSink(_, _)).Times(1);
   handler()->AddSink(
       "foo_code",
       access_code_cast::mojom::CastDiscoveryMethod::INPUT_ACCESS_CODE,
       mock_callback_success.Get());
+}
+
+// Demonstrates that adding a sink and successfully casting to it will trigger a
+// histogram.
+TEST_F(AccessCodeCastHandlerTest, SuccessfulAddAndCastMetric) {
+  base::HistogramTester histogram_tester;
+  histogram_tester.ExpectTotalCount(histogram, 0);
+
+  set_expected_cast_result(mojom::RouteRequestResultCode::OK);
+  MockCastToSinkCallback mock_cast_sink_callback;
+  EXPECT_CALL(mock_cast_sink_callback, Run(RouteRequestResultCode::OK));
+  StartDesktopMirroring(MediaSource::ForUnchosenDesktop(),
+                        mock_cast_sink_callback);
+  histogram_tester.ExpectTotalCount(histogram, 1);
 }
 
 }  // namespace media_router

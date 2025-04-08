@@ -52,9 +52,13 @@ class TabStatsTracker : public TabStripModelObserver,
 
   // Sets the |TabStatsTracker| global instance.
   static void SetInstance(std::unique_ptr<TabStatsTracker> instance);
+  // Clears and tears down the |TabStatsTracker| global instance.
+  static void ClearInstance();
 
-  // Returns the |TabStatsTracker| global instance.
+  // Returns the |TabStatsTracker| global instance. CHECKs there is an instance.
   static TabStatsTracker* GetInstance();
+  // Returns whether there is a global instance.
+  static bool HasInstance();
 
   // Registers a TabStatsObserver instance. Upon registering the initial state
   // of the observer is made to match the current browser/tab state.
@@ -73,6 +77,8 @@ class TabStatsTracker : public TabStripModelObserver,
  protected:
   FRIEND_TEST_ALL_PREFIXES(TabStatsTrackerBrowserTest,
                            TabDeletionGetsHandledProperly);
+  FRIEND_TEST_ALL_PREFIXES(TabStatsTrackerBrowserTest,
+                           TabsAndWindowsAreCountedAccurately);
 #if BUILDFLAG(IS_WIN)
   FRIEND_TEST_ALL_PREFIXES(TabStatsTrackerBrowserTest,
                            TestCalculateAndRecordNativeWindowVisibilities);
@@ -101,7 +107,7 @@ class TabStatsTracker : public TabStripModelObserver,
 
    private:
     // The delegate used to report the metrics.
-    raw_ptr<UmaStatsReportingDelegate> reporting_delegate_;
+    raw_ptr<UmaStatsReportingDelegate, DanglingUntriaged> reporting_delegate_;
 
     // The data store that houses the metrics.
     raw_ptr<TabStatsDataStore> data_store_;
@@ -117,10 +123,6 @@ class TabStatsTracker : public TabStripModelObserver,
   DailyEvent* daily_event_for_testing() { return daily_event_.get(); }
   UmaStatsReportingDelegate* reporting_delegate_for_testing() {
     return reporting_delegate_.get();
-  }
-  std::vector<std::unique_ptr<base::RepeatingTimer>>*
-  usage_interval_timers_for_testing() {
-    return &usage_interval_timers_;
   }
   base::RepeatingTimer* heartbeat_timer_for_testing() {
     return &heartbeat_timer_;
@@ -156,16 +158,11 @@ class TabStatsTracker : public TabStripModelObserver,
   void OnResume() override;
 
   // resource_coordinator::TabLifecycleObserver:
-  void OnDiscardedStateChange(content::WebContents* contents,
-                              ::mojom::LifecycleUnitDiscardReason reason,
-                              bool is_discarded) override;
-
-  void OnAutoDiscardableStateChange(content::WebContents* contents,
-                                    bool is_auto_discardable) override;
-
-  // Callback when an interval timer triggers.
-  void OnInterval(base::TimeDelta interval,
-                  TabStatsDataStore::TabsStateDuringIntervalMap* interval_map);
+  void OnTabLifecycleStateChange(
+      content::WebContents* contents,
+      mojom::LifecycleUnitState previous_state,
+      mojom::LifecycleUnitState new_state,
+      std::optional<LifecycleUnitDiscardReason> discard_reason) override;
 
   // Functions to call to start tracking a new tab.
   void OnInitialOrInsertedTab(content::WebContents* web_contents);
@@ -175,9 +172,6 @@ class TabStatsTracker : public TabStripModelObserver,
 
   // Function to call to report the tab heartbeat metrics.
   void OnHeartbeatEvent();
-
-  // The name of the histogram used to report that the daily event happened.
-  static const char kTabStatsDailyEventHistogramName[];
 
  private:
   // Observer used to be notified when the state of a WebContents changes or
@@ -202,10 +196,6 @@ class TabStatsTracker : public TabStripModelObserver,
   // The timer used to periodically check if the daily event should be
   // triggered.
   base::RepeatingTimer daily_event_timer_;
-
-  // The timers used to analyze how tabs are used during a given interval of
-  // time.
-  std::vector<std::unique_ptr<base::RepeatingTimer>> usage_interval_timers_;
 
   // The timer used to report the heartbeat metrics at regular interval.
   base::RepeatingTimer heartbeat_timer_;
@@ -236,14 +226,6 @@ class TabStatsTracker::UmaStatsReportingDelegate {
   // opened in a day.
   static const char kMaxWindowsInADayHistogramName[];
 
-  // The name of the histograms that records how tabs have been used during a
-  // given period of time. Will be appended with '_T' with T being the interval
-  // window (in seconds).
-  static const char kUnusedAndClosedInIntervalHistogramNameBase[];
-  static const char kUnusedTabsInIntervalHistogramNameBase[];
-  static const char kUsedAndClosedInIntervalHistogramNameBase[];
-  static const char kUsedTabsInIntervalHistogramNameBase[];
-
   // The name of the histograms that records the current number of tabs/windows.
   static const char kTabCountHistogramName[];
   static const char kWindowCountHistogramName[];
@@ -252,13 +234,23 @@ class TabStatsTracker::UmaStatsReportingDelegate {
   static const char kWindowWidthHistogramName[];
 
   // The names of the histograms that record daily discard/reload counts caused
-  // by external/urgent event.
+  // for each discard reason.
   static const char kDailyDiscardsExternalHistogramName[];
   static const char kDailyDiscardsUrgentHistogramName[];
   static const char kDailyDiscardsProactiveHistogramName[];
+  static const char kDailyDiscardsSuggestedHistogramName[];
+  static const char kDailyDiscardsFrozenWithGrowingMemoryHistogramName[];
   static const char kDailyReloadsExternalHistogramName[];
   static const char kDailyReloadsUrgentHistogramName[];
   static const char kDailyReloadsProactiveHistogramName[];
+  static const char kDailyReloadsSuggestedHistogramName[];
+  static const char kDailyReloadsFrozenWithGrowingMemoryHistogramName[];
+
+  // The names of the histograms that record duplicate tab data.
+  static const char kTabDuplicateCountSingleWindowHistogramName[];
+  static const char kTabDuplicateCountAllProfileWindowsHistogramName[];
+  static const char kTabDuplicatePercentageSingleWindowHistogramName[];
+  static const char kTabDuplicatePercentageAllProfileWindowsHistogramName[];
 
   UmaStatsReportingDelegate() = default;
 
@@ -277,21 +269,26 @@ class TabStatsTracker::UmaStatsReportingDelegate {
   // Report the tab heartbeat metrics.
   void ReportHeartbeatMetrics(const TabStatsDataStore::TabsStats& tab_stats);
 
-  // Report some information about how tabs have been used during a given
-  // interval of time.
-  void ReportUsageDuringInterval(
-      const TabStatsDataStore::TabsStateDuringIntervalMap& interval_map,
-      base::TimeDelta interval);
+  // Calculate and report the metrics related to tab duplicates, which are
+  // re-calculated each time rather than cached like the other metrics due to
+  // their complexity.
+  void ReportTabDuplicateMetrics();
 
  protected:
-  // Generates the name of the histograms that will track tab usage during a
-  // given period of time.
-  static std::string GetIntervalHistogramName(const char* base_name,
-                                              base::TimeDelta interval);
-
   // Checks if Chrome is running in background with no visible windows, virtual
   // for unittesting.
   virtual bool IsChromeBackgroundedWithoutWindows();
+
+ private:
+  struct DuplicateData {
+    DuplicateData();
+    DuplicateData(const DuplicateData&);
+    ~DuplicateData();
+
+    int duplicate_count;
+    int tab_count;
+    std::set<GURL> seen_urls;
+  };
 };
 
 }  // namespace metrics

@@ -19,6 +19,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/file_manager/path_util.h"
@@ -50,7 +51,7 @@ void DownloadsHandler::RegisterMessages() {
       "selectDownloadLocation",
       base::BindRepeating(&DownloadsHandler::HandleSelectDownloadLocation,
                           base::Unretained(this)));
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_OHOS)
   web_ui()->RegisterMessageCallback(
       "getDownloadLocationText",
       base::BindRepeating(&DownloadsHandler::HandleGetDownloadLocationText,
@@ -102,6 +103,9 @@ void DownloadsHandler::HandleSelectDownloadLocation(
       std::make_unique<ChromeSelectFilePolicy>(web_ui()->GetWebContents()));
   ui::SelectFileDialog::FileTypeInfo info;
   info.allowed_paths = ui::SelectFileDialog::FileTypeInfo::NATIVE_PATH;
+#if BUILDFLAG(IS_OHOS)
+  info.file_access_persist = true;
+#endif
   select_folder_dialog_->SelectFile(
       ui::SelectFileDialog::SELECT_FOLDER,
       l10n_util::GetStringUTF16(IDS_SETTINGS_DOWNLOAD_LOCATION),
@@ -110,18 +114,17 @@ void DownloadsHandler::HandleSelectDownloadLocation(
       web_ui()->GetWebContents()->GetTopLevelNativeWindow(), nullptr);
 }
 
-void DownloadsHandler::FileSelected(const base::FilePath& path,
-                                    int index,
-                                    void* params) {
+void DownloadsHandler::FileSelected(const ui::SelectedFileInfo& file,
+                                    int index) {
   select_folder_dialog_ = nullptr;
 
   base::RecordAction(UserMetricsAction("Options_SetDownloadDirectory"));
   PrefService* pref_service = profile_->GetPrefs();
-  pref_service->SetFilePath(prefs::kDownloadDefaultDirectory, path);
-  pref_service->SetFilePath(prefs::kSaveFileDefaultDirectory, path);
+  pref_service->SetFilePath(prefs::kDownloadDefaultDirectory, file.path());
+  pref_service->SetFilePath(prefs::kSaveFileDefaultDirectory, file.path());
 }
 
-void DownloadsHandler::FileSelectionCanceled(void* params) {
+void DownloadsHandler::FileSelectionCanceled() {
   select_folder_dialog_ = nullptr;
 }
 
@@ -137,6 +140,26 @@ void DownloadsHandler::HandleGetDownloadLocationText(
       base::Value(callback_id),
       base::Value(
           file_manager::util::GetPathDisplayTextForSettings(profile_, path)));
+}
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+void DownloadsHandler::HandleGetDownloadLocationText(
+    const base::Value::List& args) {
+  AllowJavascript();
+  CHECK_EQ(2U, args.size());
+  base::FilePath current;
+  const std::string& callback_id = args[0].GetString();
+
+  PrefService* pref_service = profile_->GetPrefs();
+  if (pref_service->FindPreference(prefs::kDownloadDefaultDirectory)
+          ->IsUserControlled()) {
+    current = pref_service->GetFilePath(prefs::kDownloadDefaultDirectory);
+  } else {
+    current = pref_service->GetFilePath(prefs::kDownloadDefaultDirectoryOhos);
+  }
+  ResolveJavascriptCallback(base::Value(callback_id),
+                            base::Value(current.value()));
 }
 #endif
 

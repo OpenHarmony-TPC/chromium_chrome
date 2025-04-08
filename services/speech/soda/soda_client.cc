@@ -6,13 +6,10 @@
 
 #include <tuple>
 
+#include "base/debug/dump_without_crashing.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
-
-#if BUILDFLAG(IS_MAC)
-#include "base/mac/mac_util.h"
-#endif
 
 namespace soda {
 
@@ -46,6 +43,10 @@ SodaClient::SodaClient(base::FilePath library_path)
 
   if (!lib_.is_valid()) {
     load_soda_result_ = LoadSodaResultValue::kBinaryInvalid;
+
+    // TODO(crbug.com/377332141): Remove once SODA version 1.1.1.8 is rolled out
+    // successfully.
+    base::debug::DumpWithoutCrashing();
   } else if (!(create_soda_func_ && delete_soda_func_ && add_audio_func_ &&
                soda_start_func_ && mark_done_func_)) {
     load_soda_result_ = LoadSodaResultValue::kFunctionPointerInvalid;
@@ -71,16 +72,6 @@ SodaClient::~SodaClient() {
 
   if (IsInitialized())
     delete_soda_func_(soda_async_handle_);
-
-#if BUILDFLAG(IS_MAC)
-  // Intentionally do not unload the libsoda.so library after the SodaClient
-  // is destroyed to prevent global destructor functions from running on an
-  // unloaded library. This only applies to older versions of MacOS since
-  // there have been no crashes on 10.15+, likely due to a change in the
-  // __cxa_atexit implementation.
-  if (base::mac::IsAtMostOS10_14())
-    std::ignore = lib_.release();
-#endif  // BUILDFLAG(IS_MAC)
 }
 
 NO_SANITIZE("cfi-icall")

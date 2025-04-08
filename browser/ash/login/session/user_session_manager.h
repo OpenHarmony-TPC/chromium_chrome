@@ -8,6 +8,7 @@
 #include <bitset>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -28,9 +29,9 @@
 #include "chrome/browser/ash/hats/hats_notification_controller.h"
 #include "chrome/browser/ash/login/signin/oauth2_login_manager.h"
 #include "chrome/browser/ash/login/signin/token_handle_util.h"
-#include "chrome/browser/ash/net/secure_dns_manager.h"
+#include "chrome/browser/ash/net/xdr_manager.h"
 #include "chrome/browser/ash/release_notes/release_notes_notification.h"
-#include "chrome/browser/ash/web_applications/help_app/help_app_notification_controller.h"
+#include "chrome/browser/ash/system_web_apps/apps/help_app/help_app_notification_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
 #include "chromeos/ash/components/login/auth/authenticator.h"
@@ -39,7 +40,6 @@
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "services/network/public/cpp/network_connection_tracker.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/ime/ash/input_method_manager.h"
 
 class AccountId;
@@ -50,13 +50,14 @@ class Profile;
 
 namespace user_manager {
 class User;
+class KnownUser;
 }  // namespace user_manager
 
 namespace ash {
 
 class AuthStatusConsumer;
 class OnboardingUserActivityCounter;
-class StubAuthenticatorBuilder;
+class AuthenticatorBuilder;
 class TokenHandleFetcher;
 class EolNotification;
 class InputEventsBlocker;
@@ -66,13 +67,14 @@ namespace test {
 class UserSessionManagerTestApi;
 }  // namespace test
 
-class UserSessionManagerDelegate
-    : public base::SupportsWeakPtr<UserSessionManagerDelegate> {
+class UserSessionManagerDelegate {
  public:
   // Called after profile is loaded and prepared for the session.
   // `browser_launched` will be true is browser has been launched, otherwise
   // it will return false and client is responsible on launching browser.
   virtual void OnProfilePrepared(Profile* profile, bool browser_launched) = 0;
+
+  virtual base::WeakPtr<UserSessionManagerDelegate> AsWeakPtr() = 0;
 
  protected:
   virtual ~UserSessionManagerDelegate();
@@ -104,8 +106,7 @@ class UserSessionManager
     : public OAuth2LoginManager::Observer,
       public network::NetworkConnectionTracker::NetworkConnectionObserver,
       public UserSessionManagerDelegate,
-      public user_manager::UserManager::UserSessionStateObserver,
-      public user_manager::UserManager::Observer {
+      public user_manager::UserManager::UserSessionStateObserver {
  public:
   // Context of StartSession calls.
   enum class StartSessionType {
@@ -160,9 +161,6 @@ class UserSessionManager
   UserSessionManager(const UserSessionManager&) = delete;
   UserSessionManager& operator=(const UserSessionManager&) = delete;
 
-  // Called when user is logged in to override base::DIR_HOME path.
-  static void OverrideHomedir();
-
   // Registers session related preferences.
   static void RegisterPrefs(PrefRegistrySimple* registry);
 
@@ -192,10 +190,6 @@ class UserSessionManager
                     bool has_active_session,
                     base::WeakPtr<UserSessionManagerDelegate> delegate);
 
-  // Perform additional actions once system wide notification
-  // "UserLoggedIn" has been sent.
-  void PerformPostUserLoggedInActions();
-
   // Restores authentication session after crash.
   void RestoreAuthenticationSession(Profile* profile);
 
@@ -214,10 +208,10 @@ class UserSessionManager
   // user sessions restoration is in progress.
   bool UserSessionsRestoreInProgress() const;
 
-  // Send the notification before creating the browser so additional objects
-  // that need the profile (e.g. the launcher) can be created first.
-  void NotifyUserProfileLoaded(Profile* profile,
-                               const user_manager::User* user);
+  // Called when user profile is loaded. Send the notification before creating
+  // the browser so additional objects that need the profile (e.g. the launcher)
+  // can be created first.
+  void OnUserProfileLoaded(Profile* profile, const user_manager::User* user);
 
   // Start the Tether service if it is ready.
   void StartTetherServiceIfPossible(Profile* profile);
@@ -225,8 +219,9 @@ class UserSessionManager
   // Show various notifications if applicable.
   void ShowNotificationsIfNeeded(Profile* profile);
 
-  // Launch various setting pages (or dialogs) if applicable.
-  void MaybeLaunchSettings(Profile* profile);
+  // Perform actions that were deferred from OOBE or onboarding flow once the
+  // browser is launched if applicable.
+  void PerformPostBrowserLaunchOOBEActions(Profile* profile);
 
   // Invoked when the user is logging in for the first time, or is logging in to
   // an ephemeral session type, such as guest or a public session.
@@ -334,11 +329,6 @@ class UserSessionManager
   // app has not yet been shown in the current milestone.
   void MaybeShowHelpAppReleaseNotesNotification(Profile* profile);
 
-  // Shows Help App discover notification if the profile meets the criteria and
-  // if a notification for the help app has not yet been shown in the current
-  // milestone.
-  void MaybeShowHelpAppDiscoverNotification(Profile* profile);
-
   using EolNotificationHandlerFactoryCallback =
       base::RepeatingCallback<std::unique_ptr<EolNotification>(
           Profile* profile)>;
@@ -374,9 +364,7 @@ class UserSessionManager
   // UserSessionManagerDelegate overrides:
   // Used when restoring user sessions after crash.
   void OnProfilePrepared(Profile* profile, bool browser_launched) override;
-
-  // user_manager::UserManager::Observer overrides:
-  void OnUsersSignInConstraintsChanged() override;
+  base::WeakPtr<UserSessionManagerDelegate> AsWeakPtr() override;
 
   void ChildAccountStatusReceivedCallback(Profile* profile);
 
@@ -413,6 +401,12 @@ class UserSessionManager
   void InitProfilePreferences(Profile* profile,
                               const UserContext& user_context);
 
+  // Initializes `user_context` and `known_user` with a device id. Does not
+  // overwrite the device id in `known_user` if it already exists.
+  void InitializeDeviceId(bool is_ephemeral_user,
+                          UserContext& user_context,
+                          user_manager::KnownUser& known_user);
+
   // Callback for Profile::CREATE_STATUS_INITIALIZED profile state.
   // Profile is created, extensions and promo resources are initialized.
   void UserProfileInitialized(Profile* profile, const AccountId& account_id);
@@ -428,8 +422,10 @@ class UserSessionManager
   // profile is ready.
   void InitializeBrowser(Profile* profile);
 
-  // Launches the Help App depending on flags / prefs / user.
-  void MaybeLaunchHelpApp(Profile* profile) const;
+  // Launches the Help App depending on flags / prefs / user. This should only
+  // be used for the first run experience, i.e. after the user completed the
+  // OOBE setup.
+  void MaybeLaunchHelpAppForFirstRun(Profile* profile) const;
 
   // Start user onboarding if the user is new.
   bool MaybeStartNewUserOnboarding(Profile* profile);
@@ -446,17 +442,9 @@ class UserSessionManager
   // Restores GAIA auth cookies for the created user profile from OAuth2 token.
   void RestoreAuthSessionImpl(Profile* profile, bool restore_from_auth_cookies);
 
-  // If `user` is not a kiosk app, sets session type as seen by extensions
-  // feature system according to `user`'s type.
-  // The value should eventually be set for kiosk users, too - that's done as
-  // part of special, kiosk user session bring-up.
-  // NOTE: This has to be called before profile is initialized - so it is set up
-  // when extension are loaded during profile initialization.
-  void InitNonKioskExtensionFeaturesSessionType(const user_manager::User* user);
-
   // Callback to process RetrieveActiveSessions() request results.
   void OnRestoreActiveSessions(
-      absl::optional<SessionManagerClient::ActiveSessionsMap> sessions);
+      std::optional<SessionManagerClient::ActiveSessionsMap> sessions);
 
   // Called by OnRestoreActiveSessions() when there're user sessions in
   // `pending_user_sessions_` that has to be restored one by one.
@@ -484,10 +472,6 @@ class UserSessionManager
       InputEventsBlocker* input_events_blocker,
       const locale_util::LanguageSwitchResult& result);
 
-  // Returns `true` if policy mandates that all mounts on device should
-  // be ephemeral.
-  bool IsEphemeralMountForced();
-
   // Callback invoked when `token_handle_util_` has finished.
   void OnTokenHandleObtained(const AccountId& account_id, bool success);
 
@@ -505,7 +489,7 @@ class UserSessionManager
 
   // Test API methods.
   void InjectAuthenticatorBuilder(
-      std::unique_ptr<StubAuthenticatorBuilder> builder);
+      std::unique_ptr<AuthenticatorBuilder> builder);
 
   // Controls whether browser instance should be launched after sign in
   // (used in tests).
@@ -536,7 +520,7 @@ class UserSessionManager
   base::WeakPtr<UserSessionManagerDelegate> delegate_;
 
   // Used to listen to network changes.
-  raw_ptr<network::NetworkConnectionTracker, ExperimentalAsh>
+  raw_ptr<network::NetworkConnectionTracker, LeakedDanglingUntriaged>
       network_connection_tracker_;
 
   // Authentication/user context.
@@ -544,7 +528,7 @@ class UserSessionManager
   scoped_refptr<Authenticator> authenticator_;
   StartSessionType start_session_type_ = StartSessionType::kNone;
 
-  std::unique_ptr<StubAuthenticatorBuilder> injected_authenticator_builder_;
+  std::unique_ptr<AuthenticatorBuilder> injected_authenticator_builder_;
 
   // True if the authentication context's cookie jar contains authentication
   // cookies from the authentication extension login flow.
@@ -620,11 +604,12 @@ class UserSessionManager
   // Mapped to `chrome::AttemptRestart`, except in tests.
   base::RepeatingClosure attempt_restart_closure_;
 
-  base::flat_set<Profile*> user_profile_initialized_called_;
+  base::flat_set<raw_ptr<Profile, CtnExperimental>>
+      user_profile_initialized_called_;
 
   std::unique_ptr<arc::AlwaysOnVpnManager> always_on_vpn_manager_;
 
-  std::unique_ptr<SecureDnsManager> secure_dns_manager_;
+  std::unique_ptr<XdrManager> xdr_manager_;
 
   std::unique_ptr<ChildPolicyObserver> child_policy_observer_;
 
@@ -640,6 +625,10 @@ class UserSessionManager
 
   // Callback that allows tests to inject a test EolNotification implementation.
   EolNotificationHandlerFactoryCallback eol_notification_handler_test_factory_;
+
+  // Whether `metrics::BeginFirstWebContentsProfiling()` has been called. Should
+  // only be called once per program lifetime.
+  bool has_recorded_first_web_contents_metrics_ = false;
 
   base::WeakPtrFactory<UserSessionManager> weak_factory_{this};
 };

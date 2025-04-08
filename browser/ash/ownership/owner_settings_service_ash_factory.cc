@@ -7,10 +7,10 @@
 #include "base/path_service.h"
 #include "chrome/browser/ash/ownership/fake_owner_settings_service.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/ash/settings/stub_cros_settings_provider.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/dbus/constants/dbus_paths.h"
 #include "components/ownership/owner_key_util.h"
 #include "components/ownership/owner_key_util_impl.h"
@@ -33,12 +33,11 @@ DeviceSettingsService* GetDeviceSettingsService() {
 }  // namespace
 
 OwnerSettingsServiceAshFactory::OwnerSettingsServiceAshFactory()
-    : ProfileKeyedServiceFactory(
-          "OwnerSettingsService",
-          ProfileSelections::Builder()
-              .WithGuest(ProfileSelections::kRegularProfileDefault)
-              .WithAshInternals(ProfileSelection::kNone)
-              .Build()) {}
+    : ProfileKeyedServiceFactory("OwnerSettingsService",
+                                 ProfileSelections::Builder()
+                                     .WithGuest(ProfileSelection::kOriginalOnly)
+                                     .WithAshInternals(ProfileSelection::kNone)
+                                     .Build()) {}
 
 OwnerSettingsServiceAshFactory::~OwnerSettingsServiceAshFactory() = default;
 
@@ -51,7 +50,8 @@ OwnerSettingsServiceAsh* OwnerSettingsServiceAshFactory::GetForBrowserContext(
 
 // static
 OwnerSettingsServiceAshFactory* OwnerSettingsServiceAshFactory::GetInstance() {
-  return base::Singleton<OwnerSettingsServiceAshFactory>::get();
+  static base::NoDestructor<OwnerSettingsServiceAshFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -89,20 +89,21 @@ bool OwnerSettingsServiceAshFactory::ServiceIsCreatedWithBrowserContext()
   return true;
 }
 
-KeyedService* OwnerSettingsServiceAshFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+OwnerSettingsServiceAshFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
   // If g_stub_cros_settings_provider_for_testing_ is set, we treat the current
   // user as the owner, and write settings directly to the stubbed provider.
   // This is done using the FakeOwnerSettingsService.
   if (g_stub_cros_settings_provider_for_testing_ != nullptr) {
-    return new FakeOwnerSettingsService(
+    return std::make_unique<FakeOwnerSettingsService>(
         g_stub_cros_settings_provider_for_testing_, profile,
         GetInstance()->GetOwnerKeyUtil());
   }
 
-  return new OwnerSettingsServiceAsh(GetDeviceSettingsService(), profile,
-                                     GetInstance()->GetOwnerKeyUtil());
+  return std::make_unique<OwnerSettingsServiceAsh>(
+      GetDeviceSettingsService(), profile, GetInstance()->GetOwnerKeyUtil());
 }
 
 }  // namespace ash

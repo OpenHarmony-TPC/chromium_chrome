@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "ash/components/arc/app/arc_app_constants.h"
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/notification_utils.h"
 #include "base/containers/contains.h"
@@ -28,6 +29,7 @@
 #include "chrome/browser/ash/child_accounts/time_limits/app_types.h"
 #include "chrome/browser/extensions/launch_util.h"
 #include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/notifications/notification_handler.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
@@ -100,14 +102,13 @@ std::u16string GetNotificationTitleFor(const std::u16string& app_name,
           IDS_APP_TIME_LIMIT_APP_TIME_LIMIT_SET_SYSTEM_NOTIFICATION_TITLE);
     default:
       NOTREACHED();
-      return base::EmptyString16();
   }
 }
 
 std::u16string GetNotificationMessageFor(
     const std::u16string& app_name,
     AppNotification notification,
-    absl::optional<base::TimeDelta> time_limit) {
+    std::optional<base::TimeDelta> time_limit) {
   switch (notification) {
     case AppNotification::kFiveMinutes:
       return l10n_util::GetStringFUTF16(
@@ -135,7 +136,6 @@ std::u16string GetNotificationMessageFor(
           IDS_APP_TIME_LIMIT_APP_AVAILABLE_NOTIFICATION_MESSAGE, app_name);
     default:
       NOTREACHED();
-      return base::EmptyString16();
   }
 }
 
@@ -154,8 +154,6 @@ std::string GetNotificationIdFor(const std::string& app_name,
       break;
     default:
       NOTREACHED();
-      notification_id = "";
-      break;
   }
   return base::StrCat({notification_id, app_name});
 }
@@ -268,7 +266,7 @@ bool AppTimeController::IsExtensionAllowlisted(
   return true;
 }
 
-absl::optional<base::TimeDelta> AppTimeController::GetTimeLimitForApp(
+std::optional<base::TimeDelta> AppTimeController::GetTimeLimitForApp(
     const std::string& app_service_id,
     apps::AppType app_type) const {
   const app_time::AppId app_id =
@@ -327,7 +325,7 @@ void AppTimeController::TimeLimitsPolicyUpdated(const std::string& pref_name) {
   app_registry_->SetReportingEnabled(
       policy::ActivityReportingEnabledFromDict(policy));
 
-  absl::optional<base::TimeDelta> new_reset_time =
+  std::optional<base::TimeDelta> new_reset_time =
       policy::ResetTimeFromDict(policy);
   // TODO(agawronska): Propagate the information about reset time change.
   if (new_reset_time && *new_reset_time != limits_reset_time_)
@@ -367,7 +365,7 @@ void AppTimeController::TimeLimitsAllowlistPolicyUpdated(
 
 void AppTimeController::ShowAppTimeLimitNotification(
     const AppId& app_id,
-    const absl::optional<base::TimeDelta>& time_limit,
+    const std::optional<base::TimeDelta>& time_limit,
     AppNotification notification) {
   DCHECK_NE(AppNotification::kUnknown, notification);
 
@@ -444,7 +442,7 @@ base::Time AppTimeController::GetNextResetTime() const {
 
 void AppTimeController::ScheduleForTimeLimitReset() {
   if (reset_timer_.IsRunning())
-    reset_timer_.AbandonAndStop();
+    reset_timer_.Stop();
 
   base::TimeDelta time_until_reset = GetNextResetTime() - base::Time::Now();
   reset_timer_.Start(FROM_HERE, time_until_reset,
@@ -534,8 +532,8 @@ void AppTimeController::OpenFamilyLinkApp() {
 void AppTimeController::ShowNotificationForApp(
     const std::string& app_name,
     AppNotification notification,
-    absl::optional<base::TimeDelta> time_limit,
-    absl::optional<gfx::ImageSkia> icon) {
+    std::optional<base::TimeDelta> time_limit,
+    std::optional<gfx::ImageSkia> icon) {
   DCHECK(notification == AppNotification::kFiveMinutes ||
          notification == AppNotification::kOneMinute ||
          notification == AppNotification::kTimeLimitChanged ||
@@ -584,7 +582,7 @@ void AppTimeController::ShowNotificationForApp(
   }
 
   auto* notification_display_service =
-      NotificationDisplayService::GetForProfile(profile_);
+      NotificationDisplayServiceFactory::GetForProfile(profile_);
   if (!notification_display_service)
     return;
 

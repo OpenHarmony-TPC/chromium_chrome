@@ -7,6 +7,7 @@
 
 #include "base/time/time.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
+#include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 
 class Profile;
@@ -18,8 +19,9 @@ class Window;
 namespace apps {
 
 // This is used for logging, so do not remove or reorder existing entries.
-// This should be kept in sync with GetAppTypeNameSet in
-// c/b/apps/app_service/app_platform_metrics_service.cc.
+// This should be kept in sync with:
+// * c/b/apps/app_service/metrics/app_platform_metrics_utils.cc:kAppTypeNameMap
+// * tools/metrics/histograms/metadata/apps/histograms.xml:AppType
 enum class AppTypeName {
   kUnknown = 0,
   kArc = 1,
@@ -27,7 +29,7 @@ enum class AppTypeName {
   kCrostini = 3,
   kChromeApp = 4,
   kWeb = 5,
-  kMacOs = 6,
+  // kMacOs = 6,  // Removed.
   kPluginVm = 7,
   kStandaloneBrowser = 8,
   kRemote = 9,
@@ -60,7 +62,7 @@ enum class AppTypeNameV2 {
   kChromeAppTab = 5,
   kWebWindow = 6,
   kWebTab = 7,
-  kMacOs = 8,
+  // kMacOs = 8, // Removed.
   kPluginVm = 9,
   kStandaloneBrowser = 10,
   kRemote = 11,
@@ -93,7 +95,6 @@ constexpr char kBuiltInHistogramName[] = "BuiltIn";
 constexpr char kCrostiniHistogramName[] = "Crostini";
 constexpr char kChromeAppHistogramName[] = "ChromeApp";
 constexpr char kWebAppHistogramName[] = "WebApp";
-constexpr char kMacOsHistogramName[] = "MacOs";
 constexpr char kPluginVmHistogramName[] = "PluginVm";
 constexpr char kStandaloneBrowserHistogramName[] = "StandaloneBrowser";
 constexpr char kRemoteHistogramName[] = "RemoteApp";
@@ -136,13 +137,6 @@ AppTypeName GetAppTypeNameForStandaloneBrowserChromeApp(
 // window. Otherwise, return true.
 bool IsAshBrowserWindow(aura::Window* window);
 
-// Returns true if `window` is a lacros browser window. Otherwise, returns false
-// for non Lacros windows, or Lacros standalone app windows.
-bool IsLacrosBrowserWindow(Profile* profile, aura::Window* window);
-
-// Returns true if `window` is a lacros window. Otherwise, returns false.
-bool IsLacrosWindow(aura::Window* window);
-
 // Returns true if the app with |app_id| is opened as a tab in a browser window.
 // Otherwise, return false.
 bool IsAppOpenedInTab(AppTypeName app_type_name, const std::string& app_id);
@@ -172,18 +166,29 @@ std::string GetAppTypeHistogramName(apps::AppTypeName app_type_name);
 // Returns AppTypeName for the given `app_type_name` string.
 AppTypeName GetAppTypeNameFromString(const std::string& app_type_name);
 
-// Returns true if we are allowed to record UKM for `profile`. Otherwise,
-// returns false.
-bool ShouldRecordUkm(Profile* profile);
+// Returns InstallReason string to use in UMA names.
+std::string GetInstallReason(InstallReason install_reason);
+
+// Returns true if it's permitted to record App keyed metrics (AppKM) for
+// `app_id` in `profile`.
+bool ShouldRecordAppKMForAppId(Profile* profile,
+                               const AppRegistryCache& cache,
+                               const std::string& app_id);
+
+// Returns true if we are allowed to record AppKM for `profile`. When recording
+// AppKM for a particular app, prefer `ShouldRecordAppKMForAppId`, which also
+// checks this function. This function can be used to disable functionality
+// entirely when AppKM is not allowed.
+bool ShouldRecordAppKM(Profile* profile);
 
 // Due to the privacy limitation, only ARC apps, Chrome apps and web apps(PWA),
 // system web apps, builtin apps, Borealis apps, and Crostini apps are recorded
 // because they are synced to server/cloud, or part of OS. Other app types,
 // e.g. remote apps, etc, are not recorded. So returns true if the
-// app_type_name is allowed to record UKM. Otherwise, returns false.
+// app_type_name is allowed to record AppKM. Otherwise, returns false.
 //
 // See DD: go/app-platform-metrics-using-ukm for details.
-bool ShouldRecordUkmForAppTypeName(AppType app_type_name);
+bool ShouldRecordAppKMForAppTypeName(AppType app_type_name);
 
 int GetUserTypeByDeviceTypeMetrics();
 
@@ -197,6 +202,9 @@ AppTypeName GetAppTypeName(Profile* profile,
 // app registry cache, so can identify apps which aren't registered with app
 // service.
 AppType GetAppType(Profile* profile, const std::string& app_id);
+
+// Returns true if |app_id| is a system web app for a given |profile|.
+bool IsSystemWebApp(Profile* profile, const std::string& app_id);
 
 }  // namespace apps
 

@@ -13,7 +13,7 @@ import './security_keys_bio_enroll_dialog.js';
 import './security_keys_set_pin_dialog.js';
 import './security_keys_reset_dialog.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -23,14 +23,14 @@ import {Router} from '../router.js';
 
 import {getTemplate} from './security_keys_subpage.html.js';
 
-interface SecurityKeysSubpageElement {
+export interface SecurityKeysSubpageElement {
   $: {
     setPINButton: HTMLElement,
     resetButton: HTMLElement,
   };
 }
 
-class SecurityKeysSubpageElement extends PolymerElement {
+export class SecurityKeysSubpageElement extends PolymerElement {
   static get is() {
     return 'security-keys-subpage';
   }
@@ -46,6 +46,14 @@ class SecurityKeysSubpageElement extends PolymerElement {
         readOnly: true,
         value() {
           return loadTimeData.getBoolean('enableSecurityKeysBioEnrollment');
+        },
+      },
+
+      enableManagePhones_: {
+        type: Boolean,
+        readOnly: true,
+        value() {
+          return loadTimeData.getBoolean('enableSecurityKeysManagePhones');
         },
       },
 
@@ -96,9 +104,8 @@ class SecurityKeysSubpageElement extends PolymerElement {
 
   private onCredentialManagementDialogClosed_() {
     this.showCredentialManagementDialog_ = false;
-    const toFocus =
-        this.shadowRoot!.querySelector<HTMLElement>(
-            '#credentialManagementButton');
+    const toFocus = this.shadowRoot!.querySelector<HTMLElement>(
+        '#credentialManagementButton');
     assert(toFocus);
     focusWithoutInk(toFocus);
   }
@@ -122,6 +129,12 @@ class SecurityKeysSubpageElement extends PolymerElement {
         this.shadowRoot!.querySelector<HTMLElement>('#bioEnrollButton');
     assert(toFocus);
     focusWithoutInk(toFocus);
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'security-keys-subpage': SecurityKeysSubpageElement;
   }
 }
 

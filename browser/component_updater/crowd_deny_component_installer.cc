@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/component_updater/crowd_deny_component_installer.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,7 +23,6 @@
 #include "base/values.h"
 #include "chrome/browser/permissions/crowd_deny_preload_data.h"
 #include "components/permissions/permission_uma_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -79,7 +84,7 @@ void CrowdDenyComponentInstallerPolicy::ComponentReady(
   DVLOG(1) << "Crowd Deny component ready, version " << version.GetString()
            << " in " << install_dir.value();
 
-  absl::optional<int> format =
+  std::optional<int> format =
       manifest.FindInt(kCrowdDenyManifestPreloadDataFormatKey);
   if (!format || *format != kCrowdDenyManifestPreloadDataCurrentFormat) {
     DVLOG(1) << "Crowd Deny component bailing out.";
