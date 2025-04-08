@@ -14,7 +14,6 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/permissions/constants.h"
 #include "components/permissions/permission_manager.h"
-#include "components/permissions/permission_result.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permissions_client.h"
 #include "components/prefs/pref_service.h"
@@ -36,7 +35,7 @@ OriginStatus GetOriginStatus(Profile* profile, const GURL& origin) {
           ->GetSettingsMap(profile)
           ->GetWebsiteSetting(
               origin, GURL(),
-              ContentSettingsType::PERMISSION_AUTOREVOCATION_DATA, nullptr);
+              ContentSettingsType::PERMISSION_AUTOREVOCATION_DATA);
 
   OriginStatus status;
 
@@ -77,7 +76,6 @@ void SetOriginStatus(Profile* profile,
           base::Value(std::move(dict)));
 }
 
-#if BUILDFLAG(FULL_SAFE_BROWSING)
 void RevokePermission(const GURL& origin, Profile* profile) {
   permissions::PermissionsClient::Get()
       ->GetSettingsMap(profile)
@@ -93,7 +91,6 @@ void RevokePermission(const GURL& origin, Profile* profile) {
       ContentSettingsType::NOTIFICATIONS,
       permissions::PermissionSourceUI::AUTO_REVOCATION, origin, profile);
 }
-#endif
 }  // namespace
 
 PermissionRevocationRequest::PermissionRevocationRequest(
@@ -183,7 +180,6 @@ void PermissionRevocationRequest::OnSiteReputationReady(
       default:
         should_revoke_permission = false;
     }
-#if BUILDFLAG(FULL_SAFE_BROWSING)
     DCHECK(g_browser_process->safe_browsing_service());
     if (should_revoke_permission &&
         g_browser_process->safe_browsing_service()) {
@@ -195,12 +191,10 @@ void PermissionRevocationRequest::OnSiteReputationReady(
               weak_factory_.GetWeakPtr(), site_reputation));
       return;
     }
-#endif
   }
   NotifyCallback(Outcome::PERMISSION_NOT_REVOKED);
 }
 
-#if BUILDFLAG(FULL_SAFE_BROWSING)
 void PermissionRevocationRequest::OnSafeBrowsingVerdictReceived(
     const CrowdDenyPreloadData::SiteReputation* site_reputation,
     CrowdDenySafeBrowsingRequest::Verdict verdict) {
@@ -223,7 +217,6 @@ void PermissionRevocationRequest::OnSafeBrowsingVerdictReceived(
     NotifyCallback(Outcome::PERMISSION_NOT_REVOKED);
   }
 }
-#endif
 
 void PermissionRevocationRequest::NotifyCallback(Outcome outcome) {
   if (outcome == Outcome::PERMISSION_NOT_REVOKED &&

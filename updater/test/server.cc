@@ -5,7 +5,6 @@
 #include "chrome/updater/test/server.h"
 
 #include <algorithm>
-#include <cctype>
 #include <iterator>
 #include <list>
 #include <memory>
@@ -13,10 +12,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/check.h"
 #include "base/logging.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/time/time.h"
 #include "chrome/updater/test/http_request.h"
 #include "chrome/updater/test/integration_test_commands.h"
 #include "chrome/updater/test/integration_tests_impl.h"
@@ -25,9 +26,9 @@
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/zlib/google/compression_utils.h"
 
-namespace updater {
-namespace test {
+namespace updater::test {
 namespace {
 
 std::string SerializeRequest(HttpRequest& request) {
@@ -37,9 +38,9 @@ std::string SerializeRequest(HttpRequest& request) {
   request_strs.push_back(
       base::StringPrintf("Path: %s", request.relative_url.c_str()));
   request_strs.push_back("Headers: {");
-  for (auto& header : request.headers) {
-    request_strs.push_back(base::StringPrintf(
-        "    %s: %s", header.first.c_str(), header.second.c_str()));
+  for (const auto& [name, value] : request.headers) {
+    request_strs.push_back(
+        base::StringPrintf("    %s: %s", name.c_str(), value.c_str()));
   }
   request_strs.push_back("}");
   request_strs.push_back(
@@ -50,16 +51,16 @@ std::string SerializeRequest(HttpRequest& request) {
 
 }  // namespace
 
-ScopedServer::ScopedServer(
-    scoped_refptr<IntegrationTestCommands> integration_test_commands)
-    : test_server_(std::make_unique<net::test_server::EmbeddedTestServer>()),
-      integration_test_commands_(integration_test_commands) {
+ScopedServer::ScopedServer() {
   test_server_->RegisterRequestHandler(base::BindRepeating(
       &ScopedServer::HandleRequest, base::Unretained(this)));
   EXPECT_TRUE((test_server_handle_ = test_server_->StartAndReturnHandle()));
+}
 
-  integration_test_commands_->EnterTestMode(update_url(), crash_upload_url(),
-                                            device_management_url());
+ScopedServer::ScopedServer(
+    scoped_refptr<IntegrationTestCommands> integration_test_commands)
+    : ScopedServer() {
+  ConfigureTestMode(integration_test_commands.get());
 }
 
 ScopedServer::~ScopedServer() {
@@ -73,10 +74,18 @@ ScopedServer::~ScopedServer() {
   }
 }
 
+void ScopedServer::ConfigureTestMode(IntegrationTestCommands* commands) {
+  CHECK(commands);
+  commands->EnterTestMode(update_url(), crash_upload_url(),
+                          device_management_url(), {}, base::Minutes(5),
+                          base::Seconds(2), base::Seconds(10));
+}
+
 void ScopedServer::ExpectOnce(request::MatcherGroup request_matcher_group,
-                              const std::string& response_body) {
+                              const std::string& response_body,
+                              net::HttpStatusCode http_status_code) {
   request_matcher_groups_.push_back(std::move(request_matcher_group));
-  response_bodies_.push_back(response_body);
+  responses_.push_back(std::make_pair(http_status_code, response_body));
 }
 
 std::unique_ptr<net::test_server::HttpResponse> ScopedServer::HandleRequest(
@@ -100,12 +109,48 @@ std::unique_ptr<net::test_server::HttpResponse> ScopedServer::HandleRequest(
     response->set_code(net::HTTP_INTERNAL_SERVER_ERROR);
     return response;
   }
-  response->set_code(net::HTTP_OK);
-  response->set_content(response_bodies_.front());
+
+  if (base::StartsWith(request.relative_url, download_path()) &&
+      !download_delay_.is_zero()) {
+    VLOG(0) << "Delay download response by: " << download_delay_;
+    response.reset(new net::test_server::DelayedHttpResponse(download_delay_));
+  }
+
+  const auto& [response_code, response_body] = responses_.front();
+  response->set_code(response_code);
+  if (base::StartsWith(request.relative_url, device_management_path())) {
+    response->set_content_type("application/x-protobuf");
+  }
+  if (base::StartsWith(request.relative_url, proxy_pac_path())) {
+    VLOG(1) << "PAC proxy settings: [ " << response_body << "]";
+  }
+
+  if (gzip_response_) {
+    if (!request.headers.contains("Accept-Encoding") ||
+        request.headers["Accept-Encoding"].find("gzip") == std::string::npos) {
+      VLOG(0) << "gzip `Accept-Encoding` not found in request.";
+      ADD_FAILURE() << "gzip `Accept-Encoding` not found in request, "
+                    << SerializeRequest(request);
+      response->set_code(net::HTTP_INTERNAL_SERVER_ERROR);
+      return response;
+    }
+
+    std::string compressed_body;
+    if (!compression::GzipCompress(response_body, &compressed_body)) {
+      VLOG(0) << "gzip compression failed.";
+      ADD_FAILURE() << "gzip compression failed, " << SerializeRequest(request);
+      response->set_code(net::HTTP_INTERNAL_SERVER_ERROR);
+      return response;
+    }
+    response->AddCustomHeader("Content-Encoding", "gzip");
+    response->set_content(compressed_body);
+  } else {
+    response->set_content(response_body);
+  }
+
   request_matcher_groups_.pop_front();
-  response_bodies_.pop_front();
+  responses_.pop_front();
   return response;
 }
 
-}  // namespace test
-}  // namespace updater
+}  // namespace updater::test

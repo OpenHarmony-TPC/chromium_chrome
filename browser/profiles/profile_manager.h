@@ -35,8 +35,8 @@
 #include "chrome/browser/ui/browser_list_observer.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-class AccountProfileMapper;
+#if BUILDFLAG(IS_ANDROID)
+class ProfileManagerAndroid;
 #endif
 
 class DeleteProfileHelper;
@@ -111,13 +111,13 @@ class ProfileManager : public Profile::Delegate {
   static Profile* GetActiveUserProfile();
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   // Load and return the initial profile for browser. On ChromeOS, this returns
   // either the sign-in profile or the active user profile depending on whether
   // browser is started normally or is restarted after crash. On other
   // platforms, this returns the default profile.
   static Profile* CreateInitialProfile();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 
   void AddObserver(ProfileManagerObserver* observer);
   void RemoveObserver(ProfileManagerObserver* observer);
@@ -130,7 +130,7 @@ class ProfileManager : public Profile::Delegate {
   // acceptable. Returns nullptr if loading the new profile fails.
   // TODO(bauerb): Migrate calls from other code to `GetProfileByPath()`, then
   // make this method private.
-  virtual Profile* GetProfile(const base::FilePath& profile_dir);
+  Profile* GetProfile(const base::FilePath& profile_dir);
 
   // Returns regular or off-the-record profile given its profile key.
   static Profile* GetProfileFromProfileKey(ProfileKey* profile_key);
@@ -154,9 +154,6 @@ class ProfileManager : public Profile::Delegate {
                          bool incognito,
                          ProfileLoadedCallback callback);
 
-  // Whether a new profile can be created at |path|.
-  bool CanCreateProfileAtPath(const base::FilePath& path) const;
-
   // Creates or loads the profile located at |profile_path|.
   // Should be called on the UI thread.
   // Params:
@@ -174,7 +171,7 @@ class ProfileManager : public Profile::Delegate {
 
   // Returns true if the profile pointer is known to point to an existing
   // profile.
-  virtual bool IsValidProfile(const void* profile);
+  bool IsValidProfile(const void* profile);
 
   // Returns the directory where the first created profile is stored,
   // relative to the user data directory currently in use.
@@ -230,15 +227,10 @@ class ProfileManager : public Profile::Delegate {
   // Returns the full path to be used for guest profiles.
   static base::FilePath GetGuestProfilePath();
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
   // Returns the full path to be used for system profiles.
   static base::FilePath GetSystemProfilePath();
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Returns the full path of the primary profile on lacros.
-  static base::FilePath GetPrimaryUserProfilePath();
-#endif
+#endif  // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
 
   // Get the path of the next profile directory and increment the internal
   // count.
@@ -262,15 +254,11 @@ class ProfileManager : public Profile::Delegate {
   // profile specfic desktop shortcuts.
   ProfileShortcutManager* profile_shortcut_manager();
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  AccountProfileMapper* GetAccountProfileMapper();
-#endif
-
 #if !BUILDFLAG(IS_ANDROID)
   // Searches for the latest active profile that respects |predicate|, already
   // loaded preferably. Returns nullopt if no existing profile respects all the
   // conditions.
-  absl::optional<base::FilePath> FindLastActiveProfile(
+  std::optional<base::FilePath> FindLastActiveProfile(
       base::RepeatingCallback<bool(ProfileAttributesEntry*)> predicate);
 
   DeleteProfileHelper& GetDeleteProfileHelper();
@@ -338,6 +326,16 @@ class ProfileManager : public Profile::Delegate {
   // Notifies `OnProfileMarkedForPermanentDeletion()` to the observers.
   void NotifyOnProfileMarkedForPermanentDeletion(Profile* profile);
 
+  bool has_updated_last_opened_profiles() const {
+    return has_updated_last_opened_profiles_;
+  }
+
+  // Sets the last-used profile to `last_active`, and also sets that profile's
+  // last-active time to now. If the profile has a primary account, this also
+  // sets its last-active time to now.
+  // Public so that `ProfileManagerAndroid` can call it.
+  void SetProfileAsLastUsed(Profile* last_active);
+
  protected:
   // Creates a new profile by calling into the profile's profile creation
   // method. Virtual so that unittests can return a TestingProfile instead
@@ -354,11 +352,6 @@ class ProfileManager : public Profile::Delegate {
   void set_do_final_services_init(bool do_final_services_init) {
     do_final_services_init_ = do_final_services_init;
   }
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  void SetAccountProfileMapperForTests(
-      std::unique_ptr<AccountProfileMapper> mapper);
-#endif
 
  private:
   friend class TestingProfileManager;
@@ -450,13 +443,7 @@ class ProfileManager : public Profile::Delegate {
   // The profile used can be overridden by using --login-profile on cros.
   Profile* GetActiveUserOrOffTheRecordProfile();
 
-  // Adds a pre-existing Profile object to the set managed by this
-  // ProfileManager.
-  // The Profile should not already be managed by this ProfileManager.
-  // Returns true if the profile was added, false otherwise.
-  bool AddProfile(std::unique_ptr<Profile> profile);
-
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
   // Unloads the `Profile` at `profile_dir` from the manager and destroys the
   // `Profile` C++ object. If it's an ephemeral profile, also deletes the
   // profile permanently and nukes the `profile_dir` directory from disk.
@@ -466,7 +453,10 @@ class ProfileManager : public Profile::Delegate {
   // Synchronously creates and returns a profile. This handles both the full
   // creation and adds it to the set managed by this ProfileManager. Returns
   // null if creation fails.
-  Profile* CreateAndInitializeProfile(const base::FilePath& profile_dir);
+  Profile* CreateAndInitializeProfile(
+      const base::FilePath& profile_dir,
+      base::OnceCallback<std::unique_ptr<Profile>(const base::FilePath&)>
+          factory);
 
   // Registers profile with given info. Returns pointer to created ProfileInfo
   // entry.
@@ -481,6 +471,9 @@ class ProfileManager : public Profile::Delegate {
   // also return a profile that is not fully initialized yet, so this method
   // should be used carefully.
   Profile* GetProfileByPathInternal(const base::FilePath& path) const;
+
+  // Whether a new profile can be created at |path|.
+  bool CanCreateProfileAtPath(const base::FilePath& path) const;
 
   // Adds |profile| to the profile attributes storage if it hasn't been added
   // yet.
@@ -498,12 +491,6 @@ class ProfileManager : public Profile::Delegate {
 #if !BUILDFLAG(IS_ANDROID)
   void OnBrowserOpened(Browser* browser);
   void OnBrowserClosed(Browser* browser);
-
-  // Updates the last active user of the current session.
-  // On Chrome OS updating this user will have no effect since when browser is
-  // restored after crash there's another preference that is taken into account.
-  // See kLastActiveUser in UserManagerBase.
-  void UpdateLastUser(Profile* last_active);
 
   class BrowserListObserver : public ::BrowserListObserver {
    public:
@@ -535,13 +522,10 @@ class ProfileManager : public Profile::Delegate {
   // to an access to this member.
   std::unique_ptr<ProfileAttributesStorage> profile_attributes_storage_;
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Object that maintains a mapping between accounts known to the OS and Chrome
-  // profiles. AccountProfileMapper has dependencies on other members of this
-  // class. It must be destroyed after `profiles_info_` and before
-  // `profile_attributes_storage_`.
-  std::unique_ptr<AccountProfileMapper> account_profile_mapper_;
-#endif
+#if BUILDFLAG(IS_ANDROID)
+  // Handles the communication with the Java ProfileManager.
+  std::unique_ptr<ProfileManagerAndroid> profile_manager_android_;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   base::CallbackListSubscription closing_all_browsers_subscription_;
 
@@ -573,8 +557,13 @@ class ProfileManager : public Profile::Delegate {
   std::map<Profile*, int> browser_counts_;
   // On startup we launch the active profiles in the order they became active
   // during the last run. This is why they are kept in a list, not in a set.
-  std::vector<Profile*> active_profiles_;
+  std::vector<raw_ptr<Profile, VectorExperimental>> active_profiles_;
   bool closing_all_browsers_ = false;
+
+  // Tracks whether the the list of last opened Profiles has been updated for
+  // the current session. If this is false `GetLastOpenedProfiles()` will return
+  // the list of Profiles that were open the last time Chrome was running.
+  bool has_updated_last_opened_profiles_ = false;
 
   // Becomes true once the refcount for any profile hits 0. This is used to
   // measure how often DestroyProfileOnBrowserClose logic triggers.

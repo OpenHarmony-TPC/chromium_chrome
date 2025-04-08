@@ -18,26 +18,30 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/updater/extension_updater.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "components/update_client/update_query_params.h"
-#include "content/public/browser/notification_service.h"
+#include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/browser/view_type_utils.h"
 #include "extensions/browser/warning_service.h"
 #include "extensions/browser/warning_set.h"
 #include "extensions/common/api/runtime.h"
 #include "extensions/common/constants.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/common/manifest.h"
+#include "extensions/common/mojom/view_type.mojom.h"
 #include "net/base/backoff_entry.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 #endif
@@ -154,7 +158,7 @@ void ChromeRuntimeAPIDelegate::RemoveUpdateObserver(
 }
 
 void ChromeRuntimeAPIDelegate::ReloadExtension(
-    const std::string& extension_id) {
+    const extensions::ExtensionId& extension_id) {
   const Extension* extension =
       extensions::ExtensionRegistry::Get(browser_context_)
           ->GetInstalledExtension(extension_id);
@@ -206,7 +210,10 @@ void ChromeRuntimeAPIDelegate::ReloadExtension(
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&extensions::WarningService::NotifyWarningsOnUI,
-                       browser_context_, warnings));
+                       // TODO(crbug.com/40061562): Remove
+                       // `UnsafeDanglingUntriaged`
+                       base::UnsafeDanglingUntriaged(browser_context_),
+                       warnings));
   } else {
     // We can't call ReloadExtension directly, since when this method finishes
     // it tries to decrease the reference count for the extension, which fails
@@ -218,8 +225,9 @@ void ChromeRuntimeAPIDelegate::ReloadExtension(
   }
 }
 
-bool ChromeRuntimeAPIDelegate::CheckForUpdates(const std::string& extension_id,
-                                               UpdateCheckCallback callback) {
+bool ChromeRuntimeAPIDelegate::CheckForUpdates(
+    const extensions::ExtensionId& extension_id,
+    UpdateCheckCallback callback) {
   ExtensionSystem* system = ExtensionSystem::Get(browser_context_);
   extensions::ExtensionService* service = system->extension_service();
   ExtensionUpdater* updater = service->updater();
@@ -281,11 +289,8 @@ bool ChromeRuntimeAPIDelegate::GetPlatformInfo(PlatformInfo* info) {
     info->os = extensions::api::runtime::PlatformOs::kLinux;
   } else if (strcmp(os, "openbsd") == 0) {
     info->os = extensions::api::runtime::PlatformOs::kOpenbsd;
-  } else if (strcmp(os, "fuchsia") == 0) {
-    info->os = extensions::api::runtime::PlatformOs::kFuchsia;
   } else {
     NOTREACHED() << "Platform not supported: " << os;
-    return false;
   }
 
   const char* arch = update_client::UpdateQueryParams::GetArch();
@@ -303,7 +308,6 @@ bool ChromeRuntimeAPIDelegate::GetPlatformInfo(PlatformInfo* info) {
     info->arch = extensions::api::runtime::PlatformArch::kMips64;
   } else {
     NOTREACHED();
-    return false;
   }
 
   const char* nacl_arch = update_client::UpdateQueryParams::GetNaclArch();
@@ -319,7 +323,6 @@ bool ChromeRuntimeAPIDelegate::GetPlatformInfo(PlatformInfo* info) {
     info->nacl_arch = extensions::api::runtime::PlatformNaclArch::kMips64;
   } else {
     NOTREACHED();
-    return false;
   }
 
   return true;
@@ -327,7 +330,7 @@ bool ChromeRuntimeAPIDelegate::GetPlatformInfo(PlatformInfo* info) {
 
 bool ChromeRuntimeAPIDelegate::RestartDevice(std::string* error_message) {
 #if BUILDFLAG(IS_CHROMEOS)
-  if (profiles::IsKioskSession()) {
+  if (chromeos::IsKioskSession()) {
     chromeos::PowerManagerClient::Get()->RequestRestart(
         power_manager::REQUEST_RESTART_API, "chrome.runtime API");
     return true;
@@ -345,14 +348,35 @@ bool ChromeRuntimeAPIDelegate::OpenOptionsPage(
                                                               browser_context);
 }
 
+int ChromeRuntimeAPIDelegate::GetDeveloperToolsWindowId(
+    content::WebContents* developer_tools_web_contents) {
+  // For developer tools contexts, first check the docked state. If the
+  // developer tools are docked, return the window ID of the inspected web
+  // contents. Otherwise, return the window ID of the developer tools window.
+  CHECK_EQ(extensions::GetViewType(developer_tools_web_contents),
+           extensions::mojom::ViewType::kDeveloperTools);
+  CHECK(DevToolsWindow::IsDevToolsWindow(developer_tools_web_contents));
+
+  DevToolsWindow* devtools_window =
+      DevToolsWindow::AsDevToolsWindow(developer_tools_web_contents);
+  content::WebContents* inspected_web_contents =
+      devtools_window->GetInspectedWebContents();
+  bool is_docked = inspected_web_contents->GetTopLevelNativeWindow() ==
+                   developer_tools_web_contents->GetTopLevelNativeWindow();
+
+  content::WebContents* web_contents_to_use =
+      is_docked ? inspected_web_contents : developer_tools_web_contents;
+  return extensions::ExtensionTabUtil::GetWindowIdOfTab(web_contents_to_use);
+}
+
 void ChromeRuntimeAPIDelegate::OnExtensionUpdateFound(
-    const std::string& id,
+    const extensions::ExtensionId& extension_id,
     const base::Version& version) {
   if (version.IsValid()) {
     UpdateCheckResult result = UpdateCheckResult(
         extensions::api::runtime::RequestUpdateCheckStatus::kUpdateAvailable,
         version.GetString());
-    CallUpdateCallbacks(id, std::move(result));
+    CallUpdateCallbacks(extension_id, std::move(result));
   }
 }
 
@@ -370,7 +394,7 @@ void ChromeRuntimeAPIDelegate::OnExtensionInstalled(
 }
 
 void ChromeRuntimeAPIDelegate::UpdateCheckComplete(
-    const std::string& extension_id) {
+    const extensions::ExtensionId& extension_id) {
   ExtensionSystem* system = ExtensionSystem::Get(browser_context_);
   extensions::ExtensionService* service = system->extension_service();
   const Extension* update = service->GetPendingExtensionUpdate(extension_id);
@@ -395,7 +419,7 @@ void ChromeRuntimeAPIDelegate::UpdateCheckComplete(
 }
 
 void ChromeRuntimeAPIDelegate::CallUpdateCallbacks(
-    const std::string& extension_id,
+    const extensions::ExtensionId& extension_id,
     const UpdateCheckResult& result) {
   auto it = update_check_info_.find(extension_id);
   if (it == update_check_info_.end()) {

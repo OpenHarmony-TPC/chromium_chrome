@@ -2,18 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
-
 #include "build/build_config.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/frame/window_frame_util.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/new_tab_button.h"
 #include "chrome/browser/ui/views/tabs/tab_search_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/views/layout/flex_layout.h"
 
 class TabStripRegionViewBrowserTest : public InProcessBrowserTest {
@@ -25,12 +30,6 @@ class TabStripRegionViewBrowserTest : public InProcessBrowserTest {
   ~TabStripRegionViewBrowserTest() override = default;
 
   void SetUp() override {
-    // Ensure we run our tests with the tab search button placement configured
-    // for the tab strip region view.
-#if BUILDFLAG(IS_CHROMEOS)
-    scoped_feature_list_.InitAndDisableFeature(
-        features::kChromeOSTabSearchCaptionButton);
-#endif
     InProcessBrowserTest::SetUp();
   }
 
@@ -46,15 +45,19 @@ class TabStripRegionViewBrowserTest : public InProcessBrowserTest {
 
   TabStrip* tab_strip() { return browser_view()->tabstrip(); }
 
+  TabSearchContainer* tab_search_container() {
+    return tab_strip_region_view()->tab_search_container();
+  }
+
   TabSearchButton* tab_search_button() {
-    return tab_strip_region_view()->tab_search_button();
+    return tab_search_container()->tab_search_button();
   }
 
   views::View* new_tab_button() {
     return tab_strip_region_view()->new_tab_button();
   }
 
- private:
+ protected:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
@@ -93,10 +96,8 @@ IN_PROC_BROWSER_TEST_F(TabStripRegionViewBrowserTest, TestForwardFocus) {
   move_forward_over_tab(tab_2);
   EXPECT_TRUE(new_tab_button()->HasFocus());
 
-#if !BUILDFLAG(IS_WIN)
   press_right();
   EXPECT_TRUE(tab_search_button()->HasFocus());
-#endif  // !BUILDFLAG(IS_WIN)
 
   // Focus should cycle back around to tab_0.
   press_right();
@@ -131,10 +132,9 @@ IN_PROC_BROWSER_TEST_F(TabStripRegionViewBrowserTest, TestReverseFocus) {
   EXPECT_TRUE(tab_0->HasFocus());
 
   // Pressing left should immediately cycle back around to the last button.
-#if !BUILDFLAG(IS_WIN)
   press_left();
   EXPECT_TRUE(tab_search_button()->HasFocus());
-#endif  // !BUILDFLAG(IS_WIN)
+
   press_left();
   EXPECT_TRUE(new_tab_button()->HasFocus());
 
@@ -159,8 +159,22 @@ IN_PROC_BROWSER_TEST_F(TabStripRegionViewBrowserTest, TestBeginEndFocus) {
   tab_strip_region_view()->RequestFocus();
   EXPECT_TRUE(tab_strip_region_view()->pane_has_focus());
 
-  // The first tab should be active.
-  EXPECT_TRUE(tab_0->HasFocus());
+  if (!tabs::GetTabSearchTrailingTabstrip(browser()->profile())) {
+    EXPECT_TRUE(tab_0->HasFocus());
+
+#if !BUILDFLAG(IS_WIN)
+    EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
+        tab_strip_region_view()->end_key()));
+    EXPECT_TRUE(new_tab_button()->HasFocus());
+#endif  // !BUILDFLAG(IS_WIN)
+
+    EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
+        tab_strip_region_view()->home_key()));
+    EXPECT_TRUE(tab_search_button()->HasFocus());
+
+  } else {
+    // The first tab should be active.
+    EXPECT_TRUE(tab_0->HasFocus());
 
 #if !BUILDFLAG(IS_WIN)
   EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
@@ -171,14 +185,78 @@ IN_PROC_BROWSER_TEST_F(TabStripRegionViewBrowserTest, TestBeginEndFocus) {
   EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
       tab_strip_region_view()->home_key()));
   EXPECT_TRUE(tab_0->HasFocus());
+  }
 }
 
-#if !BUILDFLAG(IS_WIN)
 IN_PROC_BROWSER_TEST_F(TabStripRegionViewBrowserTest,
-                       TestSearchButtonIsEndAligned) {
-  const int kRightMargin =
-      GetLayoutConstant(TABSTRIP_REGION_VIEW_CONTROL_PADDING);
-  EXPECT_EQ(tab_strip_region_view()->GetLocalBounds().right() - kRightMargin,
-            tab_search_button()->bounds().right());
+                       DefaultTestSearchContainerIsEndAligned) {
+  if (!tabs::GetTabSearchTrailingTabstrip(browser()->profile())) {
+    // The TabSearchContainer is calculated as controls padding away from the
+    // first tab (not including bottom corner radius)
+    const int tab_search_container_expected_end =
+        tab_strip_region_view()->GetTabStripContainerForTesting()->x() +
+        TabStyle::Get()->GetBottomCornerRadius() -
+        GetLayoutConstant(TAB_STRIP_PADDING);
+
+    EXPECT_EQ(tab_search_container()->bounds().right(),
+              tab_search_container_expected_end);
+    return;
+  }
+
+  const int tab_search_container_expected_end =
+      tab_strip_region_view()->GetLocalBounds().right() -
+      GetLayoutConstant(TAB_STRIP_PADDING);
+  EXPECT_EQ(tab_search_container()->bounds().right(),
+            tab_search_container_expected_end);
 }
-#endif  // !BUILDFLAG(IS_WIN)
+
+class TabSearchForcedPositionTest : public TabStripRegionViewBrowserTest,
+                                    public testing::WithParamInterface<bool> {
+ public:
+  TabSearchForcedPositionTest() : TabSearchForcedPositionTest(GetParam()) {}
+
+  explicit TabSearchForcedPositionTest(bool is_right_aligned):
+      is_right_aligned_(is_right_aligned) {
+    scoped_feature_list_.InitWithFeatures({tabs::kTabSearchPositionSetting},
+                                          {});
+  }
+
+  void SetUp() override {
+    TabStripRegionViewBrowserTest::SetUp();
+    tabs::SetTabSearchRightAlignedForTesting(is_right_aligned_);
+  }
+
+  TabSearchForcedPositionTest(const TabSearchForcedPositionTest&) = delete;
+  TabSearchForcedPositionTest& operator=(const TabSearchForcedPositionTest&) =
+      delete;
+  ~TabSearchForcedPositionTest() override = default;
+
+ private:
+  bool is_right_aligned_;
+};
+
+IN_PROC_BROWSER_TEST_P(TabSearchForcedPositionTest,
+                       DefaultTestSearchContainerIsEndAligned) {
+  if (!tabs::GetTabSearchTrailingTabstrip(browser()->profile())) {
+    // The TabSearchContainer is calculated as controls padding away from the
+    // first tab (not including bottom corner radius)
+    const int tab_search_container_expected_end =
+        tab_strip_region_view()->GetTabStripContainerForTesting()->x() +
+        TabStyle::Get()->GetBottomCornerRadius() -
+        GetLayoutConstant(TAB_STRIP_PADDING);
+
+    EXPECT_EQ(tab_search_container()->bounds().right(),
+              tab_search_container_expected_end);
+    return;
+  }
+
+  const int tab_search_container_expected_end =
+      tab_strip_region_view()->GetLocalBounds().right() -
+      GetLayoutConstant(TAB_STRIP_PADDING);
+  EXPECT_EQ(tab_search_container()->bounds().right(),
+            tab_search_container_expected_end);
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         TabSearchForcedPositionTest,
+                         ::testing::Values(true, false));

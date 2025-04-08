@@ -82,7 +82,7 @@ QueryResultManager::QueryResultManager(MediaRouter* router) : router_(router) {
   DCHECK(router_);
   auto observer = std::make_unique<AnyMediaSinksObserver>(router_, this);
   observer->Init();
-  sinks_observers_[absl::nullopt] = std::move(observer);
+  sinks_observers_[std::nullopt] = std::move(observer);
 }
 
 QueryResultManager::~QueryResultManager() {
@@ -269,7 +269,7 @@ bool QueryResultManager::AreSourcesValidForCastMode(
   bool has_cast_mode = cast_mode_it != cast_mode_sources_.end();
   // If a source has already been registered, then it must be associated with
   // |cast_mode|.
-  return base::ranges::none_of(sources, [=](const MediaSource& source) {
+  return base::ranges::none_of(sources, [=, this](const MediaSource& source) {
     return base::Contains(sinks_observers_, source) &&
            (!has_cast_mode || !base::Contains(cast_mode_it->second, source));
   });

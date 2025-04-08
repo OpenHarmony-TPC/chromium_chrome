@@ -9,7 +9,6 @@
 #include "base/strings/pattern.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
@@ -19,7 +18,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/web_applications/extension_status_utils.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -32,31 +30,22 @@
 #include "extensions/browser/extension_host_test_helper.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
-#include "extensions/browser/notification_types.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/test/extension_test_message_listener.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/login/demo_mode/demo_session.h"
-#include "chrome/browser/ash/login/demo_mode/demo_setup_test_utils.h"
-#endif
 
 namespace keys = extension_management_api_constants;
 
 namespace extensions {
 namespace {
 
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
 bool ExpectChromeAppsDefaultEnabled() {
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   return false;
 #else
   return true;
 #endif
 }
-#endif
 
 }  // namespace
 
@@ -74,7 +63,7 @@ class ExtensionManagementApiBrowserTest : public ExtensionBrowserTest {
       const ExtensionManagementApiBrowserTest&) = delete;
 
  protected:
-  bool CrashEnabledExtension(const std::string& extension_id) {
+  bool CrashEnabledExtension(const ExtensionId& extension_id) {
     ExtensionHost* background_host =
         ProcessManager::Get(browser()->profile())
             ->GetBackgroundHostForExtension(extension_id);
@@ -133,10 +122,6 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
   ASSERT_TRUE(listener2.WaitUntilSatisfied());
 }
 
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
-// TODO(crbug.com/1288199): Run these tests on Chrome OS with both Ash and
-// Lacros processes active.
-
 IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
                        LaunchApp) {
   ExtensionTestMessageListener listener1("app_launched");
@@ -174,57 +159,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
     EXPECT_FALSE(launched.was_satisfied());
   }
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-
-IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
-                       NoDemoModeAppLaunchSourceReported) {
-  EXPECT_FALSE(ash::DemoSession::IsDeviceInDemoMode());
-
-  base::HistogramTester histogram_tester;
-  // Should see 0 apps launched from the API in the histogram at first.
-  histogram_tester.ExpectTotalCount("DemoMode.AppLaunchSource", 0);
-
-  ExtensionTestMessageListener app_launched_listener("app_launched");
-  ASSERT_TRUE(
-      LoadExtension(test_data_dir_.AppendASCII("management/packaged_app"),
-                    {.context_type = ContextType::kFromManifest}));
-  ASSERT_TRUE(
-      LoadExtension(test_data_dir_.AppendASCII("management/launch_app")));
-  ASSERT_TRUE(app_launched_listener.WaitUntilSatisfied());
-
-  // Should still see 0 apps launched from the API in the histogram.
-  histogram_tester.ExpectTotalCount("DemoMode.AppLaunchSource", 0);
-}
-
-IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
-                       DemoModeAppLaunchSourceReported) {
-  ash::test::LockDemoDeviceInstallAttributes();
-  EXPECT_TRUE(ash::DemoSession::IsDeviceInDemoMode());
-
-  base::HistogramTester histogram_tester;
-  // Should see 0 apps launched from the Launcher in the histogram at first.
-  histogram_tester.ExpectTotalCount("DemoMode.AppLaunchSource", 0);
-
-  ExtensionTestMessageListener app_launched_listener("app_launched");
-  ASSERT_TRUE(
-      LoadExtension(test_data_dir_.AppendASCII("management/packaged_app"),
-                    {.context_type = ContextType::kFromManifest}));
-  ASSERT_TRUE(
-      LoadExtension(test_data_dir_.AppendASCII("management/launch_app")));
-  ASSERT_TRUE(app_launched_listener.WaitUntilSatisfied());
-
-  // Should see 1 app launched from the highlights app  in the histogram.
-  histogram_tester.ExpectUniqueSample(
-      "DemoMode.AppLaunchSource",
-      ash::DemoSession::AppLaunchSource::kExtensionApi, 1);
-}
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
-// TODO(crbug.com/1288199): Run these tests on Chrome OS with both Ash and
-// Lacros processes active.
 IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
                        LaunchAppFromBackground) {
   ExtensionTestMessageListener listener1("success");
@@ -263,8 +198,6 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
   }
 }
 
-#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
-
 IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
                        SelfUninstall) {
   // Wait for the helper script to finish before loading the primary
@@ -280,15 +213,8 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
   ASSERT_TRUE(listener2.WaitUntilSatisfied());
 }
 
-#if BUILDFLAG(IS_MAC)
-// Flaky on Mac: https://crbug.com/1132581
-#define MAYBE_SelfUninstallNoPermissions DISABLED_SelfUninstallNoPermissions
-#else
-#define MAYBE_SelfUninstallNoPermissions SelfUninstallNoPermissions
-#endif
-
 IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
-                       MAYBE_SelfUninstallNoPermissions) {
+                       SelfUninstallNoPermissions) {
   // Wait for the helper script to finish before loading the primary
   // extension. This ensures that the onUninstall event listener is
   // added before we proceed to the uninstall step.
@@ -324,7 +250,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionManagementApiBrowserTest,
       test_data_dir_.AppendASCII("api_test/management/packaged_app"), 1);
   ASSERT_TRUE(app);
 
-  const std::string app_id = app->id();
+  const extensions::ExtensionId app_id = app->id();
 
   scoped_refptr<ManagementCreateAppShortcutFunction> create_shortcut_function(
       new ManagementCreateAppShortcutFunction());
@@ -357,7 +283,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionManagementApiBrowserTest,
   // The management API should list this extension.
   scoped_refptr<ManagementGetAllFunction> function =
       base::MakeRefCounted<ManagementGetAllFunction>();
-  absl::optional<base::Value> result =
+  std::optional<base::Value> result =
       test_utils::RunFunctionAndReturnSingleResult(function.get(), "[]",
                                                    browser()->profile());
   ASSERT_TRUE(result->is_list());

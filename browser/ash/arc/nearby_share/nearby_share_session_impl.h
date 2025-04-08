@@ -13,7 +13,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ash/arc/nearby_share/share_info_file_handler.h"
-#include "chrome/browser/ash/fusebox/fusebox_moniker.h"
 #include "chrome/browser/sharesheet/sharesheet_types.h"
 #include "chromeos/components/sharesheet/constants.h"
 #include "components/services/app_service/public/cpp/intent.h"
@@ -86,10 +85,6 @@ class NearbyShareSessionImpl : public mojom::NearbyShareSessionHost,
   // Converts |share_info_| to |apps::IntentPtr| type.
   apps::IntentPtr ConvertShareIntentInfoToIntent();
 
-  // Converts |share_info_| to |apps::IntentPtr| type, using fusebox::Monikers
-  // to share files.
-  apps::IntentPtr ConvertShareIntentInfoToMonikerFileIntent();
-
   void OnNearbyShareBubbleShown(sharesheet::SharesheetResult result);
 
   // Called when top level directory for Nearby Share cache files is created.
@@ -102,7 +97,7 @@ class NearbyShareSessionImpl : public mojom::NearbyShareSessionHost,
   // Calls |SharesheetService.ShowNearbyShareBubble()| to start the Chrome
   // Nearby Share user flow and display bubble in ARC window.
   void ShowNearbyShareBubbleInArcWindow(
-      absl::optional<base::File::Error> result = absl::nullopt);
+      std::optional<base::File::Error> result = std::nullopt);
 
   // Called back once the session duration exceeds the maximum duration.
   void OnTimerFired();
@@ -148,10 +143,10 @@ class NearbyShareSessionImpl : public mojom::NearbyShareSessionHost,
   mojom::ShareIntentInfoPtr share_info_;
 
   // Unowned pointer.
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
 
   // Unowned pointer
-  raw_ptr<aura::Window, ExperimentalAsh> arc_window_ = nullptr;
+  raw_ptr<aura::Window, DanglingUntriaged> arc_window_ = nullptr;
 
   // Created and lives on the UI thread but is destructed on the IO thread.
   scoped_refptr<ShareInfoFileHandler> file_handler_;
@@ -178,10 +173,6 @@ class NearbyShareSessionImpl : public mojom::NearbyShareSessionHost,
 
   // Callback when the Nearby Share Session is finished and no longer needed.
   SessionFinishedCallback session_finished_callback_;
-
-  // Monikers which have been created for sharing files from ARC. These should
-  // be destroyed once sharing is complete.
-  std::vector<fusebox::Moniker> shared_monikers_;
 
   // Test callback to override the sharesheet bubble in test environments.
   SharesheetCallback test_sharesheet_callback_;

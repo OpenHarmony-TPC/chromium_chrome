@@ -4,7 +4,7 @@
 
 #import "chrome/browser/ui/cocoa/history_menu_cocoa_controller.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/user_metrics.h"
 #include "chrome/app/chrome_command_ids.h"  // IDC_HISTORY_MENU
@@ -28,7 +28,7 @@ using content::Referrer;
 
 namespace {
 
-// TODO(crbug.com/1334721): Single-tab windows get restored as tabs instead of
+// TODO(crbug.com/40228273): Single-tab windows get restored as tabs instead of
 // windows, which is confusing.
 //
 // NB: Takes |node| by value, because the HistoryMenuBridge could be destroyed
@@ -65,7 +65,8 @@ void OpenURLForItem(HistoryMenuBridge::HistoryItem node,
 }  // namespace
 
 @implementation HistoryMenuCocoaController {
-  raw_ptr<HistoryMenuBridge, DanglingUntriaged> _bridge;  // weak; owns us
+  raw_ptr<HistoryMenuBridge, AcrossTasksDanglingUntriaged>
+      _bridge;  // weak; owns us
 }
 
 - (instancetype)initWithBridge:(HistoryMenuBridge*)bridge {
@@ -77,9 +78,7 @@ void OpenURLForItem(HistoryMenuBridge::HistoryItem node,
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem*)menuItem {
-  AppController* controller =
-      base::mac::ObjCCastStrict<AppController>([NSApp delegate]);
-  return ![controller keyWindowIsModal];
+  return ![AppController.sharedController keyWindowIsModal];
 }
 
 // Open the URL of the given history item in the current tab.

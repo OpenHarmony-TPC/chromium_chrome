@@ -23,7 +23,6 @@ content::WebContents* GetActiveWebContents(PlatformBrowserTest* browser_test) {
       return model->GetActiveWebContents();
   }
   NOTREACHED() << "No active TabModel??";
-  return nullptr;
 #else
   return browser_test->browser()->tab_strip_model()->GetActiveWebContents();
 #endif
@@ -36,7 +35,6 @@ Profile* GetProfile(PlatformBrowserTest* browser_test) {
       return model->GetProfile();
   }
   NOTREACHED() << "No active TabModel??";
-  return nullptr;
 #else
   return browser_test->browser()->profile();
 #endif

@@ -8,20 +8,23 @@ import android.content.Context;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageView;
 
 import androidx.annotation.LayoutRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.widget.AppCompatImageView;
 
-import org.chromium.chrome.browser.omnibox.R;
-import org.chromium.chrome.browser.omnibox.suggestions.base.SuggestionLayout.LayoutParams;
+import org.chromium.build.annotations.CheckDiscard;
+import org.chromium.build.annotations.MockedInTests;
 import org.chromium.chrome.browser.util.KeyNavigationUtil;
 import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Base layout for common suggestion types. Includes support for a configurable suggestion content
@@ -29,12 +32,24 @@ import java.util.List;
  *
  * @param <T> The type of View being wrapped by this container.
  */
+@MockedInTests
 public class BaseSuggestionView<T extends View> extends SuggestionLayout {
-    private final List<ImageView> mActionButtons;
-    private final ImageView mDecorationIcon;
-    private final @NonNull ActionChipsView mActionChips;
-    private T mContentView;
-    private @Nullable Runnable mOnFocusViaSelectionListener;
+    public final @NonNull ImageView decorationIcon;
+    public final @NonNull T contentView;
+    public final @NonNull ActionChipsView actionChipsView;
+    public final @NonNull RoundedCornerOutlineProvider decorationIconOutline;
+    private final @NonNull List<ImageView> mActionButtons;
+    private @NonNull Optional<Runnable> mOnFocusViaSelectionListener = Optional.empty();
+
+    /**
+     * Constructs a new suggestion view and inflates supplied layout as the contents view.
+     *
+     * @param context The context used to construct the suggestion view.
+     * @param layoutId Layout ID to be inflated as the contents view.
+     */
+    public BaseSuggestionView(Context context, @LayoutRes int layoutId) {
+        this((T) LayoutInflater.from(context).inflate(layoutId, null));
+    }
 
     /**
      * Constructs a new suggestion view.
@@ -47,23 +62,25 @@ public class BaseSuggestionView<T extends View> extends SuggestionLayout {
         setClickable(true);
         setFocusable(true);
 
-        mDecorationIcon = new ImageView(getContext());
-        mDecorationIcon.setOutlineProvider(new RoundedCornerOutlineProvider(
-                getResources().getDimensionPixelSize(R.dimen.default_rounded_corner_radius)));
-        mDecorationIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        addView(mDecorationIcon,
+        decorationIconOutline = new RoundedCornerOutlineProvider();
+
+        decorationIcon = new ImageView(getContext());
+        decorationIcon.setOutlineProvider(decorationIconOutline);
+        decorationIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        addView(
+                decorationIcon,
                 LayoutParams.forViewType(LayoutParams.SuggestionViewType.DECORATION));
 
-        mActionChips = new ActionChipsView(getContext());
-        mActionChips.setVisibility(GONE);
-        addView(mActionChips, LayoutParams.forViewType(LayoutParams.SuggestionViewType.FOOTER));
+        actionChipsView = new ActionChipsView(getContext());
+        actionChipsView.setVisibility(GONE);
+        addView(actionChipsView, LayoutParams.forViewType(LayoutParams.SuggestionViewType.FOOTER));
 
         mActionButtons = new ArrayList<>();
 
-        mContentView = view;
-        mContentView.setLayoutParams(
+        contentView = view;
+        contentView.setLayoutParams(
                 LayoutParams.forViewType(LayoutParams.SuggestionViewType.CONTENT));
-        addView(mContentView);
+        addView(contentView);
     }
 
     /**
@@ -119,48 +136,27 @@ public class BaseSuggestionView<T extends View> extends SuggestionLayout {
         mActionButtons.subList(desiredViewCount, mActionButtons.size()).clear();
     }
 
-    /**
-     * Constructs a new suggestion view and inflates supplied layout as the contents view.
-     *
-     * @param context The context used to construct the suggestion view.
-     * @param layoutId Layout ID to be inflated as the contents view.
-     */
-    public BaseSuggestionView(Context context, @LayoutRes int layoutId) {
-        this((T) LayoutInflater.from(context).inflate(layoutId, null));
-    }
-
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         // Pass event to ActionChips first in case this key event is appropriate for ActionChip
         // navigation.
-        if (mActionChips.onKeyDown(keyCode, event)) return true;
-
-        boolean isRtl = getLayoutDirection() == LAYOUT_DIRECTION_RTL;
-        if ((!isRtl && KeyNavigationUtil.isGoRight(event))
-                || (isRtl && KeyNavigationUtil.isGoLeft(event))) {
-            // For views with exactly 1 action icon, continue to support the arrow key triggers.
-            if (mActionButtons.size() == 1) {
-                mActionButtons.get(0).callOnClick();
-            }
+        if (actionChipsView.onKeyDown(keyCode, event)) return true;
+        if (KeyNavigationUtil.isEnter(event)) {
+            return performClick();
         }
+        return super_onKeyDown(keyCode, event);
+    }
+
+    @CheckDiscard("inlined")
+    @VisibleForTesting
+    /* package */ boolean super_onKeyDown(int keyCode, KeyEvent event) {
         return super.onKeyDown(keyCode, event);
     }
 
     @Override
     public void setSelected(boolean selected) {
         super.setSelected(selected);
-        if (selected && mOnFocusViaSelectionListener != null) {
-            mOnFocusViaSelectionListener.run();
-        }
-    }
-
-    /** @return Embedded suggestion content view. */
-    public T getContentView() {
-        return mContentView;
-    }
-
-    public ActionChipsView getActionChipsView() {
-        return mActionChips;
+        if (selected) mOnFocusViaSelectionListener.ifPresent(Runnable::run);
     }
 
     /**
@@ -169,16 +165,44 @@ public class BaseSuggestionView<T extends View> extends SuggestionLayout {
      * @param listener The listener to be notified about selection.
      */
     void setOnFocusViaSelectionListener(@Nullable Runnable listener) {
-        mOnFocusViaSelectionListener = listener;
-    }
-
-    /** @return Widget holding suggestion decoration icon. */
-    ImageView getSuggestionImageView() {
-        return mDecorationIcon;
+        mOnFocusViaSelectionListener = Optional.ofNullable(listener);
     }
 
     @Override
     public boolean isFocused() {
-        return super.isFocused() || (isSelected() && !isInTouchMode());
+        return super_isFocused() || isSelected();
+    }
+
+    @CheckDiscard("inlined")
+    @VisibleForTesting
+    /* package */ boolean super_isFocused() {
+        return super.isFocused();
+    }
+
+    /** Set the lead-in spacing for the action chip carousel. */
+    public void setActionChipLeadInSpacing(int spacing) {
+        actionChipsView.setLeadInSpacing(spacing);
+    }
+
+    /**
+     * Sets whether the decoration should be "large" or not; see {@link
+     * SuggestionLayout#SuggestionLayout(Context)} for the exact size difference.
+     */
+    public void setUseLargeDecorationIcon(boolean useLargeDecorationIcon) {
+        ViewGroup.LayoutParams oldParams = decorationIcon.getLayoutParams();
+        if (useLargeDecorationIcon) {
+            decorationIcon.setLayoutParams(SuggestionLayout.LayoutParams.forLargeDecorationIcon());
+        } else {
+            decorationIcon.setLayoutParams(
+                    LayoutParams.forViewType(LayoutParams.SuggestionViewType.DECORATION));
+        }
+
+        decorationIcon.getLayoutParams().width = oldParams.width;
+        decorationIcon.getLayoutParams().height = oldParams.height;
+    }
+
+    /** Control whether the decoration icon should be visible. */
+    public void setShowDecorationIcon(boolean shouldShow) {
+        decorationIcon.setVisibility(shouldShow ? VISIBLE : GONE);
     }
 }

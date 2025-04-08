@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/tab_strip/tab_strip_ui.h"
 
 #include "chrome/browser/profiles/profile.h"
@@ -35,10 +40,6 @@
 #include "ui/gfx/color_utils.h"
 #include "ui/webui/color_change_listener/color_change_handler.h"
 
-// These data types must be in all lowercase.
-const char kWebUITabIdDataType[] = "application/vnd.chromium.tab";
-const char kWebUITabGroupIdDataType[] = "application/vnd.chromium.tabgroup";
-
 TabStripUI::TabStripUI(content::WebUI* web_ui)
     : ui::MojoWebUIController(web_ui, /* enable_chrome_send */ true),
       webui_load_timer_(web_ui->GetWebContents(),
@@ -58,7 +59,6 @@ TabStripUI::TabStripUI(content::WebUI* web_ui)
 
   html_source->AddString("tabIdDataType", kWebUITabIdDataType);
   html_source->AddString("tabGroupIdDataType", kWebUITabGroupIdDataType);
-  webui::SetupChromeRefresh2023(html_source);
 
   static constexpr webui::LocalizedString kStrings[] = {
       {"tabListTitle", IDS_ACCNAME_TAB_LIST},
@@ -73,6 +73,8 @@ TabStripUI::TabStripUI(content::WebUI* web_ui)
       {"hidConnected", IDS_TAB_AX_LABEL_HID_CONNECTED_FORMAT},
       {"serialConnected", IDS_TAB_AX_LABEL_SERIAL_CONNECTED_FORMAT},
       {"mediaRecording", IDS_TAB_AX_LABEL_MEDIA_RECORDING_FORMAT},
+      {"audioRecording", IDS_TAB_AX_LABEL_AUDIO_RECORDING_FORMAT},
+      {"videoRecording", IDS_TAB_AX_LABEL_VIDEO_RECORDING_FORMAT},
       {"audioMuting", IDS_TAB_AX_LABEL_AUDIO_MUTING_FORMAT},
       {"tabCapturing", IDS_TAB_AX_LABEL_DESKTOP_CAPTURING_FORMAT},
       {"pipPlaying", IDS_TAB_AX_LABEL_PIP_PLAYING_FORMAT},
@@ -132,11 +134,13 @@ void TabStripUI::Deinitialize() {
 }
 
 void TabStripUI::LayoutChanged() {
-  if (page_handler_)
+  if (page_handler_) {
     page_handler_->NotifyLayoutChanged();
+  }
 }
 
 void TabStripUI::ReceivedKeyboardFocus() {
-  if (page_handler_)
+  if (page_handler_) {
     page_handler_->NotifyReceivedKeyboardFocus();
+  }
 }

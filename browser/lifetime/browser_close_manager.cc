@@ -39,7 +39,7 @@ void ShowInProgressDownloads(Profile* profile) {
   DownloadCoreService* download_core_service =
       DownloadCoreServiceFactory::GetForBrowserContext(profile);
   if (download_core_service &&
-      download_core_service->NonMaliciousDownloadCount() > 0) {
+      download_core_service->BlockingShutdownCount() > 0) {
     chrome::ScopedTabbedBrowserDisplayer displayer(profile);
     chrome::ShowDownloads(displayer.browser());
   }
@@ -47,11 +47,8 @@ void ShowInProgressDownloads(Profile* profile) {
 
 }  // namespace
 
-BrowserCloseManager::BrowserCloseManager() : current_browser_(nullptr) {
-}
-
-BrowserCloseManager::~BrowserCloseManager() {
-}
+BrowserCloseManager::BrowserCloseManager() : current_browser_(nullptr) {}
+BrowserCloseManager::~BrowserCloseManager() = default;
 
 void BrowserCloseManager::StartClosingBrowsers() {
   // If the session is ending or a silent exit was requested, skip straight to
@@ -67,8 +64,9 @@ void BrowserCloseManager::StartClosingBrowsers() {
 
 void BrowserCloseManager::CancelBrowserClose() {
   browser_shutdown::SetTryingToQuit(false);
-  for (auto* browser : *BrowserList::GetInstance())
+  for (Browser* browser : *BrowserList::GetInstance()) {
     browser->ResetTryToCloseWindow();
+  }
 }
 
 void BrowserCloseManager::TryToCloseBrowsers() {
@@ -77,7 +75,7 @@ void BrowserCloseManager::TryToCloseBrowsers() {
   // stop closing. CallBeforeUnloadHandlers prompts the user and calls
   // OnBrowserReportCloseable with the result. If the user confirms the close,
   // this will trigger TryToCloseBrowsers to try again.
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     if (browser->TryToCloseWindow(
             false, base::BindRepeating(
                        &BrowserCloseManager::OnBrowserReportCloseable, this))) {
@@ -89,15 +87,17 @@ void BrowserCloseManager::TryToCloseBrowsers() {
 }
 
 void BrowserCloseManager::OnBrowserReportCloseable(bool proceed) {
-  if (!current_browser_)
+  if (!current_browser_) {
     return;
+  }
 
   current_browser_ = nullptr;
 
-  if (proceed)
+  if (proceed) {
     TryToCloseBrowsers();
-  else
+  } else {
     CancelBrowserClose();
+  }
 }
 
 void BrowserCloseManager::CheckForDownloadsInProgress() {
@@ -105,8 +105,7 @@ void BrowserCloseManager::CheckForDownloadsInProgress() {
   // Mac has its own in-progress downloads prompt in app_controller_mac.mm.
   CloseBrowsers();
 #else
-  int download_count =
-      DownloadCoreService::NonMaliciousDownloadCountAllProfiles();
+  int download_count = DownloadCoreService::BlockingShutdownCountAllProfiles();
   if (download_count == 0) {
     CloseBrowsers();
     return;
@@ -147,8 +146,9 @@ void BrowserCloseManager::OnReportDownloadsCancellable(bool proceed) {
   for (Profile* profile : profiles) {
     ShowInProgressDownloads(profile);
     std::vector<Profile*> otr_profiles = profile->GetAllOffTheRecordProfiles();
-    for (Profile* otr : otr_profiles)
+    for (Profile* otr : otr_profiles) {
       ShowInProgressDownloads(otr);
+    }
   }
 }
 
@@ -162,8 +162,9 @@ void BrowserCloseManager::CloseBrowsers() {
   if (!browser_shutdown::IsTryingToQuit()) {
     BackgroundModeManager* background_mode_manager =
         g_browser_process->background_mode_manager();
-    if (background_mode_manager)
+    if (background_mode_manager) {
       background_mode_manager->SuspendBackgroundMode();
+    }
   }
 #endif
 
@@ -178,15 +179,14 @@ void BrowserCloseManager::CloseBrowsers() {
   for (auto* browser : browser_list_copy) {
     browser->window()->Close();
     if (ignore_unload_handlers) {
-      // This path is hit during logoff/power-down. In this case we won't get
-      // a final message and so we force the browser to be deleted.
-      // Close doesn't immediately destroy the browser
-      // (Browser::TabStripEmpty() uses invoke later) but when we're ending the
-      // session we need to make sure the browser is destroyed now. So, invoke
-      // DestroyBrowser to make sure the browser is deleted and cleanup can
-      // happen.
-      while (browser->tab_strip_model()->count())
-        browser->tab_strip_model()->DetachAndDeleteWebContentsAt(0);
+      // This path is hit during logoff/power-down. It could be the case that
+      // there are some tabs which would have prevented the browser from closing
+      // (Ex: A form with an open dialog asking for permission to leave the
+      // current site). Since we are attempting to end the session, we will
+      // force skip these warnings and manually close all the tabs to make sure
+      // the browser is destroyed and cleanup can happen.
+      browser->set_force_skip_warning_user_on_close(true);
+      browser->tab_strip_model()->CloseAllTabs();
       browser->window()->DestroyBrowser();
       // Destroying the browser should have removed it from the browser list.
       DCHECK(!base::Contains(*BrowserList::GetInstance(), browser));
@@ -196,7 +196,8 @@ void BrowserCloseManager::CloseBrowsers() {
 #if BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
   NotificationUIManager* notification_manager =
       g_browser_process->notification_ui_manager();
-  if (notification_manager)
+  if (notification_manager) {
     notification_manager->CancelAll();
+  }
 #endif
 }

@@ -5,11 +5,11 @@
 #include <memory>
 
 #include "base/functional/callback_helpers.h"
-#include "base/scoped_environment_variable_override.h"
 #include "base/strings/strcat.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/test/test_browser_ui.h"
 #include "chrome/browser/ui/views/profiles/profile_management_step_controller.h"
@@ -18,6 +18,9 @@
 #include "chrome/common/webui_url_constants.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/supervised_user/core/common/features.h"
+#include "components/supervised_user/test_support/supervised_user_signin_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -28,8 +31,11 @@
 namespace {
 struct ProfilePickerTestParam {
   PixelTestParam pixel_test_param;
-  bool use_tangible_sync_flow = false;
   bool use_multiple_profiles = false;
+  bool hide_guest_mode_for_supervised_users = false;
+  bool show_kite_for_supervised_users = false;
+  // param to be removed when `kOutlineSilhouetteIcon` is enabled by default.
+  bool outline_silhouette_icon = false;
 };
 
 // To be passed as 4th argument to `INSTANTIATE_TEST_SUITE_P()`, allows the test
@@ -42,70 +48,113 @@ std::string ParamToTestSuffix(
 
 // Permutations of supported parameters.
 const ProfilePickerTestParam kTestParams[] = {
-    {.pixel_test_param = {.test_suffix = "Default"}},
-    {.pixel_test_param = {.test_suffix = "DefaultMultipleProfiles"},
+    {.pixel_test_param = {.test_suffix = "Regular"}},
+    {.pixel_test_param = {.test_suffix = "MultipleProfiles"},
      .use_multiple_profiles = true},
+    {.pixel_test_param = {.test_suffix = "MultipleProfiles_OutlineSilhouette"},
+     .use_multiple_profiles = true,
+     .outline_silhouette_icon = true},
     {.pixel_test_param = {.test_suffix = "DarkRtlSmallMultipleProfiles",
                           .use_dark_theme = true,
                           .use_right_to_left_language = true,
                           .use_small_window = true},
      .use_multiple_profiles = true},
-    {.pixel_test_param = {.test_suffix = "CR2023",
-                          .use_chrome_refresh_2023_style = true}},
-    {.pixel_test_param = {.test_suffix = "TS"}, .use_tangible_sync_flow = true},
-    {.pixel_test_param = {.test_suffix = "TSMultipleProfiles"},
-     .use_tangible_sync_flow = true,
-     .use_multiple_profiles = true},
-    {.pixel_test_param = {.test_suffix = "DarkRtlSmallTSMultipleProfiles",
+    {.pixel_test_param = {.test_suffix =
+                              "DarkRtlSmallMultipleProfiles_OutlineSilhouette",
                           .use_dark_theme = true,
                           .use_right_to_left_language = true,
                           .use_small_window = true},
-     .use_tangible_sync_flow = true,
-     .use_multiple_profiles = true},
-    {.pixel_test_param = {.test_suffix = "TSCR2023",
-                          .use_chrome_refresh_2023_style = true},
-     .use_tangible_sync_flow = true},
+     .use_multiple_profiles = true,
+     .outline_silhouette_icon = true},
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+    {.pixel_test_param = {.test_suffix = "MultipleProfiles_HideGuest"},
+     .use_multiple_profiles = true,
+     .hide_guest_mode_for_supervised_users = true},
+    {.pixel_test_param = {.test_suffix = "MultipleProfiles_Kite"},
+     .use_multiple_profiles = true,
+     .show_kite_for_supervised_users = true},
+    {.pixel_test_param = {.test_suffix = "DarkRtlSmallMultipleProfiles_Kite",
+                          .use_dark_theme = true,
+                          .use_right_to_left_language = true,
+                          .use_small_window = true},
+     .use_multiple_profiles = true,
+     .show_kite_for_supervised_users = true},
+#endif
 };
 
-void AddMultipleProfiles(Profile* profile, size_t number_of_profiles) {
+// Create 4 profiles with different icons and types.
+void AddMultipleProfiles(Profile* profile) {
   DCHECK(profile);
 
-  for (size_t i = 0; i < number_of_profiles; i++) {
+  for (size_t i = 0; i < 4; i++) {
     base::RunLoop run_loop;
     ProfileManager::CreateMultiProfileAsync(
         u"Joe", /*icon_index=*/i, /*is_hidden=*/false,
-        base::IgnoreArgs<Profile*>(run_loop.QuitClosure()));
+        /*initialized_callback=*/
+        base::BindLambdaForTesting([&run_loop, &i](Profile* profile) {
+          // Set properties for the profile.
+          signin::IdentityManager* identity_manager =
+              IdentityManagerFactory::GetForProfile(profile);
+          CHECK(identity_manager);
+          AccountInfo account_info;
+
+          switch (i) {
+            case 0:
+              // A signed out profile.
+              break;
+            case 1:
+              // A signed in regular profile.
+              account_info = signin::MakePrimaryAccountAvailable(
+                  identity_manager, "joe@gmail.com",
+                  signin::ConsentLevel::kSignin);
+              break;
+            case 2:
+              // A signed in Enterprise managed profile.
+              account_info = signin::MakePrimaryAccountAvailable(
+                  identity_manager, "joework@example.com",
+                  signin::ConsentLevel::kSignin);
+              account_info = FillAccountInfo(account_info,
+                                             AccountManagementStatus::kManaged,
+                                             signin::Tribool::kUnknown);
+              signin::UpdateAccountInfoForAccount(identity_manager,
+                                                  account_info);
+              break;
+            case 3:
+              // A signed in supervised profile.
+              account_info = signin::MakePrimaryAccountAvailable(
+                  identity_manager, "joejunior@gmail.com",
+                  signin::ConsentLevel::kSignin);
+              supervised_user::UpdateSupervisionStatusForAccount(
+                  account_info, identity_manager, true);
+              break;
+          }
+          run_loop.Quit();
+        }));
     run_loop.Run();
   }
 }
 }  // namespace
 
 class ProfilePickerUIPixelTest
-    : public UiBrowserTest,
+    : public ProfilesPixelTestBaseT<UiBrowserTest>,
       public testing::WithParamInterface<ProfilePickerTestParam> {
  public:
-  ProfilePickerUIPixelTest() {
-    std::vector<base::test::FeatureRef> enabled_features = {};
-    std::vector<base::test::FeatureRef> disabled_features = {};
-    if (GetParam().use_tangible_sync_flow) {
-      enabled_features.push_back(switches::kTangibleSync);
-    } else {
-      disabled_features.push_back(switches::kTangibleSync);
-    }
-
-    InitPixelTestFeatures(GetParam().pixel_test_param, scoped_feature_list_,
-                          enabled_features, disabled_features);
-  }
-
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    SetUpPixelTestCommandLine(GetParam().pixel_test_param, scoped_env_override_,
-                              command_line);
+  ProfilePickerUIPixelTest()
+      : ProfilesPixelTestBaseT<UiBrowserTest>(GetParam().pixel_test_param) {
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+    scoped_feature_list_.InitWithFeatureStates(
+        {{supervised_user::kHideGuestModeForSupervisedUsers,
+          GetParam().hide_guest_mode_for_supervised_users},
+         {supervised_user::kShowKiteForSupervisedUsers,
+          GetParam().show_kite_for_supervised_users},
+         {kOutlineSilhouetteIcon, GetParam().outline_silhouette_icon}});
+#endif
   }
 
   void ShowUi(const std::string& name) override {
     DCHECK(browser());
     if (GetParam().use_multiple_profiles) {
-      AddMultipleProfiles(browser()->profile(), /*number_of_profiles=*/4);
+      AddMultipleProfiles(browser()->profile());
     }
     ui::ScopedAnimationDurationScaleMode disable_animation(
         ui::ScopedAnimationDurationScaleMode::ZERO_DURATION);
@@ -129,8 +178,8 @@ class ProfilePickerUIPixelTest
             }));
     profile_picker_view_->ShowAndWait(
         GetParam().pixel_test_param.use_small_window
-            ? absl::optional<gfx::Size>(gfx::Size(750, 590))
-            : absl::nullopt);
+            ? std::optional<gfx::Size>(gfx::Size(750, 590))
+            : std::nullopt);
     observer.Wait();
   }
 
@@ -139,9 +188,10 @@ class ProfilePickerUIPixelTest
 
     auto* test_info = testing::UnitTest::GetInstance()->current_test_info();
     const std::string screenshot_name =
-        base::StrCat({test_info->test_case_name(), "_", test_info->name()});
+        base::StrCat({test_info->test_suite_name(), "_", test_info->name()});
 
-    return VerifyPixelUi(widget, "ProfilePickerUIPixelTest", screenshot_name);
+    return VerifyPixelUi(widget, "ProfilePickerUIPixelTest", screenshot_name) !=
+           ui::test::ActionResult::kFailed;
   }
 
   void WaitForUserDismissal() override {
@@ -155,7 +205,6 @@ class ProfilePickerUIPixelTest
   }
 
   base::test::ScopedFeatureList scoped_feature_list_;
-  std::unique_ptr<base::ScopedEnvironmentVariableOverride> scoped_env_override_;
   raw_ptr<ProfileManagementStepTestView, DanglingUntriaged>
       profile_picker_view_;
 };

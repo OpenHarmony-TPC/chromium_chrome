@@ -11,6 +11,7 @@
 #include "base/ranges/algorithm.h"
 #include "chrome/browser/ash/arc/input_overlay/util.h"
 #include "ui/events/event_constants.h"
+#include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
 
 namespace arc::input_overlay {
@@ -42,8 +43,8 @@ std::unique_ptr<InputElement> InputElement::CreateActionTapMouseElement(
   element->input_sources_ = InputSource::IS_MOUSE;
   element->mouse_lock_required_ = true;
   element->mouse_action_ = ConvertToMouseActionEnum(mouse_action);
-  element->mouse_types_.emplace(ui::ET_MOUSE_PRESSED);
-  element->mouse_types_.emplace(ui::ET_MOUSE_RELEASED);
+  element->mouse_types_.emplace(ui::EventType::kMousePressed);
+  element->mouse_types_.emplace(ui::EventType::kMouseReleased);
   if (mouse_action == kPrimaryClick) {
     element->mouse_flags_ = ui::EF_LEFT_MOUSE_BUTTON;
   } else {
@@ -73,15 +74,15 @@ std::unique_ptr<InputElement> InputElement::CreateActionMoveMouseElement(
   element->mouse_lock_required_ = true;
   element->mouse_action_ = ConvertToMouseActionEnum(mouse_action);
   if (mouse_action == kHoverMove) {
-    element->mouse_types_.emplace(ui::ET_MOUSE_ENTERED);
-    element->mouse_types_.emplace(ui::ET_MOUSE_MOVED);
-    element->mouse_types_.emplace(ui::ET_MOUSE_EXITED);
+    element->mouse_types_.emplace(ui::EventType::kMouseEntered);
+    element->mouse_types_.emplace(ui::EventType::kMouseMoved);
+    element->mouse_types_.emplace(ui::EventType::kMouseExited);
   } else {
     DCHECK(mouse_action == kPrimaryDragMove ||
            mouse_action == kSecondaryDragMove);
-    element->mouse_types_.emplace(ui::ET_MOUSE_PRESSED);
-    element->mouse_types_.emplace(ui::ET_MOUSE_DRAGGED);
-    element->mouse_types_.emplace(ui::ET_MOUSE_RELEASED);
+    element->mouse_types_.emplace(ui::EventType::kMousePressed);
+    element->mouse_types_.emplace(ui::EventType::kMouseDragged);
+    element->mouse_types_.emplace(ui::EventType::kMouseReleased);
     if (mouse_action == kPrimaryDragMove) {
       element->mouse_flags_ = ui::EF_LEFT_MOUSE_BUTTON;
     } else {
@@ -122,13 +123,34 @@ bool InputElement::IsOverlapped(const InputElement& input_element) const {
   }
   if (input_sources_ == InputSource::IS_KEYBOARD) {
     for (auto key : input_element.keys()) {
-      if (base::Contains(keys_, key)) {
+      if (key != ui::DomCode::NONE && base::Contains(keys_, key)) {
         return true;
       }
     }
     return false;
   }
   return mouse_action_ == input_element.mouse_action();
+}
+
+bool InputElement::IsUnbound() const {
+  if (input_sources_ == InputSource::IS_NONE) {
+    return true;
+  }
+
+  if (IsInputSourceSet(InputSource::IS_KEYBOARD)) {
+    for (const auto key : keys()) {
+      if (key != ui::DomCode::NONE) {
+        // Consider it as bound if there is at lease one key is bound.
+        return false;
+      }
+    }
+  }
+
+  if (IsInputSourceSet(InputSource::IS_MOUSE)) {
+    return mouse_action_ == MouseAction::NONE;
+  }
+
+  return true;
 }
 
 void InputElement::SetKey(size_t index, ui::DomCode code) {
@@ -174,6 +196,10 @@ bool InputElement::operator==(const InputElement& other) const {
 
 bool InputElement::operator!=(const InputElement& other) const {
   return !(*this == other);
+}
+
+bool InputElement::IsInputSourceSet(InputSource input_source) const {
+  return (input_sources_ & input_source) == input_source;
 }
 
 }  // namespace arc::input_overlay

@@ -15,7 +15,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/pref_names.h"
 #include "components/language/core/browser/pref_names.h"
@@ -37,8 +37,9 @@ namespace {
 void AttemptExitInternal(bool try_to_quit_application) {
   // On Mac, the platform-specific part handles setting this.
 #if !BUILDFLAG(IS_MAC)
-  if (try_to_quit_application)
+  if (try_to_quit_application) {
     browser_shutdown::SetTryingToQuit(true);
+  }
 #endif  // !BUILDFLAG(IS_MAC)
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -75,8 +76,9 @@ void AttemptExit() {
   // so crashes during shutdown are still reported in UMA.
 #if !BUILDFLAG(IS_ANDROID)
   // Android doesn't use Browser.
-  if (AreAllBrowsersCloseable())
+  if (AreAllBrowsersCloseable()) {
     MarkAsCleanShutdown();
+  }
 #endif  // !BUILDFLAG(IS_ANDROID)
   AttemptExitInternal(true);
 }

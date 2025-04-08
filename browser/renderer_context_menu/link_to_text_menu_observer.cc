@@ -12,8 +12,12 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/enterprise/data_protection/data_protection_clipboard_utils.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/toasts/api/toast_id.h"
+#include "chrome/browser/ui/toasts/toast_controller.h"
+#include "chrome/browser/ui/toasts/toast_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/feature_engagement/public/tracker.h"
 #include "components/renderer_context_menu/render_view_context_menu_proxy.h"
@@ -22,6 +26,7 @@
 #include "components/shared_highlighting/core/common/fragment_directives_utils.h"
 #include "components/shared_highlighting/core/common/shared_highlighting_features.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/clipboard_types.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
@@ -75,7 +80,8 @@ std::vector<std::string> GetAggregatedSelectors(
 // static
 std::unique_ptr<LinkToTextMenuObserver> LinkToTextMenuObserver::Create(
     RenderViewContextMenuProxy* proxy,
-    content::GlobalRenderFrameHostId render_frame_host_id) {
+    content::GlobalRenderFrameHostId render_frame_host_id,
+    ToastController* toast_controller) {
   // WebContents can be null in tests.
   content::WebContents* web_contents = proxy->GetWebContents();
   if (web_contents && extensions::ProcessManager::Get(
@@ -86,14 +92,17 @@ std::unique_ptr<LinkToTextMenuObserver> LinkToTextMenuObserver::Create(
   }
 
   DCHECK(content::RenderFrameHost::FromID(render_frame_host_id));
-  return base::WrapUnique(
-      new LinkToTextMenuObserver(proxy, render_frame_host_id));
+  return base::WrapUnique(new LinkToTextMenuObserver(
+      proxy, render_frame_host_id, toast_controller));
 }
 
 LinkToTextMenuObserver::LinkToTextMenuObserver(
     RenderViewContextMenuProxy* proxy,
-    content::GlobalRenderFrameHostId render_frame_host_id)
-    : proxy_(proxy), render_frame_host_id_(render_frame_host_id) {}
+    content::GlobalRenderFrameHostId render_frame_host_id,
+    ToastController* toast_controller)
+    : proxy_(proxy),
+      toast_controller_(toast_controller),
+      render_frame_host_id_(render_frame_host_id) {}
 
 LinkToTextMenuObserver::~LinkToTextMenuObserver() = default;
 
@@ -179,11 +188,13 @@ void LinkToTextMenuObserver::OnRequestLinkGenerationCompleted(
   shared_highlighting::LogLinkRequestedBeforeStatus(status, ready_status);
 
   if (status == LinkGenerationStatus::kSuccess) {
-    DCHECK_EQ(error, LinkGenerationError::kNone);
-    DCHECK(rfh);
+    CHECK_EQ(error, LinkGenerationError::kNone);
+    CHECK(rfh);
+    CHECK(!rfh->IsInLifecycleState(
+        content::RenderFrameHost::LifecycleState::kPrerendering));
     shared_highlighting::LogRequestedSuccessMetrics(rfh->GetPageUkmSourceId());
   } else {
-    DCHECK_NE(error, LinkGenerationError::kNone);
+    CHECK_NE(error, LinkGenerationError::kNone);
     CompleteWithError(error);
 
     // If there is no valid selector, leave the menu item disabled.
@@ -262,6 +273,12 @@ void LinkToTextMenuObserver::ExecuteCopyLinkToText() {
       shared_highlighting::LinkGenerationCopiedLinkType::
           kCopiedFromNewGeneration);
 
+  if (toast_features::IsEnabled(toast_features::kLinkToHighlightCopiedToast) &&
+      toast_controller_) {
+    toast_controller_->MaybeShowToast(
+        ToastParams(ToastId::kLinkToHighlightCopied));
+  }
+
   // Log usage for Shared Highlighting promo.
   feature_engagement::TrackerFactory::GetForBrowserContext(
       proxy_->GetWebContents()->GetBrowserContext())
@@ -286,6 +303,8 @@ void LinkToTextMenuObserver::CompleteWithError(LinkGenerationError error) {
   is_generation_complete_ = true;
   auto* rfh = content::RenderFrameHost::FromID(render_frame_host_id_);
   if (rfh) {
+    CHECK(!rfh->IsInLifecycleState(
+        content::RenderFrameHost::LifecycleState::kPrerendering));
     shared_highlighting::LogRequestedFailureMetrics(rfh->GetPageUkmSourceId(),
                                                     error);
   }
@@ -373,13 +392,46 @@ void LinkToTextMenuObserver::CopyTextToClipboard(const std::string& text) {
   auto* rfh = content::RenderFrameHost::FromID(render_frame_host_id_);
   CHECK(rfh);
 
-  std::unique_ptr<ui::DataTransferEndpoint> data_transfer_endpoint =
-      !rfh->GetBrowserContext()->IsOffTheRecord()
-          ? std::make_unique<ui::DataTransferEndpoint>(
-                rfh->GetMainFrame()->GetLastCommittedURL())
-          : nullptr;
+  ui::DataTransferEndpoint dte(
+      rfh->GetMainFrame()->GetLastCommittedURL(),
+      {.off_the_record = rfh->GetBrowserContext()->IsOffTheRecord()});
+  content::ClipboardEndpoint clipboard_endpoint(
+      dte,
+      base::BindRepeating(
+          [](content::GlobalRenderFrameHostId rfh_id)
+              -> content::BrowserContext* {
+            auto* rfh = content::RenderFrameHost::FromID(rfh_id);
+            if (!rfh) {
+              return nullptr;
+            }
+            return rfh->GetBrowserContext();
+          },
+          rfh->GetGlobalId()),
+      *rfh);
 
-  ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste,
-                                std::move(data_transfer_endpoint));
-  scw.WriteText(base::UTF8ToUTF16(text));
+  content::ClipboardPasteData data;
+  data.text = base::UTF8ToUTF16(text);
+  size_t size = data.text.size() * sizeof(std::u16string::value_type);
+
+  enterprise_data_protection::IsClipboardCopyAllowedByPolicy(
+      std::move(clipboard_endpoint),
+      {
+          .size = size,
+          .format_type = ui::ClipboardFormatType::PlainTextType(),
+      },
+      std::move(data),
+      base::BindOnce(
+          [](std::unique_ptr<ui::DataTransferEndpoint> dte,
+             const ui::ClipboardFormatType& data_type,
+             const content::ClipboardPasteData& data,
+             std::optional<std::u16string> replacement_data) {
+            ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste,
+                                          std::move(dte));
+            if (replacement_data) {
+              scw.WriteText(std::move(*replacement_data));
+            } else {
+              scw.WriteText(data.text);
+            }
+          },
+          std::make_unique<ui::DataTransferEndpoint>(std::move(dte))));
 }

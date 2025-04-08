@@ -10,7 +10,7 @@
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }
 
 class Profile;
@@ -32,13 +32,13 @@ class AutocompleteHistoryManagerFactory : public ProfileKeyedServiceFactory {
   static AutocompleteHistoryManagerFactory* GetInstance();
 
  private:
-  friend struct base::DefaultSingletonTraits<AutocompleteHistoryManagerFactory>;
+  friend base::NoDestructor<AutocompleteHistoryManagerFactory>;
 
   AutocompleteHistoryManagerFactory();
   ~AutocompleteHistoryManagerFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* profile) const override;
 };
 

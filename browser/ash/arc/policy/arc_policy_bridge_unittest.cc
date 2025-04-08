@@ -28,11 +28,13 @@
 #include "base/test/scoped_command_line.h"
 #include "base/values.h"
 #include "chrome/browser/ash/arc/enterprise/cert_store/cert_store_service.h"
+#include "chrome/browser/ash/arc/enterprise/cert_store/cert_store_service_factory.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
 #include "chrome/browser/ash/arc/test/test_arc_session_manager.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/policy/developer_tools_policy_handler.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
+#include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -47,6 +49,7 @@
 #include "components/policy/core/common/policy_types.h"
 #include "components/policy/core/common/remote_commands/remote_commands_queue.h"
 #include "components/policy/policy_constants.h"
+#include "components/session_manager/core/session_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
@@ -218,13 +221,11 @@ class ArcPolicyBridgeTestBase {
         .Times(1);
 
     // Set up user profile for ReportCompliance() tests.
-    auto* const fake_user_manager = new ash::FakeChromeUserManager();
-    user_manager_enabler_ = std::make_unique<user_manager::ScopedUserManager>(
-        base::WrapUnique(fake_user_manager));
+    fake_user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
     const AccountId account_id(
         AccountId::FromUserEmailGaiaId(kTestUserEmail, "1111111111"));
-    fake_user_manager->AddUserWithAffiliation(account_id, is_affiliated);
-    fake_user_manager->LoginUser(account_id);
+    fake_user_manager_->AddUserWithAffiliation(account_id, is_affiliated);
+    fake_user_manager_->LoginUser(account_id);
     testing_profile_manager_ = std::make_unique<TestingProfileManager>(
         TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(testing_profile_manager_->SetUp());
@@ -295,7 +296,7 @@ class ArcPolicyBridgeTestBase {
   void ReportComplianceAndVerifyObserverCallback(
       const std::string& compliance_report) {
     Mock::VerifyAndClearExpectations(&observer_);
-    absl::optional<base::Value> compliance_report_value =
+    std::optional<base::Value> compliance_report_value =
         base::JSONReader::Read(compliance_report);
     if (compliance_report_value && compliance_report_value->is_dict()) {
       EXPECT_CALL(observer_, OnComplianceReportReceived(
@@ -309,7 +310,7 @@ class ArcPolicyBridgeTestBase {
     Mock::VerifyAndClearExpectations(&observer_);
 
     if (compliance_report_value) {
-      absl::optional<base::Value> saved_compliance_report_value =
+      std::optional<base::Value> saved_compliance_report_value =
           base::JSONReader::Read(
               policy_bridge()->get_arc_policy_compliance_report());
       ASSERT_TRUE(saved_compliance_report_value);
@@ -324,7 +325,7 @@ class ArcPolicyBridgeTestBase {
   // Override if the test wants to use a real cert store service.
   virtual CertStoreService* GetCertStoreService() {
     return static_cast<CertStoreService*>(
-        CertStoreService::GetFactory()->SetTestingFactoryAndUse(
+        CertStoreServiceFactory::GetInstance()->SetTestingFactoryAndUse(
             profile(),
             base::BindRepeating(
                 [](content::BrowserContext* profile)
@@ -347,12 +348,15 @@ class ArcPolicyBridgeTestBase {
  private:
   content::BrowserTaskEnvironment task_environment_;
   data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
-  std::unique_ptr<user_manager::ScopedUserManager> user_manager_enabler_;
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
+  session_manager::SessionManager session_manager_;
   std::unique_ptr<TestingProfileManager> testing_profile_manager_;
   base::RunLoop run_loop_;
-  raw_ptr<TestingProfile, ExperimentalAsh> profile_;
+  raw_ptr<TestingProfile, DanglingUntriaged> profile_;
   std::unique_ptr<ArcBridgeService> bridge_service_;
-  raw_ptr<CertStoreService, ExperimentalAsh> cert_store_service_;  // Not owned.
+  raw_ptr<CertStoreService, DanglingUntriaged>
+      cert_store_service_;  // Not owned.
 
   std::unique_ptr<ArcSessionManager> arc_session_manager_;
   std::unique_ptr<ArcPolicyBridge> policy_bridge_;
@@ -399,7 +403,7 @@ class ArcPolicyBridgeCertStoreTest : public ArcPolicyBridgeTest {
  protected:
   CertStoreService* GetCertStoreService() override {
     return static_cast<CertStoreService*>(
-        CertStoreService::GetFactory()->SetTestingFactoryAndUse(
+        CertStoreServiceFactory::GetInstance()->SetTestingFactoryAndUse(
             profile(),
             base::BindRepeating([](content::BrowserContext* profile)
                                     -> std::unique_ptr<KeyedService> {
@@ -437,32 +441,6 @@ TEST_F(ArcPolicyBridgeTest, ArcPolicyTest) {
       "{\"apkCacheEnabled\":true,"
       "\"applications\":"
       "[{\"installType\":\"REQUIRED\","
-      "\"lockTaskAllowed\":false,"
-      "\"packageName\":\"com.google.android.apps.youtube.kids\","
-      "\"permissionGrants\":[]"
-      "}],"
-      "\"defaultPermissionPolicy\":\"GRANT\","
-      "\"guid\":\"" +
-      instance_guid() + "\"," + kMountPhysicalMediaDisabledPolicySetting + "}");
-}
-
-TEST_F(ArcPolicyBridgeTest, InstallTypeOptionalMigrationTest) {
-  policy_map().Set(
-      policy::key::kArcPolicy, policy::POLICY_LEVEL_MANDATORY,
-      policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
-      base::Value("{\"applications\":"
-                  "[{\"packageName\":\"com.google.android.apps.youtube.kids\","
-                  "\"installType\":\"OPTIONAL\","
-                  "\"lockTaskAllowed\":false,"
-                  "\"permissionGrants\":[]"
-                  "}],"
-                  "\"defaultPermissionPolicy\":\"GRANT\""
-                  "}"),
-      nullptr);
-  GetPoliciesAndVerifyResult(
-      "{\"apkCacheEnabled\":true,"
-      "\"applications\":"
-      "[{\"installType\":\"AVAILABLE\","
       "\"lockTaskAllowed\":false,"
       "\"packageName\":\"com.google.android.apps.youtube.kids\","
       "\"permissionGrants\":[]"
@@ -656,13 +634,13 @@ TEST_F(ArcPolicyBridgeTest, ForceDevToolsAvailabilityTest) {
           policy::DeveloperToolsPolicyHandler::Availability::kDisallowed)));
   base::test::ScopedCommandLine command_line;
   command_line.GetProcessCommandLine()->AppendSwitch(
-      ash::switches::kForceDevToolsAvailable);
+      switches::kForceDevToolsAvailable);
   GetPoliciesAndVerifyResult(
       "{\"apkCacheEnabled\":true,\"debuggingFeaturesDisabled\":false,"
       "\"guid\":\"" +
       instance_guid() + "\"," + kMountPhysicalMediaDisabledPolicySetting + "}");
   command_line.GetProcessCommandLine()->RemoveSwitch(
-      ash::switches::kForceDevToolsAvailable);
+      switches::kForceDevToolsAvailable);
 }
 
 TEST_F(ArcPolicyBridgeTest, ManagedConfigurationVariablesTest) {
@@ -933,6 +911,42 @@ TEST_F(ArcPolicyBridgeCertStoreTest, KeyPermissionsNoCertsTest) {
       base::StrCat({"{\"apkCacheEnabled\":true,\"guid\":\"", instance_guid(),
                     "\",", kMountPhysicalMediaDisabledPolicySetting, ",",
                     kRequiredKeyPairsEmpty, "}"}));
+}
+
+TEST_F(ArcPolicyBridgeTest, ConfigureRevenPoliciesTest) {
+  base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
+  command_line.AppendSwitch(ash::switches::kRevenBranding);
+
+  policy_map().Set(
+      policy::key::kArcPolicy, policy::POLICY_LEVEL_MANDATORY,
+      policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+      base::Value("{\"applications\":"
+                  "["
+                  "{\"packageName\":\"com.google.android.apps.youtube.kids\","
+                  "\"installType\":\"REQUIRED\","
+                  "\"lockTaskAllowed\":false,"
+                  "\"permissionGrants\":[]"
+                  "},"
+                  "{\"packageName\":\"com.zimperium.zips\","
+                  "\"installType\":\"REQUIRED\","
+                  "\"lockTaskAllowed\":false,"
+                  "\"permissionGrants\":[]"
+                  "}"
+                  "],"
+                  "\"defaultPermissionPolicy\":\"GRANT\"}"),
+      nullptr);
+
+  GetPoliciesAndVerifyResult(
+      "{\"apkCacheEnabled\":true,\"applications\":"
+      "[{\"installType\":\"REQUIRED\","
+      "\"lockTaskAllowed\":false,"
+      "\"packageName\":\"com.zimperium.zips\","
+      "\"permissionGrants\":[]"
+      "}],"
+      "\"defaultPermissionPolicy\":\"GRANT\","
+      "\"guid\":\"" +
+      instance_guid() + "\"," + kMountPhysicalMediaDisabledPolicySetting + "," +
+      "\"playStoreMode\":\"WHITELIST\"" + "}"); // nocheck
 }
 
 }  // namespace arc

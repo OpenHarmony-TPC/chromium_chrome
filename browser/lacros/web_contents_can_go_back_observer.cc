@@ -8,7 +8,6 @@
 #include "content/public/browser/navigation_details.h"
 #include "ui/aura/window.h"
 #include "ui/platform_window/extensions/wayland_extension.h"
-#include "ui/views/widget/desktop_aura/desktop_window_tree_host_lacros.h"
 #include "ui/views/widget/widget.h"
 
 WebContentsCanGoBackObserver::WebContentsCanGoBackObserver(
@@ -55,14 +54,8 @@ void WebContentsCanGoBackObserver::UpdateLatestFocusedWebContentsStatus() {
   if (!window->GetHost())
     return;
 
-  // Lacros is based on Ozone/Wayland which uses DesktopWindowTreeHostLacros.
-  auto* dwth_platform =
-      views::DesktopWindowTreeHostLacros::From(window->GetHost());
-  if (!dwth_platform)
-    return;
-
   bool can_go_back = web_contents()->GetController().CanGoBack();
-  auto* wayland_extension = dwth_platform->GetWaylandExtension();
+  auto* wayland_extension = dwth_platform->GetWaylandToplevelExtension();
   wayland_extension->SetCanGoBack(can_go_back);
 }
 

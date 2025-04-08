@@ -54,10 +54,7 @@ class ScreenshotDataCollectorTest : public ::testing::Test {
     const GURL url(kTestImageBase64);
     std::string mime_type, charset, data;
     EXPECT_TRUE(net::DataURL::Parse(url, &mime_type, &charset, &data));
-    bitmap_ = *gfx::JPEGCodec::Decode(
-                   reinterpret_cast<const unsigned char*>(data.c_str()),
-                   data.length())
-                   .get();
+    bitmap_ = gfx::JPEGCodec::Decode(base::as_byte_span(data));
 
     webrtc::DesktopSize size(bitmap_.width(), bitmap_.height());
     frame_ = std::make_unique<webrtc::BasicDesktopFrame>(std::move(size));
@@ -93,7 +90,7 @@ TEST_F(ScreenshotDataCollectorTest, DesktopFrameToBase64JPEGConversion) {
 
 TEST_F(ScreenshotDataCollectorTest, SetAndExportImage) {
   ScreenshotDataCollector data_collector;
-  base::test::TestFuture<absl::optional<SupportToolError>>
+  base::test::TestFuture<std::optional<SupportToolError>>
       test_future_collect_data;
   const base::FilePath output_dir = GetTempDirForOutput();
   data_collector.SetScreenshotBase64(kTestImageBase64);
@@ -103,11 +100,11 @@ TEST_F(ScreenshotDataCollectorTest, SetAndExportImage) {
       /*task_runner_for_redaction_tool=*/nullptr,
       /*redaction_tool_container=*/nullptr,
       test_future_collect_data.GetCallback());
-  EXPECT_EQ(test_future_collect_data.Get(), absl::nullopt);
+  EXPECT_EQ(test_future_collect_data.Get(), std::nullopt);
   // Compares the output in the file with the target value.
   std::string output_file_contents;
   ReadFileContents(output_dir.Append(FILE_PATH_LITERAL("screenshot"))
                        .AddExtension(FILE_PATH_LITERAL(".jpg")),
                    output_file_contents);
-  EXPECT_EQ(output_file_contents, jpeg_data_->data());
+  EXPECT_EQ(output_file_contents, jpeg_data_->as_string());
 }

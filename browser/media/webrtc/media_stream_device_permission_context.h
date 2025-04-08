@@ -35,6 +35,12 @@ class MediaStreamDevicePermissionContext
                            bool is_final_decision) override;
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+  void RequestPermission(
+      permissions::PermissionRequestData request_data,
+      permissions::BrowserPermissionCallback callback) override;
+#endif
+
   // TODO(xhwang): GURL.DeprecatedGetOriginAsURL() shouldn't be used as the
   // origin. Need to refactor to use url::Origin. crbug.com/527149 is filed for
   // this.
@@ -59,6 +65,12 @@ class MediaStreamDevicePermissionContext
       const GURL& embedding_origin,
       permissions::BrowserPermissionCallback callback,
       bool permission_granted);
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  void RequestReply(permissions::PermissionRequestData request_data,
+                    permissions::BrowserPermissionCallback callback,
+                    bool reply_success);
 #endif
 
   ContentSettingsType content_settings_type_;

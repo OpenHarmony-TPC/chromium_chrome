@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/task_manager/sampling/shared_sampler.h"
 
 #include <windows.h>
+
 #include <winternl.h>
 
 #include <algorithm>
@@ -82,7 +88,6 @@ bool QuerySystemProcessInformation(ByteBuffer* buffer) {
   HMODULE ntdll = ::GetModuleHandle(L"ntdll.dll");
   if (!ntdll) {
     NOTREACHED();
-    return false;
   }
 
   NTQUERYSYSTEMINFORMATION nt_query_system_information_ptr =
@@ -90,7 +95,6 @@ bool QuerySystemProcessInformation(ByteBuffer* buffer) {
           ::GetProcAddress(ntdll, "NtQuerySystemInformation"));
   if (!nt_query_system_information_ptr) {
     NOTREACHED();
-    return false;
   }
 
   NTSTATUS result;

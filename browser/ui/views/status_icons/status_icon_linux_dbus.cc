@@ -35,12 +35,13 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/models/menu_model.h"
 #include "ui/base/models/menu_separator_types.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/linux/status_icon_linux.h"
+#include "ui/menus/simple_menu_model.h"
 
 namespace {
 
@@ -123,7 +124,8 @@ auto MakeDbusImage(const gfx::ImageSkia& image) {
   }
   return MakeDbusArray(MakeDbusStruct(
       DbusInt32(width), DbusInt32(height),
-      DbusByteArray(base::RefCountedBytes::TakeVector(&color_data))));
+      DbusByteArray(
+          base::MakeRefCounted<base::RefCountedBytes>(std::move(color_data)))));
 }
 
 auto MakeDbusToolTip(const std::string& text) {
@@ -155,7 +157,7 @@ bool ShouldWriteIconToFile() {
     case base::nix::DESKTOP_ENVIRONMENT_LXQT:
       return false;
   }
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 
 base::FilePath WriteIconFile(size_t icon_file_id,
@@ -361,6 +363,13 @@ void StatusIconLinuxDbus::OnInitialized(bool success) {
     return;
   }
 
+  watcher_->SetNameOwnerChangedCallback(
+      base::BindRepeating(&StatusIconLinuxDbus::OnNameOwnerChangedReceived,
+                          weak_factory_.GetWeakPtr()));
+  RegisterStatusNotifierItem();
+}
+
+void StatusIconLinuxDbus::RegisterStatusNotifierItem() {
   dbus::MethodCall method_call(kInterfaceStatusNotifierWatcher,
                                kMethodRegisterStatusNotifierItem);
   dbus::MessageWriter writer(&method_call);
@@ -374,6 +383,15 @@ void StatusIconLinuxDbus::OnRegistered(dbus::Response* response) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (!response)
     delegate_->OnImplInitializationFailed();
+}
+
+void StatusIconLinuxDbus::OnNameOwnerChangedReceived(
+    const std::string& old_owner,
+    const std::string& new_owner) {
+  // Re-register the item when the StatusNotifierWatcher has a new owner.
+  if (!new_owner.empty()) {
+    RegisterStatusNotifierItem();
+  }
 }
 
 void StatusIconLinuxDbus::OnActivate(
@@ -404,7 +422,7 @@ void StatusIconLinuxDbus::OnContextMenu(
   }
   menu_runner_->RunMenuAt(
       nullptr, nullptr, gfx::Rect(gfx::Point(x, y), gfx::Size()),
-      views::MenuAnchorPosition::kTopRight, ui::MENU_SOURCE_MOUSE);
+      views::MenuAnchorPosition::kTopRight, ui::mojom::MenuSourceType::kMouse);
   std::move(sender).Run(dbus::Response::FromMethodCall(method_call));
 }
 

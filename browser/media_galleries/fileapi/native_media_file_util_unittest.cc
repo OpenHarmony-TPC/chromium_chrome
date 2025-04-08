@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/media_galleries/fileapi/native_media_file_util.h"
 
 #include <stddef.h>
@@ -497,7 +502,7 @@ TEST_F(NativeMediaFileUtilTest, GetMetadataFiltering) {
         expectation = base::File::FILE_ERROR_NOT_FOUND;
       }
       operation_runner()->GetMetadata(
-          url, storage::FileSystemOperation::GET_METADATA_FIELD_IS_DIRECTORY,
+          url, {storage::FileSystemOperation::GetMetadataField::kIsDirectory},
           base::BindOnce(&ExpectMetadataEqHelper, test_name, expectation,
                          kFilteringTestCases[i].is_directory));
       content::RunAllTasksUntilIdle();

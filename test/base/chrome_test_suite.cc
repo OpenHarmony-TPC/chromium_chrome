@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/test/base/chrome_test_suite.h"
 
 #include "build/build_config.h"
@@ -40,8 +45,8 @@
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/bundle_locations.h"
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/bundle_locations.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #include "chrome/browser/chrome_browser_application_mac.h"
 #endif
 
@@ -71,15 +76,13 @@ ChromeTestSuite::~ChromeTestSuite() = default;
 
 void ChromeTestSuite::Initialize() {
 #if BUILDFLAG(IS_MAC)
-  base::mac::ScopedNSAutoreleasePool autorelease_pool;
+  base::apple::ScopedNSAutoreleasePool autorelease_pool;
   chrome_browser_application_mac::RegisterBrowserCrApp();
 #endif
 
   if (!browser_dir_.empty()) {
     base::PathService::Override(base::DIR_EXE, browser_dir_);
-#if !BUILDFLAG(IS_FUCHSIA)
     base::PathService::Override(base::DIR_MODULE, browser_dir_);
-#endif  // !BUILDFLAG(IS_FUCHSIA)
   }
 
   // Disable external libraries load if we are under python process in
@@ -107,7 +110,7 @@ void ChromeTestSuite::Initialize() {
   base::FilePath path;
   base::PathService::Get(base::DIR_EXE, &path);
   path = path.Append(chrome::kFrameworkName);
-  base::mac::SetOverrideFrameworkBundlePath(path);
+  base::apple::SetOverrideFrameworkBundlePath(path);
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -120,6 +123,7 @@ void ChromeTestSuite::Initialize() {
       /*documents_dir=*/temp_path,
       /*downloads_dir=*/temp_path,
       /*drivefs=*/base::FilePath(),
+      /*onedrive=*/base::FilePath(),
       /*removable_media_dir=*/base::FilePath(),
       /*android_files_dir=*/base::FilePath(),
       /*linux_files_dir=*/base::FilePath(),
@@ -132,7 +136,7 @@ void ChromeTestSuite::Initialize() {
 
 void ChromeTestSuite::Shutdown() {
 #if BUILDFLAG(IS_MAC)
-  base::mac::SetOverrideFrameworkBundlePath({});
+  base::apple::SetOverrideFrameworkBundlePath({});
 #endif
 
   content::ContentTestSuiteBase::Shutdown();

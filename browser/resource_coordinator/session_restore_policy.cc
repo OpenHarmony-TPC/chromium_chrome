@@ -14,6 +14,7 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
+#include "base/not_fatal_until.h"
 #include "base/sequence_checker.h"
 #include "base/system/sys_info.h"
 #include "base/task/sequenced_task_runner.h"
@@ -222,7 +223,7 @@ void TabDataAccess::OnSiteDataAvailable(
     return;
 
   auto it = policy->tab_data_.find(contents);
-  DCHECK(it != policy->tab_data_.end());
+  CHECK(it != policy->tab_data_.end(), base::NotFatalUntil::M130);
   auto* tab_data = it->second.get();
 
   SetUsedInBgFromSiteData(tab_data, contents, reader_data);
@@ -232,10 +233,6 @@ void TabDataAccess::OnSiteDataAvailable(
     policy->notify_tab_score_changed_callback_.Run(contents, tab_data->score);
 
   ++policy->tabs_scored_;
-  DCHECK(tab_data->used_in_bg.has_value());
-  if (tab_data->used_in_bg)
-    ++policy->tabs_used_in_bg_;
-
   policy->DispatchNotifyAllTabsScoredIfNeeded();
 }
 #endif
@@ -245,15 +242,7 @@ SessionRestorePolicy::SessionRestorePolicy()
       delegate_(SysInfoDelegate::Get()),
       simultaneous_tab_loads_(CalculateSimultaneousTabLoads()) {}
 
-SessionRestorePolicy::~SessionRestorePolicy() {
-  // Record the number of tabs involved in the session restore that use
-  // background communications mechanisms.
-  DCHECK_GE(tabs_used_in_bg_, tabs_used_in_bg_restored_);
-  UMA_HISTOGRAM_COUNTS_100("SessionRestore.BackgroundUseCaseTabCount.Total",
-                           tabs_used_in_bg_);
-  UMA_HISTOGRAM_COUNTS_100("SessionRestore.BackgroundUseCaseTabCount.Restored",
-                           tabs_used_in_bg_restored_);
-}
+SessionRestorePolicy::~SessionRestorePolicy() = default;
 
 float SessionRestorePolicy::AddTabForScoring(content::WebContents* contents) {
   DCHECK(!base::Contains(tab_data_, contents));
@@ -292,7 +281,7 @@ float SessionRestorePolicy::AddTabForScoring(content::WebContents* contents) {
   tab_data->is_app = IsApp(contents);
   tab_data->is_internal = IsInternalPage(contents);
   tab_data->site_engagement = delegate_->GetSiteEngagementScore(contents);
-  tab_data->last_active = now_ - contents->GetLastActiveTime();
+  tab_data->last_active = now_ - contents->GetLastActiveTimeTicks();
 
   // The local database doesn't exist on Android at all.
 #if !BUILDFLAG(IS_ANDROID)
@@ -317,15 +306,11 @@ float SessionRestorePolicy::AddTabForScoring(content::WebContents* contents) {
 
 void SessionRestorePolicy::RemoveTabForScoring(content::WebContents* contents) {
   auto it = tab_data_.find(contents);
-  DCHECK(it != tab_data_.end());
+  CHECK(it != tab_data_.end(), base::NotFatalUntil::M130);
   auto* tab_data = it->second.get();
 
   if (HasFinalScore(tab_data)) {
     --tabs_scored_;
-
-    // Tabs are removed from the policy engine when they start loading.
-    if (tab_data->UsedInBg())
-      ++tabs_used_in_bg_restored_;
   }
 
   tab_data_.erase(it);
@@ -351,13 +336,13 @@ bool SessionRestorePolicy::ShouldLoad(content::WebContents* contents) const {
   }
 
   auto it = tab_data_.find(contents);
-  DCHECK(it != tab_data_.end());
+  CHECK(it != tab_data_.end(), base::NotFatalUntil::M130);
   const TabData* tab_data = it->second.get();
 
   // Enforce a max time since use if one is specified.
   if (!max_time_since_last_use_to_restore_.is_zero()) {
     base::TimeDelta time_since_active =
-        delegate_->NowTicks() - contents->GetLastActiveTime();
+        delegate_->NowTicks() - contents->GetLastActiveTimeTicks();
     if (time_since_active > max_time_since_last_use_to_restore_)
       return false;
   }

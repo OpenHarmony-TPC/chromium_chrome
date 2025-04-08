@@ -12,6 +12,7 @@
 #include "base/feature_list.h"
 #include "base/memory/weak_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -28,7 +29,7 @@
 #include "components/metrics/demographics/demographic_metrics_test_utils.h"
 #include "components/metrics/metrics_switches.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
-#include "components/sync/driver/sync_user_settings.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -97,7 +98,7 @@ class MetricsServiceUserDemographicsBrowserTest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-// TODO(crbug/1016118): Add the remaining test cases.
+// TODO(crbug.com/40103988): Add the remaining test cases.
 // Keep this test in sync with testUMADemographicsReportingWithFeatureEnabled
 // and testUMADemographicsReportingWithFeatureDisabled in
 // ios/chrome/browser/metrics/demographics_egtest.mm.
@@ -118,15 +119,15 @@ IN_PROC_BROWSER_TEST_P(MetricsServiceUserDemographicsBrowserTest,
   test::AddUserBirthYearAndGenderToSyncServer(GetFakeServer()->AsWeakPtr(),
                                               test_birth_year, test_gender);
 
-  // TODO(crbug/1076461): Try to replace the below set-up code with functions
-  // from SyncTest.
+  // TODO(crbug.com/40688248): Try to replace the below set-up code with
+  // functions from SyncTest.
   Profile* test_profile = ProfileManager::GetLastUsedProfileIfLoaded();
 
   // Enable sync for the test profile.
   std::unique_ptr<SyncServiceImplHarness> harness =
       test::InitializeProfileForSync(test_profile,
                                      GetFakeServer()->AsWeakPtr());
-  harness->SetupSync();
+  ASSERT_TRUE(harness->SetupSync());
 
   // Make sure that there is only one Profile to allow reporting the user's
   // birth year and gender.

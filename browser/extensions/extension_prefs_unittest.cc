@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/extensions/extension_prefs_unittest.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/files/scoped_temp_dir.h"
@@ -25,15 +31,13 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/sync/model/string_ordinal.h"
 #include "components/sync_preferences/pref_service_syncable.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_source.h"
-#include "content/public/test/mock_notification_observer.h"
 #include "extensions/browser/blocklist_extension_prefs.h"
 #include "extensions/browser/blocklist_state.h"
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_pref_value_map.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/install_flag.h"
+#include "extensions/browser/install_prefs_helper.h"
 #include "extensions/browser/pref_names.h"
 #include "extensions/browser/pref_types.h"
 #include "extensions/common/extension.h"
@@ -42,7 +46,6 @@
 #include "extensions/common/manifest_constants.h"
 #include "extensions/common/permissions/permission_set.h"
 #include "extensions/common/permissions/permissions_info.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using base::Time;
 using extensions::mojom::APIPermissionID;
@@ -111,7 +114,7 @@ class ExtensionPrefsLastPingDay : public ExtensionPrefsTest {
  private:
   Time extension_time_;
   Time blocklist_time_;
-  std::string extension_id_;
+  ExtensionId extension_id_;
 };
 TEST_F(ExtensionPrefsLastPingDay, LastPingDay) {}
 
@@ -309,7 +312,7 @@ class ExtensionPrefsGrantedPermissions : public ExtensionPrefsTest {
   }
 
  private:
-  std::string extension_id_;
+  ExtensionId extension_id_;
   APIPermissionSet api_perm_set1_;
   APIPermissionSet api_perm_set2_;
   URLPatternSet ehost_perm_set1_;
@@ -378,7 +381,7 @@ class ExtensionPrefsActivePermissions : public ExtensionPrefsTest {
   }
 
  private:
-  std::string extension_id_;
+  ExtensionId extension_id_;
   std::unique_ptr<const PermissionSet> active_perms_;
 };
 TEST_F(ExtensionPrefsActivePermissions, SetAndGetDesiredActivePermissions) {}
@@ -412,7 +415,7 @@ class ExtensionPrefsAcknowledgment : public ExtensionPrefsTest {
       std::string name = "test" + base::NumberToString(i);
       extensions_.push_back(prefs_.AddExtension(name));
     }
-    EXPECT_EQ(absl::nullopt,
+    EXPECT_EQ(std::nullopt,
               prefs()->GetInstalledExtensionInfo(not_installed_id_));
 
     ExtensionList::const_iterator iter;
@@ -484,14 +487,14 @@ class ExtensionPrefsDelayedInstallInfo : public ExtensionPrefsTest {
     ASSERT_EQ(id, extension->id());
     prefs()->SetDelayedInstallInfo(extension.get(), Extension::ENABLED,
                                    kInstallFlagNone,
-                                   ExtensionPrefs::DELAY_REASON_WAIT_FOR_IDLE,
+                                   ExtensionPrefs::DelayReason::kWaitForIdle,
                                    syncer::StringOrdinal(), std::string());
   }
 
   // Verifies that we get back expected idle install information previously
   // set by SetIdleInfo.
   void VerifyIdleInfo(const std::string& id, int num) {
-    absl::optional<ExtensionInfo> info(prefs()->GetDelayedInstallInfo(id));
+    std::optional<ExtensionInfo> info(prefs()->GetDelayedInstallInfo(id));
     ASSERT_TRUE(info);
     const std::string* version =
         info->extension_manifest->FindString("version");
@@ -608,7 +611,7 @@ class ExtensionPrefsFinishDelayedInstallInfo : public ExtensionPrefsTest {
     ASSERT_EQ(id_, new_extension->id());
     prefs()->SetDelayedInstallInfo(new_extension.get(), Extension::ENABLED,
                                    kInstallFlagNone,
-                                   ExtensionPrefs::DELAY_REASON_WAIT_FOR_IDLE,
+                                   ExtensionPrefs::DelayReason::kWaitForIdle,
                                    syncer::StringOrdinal(), "Param");
 
     // Finish idle installation
@@ -617,7 +620,7 @@ class ExtensionPrefsFinishDelayedInstallInfo : public ExtensionPrefsTest {
 
   void Verify() override {
     EXPECT_FALSE(prefs()->GetDelayedInstallInfo(id_));
-    EXPECT_EQ(std::string("Param"), prefs()->GetInstallParam(id_));
+    EXPECT_EQ(std::string("Param"), GetInstallParam(prefs(), id_));
 
     const base::Value::Dict* dict = prefs()->ReadPrefAsDict(id_, "manifest");
     ASSERT_TRUE(dict);
@@ -651,7 +654,7 @@ class ExtensionPrefsOnExtensionInstalled : public ExtensionPrefsTest {
 
   void Verify() override {
     EXPECT_TRUE(prefs()->IsExtensionDisabled(extension_->id()));
-    EXPECT_EQ(std::string("Param"), prefs()->GetInstallParam(extension_->id()));
+    EXPECT_EQ(std::string("Param"), GetInstallParam(prefs(), extension_->id()));
   }
 
  private:
@@ -704,9 +707,9 @@ class ExtensionPrefsMigratesToLastUpdateTime : public ExtensionPrefsTest {
     // Re-create migration scenario by removing the new first_install_time,
     // last_update_time pref keys and adding back the legacy install_time key.
     prefs()->UpdateExtensionPref(extension_->id(), kLastUpdateTimePrefKey,
-                                 absl::nullopt);
+                                 std::nullopt);
     prefs()->UpdateExtensionPref(extension_->id(), kFirstInstallTimePrefKey,
-                                 absl::nullopt);
+                                 std::nullopt);
     time_str_ = base::NumberToString(
         base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds());
     prefs()->SetStringPref(extension_->id(), kOldInstallTimePrefMap, time_str_);
@@ -753,13 +756,13 @@ class ExtensionPrefsBitMapPrefValueClearedIfEqualsDefaultValue
     extension_ = prefs_.AddExtension("test1");
     prefs()->ModifyBitMapPrefBits(
         extension_->id(), disable_reason::DISABLE_PERMISSIONS_INCREASE,
-        ExtensionPrefs::BIT_MAP_PREF_ADD, "disable_reasons",
+        ExtensionPrefs::BitMapPrefOperation::kAdd, "disable_reasons",
         disable_reason::DISABLE_USER_ACTION);
     // Set the bit map pref value to the default value, it should clear the
     // pref.
     prefs()->ModifyBitMapPrefBits(
         extension_->id(), disable_reason::DISABLE_USER_ACTION,
-        ExtensionPrefs::BIT_MAP_PREF_REPLACE, "disable_reasons",
+        ExtensionPrefs::BitMapPrefOperation::kReplace, "disable_reasons",
         disable_reason::DISABLE_USER_ACTION);
   }
 
@@ -1083,13 +1086,6 @@ class ExtensionPrefsObsoletePrefRemoval : public ExtensionPrefsTest {
         &str_value));
     EXPECT_EQ(kTestValue, str_value);
 
-    // TODO(crbug.com/1015619): Remove 2023-05. kPrefStringForIdMapping.
-    base::Value::Dict dictionary;
-    prefs()->UpdateExtensionPref(extension_->id(), kPrefStringForIdMapping,
-                                 base::Value(std::move(dictionary)));
-    EXPECT_TRUE(
-        prefs()->ReadPrefAsDict(extension_->id(), kPrefStringForIdMapping));
-
     prefs()->MigrateObsoleteExtensionPrefs();
   }
 
@@ -1098,17 +1094,10 @@ class ExtensionPrefsObsoletePrefRemoval : public ExtensionPrefsTest {
     EXPECT_FALSE(prefs()->ReadPrefAsString(
         extension_->id(), ExtensionPrefs::kFakeObsoletePrefForTesting,
         &str_value));
-
-    // TODO(crbug.com/1015619): Remove 2023-05. kPrefStringForIdMapping.
-    EXPECT_FALSE(
-        prefs()->ReadPrefAsDict(extension_->id(), kPrefStringForIdMapping));
   }
 
  private:
   scoped_refptr<const Extension> extension_;
-
-  // Incorrect spelling since 2013 (https://codereview.chromium.org/21289004).
-  const char* kPrefStringForIdMapping = "id_mapping_dictioanry";
 };
 
 TEST_F(ExtensionPrefsObsoletePrefRemoval, ExtensionPrefsObsoletePrefRemoval) {}
@@ -1233,11 +1222,11 @@ TEST_F(ExtensionPrefsSimpleTest, OldWithholdingPrefMigration) {
   // We need to explicitly remove the default value for the new pref as it is
   // added on install by default.
   prefs.prefs()->UpdateExtensionPref(previous_false_id, kNewPrefKey,
-                                     absl::nullopt);
+                                     std::nullopt);
   prefs.prefs()->UpdateExtensionPref(previous_true_id, kNewPrefKey,
-                                     absl::nullopt);
+                                     std::nullopt);
   prefs.prefs()->UpdateExtensionPref(previous_empty_id, kNewPrefKey,
-                                     absl::nullopt);
+                                     std::nullopt);
 
   prefs.prefs()->UpdateExtensionPref(previous_false_id, kOldPrefKey,
                                      base::Value(false));

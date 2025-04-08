@@ -49,8 +49,9 @@ namespace internal {
 // view is specified, the first view added to the hierarchy will get focus when
 // this SheetView's RequestFocus() is called.
 class SheetView : public views::BoxLayoutView, public views::FocusTraversable {
+  METADATA_HEADER(SheetView, views::BoxLayoutView)
+
  public:
-  METADATA_HEADER(SheetView);
   explicit SheetView(
       const base::RepeatingCallback<void(bool*, const ui::Event&)>&
           enter_key_accelerator_callback)
@@ -134,8 +135,8 @@ class SheetView : public views::BoxLayoutView, public views::FocusTraversable {
     // Screen readers do not ignore invisible elements, so force the screen
     // reader to skip invisible sheet views by making it an ignored leaf node in
     // the accessibility tree.
-    GetViewAccessibility().OverrideIsIgnored(!visible);
-    GetViewAccessibility().OverrideIsLeaf(!visible);
+    GetViewAccessibility().SetIsIgnored(!visible);
+    GetViewAccessibility().SetIsLeaf(!visible);
   }
 
   raw_ptr<views::View> first_focusable_ = nullptr;
@@ -148,7 +149,7 @@ class SheetView : public views::BoxLayoutView, public views::FocusTraversable {
       enter_key_accelerator_callback_;
 };
 
-BEGIN_METADATA(SheetView, views::BoxLayoutView)
+BEGIN_METADATA(SheetView)
 END_METADATA
 
 BEGIN_VIEW_BUILDER(, SheetView, views::BoxLayoutView)
@@ -158,9 +159,9 @@ END_VIEW_BUILDER
 // scrolled out of view. For example, if the view can be scrolled up to reveal
 // more content, the top of the content area will display a separator.
 class BorderedScrollView : public views::ScrollView {
- public:
-  METADATA_HEADER(BorderedScrollView);
+  METADATA_HEADER(BorderedScrollView, views::ScrollView)
 
+ public:
   // The painter used by the scroll view to display the border.
   class BorderedScrollViewBorderPainter : public views::Painter {
    public:
@@ -228,22 +229,25 @@ class BorderedScrollView : public views::ScrollView {
   gfx::Insets border_insets_;
 };
 
-BEGIN_METADATA(BorderedScrollView, views::ScrollView)
+BEGIN_METADATA(BorderedScrollView)
 ADD_READONLY_PROPERTY_METADATA(bool, TopBorder)
 ADD_READONLY_PROPERTY_METADATA(bool, BottomBorder)
 END_METADATA
 
 class PaymentRequestBackArrowButton : public views::ImageButton {
+  METADATA_HEADER(PaymentRequestBackArrowButton, views::ImageButton)
+
  public:
   explicit PaymentRequestBackArrowButton(
       views::Button::PressedCallback back_arrow_callback)
-      : views::ImageButton(back_arrow_callback) {
+      : views::ImageButton(std::move(back_arrow_callback)) {
     ConfigureVectorImageButton(this);
     constexpr int kBackArrowSize = 16;
     SetSize(gfx::Size(kBackArrowSize, kBackArrowSize));
     SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
     SetID(static_cast<int>(DialogViewID::BACK_BUTTON));
-    SetAccessibleName(l10n_util::GetStringUTF16(IDS_PAYMENTS_BACK));
+    GetViewAccessibility().SetName(
+        l10n_util::GetStringUTF16(IDS_PAYMENTS_BACK));
   }
 
   void OnThemeChanged() override {
@@ -255,6 +259,9 @@ class PaymentRequestBackArrowButton : public views::ImageButton {
         cp->GetColor(kColorPaymentsRequestBackArrowButtonIconDisabled));
   }
 };
+
+BEGIN_METADATA(PaymentRequestBackArrowButton)
+END_METADATA
 
 }  // namespace internal
 
@@ -344,6 +351,10 @@ std::unique_ptr<views::View> PaymentRequestSheetController::CreateView() {
             .SetID(static_cast<int>(DialogViewID::PAYMENT_SHEET_SCROLL_VIEW))
             .SetHorizontalScrollBarMode(
                 views::ScrollView::ScrollBarMode::kDisabled)
+            // Hack to make labels in ScrollView contents wrap to scroll view
+            // width.
+            // TODO(crbug.com/40280756): Fix this hack.
+            .ClipHeightTo(0, std::numeric_limits<int>::max())
             .SetContents(content_view_builder));
   } else {
     sheet_view_builder.AddChildren(content_view_builder);
@@ -424,7 +435,8 @@ std::u16string PaymentRequestSheetController::GetPrimaryButtonLabel() {
 PaymentRequestSheetController::ButtonCallback
 PaymentRequestSheetController::GetPrimaryButtonCallback() {
   return base::BindRepeating(
-      [](const base::WeakPtr<PaymentRequestDialogView>& dialog) {
+      [](const base::WeakPtr<PaymentRequestDialogView>& dialog,
+         const ui::Event& event) {
         if (dialog->IsInteractive())
           dialog->Pay();
       },
@@ -471,7 +483,8 @@ void PaymentRequestSheetController::PopulateSheetHeaderView(
   DCHECK_EQ(container, header_view_);
 
   container->SetID(static_cast<int>(DialogViewID::PAYMENT_APP_HEADER));
-  container->SetBackground(GetHeaderBackground(header_view_));
+  container->SetBackground(
+      views::CreateThemedSolidBackground(ui::kColorDialogBackground));
   views::BoxLayout* layout =
       container->SetLayoutManager(std::make_unique<views::BoxLayout>());
   layout->set_cross_axis_alignment(
@@ -495,24 +508,15 @@ void PaymentRequestSheetController::PopulateSheetHeaderView(
   }
 
   layout->SetFlexForView(
-      container->AddChildView(CreateHeaderContentView(header_view_)), 1);
-}
-
-std::unique_ptr<views::View>
-PaymentRequestSheetController::CreateHeaderContentView(
-    views::View* header_view) {
-  return views::Builder<views::Label>()
-      .SetText(GetSheetTitle())
-      .SetTextContext(views::style::CONTEXT_DIALOG_TITLE)
-      .SetHorizontalAlignment(gfx::ALIGN_LEFT)
-      .SetID(static_cast<int>(DialogViewID::SHEET_TITLE))
-      .SetFocusBehavior(views::View::FocusBehavior::ACCESSIBLE_ONLY)
-      .Build();
-}
-
-std::unique_ptr<views::Background>
-PaymentRequestSheetController::GetHeaderBackground(views::View* header_view) {
-  return views::CreateThemedSolidBackground(ui::kColorDialogBackground);
+      container->AddChildView(
+          views::Builder<views::Label>()
+              .SetText(GetSheetTitle())
+              .SetTextContext(views::style::CONTEXT_DIALOG_TITLE)
+              .SetHorizontalAlignment(gfx::ALIGN_LEFT)
+              .SetID(static_cast<int>(DialogViewID::SHEET_TITLE))
+              .SetFocusBehavior(views::View::FocusBehavior::ACCESSIBLE_ONLY)
+              .Build()),
+      1);
 }
 
 std::unique_ptr<views::View> PaymentRequestSheetController::CreateFooterView() {
@@ -591,7 +595,7 @@ bool PaymentRequestSheetController::CanContentViewBeScrollable() {
   return true;
 }
 
-void PaymentRequestSheetController::CloseButtonPressed() {
+void PaymentRequestSheetController::CloseButtonPressed(const ui::Event& event) {
   if (dialog()->IsInteractive())
     dialog()->CloseDialog();
 }
@@ -612,7 +616,7 @@ void PaymentRequestSheetController::AddPrimaryButton(views::View* container) {
                       .SetID(GetPrimaryButtonId())
                       .SetEnabled(GetPrimaryButtonEnabled())
                       .SetFocusBehavior(views::View::FocusBehavior::ALWAYS)
-                      .SetProminent(true))
+                      .SetStyle(ui::ButtonStyle::kProminent))
         .BuildChildren();
   }
 }
@@ -642,6 +646,10 @@ void PaymentRequestSheetController::PerformPrimaryButtonAction(
     if (callback)
       callback.Run(event);
   }
+}
+
+void PaymentRequestSheetController::Stop() {
+  is_active_ = false;
 }
 
 void PaymentRequestSheetController::BackButtonPressed() {

@@ -36,7 +36,7 @@
 // NOTE: Tests in this file modify the certificate store. That is potentially a
 // lasting side effect that can affect other tests.
 // * To prevent interference with tests that are run in parallel, these tests
-// are a part of lacros_chrome_browsertests_run_in_series test suite.
+// are a part of lacros_chrome_browsertests test suite.
 // * To prevent interference with following tests, they try to clean up all the
 // side effects themself, e.g. if a test adds a cert, it is also responsible for
 // deleting it.
@@ -80,7 +80,7 @@ net::ScopedCERTCertificateList GetCaCert() {
   }
 
   return net::x509_util::CreateCERTCertificateListFromBytes(
-      cert_bytes.data(), cert_bytes.size(), net::X509Certificate::FORMAT_AUTO);
+      base::as_byte_span(cert_bytes), net::X509Certificate::FORMAT_AUTO);
 }
 
 void GetNssDatabaseOnIO(NssCertDatabaseGetter nss_getter,
@@ -177,7 +177,8 @@ void DeleteCaCert(Profile* profile) {
   issuer.GenerateRSAKey();
   auto cert_builder =
       net::CertBuilder::FromSubjectPublicKeyInfo(public_key_spki, &issuer);
-  cert_builder->SetSignatureAlgorithm(net::SignatureAlgorithm::kRsaPkcs1Sha256);
+  cert_builder->SetSignatureAlgorithm(
+      bssl::SignatureAlgorithm::kRsaPkcs1Sha256);
   cert_builder->SetValidity(base::Time::Now(),
                             base::Time::Now() + base::Days(30));
 
@@ -199,7 +200,7 @@ class ScopedCertDatabaseObserver : public net::CertDatabase::Observer {
     net::CertDatabase::GetInstance()->RemoveObserver(this);
   }
 
-  void OnCertDBChanged() override {
+  void OnClientCertStoreChanged() override {
     notifications_received_++;
     run_loop_.Quit();
   }
@@ -281,7 +282,7 @@ IN_PROC_BROWSER_TEST_F(CertDbInitializerTest, CertsChangedNotificationFromAsh) {
       generate_key_result;
   keystore_crosapi->GenerateKey(
       crosapi::mojom::KeystoreType::kUser,
-      crosapi::keystore_service_util::MakeRsaKeystoreSigningAlgorithm(
+      crosapi::keystore_service_util::MakeRsassaPkcs1v15KeystoreAlgorithm(
           /*modulus_length=*/2048, /*sw_backed=*/false),
       generate_key_result.GetCallback());
   ASSERT_FALSE(generate_key_result.Get()->is_error());

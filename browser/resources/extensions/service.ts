@@ -2,25 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ChromeEvent} from '/tools/typescript/definitions/chrome_event.js';
-import {assert} from 'arkweb://resources/js/assert_ts.js';
+import type {ChromeEvent} from '/tools/typescript/definitions/chrome_event.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
-import {ActivityLogDelegate} from './activity_log/activity_log_history.js';
-import {ActivityLogEventDelegate} from './activity_log/activity_log_stream.js';
-import {ErrorPageDelegate} from './error_page.js';
-import {ItemDelegate} from './item.js';
-import {KeyboardShortcutDelegate} from './keyboard_shortcut_delegate.js';
-import {LoadErrorDelegate} from './load_error.js';
+import type {ActivityLogDelegate} from './activity_log/activity_log_history.js';
+import type {ActivityLogEventDelegate} from './activity_log/activity_log_stream.js';
+import type {ErrorPageDelegate} from './error_page.js';
+import type {ItemDelegate} from './item.js';
+import type {KeyboardShortcutDelegate} from './keyboard_shortcut_delegate.js';
+import type {LoadErrorDelegate} from './load_error.js';
+import type {Mv2DeprecationDelegate} from './mv2_deprecation_delegate.js';
 import {Dialog, navigation, Page} from './navigation_helper.js';
-import {PackDialogDelegate} from './pack_dialog.js';
-import {SiteSettingsDelegate} from './site_settings_mixin.js';
-import {ToolbarDelegate} from './toolbar.js';
+import type {PackDialogDelegate} from './pack_dialog.js';
+import type {SiteSettingsDelegate} from './site_permissions/site_settings_mixin.js';
+import type {ToolbarDelegate} from './toolbar.js';
 
 export interface ServiceInterface extends ActivityLogDelegate,
                                           ActivityLogEventDelegate,
                                           ErrorPageDelegate, ItemDelegate,
                                           KeyboardShortcutDelegate,
-                                          LoadErrorDelegate, PackDialogDelegate,
+                                          LoadErrorDelegate,
+                                          Mv2DeprecationDelegate,
+                                          PackDialogDelegate,
                                           SiteSettingsDelegate,
                                           ToolbarDelegate {
   notifyDragInstallInProgress(): void;
@@ -31,6 +34,11 @@ export interface ServiceInterface extends ActivityLogDelegate,
   getProfileConfiguration(): Promise<chrome.developerPrivate.ProfileInfo>;
   getExtensionsInfo(): Promise<chrome.developerPrivate.ExtensionInfo[]>;
   getExtensionSize(id: string): Promise<string>;
+  dismissSafetyHubExtensionsMenuNotification(): void;
+  dismissMv2DeprecationNotice(): void;
+  shouldIgnoreUpdate(
+      extensionId: string,
+      eventType: chrome.developerPrivate.EventType): boolean;
 }
 
 export class Service implements ServiceInterface {
@@ -171,6 +179,30 @@ export class Service implements ServiceInterface {
         });
   }
 
+  /**
+   * Allows the consumer to call the API asynchronously.
+   */
+  uninstallItem(id: string): Promise<void> {
+    chrome.metricsPrivate.recordUserAction('Extensions.RemoveExtensionClick');
+    return chrome.management.uninstall(id, {showConfirmDialog: true});
+  }
+
+  deleteItems(ids: string[]): Promise<void> {
+    this.isDeleting_ = true;
+    return chrome.developerPrivate.removeMultipleExtensions(ids).finally(() => {
+      this.isDeleting_ = false;
+    });
+  }
+
+  setItemSafetyCheckWarningAcknowledged(
+      id: string,
+      reason: chrome.developerPrivate.SafetyCheckWarningReason): Promise<void> {
+    return chrome.developerPrivate.updateExtensionConfiguration({
+      extensionId: id,
+      acknowledgeSafetyCheckWarningReason: reason,
+    });
+  }
+
   setItemEnabled(id: string, isEnabled: boolean) {
     chrome.metricsPrivate.recordUserAction(
         isEnabled ? 'Extensions.ExtensionEnabled' :
@@ -207,6 +239,13 @@ export class Service implements ServiceInterface {
     });
   }
 
+  setItemPinnedToToolbar(id: string, pinnedToToolbar: boolean) {
+    chrome.developerPrivate.updateExtensionConfiguration({
+      extensionId: id,
+      pinnedToToolbar,
+    });
+  }
+
   inspectItemView(id: string, view: chrome.developerPrivate.ExtensionView):
       void {
     chrome.developerPrivate.openDevTools({
@@ -219,7 +258,9 @@ export class Service implements ServiceInterface {
   }
 
   openUrl(url: string): void {
-    window.open(url);
+    // window.open(url);
+    // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    chrome.developerPrivate.openUrl(url);
   }
 
   reloadItem(id: string): Promise<void> {
@@ -258,10 +299,10 @@ export class Service implements ServiceInterface {
     return this.loadUnpackedHelper_();
   }
 
-  retryLoadUnpacked(retryGuid: string): Promise<boolean> {
+  retryLoadUnpacked(retryGuid?: string): Promise<boolean> {
     // Attempt to load an unpacked extension, optionally as another attempt at
     // a previously-specified load.
-    return this.loadUnpackedHelper_({retryGuid: retryGuid});
+    return this.loadUnpackedHelper_({retryGuid});
   }
 
   choosePackRootDirectory(): Promise<string> {
@@ -463,6 +504,19 @@ export class Service implements ServiceInterface {
       updates: chrome.developerPrivate.ExtensionSiteAccessUpdate[]):
       Promise<void> {
     return chrome.developerPrivate.updateSiteAccess(site, updates);
+  }
+
+  dismissSafetyHubExtensionsMenuNotification() {
+    chrome.developerPrivate.dismissSafetyHubExtensionsMenuNotification();
+  }
+
+  dismissMv2DeprecationNotice(): void {
+    chrome.developerPrivate.updateProfileConfiguration(
+        {isMv2DeprecationNoticeDismissed: true});
+  }
+
+  dismissMv2DeprecationNoticeForExtension(id: string): Promise<void> {
+    return chrome.developerPrivate.dismissMv2DeprecationNoticeForExtension(id);
   }
 
   static getInstance(): ServiceInterface {

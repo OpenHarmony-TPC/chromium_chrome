@@ -5,11 +5,13 @@
 // clang-format off
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {HatsBrowserProxyImpl, LifetimeBrowserProxyImpl, MetricsBrowserProxyImpl, OpenWindowProxyImpl, PasswordCheckReferrer, PasswordManagerImpl, Router, routes, SafetyCheckBrowserProxy, SafetyCheckBrowserProxyImpl, SafetyCheckCallbackConstants, SafetyCheckExtensionsStatus, SafetyCheckIconStatus, SafetyCheckInteractions, SafetyCheckParentStatus, SafetyCheckPasswordsStatus, SafetyCheckSafeBrowsingStatus, SafetyCheckUpdatesStatus, SettingsSafetyCheckChildElement, SettingsSafetyCheckExtensionsChildElement, SettingsSafetyCheckPageElement, SettingsSafetyCheckPasswordsChildElement, SettingsSafetyCheckSafeBrowsingChildElement ,SettingsSafetyCheckUpdatesChildElement, TrustSafetyInteraction} from 'chrome://settings/settings.js';
+import type {SafetyCheckExtensionsElement, SafetyCheckBrowserProxy, SettingsSafetyCheckChildElement, SettingsSafetyCheckExtensionsChildElement, SettingsSafetyCheckPageElement, SettingsSafetyCheckPasswordsChildElement, SettingsSafetyCheckSafeBrowsingChildElement ,SettingsSafetyCheckUpdatesChildElement} from 'chrome://settings/settings.js';
+import {SafetyCheckExtensionsBrowserProxyImpl, HatsBrowserProxyImpl, LifetimeBrowserProxyImpl, MetricsBrowserProxyImpl, OpenWindowProxyImpl, PasswordCheckReferrer, PasswordManagerImpl, Router, routes, PasswordManagerPage, SafetyCheckBrowserProxyImpl, SafetyCheckCallbackConstants, SafetyCheckExtensionsStatus, SafetyCheckIconStatus, SafetyCheckInteractions, SafetyCheckParentStatus, SafetyCheckPasswordsStatus, SafetyCheckSafeBrowsingStatus, SafetyCheckUpdatesStatus, TrustSafetyInteraction} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
 
+import {TestExtensionBrowserProxy} from './test_extensions_browser_proxy.js';
 import {TestHatsBrowserProxy} from './test_hats_browser_proxy.js';
 import {TestLifetimeBrowserProxy} from './test_lifetime_browser_proxy.js';
 import {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
@@ -133,7 +135,7 @@ suite('SafetyCheckPageUiTests', function() {
     assertTrue(!!page.shadowRoot!.querySelector('#safetyCheckParentButton'));
     assertFalse(!!page.shadowRoot!.querySelector('cr-icon-button'));
     // Collapse is not opened.
-    const collapse = page.shadowRoot!.querySelector('iron-collapse')!;
+    const collapse = page.shadowRoot!.querySelector('cr-collapse')!;
     assertFalse(collapse.opened);
 
     // User starts check.
@@ -178,7 +180,7 @@ suite('SafetyCheckPageUiTests', function() {
     assertFalse(!!page.shadowRoot!.querySelector('#safetyCheckParentButton'));
     assertTrue(!!page.shadowRoot!.querySelector('cr-icon-button'));
     // Collapse is opened.
-    assertTrue(page.shadowRoot!.querySelector('iron-collapse')!.opened);
+    assertTrue(page.shadowRoot!.querySelector('cr-collapse')!.opened);
 
     // Ensure the automatic browser proxy calls are started.
     return safetyCheckBrowserProxy.whenCalled('getParentRanDisplayString');
@@ -468,15 +470,31 @@ suite('SafetyCheckUpdatesChildUiTests', function() {
       sublabel: testDisplayString,
     });
   });
+
+  test('updateToRollbackVersionDisallowedUiTest', () => {
+    fireSafetyCheckUpdatesEvent(
+        SafetyCheckUpdatesStatus.UPDATE_TO_ROLLBACK_VERSION_DISALLOWED);
+    flush();
+    assertSafetyCheckChild({
+      page,
+      iconStatus: SafetyCheckIconStatus.INFO,
+      label: 'Updates',
+      sublabel: testDisplayString,
+    });
+  });
 });
 
 suite('SafetyCheckPasswordsChildUiTests', function() {
   let metricsBrowserProxy: TestMetricsBrowserProxy;
+  let passwordManager: TestPasswordManagerProxy;
   let page: SettingsSafetyCheckPasswordsChildElement;
 
   setup(function() {
     metricsBrowserProxy = new TestMetricsBrowserProxy();
     MetricsBrowserProxyImpl.setInstance(metricsBrowserProxy);
+
+    passwordManager = new TestPasswordManagerProxy();
+    PasswordManagerImpl.setInstance(passwordManager);
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     page = document.createElement('settings-safety-check-passwords-child');
@@ -523,9 +541,9 @@ suite('SafetyCheckPasswordsChildUiTests', function() {
     assertEquals(
         'Settings.SafetyCheck.ManagePasswordsThroughCaretNavigation',
         await metricsBrowserProxy.whenCalled('recordAction'));
-    // Ensure the correct Settings page is shown.
-    assertEquals(
-        routes.CHECK_PASSWORDS, Router.getInstance().getCurrentRoute());
+    // Ensure the Password Check page is shown.
+    const param = await passwordManager.whenCalled('showPasswordManager');
+    assertEquals(PasswordManagerPage.CHECKUP, param);
   });
 
   test('passwordCompromisedUiTest', async function() {
@@ -556,9 +574,9 @@ suite('SafetyCheckPasswordsChildUiTests', function() {
     assertEquals(
         'Settings.SafetyCheck.ManagePasswords',
         await metricsBrowserProxy.whenCalled('recordAction'));
-    // Ensure the correct Settings page is shown.
-    assertEquals(
-        routes.CHECK_PASSWORDS, Router.getInstance().getCurrentRoute());
+    // Ensure the Password Check page is shown.
+    const param = await passwordManager.whenCalled('showPasswordManager');
+    assertEquals(PasswordManagerPage.CHECKUP, param);
 
     // Ensure correct referrer sent to password check.
     const referrer =
@@ -590,9 +608,9 @@ suite('SafetyCheckPasswordsChildUiTests', function() {
     assertEquals(
         'Settings.SafetyCheck.ManageWeakPasswords',
         await metricsBrowserProxy.whenCalled('recordAction'));
-    // Ensure the correct Settings page is shown.
-    assertEquals(
-        routes.CHECK_PASSWORDS, Router.getInstance().getCurrentRoute());
+    // Ensure the Password Check page is shown.
+    const param = await passwordManager.whenCalled('showPasswordManager');
+    assertEquals(PasswordManagerPage.CHECKUP, param);
   });
 
   test('passwordInfoStatesUiTest', function() {
@@ -774,6 +792,34 @@ suite('SafetyCheckSafeBrowsingChildUiTests', function() {
     });
   });
 });
+
+suite('SafetyCheckExtensionsUiTests', function() {
+  let page: SafetyCheckExtensionsElement;
+  let browserProxy: TestExtensionBrowserProxy;
+  let openWindowProxy: TestOpenWindowProxy;
+
+  setup(function() {
+    browserProxy = new TestExtensionBrowserProxy();
+    SafetyCheckExtensionsBrowserProxyImpl.setInstance(browserProxy);
+    openWindowProxy = new TestOpenWindowProxy();
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    OpenWindowProxyImpl.setInstance(openWindowProxy);
+    page = document.createElement('safety-check-extensions');
+    document.body.appendChild(page);
+    flush();
+  });
+
+  test('extensionsReviewUiTest', async function() {
+    // Make sure that clicking the Safety Check Review button navigates
+    // the user to the extensions page.
+    const safetyCheck = page.$.safetyCheckChild.shadowRoot!;
+    assertTrue(!!safetyCheck);
+    safetyCheck.querySelector<HTMLElement>('#button')!.click();
+    const url = await openWindowProxy.whenCalled('openUrl');
+    assertEquals('chrome://extensions', url);
+  });
+});
+
 
 suite('SafetyCheckExtensionsChildUiTests', function() {
   let metricsBrowserProxy: TestMetricsBrowserProxy;

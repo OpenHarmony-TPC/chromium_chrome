@@ -7,10 +7,12 @@ package org.chromium.chrome.browser.compositor.overlays.strip;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import androidx.annotation.Nullable;
+
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.TabImpl;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tabmodel.EmptyTabModel;
+import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +25,7 @@ public class TestTabModel extends EmptyTabModel {
 
     public void addTab(final String title) {
         mMaxId++;
-        final TabImpl mockTab = mock(TabImpl.class);
+        final Tab mockTab = mock(Tab.class);
         final int tabId = mMaxId;
         when(mockTab.getId()).thenReturn(tabId);
         when(mockTab.getTitle()).thenReturn(title);
@@ -32,10 +34,13 @@ public class TestTabModel extends EmptyTabModel {
 
     @Override
     public Tab getTabAt(int position) {
-        if (position < mMockTabs.size()) {
-            return mMockTabs.get(position);
-        }
-        return null;
+        if (position < 0 || position >= mMockTabs.size()) return null;
+        return mMockTabs.get(position);
+    }
+
+    @Override
+    public @Nullable Tab getTabById(int tabId) {
+        return mMockTabs.stream().filter(t -> t.getId() == tabId).findAny().orElse(null);
     }
 
     @Override
@@ -49,16 +54,16 @@ public class TestTabModel extends EmptyTabModel {
     }
 
     @Override
-    public void closeAllTabs() {
-        mMockTabs.clear();
-        mMaxId = -1;
-        mIndex = 0;
-    }
-
-    @Override
-    public boolean closeTab(Tab tab, boolean animate, boolean uponExit, boolean canUndo) {
-        // The tabId and index are the same.
-        mMockTabs.remove(tab.getId());
+    public boolean closeTabs(TabClosureParams params) {
+        if (params.isAllTabs) {
+            mMockTabs.clear();
+            mMaxId = -1;
+            mIndex = 0;
+        } else {
+            for (Tab tab : params.tabs) {
+                mMockTabs.remove(tab.getId());
+            }
+        }
         return true;
     }
 
@@ -67,7 +72,7 @@ public class TestTabModel extends EmptyTabModel {
     }
 
     @Override
-    public void setIndex(int i, @TabSelectionType int type, boolean skipLoadingTab) {
+    public void setIndex(int i, @TabSelectionType int type) {
         mIndex = i;
     }
 

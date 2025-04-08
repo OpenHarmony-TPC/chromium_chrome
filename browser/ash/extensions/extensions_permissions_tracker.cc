@@ -4,7 +4,7 @@
 
 #include "chrome/browser/ash/extensions/extensions_permissions_tracker.h"
 
-#include "base/containers/contains.h"
+#include "base/containers/fixed_flat_set.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
@@ -22,7 +22,8 @@ namespace {
 
 // Apps/extensions explicitly allowlisted for skipping warnings for MGS (Managed
 // guest sessions) users.
-const char* const kManagedGuestSessionAllowlist[] = {
+constexpr auto kManagedGuestSessionAllowlist = base::MakeFixedFlatSet<
+    std::string_view>({
     // Managed guest sessions in general:
     "cbkkbcmdlboombapidmoeolnmdacpkch",  // Chrome RDP
     "inomeogfingihgjfjlpeplalcfajhgai",  // Chrome Remote Desktop
@@ -166,12 +167,12 @@ const char* const kManagedGuestSessionAllowlist[] = {
     "fhndealchbngfhdoncgcokameljahhog",  // Certificate Enrollment for Chrome OS
     "npeicpdbkakmehahjeeohfdhnlpdklia",  // WebRTC Network Limiter
     "hdkoikmfpncabbdniojdddokkomafcci",  // SSRS Reporting Fix for Chrome
-};
+});
 
 }  // namespace
 
 bool IsAllowlistedForManagedGuestSession(const std::string& extension_id) {
-  return base::Contains(kManagedGuestSessionAllowlist, extension_id);
+  return kManagedGuestSessionAllowlist.contains(extension_id);
 }
 
 ExtensionsPermissionsTracker::ExtensionsPermissionsTracker(
@@ -195,7 +196,7 @@ ExtensionsPermissionsTracker::ExtensionsPermissionsTracker(
 ExtensionsPermissionsTracker::~ExtensionsPermissionsTracker() = default;
 
 void ExtensionsPermissionsTracker::OnForcedExtensionsPrefChanged() {
-  // TODO(crbug.com/1015378): handle pref_names::kExtensionManagement with
+  // TODO(crbug.com/40103683): handle pref_names::kExtensionManagement with
   // installation_mode: forced.
   const base::Value& value =
       pref_service_->GetValue(pref_names::kInstallForceList);
@@ -213,7 +214,7 @@ void ExtensionsPermissionsTracker::OnForcedExtensionsPrefChanged() {
     // it'll be marked safe (true)
     extension_safety_ratings_.insert(make_pair(extension_id, false));
     const Extension* extension =
-        registry_->GetExtensionById(extension_id, ExtensionRegistry::ENABLED);
+        registry_->enabled_extensions().GetByID(extension_id);
     if (extension)
       ParseExtensionPermissions(extension);
     else

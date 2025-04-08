@@ -5,8 +5,10 @@
 #include "chrome/browser/ui/views/tabs/tab_strip_scroll_session.h"
 
 #include <memory>
+
 #include "base/test/scoped_feature_list.h"
 #include "base/timer/mock_timer.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/tabs/tab_drag_controller.h"
 #include "chrome/test/views/chrome_views_test_base.h"
@@ -50,7 +52,7 @@ class TabStripScrollSessionWithTimerTestBase : public ChromeViewsTestBase {
   explicit TabStripScrollSessionWithTimerTestBase(
       TabDragController::ScrollWithDragStrategy strategy)
       : strategy_(strategy) {
-    scoped_feature_list_.InitWithFeatures({features::kScrollableTabStrip}, {});
+    scoped_feature_list_.InitWithFeatures({tabs::kScrollableTabStrip}, {});
   }
 
   ~TabStripScrollSessionWithTimerTestBase() override = default;
@@ -76,13 +78,13 @@ class TabStripScrollSessionWithTimerTestBase : public ChromeViewsTestBase {
     scroll_session_->SetTimerForTesting(mock_timer_);
 
     scroll_view_ = std::make_unique<views::ScrollView>();
-    scroll_view_->SetBounds(
-        0, 0, 5 * TabStyleViews::Create()->GetMinimumInactiveWidth(), 5);
+    scroll_view_->SetBounds(0, 0,
+                            5 * TabStyle::Get()->GetMinimumInactiveWidth(), 5);
 
     attached_context_ =
         scroll_view_->SetContents(std::make_unique<views::View>());
     attached_context_->SetBounds(
-        0, 0, 10 * TabStyleViews::Create()->GetMinimumInactiveWidth(), 5);
+        0, 0, 10 * TabStyle::Get()->GetMinimumInactiveWidth(), 5);
   }
 
   void TearDown() override { ChromeViewsTestBase::TearDown(); }
@@ -93,7 +95,7 @@ class TabStripScrollSessionWithTimerTestBase : public ChromeViewsTestBase {
   std::unique_ptr<MockTabDragWithScrollManager> drag_controller_;
   std::unique_ptr<views::ScrollView> scroll_view_;
   std::unique_ptr<TabStripScrollSessionWithTimer> scroll_session_;
-  raw_ptr<views::View> attached_context_;
+  raw_ptr<views::View, DanglingUntriaged> attached_context_;
   raw_ptr<base::MockRepeatingTimer> mock_timer_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };

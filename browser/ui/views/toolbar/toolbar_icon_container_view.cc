@@ -22,7 +22,6 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_provider.h"
 #include "ui/compositor/paint_recorder.h"
-#include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/gfx/canvas.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/animation/ink_drop.h"
@@ -38,8 +37,6 @@ ToolbarIconContainerView::RoundRectBorder::RoundRectBorder(views::View* parent)
   layer_.SetFillsBoundsOpaquely(false);
   layer_.SetFillsBoundsCompletely(false);
   layer_.SetOpacity(0);
-  layer_.SetAnimator(ui::LayerAnimator::CreateImplicitAnimator());
-  layer_.GetAnimator()->set_tween_type(gfx::Tween::EASE_OUT);
   layer_.SetVisible(true);
 }
 
@@ -55,7 +52,7 @@ void ToolbarIconContainerView::RoundRectBorder::OnPaintLayer(
   flags.setStyle(cc::PaintFlags::kStroke_Style);
   flags.setStrokeWidth(1);
   flags.setColor(
-      parent_->GetColorProvider()->GetColor(kColorToolbarButtonBorder));
+      parent_->GetColorProvider()->GetColor(kColorToolbarIconContainerBorder));
   gfx::RectF rect(gfx::SizeF(layer_.size()));
   rect.Inset(0.5f);  // Pixel edges -> pixel centers.
   canvas->DrawRoundRect(rect, radius, flags);
@@ -112,7 +109,9 @@ class ToolbarIconContainerView::WidgetRestoreObserver
       this};
 };
 
-ToolbarIconContainerView::ToolbarIconContainerView(bool uses_highlight)
+ToolbarIconContainerView::ToolbarIconContainerView(
+    bool uses_highlight,
+    bool use_default_target_layout)
     : uses_highlight_(uses_highlight) {
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
@@ -125,13 +124,15 @@ ToolbarIconContainerView::ToolbarIconContainerView(bool uses_highlight)
       views::AnimatingLayoutManager::BoundsAnimationMode::kAnimateBothAxes);
   animating_layout->SetDefaultFadeMode(
       views::AnimatingLayoutManager::FadeInOutMode::kSlideFromTrailingEdge);
-  auto* flex_layout = animating_layout->SetTargetLayoutManager(
-      std::make_unique<views::FlexLayout>());
-  flex_layout->SetCollapseMargins(true)
-      .SetIgnoreDefaultMainAxisMargins(true)
-      .SetDefault(
-          views::kMarginsKey,
-          gfx::Insets::VH(0, GetLayoutConstant(TOOLBAR_ELEMENT_PADDING)));
+  if (use_default_target_layout) {
+    auto* flex_layout = animating_layout->SetTargetLayoutManager(
+        std::make_unique<views::FlexLayout>());
+    flex_layout->SetCollapseMargins(true)
+        .SetIgnoreDefaultMainAxisMargins(true)
+        .SetDefault(
+            views::kMarginsKey,
+            gfx::Insets::VH(0, GetLayoutConstant(TOOLBAR_ELEMENT_PADDING)));
+  }
 }
 
 ToolbarIconContainerView::~ToolbarIconContainerView() {
@@ -170,19 +171,6 @@ void ToolbarIconContainerView::AddObserver(Observer* obs) {
 
 void ToolbarIconContainerView::RemoveObserver(const Observer* obs) {
   observers_.RemoveObserver(obs);
-}
-
-void ToolbarIconContainerView::SetIconColor(SkColor color) {
-  if (icon_color_ == color)
-    return;
-  icon_color_ = color;
-  UpdateAllIcons();
-  OnPropertyChanged(&icon_color_, views::kPropertyEffectsNone);
-}
-
-SkColor ToolbarIconContainerView::GetIconColor() const {
-  return icon_color_.value_or(
-      GetColorProvider()->GetColor(kColorToolbarButtonIcon));
 }
 
 bool ToolbarIconContainerView::GetHighlighted() const {
@@ -264,7 +252,7 @@ void ToolbarIconContainerView::AddedToWidget() {
 
 void ToolbarIconContainerView::UpdateHighlight() {
   // New feature doesn't have a border around the toolbar icons.
-  // TODO(crbug.com/1279986): Remove ToolbarIconContainerView once feature is
+  // TODO(crbug.com/40811196): Remove ToolbarIconContainerView once feature is
   // rolled out.
   if (base::FeatureList::IsEnabled(
           extensions_features::kExtensionsMenuAccessControl)) {
@@ -272,26 +260,11 @@ void ToolbarIconContainerView::UpdateHighlight() {
   }
 
   bool showing_before = border_.layer()->GetTargetOpacity() == 1;
-
-  {
-    ui::ScopedLayerAnimationSettings settings(border_.layer()->GetAnimator());
-    border_.layer()->SetOpacity(GetHighlighted() ? 1 : 0);
-  }
-
-  // TODO(crbug.com/1194150): For some reason, the SchedulePaint() calls that
-  // happen initially -- in OnThemeChanged() and OnBoundsChanged() -- do not
-  // result in the layer getting painted for the first time. Calling
-  // SchedulePaint() here works. Without this, the highlight will not appear
-  // until an extension icon is added or removed or the theme is changed.
-  if (!ever_painted_highlight_ && GetHighlighted()) {
-    ever_painted_highlight_ = true;
-    border_.layer()->SchedulePaint(GetLocalBounds());
-  }
+  border_.layer()->SetOpacity(GetHighlighted() ? 1 : 0);
 
   if (showing_before == (border_.layer()->GetTargetOpacity() == 1))
     return;
-  for (Observer& observer : observers_)
-    observer.OnHighlightChanged();
+  observers_.Notify(&Observer::OnHighlightChanged);
 }
 
 void ToolbarIconContainerView::OnButtonHighlightedChanged(
@@ -304,7 +277,6 @@ void ToolbarIconContainerView::OnButtonHighlightedChanged(
   UpdateHighlight();
 }
 
-BEGIN_METADATA(ToolbarIconContainerView, views::View)
-ADD_PROPERTY_METADATA(SkColor, IconColor, ui::metadata::SkColorConverter)
+BEGIN_METADATA(ToolbarIconContainerView)
 ADD_READONLY_PROPERTY_METADATA(bool, Highlighted)
 END_METADATA

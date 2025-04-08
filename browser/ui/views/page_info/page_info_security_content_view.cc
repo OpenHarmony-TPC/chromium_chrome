@@ -4,12 +4,16 @@
 
 #include "chrome/browser/ui/views/page_info/page_info_security_content_view.h"
 
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
+#include "components/safe_browsing/core/common/features.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/views/layout/box_layout.h"
 
 PageInfoSecurityContentView::PageInfoSecurityContentView(
@@ -37,12 +41,32 @@ void PageInfoSecurityContentView::SetIdentityInfo(
   security_description_type_ = security_description->type;
 
   if (security_description->summary_style == SecuritySummaryColor::RED) {
-    security_view_->SetIcon(PageInfoViewFactory::GetConnectionNotSecureIcon());
+    if (identity_info.safe_browsing_status ==
+            PageInfo::SAFE_BROWSING_STATUS_MALWARE ||
+        identity_info.safe_browsing_status ==
+            PageInfo::SAFE_BROWSING_STATUS_SOCIAL_ENGINEERING ||
+        identity_info.safe_browsing_status ==
+            PageInfo::SAFE_BROWSING_STATUS_UNWANTED_SOFTWARE) {
+      security_view_->SetIcon(
+          PageInfoViewFactory::GetConnectionDangerousIcon());
+    } else {
+      security_view_->SetIcon(
+          PageInfoViewFactory::GetConnectionNotSecureIcon());
+    }
     security_view_->SetSummary(security_description->summary, STYLE_RED);
+  } else if (security_description->summary_style ==
+                 SecuritySummaryColor::ENTERPRISE &&
+             (identity_info.safe_browsing_status ==
+                  PageInfo::SAFE_BROWSING_STATUS_MANAGED_POLICY_WARN ||
+              identity_info.safe_browsing_status ==
+                  PageInfo::SAFE_BROWSING_STATUS_MANAGED_POLICY_BLOCK)) {
+    security_view_->SetIcon(PageInfoViewFactory::GetBusinessIcon());
+    security_view_->SetSummary(security_description->summary,
+                               views::style::STYLE_BODY_3_MEDIUM);
   } else {
     security_view_->SetIcon(PageInfoViewFactory::GetConnectionSecureIcon());
     security_view_->SetSummary(security_description->summary,
-                               views::style::STYLE_PRIMARY);
+                               views::style::STYLE_BODY_3_MEDIUM);
   }
   security_view_->SetDetails(
       security_description->details,
@@ -80,26 +104,23 @@ void PageInfoSecurityContentView::SetIdentityInfo(
     const ui::ImageModel icon =
         valid_identity ? PageInfoViewFactory::GetValidCertificateIcon()
                        : PageInfoViewFactory::GetInvalidCertificateIcon();
-    const int title_id = valid_identity
-                             ? IDS_PAGE_INFO_CERTIFICATE_IS_VALID
-                             : IDS_PAGE_INFO_CERTIFICATE_IS_NOT_VALID;
+    const int title_id = valid_identity ? IDS_PAGE_INFO_CERTIFICATE_IS_VALID
+                                        : IDS_PAGE_INFO_CERTIFICATE_DETAILS;
 
     std::u16string subtitle_text;
-    if (base::FeatureList::IsEnabled(features::kEvDetailsInPageInfo)) {
-      // Only show the EV certificate details if there are no errors or mixed
-      // content.
-      if (identity_info.identity_status ==
-              PageInfo::SITE_IDENTITY_STATUS_EV_CERT &&
-          identity_info.connection_status ==
-              PageInfo::SITE_CONNECTION_STATUS_ENCRYPTED) {
-        // An EV cert is required to have an organization name and a country.
-        if (!certificate_->subject().organization_names.empty() &&
-            !certificate_->subject().country_name.empty()) {
-          subtitle_text = l10n_util::GetStringFUTF16(
-              IDS_PAGE_INFO_SECURITY_TAB_SECURE_IDENTITY_EV_VERIFIED,
-              base::UTF8ToUTF16(certificate_->subject().organization_names[0]),
-              base::UTF8ToUTF16(certificate_->subject().country_name));
-        }
+    // Only show the EV certificate details if there are no errors or mixed
+    // content.
+    if (identity_info.identity_status ==
+            PageInfo::SITE_IDENTITY_STATUS_EV_CERT &&
+        identity_info.connection_status ==
+            PageInfo::SITE_CONNECTION_STATUS_ENCRYPTED) {
+      // An EV cert is required to have an organization name and a country.
+      if (!certificate_->subject().organization_names.empty() &&
+          !certificate_->subject().country_name.empty()) {
+        subtitle_text = l10n_util::GetStringFUTF16(
+            IDS_PAGE_INFO_SECURITY_TAB_SECURE_IDENTITY_EV_VERIFIED,
+            base::UTF8ToUTF16(certificate_->subject().organization_names[0]),
+            base::UTF8ToUTF16(certificate_->subject().country_name));
       }
     }
 
@@ -125,6 +146,14 @@ void PageInfoSecurityContentView::SetIdentityInfo(
     certificate_button_->SetID(
         PageInfoViewFactory::
             VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_CERTIFICATE_VIEWER);
+    certificate_button_->title()->SetTextStyle(
+        views::style::STYLE_BODY_3_MEDIUM);
+    certificate_button_->title()->SetEnabledColorId(kColorPageInfoForeground);
+    if (certificate_button_->subtitle()) {
+      certificate_button_->subtitle()->SetTextStyle(views::style::STYLE_BODY_4);
+      certificate_button_->subtitle()->SetEnabledColorId(
+          kColorPageInfoSubtitleForeground);
+    }
   }
 
   if (identity_info.show_change_password_buttons) {
@@ -154,7 +183,13 @@ void PageInfoSecurityContentView::SecurityDetailsClicked(
     const ui::Event& event) {
   if (security_description_type_ == SecurityDescriptionType::SAFETY_TIP) {
     presenter_->OpenSafetyTipHelpCenterPage();
+  } else if (security_description_type_ ==
+             SecurityDescriptionType::SAFE_BROWSING) {
+    presenter_->OpenSafeBrowsingHelpCenterPage(event);
   } else {
     presenter_->OpenConnectionHelpCenterPage(event);
   }
 }
+
+BEGIN_METADATA(PageInfoSecurityContentView)
+END_METADATA

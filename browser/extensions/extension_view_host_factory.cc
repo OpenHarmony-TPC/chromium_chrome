@@ -16,7 +16,6 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/process_manager.h"
-#include "extensions/common/extension_features.h"
 #include "extensions/common/manifest_handlers/incognito_info.h"
 #include "extensions/common/mojom/view_type.mojom.h"
 
@@ -35,9 +34,8 @@ std::unique_ptr<ExtensionViewHost> CreateViewHostForExtension(
     Browser* browser,
     content::WebContents* web_contents) {
   DCHECK(profile);
-  // A NULL browser may only be given for dialogs or side panels.
-  DCHECK(browser || view_type == mojom::ViewType::kExtensionDialog ||
-         view_type == mojom::ViewType::kExtensionSidePanel);
+  // A NULL browser may only be given for side panels.
+  DCHECK(browser || view_type == mojom::ViewType::kExtensionSidePanel);
   scoped_refptr<content::SiteInstance> site_instance =
       ProcessManager::Get(profile)->GetSiteInstanceForURL(url);
   return view_type == mojom::ViewType::kExtensionSidePanel
@@ -71,10 +69,8 @@ std::unique_ptr<ExtensionViewHost> CreateViewHostForIncognito(
     return CreateViewHostForExtension(extension, url, profile, view_type,
                                       browser, web_contents);
   }
-  NOTREACHED() <<
-      "We shouldn't be trying to create an incognito extension view unless "
-      "it has been enabled for incognito.";
-  return nullptr;
+  NOTREACHED() << "We shouldn't be trying to create an incognito extension "
+                  "view unless it has been enabled for incognito.";
 }
 
 // Returns the extension associated with |url| in |profile|. Returns NULL if
@@ -95,9 +91,8 @@ std::unique_ptr<ExtensionViewHost> CreateViewHost(
     content::WebContents* web_contents,
     extensions::mojom::ViewType view_type) {
   DCHECK(profile);
-  // A NULL browser may only be given for dialogs or side panels.
-  DCHECK(browser || view_type == mojom::ViewType::kExtensionDialog ||
-         view_type == mojom::ViewType::kExtensionSidePanel);
+  // A NULL browser may only be given for side panels.
+  DCHECK(browser || view_type == mojom::ViewType::kExtensionSidePanel);
 
   const Extension* extension = GetExtensionForUrl(profile, url);
   if (!extension)
@@ -124,30 +119,20 @@ std::unique_ptr<ExtensionViewHost> ExtensionViewHostFactory::CreatePopupHost(
 }
 
 // static
-std::unique_ptr<ExtensionViewHost> ExtensionViewHostFactory::CreateDialogHost(
-    const GURL& url,
-    Profile* profile) {
-  DCHECK(profile);
-  return CreateViewHost(url, profile, /*browser=*/nullptr,
-                        /*web_contents=*/nullptr,
-                        mojom::ViewType::kExtensionDialog);
-}
-
-// static
 std::unique_ptr<ExtensionViewHost>
 ExtensionViewHostFactory::CreateSidePanelHost(
     const GURL& url,
-    Browser* browser,
-    content::WebContents* web_contents) {
-  DCHECK(browser == nullptr ^ web_contents == nullptr);
-  DCHECK(base::FeatureList::IsEnabled(
-      extensions_features::kExtensionSidePanelIntegration));
+    BrowserWindowInterface* browser,
+    tabs::TabInterface* tab_interface) {
+  DCHECK(browser == nullptr ^ tab_interface == nullptr);
 
   Profile* profile =
-      browser ? browser->profile()
-              : chrome::FindBrowserWithWebContents(web_contents)->profile();
-  return CreateViewHost(url, profile, browser, web_contents,
-                        mojom::ViewType::kExtensionSidePanel);
+      browser ? browser->GetProfile()
+              : tab_interface->GetBrowserWindowInterface()->GetProfile();
+  return CreateViewHost(
+      url, profile, browser ? browser->GetBrowserForMigrationOnly() : nullptr,
+      tab_interface ? tab_interface->GetContents() : nullptr,
+      mojom::ViewType::kExtensionSidePanel);
 }
 
 }  // namespace extensions

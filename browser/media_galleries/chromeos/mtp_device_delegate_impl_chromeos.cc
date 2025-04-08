@@ -17,8 +17,10 @@
 #include "base/containers/circular_deque.h"
 #include "base/containers/contains.h"
 #include "base/files/file_util.h"
+#include "base/files/safe_base_name.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/not_fatal_until.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/posix/eintr_wrapper.h"
@@ -448,8 +450,8 @@ class MTPDeviceDelegateImplLinux::MTPFileNode {
   const std::string file_name_;
 
   ChildNodes children_;
-  const raw_ptr<MTPFileNode, ExperimentalAsh> parent_;
-  raw_ptr<FileIdToMTPFileNodeMap, ExperimentalAsh> file_id_to_node_map_;
+  const raw_ptr<MTPFileNode> parent_;
+  raw_ptr<FileIdToMTPFileNodeMap> file_id_to_node_map_;
 };
 
 MTPDeviceDelegateImplLinux::MTPFileNode::MTPFileNode(
@@ -880,7 +882,7 @@ void MTPDeviceDelegateImplLinux::GetFileInfoInternal(
     ErrorCallback error_callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
 
-  absl::optional<uint32_t> file_id = CachedPathToId(file_path);
+  std::optional<uint32_t> file_id = CachedPathToId(file_path);
   if (file_id) {
     GetFileInfoSuccessCallback success_callback_wrapper = base::BindOnce(
         &MTPDeviceDelegateImplLinux::OnDidGetFileInfo,
@@ -915,7 +917,7 @@ void MTPDeviceDelegateImplLinux::CreateDirectoryInternal(
   if (other_components.empty()) {
     // Either we reached the last component in the recursive case, or this is
     // the non-recursive case.
-    absl::optional<uint32_t> parent_id =
+    std::optional<uint32_t> parent_id =
         CachedPathToId(current_component.DirName());
     if (parent_id) {
       base::OnceClosure closure = base::BindOnce(
@@ -930,7 +932,7 @@ void MTPDeviceDelegateImplLinux::CreateDirectoryInternal(
     }
   } else {
     // Ensures that parent directories are created for recursive case.
-    absl::optional<uint32_t> directory_id = CachedPathToId(current_component);
+    std::optional<uint32_t> directory_id = CachedPathToId(current_component);
     if (directory_id) {
       // Parent directory |current_component| already exists, continue creating
       // directories.
@@ -981,7 +983,7 @@ void MTPDeviceDelegateImplLinux::ReadDirectoryInternal(
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
   DCHECK(task_in_progress_);
 
-  absl::optional<uint32_t> dir_id = CachedPathToId(root);
+  std::optional<uint32_t> dir_id = CachedPathToId(root);
   if (!dir_id) {
     std::move(error_callback).Run(base::File::FILE_ERROR_NOT_FOUND);
     PendingRequestDone();
@@ -1014,7 +1016,7 @@ void MTPDeviceDelegateImplLinux::CreateSnapshotFileInternal(
     ErrorCallback error_callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
 
-  absl::optional<uint32_t> file_id = CachedPathToId(device_file_path);
+  std::optional<uint32_t> file_id = CachedPathToId(device_file_path);
   if (file_id) {
     // In case of error, only one callback will be called.
     auto split_error_callback =
@@ -1051,7 +1053,7 @@ void MTPDeviceDelegateImplLinux::ReadBytesInternal(
     ErrorCallback error_callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
 
-  absl::optional<uint32_t> file_id = CachedPathToId(device_file_path);
+  std::optional<uint32_t> file_id = CachedPathToId(device_file_path);
   if (file_id) {
     ReadBytesRequest request(
         *file_id, buf, offset, buf_len,
@@ -1082,14 +1084,9 @@ void MTPDeviceDelegateImplLinux::MoveFileLocalInternal(
     const base::File::Info& source_file_info) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
 
-  if (source_file_info.is_directory) {
-    std::move(error_callback).Run(base::File::FILE_ERROR_NOT_A_FILE);
-    return;
-  }
-
   if (source_file_path.DirName() == device_file_path.DirName()) {
-    // If a file is moved in a same directory, rename the file.
-    absl::optional<uint32_t> file_id = CachedPathToId(source_file_path);
+    // If a file or directory is moved in a same directory, rename it.
+    std::optional<uint32_t> file_id = CachedPathToId(source_file_path);
     if (file_id) {
       MTPDeviceTaskHelper::RenameObjectSuccessCallback
           success_callback_wrapper = base::BindOnce(
@@ -1109,8 +1106,16 @@ void MTPDeviceDelegateImplLinux::MoveFileLocalInternal(
                                            content::BrowserThread::UI,
                                            FROM_HERE, std::move(closure)));
     } else {
-      std::move(error_callback).Run(base::File::FILE_ERROR_NOT_FOUND);
+      std::move(error_callback)
+          .Run(source_file_info.is_directory
+                   ? base::File::FILE_ERROR_NOT_A_FILE
+                   : base::File::FILE_ERROR_NOT_FOUND);
     }
+    return;
+  }
+
+  if (source_file_info.is_directory) {
+    std::move(error_callback).Run(base::File::FILE_ERROR_NOT_A_FILE);
     return;
   }
 
@@ -1147,7 +1152,7 @@ void MTPDeviceDelegateImplLinux::OnDidOpenFDToCopyFileFromLocal(
   }
 
   const int source_file_descriptor = open_fd_result.first;
-  absl::optional<uint32_t> parent_id =
+  std::optional<uint32_t> parent_id =
       CachedPathToId(device_file_path.DirName());
   if (!parent_id) {
     HandleCopyFileFromLocalError(std::move(error_callback),
@@ -1189,7 +1194,7 @@ void MTPDeviceDelegateImplLinux::DeleteFileInternal(
     return;
   }
 
-  absl::optional<uint32_t> file_id = CachedPathToId(file_path);
+  std::optional<uint32_t> file_id = CachedPathToId(file_path);
   if (!file_id) {
     std::move(error_callback).Run(base::File::FILE_ERROR_NOT_FOUND);
     return;
@@ -1211,7 +1216,7 @@ void MTPDeviceDelegateImplLinux::DeleteDirectoryInternal(
     return;
   }
 
-  absl::optional<uint32_t> directory_id = CachedPathToId(file_path);
+  std::optional<uint32_t> directory_id = CachedPathToId(file_path);
   if (!directory_id) {
     std::move(error_callback).Run(base::File::FILE_ERROR_NOT_FOUND);
     return;
@@ -1486,7 +1491,7 @@ void MTPDeviceDelegateImplLinux::OnPathDoesNotExistForCreateSingleDirectory(
     return;
   }
 
-  absl::optional<uint32_t> parent_id = CachedPathToId(directory_path.DirName());
+  std::optional<uint32_t> parent_id = CachedPathToId(directory_path.DirName());
   if (!parent_id) {
     std::move(error_callback).Run(base::File::FILE_ERROR_NOT_FOUND);
     return;
@@ -1655,7 +1660,7 @@ void MTPDeviceDelegateImplLinux::OnDidReadDirectory(
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
 
   FileIdToMTPFileNodeMap::iterator it = file_id_to_node_map_.find(dir_id);
-  DCHECK(it != file_id_to_node_map_.end());
+  CHECK(it != file_id_to_node_map_.end(), base::NotFatalUntil::M130);
   MTPFileNode* dir_node = it->second;
 
   // Traverse the MTPFileNode tree to reconstuct the full path for |dir_id|.
@@ -1672,7 +1677,9 @@ void MTPDeviceDelegateImplLinux::OnDidReadDirectory(
   storage::AsyncFileUtil::EntryList file_list;
   for (const auto& mtp_entry : mtp_entries) {
     filesystem::mojom::DirectoryEntry entry;
-    entry.name = base::FilePath(mtp_entry.name);
+    auto name = base::SafeBaseName::Create(mtp_entry.name);
+    CHECK(name) << mtp_entry.name;
+    entry.name = *name;
     entry.type = mtp_entry.file_info.is_directory
                      ? filesystem::mojom::FsFileType::DIRECTORY
                      : filesystem::mojom::FsFileType::REGULAR_FILE;
@@ -1947,7 +1954,7 @@ void MTPDeviceDelegateImplLinux::FillFileCache(
                         std::move(error_callback));
 }
 
-absl::optional<uint32_t> MTPDeviceDelegateImplLinux::CachedPathToId(
+std::optional<uint32_t> MTPDeviceDelegateImplLinux::CachedPathToId(
     const base::FilePath& path) const {
   std::string device_relpath = GetDeviceRelativePath(device_path_, path);
   if (device_relpath.empty())

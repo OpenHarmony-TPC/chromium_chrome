@@ -8,7 +8,6 @@
 
 #include <memory>
 
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/extensions/crx_installer.h"
 #include "chrome/browser/extensions/extension_install_prompt.h"
 #include "chrome/browser/extensions/extension_management.h"
@@ -21,6 +20,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/download_item_utils.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/common/extension_urls.h"
 #include "extensions/common/user_script.h"
 
 using content::BrowserThread;
@@ -118,7 +118,9 @@ bool IsExtensionDownload(const DownloadItem& download_item) {
 
 bool IsTrustedExtensionDownload(Profile* profile, const DownloadItem& item) {
   return IsExtensionDownload(item) &&
-         OffStoreInstallAllowedByPrefs(profile, item);
+         (OffStoreInstallAllowedByPrefs(profile, item) ||
+          extension_urls::IsWebstoreUpdateUrl(item.GetURL()) ||
+          extension_urls::IsWebstoreDomain(item.GetURL()));
 }
 
 std::unique_ptr<base::AutoReset<bool>> OverrideOffstoreInstallAllowedForTesting(

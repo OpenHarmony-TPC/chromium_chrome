@@ -36,9 +36,34 @@
 #include "ui/native_theme/native_theme.h"
 #include "url/gurl.h"
 
-#if !BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/ui/webui/ntp/app_launcher_handler.h"
-#endif
+bool NewTabUIConfig::IsWebUIEnabled(content::BrowserContext* browser_context) {
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+  // The URL chrome://newtab/ can be either a virtual or a real URL,
+  // depending on the context. In this case, it is always a real URL that
+  // points to the New Tab page for the incognito profile only. For other
+  // profile types, this URL must already be redirected to a different URL
+  // that matches the profile type.
+  //
+  // Returning NewWebUI<NewTabUI> for the wrong profile type will lead to
+  // crash in NTPResourceCache::GetNewTabHTML (Check: false), so here we add
+  // a sanity check to prevent further crashes.
+  //
+  // The switch statement below must be consistent with the code in
+  // NTPResourceCache::GetNewTabHTML!
+  switch (NTPResourceCache::GetWindowType(profile)) {
+    case NTPResourceCache::NORMAL:
+      LOG(ERROR) << "Requested load of chrome://newtab/ for incorrect "
+                    "profile type.";
+      // TODO(crbug.com/40244589): Add DumpWithoutCrashing() here.
+      return false;
+    case NTPResourceCache::INCOGNITO:
+      [[fallthrough]];
+    case NTPResourceCache::GUEST:
+      [[fallthrough]];
+    case NTPResourceCache::NON_PRIMARY_OTR:
+      return true;
+  }
+}
 
 namespace {
 
@@ -84,15 +109,6 @@ NewTabUI::NewTabUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
 }
 
 NewTabUI::~NewTabUI() {}
-
-// static
-void NewTabUI::RegisterProfilePrefs(
-    user_prefs::PrefRegistrySyncable* registry) {
-  CoreAppLauncherHandler::RegisterProfilePrefs(registry);
-#if !BUILDFLAG(IS_CHROMEOS)
-  AppLauncherHandler::RegisterProfilePrefs(registry);
-#endif
-}
 
 // static
 bool NewTabUI::IsNewTab(const GURL& url) {
@@ -160,14 +176,13 @@ void NewTabUI::NewTabHTMLSource::StartDataRequest(
     const content::WebContents::Getter& wc_getter,
     content::URLDataSource::GotDataCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  // TODO(crbug/1009127): Simplify usages of |path| since |url| is available.
+  // TODO(crbug.com/40050262): Simplify usages of |path| since |url| is
+  // available.
   const std::string path = content::URLDataSource::URLToRequestPath(url);
   if (!path.empty() && path[0] != '#') {
     // A path under new-tab was requested; it's likely a bad relative
     // URL from the new tab page, but in any case it's an error.
     NOTREACHED() << path << " should not have been requested on the NTP";
-    std::move(callback).Run(nullptr);
-    return;
   }
 
   // Sometimes the |profile_| is the parent (non-incognito) version of the user
@@ -212,7 +227,7 @@ std::string NewTabUI::NewTabHTMLSource::GetContentSecurityPolicy(
   } else if (directive ==
                  network::mojom::CSPDirectiveName::RequireTrustedTypesFor ||
              directive == network::mojom::CSPDirectiveName::TrustedTypes) {
-    // TODO(crbug.com/1098687): Trusted Type New Tab Page
+    // TODO(crbug.com/40137143): Trusted Type New Tab Page
     // This removes require-trusted-types-for and trusted-types directives
     // from the CSP header.
     return std::string();

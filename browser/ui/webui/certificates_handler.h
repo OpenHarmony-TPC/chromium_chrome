@@ -13,11 +13,22 @@
 #include "base/task/cancelable_task_tracker.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/certificate_manager_model.h"
+#include "chrome/browser/ui/webui/certificate_manager/certificate_manager_utils.h"
+#include "components/file_access/scoped_file_access.h"
 #include "content/public/browser/web_ui_message_handler.h"
-#include "net/cert/nss_cert_database.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
+
+#if BUILDFLAG(IS_OHOS)
+#include "base/files/file_path.h"
+#include "base/files/file_path_watcher.h"
+#include "base/files/file_util.h"
+#include "chrome/browser/certificate_manager_model_ohos.h"
+#include "crypto/crypto_buildflags.h"
+#else
+#include "chrome/browser/certificate_manager_model.h"
+#include "net/cert/nss_cert_database.h"
+#endif
 
 namespace user_prefs {
 class PrefRegistrySyncable;
@@ -25,30 +36,6 @@ class PrefRegistrySyncable;
 
 enum class Slot { kUser, kSystem };
 enum class CertificateSource { kBuiltIn, kImported };
-
-// Enumeration of certificate management permissions which corresponds to
-// values of policy ClientCertificateManagementAllowed.
-// Underlying type is int because values are casting to/from prefs values.
-enum class ClientCertificateManagementPermission : int {
-  // Allow users to manage all certificates
-  kAll = 0,
-  // Allow users to manage user certificates
-  kUserOnly = 1,
-  // Disallow users from managing certificates
-  kNone = 2
-};
-
-// Enumeration of certificate management permissions which corresponds to
-// values of policy CACertificateManagementAllowed.
-// Underlying type is int because values are casting to/from prefs values.
-enum class CACertificateManagementPermission : int {
-  // Allow users to manage all certificates
-  kAll = 0,
-  // Allow users to manage user certificates
-  kUserOnly = 1,
-  // Disallow users from managing certificates
-  kNone = 2
-};
 
 namespace certificate_manager {
 
@@ -72,10 +59,8 @@ class CertificatesHandler : public content::WebUIMessageHandler,
   void CertificatesRefreshed() override;
 
   // SelectFileDialog::Listener implementation.
-  void FileSelected(const base::FilePath& path,
-                    int index,
-                    void* params) override;
-  void FileSelectionCanceled(void* params) override;
+  void FileSelected(const ui::SelectedFileInfo& file, int index) override;
+  void FileSelectionCanceled() override;
 
 #if BUILDFLAG(IS_CHROMEOS)
   // Register profile preferences.
@@ -83,6 +68,13 @@ class CertificatesHandler : public content::WebUIMessageHandler,
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
  private:
+  enum PendingOperation {
+    EXPORT_PERSONAL_FILE,
+    IMPORT_PERSONAL_FILE,
+    IMPORT_SERVER_FILE,
+    IMPORT_CA_FILE,
+  };
+
   // View certificate.
   void HandleViewCertificate(const base::Value::List& args);
 
@@ -111,9 +103,10 @@ class CertificatesHandler : public content::WebUIMessageHandler,
   void HandleExportPersonal(const base::Value::List& args);
   void ExportPersonalFileSelected(const base::FilePath& path);
   void HandleExportPersonalPasswordSelected(const base::Value::List& args);
+#if BUILDFLAG(USE_NSS_CERTS)
   void ExportPersonalSlotsUnlocked();
-  void ExportPersonalFileWritten(const int* write_errno,
-                                 const int* bytes_written);
+#endif
+  void ExportPersonalFileWritten(const int* write_errno);
 
   // Import from PKCS #12 or cert file.  The sequence goes like:
   //  1. user click on import button -> HandleImportPersonal ->
@@ -131,10 +124,12 @@ class CertificatesHandler : public content::WebUIMessageHandler,
   //  6b. if import fails -> show error, ImportExportCleanup
   //  TODO(mattm): allow retrying with different password
   void HandleImportPersonal(const base::Value::List& args);
-  void ImportPersonalFileSelected(const base::FilePath& path);
+  void ImportPersonalFileSelected(const base::FilePath& path,
+                                  file_access::ScopedFileAccess file_access);
   void ImportPersonalFileRead(const int* read_errno, const std::string* data);
   void HandleImportPersonalPasswordSelected(const base::Value::List& args);
   void ImportPersonalSlotUnlocked();
+  void ImportPersonalResultReceived(int net_result);
 
   // Import Server certificates from file.  Sequence goes like:
   //  1. user clicks on import button -> HandleImportServer -> launches file
@@ -144,7 +139,8 @@ class CertificatesHandler : public content::WebUIMessageHandler,
   //  4a. if import succeeds -> ImportExportCleanup
   //  4b. if import fails -> show error, ImportExportCleanup
   void HandleImportServer(const base::Value::List& args);
-  void ImportServerFileSelected(const base::FilePath& path);
+  void ImportServerFileSelected(const base::FilePath& path,
+                                file_access::ScopedFileAccess file_access);
   void ImportServerFileRead(const int* read_errno, const std::string* data);
 
   // Import Certificate Authorities from file.  Sequence goes like:
@@ -157,7 +153,8 @@ class CertificatesHandler : public content::WebUIMessageHandler,
   //  5a. if import succeeds -> ImportExportCleanup
   //  5b. if import fails -> show error, ImportExportCleanup
   void HandleImportCA(const base::Value::List& args);
-  void ImportCAFileSelected(const base::FilePath& path);
+  void ImportCAFileSelected(const base::FilePath& path,
+                            file_access::ScopedFileAccess file_access);
   void ImportCAFileRead(const int* read_errno, const std::string* data);
   void HandleImportCATrustSelected(const base::Value::List& args);
 
@@ -185,11 +182,18 @@ class CertificatesHandler : public content::WebUIMessageHandler,
   // Reject the pending JS callback with a generic error.
   void RejectCallbackWithError(const std::string& title,
                                const std::string& error);
-
+#if BUILDFLAG(USE_NSS_CERTS)
   // Reject the pending JS callback with a certificate import error.
   void RejectCallbackWithImportError(
       const std::string& title,
       const net::NSSCertDatabase::ImportCertFailureList& not_imported);
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  void StartWatch(const base::FilePath& path_to_watch);
+  void RemoveWatch(const base::FilePath& file_path);
+  void OnFilePathChanged(const base::FilePath& file_path, bool error);
+#endif
 
   // Assigns a new |webui_callback_id_|. Returns false if a previous request
   // is still in-flight, in which case the new request should be rejected and
@@ -204,10 +208,6 @@ class CertificatesHandler : public content::WebUIMessageHandler,
   CertificateManagerModel::CertInfo* GetCertInfoFromCallbackArgs(
       const base::Value::List& args,
       size_t arg_index);
-
-  // Returns true if it is allowed to display the list of client certificates
-  // for the current profile.
-  bool ShouldDisplayClientCertificates();
 
   // Returns true if the user may manage client certificates on |slot|.
   bool IsClientCertificateManagementAllowed(Slot slot);
@@ -239,15 +239,25 @@ class CertificatesHandler : public content::WebUIMessageHandler,
   // password, etc the user chose while we wait for them to enter a password,
   // wait for file to be read, etc.
   base::FilePath file_path_;
+#if !BUILDFLAG(IS_OHOS)
   std::u16string password_;
+#endif
   // The WebUI callback ID of the last in-flight async request. There is always
   // only one in-flight such request.
   std::string webui_callback_id_;
   bool use_hardware_backed_;
   std::string file_data_;
+#if BUILDFLAG(USE_NSS_CERTS)
   net::ScopedCERTCertificateList selected_cert_list_;
-  scoped_refptr<ui::SelectFileDialog> select_file_dialog_;
   crypto::ScopedPK11Slot slot_;
+#endif
+  scoped_refptr<ui::SelectFileDialog> select_file_dialog_;
+  std::optional<PendingOperation> pending_operation_;
+
+#if BUILDFLAG(IS_OHOS)
+  std::map<base::FilePath, base::FilePathWatcher> watchers_;
+  std::string ca_cert_dir_;
+#endif
 
   // Used in reading and writing certificate files.
   base::CancelableTaskTracker tracker_;

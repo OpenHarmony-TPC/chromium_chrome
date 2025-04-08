@@ -10,6 +10,7 @@
 #include "components/safe_browsing/buildflags.h"
 #include "extensions/browser/blocklist_extension_prefs.h"
 #include "extensions/browser/blocklist_state.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/test/extension_state_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -46,7 +47,7 @@ class BlocklistStatesInteractionUnitTest : public ExtensionServiceTestBase {
 
  protected:
   void SetSafeBrowsingBlocklistStateForExtension(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       BlocklistState state) {
     // Reset cache in blocklist to make sure the latest blocklist state is
     // fetched.
@@ -55,11 +56,10 @@ class BlocklistStatesInteractionUnitTest : public ExtensionServiceTestBase {
     task_environment()->RunUntilIdle();
   }
 
-  void SetOmahaBlocklistStateForExtension(const std::string& extension_id,
+  void SetOmahaBlocklistStateForExtension(const ExtensionId& extension_id,
                                           const std::string& omaha_attribute,
                                           bool value) {
-    base::Value attributes(base::Value::Type::DICT);
-    attributes.SetBoolKey(omaha_attribute, value);
+    auto attributes = base::Value::Dict().Set(omaha_attribute, value);
     service()->PerformActionBasedOnOmahaAttributes(extension_id, attributes);
   }
 

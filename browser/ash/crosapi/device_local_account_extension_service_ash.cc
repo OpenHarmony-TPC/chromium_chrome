@@ -1,31 +1,35 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "chrome/browser/ash/crosapi/device_local_account_extension_service_ash.h"
 
+#include <optional>
 #include <string>
+#include <utility>
 
-#include "base/debug/dump_without_crashing.h"
-#include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
-#include "chrome/browser/ash/policy/core/device_local_account_policy_service.h"
-#include "chrome/browser/browser_process.h"
+#include "base/check.h"
+#include "base/values.h"
 #include "chrome/browser/browser_process_platform_part.h"
+#include "chromeos/crosapi/mojom/device_local_account_extension_service.mojom.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/remote_set.h"
 
 namespace crosapi {
 namespace {
 
-absl::optional<std::string> GetPrimaryUserEmail() {
+std::optional<std::string> GetPrimaryUserEmail() {
   const user_manager::User* user =
       user_manager::UserManager::Get()->GetPrimaryUser();
-  if (user)
+  if (user) {
     return user->GetAccountId().GetUserEmail();
+  }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace
@@ -43,32 +47,40 @@ void DeviceLocalAccountExtensionServiceAsh::BindReceiver(
 
 void DeviceLocalAccountExtensionServiceAsh::BindExtensionInstaller(
     mojo::PendingRemote<mojom::DeviceLocalAccountExtensionInstaller>
-        installer) {
-  policy::BrowserPolicyConnectorAsh* connector =
-      g_browser_process->platform_part()->browser_policy_connector_ash();
-  absl::optional<std::string> primary_user_email = GetPrimaryUserEmail();
-  DCHECK(primary_user_email);
-  policy::DeviceLocalAccountPolicyBroker* broker =
-      connector->GetDeviceLocalAccountPolicyService()->GetBrokerForUser(
-          primary_user_email.value());
-  if (broker) {
-    auto id = installers_.Add(std::move(installer));
-    installers_.Get(id)->SetForceInstallExtensionsFromCache(
-        broker->GetCachedExtensions());
-  } else {
-    LOG(ERROR) << "Missing broker for DeviceLocalAccount";
-    base::debug::DumpWithoutCrashing();
-  }
+        pending_installer) {
+  const auto id = installers_.Add(std::move(pending_installer));
+
+  installers_.Get(id)->SetForceInstallExtensionsFromCache(
+      GetForceInstallExtensionsForPrimaryUser());
 }
 
 void DeviceLocalAccountExtensionServiceAsh::SetForceInstallExtensionsFromCache(
     const std::string& device_local_account_user_email,
     const base::Value::Dict& dict) {
-  if (device_local_account_user_email != GetPrimaryUserEmail())
+  user_email_to_extensions_dict_[device_local_account_user_email] =
+      dict.Clone();
+
+  if (device_local_account_user_email != GetPrimaryUserEmail()) {
     return;
+  }
   for (auto& installer : installers_) {
     installer->SetForceInstallExtensionsFromCache(dict.Clone());
   }
+}
+
+base::Value::Dict
+DeviceLocalAccountExtensionServiceAsh::GetForceInstallExtensionsForPrimaryUser()
+    const {
+  std::optional<std::string> primary_user_email = GetPrimaryUserEmail();
+  CHECK(primary_user_email.has_value());
+  if (!user_email_to_extensions_dict_.contains(primary_user_email.value())) {
+    // The force install extensions list for the primary user is not available
+    // yet. Send an empty dict for now and the populated dict will be sent
+    // later (through `SetForceInstallExtensionsFromCache`).
+    return base::Value::Dict();
+  }
+
+  return user_email_to_extensions_dict_.at(primary_user_email.value()).Clone();
 }
 
 }  // namespace crosapi

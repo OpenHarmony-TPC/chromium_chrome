@@ -10,7 +10,6 @@
 
 #include "ash/components/arc/session/arc_management_transition.h"
 #include "base/functional/callback_forward.h"
-#include "chrome/browser/ash/login/demo_mode/demo_session.h"
 #include "storage/browser/file_system/file_system_url.h"
 
 // Most utility should be put in components/arc/arc_util.{h,cc}, rather than
@@ -58,6 +57,10 @@ enum FileSystemCompatibilityState : int32_t {
   // representing incompatibility and other values are all variants of
   // "compatible" state. Be careful in the case adding a new enum value.
 };
+
+// Records ARC status i.e if ARC allowed or disallowed based on
+// UnaffiliatedDeviceArcAllowed policy value.
+void RecordArcStatusBasedOnDeviceAffiliationUMA(Profile* profile);
 
 // Returns false if |profile| is not a real user profile but some internal
 // profile for service purposes, which should be ignored for ARC and metrics
@@ -137,13 +140,8 @@ bool IsArcPlayStoreEnabledPreferenceManagedForProfile(const Profile* profile);
 bool SetArcPlayStoreEnabledForProfile(Profile* profile, bool enabled);
 
 // Returns whether all ARC related OptIn preferences (i.e.
-// ArcBackupRestoreEnabled and ArcLocationServiceEnabled) are managed or
-// unused (e.g. for Active Directory users).
+// ArcBackupRestoreEnabled and ArcLocationServiceEnabled) are managed.
 bool AreArcAllOptInPreferencesIgnorableForProfile(const Profile* profile);
-
-// Returns true iff there is a user associated with |profile|, and it is an
-// Active Directory user.
-bool IsActiveDirectoryUserForProfile(const Profile* profile);
 
 // Returns true if ChromeOS OOBE opt-in window is currently showing.
 bool IsArcOobeOptInActive();
@@ -184,7 +182,7 @@ bool IsPlayStoreAvailable();
 // user.
 bool IsSecondaryAccountForChildEnabled();
 
-// Skip to show OOBE/in sesion UI asking users to set up ARC OptIn
+// Skip to show OOBE/in session UI asking users to set up ARC OptIn
 // preferences, iff all of them are managed by the admin policy. Skips in
 // session play terms of service for managed user and starts ARC directly.
 // Leaves B&R/GLS off if not set by admin since users don't see the Tos page.

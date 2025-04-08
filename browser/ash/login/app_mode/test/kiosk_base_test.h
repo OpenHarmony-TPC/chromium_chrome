@@ -6,21 +6,28 @@
 #define CHROME_BROWSER_ASH_LOGIN_APP_MODE_TEST_KIOSK_BASE_TEST_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
+#include "base/auto_reset.h"
 #include "base/command_line.h"
+#include "base/time/time.h"
 #include "base/version.h"
-#include "chrome/browser/ash/app_mode/app_session_ash.h"
 #include "chrome/browser/ash/app_mode/fake_cws.h"
-#include "chrome/browser/ash/app_mode/kiosk_app_manager.h"
-#include "chrome/browser/ash/login/app_mode/kiosk_launch_controller.h"
+#include "chrome/browser/ash/app_mode/fake_cws_mixin.h"
+#include "chrome/browser/ash/app_mode/kiosk_app.h"
+#include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
+#include "chrome/browser/ash/app_mode/kiosk_system_session.h"
+#include "chrome/browser/ash/app_mode/kiosk_test_helper.h"
+#include "chrome/browser/ash/login/app_mode/network_ui_controller.h"
 #include "chrome/browser/ash/login/test/js_checker.h"
 #include "chrome/browser/ash/login/test/network_portal_detector_mixin.h"
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/ownership/fake_owner_settings_service.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
+#include "chrome/browser/chromeos/app_mode/kiosk_browser_window_handler.h"
 #include "chrome/test/base/fake_gaia_mixin.h"
-#include "chromeos/ash/components/network/portal_detector/network_portal_detector.h"
+#include "components/account_id/account_id.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/mojom/manifest.mojom-shared.h"
@@ -34,22 +41,28 @@ using ::extensions::mojom::ManifestLocation;
 // Webstore data json is in
 //   chrome/test/data/chromeos/app_mode/webstore/inlineinstall/
 //       detail/gcpjojfkologpegommokeppihdbcnahn
-extern const char kTestEnterpriseKioskApp[];
+extern const char kTestEnterpriseKioskAppId[];
 
 extern const char kTestEnterpriseAccountId[];
+
+// This is a simple test chrome app that does not have `kiosk_enabled` flag in
+// manifest. Webstore data json is in
+//   chrome/test/data/chromeos/app_mode/webstore/inlineinstall/
+//       detail/gbcgichpbeeimejckkpgnaighpndpped
+constexpr char kTestNonKioskEnabledApp[] = "gbcgichpbeeimejckkpgnaighpndpped";
 
 extern const test::UIPath kConfigNetwork;
 extern const char kSizeChangedMessage[];
 
-// Waits until |app_session| handles creation of new browser and returns whether
-// the browser has been closed.
-bool ShouldBrowserBeClosedByAppSessionBrowserHander(AppSessionAsh* app_session);
+// Waits until `session` observes a new browser window was created, and returns
+// whether this new window is closing.
+bool DidSessionCloseNewWindow(KioskSystemSession* session);
 
 // Opens accessibility settings browser and waits until it will be handled by
-// |app_session|.
-Browser* OpenA11ySettingsBrowser(AppSessionAsh* app_session);
+// `session`.
+Browser* OpenA11ySettingsBrowser(KioskSystemSession* session);
 
-// Base class for Kiosk browser tests.
+// Base class for Chrome App Kiosk browser tests.
 class KioskBaseTest : public OobeBaseTest {
  public:
   KioskBaseTest();
@@ -60,8 +73,7 @@ class KioskBaseTest : public OobeBaseTest {
   ~KioskBaseTest() override;
 
  protected:
-  static KioskAppManager::ConsumerKioskAutoLaunchStatus
-  GetConsumerKioskModeStatus();
+  using NetworkStatus = NetworkPortalDetectorMixin::NetworkStatus;
 
   // Waits for window width to change. Listens to a 'size_change' message sent
   // from DOM automation to `message_queue`.
@@ -72,8 +84,6 @@ class KioskBaseTest : public OobeBaseTest {
   static int WaitForWidthChange(content::DOMMessageQueue* message_queue,
                                 int current_width);
 
-  static KioskLaunchController* GetKioskLaunchController();
-
   void SetUp() override;
 
   void TearDown() override;
@@ -81,8 +91,6 @@ class KioskBaseTest : public OobeBaseTest {
   void SetUpOnMainThread() override;
 
   void TearDownOnMainThread() override;
-
-  void SetUpCommandLine(base::CommandLine* command_line) override;
 
   bool LaunchApp(const std::string& app_id);
 
@@ -94,10 +102,8 @@ class KioskBaseTest : public OobeBaseTest {
 
   void PrepareAppLaunch();
 
-  void StartAppLaunchFromLoginScreen(
-      NetworkPortalDetector::CaptivePortalStatus network_status);
-  void StartExistingAppLaunchFromLoginScreen(
-      NetworkPortalDetector::CaptivePortalStatus network_status);
+  void StartAppLaunchFromLoginScreen(NetworkStatus network_status);
+  void StartExistingAppLaunchFromLoginScreen(NetworkStatus network_status);
 
   const extensions::Extension* GetInstalledApp();
 
@@ -111,30 +117,22 @@ class KioskBaseTest : public OobeBaseTest {
 
   void WaitForAppLaunchSuccess();
 
-  void RunAppLaunchNetworkDownTest();
-
   void SimulateNetworkOnline();
 
   void SimulateNetworkOffline();
 
   void BlockAppLaunch(bool block);
 
-  void set_test_app_id(const std::string& test_app_id) {
-    test_app_id_ = test_app_id;
-  }
+  // If `crx_file` is empty string, sets `test_crx_file_` to `app_id` + ".crx".
+  void SetTestApp(const std::string& app_id,
+                  const std::string& version = "1.0.0",
+                  const std::string& crx_file = "");
+
+  KioskApp test_kiosk_app() const;
   const std::string& test_app_id() const { return test_app_id_; }
-  void set_test_app_version(const std::string& version) {
-    test_app_version_ = version;
-  }
   const std::string& test_app_version() const { return test_app_version_; }
-  void set_test_crx_file(const std::string& filename) {
-    test_crx_file_ = filename;
-  }
-
   const std::string& test_crx_file() const { return test_crx_file_; }
-  FakeCWS* fake_cws() { return fake_cws_.get(); }
-
-  void set_use_consumer_kiosk_mode(bool use) { use_consumer_kiosk_mode_ = use; }
+  FakeCWS* fake_cws() { return &fake_cws_mixin_.fake_cws(); }
 
   ScopedCrosSettingsTestHelper settings_helper_;
   std::unique_ptr<FakeOwnerSettingsService> owner_settings_service_;
@@ -152,15 +150,20 @@ class KioskBaseTest : public OobeBaseTest {
   // Email of owner account for test.
   constexpr static const char kTestOwnerEmail[] = "owner@example.com";
 
-  bool use_consumer_kiosk_mode_ = true;
   std::string test_app_id_;
   std::string test_app_version_;
   std::string test_crx_file_;
-  std::unique_ptr<FakeCWS> fake_cws_;
 
-  std::unique_ptr<base::AutoReset<bool>> skip_splash_wait_override_;
-  std::unique_ptr<base::AutoReset<base::TimeDelta>> network_wait_override_;
-  std::unique_ptr<base::AutoReset<bool>> block_app_launch_override_;
+  // Sets up the `FakeCWS`.
+  FakeCwsMixin fake_cws_mixin_;
+
+  base::AutoReset<bool> skip_splash_wait_override_ =
+      KioskTestHelper::SkipSplashScreenWait();
+  base::AutoReset<base::TimeDelta> network_wait_time_override_ =
+      NetworkUiController::SetNetworkWaitTimeoutForTesting(
+          base::Milliseconds(1));
+
+  std::optional<base::AutoReset<bool>> block_app_launch_override_;
 };
 
 }  // namespace ash

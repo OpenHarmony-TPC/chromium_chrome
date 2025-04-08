@@ -28,7 +28,6 @@ sessions::SessionWindow::WindowType WindowTypeForBrowserType(
 #endif
   }
   NOTREACHED();
-  return sessions::SessionWindow::TYPE_NORMAL;
 }
 
 Browser::Type BrowserTypeForWindowType(
@@ -50,5 +49,4 @@ Browser::Type BrowserTypeForWindowType(
 #endif
   }
   NOTREACHED();
-  return Browser::TYPE_NORMAL;
 }

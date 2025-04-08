@@ -21,13 +21,15 @@ export class AlertIndicatorsElement extends CustomElement {
   constructor() {
     super();
 
-    this.containerEl_ = this.$<HTMLElement>('#container')!;
+    this.containerEl_ = this.getRequiredElement('#container');
 
     const audioIndicator = new AlertIndicatorElement();
     const recordingIndicator = new AlertIndicatorElement();
 
     this.alertIndicators_ = new Map([
       [TabAlertState.kMediaRecording, recordingIndicator],
+      [TabAlertState.kAudioRecording, recordingIndicator],
+      [TabAlertState.kVideoRecording, recordingIndicator],
       [TabAlertState.kTabCapturing, new AlertIndicatorElement()],
       [TabAlertState.kAudioPlaying, audioIndicator],
       [TabAlertState.kAudioMuting, audioIndicator],

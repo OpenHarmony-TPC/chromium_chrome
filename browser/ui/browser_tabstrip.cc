@@ -24,33 +24,45 @@
 
 namespace chrome {
 
-void AddTabAt(Browser* browser,
-              const GURL& url,
-              int idx,
-              bool foreground,
-              absl::optional<tab_groups::TabGroupId> group) {
+content::WebContents* AddAndReturnTabAt(
+    Browser* browser,
+    const GURL& url,
+    int idx,
+    bool foreground,
+    std::optional<tab_groups::TabGroupId> group) {
   // Time new tab page creation time.  We keep track of the timing data in
   // WebContents, but we want to include the time it takes to create the
   // WebContents object too.
   // For CEF use a PageTransition that matches
   // CefFrameHostImpl::kPageTransitionExplicit.
   base::TimeTicks new_tab_start_time = base::TimeTicks::Now();
-  NavigateParams params(browser, url.is_empty() ? browser->GetNewTabURL() : url,
-                        static_cast<ui::PageTransition>(
-                            ui::PAGE_TRANSITION_TYPED |
-                            ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
+  NavigateParams params(
+      browser, url.is_empty() ? browser->GetNewTabURL() : url,
+      static_cast<ui::PageTransition>(ui::PAGE_TRANSITION_TYPED |
+                                      ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
   params.disposition = foreground ? WindowOpenDisposition::NEW_FOREGROUND_TAB
                                   : WindowOpenDisposition::NEW_BACKGROUND_TAB;
   params.tabstrip_index = idx;
   params.group = group;
+  params.pwa_navigation_capturing_force_off = true;
   Navigate(&params);
 
   if (!params.navigated_or_inserted_contents)
-    return;
+    return nullptr;
 
   CoreTabHelper* core_tab_helper =
       CoreTabHelper::FromWebContents(params.navigated_or_inserted_contents);
   core_tab_helper->set_new_tab_start_time(new_tab_start_time);
+
+  return params.navigated_or_inserted_contents;
+}
+
+void AddTabAt(Browser* browser,
+              const GURL& url,
+              int idx,
+              bool foreground,
+              std::optional<tab_groups::TabGroupId> group) {
+  /*void*/ AddAndReturnTabAt(browser, url, idx, foreground, std::move(group));
 }
 
 content::WebContents* AddSelectedTabWithURL(Browser* browser,
@@ -58,17 +70,19 @@ content::WebContents* AddSelectedTabWithURL(Browser* browser,
                                             ui::PageTransition transition) {
   NavigateParams params(browser, url, transition);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.pwa_navigation_capturing_force_off = true;
   Navigate(&params);
   return params.navigated_or_inserted_contents;
 }
 
-void AddWebContents(Browser* browser,
-                    content::WebContents* source_contents,
-                    std::unique_ptr<content::WebContents> new_contents,
-                    const GURL& target_url,
-                    WindowOpenDisposition disposition,
-                    const blink::mojom::WindowFeatures& window_features,
-                    NavigateParams::WindowAction window_action) {
+content::WebContents* AddWebContents(
+    Browser* browser,
+    content::WebContents* source_contents,
+    std::unique_ptr<content::WebContents> new_contents,
+    const GURL& target_url,
+    WindowOpenDisposition disposition,
+    const blink::mojom::WindowFeatures& window_features,
+    NavigateParams::WindowAction window_action) {
   // No code for this yet.
   DCHECK(disposition != WindowOpenDisposition::SAVE_TO_DISK);
   // Can't create a new contents for the current tab - invalid case.
@@ -76,10 +90,10 @@ void AddWebContents(Browser* browser,
 
 #if BUILDFLAG(ENABLE_CEF)
   if (browser && browser->cef_delegate() && new_contents) {
-    new_contents = browser->cef_delegate()->AddWebContents(
-        std::move(new_contents));
+    new_contents =
+        browser->cef_delegate()->AddWebContents(std::move(new_contents));
     if (!new_contents) {
-      return;
+      return nullptr;
     }
   }
 #endif
@@ -98,6 +112,7 @@ void AddWebContents(Browser* browser,
   ConfigureTabGroupForNavigation(&params);
 
   Navigate(&params);
+  return params.navigated_or_inserted_contents;
 }
 
 void CloseWebContents(Browser* browser,
@@ -105,7 +120,8 @@ void CloseWebContents(Browser* browser,
                       bool add_to_history) {
   int index = browser->tab_strip_model()->GetIndexOfWebContents(contents);
   if (index == TabStripModel::kNoTab) {
-    NOTREACHED() << "CloseWebContents called for tab not in our strip";
+    DUMP_WILL_BE_NOTREACHED()
+        << "CloseWebContents called for tab not in our strip";
     return;
   }
 

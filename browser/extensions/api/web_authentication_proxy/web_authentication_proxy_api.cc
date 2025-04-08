@@ -6,6 +6,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/not_fatal_until.h"
 #include "chrome/browser/extensions/api/web_authentication_proxy/web_authentication_proxy_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/extensions/api/web_authentication_proxy.h"
@@ -58,7 +59,7 @@ void WebAuthenticationProxyAPI::OnListenerRemoved(
     return;
   }
   auto it = session_state_change_notifiers_.find(details.extension_id);
-  DCHECK(it != session_state_change_notifiers_.end());
+  CHECK(it != session_state_change_notifiers_.end(), base::NotFatalUntil::M130);
   session_state_change_notifiers_.erase(it);
 }
 
@@ -107,7 +108,7 @@ WebAuthenticationProxyCompleteCreateRequestFunction::
     ~WebAuthenticationProxyCompleteCreateRequestFunction() = default;
 
 void WebAuthenticationProxyCompleteCreateRequestFunction::DoRespond(
-    absl::optional<std::string> error) {
+    std::optional<std::string> error) {
   Respond(error ? Error(std::move(*error)) : NoArguments());
 }
 
@@ -137,7 +138,7 @@ WebAuthenticationProxyCompleteGetRequestFunction::
     ~WebAuthenticationProxyCompleteGetRequestFunction() = default;
 
 void WebAuthenticationProxyCompleteGetRequestFunction::DoRespond(
-    absl::optional<std::string> error) {
+    std::optional<std::string> error) {
   Respond(error ? Error(std::move(*error)) : NoArguments());
 }
 

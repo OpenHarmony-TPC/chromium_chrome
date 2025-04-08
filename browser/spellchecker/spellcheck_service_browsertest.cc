@@ -6,7 +6,9 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/command_line.h"
@@ -16,7 +18,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -30,6 +31,7 @@
 #include "chrome/browser/first_run/first_run.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/spellchecker/spell_check_host_chrome_impl.h"
+#include "chrome/browser/spellchecker/spell_check_initialization_host_impl.h"
 #include "chrome/browser/spellchecker/spellcheck_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_paths.h"
@@ -52,7 +54,6 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "ash/constants/ash_features.h"
@@ -179,7 +180,7 @@ class SpellcheckServiceBrowserTest : public InProcessBrowserTest,
   std::string GetMultilingualDictionaries() {
     const base::Value::List& list_value =
         prefs_->GetList(spellcheck::prefs::kSpellCheckDictionaries);
-    std::vector<base::StringPiece> dictionaries;
+    std::vector<std::string_view> dictionaries;
     for (const auto& item_value : list_value) {
       EXPECT_TRUE(item_value.is_string());
       dictionaries.push_back(item_value.GetString());
@@ -261,7 +262,7 @@ class SpellcheckServiceBrowserTest : public InProcessBrowserTest,
 
  private:
 #if BUILDFLAG(IS_WIN)
-  absl::optional<spellcheck::ScopedDisableBrowserSpellCheckerForTesting>
+  std::optional<spellcheck::ScopedDisableBrowserSpellCheckerForTesting>
       disable_browser_spell_checker_;
 #endif
 
@@ -291,8 +292,8 @@ class SpellcheckServiceHostBrowserTest : public SpellcheckServiceBrowserTest {
       const SpellcheckServiceHostBrowserTest&) = delete;
 
   void RequestDictionary() {
-    mojo::Remote<spellcheck::mojom::SpellCheckHost> interface;
-    RequestSpellCheckHost(&interface);
+    mojo::Remote<spellcheck::mojom::SpellCheckInitializationHost> interface;
+    RequestSpellCheckInitializationHost(&interface);
 
     interface->RequestDictionary();
   }
@@ -329,6 +330,13 @@ class SpellcheckServiceHostBrowserTest : public SpellcheckServiceBrowserTest {
       mojo::Remote<spellcheck::mojom::SpellCheckHost>* interface) {
     SpellCheckHostChromeImpl::Create(GetRenderer()->GetID(),
                                      interface->BindNewPipeAndPassReceiver());
+  }
+
+  void RequestSpellCheckInitializationHost(
+      mojo::Remote<spellcheck::mojom::SpellCheckInitializationHost>*
+          interface) {
+    SpellCheckInitializationHostImpl::Create(
+        GetRenderer()->GetID(), interface->BindNewPipeAndPassReceiver());
   }
 
   void SpellingServiceDone(bool success,

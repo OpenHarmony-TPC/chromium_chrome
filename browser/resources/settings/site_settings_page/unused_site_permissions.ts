@@ -2,34 +2,40 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import 'chrome://resources/cr_elements/cr_collapse/cr_collapse.js';
 import 'chrome://resources/cr_elements/cr_expand_button/cr_expand_button.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
+import 'chrome://resources/cr_elements/cr_tooltip/cr_tooltip.js';
 import 'chrome://resources/cr_elements/policy/cr_tooltip_icon.js';
-import 'chrome://resources/polymer/v3_0/iron-collapse/iron-collapse.js';
-import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
-import 'chrome://resources/polymer/v3_0/paper-tooltip/paper-tooltip.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import '../settings_shared.css.js';
 import '../site_favicon.js';
 import '../i18n_setup.js';
 import './site_review_shared.css.js';
 
-import {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
+import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
 import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
-import {isUndoKeyboardEvent} from 'chrome://resources/js/util_ts.js';
-import {DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {isUndoKeyboardEvent} from 'chrome://resources/js/util.js';
+import type {DomRepeatEvent} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {MetricsBrowserProxy, MetricsBrowserProxyImpl, SafetyCheckUnusedSitePermissionsModuleInteractions} from '../metrics_browser_proxy.js';
+import {loadTimeData} from '../i18n_setup.js';
+import type {MetricsBrowserProxy} from '../metrics_browser_proxy.js';
+import {MetricsBrowserProxyImpl, SafetyCheckUnusedSitePermissionsModuleInteractions} from '../metrics_browser_proxy.js';
 import {routes} from '../route.js';
-import {Route, RouteObserverMixin} from '../router.js';
-import {ContentSettingsTypes, MODEL_UPDATE_DELAY_MS} from '../site_settings/constants.js';
+import type {Route} from '../router.js';
+import {RouteObserverMixin} from '../router.js';
+import type {SafetyHubBrowserProxy, UnusedSitePermissions} from '../safety_hub/safety_hub_browser_proxy.js';
+import {SafetyHubBrowserProxyImpl, SafetyHubEvent} from '../safety_hub/safety_hub_browser_proxy.js';
+import type {ContentSettingsTypes} from '../site_settings/constants.js';
+import {MODEL_UPDATE_DELAY_MS} from '../site_settings/constants.js';
 import {SiteSettingsMixin} from '../site_settings/site_settings_mixin.js';
-import {SiteSettingsPermissionsBrowserProxy, SiteSettingsPermissionsBrowserProxyImpl, UnusedSitePermissions} from '../site_settings/site_settings_permissions_browser_proxy.js';
 import {TooltipMixin} from '../tooltip_mixin.js';
 
 import {getLocalizationStringForContentType} from './site_settings_page_util.js';
@@ -113,6 +119,14 @@ export class SettingsUnusedSitePermissionsElement extends
         computed: 'computeShouldShowCompletionInfo_(sites_.*)',
       },
 
+      // Indicates whether the abusive notification revocation feature
+      // is enabled.
+      safetyHubAbusiveNotificationRevocationEnabled_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean(
+            'safetyHubAbusiveNotificationRevocationEnabled'),
+      },
+
       /** Text below primary header label. */
       subtitleString_: String,
 
@@ -128,8 +142,8 @@ export class SettingsUnusedSitePermissionsElement extends
     };
   }
 
-  private browserProxy_: SiteSettingsPermissionsBrowserProxy =
-      SiteSettingsPermissionsBrowserProxyImpl.getInstance();
+  private browserProxy_: SafetyHubBrowserProxy =
+      SafetyHubBrowserProxyImpl.getInstance();
   private eventTracker_: EventTracker = new EventTracker();
   private headerString_: string;
   private lastUnusedSitePermissionsAllowedAgain_: UnusedSitePermissions|null;
@@ -139,6 +153,7 @@ export class SettingsUnusedSitePermissionsElement extends
   private modelUpdateDelayMsForTesting_: number|null = null;
   private sites_: UnusedSitePermissionsDisplay[]|null;
   private shouldShowCompletionInfo_: boolean;
+  private safetyHubAbusiveNotificationRevocationEnabled_: boolean;
   private subtitleString_: string;
   private toastText_: string|null;
   private unusedSitePermissionsReviewListExpanded_: boolean;
@@ -148,7 +163,7 @@ export class SettingsUnusedSitePermissionsElement extends
 
   override async connectedCallback() {
     this.addWebUiListener(
-        'unused-permission-review-list-maybe-changed',
+        SafetyHubEvent.UNUSED_PERMISSIONS_MAYBE_CHANGED,
         (sites: UnusedSitePermissions[]) =>
             this.onUnusedSitePermissionListChanged_(sites));
 
@@ -191,7 +206,7 @@ export class SettingsUnusedSitePermissionsElement extends
         'safetyCheckUnusedSitePermissionsAllowAgainAriaLabel', origin);
   }
 
-  // TODO(crbug.com/1393005): Refactor common code across this and
+  // TODO(crbug.com/40880681): Refactor common code across this and
   // review_notification_permissions.ts.
   private getModelUpdateDelayMs_() {
     return this.modelUpdateDelayMsForTesting_ === null ?
@@ -213,8 +228,7 @@ export class SettingsUnusedSitePermissionsElement extends
     const permissionsI18n = permissions.map(permission => {
       const localizationString =
           getLocalizationStringForContentType(permission);
-      assert(localizationString !== null);
-      return this.i18n(localizationString);
+      return localizationString ? this.i18n(localizationString) : '';
     });
 
     if (permissionsI18n.length === 1) {
@@ -241,7 +255,7 @@ export class SettingsUnusedSitePermissionsElement extends
     return visible ? '' : 'removed';
   }
 
-  // TODO(crbug.com/1393005): Refactor common code across this and
+  // TODO(crbug.com/40880681): Refactor common code across this and
   // review_notification_permissions.ts.
   private hideItem_(origin?: string) {
     assert(this.sites_ !== null);
@@ -301,9 +315,9 @@ export class SettingsUnusedSitePermissionsElement extends
 
   private onShowTooltip_(e: Event) {
     e.stopPropagation();
-    const tooltip = this.shadowRoot!.querySelector('paper-tooltip');
+    const tooltip = this.shadowRoot!.querySelector('cr-tooltip');
     assert(tooltip);
-    this.showTooltipAtTarget(tooltip, e.target!);
+    this.showTooltipAtTarget(tooltip, e.target! as Element);
   }
 
   private async onSitesChanged_() {
@@ -314,9 +328,12 @@ export class SettingsUnusedSitePermissionsElement extends
     this.headerString_ =
         await PluralStringProxyImpl.getInstance().getPluralString(
             'safetyCheckUnusedSitePermissionsPrimaryLabel', this.sites_.length);
+    // TODO(crbug/342210522): Add test for this.
     this.subtitleString_ =
         await PluralStringProxyImpl.getInstance().getPluralString(
-            'safetyCheckUnusedSitePermissionsSecondaryLabel',
+            this.safetyHubAbusiveNotificationRevocationEnabled_ ?
+                'safetyHubRevokedPermissionsSecondaryLabel' :
+                'safetyCheckUnusedSitePermissionsSecondaryLabel',
             this.sites_.length);
     // Focus on the expand button after the undo button is clicked and sites are
     // loaded again.
@@ -391,7 +408,7 @@ export class SettingsUnusedSitePermissionsElement extends
     this.$.undoToast.show();
   }
 
-  // TODO(crbug.com/1393005): Refactor common code across this and
+  // TODO(crbug.com/40880681): Refactor common code across this and
   // review_notification_permissions.ts.
   setModelUpdateDelayMsForTesting(delayMs: number) {
     this.modelUpdateDelayMsForTesting_ = delayMs;

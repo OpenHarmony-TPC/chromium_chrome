@@ -7,8 +7,9 @@
 #include <utility>
 
 #include "base/values.h"
-#include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/ui/webui/certificates_handler.h"
+#include "chromeos/components/mgs/managed_guest_session_utils.h"
+#include "components/policy/core/common/cloud/cloud_policy_client.h"
 #include "components/policy/core/common/policy_bundle.h"
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/core/common/policy_namespace.h"
@@ -16,7 +17,7 @@
 #include "components/policy/policy_constants.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -56,14 +57,15 @@ RestrictedMGSPolicyProvider::~RestrictedMGSPolicyProvider() = default;
 // static
 std::unique_ptr<RestrictedMGSPolicyProvider>
 RestrictedMGSPolicyProvider::Create() {
-  if (!profiles::IsPublicSession())
+  if (!chromeos::IsManagedGuestSession()) {
     return nullptr;
+  }
   std::unique_ptr<RestrictedMGSPolicyProvider> provider(
       new RestrictedMGSPolicyProvider());
   return provider;
 }
 
-void RestrictedMGSPolicyProvider::RefreshPolicies() {}
+void RestrictedMGSPolicyProvider::RefreshPolicies(PolicyFetchReason reason) {}
 
 void RestrictedMGSPolicyProvider::UpdatePolicyBundle() {
   weak_factory_.InvalidateWeakPtrs();

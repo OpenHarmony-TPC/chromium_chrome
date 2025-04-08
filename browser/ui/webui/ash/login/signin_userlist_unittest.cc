@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 
 #include <memory>
@@ -12,8 +17,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/ash/login/screens/user_selection_screen.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
-#include "chrome/browser/ash/login/users/multi_profile_user_controller.h"
-#include "chrome/browser/ash/login/users/multi_profile_user_controller_delegate.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -37,8 +40,7 @@ std::string GenerateUserEmail(int number) {
 
 }  // namespace
 
-class SigninPrepareUserListTest : public testing::Test,
-                                  public MultiProfileUserControllerDelegate {
+class SigninPrepareUserListTest : public testing::Test {
  public:
   SigninPrepareUserListTest()
       : fake_user_manager_(new FakeChromeUserManager()),
@@ -54,11 +56,8 @@ class SigninPrepareUserListTest : public testing::Test,
   void SetUp() override {
     testing::Test::SetUp();
     profile_manager_ = std::make_unique<TestingProfileManager>(
-        TestingBrowserProcess::GetGlobal());
+        TestingBrowserProcess::GetGlobal(), &local_state_);
     ASSERT_TRUE(profile_manager_->SetUp());
-    controller_ = std::make_unique<MultiProfileUserController>(
-        this, TestingBrowserProcess::GetGlobal()->local_state());
-    fake_user_manager_->set_multi_profile_user_controller(controller_.get());
 
     for (size_t i = 0; i < std::size(kUsersPublic); ++i)
       fake_user_manager_->AddPublicAccountUser(
@@ -72,28 +71,24 @@ class SigninPrepareUserListTest : public testing::Test,
         fake_user_manager_->AddUser(AccountId::FromUserEmail(kOwner));
     }
 
-    fake_user_manager_->set_owner_id(AccountId::FromUserEmail(kOwner));
+    fake_user_manager_->SetOwnerId(AccountId::FromUserEmail(kOwner));
   }
 
   void TearDown() override {
-    controller_.reset();
     profile_manager_.reset();
     testing::Test::TearDown();
   }
 
-  // MultiProfileUserControllerDelegate:
-  void OnUserNotAllowed(const std::string& user_email) override {}
-
   FakeChromeUserManager* user_manager() { return fake_user_manager_; }
 
  private:
+  ScopedTestingLocalState local_state_{TestingBrowserProcess::GetGlobal()};
   content::BrowserTaskEnvironment task_environment_;
   ScopedCrosSettingsTestHelper cros_settings_test_helper_;
-  raw_ptr<FakeChromeUserManager, ExperimentalAsh> fake_user_manager_;
+  raw_ptr<FakeChromeUserManager, DanglingUntriaged> fake_user_manager_;
   user_manager::ScopedUserManager user_manager_enabler_;
   std::unique_ptr<TestingProfileManager> profile_manager_;
   std::map<std::string, proximity_auth::mojom::AuthType> user_auth_type_map;
-  std::unique_ptr<MultiProfileUserController> controller_;
 };
 
 TEST_F(SigninPrepareUserListTest, AlwaysKeepOwnerInList) {

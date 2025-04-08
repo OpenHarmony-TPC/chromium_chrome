@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ui/webui/print_preview/print_preview_handler.h"
 
-#include <ctype.h>
 #include <stddef.h>
 
 #include <memory>
@@ -12,15 +11,18 @@
 #include <utility>
 #include <vector>
 
+#include "ash/constants/ash_features.h"
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/dcheck_is_on.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/number_formatting.h"
 #include "base/json/json_reader.h"
 #include "base/lazy_instance.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -44,6 +46,7 @@
 #include "chrome/browser/ui/webui/print_preview/policy_settings.h"
 #include "chrome/browser/ui/webui/print_preview/print_preview_metrics.h"
 #include "chrome/browser/ui/webui/print_preview/print_preview_ui.h"
+#include "chrome/browser/ui/webui/print_preview/print_preview_utils.h"
 #include "chrome/browser/ui/webui/print_preview/printer_handler.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/crash_keys.h"
@@ -52,6 +55,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "components/cloud_devices/common/cloud_device_description.h"
 #include "components/cloud_devices/common/printer_description.h"
+#include "components/enterprise/buildflags/buildflags.h"
 #include "components/prefs/pref_service.h"
 #include "components/printing/common/cloud_print_cdd_conversion.h"
 #include "components/url_formatter/url_formatter.h"
@@ -69,23 +73,34 @@
 #include "printing/mojom/print.mojom.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/icu/source/i18n/unicode/ulocdata.h"
+#include "ui/shell_dialogs/selected_file_info.h"
+
+#if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+#include "chrome/browser/enterprise/data_protection/print_utils.h"
+#if BUILDFLAG(IS_MAC)
+#include "chrome/grit/generated_resources.h"
+#include "ui/base/l10n/l10n_util.h"
+#endif  // BUILDFLAG(IS_MAC)
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/crosapi/mojom/local_printer.mojom.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
+#include "chrome/browser/ash/crosapi/browser_util.h"
 #include "chrome/browser/ash/crosapi/crosapi_ash.h"
 #include "chrome/browser/ash/crosapi/crosapi_manager.h"
 #include "chrome/browser/ash/crosapi/local_printer_ash.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/crosapi/mojom/drive_integration_service.mojom.h"
-#include "chromeos/lacros/lacros_service.h"
 #endif
 
 #if DCHECK_IS_ON()
 #include "base/debug/stack_trace.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/print/ohos_print_adapter.h"
 #endif
 
 using content::RenderFrameHost;
@@ -111,7 +126,6 @@ mojom::PrinterType GetPrinterTypeForUserAction(UserActionBuckets user_action) {
       return mojom::PrinterType::kLocal;
     default:
       NOTREACHED();
-      return mojom::PrinterType::kLocal;
   }
 }
 
@@ -197,7 +211,7 @@ const char kPrintPdfAsImage[] = "printPdfAsImage";
 // Gets the print job settings dictionary from |json_str|. Assumes the Print
 // Preview WebUI does not send over invalid data.
 base::Value::Dict GetSettingsDictionary(const std::string& json_str) {
-  absl::optional<base::Value> settings = base::JSONReader::Read(json_str);
+  std::optional<base::Value> settings = base::JSONReader::Read(json_str);
   base::Value::Dict dict = std::move(*settings).TakeDict();
   CHECK(!dict.empty());
   return dict;
@@ -226,7 +240,6 @@ UserActionBuckets DetermineUserAction(const base::Value::Dict& settings) {
       break;
     default:
       NOTREACHED();
-      break;
   }
 
   if (settings.FindBool(kSettingShowSystemDialog).value_or(false))
@@ -265,7 +278,7 @@ base::Value::Dict PoliciesToValue(crosapi::mojom::PoliciesPtr ptr) {
     policies.Set(kCssBackground, std::move(background_graphics_policy));
 
   base::Value::Dict paper_size_policy;
-  const absl::optional<gfx::Size>& default_paper_size = ptr->paper_size_default;
+  const std::optional<gfx::Size>& default_paper_size = ptr->paper_size_default;
   if (default_paper_size.has_value()) {
     base::Value::Dict default_paper_size_value;
     default_paper_size_value.Set(kPaperSizeWidth,
@@ -356,7 +369,7 @@ base::Value::Dict GetPolicies(const PrefService& prefs) {
     policies.Set(kCssBackground, std::move(background_graphics_policy));
 
   base::Value::Dict paper_size_policy;
-  absl::optional<gfx::Size> default_paper_size = ParsePaperSizeDefault(prefs);
+  std::optional<gfx::Size> default_paper_size = ParsePaperSizeDefault(prefs);
   if (default_paper_size.has_value()) {
     base::Value::Dict default_paper_size_value;
     default_paper_size_value.Set(kPaperSizeWidth,
@@ -401,22 +414,6 @@ PrintPreviewHandler::PrintPreviewHandler() {
   DCHECK(crosapi::CrosapiManager::IsInitialized());
   local_printer_ =
       crosapi::CrosapiManager::Get()->crosapi_ash()->local_printer_ash();
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  chromeos::LacrosService* service = chromeos::LacrosService::Get();
-  if (service->IsAvailable<crosapi::mojom::LocalPrinter>()) {
-    local_printer_ = service->GetRemote<crosapi::mojom::LocalPrinter>().get();
-    local_printer_version_ =
-        service->GetInterfaceVersion(crosapi::mojom::LocalPrinter::Uuid_);
-  } else {
-    LOG(ERROR) << "Local printer not available";
-  }
-
-  if (service->IsAvailable<crosapi::mojom::DriveIntegrationService>()) {
-    drive_integration_service_ =
-        service->GetRemote<crosapi::mojom::DriveIntegrationService>().get();
-  } else {
-    LOG(ERROR) << "Drive integration service not available";
-  }
 #endif
   ReportUserActionHistogram(UserActionBuckets::kPreviewStarted);
 }
@@ -432,8 +429,8 @@ void PrintPreviewHandler::RegisterMessages() {
       "getPreview", base::BindRepeating(&PrintPreviewHandler::HandleGetPreview,
                                         base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
-      "print", base::BindRepeating(&PrintPreviewHandler::HandlePrint,
-                                   base::Unretained(this)));
+      "doPrint", base::BindRepeating(&PrintPreviewHandler::HandleDoPrint,
+                                     base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "getPrinterCapabilities",
       base::BindRepeating(&PrintPreviewHandler::HandleGetPrinterCapabilities,
@@ -468,6 +465,13 @@ void PrintPreviewHandler::RegisterMessages() {
       "managePrinters",
       base::BindRepeating(&PrintPreviewHandler::HandleManagePrinters,
                           base::Unretained(this)));
+
+#if BUILDFLAG(IS_OHOS)
+  web_ui()->RegisterMessageCallback(
+      "systemPrint",
+      base::BindRepeating(&PrintPreviewHandler::HandleSystemPrint,
+                          base::Unretained(this)));
+#endif
 }
 
 void PrintPreviewHandler::OnJavascriptAllowed() {
@@ -500,13 +504,6 @@ void PrintPreviewHandler::ReadPrinterTypeDenyListFromPrefs() {
   if (!local_printer_)
     return;
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  if (local_printer_version_ <
-      int{crosapi::mojom::LocalPrinter::MethodMinVersions::
-              kGetPrinterTypeDenyListMinVersion}) {
-    return;
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
   local_printer_->GetPrinterTypeDenyList(
       base::BindOnce(&PrintPreviewHandler::OnPrinterTypeDenyListReady,
                      weak_factory_.GetWeakPtr()));
@@ -593,19 +590,16 @@ void PrintPreviewHandler::HandleGetPrinters(const base::Value::List& args) {
     return;
   }
 
-  PrinterHandler* handler = GetPrinterHandler(printer_type);
-  if (!handler) {
-    RejectJavascriptCallback(base::Value(callback_id), base::Value());
-    return;
-  }
   // Make sure all in progress requests are canceled before new printer search
   // starts.
+  PrinterHandler* handler = GetPrinterHandler(printer_type);
   handler->Reset();
   handler->StartGetPrinters(
       base::BindRepeating(&PrintPreviewHandler::OnAddedPrinters,
                           weak_factory_.GetWeakPtr(), printer_type),
       base::BindOnce(&PrintPreviewHandler::OnGetPrintersDone,
-                     weak_factory_.GetWeakPtr(), callback_id));
+                     weak_factory_.GetWeakPtr(), callback_id, printer_type,
+                     base::TimeTicks::Now()));
 }
 
 void PrintPreviewHandler::HandleGetPrinterCapabilities(
@@ -622,7 +616,7 @@ void PrintPreviewHandler::HandleGetPrinterCapabilities(
     return;
   }
   const std::string* printer_name = args[1].GetIfString();
-  absl::optional<int> type = args[2].GetIfInt();
+  std::optional<int> type = args[2].GetIfInt();
   if (!printer_name || printer_name->empty() || !type.has_value()) {
     RejectJavascriptCallback(base::Value(callback_id), base::Value());
     return;
@@ -636,11 +630,6 @@ void PrintPreviewHandler::HandleGetPrinterCapabilities(
   }
 
   PrinterHandler* handler = GetPrinterHandler(printer_type);
-  if (!handler) {
-    RejectJavascriptCallback(base::Value(callback_id), base::Value());
-    return;
-  }
-
   handler->StartGetCapability(
       *printer_name,
       base::BindOnce(&PrintPreviewHandler::SendPrinterCapabilities,
@@ -683,7 +672,7 @@ void PrintPreviewHandler::HandleGetPreview(const base::Value::List& args) {
 
   // Retrieve the page title and url and send it to the renderer process if
   // headers and footers are to be displayed.
-  absl::optional<bool> display_header_footer_opt =
+  std::optional<bool> display_header_footer_opt =
       settings.FindBool(kSettingHeaderFooterEnabled);
   DCHECK(display_header_footer_opt);
   if (display_header_footer_opt.value_or(false)) {
@@ -711,7 +700,7 @@ void PrintPreviewHandler::HandleGetPreview(const base::Value::List& args) {
   last_preview_settings_ = std::move(settings);
 }
 
-void PrintPreviewHandler::HandlePrint(const base::Value::List& args) {
+void PrintPreviewHandler::HandleDoPrint(const base::Value::List& args) {
   CHECK(args[0].is_string());
   const std::string& callback_id = args[0].GetString();
   CHECK(!callback_id.empty());
@@ -737,7 +726,6 @@ void PrintPreviewHandler::HandlePrint(const base::Value::List& args) {
     return;
   }
   DCHECK(data->size());
-  DCHECK(data->front());
 
   // After validating |settings|, record metrics.
   const mojom::RequestPrintPreviewParams* request_params = GetRequestParams();
@@ -753,6 +741,67 @@ void PrintPreviewHandler::HandlePrint(const base::Value::List& args) {
   }
   ReportUserActionHistogram(user_action);
 
+#if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+  std::string device_name = *settings.FindString(kSettingDeviceName);
+
+  using enterprise_data_protection::PrintScanningContext;
+  auto scan_context =
+      settings.FindBool(kSettingShowSystemDialog).value_or(false)
+          ? PrintScanningContext::kSystemPrintAfterPreview
+          : PrintScanningContext::kNormalPrintAfterPreview;
+
+#if BUILDFLAG(IS_MAC)
+  if (settings.FindBool(kSettingOpenPDFInPreview).value_or(false)) {
+    // This override only affects reporting of content analysis violations, and
+    // the rest of the printing stack is expected to use the same device name
+    // present in `settings` if content analysis allows printing.
+    device_name =
+        l10n_util::GetStringUTF8(IDS_PRINT_PREVIEW_OPEN_PDF_IN_PREVIEW_APP);
+    scan_context = PrintScanningContext::kOpenPdfInPreview;
+  }
+#endif  // BUILDFLAG(IS_MAC)
+
+  auto on_verdict =
+      base::BindOnce(&PrintPreviewHandler::OnVerdictByEnterprisePolicy,
+                     weak_factory_.GetWeakPtr(), user_action,
+                     std::move(settings), data, callback_id);
+
+  auto hide_preview = base::BindOnce(&PrintPreviewHandler::OnHidePreviewDialog,
+                                     weak_factory_.GetWeakPtr());
+
+  enterprise_data_protection::PrintIfAllowedByPolicy(
+      data, GetInitiator(), std::move(device_name), scan_context,
+      std::move(on_verdict), std::move(hide_preview));
+
+#else
+  FinishHandleDoPrint(user_action, std::move(settings), data, callback_id);
+#endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+}
+
+#if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+void PrintPreviewHandler::OnVerdictByEnterprisePolicy(
+    UserActionBuckets user_action,
+    base::Value::Dict settings,
+    scoped_refptr<base::RefCountedMemory> data,
+    const std::string& callback_id,
+    bool allowed) {
+  if (allowed) {
+    FinishHandleDoPrint(user_action, std::move(settings), data, callback_id);
+  } else {
+    OnPrintResult(callback_id, base::Value("NOT_ALLOWED"));
+  }
+}
+
+void PrintPreviewHandler::OnHidePreviewDialog() {
+  print_preview_ui()->OnHidePreviewDialog();
+}
+#endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+
+void PrintPreviewHandler::FinishHandleDoPrint(
+    UserActionBuckets user_action,
+    base::Value::Dict settings,
+    scoped_refptr<base::RefCountedMemory> data,
+    const std::string& callback_id) {
   PrinterHandler* handler =
       GetPrinterHandler(GetPrinterTypeForUserAction(user_action));
   handler->StartPrint(print_preview_ui()->initiator_title(),
@@ -926,7 +975,7 @@ void PrintPreviewHandler::SendInitialSettings(
   base::CommandLine* cmdline = base::CommandLine::ForCurrentProcess();
   initial_settings.Set(kIsInKioskAutoPrintMode,
                        cmdline->HasSwitch(switches::kKioskModePrinting));
-  initial_settings.Set(kIsInAppKioskMode, chrome::IsRunningInForcedAppMode());
+  initial_settings.Set(kIsInAppKioskMode, IsRunningInForcedAppMode());
   const std::string rules_str =
       prefs->GetString(prefs::kPrintPreviewDefaultDestinationSelectionRules);
   if (rules_str.empty()) {
@@ -943,29 +992,10 @@ void PrintPreviewHandler::SendInitialSettings(
           Profile::FromWebUI(web_ui()));
   initial_settings.Set(kIsDriveMounted,
                        drive_service && drive_service->IsMounted());
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  // The "Save to Google Drive" option is only allowed for the primary profile
-  // in the Lacros browser.
-  if (Profile::FromWebUI(web_ui())->IsMainProfile() &&
-      drive_integration_service_) {
-    drive_integration_service_->GetMountPointPath(base::BindOnce(
-        &PrintPreviewHandler::OnDrivePathReady, weak_factory_.GetWeakPtr(),
-        std::move(initial_settings), callback_id));
-    return;
-  }
 #endif
 
   ResolveJavascriptCallback(base::Value(callback_id), initial_settings);
 }
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-void PrintPreviewHandler::OnDrivePathReady(base::Value::Dict initial_settings,
-                                           const std::string& callback_id,
-                                           const base::FilePath& drive_path) {
-  initial_settings.Set(kIsDriveMounted, !drive_path.empty());
-  ResolveJavascriptCallback(base::Value(callback_id), initial_settings);
-}
-#endif
 
 void PrintPreviewHandler::ClosePreviewDialog() {
   print_preview_ui()->OnClosePrintPreviewDialog();
@@ -975,7 +1005,9 @@ void PrintPreviewHandler::SendPrinterCapabilities(
     const std::string& callback_id,
     base::Value::Dict settings_info) {
   // Check that |settings_info| is valid.
-  if (settings_info.FindDict(kSettingCapabilities)) {
+  base::Value::Dict* settings = settings_info.FindDict(kSettingCapabilities);
+  if (settings) {
+    FilterContinuousFeedMediaSizes(*settings);
     VLOG(1) << "Get printer capabilities finished";
     ResolveJavascriptCallback(base::Value(callback_id), settings_info);
     return;
@@ -986,10 +1018,8 @@ void PrintPreviewHandler::SendPrinterCapabilities(
 }
 
 WebContents* PrintPreviewHandler::GetInitiator() {
-  PrintPreviewDialogController* dialog_controller =
-      PrintPreviewDialogController::GetInstance();
-  if (!dialog_controller)
-    return nullptr;
+  auto* dialog_controller = PrintPreviewDialogController::GetInstance();
+  CHECK(dialog_controller);
   return dialog_controller->GetInitiator(preview_web_contents());
 }
 
@@ -1059,14 +1089,17 @@ void PrintPreviewHandler::SendPageCountReady(int page_count,
                     base::Value(request_id), base::Value(fit_to_page_scaling));
 }
 
-void PrintPreviewHandler::SendPageLayoutReady(base::Value::Dict layout,
-                                              bool has_custom_page_size_style,
-                                              int request_id) {
+void PrintPreviewHandler::SendPageLayoutReady(
+    base::Value::Dict layout,
+    bool all_pages_have_custom_size,
+    bool all_pages_have_custom_orientation,
+    int request_id) {
   if (!ShouldReceiveRendererMessage(request_id))
     return;
 
   FireWebUIListener("page-layout-ready", std::move(layout),
-                    base::Value(has_custom_page_size_style));
+                    base::Value(all_pages_have_custom_size),
+                    base::Value(all_pages_have_custom_orientation));
 }
 
 void PrintPreviewHandler::SendPagePreviewReady(int page_index,
@@ -1107,10 +1140,9 @@ void PrintPreviewHandler::ClearInitiatorDetails() {
   // We no longer require the initiator details. Remove those details associated
   // with the preview dialog to allow the initiator to create another preview
   // dialog.
-  PrintPreviewDialogController* dialog_controller =
-      PrintPreviewDialogController::GetInstance();
-  if (dialog_controller)
-    dialog_controller->EraseInitiatorInfo(preview_web_contents());
+  auto* dialog_controller = PrintPreviewDialogController::GetInstance();
+  CHECK(dialog_controller);
+  dialog_controller->EraseInitiatorInfo(preview_web_contents());
 }
 
 PrinterHandler* PrintPreviewHandler::GetPrinterHandler(
@@ -1138,7 +1170,6 @@ PrinterHandler* PrintPreviewHandler::GetPrinterHandler(
     return local_printer_handler_.get();
   }
   NOTREACHED();
-  return nullptr;
 }
 
 PdfPrinterHandler* PrintPreviewHandler::GetPdfPrinterHandler() {
@@ -1163,7 +1194,10 @@ void PrintPreviewHandler::OnAddedPrinters(mojom::PrinterType printer_type,
   }
 }
 
-void PrintPreviewHandler::OnGetPrintersDone(const std::string& callback_id) {
+void PrintPreviewHandler::OnGetPrintersDone(const std::string& callback_id,
+                                            mojom::PrinterType printer_type,
+                                            const base::TimeTicks& start_time) {
+  RecordGetPrintersTimeHistogram(printer_type, start_time);
   ResolveJavascriptCallback(base::Value(callback_id), base::Value());
 }
 
@@ -1190,15 +1224,14 @@ void PrintPreviewHandler::BadMessageReceived() {
       GetInitiator()->GetPrimaryMainFrame()->GetProcess(),
       bad_message::BadMessageReason::PPH_EXTRA_PREVIEW_MESSAGE);
 #if DCHECK_IS_ON()
-  // TODO(crbug.com/1371776): Remove this once the bug is fixed.
+  // TODO(crbug.com/40870686): Remove this once the bug is fixed.
   base::debug::StackTrace().Print();
 #endif
 }
 
 void PrintPreviewHandler::FileSelectedForTesting(const base::FilePath& path,
-                                                 int index,
-                                                 void* params) {
-  GetPdfPrinterHandler()->FileSelected(path, index, params);
+                                                 int index) {
+  GetPdfPrinterHandler()->FileSelected(ui::SelectedFileInfo(path), index);
 }
 
 void PrintPreviewHandler::SetPdfSavedClosureForTesting(
@@ -1218,4 +1251,26 @@ void PrintPreviewHandler::HandleManagePrinters(const base::Value::List& args) {
 #endif
 }
 
+#if BUILDFLAG(IS_OHOS)
+void PrintPreviewHandler::HandleSystemPrint(const base::Value::List& args) {
+  scoped_refptr<base::RefCountedMemory> data;
+  print_preview_ui()->GetPrintPreviewDataForIndex(
+      COMPLETE_PREVIEW_DOCUMENT_INDEX, &data);
+  if (!data) {
+    ohos::adapter::print::PrintAdapter::GetInstance().ShowPrintTipsDialog();
+    return;
+  }
+  uint32_t data_size = data->size();
+  std::shared_ptr<char[]> buff = std::make_shared<char[]>(data_size);
+#if BUILDFLAG(ARKWEB_SAFE_FUNCTION)
+  if (memcpy_s(buff.get(), data_size, base::as_string_view(*data).data(), data_size) != EOK) {
+    LOG(ERROR) << "HandleSystemPrint memcpy_s failed.";
+    return;
+  }
+#else
+  memcpy(buff.get(), base::as_string_view(*data).data(), data_size);
+#endif
+  ohos::adapter::print::PrintAdapter::GetInstance().PrintPdfFile(buff, data_size);
+}
+#endif
 }  // namespace printing

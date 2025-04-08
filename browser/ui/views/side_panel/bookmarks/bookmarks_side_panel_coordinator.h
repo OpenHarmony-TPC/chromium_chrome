@@ -10,6 +10,7 @@
 #include "chrome/browser/ui/browser_user_data.h"
 
 class Browser;
+class SidePanelEntryScope;
 class SidePanelRegistry;
 
 namespace views {
@@ -22,9 +23,6 @@ class BookmarksSidePanelCoordinator
     : public BrowserUserData<BookmarksSidePanelCoordinator> {
  public:
   explicit BookmarksSidePanelCoordinator(Browser* browser);
-  BookmarksSidePanelCoordinator(const BookmarksSidePanelCoordinator&) = delete;
-  BookmarksSidePanelCoordinator& operator=(
-      const BookmarksSidePanelCoordinator&) = delete;
   ~BookmarksSidePanelCoordinator() override;
 
   void CreateAndRegisterEntry(SidePanelRegistry* global_registry);
@@ -32,7 +30,8 @@ class BookmarksSidePanelCoordinator
  private:
   friend class BrowserUserData<BookmarksSidePanelCoordinator>;
 
-  std::unique_ptr<views::View> CreateBookmarksWebView();
+  std::unique_ptr<views::View> CreateBookmarksWebView(
+      SidePanelEntryScope& scope);
 
   BROWSER_USER_DATA_KEY_DECL();
 };

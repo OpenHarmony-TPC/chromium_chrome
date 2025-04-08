@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "chrome/browser/profiles/profile.h"
@@ -27,16 +26,16 @@
 #include "components/autofill/core/browser/data_model/autofill_profile.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/payments/content/payment_request.h"
-#include "components/payments/core/features.h"
-#include "components/payments/core/payments_experimental_features.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/common/content_features.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/color/color_id.h"
+#include "ui/compositor/layer.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/label.h"
@@ -113,6 +112,7 @@ void PaymentRequestDialogView::ShowDialog() {
   views::Widget* widget = constrained_window::ShowWebModalDialogViews(
       this, request_->web_contents());
   extensions::SecurityDialogTracker::GetInstance()->AddSecurityDialog(widget);
+  occlusion_observation_.Observe(widget);
 }
 
 void PaymentRequestDialogView::CloseDialog() {
@@ -140,8 +140,8 @@ void PaymentRequestDialogView::ShowErrorMessage() {
 void PaymentRequestDialogView::ShowProcessingSpinner() {
   throbber_->Start();
   throbber_overlay_->SetVisible(true);
-  throbber_overlay_->GetViewAccessibility().OverrideIsIgnored(false);
-  throbber_overlay_->GetViewAccessibility().OverrideIsLeaf(false);
+  throbber_overlay_->GetViewAccessibility().SetIsIgnored(false);
+  throbber_overlay_->GetViewAccessibility().SetIsLeaf(false);
   if (observer_for_testing_)
     observer_for_testing_->OnProcessingSpinnerShown();
 }
@@ -156,21 +156,20 @@ void PaymentRequestDialogView::ShowPaymentHandlerScreen(
   if (!request_->spec())
     return;
 
-  if (PaymentsExperimentalFeatures::IsEnabled(
-          features::kPaymentHandlerPopUpSizeWindow)) {
-    is_showing_large_payment_handler_window_ = true;
+  // The Payment Handler window is larger than the Payment Request sheet, which
+  // causes us to make different decisions when e.g. animating it.
+  is_showing_large_payment_handler_window_ = true;
 
-    // Calculate |payment_handler_window_height_|
-    auto* browser =
-        chrome::FindBrowserWithWebContents(request_->web_contents());
-    int browser_window_content_height =
-        browser->window()->GetContentsSize().height();
-    payment_handler_window_height_ =
-        std::max(kDialogHeight, std::min(kPreferredPaymentHandlerDialogHeight,
-                                         browser_window_content_height));
+  // Calculate |payment_handler_window_height_|
+  auto* browser = chrome::FindBrowserWithTab(request_->web_contents());
+  int browser_window_content_height =
+      browser->window()->GetContentsSize().height();
+  payment_handler_window_height_ =
+      std::max(kDialogHeight, std::min(kPreferredPaymentHandlerDialogHeight,
+                                       browser_window_content_height));
 
-    ResizeDialogWindow();
-  }
+  ResizeDialogWindow();
+
   view_stack_->Push(
       CreateViewAndInstallController(
           std::make_unique<PaymentHandlerWebFlowViewController>(
@@ -423,14 +422,14 @@ void PaymentRequestDialogView::EditorViewUpdated() {
 
 void PaymentRequestDialogView::HideProcessingSpinner() {
   throbber_->Stop();
-  // TODO(crbug.com/1418659): Instead of setting the throbber to invisible, can
+  // TODO(crbug.com/40894873): Instead of setting the throbber to invisible, can
   // we destroy and remove it from the view when it's not being used?
   throbber_overlay_->SetVisible(false);
   // Screen readers do not ignore invisible elements, so force the screen
   // reader to skip the invisible throbber by making it an ignored leaf node in
   // the accessibility tree.
-  throbber_overlay_->GetViewAccessibility().OverrideIsIgnored(true);
-  throbber_overlay_->GetViewAccessibility().OverrideIsLeaf(true);
+  throbber_overlay_->GetViewAccessibility().SetIsIgnored(true);
+  throbber_overlay_->GetViewAccessibility().SetIsLeaf(true);
   if (observer_for_testing_)
     observer_for_testing_->OnProcessingSpinnerHidden();
 }
@@ -448,8 +447,8 @@ PaymentRequestDialogView::PaymentRequestDialogView(
   DCHECK(request);
   DCHECK(request->spec());
 
-  SetButtons(ui::DIALOG_BUTTON_NONE);
-  SetModalType(ui::MODAL_TYPE_CHILD);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
+  SetModalType(ui::mojom::ModalType::kChild);
 
   SetCloseCallback(base::BindOnce(&PaymentRequestDialogView::OnDialogClosed,
                                   weak_ptr_factory_.GetWeakPtr()));
@@ -463,6 +462,13 @@ PaymentRequestDialogView::PaymentRequestDialogView(
   SetLayoutManager(std::make_unique<views::FillLayout>());
 
   view_stack_ = AddChildView(std::make_unique<ViewStack>());
+  // ViewStack paints to a layer, and currently layers don't clip to the bounds
+  // of the window opaque layer. Until this is fixed, we have to set rounded
+  // corners directly here.
+  //
+  // TODO(crbug.com/358379367): Remove once layers obey the clip by default.
+  view_stack_->layer()->SetRoundedCornerRadius(
+      gfx::RoundedCornersF(GetCornerRadius()));
 
   SetupSpinnerOverlay();
 
@@ -520,6 +526,12 @@ void PaymentRequestDialogView::SetupSpinnerOverlay() {
   throbber_overlay_ = AddChildView(std::make_unique<views::View>());
 
   throbber_overlay_->SetPaintToLayer();
+  // Currently layers don't clip to the bounds of the parent window opaque
+  // layer. Until this is fixed, we have to set rounded corners directly here.
+  //
+  // TODO(crbug.com/358379367): Remove once layers obey the clip by default.
+  throbber_overlay_->layer()->SetRoundedCornerRadius(
+      gfx::RoundedCornersF(GetCornerRadius()));
   throbber_overlay_->SetVisible(false);
   // The throbber overlay has to have a solid white background to hide whatever
   // would be under it.
@@ -539,7 +551,8 @@ void PaymentRequestDialogView::SetupSpinnerOverlay() {
       l10n_util::GetStringUTF16(IDS_PAYMENTS_PROCESSING_MESSAGE)));
 }
 
-gfx::Size PaymentRequestDialogView::CalculatePreferredSize() const {
+gfx::Size PaymentRequestDialogView::CalculatePreferredSize(
+    const views::SizeBounds& /*available_size*/) const {
   if (is_showing_large_payment_handler_window_) {
     return gfx::Size(GetActualDialogWidth(),
                      GetActualPaymentHandlerDialogHeight());
@@ -548,11 +561,6 @@ gfx::Size PaymentRequestDialogView::CalculatePreferredSize() const {
 }
 
 int PaymentRequestDialogView::GetActualPaymentHandlerDialogHeight() const {
-  if (!PaymentsExperimentalFeatures::IsEnabled(
-          features::kPaymentHandlerPopUpSizeWindow)) {
-    return kDialogHeight;
-  }
-
   DCHECK_NE(0, payment_handler_window_height_);
   return payment_handler_window_height_ > 0 ? payment_handler_window_height_
                                             : kDialogHeight;
@@ -585,6 +593,15 @@ void PaymentRequestDialogView::ViewHierarchyChanged(
   }
 }
 
+void PaymentRequestDialogView::OnOcclusionStateChanged(bool occluded) {
+  if (occluded) {
+    SetEnabled(false);
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&PaymentRequestDialogView::CloseDialog,
+                                  weak_ptr_factory_.GetWeakPtr()));
+  }
+}
+
 void PaymentRequestDialogView::ResizeDialogWindow() {
   if (GetWidget() && request_->web_contents()) {
     constrained_window::UpdateWebContentsModalDialogPosition(
@@ -595,7 +612,7 @@ void PaymentRequestDialogView::ResizeDialogWindow() {
   }
 }
 
-BEGIN_METADATA(PaymentRequestDialogView, views::DialogDelegateView)
+BEGIN_METADATA(PaymentRequestDialogView)
 ADD_READONLY_PROPERTY_METADATA(int, ActualPaymentHandlerDialogHeight)
 ADD_READONLY_PROPERTY_METADATA(int, ActualDialogWidth)
 END_METADATA

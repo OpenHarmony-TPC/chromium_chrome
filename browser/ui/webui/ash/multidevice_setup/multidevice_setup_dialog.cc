@@ -2,19 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/ash/multidevice_setup/multidevice_setup_dialog.h"
 
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/shell_window_ids.h"
 #include "ash/public/cpp/window_backdrop.h"
 #include "ash/public/cpp/window_properties.h"
+#include "ash/webui/common/trusted_types_util.h"
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/system/sys_info.h"
-#include "chrome/browser/ash/login/ui/oobe_dialog_size_utils.h"
 #include "chrome/browser/ash/multidevice_setup/multidevice_setup_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/ui/ash/login/oobe_dialog_size_utils.h"
 #include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/webui/ash/multidevice_setup/multidevice_setup_handler.h"
 #include "chrome/browser/ui/webui/ash/multidevice_setup/multidevice_setup_localized_strings_provider.h"
@@ -33,6 +39,7 @@
 #include "ui/aura/window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/native_widget_types.h"
+#include "ui/webui/color_change_listener/color_change_handler.h"
 #include "ui/wm/core/shadow_types.h"
 
 namespace ash::multidevice_setup {
@@ -41,7 +48,8 @@ namespace ash::multidevice_setup {
 MultiDeviceSetupDialog* MultiDeviceSetupDialog::current_instance_ = nullptr;
 
 // static
-gfx::NativeWindow MultiDeviceSetupDialog::containing_window_ = nullptr;
+gfx::NativeWindow MultiDeviceSetupDialog::containing_window_ =
+    gfx::NativeWindow();
 
 // static
 void MultiDeviceSetupDialog::Show() {
@@ -115,8 +123,6 @@ MultiDeviceSetupDialogUI::MultiDeviceSetupDialogUI(content::WebUI* web_ui)
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       Profile::FromWebUI(web_ui), chrome::kChromeUIMultiDeviceSetupHost);
 
-  source->DisableTrustedTypesCSP();
-
   AddLocalizedStrings(source);
   source->UseStringsJs();
 
@@ -125,7 +131,10 @@ MultiDeviceSetupDialogUI::MultiDeviceSetupDialogUI(content::WebUI* web_ui)
       base::make_span(kMultideviceSetupResources,
                       kMultideviceSetupResourcesSize),
       IDR_MULTIDEVICE_SETUP_MULTIDEVICE_SETUP_DIALOG_HTML);
-  source->DisableTrustedTypesCSP();
+  // Enabling trusted types via trusted_types_util must be done after
+  // webui::SetupWebUIDataSource to override the trusted type CSP with correct
+  // policies for JS WebUIs.
+  ash::EnableTrustedTypesCSP(source);
 
   web_ui->AddMessageHandler(std::make_unique<MultideviceSetupHandler>());
   web_ui->AddMessageHandler(std::make_unique<MetricsHandler>());
@@ -140,6 +149,12 @@ void MultiDeviceSetupDialogUI::BindInterface(
           Profile::FromWebUI(web_ui()));
   if (service)
     service->BindMultiDeviceSetup(std::move(receiver));
+}
+
+void MultiDeviceSetupDialogUI::BindInterface(
+    mojo::PendingReceiver<color_change_listener::mojom::PageHandler> receiver) {
+  color_provider_handler_ = std::make_unique<ui::ColorChangeHandler>(
+      web_ui()->GetWebContents(), std::move(receiver));
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(MultiDeviceSetupDialogUI)

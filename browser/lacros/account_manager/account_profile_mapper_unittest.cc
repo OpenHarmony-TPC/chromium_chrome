@@ -5,6 +5,7 @@
 #include "chrome/browser/lacros/account_manager/account_profile_mapper.h"
 
 #include <algorithm>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -26,20 +27,19 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/account_manager_core/account.h"
-#include "components/account_manager_core/account_addition_result.h"
 #include "components/account_manager_core/account_manager_facade.h"
+#include "components/account_manager_core/account_upsertion_result.h"
 #include "components/account_manager_core/mock_account_manager_facade.h"
 #include "components/prefs/testing_pref_service.h"
 #include "content/public/test/browser_task_environment.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using account_manager::Account;
-using account_manager::AccountAdditionResult;
 using account_manager::AccountKey;
 using account_manager::AccountManagerFacade;
+using account_manager::AccountUpsertionResult;
 using testing::Field;
 
 namespace {
@@ -60,7 +60,7 @@ using AccountErrorMapping =
                    std::vector<std::pair<std::string, GoogleServiceAuthError>>>;
 
 using MockAddAccountCallback = base::MockOnceCallback<void(
-    const absl::optional<AccountProfileMapper::AddAccountResult>&)>;
+    const std::optional<AccountProfileMapper::AddAccountResult>&)>;
 
 class MockAccountProfileMapperObserver : public AccountProfileMapper::Observer {
  public:
@@ -123,8 +123,9 @@ class ProfileAttributesStorageTestObserver
 MATCHER_P(AddAccountResultEqual,
           other,
           "optional<AddAccountResult> equality matcher") {
-  if (arg == absl::nullopt && other == absl::nullopt)
+  if (arg == std::nullopt && other == std::nullopt) {
     return true;
+  }
   return arg->profile_path == other->profile_path &&
          arg->account.key == other->account.key &&
          arg->account.raw_email == other->account.raw_email;
@@ -384,18 +385,18 @@ class AccountProfileMapperTest : public testing::Test {
   // and immediately returns with a new account.
   void ExpectFacadeShowAddAccountDialogCalled(
       AccountManagerFacade::AccountAdditionSource source,
-      const absl::optional<Account>& new_account) {
+      const std::optional<Account>& new_account) {
     EXPECT_CALL(mock_facade_, ShowAddAccountDialog(source, testing::_))
-        .WillOnce(
-            [new_account](AccountManagerFacade::AccountAdditionSource,
-                          base::OnceCallback<void(const AccountAdditionResult&)>
-                              callback) {
-              std::move(callback).Run(
-                  new_account.has_value()
-                      ? AccountAdditionResult::FromAccount(new_account.value())
-                      : AccountAdditionResult::FromStatus(
-                            AccountAdditionResult::Status::kCancelledByUser));
-            });
+        .WillOnce([new_account](
+                      AccountManagerFacade::AccountAdditionSource,
+                      base::OnceCallback<void(const AccountUpsertionResult&)>
+                          callback) {
+          std::move(callback).Run(
+              new_account.has_value()
+                  ? AccountUpsertionResult::FromAccount(new_account.value())
+                  : AccountUpsertionResult::FromStatus(
+                        AccountUpsertionResult::Status::kCancelledByUser));
+        });
   }
 
   void CompleteFacadeGetAccountsGaia(const std::vector<std::string>& gaia_ids) {
@@ -1245,7 +1246,7 @@ TEST_F(AccountProfileMapperTest, ShowAddAccountDialog) {
 
   MockAddAccountCallback account_added_callback;
   Account account_c = AccountFromGaiaID("C");
-  absl::optional<AccountProfileMapper::AddAccountResult> result =
+  std::optional<AccountProfileMapper::AddAccountResult> result =
       AccountProfileMapper::AddAccountResult{other_path, account_c};
   AccountManagerFacade::AccountAdditionSource source =
       AccountManagerFacade::AccountAdditionSource::kOgbAddAccount;
@@ -1291,7 +1292,7 @@ TEST_F(AccountProfileMapperTest, ShowAddAccountDialog) {
 
   // Failure: Add account that already exists.
   ExpectFacadeShowAddAccountDialogCalled(source, account_c);
-  EXPECT_CALL(account_added_callback, Run(testing::Eq(absl::nullopt)));
+  EXPECT_CALL(account_added_callback, Run(testing::Eq(std::nullopt)));
   EXPECT_CALL(mock_observer, OnAccountUpserted(testing::_, testing::_))
       .Times(0);
   EXPECT_CALL(mock_observer, OnAccountRemoved(testing::_, testing::_)).Times(0);
@@ -1330,7 +1331,7 @@ TEST_F(AccountProfileMapperTest, ShowAddAccountDialog) {
   // Failure: Non-Gaia account.
   Account account_f = NonGaiaAccountFromID("F");
   ExpectFacadeShowAddAccountDialogCalled(source, account_f);
-  EXPECT_CALL(account_added_callback, Run(testing::Eq(absl::nullopt)));
+  EXPECT_CALL(account_added_callback, Run(testing::Eq(std::nullopt)));
   EXPECT_CALL(mock_observer, OnAccountUpserted(testing::_, testing::_))
       .Times(0);
   EXPECT_CALL(mock_observer, OnAccountRemoved(testing::_, testing::_)).Times(0);
@@ -1343,8 +1344,8 @@ TEST_F(AccountProfileMapperTest, ShowAddAccountDialog) {
   testing::Mock::VerifyAndClearExpectations(&mock_observer);
 
   // Failure: Flow aborted.
-  ExpectFacadeShowAddAccountDialogCalled(source, absl::nullopt);
-  EXPECT_CALL(account_added_callback, Run(testing::Eq(absl::nullopt)));
+  ExpectFacadeShowAddAccountDialogCalled(source, std::nullopt);
+  EXPECT_CALL(account_added_callback, Run(testing::Eq(std::nullopt)));
   EXPECT_CALL(mock_observer, OnAccountUpserted(testing::_, testing::_))
       .Times(0);
   EXPECT_CALL(mock_observer, OnAccountRemoved(testing::_, testing::_)).Times(0);
@@ -1374,7 +1375,7 @@ TEST_F(AccountProfileMapperTest,
   observation.Observe(mapper);
   MockAddAccountCallback account_added_callback;
   Account account_c = AccountFromGaiaID("C");
-  absl::optional<AccountProfileMapper::AddAccountResult> result =
+  std::optional<AccountProfileMapper::AddAccountResult> result =
       AccountProfileMapper::AddAccountResult{other_path, account_c};
   AccountManagerFacade::AccountAdditionSource source =
       AccountManagerFacade::AccountAdditionSource::kOgbAddAccount;
@@ -1419,11 +1420,11 @@ TEST_F(AccountProfileMapperTest,
   observation.Observe(mapper);
   MockAddAccountCallback account_added_callback;
   Account account_c = AccountFromGaiaID("C");
-  absl::optional<AccountProfileMapper::AddAccountResult> result =
+  std::optional<AccountProfileMapper::AddAccountResult> result =
       AccountProfileMapper::AddAccountResult{other_path, account_c};
   AccountManagerFacade::AccountAdditionSource source =
       AccountManagerFacade::AccountAdditionSource::kOgbAddAccount;
-  base::OnceCallback<void(const AccountAdditionResult&)>
+  base::OnceCallback<void(const AccountUpsertionResult&)>
       show_add_account_dialog_facade_callback;
 
   // No events fire before the account manager invokes the account added
@@ -1432,12 +1433,12 @@ TEST_F(AccountProfileMapperTest,
   EXPECT_CALL(mock_observer, OnAccountUpserted(testing::_, testing::_))
       .Times(0);
   EXPECT_CALL(*mock_facade(), ShowAddAccountDialog(source, testing::_))
-      .WillOnce(
-          [&show_add_account_dialog_facade_callback](
-              AccountManagerFacade::AccountAdditionSource,
-              base::OnceCallback<void(const AccountAdditionResult&)> callback) {
-            show_add_account_dialog_facade_callback = std::move(callback);
-          });
+      .WillOnce([&show_add_account_dialog_facade_callback](
+                    AccountManagerFacade::AccountAdditionSource,
+                    base::OnceCallback<void(const AccountUpsertionResult&)>
+                        callback) {
+        show_add_account_dialog_facade_callback = std::move(callback);
+      });
   ExpectFacadeGetAccountsCalled();
   mapper->ShowAddAccountDialog(other_path, source,
                                account_added_callback.Get());
@@ -1456,7 +1457,7 @@ TEST_F(AccountProfileMapperTest,
               OnAccountUpserted(other_path, AccountEqual(account_c)));
   ExpectFacadeGetAccountsCalled();
   std::move(show_add_account_dialog_facade_callback)
-      .Run(AccountAdditionResult::FromAccount(account_c));
+      .Run(AccountUpsertionResult::FromAccount(account_c));
   // `mapper` updates the account list after it adds an account.
   CompleteFacadeGetAccountsGaia({"A", "B", "C"});
   VerifyAccountsInPrefs({{main_path(), {"A"}}, {other_path, {"B", "C"}}});
@@ -1477,7 +1478,7 @@ TEST_F(AccountProfileMapperTest, ShowAddAccountDialogNewProfile) {
   ExpectFacadeShowAddAccountDialogCalled(source, account_b);
   ExpectFacadeGetAccountsCalled();
   base::FilePath new_profile_path = GetProfilePath("Profile 1");
-  absl::optional<AccountProfileMapper::AddAccountResult> result =
+  std::optional<AccountProfileMapper::AddAccountResult> result =
       AccountProfileMapper::AddAccountResult{new_profile_path, account_b};
   EXPECT_CALL(account_added_callback, Run(AddAccountResultEqual(result)));
   EXPECT_CALL(mock_observer,
@@ -1522,7 +1523,7 @@ TEST_F(AccountProfileMapperTest, AddAccount) {
 
   // Set expectations.
   Account account_c = AccountFromGaiaID("C");
-  absl::optional<AccountProfileMapper::AddAccountResult> result =
+  std::optional<AccountProfileMapper::AddAccountResult> result =
       AccountProfileMapper::AddAccountResult{main_path(), account_c};
   EXPECT_CALL(account_added_callback, Run(AddAccountResultEqual(result)));
   EXPECT_CALL(mock_observer,
@@ -1572,7 +1573,7 @@ TEST_F(AccountProfileMapperTest, AddUnknownAccount) {
 
   // Set expectations: the operation fails.
   Account account_b = AccountFromGaiaID("B");
-  EXPECT_CALL(account_added_callback, Run(testing::Eq(absl::nullopt)));
+  EXPECT_CALL(account_added_callback, Run(testing::Eq(std::nullopt)));
   EXPECT_CALL(mock_observer, OnAccountUpserted(testing::_, testing::_))
       .Times(0);
   EXPECT_CALL(*mock_facade(),
@@ -1607,7 +1608,7 @@ TEST_F(AccountProfileMapperTest, CreateNewProfileWithAccount) {
   EXPECT_CALL(*mock_facade(), ShowAddAccountDialog(testing::_, testing::_))
       .Times(0);
   base::FilePath new_profile_path = GetProfilePath("Profile 1");
-  absl::optional<AccountProfileMapper::AddAccountResult> result =
+  std::optional<AccountProfileMapper::AddAccountResult> result =
       AccountProfileMapper::AddAccountResult{new_profile_path, account_c};
   EXPECT_CALL(account_added_callback, Run(AddAccountResultEqual(result)));
   EXPECT_CALL(mock_observer,

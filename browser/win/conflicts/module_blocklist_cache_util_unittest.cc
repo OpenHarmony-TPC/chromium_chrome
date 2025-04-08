@@ -7,6 +7,7 @@
 #include <memory>
 #include <random>
 #include <set>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -100,15 +101,12 @@ class ModuleBlocklistCacheUtilTest : public testing::Test {
 };
 
 TEST_F(ModuleBlocklistCacheUtilTest, CalculateTimeDateStamp) {
-  base::Time::Exploded chrome_birthday = {};
-  chrome_birthday.year = 2008;
-  chrome_birthday.month = 9;        // September.
-  chrome_birthday.day_of_week = 2;  // Tuesday.
-  chrome_birthday.day_of_month = 2;
+  static constexpr base::Time::Exploded kChromeBirthday = {
+      .year = 2008, .month = 9, .day_of_week = 2, .day_of_month = 2};
 
   base::Time time;
-  ASSERT_TRUE(chrome_birthday.HasValidValues());
-  ASSERT_TRUE(base::Time::FromUTCExploded(chrome_birthday, &time));
+  ASSERT_TRUE(kChromeBirthday.HasValidValues());
+  ASSERT_TRUE(base::Time::FromUTCExploded(kChromeBirthday, &time));
 
   // Ensure that CalculateTimeDateStamp() will always return the number of
   // hours between |time| and the Windows epoch.
@@ -124,17 +122,19 @@ TEST_F(ModuleBlocklistCacheUtilTest, WriteEmptyCache) {
                                         blocklisted_modules, &md5_digest));
 
   // Check the file's stat.
-  int64_t file_size = 0;
-  EXPECT_TRUE(base::GetFileSize(module_blocklist_cache_path(), &file_size));
-  EXPECT_EQ(file_size, internal::CalculateExpectedFileSize(metadata));
+  std::optional<int64_t> file_size =
+      base::GetFileSize(module_blocklist_cache_path());
+  ASSERT_TRUE(file_size.has_value());
+  EXPECT_EQ(file_size.value(), internal::CalculateExpectedFileSize(metadata));
 
   base::MD5Digest expected = {
       0x33, 0xCD, 0xEC, 0xCC, 0xCE, 0xBE, 0x80, 0x32,
       0x9F, 0x1F, 0xDB, 0xEE, 0x7F, 0x58, 0x74, 0xCB,
   };
 
-  for (size_t i = 0; i < std::extent<decltype(base::MD5Digest::a)>(); ++i)
+  for (size_t i = 0; i < sizeof(base::MD5Digest::a); ++i) {
     EXPECT_EQ(expected.a[i], md5_digest.a[i]);
+  }
 }
 
 TEST_F(ModuleBlocklistCacheUtilTest, WrittenFileSize) {
@@ -147,9 +147,10 @@ TEST_F(ModuleBlocklistCacheUtilTest, WrittenFileSize) {
                                         blocklisted_modules, &md5_digest));
 
   // Check the file's stat.
-  int64_t file_size = 0;
-  EXPECT_TRUE(base::GetFileSize(module_blocklist_cache_path(), &file_size));
-  EXPECT_EQ(file_size, internal::CalculateExpectedFileSize(metadata));
+  std::optional<int64_t> file_size =
+      base::GetFileSize(module_blocklist_cache_path());
+  ASSERT_TRUE(file_size.has_value());
+  EXPECT_EQ(file_size.value(), internal::CalculateExpectedFileSize(metadata));
 }
 
 TEST_F(ModuleBlocklistCacheUtilTest, WriteAndRead) {
@@ -178,8 +179,9 @@ TEST_F(ModuleBlocklistCacheUtilTest, WriteAndRead) {
                       read_blocklisted_modules.size() *
                           sizeof(third_party_dlls::PackedListModule)));
 
-  for (size_t i = 0; i < std::extent<decltype(base::MD5Digest::a)>(); ++i)
+  for (size_t i = 0; i < sizeof(base::MD5Digest::a); ++i) {
     EXPECT_EQ(md5_digest.a[i], read_md5_digest.a[i]);
+  }
 }
 
 class FakeModuleListFilter : public ModuleListFilter {
@@ -191,17 +193,16 @@ class FakeModuleListFilter : public ModuleListFilter {
 
   void AddAllowlistedModule(const third_party_dlls::PackedListModule& module) {
     allowlisted_modules_.emplace(
-        base::StringPiece(
+        std::string_view(
             reinterpret_cast<const char*>(&module.basename_hash[0]),
             std::size(module.basename_hash)),
-        base::StringPiece(
-            reinterpret_cast<const char*>(&module.code_id_hash[0]),
-            std::size(module.basename_hash)));
+        std::string_view(reinterpret_cast<const char*>(&module.code_id_hash[0]),
+                         std::size(module.basename_hash)));
   }
 
   // ModuleListFilter:
-  bool IsAllowlisted(base::StringPiece module_basename_hash,
-                     base::StringPiece module_code_id_hash) const override {
+  bool IsAllowlisted(std::string_view module_basename_hash,
+                     std::string_view module_code_id_hash) const override {
     return base::Contains(
         allowlisted_modules_,
         std::make_pair(module_basename_hash, module_code_id_hash));
@@ -216,8 +217,7 @@ class FakeModuleListFilter : public ModuleListFilter {
  private:
   ~FakeModuleListFilter() override = default;
 
-  std::set<std::pair<base::StringPiece, base::StringPiece>>
-      allowlisted_modules_;
+  std::set<std::pair<std::string_view, std::string_view>> allowlisted_modules_;
 };
 
 TEST_F(ModuleBlocklistCacheUtilTest, RemoveAllowlistedEntries) {

@@ -57,7 +57,6 @@ const std::string& RandomSelector::GetValueFor(double random) {
       return odd.value;
   }
   NOTREACHED() << "Invalid value for key: " << random;
-  return base::EmptyString();
 }
 
 // Print the value. Used for friendly test failure messages.

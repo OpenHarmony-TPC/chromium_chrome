@@ -17,7 +17,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/common/content_features.h"
+#include "net/base/features.h"
 
 namespace first_party_sets {
 
@@ -49,7 +49,9 @@ ThrottleCheckResult FirstPartySetsNavigationThrottle::WillStartRequest() {
                        weak_factory_.GetWeakPtr()));
     // Setup timer
     resume_navigation_timer_.Start(
-        FROM_HERE, features::kFirstPartySetsNavigationThrottleTimeout.Get(),
+        FROM_HERE,
+        net::features::kWaitForFirstPartySetsInitNavigationThrottleTimeout
+            .Get(),
         base::BindOnce(&FirstPartySetsNavigationThrottle::OnTimeOut,
                        weak_factory_.GetWeakPtr()));
 
@@ -73,17 +75,20 @@ FirstPartySetsNavigationThrottle::MaybeCreateNavigationThrottle(
   Profile* profile = Profile::FromBrowserContext(
       navigation_handle->GetWebContents()->GetBrowserContext());
   // The `service` might be null for some irregular profiles.
-  // TODO(https://crbug.com/1348572): regular profiles and guest sessions
+  // TODO(crbug.com/40233408): regular profiles and guest sessions
   // aren't mutually exclusive on ChromeOS.
   if (!profile->IsRegularProfile() || profile->IsGuestSession())
     return nullptr;
 
   FirstPartySetsPolicyService* service =
       FirstPartySetsPolicyServiceFactory::GetForBrowserContext(profile);
-  DCHECK(service);
-  if (!features::kFirstPartySetsClearSiteDataOnChangedSets.Get() ||
-      navigation_handle->GetParentFrameOrOuterDocument() ||
-      service->is_ready()) {
+  CHECK(service);
+  if (service->is_ready() ||
+      !base::FeatureList::IsEnabled(
+          net::features::kWaitForFirstPartySetsInit) ||
+      net::features::kWaitForFirstPartySetsInitNavigationThrottleTimeout.Get()
+          .is_zero() ||
+      navigation_handle->GetParentFrameOrOuterDocument()) {
     return nullptr;
   }
   return std::make_unique<FirstPartySetsNavigationThrottle>(navigation_handle,
@@ -92,7 +97,7 @@ FirstPartySetsNavigationThrottle::MaybeCreateNavigationThrottle(
 
 void FirstPartySetsNavigationThrottle::OnTimeOut() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(!resume_navigation_timer_.IsRunning());
+  CHECK(!resume_navigation_timer_.IsRunning());
   RecordResumeOnTimeout(true);
   Resume();
 }
@@ -103,7 +108,7 @@ void FirstPartySetsNavigationThrottle::OnReadyToResume() {
   // navigation has been resumed by `OnTimeOut`, so we don't need to resume
   // again.
   if (!resume_navigation_timer_.IsRunning()) {
-    DCHECK(resumed_);
+    CHECK(resumed_);
     return;
   }
   // Stop the timer to make sure we won't try to resume again due to hitting
@@ -115,7 +120,7 @@ void FirstPartySetsNavigationThrottle::OnReadyToResume() {
 
 void FirstPartySetsNavigationThrottle::Resume() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(!resumed_);
+  CHECK(!resumed_);
   resumed_ = true;
 
   CHECK(throttle_navigation_timer_.has_value());

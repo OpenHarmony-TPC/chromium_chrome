@@ -21,6 +21,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_observer.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
@@ -31,6 +32,7 @@
 #include "chrome/browser/ui/tabs/tab_group.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/pref_names.h"
 #include "components/metrics/daily_event.h"
@@ -55,35 +57,21 @@ namespace {
 // called.
 constexpr base::TimeDelta kDailyEventIntervalTimeDelta = base::Minutes(30);
 
-// The intervals at which we report the number of unused tabs. This is used for
-// all the tab usage histograms listed below.
-//
-// The 'Tabs.TabUsageIntervalLength' histogram suffixes entry in histograms.xml
-// should be kept in sync with these values.
-constexpr base::TimeDelta kTabUsageReportingIntervals[] = {
-    base::Seconds(30), base::Minutes(1), base::Minutes(10),
-    base::Hours(1),    base::Hours(5),   base::Hours(12)};
-
 // The interval at which the heartbeat tab metrics should be reported.
 const base::TimeDelta kTabsHeartbeatReportingInterval = base::Minutes(5);
 
 // The global TabStatsTracker instance.
 TabStatsTracker* g_tab_stats_tracker_instance = nullptr;
 
-// Ensure that an interval is a valid one (i.e. listed in
-// |kTabUsageReportingIntervals|).
-bool IsValidInterval(base::TimeDelta interval) {
-  return base::Contains(kTabUsageReportingIntervals, interval);
-}
-
 void UmaHistogramCounts10000WithBatteryStateVariant(const char* histogram_name,
                                                     size_t value) {
-  DCHECK(base::PowerMonitor::IsInitialized());
+  auto* power_monitor = base::PowerMonitor::GetInstance();
+  DCHECK(power_monitor->IsInitialized());
 
   base::UmaHistogramCounts10000(histogram_name, value);
 
   const char* suffix =
-      base::PowerMonitor::IsOnBatteryPower() ? ".OnBattery" : ".PluggedIn";
+      power_monitor->IsOnBatteryPower() ? ".OnBattery" : ".PluggedIn";
 
   base::UmaHistogramCounts10000(base::StrCat({histogram_name, suffix}), value);
 }
@@ -91,8 +79,6 @@ void UmaHistogramCounts10000WithBatteryStateVariant(const char* histogram_name,
 }  // namespace
 
 // static
-const char TabStatsTracker::kTabStatsDailyEventHistogramName[] =
-    "Tabs.TabsStatsDailyEventInterval";
 const char TabStatsTracker::UmaStatsReportingDelegate::
     kNumberOfTabsOnResumeHistogramName[] = "Tabs.NumberOfTabsOnResume";
 const char
@@ -102,19 +88,6 @@ const char TabStatsTracker::UmaStatsReportingDelegate::
     kMaxTabsPerWindowInADayHistogramName[] = "Tabs.MaxTabsPerWindowInADay";
 const char TabStatsTracker::UmaStatsReportingDelegate::
     kMaxWindowsInADayHistogramName[] = "Tabs.MaxWindowsInADay";
-
-// Tab usage histograms.
-const char TabStatsTracker::UmaStatsReportingDelegate::
-    kUnusedAndClosedInIntervalHistogramNameBase[] =
-        "Tabs.UnusedAndClosedInInterval.Count";
-const char TabStatsTracker::UmaStatsReportingDelegate::
-    kUnusedTabsInIntervalHistogramNameBase[] = "Tabs.UnusedInInterval.Count";
-const char TabStatsTracker::UmaStatsReportingDelegate::
-    kUsedAndClosedInIntervalHistogramNameBase[] =
-        "Tabs.UsedAndClosedInInterval.Count";
-const char TabStatsTracker::UmaStatsReportingDelegate::
-    kUsedTabsInIntervalHistogramNameBase[] = "Tabs.UsedInInterval.Count";
-
 const char
     TabStatsTracker::UmaStatsReportingDelegate::kTabCountHistogramName[] =
         "Tabs.TabCount";
@@ -134,11 +107,35 @@ const char TabStatsTracker::UmaStatsReportingDelegate::
     kDailyDiscardsProactiveHistogramName[] =
         "Discarding.DailyDiscards.Proactive";
 const char TabStatsTracker::UmaStatsReportingDelegate::
+    kDailyDiscardsSuggestedHistogramName[] =
+        "Discarding.DailyDiscards.Suggested";
+const char TabStatsTracker::UmaStatsReportingDelegate::
+    kDailyDiscardsFrozenWithGrowingMemoryHistogramName[] =
+        "Discarding.DailyDiscards.FrozenWithGrowingMemory";
+const char TabStatsTracker::UmaStatsReportingDelegate::
     kDailyReloadsExternalHistogramName[] = "Discarding.DailyReloads.External";
 const char TabStatsTracker::UmaStatsReportingDelegate::
     kDailyReloadsUrgentHistogramName[] = "Discarding.DailyReloads.Urgent";
 const char TabStatsTracker::UmaStatsReportingDelegate::
     kDailyReloadsProactiveHistogramName[] = "Discarding.DailyReloads.Proactive";
+const char TabStatsTracker::UmaStatsReportingDelegate::
+    kDailyReloadsSuggestedHistogramName[] = "Discarding.DailyReloads.Suggested";
+const char TabStatsTracker::UmaStatsReportingDelegate::
+    kDailyReloadsFrozenWithGrowingMemoryHistogramName[] =
+        "Discarding.DailyReloads.FrozenWithGrowingMemory";
+
+const char TabStatsTracker::UmaStatsReportingDelegate::
+    kTabDuplicateCountSingleWindowHistogramName[] =
+        "Tabs.Duplicates.Count.SingleWindow";
+const char TabStatsTracker::UmaStatsReportingDelegate::
+    kTabDuplicateCountAllProfileWindowsHistogramName[] =
+        "Tabs.Duplicates.Count.AllProfileWindows";
+const char TabStatsTracker::UmaStatsReportingDelegate::
+    kTabDuplicatePercentageSingleWindowHistogramName[] =
+        "Tabs.Duplicates.Percentage.SingleWindow";
+const char TabStatsTracker::UmaStatsReportingDelegate::
+    kTabDuplicatePercentageAllProfileWindowsHistogramName[] =
+        "Tabs.Duplicates.Percentage.AllProfileWindows";
 
 const TabStatsDataStore::TabsStats& TabStatsTracker::tab_stats() const {
   return tab_stats_data_store_->tab_stats();
@@ -147,10 +144,11 @@ const TabStatsDataStore::TabsStats& TabStatsTracker::tab_stats() const {
 TabStatsTracker::TabStatsTracker(PrefService* pref_service)
     : reporting_delegate_(std::make_unique<UmaStatsReportingDelegate>()),
       tab_stats_data_store_(std::make_unique<TabStatsDataStore>(pref_service)),
-      daily_event_(
-          std::make_unique<DailyEvent>(pref_service,
-                                       ::prefs::kTabStatsDailySample,
-                                       kTabStatsDailyEventHistogramName)) {
+      daily_event_(std::make_unique<DailyEvent>(
+          pref_service,
+          ::prefs::kTabStatsDailySample,
+          // Empty to skip recording the daily event type histogram.
+          /* histogram_name=*/std::string())) {
   DCHECK(pref_service);
 
   // Add owned observers to the list manually since they are about to be
@@ -171,7 +169,7 @@ TabStatsTracker::TabStatsTracker(PrefService* pref_service)
   }
 
   browser_list->AddObserver(this);
-  base::PowerMonitor::AddPowerSuspendObserver(this);
+  base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
 
   // Setup daily reporting of the stats aggregated in |tab_stats_data_store|.
   daily_event_->AddObserver(std::make_unique<TabStatsDailyObserver>(
@@ -183,22 +181,6 @@ TabStatsTracker::TabStatsTracker(PrefService* pref_service)
   daily_event_timer_.Start(FROM_HERE, kDailyEventIntervalTimeDelta,
                            daily_event_.get(), &DailyEvent::CheckInterval);
 
-  // Initialize the interval maps and timers associated with them.
-  // Only |tab_stats_data_store_| (and not other observers) is registered for
-  // callbacks since only it computes intervals.
-  for (base::TimeDelta interval : kTabUsageReportingIntervals) {
-    TabStatsDataStore::TabsStateDuringIntervalMap* interval_map =
-        tab_stats_data_store_->AddInterval();
-    // Setup the timer associated with this interval.
-    std::unique_ptr<base::RepeatingTimer> timer =
-        std::make_unique<base::RepeatingTimer>();
-    timer->Start(
-        FROM_HERE, interval,
-        base::BindRepeating(&TabStatsTracker::OnInterval,
-                            base::Unretained(this), interval, interval_map));
-    usage_interval_timers_.push_back(std::move(timer));
-  }
-
   heartbeat_timer_.Start(FROM_HERE, kTabsHeartbeatReportingInterval,
                          base::BindRepeating(&TabStatsTracker::OnHeartbeatEvent,
                                              base::Unretained(this)));
@@ -209,18 +191,32 @@ TabStatsTracker::TabStatsTracker(PrefService* pref_service)
 TabStatsTracker::~TabStatsTracker() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   BrowserList::GetInstance()->RemoveObserver(this);
-  base::PowerMonitor::RemovePowerSuspendObserver(this);
+  base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
   g_browser_process->GetTabManager()->RemoveObserver(this);
 }
 
 // static
 void TabStatsTracker::SetInstance(std::unique_ptr<TabStatsTracker> instance) {
-  DCHECK_EQ(nullptr, g_tab_stats_tracker_instance);
+  CHECK(!g_tab_stats_tracker_instance);
   g_tab_stats_tracker_instance = instance.release();
 }
 
+// static
+void TabStatsTracker::ClearInstance() {
+  CHECK(g_tab_stats_tracker_instance);
+  delete g_tab_stats_tracker_instance;
+  g_tab_stats_tracker_instance = nullptr;
+}
+
+// static
 TabStatsTracker* TabStatsTracker::GetInstance() {
+  CHECK(g_tab_stats_tracker_instance);
   return g_tab_stats_tracker_instance;
+}
+
+// static
+bool TabStatsTracker::HasInstance() {
+  return g_tab_stats_tracker_instance != nullptr;
 }
 
 void TabStatsTracker::AddObserverAndSetInitialState(
@@ -257,9 +253,15 @@ void TabStatsTracker::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(::prefs::kTabStatsDiscardsExternal, 0);
   registry->RegisterIntegerPref(::prefs::kTabStatsDiscardsUrgent, 0);
   registry->RegisterIntegerPref(::prefs::kTabStatsDiscardsProactive, 0);
+  registry->RegisterIntegerPref(::prefs::kTabStatsDiscardsSuggested, 0);
+  registry->RegisterIntegerPref(
+      ::prefs::kTabStatsDiscardsFrozenWithGrowingMemory, 0);
   registry->RegisterIntegerPref(::prefs::kTabStatsReloadsExternal, 0);
   registry->RegisterIntegerPref(::prefs::kTabStatsReloadsUrgent, 0);
   registry->RegisterIntegerPref(::prefs::kTabStatsReloadsProactive, 0);
+  registry->RegisterIntegerPref(::prefs::kTabStatsReloadsSuggested, 0);
+  registry->RegisterIntegerPref(
+      ::prefs::kTabStatsReloadsFrozenWithGrowingMemory, 0);
 }
 
 void TabStatsTracker::TabStatsDailyObserver::OnDailyEvent(
@@ -382,6 +384,21 @@ class TabStatsTracker::WebContentsUsageObserver
       tab_stats_observer.OnMediaDestroyed(web_contents());
   }
 
+  void WasDiscarded() override {
+    if (ukm_source_id_) {
+      ukm::builders::TabManager_TabLifetime(ukm_source_id_)
+          .SetTimeSinceNavigation(
+              (base::TimeTicks::Now() - navigation_time_).InMilliseconds())
+          .Record(ukm::UkmRecorder::Get());
+      ukm_source_id_ = 0;
+    }
+
+    for (TabStatsObserver& tab_stats_observer :
+         tab_stats_tracker_->tab_stats_observers_) {
+      tab_stats_observer.OnTabDiscarded(web_contents());
+    }
+  }
+
  private:
   raw_ptr<TabStatsTracker> tab_stats_tracker_;
   // The last navigation time associated with this tab.
@@ -443,28 +460,17 @@ void TabStatsTracker::OnResume() {
 }
 
 // resource_coordinator::TabLifecycleObserver:
-void TabStatsTracker::OnDiscardedStateChange(
+void TabStatsTracker::OnTabLifecycleStateChange(
     content::WebContents* contents,
-    ::mojom::LifecycleUnitDiscardReason reason,
-    bool is_discarded) {
-  // Increment the count in the data store for tabs metrics reporting.
-  tab_stats_data_store_->OnTabDiscardStateChange(reason, is_discarded);
-}
-
-void TabStatsTracker::OnAutoDiscardableStateChange(
-    content::WebContents* contents,
-    bool is_auto_discardable) {}
-
-void TabStatsTracker::OnInterval(
-    base::TimeDelta interval,
-    TabStatsDataStore::TabsStateDuringIntervalMap* interval_map) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(interval_map);
-  reporting_delegate_->ReportUsageDuringInterval(*interval_map, interval);
-
-  // Only |tab_stats_data_store_| (and not other obsevers) resets since only it
-  // computes intervals.
-  tab_stats_data_store_->ResetIntervalData(interval_map);
+    mojom::LifecycleUnitState previous_state,
+    mojom::LifecycleUnitState new_state,
+    std::optional<LifecycleUnitDiscardReason> discard_reason) {
+  if (previous_state == ::mojom::LifecycleUnitState::DISCARDED ||
+      new_state == ::mojom::LifecycleUnitState::DISCARDED) {
+    tab_stats_data_store_->OnTabDiscardStateChange(
+        discard_reason.value(),
+        new_state == ::mojom::LifecycleUnitState::DISCARDED);
+  }
 }
 
 void TabStatsTracker::OnInitialOrInsertedTab(
@@ -530,18 +536,32 @@ void TabStatsTracker::UmaStatsReportingDelegate::ReportDailyMetrics(
       static_cast<size_t>(LifecycleUnitDiscardReason::URGENT);
   const size_t proactive_index =
       static_cast<size_t>(LifecycleUnitDiscardReason::PROACTIVE);
+  const size_t suggested_index =
+      static_cast<size_t>(LifecycleUnitDiscardReason::SUGGESTED);
+  const size_t frozen_with_growing_memory_index = static_cast<size_t>(
+      LifecycleUnitDiscardReason::FROZEN_WITH_GROWING_MEMORY);
   base::UmaHistogramCounts10000(kDailyDiscardsExternalHistogramName,
                                 tab_stats.tab_discard_counts[external_index]);
   base::UmaHistogramCounts10000(kDailyDiscardsUrgentHistogramName,
                                 tab_stats.tab_discard_counts[urgent_index]);
   base::UmaHistogramCounts10000(kDailyDiscardsProactiveHistogramName,
                                 tab_stats.tab_discard_counts[proactive_index]);
+  base::UmaHistogramCounts10000(kDailyDiscardsSuggestedHistogramName,
+                                tab_stats.tab_discard_counts[suggested_index]);
+  base::UmaHistogramCounts10000(
+      kDailyDiscardsFrozenWithGrowingMemoryHistogramName,
+      tab_stats.tab_discard_counts[frozen_with_growing_memory_index]);
   base::UmaHistogramCounts10000(kDailyReloadsExternalHistogramName,
                                 tab_stats.tab_reload_counts[external_index]);
   base::UmaHistogramCounts10000(kDailyReloadsUrgentHistogramName,
                                 tab_stats.tab_reload_counts[urgent_index]);
   base::UmaHistogramCounts10000(kDailyReloadsProactiveHistogramName,
                                 tab_stats.tab_reload_counts[proactive_index]);
+  base::UmaHistogramCounts10000(kDailyReloadsSuggestedHistogramName,
+                                tab_stats.tab_reload_counts[suggested_index]);
+  base::UmaHistogramCounts10000(
+      kDailyReloadsFrozenWithGrowingMemoryHistogramName,
+      tab_stats.tab_reload_counts[frozen_with_growing_memory_index]);
 }
 
 void TabStatsTracker::UmaStatsReportingDelegate::ReportHeartbeatMetrics(
@@ -555,6 +575,9 @@ void TabStatsTracker::UmaStatsReportingDelegate::ReportHeartbeatMetrics(
                                                  tab_stats.total_tab_count);
   UmaHistogramCounts10000WithBatteryStateVariant(kWindowCountHistogramName,
                                                  tab_stats.window_count);
+  if (base::FeatureList::IsEnabled(features::kTabDuplicateMetrics)) {
+    ReportTabDuplicateMetrics();
+  }
   // Record the width of all open browser windows with tabs.
   for (Browser* browser : *BrowserList::GetInstance()) {
     if (browser->type() != Browser::TYPE_NORMAL)
@@ -583,65 +606,69 @@ void TabStatsTracker::UmaStatsReportingDelegate::ReportHeartbeatMetrics(
   }
 }
 
-void TabStatsTracker::UmaStatsReportingDelegate::ReportUsageDuringInterval(
-    const TabStatsDataStore::TabsStateDuringIntervalMap& interval_map,
-    base::TimeDelta interval) {
-  // Counts the number of used/unused tabs during this interval, a tabs counts
-  // as unused if it hasn't been interacted with or visible during the duration
-  // of the interval.
-  size_t used_tabs = 0;
-  size_t used_and_closed_tabs = 0;
-  size_t unused_tabs = 0;
-  size_t unused_and_closed_tabs = 0;
-  for (const auto& iter : interval_map) {
-    // There's currently no distinction between a visible/audible tab and one
-    // that has been interacted with in these metrics.
-    // TODO(sebmarchand): Add a metric that track the number of tab that have
-    // been visible/audible but not interacted with during an interval,
-    // https://crbug.com/800828.
-    if (iter.second.interacted_during_interval ||
-        iter.second.visible_or_audible_during_interval) {
-      if (iter.second.exists_currently)
-        ++used_tabs;
-      else
-        ++used_and_closed_tabs;
-    } else {
-      if (iter.second.exists_currently)
-        ++unused_tabs;
-      else
-        ++unused_and_closed_tabs;
+void TabStatsTracker::UmaStatsReportingDelegate::ReportTabDuplicateMetrics() {
+  std::map<Profile*, DuplicateData> duplicate_data_per_profile;
+  for (Browser* const browser : *BrowserList::GetInstance()) {
+    if (browser->type() != Browser::TYPE_NORMAL) {
+      continue;
+    }
+
+    Profile* const profile = browser->profile();
+    DuplicateData duplicate_data_multi_window =
+        duplicate_data_per_profile[profile];
+    DuplicateData duplicate_data_single_window = DuplicateData();
+
+    const int tab_count = browser->tab_strip_model()->count();
+    duplicate_data_multi_window.tab_count += tab_count;
+    duplicate_data_single_window.tab_count = tab_count;
+
+    for (int index = 0; index < tab_count; index++) {
+      content::WebContents* const web_contents =
+          browser->tab_strip_model()->GetWebContentsAt(index);
+      const GURL url = web_contents->GetURL();
+      auto seen_urls_single_window_result =
+          duplicate_data_single_window.seen_urls.insert(url);
+      if (!seen_urls_single_window_result.second) {
+        duplicate_data_single_window.duplicate_count++;
+      }
+      // Guest mode and incognito should not count for the per-profile metrics
+      if (profile->IsOffTheRecord()) {
+        continue;
+      }
+      auto seen_urls_multi_window_result =
+          duplicate_data_multi_window.seen_urls.insert(url);
+      if (!seen_urls_multi_window_result.second) {
+        duplicate_data_multi_window.duplicate_count++;
+      }
+    }
+    duplicate_data_per_profile[profile] = duplicate_data_multi_window;
+
+    base::UmaHistogramCounts100(kTabDuplicateCountSingleWindowHistogramName,
+                                duplicate_data_single_window.duplicate_count);
+    if (duplicate_data_single_window.tab_count > 0) {
+      base::UmaHistogramPercentage(
+          kTabDuplicatePercentageSingleWindowHistogramName,
+          duplicate_data_single_window.duplicate_count * 100 /
+              duplicate_data_single_window.tab_count);
     }
   }
+  for (const auto& duplicate_data : duplicate_data_per_profile) {
+    // Guest mode and incognito should not count for the per-profile metrics
+    Profile* const profile = duplicate_data.first;
+    if (profile->IsOffTheRecord()) {
+      continue;
+    }
 
-  std::string used_and_closed_histogram_name = GetIntervalHistogramName(
-      UmaStatsReportingDelegate::kUsedAndClosedInIntervalHistogramNameBase,
-      interval);
-  std::string used_histogram_name = GetIntervalHistogramName(
-      UmaStatsReportingDelegate::kUsedTabsInIntervalHistogramNameBase,
-      interval);
-  std::string unused_and_closed_histogram_name = GetIntervalHistogramName(
-      UmaStatsReportingDelegate::kUnusedAndClosedInIntervalHistogramNameBase,
-      interval);
-  std::string unused_histogram_name = GetIntervalHistogramName(
-      UmaStatsReportingDelegate::kUnusedTabsInIntervalHistogramNameBase,
-      interval);
-
-  base::UmaHistogramCounts10000(used_and_closed_histogram_name,
-                                used_and_closed_tabs);
-  base::UmaHistogramCounts10000(used_histogram_name, used_tabs);
-  base::UmaHistogramCounts10000(unused_and_closed_histogram_name,
-                                unused_and_closed_tabs);
-  base::UmaHistogramCounts10000(unused_histogram_name, unused_tabs);
-}
-
-// static
-std::string
-TabStatsTracker::UmaStatsReportingDelegate::GetIntervalHistogramName(
-    const char* base_name,
-    base::TimeDelta interval) {
-  DCHECK(IsValidInterval(interval));
-  return base::StringPrintf("%s_%zu", base_name,
-                            static_cast<size_t>(interval.InSeconds()));
+    base::UmaHistogramCounts100(
+        kTabDuplicateCountAllProfileWindowsHistogramName,
+        duplicate_data.second.duplicate_count);
+    if (duplicate_data.second.tab_count > 0) {
+      base::UmaHistogramPercentage(
+          kTabDuplicatePercentageAllProfileWindowsHistogramName,
+          duplicate_data.second.duplicate_count * 100 /
+              duplicate_data.second.tab_count);
+    }
+  }
 }
 
 bool TabStatsTracker::UmaStatsReportingDelegate::
@@ -654,5 +681,21 @@ bool TabStatsTracker::UmaStatsReportingDelegate::
 #endif  // BUILDFLAG(ENABLE_BACKGROUND_MODE)
   return false;
 }
+
+TabStatsTracker::UmaStatsReportingDelegate::DuplicateData::DuplicateData() {
+  duplicate_count = 0;
+  tab_count = 0;
+  seen_urls = {};
+}
+
+TabStatsTracker::UmaStatsReportingDelegate::DuplicateData::DuplicateData(
+    const DuplicateData& other) {
+  duplicate_count = other.duplicate_count;
+  tab_count = other.tab_count;
+  seen_urls = std::set(other.seen_urls);
+}
+
+TabStatsTracker::UmaStatsReportingDelegate::DuplicateData::~DuplicateData() =
+    default;
 
 }  // namespace metrics

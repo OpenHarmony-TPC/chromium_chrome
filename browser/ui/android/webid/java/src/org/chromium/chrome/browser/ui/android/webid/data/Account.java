@@ -4,43 +4,59 @@
 
 package org.chromium.chrome.browser.ui.android.webid.data;
 
-import org.chromium.base.annotations.CalledByNative;
+import android.graphics.Bitmap;
+
+import org.jni_zero.CalledByNative;
+
 import org.chromium.url.GURL;
 
 /**
- * This class holds the data used to represent a selectable account in the
- * Account Selection sheet.
+ * This class holds the data used to represent a selectable account in the Account Selection sheet.
+ * Android counterpart of IdentityRequestAccount in
+ * //content/public/browser/identity_request_account.h
  */
 public class Account {
-    private final String mSubject;
+    private final String mId;
     private final String mEmail;
     private final String mName;
     private final String mGivenName;
     private final GURL mPictureUrl;
-    private final String[] mHints;
+    private final Bitmap mPictureBitmap;
     private final boolean mIsSignIn;
+    private final boolean mIsBrowserTrustedSignIn;
 
     /**
-     * @param subject Subject shown to the user.
+     * @param id The account ID.
      * @param email Email shown to the user.
+     * @param name Full name.
      * @param givenName Given name.
-     * @param picture picture URL of the avatar shown to the user.
+     * @param pictureUrl Picture URL of the avatar shown to the user.
+     * @param pictureBitmap The Bitmap for the picture in pictureUrl.
+     * @param isSignIn Whether this account's login state is sign in or sign up. Unlike the other
+     *     fields this can be populated either by the IDP or by the browser based on its stored
+     *     permission grants.
+     * @param isBrowserTrustedSignIn Whether this account's login state is sign in or sign up,
+     *     trusted by the browser and either observed by the browser or claimed by IDP if the IDP
+     *     has third-party cookie access.
      */
     @CalledByNative
-    public Account(String subject, String email, String name, String givenName, GURL pictureUrl,
-            String[] hints, boolean isSignIn) {
-        assert subject != null : "Account subject is null!";
-        mSubject = subject;
+    public Account(
+            String id,
+            String email,
+            String name,
+            String givenName,
+            GURL pictureUrl,
+            Bitmap pictureBitmap,
+            boolean isSignIn,
+            boolean isBrowserTrustedSignIn) {
+        mId = id;
         mEmail = email;
         mName = name;
         mGivenName = givenName;
         mPictureUrl = pictureUrl;
-        mHints = hints;
+        mPictureBitmap = pictureBitmap;
         mIsSignIn = isSignIn;
-    }
-
-    public String getSubject() {
-        return mSubject;
+        mIsBrowserTrustedSignIn = isBrowserTrustedSignIn;
     }
 
     public String getEmail() {
@@ -59,17 +75,21 @@ public class Account {
         return mPictureUrl;
     }
 
-    public String[] getHints() {
-        return mHints;
+    public Bitmap getPictureBitmap() {
+        return mPictureBitmap;
     }
 
     public boolean isSignIn() {
         return mIsSignIn;
     }
 
+    public boolean isBrowserTrustedSignIn() {
+        return mIsBrowserTrustedSignIn;
+    }
+
     // Return all the String fields. Note that this excludes non-string fields, in particular
-    // mPictureUrl and mHints.
+    // mPictureUrl.
     public String[] getStringFields() {
-        return new String[] {mSubject, mEmail, mName, mGivenName};
+        return new String[] {mId, mEmail, mName, mGivenName};
     }
 }

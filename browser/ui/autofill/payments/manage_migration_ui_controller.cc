@@ -5,22 +5,21 @@
 #include "chrome/browser/ui/autofill/payments/manage_migration_ui_controller.h"
 
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
+#include "chrome/browser/ui/autofill/payments/local_card_migration_controller_observer.h"
 #include "chrome/browser/ui/autofill/payments/local_card_migration_dialog.h"
 #include "components/autofill/core/browser/payments/local_card_migration_manager.h"
+#include "components/autofill/core/browser/ui/payments/local_card_migration_dialog_controller.h"
 
 namespace autofill {
 
 ManageMigrationUiController::ManageMigrationUiController(
     content::WebContents* web_contents)
     : content::WebContentsUserData<ManageMigrationUiController>(*web_contents) {
-  // TODO(crbug.com/1419786): Use `ScopedObservation` once the observer has a
-  // `OnDestroying` method to avoid that the source has dangling references to
-  // `this`.
   LocalCardMigrationBubbleControllerImpl::CreateForWebContents(web_contents);
-  GetBubbleController()->AddObserver(this);
+  bubble_controller_observation_.Observe(GetBubbleController());
 
   LocalCardMigrationDialogControllerImpl::CreateForWebContents(web_contents);
-  GetDialogController()->AddObserver(this);
+  dialog_controller_observation_.Observe(GetDialogController());
 }
 
 ManageMigrationUiController::~ManageMigrationUiController() = default;
@@ -37,6 +36,21 @@ ManageMigrationUiController::GetDialogController() {
       &GetWebContents());
 }
 
+void ManageMigrationUiController::OnSourceDestruction(
+    LocalCardMigrationControllerSource source) {
+  switch (source) {
+    case LocalCardMigrationControllerSource::kBubbleController:
+      CHECK(bubble_controller_observation_.IsObserving());
+      bubble_controller_observation_.Reset();
+      return;
+    case LocalCardMigrationControllerSource::kDialogContoller:
+      CHECK(dialog_controller_observation_.IsObserving());
+      dialog_controller_observation_.Reset();
+      return;
+  }
+  NOTREACHED();
+}
+
 void ManageMigrationUiController::ShowBubble(
     base::OnceClosure show_migration_dialog_closure) {
   flow_step_ = LocalCardMigrationFlowStep::PROMO_BUBBLE;
@@ -48,7 +62,8 @@ void ManageMigrationUiController::ShowOfferDialog(
     const LegalMessageLines& legal_message_lines,
     const std::string& user_email,
     const std::vector<MigratableCreditCard>& migratable_credit_cards,
-    AutofillClient::LocalCardMigrationCallback start_migrating_cards_callback) {
+    payments::PaymentsAutofillClient::LocalCardMigrationCallback
+        start_migrating_cards_callback) {
   flow_step_ = LocalCardMigrationFlowStep::OFFER_DIALOG;
   DCHECK(GetDialogController());
   GetDialogController()->ShowOfferDialog(
@@ -60,7 +75,8 @@ void ManageMigrationUiController::UpdateCreditCardIcon(
     const bool has_server_error,
     const std::u16string& tip_message,
     const std::vector<MigratableCreditCard>& migratable_credit_cards,
-    AutofillClient::MigrationDeleteCardCallback delete_local_card_callback) {
+    payments::PaymentsAutofillClient::MigrationDeleteCardCallback
+        delete_local_card_callback) {
   if (!GetDialogController()) {
     return;
   }

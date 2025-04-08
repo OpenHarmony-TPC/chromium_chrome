@@ -13,32 +13,33 @@ import 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render.js';
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
 import './edit_dialog.js';
 import './shared_style.css.js';
-import './strings.m.js';
+import '/strings.m.js';
 import './edit_dialog.js';
 
-import {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import {CrLazyRenderElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render.js';
+import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
+import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+import type {CrLazyRenderElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render.js';
 import {getToastManager} from 'chrome://resources/cr_elements/cr_toast/cr_toast_manager.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
 import {KeyboardShortcutList} from 'chrome://resources/js/keyboard_shortcut_list.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {isMac} from 'chrome://resources/js/platform.js';
 import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
-import {IronA11yAnnouncer} from 'chrome://resources/polymer/v3_0/iron-a11y-announcer/iron-a11y-announcer.js';
-import {afterNextRender, flush, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {flush, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {deselectItems, selectAll, selectFolder} from './actions.js';
 import {highlightUpdatedItems, trackUpdatedItems} from './api_listener.js';
 import {BookmarkManagerApiProxyImpl} from './bookmark_manager_api_proxy.js';
-import {BrowserProxy, BrowserProxyImpl} from './browser_proxy.js';
+import type {BrowserProxy} from './browser_proxy.js';
+import {BrowserProxyImpl} from './browser_proxy.js';
 import {getTemplate} from './command_manager.html.js';
 import {Command, IncognitoAvailability, MenuSource, OPEN_CONFIRMATION_LIMIT, ROOT_NODE_ID} from './constants.js';
 import {DialogFocusManager} from './dialog_focus_manager.js';
-import {BookmarksEditDialogElement} from './edit_dialog.js';
+import type {BookmarksEditDialogElement} from './edit_dialog.js';
 import {StoreClientMixin} from './store_client_mixin.js';
-import {BookmarkNode, OpenCommandMenuDetail} from './types.js';
+import type {BookmarkNode, OpenCommandMenuDetail} from './types.js';
 import {canEditNode, canReorderChildren, getDisplayedList} from './util.js';
 
 const BookmarksCommandManagerElementBase = StoreClientMixin(PolymerElement);
@@ -150,10 +151,6 @@ export class BookmarksCommandManagerElement extends
     addDocumentListenerForCommand('cut', Command.CUT);
     addDocumentListenerForCommand('copy', Command.COPY);
     addDocumentListenerForCommand('paste', Command.PASTE);
-
-    afterNextRender(this, function() {
-      IronA11yAnnouncer.requestAvailability();
-    });
   }
 
   override disconnectedCallback() {
@@ -398,12 +395,8 @@ export class BookmarksCommandManagerElement extends
         break;
       case Command.DESELECT_ALL:
         this.dispatch(deselectItems());
-        IronA11yAnnouncer.requestAvailability();
-        this.dispatchEvent(new CustomEvent('iron-announce', {
-          bubbles: true,
-          composed: true,
-          detail: {text: loadTimeData.getString('itemsUnselected')},
-        }));
+        getAnnouncerInstance().announce(
+            loadTimeData.getString('itemsUnselected'));
         break;
       case Command.CUT:
         BookmarkManagerApiProxyImpl.getInstance().cut(Array.from(itemIds));

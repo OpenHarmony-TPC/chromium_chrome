@@ -10,7 +10,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
@@ -19,11 +18,11 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/site_instance.h"
+#include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -50,9 +49,11 @@ namespace {
 class ProcessManagementTest : public ExtensionBrowserTest {
  public:
   ProcessManagementTest() {
-    // TODO(https://crbug.com/1110891): Remove this once Extensions are
+    // TODO(crbug.com/40142347): Remove this once Extensions are
     // supported with BackForwardCache.
-    disabled_feature_list_.InitWithFeatures({}, {features::kBackForwardCache});
+    disabled_feature_list_.InitWithFeatures(
+        {}, {features::kBackForwardCache,
+             features::kProcessPerSiteUpToMainFrameThreshold});
   }
 
  private:
@@ -215,6 +216,11 @@ IN_PROC_BROWSER_TEST_F(ProcessManagementTest, ProcessOverflow) {
       browser(), base_url.Resolve("test_file_with_body.html"),
       WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  // Tab 6: Second instance of Hosted app 1.
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), base_url.Resolve("hosted_app/main.html"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
 
   // Load another extension (in background).
   const extensions::Extension* extension2 = LoadExtension(
@@ -223,7 +229,7 @@ IN_PROC_BROWSER_TEST_F(ProcessManagementTest, ProcessOverflow) {
   GURL extension2_url = extension2->url();
 
   // Get tab processes.
-  ASSERT_EQ(6, browser()->tab_strip_model()->count());
+  ASSERT_EQ(7, browser()->tab_strip_model()->count());
   content::RenderProcessHost* ntp1_host = browser()
                                               ->tab_strip_model()
                                               ->GetWebContentsAt(0)
@@ -255,6 +261,11 @@ IN_PROC_BROWSER_TEST_F(ProcessManagementTest, ProcessOverflow) {
                                               ->GetWebContentsAt(5)
                                               ->GetPrimaryMainFrame()
                                               ->GetProcess();
+  content::RenderProcessHost* hosted1_second_host = browser()
+                                                        ->tab_strip_model()
+                                                        ->GetWebContentsAt(6)
+                                                        ->GetPrimaryMainFrame()
+                                                        ->GetProcess();
 
   // Get extension processes.
   extensions::ProcessManager* process_manager =
@@ -270,10 +281,11 @@ IN_PROC_BROWSER_TEST_F(ProcessManagementTest, ProcessOverflow) {
   EXPECT_NE(ntp1_host, web1_host);
   EXPECT_NE(ntp1_host, extension1_host);
 
-  // Hosted apps only share with each other.
+  // Hosted apps only share with instances of the same app.
   // Note that hosted2_host's app has the background permission and will use
-  // process-per-site mode, but it should still share with hosted1_host's app.
-  EXPECT_EQ(hosted1_host, hosted2_host);
+  // process-per-site mode.
+  EXPECT_EQ(hosted1_host, hosted1_second_host);
+  EXPECT_NE(hosted1_host, hosted2_host);
   EXPECT_NE(hosted1_host, web1_host);
   EXPECT_NE(hosted1_host, extension1_host);
 
@@ -464,15 +476,25 @@ IN_PROC_BROWSER_TEST_P(ChromeWebStoreProcessTest,
   WebContents* cws_contents = open_url(GetWebstorePage(), non_cws_contents_1);
 
   // The second non-Webstore page should have been given a different
-  // WebContents, but share the same process with the page that opened it.
+  // WebContents.
   EXPECT_NE(non_cws_contents_1, non_cws_contents_2);
-  EXPECT_EQ(non_cws_contents_1->GetPrimaryMainFrame()->GetProcess(),
-            non_cws_contents_2->GetPrimaryMainFrame()->GetProcess());
+  // The two non-Webstore urls are same-site, but cross-origin. If
+  // kOriginKeyedProcessesByDefault is enabled they will be placed in different
+  // processes, otherwise they'll share a process.
+  if (content::SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault()) {
+    EXPECT_NE(non_cws_contents_1->GetPrimaryMainFrame()->GetProcess(),
+              non_cws_contents_2->GetPrimaryMainFrame()->GetProcess());
+  } else {
+    EXPECT_EQ(non_cws_contents_1->GetPrimaryMainFrame()->GetProcess(),
+              non_cws_contents_2->GetPrimaryMainFrame()->GetProcess());
+  }
 
   // The Webstore page should have been given a separate WebContents and process
   // than the page that opened it.
   EXPECT_NE(non_cws_contents_1, cws_contents);
   EXPECT_NE(non_cws_contents_1->GetPrimaryMainFrame()->GetProcess(),
+            cws_contents->GetPrimaryMainFrame()->GetProcess());
+  EXPECT_NE(non_cws_contents_2->GetPrimaryMainFrame()->GetProcess(),
             cws_contents->GetPrimaryMainFrame()->GetProcess());
 }
 
@@ -518,12 +540,13 @@ IN_PROC_BROWSER_TEST_P(ChromeWebStoreProcessTest,
   nav_observer.Wait();
   EXPECT_EQ(cws_web_url, web_contents->GetLastCommittedURL());
 
-  // If not using the new Webstore URL, verify that we have the Webstore hosted
-  // app loaded into the Web Contents. Note: the new Webstore is granted it's
-  // powers without use of the hosted app.
+  // If this test is for the old Webstore URL, verify that we have the Webstore
+  // hosted app loaded into the Web Contents.
+  // TODO(crbug.com/328494022): Remove this when we get rid of using the hosted
+  // app for the old Webstore.
   content::RenderProcessHost* new_process_host =
       web_contents->GetPrimaryMainFrame()->GetProcess();
-  if (GetParam() != kNewWebstoreURL) {
+  if (GetParam() == kWebstoreURL) {
     EXPECT_TRUE(extensions::ProcessMap::Get(profile())->Contains(
         extensions::kWebStoreAppId, new_process_host->GetID()));
   }
@@ -563,10 +586,11 @@ IN_PROC_BROWSER_TEST_P(ChromeWebStoreInIsolatedOriginTest,
   EXPECT_EQ(true, content::EvalJs(web_contents,
                                   "!!chrome && !!chrome.webstorePrivate"));
 
-  // Verify that we have the Webstore hosted app loaded into the Web Contents.
-  // Note: the new Webstore is granted it's powers without use of the hosted
-  // app, so we don't do this check for it.
-  if (GetParam() != kNewWebstoreURL) {
+  // Verify that we have the Webstore hosted app loaded into the Web Contents if
+  // this is for the old Webstore URL. Note: The new Webstore and the Webstore
+  // URL override are granted their powers without use of the hosted app, so we
+  // don't do this check for them.
+  if (GetParam() == kWebstoreURL) {
     content::RenderProcessHost* render_process_host =
         web_contents->GetPrimaryMainFrame()->GetProcess();
     EXPECT_TRUE(extensions::ProcessMap::Get(profile())->Contains(
@@ -622,7 +646,7 @@ IN_PROC_BROWSER_TEST_F(ProcessManagementTest,
   std::string script =
       base::StringPrintf("location.href = '%s';", redirect_url.spec().c_str());
   content::TestNavigationObserver observer(new_web_contents);
-  EXPECT_TRUE(content::ExecuteScript(new_web_contents, script));
+  EXPECT_TRUE(content::ExecJs(new_web_contents, script));
   observer.Wait();
 
   EXPECT_EQ(observer.last_navigation_url(), blocked_url);
@@ -689,7 +713,7 @@ IN_PROC_BROWSER_TEST_F(
             canAccess;
          }
        )";
-    EXPECT_TRUE(content::ExecuteScript(
+    EXPECT_TRUE(content::ExecJs(
         web_contents, base::StringPrintf(kOpenNewWindow, url.spec().c_str())));
 
     // WaitForLoadStop() will return false on a 404, but that can happen if we

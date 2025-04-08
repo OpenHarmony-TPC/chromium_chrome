@@ -18,17 +18,21 @@
 #include "chrome/browser/ui/views/tabs/tab_strip_types.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/tab_groups/tab_group_color.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
+#include "ui/menus/simple_menu_model.h"
 
 class Browser;
 class BrowserNonClientFrameView;
 class Tab;
-class TabGroupId;
-class TabGroupVisualData;
 
 namespace content {
 class WebContents;
-}
+}  // namespace content
+
+namespace tab_groups {
+class TabGroupId;
+class TabGroupVisualData;
+}  // namespace tab_groups
 
 namespace ui {
 class ListSelectionModel;
@@ -53,24 +57,26 @@ class BrowserTabStripController : public TabStripController,
   TabStripModel* model() const { return model_; }
 
   bool IsCommandEnabledForTab(TabStripModel::ContextMenuCommand command_id,
-                              Tab* tab) const;
+                              const Tab* tab) const;
   void ExecuteCommandForTab(TabStripModel::ContextMenuCommand command_id,
-                            Tab* tab);
-  bool IsTabPinned(Tab* tab) const;
+                            const Tab* tab);
+  bool IsTabPinned(const Tab* tab) const;
 
   // TabStripController implementation:
   const ui::ListSelectionModel& GetSelectionModel() const override;
   int GetCount() const override;
   bool IsValidIndex(int model_index) const override;
   bool IsActiveTab(int model_index) const override;
-  absl::optional<int> GetActiveIndex() const override;
+  std::optional<int> GetActiveIndex() const override;
   bool IsTabSelected(int model_index) const override;
   bool IsTabPinned(int model_index) const override;
   void SelectTab(int model_index, const ui::Event& event) override;
   void ExtendSelectionTo(int model_index) override;
   void ToggleSelected(int model_index) override;
   void AddSelectionFromAnchorTo(int model_index) override;
-  bool BeforeCloseTab(int model_index, CloseTabSource source) override;
+  void OnCloseTab(int model_index,
+                  CloseTabSource source,
+                  base::OnceCallback<void()> callback) override;
   void CloseTab(int model_index) override;
   void ToggleTabAudioMute(int model_index) override;
   void AddTabToGroup(int model_index,
@@ -83,14 +89,14 @@ class BrowserTabStripController : public TabStripController,
       ToggleTabGroupCollapsedStateOrigin origin) override;
   void ShowContextMenuForTab(Tab* tab,
                              const gfx::Point& p,
-                             ui::MenuSourceType source_type) override;
+                             ui::mojom::MenuSourceType source_type) override;
   int HasAvailableDragActions() const override;
-  void OnDropIndexUpdate(absl::optional<int> index, bool drop_before) override;
+  void OnDropIndexUpdate(std::optional<int> index, bool drop_before) override;
   void CreateNewTab() override;
   void CreateNewTabWithLocation(const std::u16string& loc) override;
   void OnStartedDragging(bool dragging_window) override;
   void OnStoppedDragging() override;
-  void OnKeyboardFocusedTabChanged(absl::optional<int> index) override;
+  void OnKeyboardFocusedTabChanged(std::optional<int> index) override;
   std::u16string GetGroupTitle(
       const tab_groups::TabGroupId& group_id) const override;
   std::u16string GetGroupContentString(
@@ -102,21 +108,24 @@ class BrowserTabStripController : public TabStripController,
   void SetVisualDataForGroup(
       const tab_groups::TabGroupId& group,
       const tab_groups::TabGroupVisualData& visual_data) override;
-  absl::optional<int> GetFirstTabInGroup(
+  std::optional<int> GetFirstTabInGroup(
       const tab_groups::TabGroupId& group) const override;
   gfx::Range ListTabsInGroup(
       const tab_groups::TabGroupId& group_id) const override;
   bool IsFrameCondensed() const override;
   bool HasVisibleBackgroundTabShapes() const override;
   bool EverHasVisibleBackgroundTabShapes() const override;
-  bool ShouldPaintAsActiveFrame() const override;
   bool CanDrawStrokes() const override;
   SkColor GetFrameColor(BrowserFrameActiveState active_state) const override;
-  absl::optional<int> GetCustomBackgroundId(
+  std::optional<int> GetCustomBackgroundId(
       BrowserFrameActiveState active_state) const override;
   std::u16string GetAccessibleTabName(const Tab* tab) const override;
   Profile* GetProfile() const override;
+  BrowserWindowInterface* GetBrowserWindowInterface() override;
   const Browser* GetBrowser() const override;
+#if BUILDFLAG(IS_CHROMEOS)
+  bool IsLockedForOnTask() override;
+#endif
 
   // TabStripModelObserver implementation:
   void OnTabStripModelChanged(
@@ -134,11 +143,11 @@ class BrowserTabStripController : public TabStripController,
                              int model_index) override;
   void TabBlockedStateChanged(content::WebContents* contents,
                               int model_index) override;
-  void TabGroupedStateChanged(absl::optional<tab_groups::TabGroupId> group,
-                              content::WebContents* contents,
+  void TabGroupedStateChanged(std::optional<tab_groups::TabGroupId> group,
+                              tabs::TabInterface* tab,
                               int index) override;
   void SetTabNeedsAttentionAt(int index, bool attention) override;
-
+  bool IsFrameButtonsRightAligned() const override;
   const Browser* browser() const { return browser_view_->browser(); }
 
   // Test-specific methods.
@@ -155,6 +164,8 @@ class BrowserTabStripController : public TabStripController,
 
   // Adds a tab.
   void AddTab(content::WebContents* contents, int index);
+
+  void OnDiscardRingTreatmentEnabledChanged();
 
   raw_ptr<TabStripModel> model_;
 
@@ -173,9 +184,11 @@ class BrowserTabStripController : public TabStripController,
   // tabs.
   std::unique_ptr<ImmersiveRevealedLock> immersive_reveal_lock_;
 
-  PrefChangeRegistrar local_pref_registrar_;
+  PrefChangeRegistrar local_state_registrar_;
 
   std::unique_ptr<TabMenuModelFactory> menu_model_factory_;
+
+  bool should_show_discard_indicator_ = true;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_BROWSER_TAB_STRIP_CONTROLLER_H_

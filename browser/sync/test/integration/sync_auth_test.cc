@@ -4,6 +4,7 @@
 
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "build/buildflag.h"
@@ -19,10 +20,11 @@
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
-#include "components/sync/driver/sync_service_impl.h"
-#include "components/sync/driver/sync_token_status.h"
+#include "components/sync/service/sync_service_impl.h"
+#include "components/sync/service/sync_token_status.h"
 #include "content/public/test/browser_test.h"
 #include "google_apis/gaia/google_service_auth_error.h"
+#include "net/base/features.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_status_code.h"
 
@@ -139,6 +141,21 @@ class SyncAuthTest : public SyncTest {
   int GetNextBookmarkIndex() { return bookmark_index_++; }
 
   int bookmark_index_ = 0;
+};
+
+class SyncAuthTestOAuthTokens : public SyncAuthTest {
+ public:
+  SyncAuthTestOAuthTokens() {
+    // This test suite intercepts OAuth token requests, and IP Protection also
+    // requests OAuth tokens. Those requests race with the requests from the
+    // sync service, resulting in intermittent failures. Disabling IP Protection
+    // prevents these races.
+    feature_list_.InitAndDisableFeature(
+        net::features::kEnableIpProtectionProxy);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 // Verify that sync works with a valid OAuth2 token.
@@ -296,13 +313,13 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, RetryInitialSetupWithTransientError) {
 }
 
 // Verify that SyncServiceImpl fetches a new token when an old token expires.
-// TODO(crbug.com/1245180): Flaky on Lacros.
+// TODO(crbug.com/40788468): Flaky on Lacros.
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
 #define MAYBE_TokenExpiry DISABLED_TokenExpiry
 #else
 #define MAYBE_TokenExpiry TokenExpiry
 #endif
-IN_PROC_BROWSER_TEST_F(SyncAuthTest, MAYBE_TokenExpiry) {
+IN_PROC_BROWSER_TEST_F(SyncAuthTestOAuthTokens, MAYBE_TokenExpiry) {
   // Initial sync succeeds with a short lived OAuth2 Token.
   ASSERT_TRUE(SetupClients());
   GetFakeServer()->ClearHttpError();
@@ -350,9 +367,9 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, SyncPausedState) {
   ASSERT_TRUE(GetSyncService(0)->IsSyncFeatureActive());
   ASSERT_EQ(GetSyncService(0)->GetTransportState(),
             syncer::SyncService::TransportState::ACTIVE);
-  const syncer::ModelTypeSet active_types =
+  const syncer::DataTypeSet active_types =
       GetSyncService(0)->GetActiveDataTypes();
-  ASSERT_FALSE(active_types.Empty());
+  ASSERT_FALSE(active_types.empty());
 
   // Enter the "Sync paused" state.
   GetClient(0)->EnterSyncPausedStateForPrimaryAccount();
@@ -364,7 +381,7 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, SyncPausedState) {
   EXPECT_FALSE(GetSyncService(0)->IsEngineInitialized());
 
   // The active data types should now be empty.
-  EXPECT_TRUE(GetSyncService(0)->GetActiveDataTypes().Empty());
+  EXPECT_TRUE(GetSyncService(0)->GetActiveDataTypes().empty());
 
   // Clear the "Sync paused" state again.
   GetClient(0)->ExitSyncPausedStateForPrimaryAccount();
@@ -374,7 +391,7 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, SyncPausedState) {
   ASSERT_FALSE(GetSyncService(0)->GetAuthError().IsPersistentError());
 
   // Once the auth error is gone, wait for Sync to start up again.
-  GetClient(0)->AwaitSyncSetupCompletion();
+  ASSERT_TRUE(GetClient(0)->AwaitSyncSetupCompletion());
 
   // Now the active data types should be back.
   EXPECT_TRUE(GetSyncService(0)->IsSyncFeatureActive());
@@ -438,7 +455,7 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, ShouldTrackDeletionsInSyncPausedState) {
   NoAuthErrorChecker(GetSyncService(0)).Wait();
   ASSERT_FALSE(GetSyncService(0)->GetAuthError().IsPersistentError());
   // Once the auth error is gone, wait for Sync to start up again.
-  GetClient(0)->AwaitSyncSetupCompletion();
+  ASSERT_TRUE(GetClient(0)->AwaitSyncSetupCompletion());
 
   // Resuming sync could issue a reconfiguration, so wait until it finishes.
   SyncTransportActiveChecker(GetSyncService(0)).Wait();

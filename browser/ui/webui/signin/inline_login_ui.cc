@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/signin/inline_login_ui.h"
 
 #include <memory>
 
 #include "base/command_line.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/branding_buildflags.h"
@@ -21,8 +27,8 @@
 #include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/url_constants.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/browser_resources.h"
-#include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/gaia_auth_host_resources.h"
 #include "chrome/grit/gaia_auth_host_resources_map.h"
 #include "chrome/grit/generated_resources.h"
@@ -38,17 +44,19 @@
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "chrome/browser/ash/account_manager/account_apps_availability.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/ui/chrome_pages.h"
-#include "chrome/browser/ui/webui/ash/edu_account_login_handler.h"
 #include "chrome/browser/ui/webui/ash/edu_coexistence/edu_coexistence_login_handler.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
+#include "chrome/browser/ui/webui/signin/ash/edu_account_login_handler.h"
 #include "chrome/browser/ui/webui/signin/ash/inline_login_handler_impl.h"
 #include "chrome/grit/arc_account_picker_resources.h"
 #include "chrome/grit/arc_account_picker_resources_map.h"
+#include "chrome/grit/edu_coexistence_resources.h"
+#include "chrome/grit/edu_coexistence_resources_map.h"
 #include "chrome/grit/gaia_action_buttons_resources.h"
 #include "chrome/grit/gaia_action_buttons_resources_map.h"
 #include "chrome/grit/supervision_resources.h"
@@ -122,15 +130,20 @@ void CreateAndAddWebUIDataSource(Profile* profile) {
       source,
       base::make_span(kGaiaAuthHostResources, kGaiaAuthHostResourcesSize),
       IDR_INLINE_LOGIN_INLINE_LOGIN_HTML);
-  // TODO(crbug.com/1399912): Remove this when saml_password_attributes.js is
+  // TODO(crbug.com/40250068): Remove this when saml_password_attributes.js is
   // made TrustedTypes compliant.
   source->DisableTrustedTypesCSP();
+  // Necessary since this UI sends XML Http requests.
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ConnectSrc, "connect-src *;");
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   source->AddResourcePaths(base::make_span(kArcAccountPickerResources,
                                            kArcAccountPickerResourcesSize));
   source->AddResourcePaths(base::make_span(kGaiaActionButtonsResources,
                                            kGaiaActionButtonsResourcesSize));
+  source->AddResourcePaths(
+      base::make_span(kEduCoexistenceResources, kEduCoexistenceResourcesSize));
   source->AddResourcePaths(
       base::make_span(kSupervisionResources, kSupervisionResourcesSize));
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
@@ -152,22 +165,7 @@ void CreateAndAddWebUIDataSource(Profile* profile) {
     {"error_screen.js", IDR_ACCOUNT_MANAGER_COMPONENTS_ERROR_SCREEN_JS},
     // Resources for the server-based edu coexistence flow.
     {"edu-coexistence", IDR_EDU_COEXISTENCE_EDU_COEXISTENCE_HTML},
-    {"edu_coexistence_app.js", IDR_EDU_COEXISTENCE_EDU_COEXISTENCE_APP_JS},
-    {"edu_coexistence_ui.js", IDR_EDU_COEXISTENCE_EDU_COEXISTENCE_UI_JS},
-    {"edu_coexistence_controller.js",
-     IDR_EDU_COEXISTENCE_EDU_COEXISTENCE_CONTROLLER_JS},
-    {"edu_coexistence_browser_proxy.js",
-     IDR_EDU_COEXISTENCE_EDU_COEXISTENCE_BROWSER_PROXY_JS},
-    {"edu_coexistence_button.js",
-     IDR_EDU_COEXISTENCE_EDU_COEXISTENCE_BUTTON_JS},
-    {"edu_coexistence_offline.js",
-     IDR_EDU_COEXISTENCE_EDU_COEXISTENCE_OFFLINE_JS},
-    {"edu_coexistence_error.js", IDR_EDU_COEXISTENCE_EDU_COEXISTENCE_ERROR_JS},
-    {"edu_coexistence_template.js",
-     IDR_EDU_COEXISTENCE_EDU_COEXISTENCE_TEMPLATE_JS},
-    {"edu_coexistence_css.js", IDR_EDU_COEXISTENCE_EDU_COEXISTENCE_CSS_JS},
-    {"an_error_occurred.svg", IDR_CHROME_OS_AN_ERROR_OCCURRED_SVG},
-    {"no_network.svg", IDR_CHROME_OS_NO_NETWORK_SVG},
+
     {"account_manager_signin_blocked_by_policy.svg",
      IDS_ACCOUNT_MANAGER_SIGNIN_BLOCKED_BY_POLICY_SVG},
 
@@ -268,7 +266,7 @@ void CreateAndAddWebUIDataSource(Profile* profile) {
         l10n_util::GetStringFUTF16(
             message_id,
             // "add a new person" link:
-            base::ASCIIToUTF16(chrome::kAddNewUserURL),
+            chrome::kAddNewUserURL,
             // Device type:
             ui::GetChromeOSDeviceName(),
             // Settings > Accounts link:
@@ -282,7 +280,7 @@ void CreateAndAddWebUIDataSource(Profile* profile) {
         l10n_util::GetStringFUTF16(
             IDS_ACCOUNT_MANAGER_DIALOG_WELCOME_BODY_ARC,
             // "add a new person" link:
-            base::ASCIIToUTF16(chrome::kAddNewUserURL),
+            chrome::kAddNewUserURL,
             // Device type:
             ui::GetChromeOSDeviceName(),
             // "Apps Settings" link:
@@ -322,7 +320,8 @@ void CreateAndAddWebUIDataSource(Profile* profile) {
                         .spec());
 
   source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::FrameSrc, "frame-src chrome://test/;");
+      network::mojom::CSPDirectiveName::FrameSrc,
+      "frame-src chrome://webui-test/;");
 
   std::u16string username =
       ash::ProfileHelper::Get()->GetUserByProfile(profile)->GetGivenName();

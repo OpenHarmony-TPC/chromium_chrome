@@ -124,7 +124,7 @@ void BrandcodeConfigFetcher::OnSimpleLoaderComplete(
   } else {
     std::move(fetch_callback_).Run();
   }
-  
+
   // `this` may now be deleted from `fetch_callback_`.
 }
 

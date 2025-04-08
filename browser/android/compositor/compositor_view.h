@@ -18,7 +18,6 @@
 #include "third_party/skia/include/core/SkColor.h"
 
 namespace cc::slim {
-class Layer;
 class SolidColorLayer;
 }  // namespace cc::slim
 
@@ -31,6 +30,20 @@ class WindowAndroid;
 class ResourceManager;
 class UIResourceProvider;
 }  // namespace ui
+
+namespace jni_zero {
+template <>
+inline ScopedJavaLocalRef<jobject> ToJniType<int>(JNIEnv* env,
+                                                  const int& input) {
+  ScopedJavaLocalRef<jclass> integer_class =
+      base::android::GetClass(env, "java/lang/Integer");
+  jmethodID constructor =
+      base::android::MethodID::Get<base::android::MethodID::TYPE_INSTANCE>(
+          env, integer_class.obj(), "<init>", "(I)V");
+  return ScopedJavaLocalRef<jobject>(
+      env, env->NewObject(integer_class.obj(), constructor, input));
+}
+}  // namespace jni_zero
 
 namespace android {
 
@@ -65,13 +78,15 @@ class CompositorView : public content::CompositorClient,
                       const base::android::JavaParamRef<jobject>& object);
   void SurfaceDestroyed(JNIEnv* env,
                         const base::android::JavaParamRef<jobject>& object);
-  void SurfaceChanged(JNIEnv* env,
-                      const base::android::JavaParamRef<jobject>& object,
-                      jint format,
-                      jint width,
-                      jint height,
-                      bool can_be_used_with_surface_control,
-                      const base::android::JavaParamRef<jobject>& surface);
+  std::optional<int> SurfaceChanged(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& object,
+      jint format,
+      jint width,
+      jint height,
+      bool can_be_used_with_surface_control,
+      const base::android::JavaParamRef<jobject>& surface,
+      const base::android::JavaParamRef<jobject>& browser_input_token);
   void OnPhysicalBackingSizeChanged(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj,
@@ -139,11 +154,15 @@ class CompositorView : public content::CompositorClient,
 
   base::android::ScopedJavaGlobalRef<jobject> obj_;
   std::unique_ptr<content::Compositor> compositor_;
-  raw_ptr<TabContentManager> tab_content_manager_;
+
+  // TODO(crbug.com/324196360): One of these is triggering Dangling Pointer
+  // Detection. Figure out why and remove the DanglingUntriaged annotation.
+  raw_ptr<TabContentManager, DanglingUntriaged> tab_content_manager_;
 
   scoped_refptr<cc::slim::SolidColorLayer> root_layer_;
-  raw_ptr<SceneLayer> scene_layer_;
-  scoped_refptr<cc::slim::Layer> scene_layer_layer_;
+  // TODO(crbug.com/324196360): One of these is triggering Dangling Pointer
+  // Detection. Figure out why and remove the DanglingUntriaged annotation.
+  raw_ptr<SceneLayer, DanglingUntriaged> scene_layer_;
 
   int current_surface_format_;
   int content_width_;

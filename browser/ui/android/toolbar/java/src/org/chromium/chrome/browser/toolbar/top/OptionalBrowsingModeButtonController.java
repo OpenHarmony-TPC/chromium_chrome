@@ -36,8 +36,10 @@ public class OptionalBrowsingModeButtonController {
      * @param userEducationHelper Helper for displaying in-product help on a button.
      * @param toolbarLayout Toolbar layout where buttons will be displayed.
      */
-    OptionalBrowsingModeButtonController(List<ButtonDataProvider> buttonDataProviders,
-            UserEducationHelper userEducationHelper, ToolbarLayout toolbarLayout,
+    OptionalBrowsingModeButtonController(
+            List<ButtonDataProvider> buttonDataProviders,
+            UserEducationHelper userEducationHelper,
+            ToolbarLayout toolbarLayout,
             Supplier<Tab> tabSupplier) {
         mButtonDataProviders = buttonDataProviders;
         mUserEducationHelper = userEducationHelper;
@@ -131,10 +133,10 @@ public class OptionalBrowsingModeButtonController {
         mToolbarLayout.updateOptionalButton(buttonData);
         // ToolbarPhone's optional button has animated transitions and it takes care of showing IPH
         // on its own.
-        if (buttonData.getButtonSpec().getIPHCommandBuilder() != null
+        if (buttonData.getButtonSpec().getIphCommandBuilder() != null
                 && !(mToolbarLayout instanceof ToolbarPhone)) {
-            mUserEducationHelper.requestShowIPH(
-                    buttonData.getButtonSpec().getIPHCommandBuilder().build());
+            mUserEducationHelper.requestShowIph(
+                    buttonData.getButtonSpec().getIphCommandBuilder().build());
         }
     }
 
@@ -158,7 +160,6 @@ public class OptionalBrowsingModeButtonController {
     }
 
     /** Returns the list of {@link ButtonDataProvider}s. */
-    @VisibleForTesting
     public List<ButtonDataProvider> getButtonDataProvidersForTesting() {
         return mButtonDataProviders;
     }

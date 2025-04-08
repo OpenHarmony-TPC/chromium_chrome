@@ -6,8 +6,12 @@
 
 namespace enterprise_connectors {
 
-BASE_FEATURE(kLocalContentAnalysisEnabled,
-             "LocalContentAnalysisEnabled",
+BASE_FEATURE(kResumableUploadEnabled,
+             "ResumableUploadEnabled",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsResumableUploadEnabled() {
+  return base::FeatureList::IsEnabled(kResumableUploadEnabled);
+}
 
 }  // namespace enterprise_connectors

@@ -24,8 +24,8 @@ class ScheduledRebootDialogTest : public views::ViewsTestBase {
     views::ViewsTestBase::SetUp();
     SetConstrainedWindowViewsClient(CreateChromeConstrainedWindowViewsClient());
     views::Widget::InitParams params =
-        CreateParams(views::Widget::InitParams::TYPE_WINDOW);
-    params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
+        CreateParams(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+                     views::Widget::InitParams::TYPE_WINDOW);
     parent_widget_.Init(std::move(params));
     parent_widget_.Show();
   }
@@ -48,7 +48,7 @@ class ScheduledRebootDialogTest : public views::ViewsTestBase {
 void ScheduledRebootDialogTest::CreateViewAndShow() {
   base::Time deadline = base::Time::Now() + base::Minutes(5);
   dialog_ = std::make_unique<ScheduledRebootDialog>(
-      deadline, parent_widget_.GetNativeView(), base::NullCallback());
+      deadline, parent_widget_.GetNativeView(), base::DoNothing());
   views::DialogDelegate* dialog_model = dialog_->GetDialogDelegate();
   EXPECT_NE(dialog_model, nullptr);
   views::test::WidgetVisibleWaiter(dialog_model->GetWidget()).Wait();

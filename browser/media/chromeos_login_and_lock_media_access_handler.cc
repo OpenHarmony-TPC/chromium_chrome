@@ -8,9 +8,9 @@
 
 #include "base/logging.h"
 #include "base/values.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/webui/ash/lock_screen_reauth/lock_screen_reauth_dialogs.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "content/public/browser/render_frame_host.h"
@@ -43,7 +43,7 @@ bool ChromeOSLoginAndLockMediaAccessHandler::SupportsStreamType(
 
 bool ChromeOSLoginAndLockMediaAccessHandler::CheckMediaAccessPermission(
     content::RenderFrameHost* render_frame_host,
-    const GURL& security_origin,
+    const url::Origin& security_origin,
     blink::mojom::MediaStreamType type,
     const extensions::Extension* extension) {
   if (type != blink::mojom::MediaStreamType::DEVICE_VIDEO_CAPTURE)
@@ -54,13 +54,12 @@ bool ChromeOSLoginAndLockMediaAccessHandler::CheckMediaAccessPermission(
     return false;
 
   // The following checks are for SAML logins.
-  const base::Value* const list_value =
-      settings->GetPref(ash::kLoginVideoCaptureAllowedUrls);
-  if (!list_value)
+  const base::Value::List* allowed_urls_list;
+  if (!settings->GetList(ash::kLoginVideoCaptureAllowedUrls,
+                         &allowed_urls_list))
     return false;
 
-  DCHECK(list_value->is_list());
-  for (const auto& base_value : list_value->GetList()) {
+  for (const auto& base_value : *allowed_urls_list) {
     const std::string* value = base_value.GetIfString();
     if (value) {
       const ContentSettingsPattern pattern =
@@ -71,8 +70,9 @@ bool ChromeOSLoginAndLockMediaAccessHandler::CheckMediaAccessPermission(
         VLOG(1) << "Ignoring wildcard URL pattern: " << *value;
         continue;
       }
-      if (pattern.IsValid() && pattern.Matches(security_origin))
+      if (pattern.IsValid() && pattern.Matches(security_origin.GetURL())) {
         return true;
+      }
     }
   }
   return false;
@@ -90,7 +90,7 @@ void ChromeOSLoginAndLockMediaAccessHandler::HandleRequest(
       CheckMediaAccessPermission(
           content::RenderFrameHost::FromID(request.render_process_id,
                                            request.render_frame_id),
-          request.security_origin,
+          request.url_origin,
           blink::mojom::MediaStreamType::DEVICE_VIDEO_CAPTURE, extension);
 
   CheckDevicesAndRunCallback(web_contents, request, std::move(callback),

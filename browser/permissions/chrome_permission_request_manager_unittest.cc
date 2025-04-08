@@ -2,7 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
+
+#include <optional>
 #include <string>
 
 #include "base/command_line.h"
@@ -28,6 +35,7 @@
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/permissions/features.h"
 #include "components/permissions/permission_actions_history.h"
+#include "components/permissions/permission_decision_auto_blocker.h"
 #include "components/permissions/permission_request.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/permissions/permission_ui_selector.h"
@@ -44,7 +52,6 @@
 #include "components/ukm/test_ukm_recorder.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_manager.h"
@@ -54,7 +61,8 @@
 const double kTestEngagementScore = 29;
 
 class ChromePermissionRequestManagerTest
-    : public ChromeRenderViewHostTestHarness {
+    : public ChromeRenderViewHostTestHarness,
+      public testing::WithParamInterface<std::pair<std::string, bool>> {
  public:
   ChromePermissionRequestManagerTest()
       : ChromeRenderViewHostTestHarness(
@@ -97,6 +105,11 @@ class ChromePermissionRequestManagerTest
     base::RunLoop().RunUntilIdle();
   }
 
+  void AcceptThisTime() {
+    manager_->AcceptThisTime();
+    base::RunLoop().RunUntilIdle();
+  }
+
   void Deny() {
     manager_->Deny();
     base::RunLoop().RunUntilIdle();
@@ -118,6 +131,12 @@ class ChromePermissionRequestManagerTest
   }
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
+  void SetKioskBrowserPermissionsAllowedForOrigins(const std::string& origin) {
+    profile()->GetPrefs()->SetList(
+        prefs::kKioskBrowserPermissionsAllowedForOrigins,
+        base::Value::List().Append(std::move(origin)));
+  }
+
   std::unique_ptr<permissions::MockPermissionRequest> MakeRequestInWebKioskMode(
       const GURL& url,
       const GURL& app_url) {
@@ -149,7 +168,7 @@ class ChromePermissionRequestManagerTest
   permissions::MockPermissionRequest request2_;
   permissions::MockPermissionRequest request_mic_;
   permissions::MockPermissionRequest request_camera_;
-  raw_ptr<permissions::PermissionRequestManager> manager_;
+  raw_ptr<permissions::PermissionRequestManager, DanglingUntriaged> manager_;
   std::unique_ptr<permissions::MockPermissionPromptFactory> prompt_factory_;
 };
 
@@ -241,7 +260,7 @@ TEST_F(ChromePermissionRequestManagerTest, UMAForMergedAcceptedBubble) {
   histograms.ExpectUniqueSample(
       permissions::PermissionUmaUtil::kPermissionsPromptShown,
       static_cast<base::HistogramBase::Sample>(
-          permissions::RequestTypeForUma::MULTIPLE),
+          permissions::RequestTypeForUma::MULTIPLE_AUDIO_AND_VIDEO_CAPTURE),
       1);
   histograms.ExpectTotalCount(
       permissions::PermissionUmaUtil::kPermissionsPromptShownGesture, 0);
@@ -255,7 +274,7 @@ TEST_F(ChromePermissionRequestManagerTest, UMAForMergedAcceptedBubble) {
   histograms.ExpectUniqueSample(
       permissions::PermissionUmaUtil::kPermissionsPromptAccepted,
       static_cast<base::HistogramBase::Sample>(
-          permissions::RequestTypeForUma::MULTIPLE),
+          permissions::RequestTypeForUma::MULTIPLE_AUDIO_AND_VIDEO_CAPTURE),
       1);
   histograms.ExpectUniqueSample(
       "Permissions.Engagement.Accepted.AudioAndVideoCapture",
@@ -278,7 +297,7 @@ TEST_F(ChromePermissionRequestManagerTest, UMAForMergedDeniedBubble) {
   histograms.ExpectUniqueSample(
       permissions::PermissionUmaUtil::kPermissionsPromptDenied,
       static_cast<base::HistogramBase::Sample>(
-          permissions::RequestTypeForUma::MULTIPLE),
+          permissions::RequestTypeForUma::MULTIPLE_AUDIO_AND_VIDEO_CAPTURE),
       1);
   histograms.ExpectUniqueSample(
       "Permissions.Engagement.Denied.AudioAndVideoCapture",
@@ -325,11 +344,11 @@ TEST_F(ChromePermissionRequestManagerTest,
           "true"},
          {QuietNotificationPermissionUiConfig::kEnableAdaptiveActivationDryRun,
           "true"}}}},
-      {features::kPermissionPredictions});
+      {});
 
   ASSERT_TRUE(
       QuietNotificationPermissionUiConfig::IsAdaptiveActivationDryRunEnabled());
-  absl::optional<bool> has_three_consecutive_denies =
+  std::optional<bool> has_three_consecutive_denies =
       permissions::PermissionsClient::Get()
           ->HadThreeConsecutiveNotificationPermissionDenies(profile());
   ASSERT_TRUE(has_three_consecutive_denies.has_value());
@@ -372,7 +391,7 @@ TEST_F(ChromePermissionRequestManagerTest,
   }
   auto entries = ukm_recorder.GetEntriesByName("Permission");
   ASSERT_EQ(4u, entries.size());
-  auto* entry = entries.back();
+  auto* entry = entries.back().get();
   EXPECT_EQ(*ukm_recorder.GetEntryMetric(entry, "SatisfiedAdaptiveTriggers"),
             1);
 
@@ -410,7 +429,7 @@ TEST_F(ChromePermissionRequestManagerTest,
          {QuietNotificationPermissionUiConfig::
               kAdaptiveActivationActionWindowSizeInDays,
           "7"}}}},
-      {features::kPermissionPredictions});
+      {});
 
   ASSERT_EQ(
       base::Days(7),
@@ -456,8 +475,7 @@ TEST_F(ChromePermissionRequestManagerTest,
       {{features::kQuietNotificationPrompts,
         {{QuietNotificationPermissionUiConfig::kEnableAdaptiveActivation,
           "true"}}}},
-      {permissions::features::kBlockRepeatedNotificationPermissionPrompts,
-       features::kPermissionPredictions});
+      {permissions::features::kBlockRepeatedNotificationPermissionPrompts});
 
   EXPECT_FALSE(profile()->GetPrefs()->GetBoolean(
       prefs::kEnableQuietNotificationPermissionUi));
@@ -621,6 +639,52 @@ TEST_F(ChromePermissionRequestManagerTest,
             recorded_time);
 }
 
+TEST_F(ChromePermissionRequestManagerTest,
+       TestEmbargoForEmbeddedPermissionRequest) {
+  GURL url(permissions::MockPermissionRequest::kDefaultOrigin);
+  permissions::RequestType request_type =
+      permissions::RequestType::kCameraStream;
+  permissions::PermissionDecisionAutoBlocker* autoblocker =
+      permissions::PermissionsClient::Get()->GetPermissionDecisionAutoBlocker(
+          browser_context());
+
+  // Do not count permission element requests towards embargo
+  {
+    permissions::MockPermissionRequest request(
+        request_type, /* embedded_permission_element_initiated= */ true);
+    manager_->AddRequest(web_contents()->GetPrimaryMainFrame(), &request);
+    WaitForBubbleToBeShown();
+    Closing();
+
+    EXPECT_EQ(
+        autoblocker->GetDismissCount(url, request.GetContentSettingsType()), 0);
+  }
+
+  // Count normal permission towards embargo (used in next step)
+  {
+    permissions::MockPermissionRequest request(
+        request_type, /* embedded_permission_element_initiated= */ false);
+    manager_->AddRequest(web_contents()->GetPrimaryMainFrame(), &request);
+    WaitForBubbleToBeShown();
+    Closing();
+
+    EXPECT_EQ(
+        autoblocker->GetDismissCount(url, request.GetContentSettingsType()), 1);
+  }
+
+  // Reset embargo counter when accepting this time and using permission element
+  {
+    permissions::MockPermissionRequest request(
+        request_type, /* embedded_permission_element_initiated= */ true);
+    manager_->AddRequest(web_contents()->GetPrimaryMainFrame(), &request);
+    WaitForBubbleToBeShown();
+    AcceptThisTime();
+
+    EXPECT_EQ(
+        autoblocker->GetDismissCount(url, request.GetContentSettingsType()), 0);
+  }
+}
+
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 TEST_F(ChromePermissionRequestManagerTest, TestWebKioskModeSameOrigin) {
   auto request =
@@ -642,6 +706,80 @@ TEST_F(ChromePermissionRequestManagerTest, TestWebKioskModeDifferentOrigin) {
   EXPECT_FALSE(request->granted());
   EXPECT_TRUE(request->finished());
 }
+
+TEST_F(ChromePermissionRequestManagerTest,
+       TestWebKioskModeDifferentOriginWhenFeatureIsDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      permissions::features::kAllowMultipleOriginsForWebKioskPermissions);
+  SetKioskBrowserPermissionsAllowedForOrigins("https://example.com/page");
+
+  auto request =
+      MakeRequestInWebKioskMode(/*url*/ GURL("https://example.com/page"),
+                                /*app_url*/ GURL("https://google.com/launch"));
+
+  WaitForBubbleToBeShown();
+
+  // It should not be granted as the origin is allowlisted.
+  EXPECT_EQ(request->granted(), false);
+  EXPECT_TRUE(request->finished());
+}
+
+TEST_P(ChromePermissionRequestManagerTest,
+       TestWebKioskModeDifferentOriginWhenAllowedByFeature) {
+  base::test::ScopedFeatureList feature_list;
+  base::FieldTrialParams feature_params;
+  feature_params
+      [permissions::feature_params::kWebKioskBrowserPermissionsAllowlist.name] =
+          GetParam().first;
+  feature_list.InitAndEnableFeatureWithParameters(
+      permissions::features::kAllowMultipleOriginsForWebKioskPermissions,
+      feature_params);
+
+  auto request =
+      MakeRequestInWebKioskMode(/*url*/ GURL("https://example.com/page"),
+                                /*app_url*/ GURL("https://google.com/launch"));
+
+  WaitForBubbleToBeShown();
+
+  // It should be granted as the origin is allowlisted.
+  EXPECT_EQ(request->granted(), GetParam().second);
+  EXPECT_TRUE(request->finished());
+}
+
+TEST_P(ChromePermissionRequestManagerTest,
+       TestWebKioskModeDifferentOriginAllowedByKioskBrowserPref) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      permissions::features::kAllowMultipleOriginsForWebKioskPermissions);
+  SetKioskBrowserPermissionsAllowedForOrigins(GetParam().first);
+
+  auto request =
+      MakeRequestInWebKioskMode(/*url*/ GURL("https://example.com/page"),
+                                /*app_url*/ GURL("https://google.com/launch"));
+
+  WaitForBubbleToBeShown();
+
+  // It should be granted as the origin is allowlisted.
+  EXPECT_EQ(request->granted(), GetParam().second);
+  EXPECT_TRUE(request->finished());
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TestWebKioskModeDifferentOriginWhenAllowedByFeature,
+    ChromePermissionRequestManagerTest,
+    testing::ValuesIn(
+        {std::pair<std::string, bool>("*", false),
+         std::pair<std::string, bool>(".example.com", false),
+         std::pair<std::string, bool>("example.", false),
+         std::pair<std::string, bool>("file://example*", false),
+         std::pair<std::string, bool>("invalid-example.com", false),
+         std::pair<std::string, bool>("https://example.com", true),
+         std::pair<std::string, bool>("https://example.com/sample", true),
+         std::pair<std::string, bool>("example.com", true),
+         std::pair<std::string, bool>("*://example.com:*/", true),
+         std::pair<std::string, bool>("[*.]example.com", true)}));
+
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 class ChromePermissionRequestManagerAdaptiveQuietUiActivationTest
@@ -652,7 +790,7 @@ class ChromePermissionRequestManagerAdaptiveQuietUiActivationTest
         {{features::kQuietNotificationPrompts,
           {{QuietNotificationPermissionUiConfig::kEnableAdaptiveActivation,
             "true"}}}},
-        {features::kPermissionPredictions});
+        {});
   }
 
  protected:

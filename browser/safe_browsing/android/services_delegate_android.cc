@@ -22,20 +22,19 @@ namespace safe_browsing {
 
 // static
 std::unique_ptr<ServicesDelegate> ServicesDelegate::Create(
-    SafeBrowsingService* safe_browsing_service) {
+    SafeBrowsingServiceImpl* safe_browsing_service) {
   return base::WrapUnique(new ServicesDelegateAndroid(safe_browsing_service));
 }
 
 // static
 std::unique_ptr<ServicesDelegate> ServicesDelegate::CreateForTest(
-    SafeBrowsingService* safe_browsing_service,
+    SafeBrowsingServiceImpl* safe_browsing_service,
     ServicesDelegate::ServicesCreator* services_creator) {
   NOTREACHED();
-  return base::WrapUnique(new ServicesDelegateAndroid(safe_browsing_service));
 }
 
 ServicesDelegateAndroid::ServicesDelegateAndroid(
-    SafeBrowsingService* safe_browsing_service)
+    SafeBrowsingServiceImpl* safe_browsing_service)
     : ServicesDelegate(safe_browsing_service, /*services_creator=*/nullptr) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 }
@@ -80,14 +79,14 @@ void ServicesDelegateAndroid::RegisterDelayedAnalysisCallback(
 void ServicesDelegateAndroid::AddDownloadManager(
     content::DownloadManager* download_manager) {}
 
-void ServicesDelegateAndroid::StartOnSBThread(
+void ServicesDelegateAndroid::StartOnUIThread(
     scoped_refptr<network::SharedURLLoaderFactory> browser_url_loader_factory,
     const V4ProtocolConfig& v4_config) {
-  database_manager_->StartOnSBThread(browser_url_loader_factory, v4_config);
+  database_manager_->StartOnUIThread(browser_url_loader_factory, v4_config);
 }
 
-void ServicesDelegateAndroid::StopOnSBThread(bool shutdown) {
-  database_manager_->StopOnSBThread(shutdown);
+void ServicesDelegateAndroid::StopOnUIThread(bool shutdown) {
+  database_manager_->StopOnUIThread(shutdown);
 }
 
 void ServicesDelegateAndroid::CreateTelemetryService(Profile* profile) {

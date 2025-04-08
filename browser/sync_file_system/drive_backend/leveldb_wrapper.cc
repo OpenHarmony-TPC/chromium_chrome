@@ -177,7 +177,6 @@ leveldb::Status LevelDBWrapper::Get(const std::string& key,
       return leveldb::Status::NotFound(leveldb::Slice());
   }
   NOTREACHED();
-  return leveldb::Status::NotSupported("Not supported operation.");
 }
 
 std::unique_ptr<LevelDBWrapper::Iterator> LevelDBWrapper::NewIterator() {

@@ -24,15 +24,17 @@ void ConstructCouponProto(
         offer->GetDisplayStrings().value_prop_text);
     coupon_info_proto->set_coupon_code(offer->GetPromoCode());
     coupon_info_proto->set_coupon_id(offer->GetOfferId());
-    coupon_info_proto->set_expiry_time(offer->GetExpiry().ToDoubleT());
+    coupon_info_proto->set_expiry_time(
+        offer->GetExpiry().InSecondsFSinceUnixEpoch());
     std::pair<GURL, int64_t> key({origin, offer->GetOfferId()});
     if (coupon_time_map.find(key) != coupon_time_map.end()) {
       coupon_info_proto->set_last_display_time(
-          coupon_time_map.at(key).ToJavaTime());
+          coupon_time_map.at(key).InMillisecondsSinceUnixEpoch());
     } else {
       // Unknown last display time; set to zero so the reminder bubble will
       // always appear.
-      coupon_info_proto->set_last_display_time(base::Time().ToJavaTime());
+      coupon_info_proto->set_last_display_time(
+          base::Time().InMillisecondsSinceUnixEpoch());
     }
   }
 }
@@ -111,8 +113,6 @@ void CouponService::DeleteAllFreeListingCoupons() {
 
 base::Time CouponService::GetCouponDisplayTimestamp(
     const autofill::AutofillOfferData& offer) {
-  DCHECK_EQ(offer.GetOfferType(),
-            autofill::AutofillOfferData::OfferType::FREE_LISTING_COUPON_OFFER);
   for (auto origin : offer.GetMerchantOrigins()) {
     auto iter =
         coupon_time_map_.find(std::make_pair(origin, offer.GetOfferId()));
@@ -124,8 +124,6 @@ base::Time CouponService::GetCouponDisplayTimestamp(
 
 void CouponService::RecordCouponDisplayTimestamp(
     const autofill::AutofillOfferData& offer) {
-  DCHECK_EQ(offer.GetOfferType(),
-            autofill::AutofillOfferData::OfferType::FREE_LISTING_COUPON_OFFER);
   base::Time timestamp = base::Time::Now();
   for (auto origin : offer.GetMerchantOrigins()) {
     auto iter =
@@ -152,8 +150,6 @@ void CouponService::MaybeFeatureStatusChanged(bool enabled) {
 
 CouponService::Coupons CouponService::GetFreeListingCouponsForUrl(
     const GURL& url) {
-  if (!url.is_valid())
-    return {};
   const GURL& origin(url.DeprecatedGetOriginAsURL());
   if (coupon_map_.find(origin) == coupon_map_.end()) {
     return {};
@@ -196,7 +192,8 @@ void CouponService::OnInitializeCouponsMap(
     const GURL origin(GURL(pair.first));
     for (auto coupon : pair.second.free_listing_coupons()) {
       int64_t offer_id = coupon.coupon_id();
-      base::Time expiry = base::Time::FromDoubleT(coupon.expiry_time());
+      base::Time expiry =
+          base::Time::FromSecondsSinceUnixEpoch(coupon.expiry_time());
       std::vector<GURL> merchant_origins;
       merchant_origins.emplace_back(origin);
       GURL offer_details_url = GURL();
@@ -210,7 +207,8 @@ void CouponService::OnInitializeCouponsMap(
               display_strings, promo_code));
       coupon_map_[origin].emplace_back(std::move(offer));
       coupon_time_map_[{origin, coupon.coupon_id()}] =
-          base::Time::FromJavaTime(coupon.last_display_time());
+          base::Time::FromMillisecondsSinceUnixEpoch(
+              coupon.last_display_time());
     }
   }
 }
@@ -231,7 +229,8 @@ void CouponService::OnUpdateCouponTimestamp(
       continue;
     coupon_db::FreeListingCouponInfoProto* coupon_proto =
         proto.mutable_free_listing_coupons(i);
-    coupon_proto->set_last_display_time(last_display_timestamp.ToJavaTime());
+    coupon_proto->set_last_display_time(
+        last_display_timestamp.InMillisecondsSinceUnixEpoch());
     coupon_db_->AddCoupon(GURL(proto_pairs[0].first), proto);
     return;
   }

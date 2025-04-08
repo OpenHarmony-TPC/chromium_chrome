@@ -19,7 +19,7 @@
 #include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #include "chrome/common/importer/safari_importer_utils.h"
 #endif
 
@@ -73,8 +73,9 @@ void DetectSafariProfiles(std::vector<importer::SourceProfile>* profiles) {
                                                 base::BlockingType::MAY_BLOCK);
 
   uint16_t items = importer::NONE;
-  if (!SafariImporterCanImport(base::mac::GetUserLibraryPath(), &items))
+  if (!SafariImporterCanImport(base::apple::GetUserLibraryPath(), &items)) {
     return;
+  }
 
   importer::SourceProfile safari;
   safari.importer_name = l10n_util::GetStringUTF16(IDS_IMPORT_FROM_SAFARI);
@@ -120,7 +121,7 @@ void DetectFirefoxProfiles(const std::string locale,
         // https://en.wikipedia.org/wiki/Firefox_version_history), the reality
         // is that the current cutoff of at least Firefox 48 is mostly due to
         // the fact that there's a Firefox 48 profile for testing in
-        // firefox_importer_unittest.cc. TODO(https://crbug.com/1179967): Add
+        // firefox_importer_unittest.cc. TODO(crbug.com/40169760): Add
         // more modern Firefox test profiles, and roll the cutoff version.
         continue;
       }

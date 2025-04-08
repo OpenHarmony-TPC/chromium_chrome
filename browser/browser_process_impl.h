@@ -13,8 +13,11 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 
+#include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/sequence_checker.h"
@@ -28,7 +31,6 @@
 #include "components/nacl/common/buildflags.h"
 #include "components/prefs/persistent_pref_store.h"
 #include "components/prefs/pref_change_registrar.h"
-#include "components/safe_browsing/buildflags.h"
 #include "extensions/buildflags/buildflags.h"
 #include "media/media_buildflags.h"
 #include "ppapi/buildflags/buildflags.h"
@@ -42,11 +44,13 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/application_status_listener.h"
+#include "chrome/browser/accessibility/accessibility_prefs/android/accessibility_prefs_controller.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 class BatteryMetrics;
 class ChromeMetricsServicesManagerClient;
 class DevToolsAutoOpener;
+class GlobalFeatures;
 class RemoteDebuggingServer;
 class PrefRegistrySimple;
 class SecureOriginPrefsObserver;
@@ -58,12 +62,21 @@ namespace breadcrumbs {
 class ApplicationBreadcrumbsLogger;
 }  // namespace breadcrumbs
 
+namespace embedder_support {
+class OriginTrialsSettingsStorage;
+}  // namespace embedder_support
+
 namespace extensions {
-class ChromeExtensionsBrowserClient;
+class ExtensionsBrowserClient;
 }
 
 namespace gcm {
 class GCMDriver;
+}
+
+namespace os_crypt_async {
+class KeyProvider;
+class OSCryptAsync;
 }
 
 namespace policy {
@@ -76,9 +89,12 @@ class WebRtcEventLogManager;
 }  // namespace webrtc_event_logging
 
 namespace speech {
-class SodaInstallerImpl;
-class SodaInstallerImplChromeOS;
+class SodaInstaller;
 }  // namespace speech
+
+namespace screen_ai {
+class ScreenAIInstallState;
+}  // namespace screen_ai
 
 // Real implementation of BrowserProcess that creates and returns the services.
 class BrowserProcessImpl : public BrowserProcess,
@@ -100,7 +116,7 @@ class BrowserProcessImpl : public BrowserProcess,
 #if !BUILDFLAG(IS_ANDROID)
   // Sets a closure to be run to break out of a run loop on browser shutdown
   // (when the KeepAlive count reaches zero).
-  // TODO(https://crbug.com/845966): This is also used on macOS for the Cocoa
+  // TODO(crbug.com/41390731): This is also used on macOS for the Cocoa
   // first run dialog so that shutdown can be initiated via a signal while the
   // first run dialog is showing.
   void SetQuitClosure(base::OnceClosure quit_closure);
@@ -109,7 +125,7 @@ class BrowserProcessImpl : public BrowserProcess,
 #if BUILDFLAG(IS_MAC)
   // Clears the quit closure. Shutdown will not be initiated should the
   // KeepAlive count reach zero. This function may be called more than once.
-  // TODO(https://crbug.com/845966): Remove this once the Cocoa first run
+  // TODO(crbug.com/41390731): Remove this once the Cocoa first run
   // dialog no longer needs it.
   void ClearQuitClosure();
 #endif
@@ -140,23 +156,23 @@ class BrowserProcessImpl : public BrowserProcess,
   // BrowserProcess implementation.
   void EndSession() override;
   void FlushLocalStateAndReply(base::OnceClosure reply) override;
-  device::GeolocationManager* geolocation_manager() override;
   metrics_services_manager::MetricsServicesManager* GetMetricsServicesManager()
       override;
   metrics::MetricsService* metrics_service() override;
-  void SetGeolocationManager(
-      std::unique_ptr<device::GeolocationManager> geolocation_manager) override;
   // TODO(qinmin): Remove this method as callers can retrieve the global
   // instance from SystemNetworkContextManager directly.
   SystemNetworkContextManager* system_network_context_manager() override;
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory()
       override;
   network::NetworkQualityTracker* network_quality_tracker() override;
+  embedder_support::OriginTrialsSettingsStorage*
+  GetOriginTrialsSettingsStorage() override;
   ProfileManager* profile_manager() override;
   PrefService* local_state() override;
+  signin::ActivePrimaryAccountsMetricsRecorder*
+  active_primary_accounts_metrics_recorder() override;
   variations::VariationsService* variations_service() override;
   BrowserProcessPlatformPart* platform_part() override;
-  extensions::EventRouterForwarder* extension_event_router_forwarder() override;
   NotificationUIManager* notification_ui_manager() override;
   NotificationPlatformBridge* notification_platform_bridge() override;
   policy::ChromeBrowserPolicyConnector* browser_policy_connector() override;
@@ -183,20 +199,19 @@ class BrowserProcessImpl : public BrowserProcess,
       std::unique_ptr<BackgroundModeManager> manager) override;
 #endif
   StatusTray* status_tray() override;
-#if BUILDFLAG(FULL_SAFE_BROWSING)
   safe_browsing::SafeBrowsingService* safe_browsing_service() override;
-#endif
   subresource_filter::RulesetService* subresource_filter_ruleset_service()
       override;
-
-#ifdef OHOS_ARKWEB_ADBLOCK
+#if BUILDFLAG(ARKWEB_ADBLOCK)
   subresource_filter::UserRulesetService*
   subresource_filter_user_ruleset_service() override;
 #endif
+  subresource_filter::RulesetService*
+  fingerprinting_protection_ruleset_service() override;
 
   StartupData* startup_data() override;
 
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
+// TODO(crbug.com/40118868): Revisit the macro expression once build flag switch
 // of lacros-chrome is complete.
 #if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS))
   void StartAutoupdateTimer() override;
@@ -215,13 +230,20 @@ class BrowserProcessImpl : public BrowserProcess,
 
 #if !BUILDFLAG(IS_ANDROID)
   SerialPolicyAllowedPorts* serial_policy_allowed_ports() override;
-  HidPolicyAllowedDevices* hid_policy_allowed_devices() override;
   HidSystemTrayIcon* hid_system_tray_icon() override;
+  UsbSystemTrayIcon* usb_system_tray_icon() override;
 #endif
+
+  os_crypt_async::OSCryptAsync* os_crypt_async() override;
+
+  void set_additional_os_crypt_async_provider_for_test(
+      size_t precedence,
+      std::unique_ptr<os_crypt_async::KeyProvider> provider) override;
 
   BuildState* GetBuildState() override;
 
   static void RegisterPrefs(PrefRegistrySimple* registry);
+  GlobalFeatures* GetFeatures() override;
 
  private:
   using WebRtcEventLogManager = webrtc_event_logging::WebRtcEventLogManager;
@@ -240,15 +262,14 @@ class BrowserProcessImpl : public BrowserProcess,
   void CreateNotificationUIManager();
   void CreatePrintPreviewDialogController();
   void CreateBackgroundPrintingManager();
-#if BUILDFLAG(FULL_SAFE_BROWSING)
   void CreateSafeBrowsingService();
-#endif
   void CreateSubresourceFilterRulesetService();
 
-#ifdef OHOS_ARKWEB_ADBLOCK
+#if BUILDFLAG(ARKWEB_ADBLOCK)
   void CreateSubresourceFilterUserRulesetService();
 #endif
 
+  void CreateFingerprintingProtectionRulesetService();
   void CreateOptimizationGuideService();
   void CreateStatusTray();
   void CreateBackgroundModeManager();
@@ -273,17 +294,25 @@ class BrowserProcessImpl : public BrowserProcess,
   bool created_profile_manager_ = false;
   std::unique_ptr<ProfileManager> profile_manager_;
 
-  std::unique_ptr<device::GeolocationManager> geolocation_manager_;
-
   const std::unique_ptr<PrefService> local_state_;
 
+  // Must be destroyed before |local_state_|.
+  std::unique_ptr<signin::ActivePrimaryAccountsMetricsRecorder>
+      active_primary_accounts_metrics_recorder_;
+
   // |metrics_services_manager_| owns this.
-  raw_ptr<ChromeMetricsServicesManagerClient, DanglingUntriaged>
+  raw_ptr<ChromeMetricsServicesManagerClient, AcrossTasksDanglingUntriaged>
       metrics_services_manager_client_ = nullptr;
 
   // Must be destroyed before |local_state_|.
   std::unique_ptr<metrics_services_manager::MetricsServicesManager>
       metrics_services_manager_;
+
+#if BUILDFLAG(IS_ANDROID)
+  // Must be destroyed before |local_state_|.
+  std::unique_ptr<accessibility::AccessibilityPrefsController>
+      accessibility_prefs_controller_;
+#endif
 
   std::unique_ptr<network::NetworkQualityTracker> network_quality_tracker_;
 
@@ -293,18 +322,20 @@ class BrowserProcessImpl : public BrowserProcess,
       network::NetworkQualityTracker::RTTAndThroughputEstimatesObserver>
       network_quality_observer_;
 
+  std::unique_ptr<embedder_support::OriginTrialsSettingsStorage>
+      origin_trials_settings_storage_;
+
   bool created_icon_manager_ = false;
   std::unique_ptr<IconManager> icon_manager_;
 
   std::unique_ptr<GpuModeManager> gpu_mode_manager_;
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  std::unique_ptr<extensions::ChromeExtensionsBrowserClient>
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  std::unique_ptr<extensions::ExtensionsBrowserClient>
       extensions_browser_client_;
+#endif
 
-  scoped_refptr<extensions::EventRouterForwarder>
-      extension_event_router_forwarder_;
-
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   std::unique_ptr<MediaFileSystemRegistry> media_file_system_registry_;
 #endif
 
@@ -314,7 +345,7 @@ class BrowserProcessImpl : public BrowserProcess,
 #endif
 
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
-  scoped_refptr<printing::PrintPreviewDialogController>
+  std::unique_ptr<printing::PrintPreviewDialogController>
       print_preview_dialog_controller_;
 
   std::unique_ptr<printing::BackgroundPrintingManager>
@@ -333,9 +364,7 @@ class BrowserProcessImpl : public BrowserProcess,
 
   std::unique_ptr<StatusTray> status_tray_;
 
-#if BUILDFLAG(ENABLE_SYSTEM_NOTIFICATIONS)
   bool created_notification_bridge_ = false;
-#endif
 
   std::unique_ptr<NotificationPlatformBridge> notification_bridge_;
 
@@ -347,20 +376,25 @@ class BrowserProcessImpl : public BrowserProcess,
   // itself as a profile attributes storage observer on destruction.
   std::unique_ptr<BackgroundModeManager> background_mode_manager_;
 #endif
-#if BUILDFLAG(FULL_SAFE_BROWSING)
+
   bool created_safe_browsing_service_ = false;
   scoped_refptr<safe_browsing::SafeBrowsingService> safe_browsing_service_;
-#endif
 
   bool created_subresource_filter_ruleset_service_ = false;
   std::unique_ptr<subresource_filter::RulesetService>
       subresource_filter_ruleset_service_;
 
-#ifdef OHOS_ARKWEB_ADBLOCK
+#if BUILDFLAG(ARKWEB_ADBLOCK)
   bool created_subresource_filter_user_ruleset_service_ = false;
   std::unique_ptr<subresource_filter::UserRulesetService>
       subresource_filter_user_ruleset_service_;
+
+  SEQUENCE_CHECKER(user_sequence_checker_);
 #endif
+
+  bool created_fingerprinting_protection_ruleset_service_ = false;
+  std::unique_ptr<subresource_filter::RulesetService>
+      fingerprinting_protection_ruleset_service_;
 
   bool shutting_down_ = false;
 
@@ -386,7 +420,7 @@ class BrowserProcessImpl : public BrowserProcess,
 
   std::unique_ptr<BatteryMetrics> battery_metrics_;
 
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
+// TODO(crbug.com/40118868): Revisit the macro expression once build flag switch
 // of lacros-chrome is complete.
 #if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS))
   base::RepeatingTimer autoupdate_timer_;
@@ -405,17 +439,16 @@ class BrowserProcessImpl : public BrowserProcess,
   // but some users of component updater only install per-user.
   std::unique_ptr<component_updater::ComponentUpdateService> component_updater_;
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_ANDROID)
   // Used to create a singleton instance of SodaInstallerImpl, which can be
   // retrieved using speech::SodaInstaller::GetInstance().
   // SodaInstallerImpl depends on ComponentUpdateService, so define it here
   // to ensure that SodaInstallerImpl gets destructed first.
-  std::unique_ptr<speech::SodaInstallerImpl> soda_installer_impl_;
-#endif
+  std::unique_ptr<speech::SodaInstaller> soda_installer_impl_;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // Chrome OS has a different implementation of SodaInstaller.
-  std::unique_ptr<speech::SodaInstallerImplChromeOS> soda_installer_impl_;
+  // Used to download Screen AI on demand and keep track of the library
+  // availability.
+  std::unique_ptr<screen_ai::ScreenAIInstallState> screen_ai_download_;
 #endif
 
   std::unique_ptr<BrowserProcessPlatformPart> platform_part_;
@@ -444,8 +477,8 @@ class BrowserProcessImpl : public BrowserProcess,
   base::OnceClosure quit_closure_;
 
   std::unique_ptr<SerialPolicyAllowedPorts> serial_policy_allowed_ports_;
-  std::unique_ptr<HidPolicyAllowedDevices> hid_policy_allowed_devices_;
   std::unique_ptr<HidSystemTrayIcon> hid_system_tray_icon_;
+  std::unique_ptr<UsbSystemTrayIcon> usb_system_tray_icon_;
 
   BuildState build_state_;
 #endif
@@ -454,10 +487,22 @@ class BrowserProcessImpl : public BrowserProcess,
   std::unique_ptr<base::android::ApplicationStatusListener> app_state_listener_;
 #endif
 
+  std::unique_ptr<GlobalFeatures> features_;
+
   // Observes application-wide events and logs them to breadcrumbs. Null if
   // breadcrumbs logging is disabled.
   std::unique_ptr<breadcrumbs::ApplicationBreadcrumbsLogger>
       application_breadcrumbs_logger_;
+
+  std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt_async_;
+  std::optional<base::CallbackListSubscription>
+      os_crypt_async_init_subscription_;
+
+  std::optional<std::pair<size_t, std::unique_ptr<os_crypt_async::KeyProvider>>>
+      additional_provider_for_test_;
+
+  // Do not add new members to this class. Instead use GlobalFeatures. See
+  // browser_process.h file level comments for more details.
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

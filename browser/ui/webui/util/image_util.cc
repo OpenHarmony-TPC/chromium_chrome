@@ -4,7 +4,10 @@
 
 #include "chrome/browser/ui/webui/util/image_util.h"
 
+#include <string_view>
+
 #include "base/base64.h"
+#include "base/containers/span.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkStream.h"
 #include "third_party/skia/include/encode/SkPngEncoder.h"
@@ -15,7 +18,7 @@
 namespace webui {
 
 std::string MakeDataURIForImage(base::span<const uint8_t> image_data,
-                                base::StringPiece mime_subtype) {
+                                std::string_view mime_subtype) {
   std::string result = "data:image/";
   result.append(mime_subtype.begin(), mime_subtype.end());
   result += ";base64,";
@@ -29,8 +32,7 @@ std::string EncodePNGAndMakeDataURI(gfx::ImageSkia image, float scale_factor) {
   const bool encoding_succeeded =
       SkPngEncoder::Encode(&stream, bitmap.pixmap(), {});
   DCHECK(encoding_succeeded);
-  return MakeDataURIForImage(
-      base::as_bytes(base::make_span(stream.TakeBuffer())), "png");
+  return MakeDataURIForImage(base::as_byte_span(stream.TakeBuffer()), "png");
 }
 
 }  // namespace webui

@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/containers/flat_set.h"
+#include "base/memory/raw_ptr.h"
 #include "base/process/process_handle.h"
 #include "base/time/time.h"
 #include "chrome/browser/resource_coordinator/decision_details.h"
@@ -70,9 +71,13 @@ class LifecycleUnit {
   // title is available.
   virtual std::u16string GetTitle() const = 0;
 
-  // Returns the last time at which the LifecycleUnit was focused, or
+  // Returns the last time ticks at which the LifecycleUnit was focused, or
   // base::TimeTicks::Max() if the LifecycleUnit is currently focused.
-  virtual base::TimeTicks GetLastFocusedTime() const = 0;
+  virtual base::TimeTicks GetLastFocusedTimeTicks() const = 0;
+
+  // Returns the last time at which the LifecycleUnit was focused, or
+  // base::Time::Max() if the LifecycleUnit is currently focused.
+  virtual base::Time GetLastFocusedTime() const = 0;
 
   // Returns the current visibility of this LifecycleUnit.
   virtual content::Visibility GetVisibility() const = 0;
@@ -159,8 +164,10 @@ class LifecycleUnit {
   virtual ukm::SourceId GetUkmSourceId() const = 0;
 };
 
-using LifecycleUnitSet = base::flat_set<LifecycleUnit*>;
-using LifecycleUnitVector = std::vector<LifecycleUnit*>;
+using LifecycleUnitSet =
+    base::flat_set<raw_ptr<LifecycleUnit, CtnExperimental>>;
+using LifecycleUnitVector =
+    std::vector<raw_ptr<LifecycleUnit, VectorExperimental>>;
 
 }  // namespace resource_coordinator
 

@@ -19,14 +19,12 @@ import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarFeatures;
-import org.chromium.chrome.browser.user_education.IPHCommandBuilder;
+import org.chromium.chrome.browser.user_education.IphCommandBuilder;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogManagerObserver;
 import org.chromium.ui.modelutil.PropertyModel;
 
-/**
- * Base class for button data providers used on the adaptive toolbar.
- */
+/** Base class for button data providers used on the adaptive toolbar. */
 public abstract class BaseButtonDataProvider implements ButtonDataProvider, OnClickListener {
     protected final ButtonDataImpl mButtonData;
     protected final Supplier<Tab> mActiveTabSupplier;
@@ -39,51 +37,67 @@ public abstract class BaseButtonDataProvider implements ButtonDataProvider, OnCl
 
     /**
      * Creates a new instance of {@code BaseButtonDataProvider}.
+     *
      * @param activeTabSupplier Supplier for the current active tab.
      * @param modalDialogManager Modal dialog manager, used to disable the button when a dialog is
-     *         visible. Can be null to disable this behavior.
+     *     visible. Can be null to disable this behavior.
      * @param buttonDrawable Drawable for the button icon.
      * @param contentDescription String for the button's content description.
      * @param supportsTinting Whether the button's icon should be tinted.
      * @param iphCommandBuilder An IPH command builder instance to show when the button is
-     *         displayed, can be null.
+     *     displayed, can be null.
      * @param adaptiveButtonVariant Enum value of {@link AdaptiveToolbarButtonVariant}, used for
-     *         metrics.
+     *     metrics.
      */
-    public BaseButtonDataProvider(Supplier<Tab> activeTabSupplier,
-            @Nullable ModalDialogManager modalDialogManager, Drawable buttonDrawable,
-            String contentDescription, @StringRes int actionChipLabelResId, boolean supportsTinting,
-            @Nullable IPHCommandBuilder iphCommandBuilder,
-            @AdaptiveToolbarButtonVariant int adaptiveButtonVariant) {
+    public BaseButtonDataProvider(
+            Supplier<Tab> activeTabSupplier,
+            @Nullable ModalDialogManager modalDialogManager,
+            Drawable buttonDrawable,
+            String contentDescription,
+            @StringRes int actionChipLabelResId,
+            boolean supportsTinting,
+            @Nullable IphCommandBuilder iphCommandBuilder,
+            @AdaptiveToolbarButtonVariant int adaptiveButtonVariant,
+            @StringRes int tooltipTextResId,
+            boolean showHoverHighlight) {
         mActiveTabSupplier = activeTabSupplier;
         mModalDialogManager = modalDialogManager;
         if (mModalDialogManager != null) {
-            mModalDialogObserver = new ModalDialogManagerObserver() {
-                @Override
-                public void onDialogAdded(PropertyModel model) {
-                    mButtonData.setEnabled(false);
-                    notifyObservers(mButtonData.canShow());
-                }
+            mModalDialogObserver =
+                    new ModalDialogManagerObserver() {
+                        @Override
+                        public void onDialogAdded(PropertyModel model) {
+                            mButtonData.setEnabled(false);
+                            notifyObservers(mButtonData.canShow());
+                        }
 
-                @Override
-                public void onLastDialogDismissed() {
-                    mButtonData.setEnabled(true);
-                    notifyObservers(mButtonData.canShow());
-                }
-            };
+                        @Override
+                        public void onLastDialogDismissed() {
+                            mButtonData.setEnabled(true);
+                            notifyObservers(mButtonData.canShow());
+                        }
+                    };
             mModalDialogManager.addObserver(mModalDialogObserver);
         }
 
         if (!AdaptiveToolbarFeatures.isDynamicAction(adaptiveButtonVariant)) {
-            assert actionChipLabelResId
-                    == Resources.ID_NULL : "Action chip should only be used on dynamic actions";
+            assert actionChipLabelResId == Resources.ID_NULL
+                    : "Action chip should only be used on dynamic actions";
         }
 
-        mButtonData = new ButtonDataImpl(/*canShow=*/false, buttonDrawable,
-                /* onClickListener= */ this, contentDescription, actionChipLabelResId,
-                supportsTinting,
-                /* iphCommandBuilder= */ iphCommandBuilder, /*isEnabled=*/true,
-                adaptiveButtonVariant);
+        mButtonData =
+                new ButtonDataImpl(
+                        /* canShow= */ false,
+                        buttonDrawable,
+                        /* onClickListener= */ this,
+                        contentDescription,
+                        actionChipLabelResId,
+                        supportsTinting,
+                        /* iphCommandBuilder= */ iphCommandBuilder,
+                        /* isEnabled= */ true,
+                        adaptiveButtonVariant,
+                        tooltipTextResId,
+                        showHoverHighlight);
     }
 
     /**
@@ -108,36 +122,38 @@ public abstract class BaseButtonDataProvider implements ButtonDataProvider, OnCl
     }
 
     /**
-     * Sets the button's {@link IPHCommandBuilder} if needed, called every time {@code get()} is
+     * Sets the button's {@link IphCommandBuilder} if needed, called every time {@code get()} is
      * invoked.
+     *
      * @param tab Current tab.
      */
     private void maybeSetIphCommandBuilder(Tab tab) {
-        if (mButtonData.getButtonSpec().getIPHCommandBuilder() != null || tab == null
-                || !FeatureList.isInitialized() || !AdaptiveToolbarFeatures.isCustomizationEnabled()
+        if (mButtonData.getButtonSpec().getIphCommandBuilder() != null
+                || tab == null
+                || !FeatureList.isInitialized()
+                || !AdaptiveToolbarFeatures.isCustomizationEnabled()
                 || AdaptiveToolbarFeatures.shouldShowActionChip(
                         mButtonData.getButtonSpec().getButtonVariant())) {
             return;
         }
 
-        mButtonData.updateIPHCommandBuilder(getIphCommandBuilder(tab));
+        mButtonData.updateIphCommandBuilder(getIphCommandBuilder(tab));
     }
 
-    /**
-     * Sets whether the button should be shown on incognito tabs, default is false.
-     */
+    /** Sets whether the button should be shown on incognito tabs, default is false. */
     protected void setShouldShowOnIncognitoTabs(boolean shouldShowOnIncognitoTabs) {
         mShouldShowOnIncognitoTabs = shouldShowOnIncognitoTabs;
     }
 
     /**
-     * Gets an {@link IPHCommandBuilder} builder instance to use on this button. Only called when
-     * native is initialized and when there's no IPHCommandBuilder set.
+     * Gets an {@link IphCommandBuilder} builder instance to use on this button. Only called when
+     * native is initialized and when there's no IphCommandBuilder set.
+     *
      * @param tab Current tab.
-     * @return An {@link org.chromium.chrome.browser.user_education.IPHCommand} instance to set on
-     *         this button, or null if no IPH should be used.
+     * @return An {@link org.chromium.chrome.browser.user_education.IphCommand} instance to set on
+     *     this button, or null if no IPH should be used.
      */
-    protected IPHCommandBuilder getIphCommandBuilder(Tab tab) {
+    protected IphCommandBuilder getIphCommandBuilder(Tab tab) {
         return null;
     }
 

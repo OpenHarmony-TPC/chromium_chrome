@@ -7,8 +7,8 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <optional>
 
-#include "ash/constants/ash_features.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
@@ -23,7 +23,6 @@
 #include "chromeos/ash/components/settings/timezone_settings.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
 namespace {
@@ -57,7 +56,6 @@ UpgradeDetectorChromeos::UpgradeDetectorChromeos(
     : UpgradeDetector(clock, tick_clock),
       upgrade_notification_timer_(tick_clock),
       initialized_(false),
-      toggled_update_flag_(false),
       update_in_progress_(false) {}
 
 UpgradeDetectorChromeos::~UpgradeDetectorChromeos() {}
@@ -223,13 +221,6 @@ void UpgradeDetectorChromeos::UpdateStatusChanged(
     update_in_progress_ = true;
     if (!upgrade_detected_time().is_null())
       NotifyOnUpgrade();
-  }
-  if (!toggled_update_flag_) {
-    // Only send feature flag status one time.
-    toggled_update_flag_ = true;
-    UpdateEngineClient::Get()->ToggleFeature(
-        update_engine::kFeatureRepeatedUpdates,
-        base::FeatureList::IsEnabled(ash::features::kAllowRepeatedUpdates));
   }
 }
 

@@ -10,21 +10,13 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/system/sys_info.h"
 
+namespace {
+size_t g_cache_size_for_testing = 0;
+}  // namespace
+
 BASE_FEATURE(kSearchPrefetchServicePrefetching,
              "SearchPrefetchServicePrefetching",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSearchPrefetchBlockBeforeHeaders,
-             "SearchPrefetchBlockBeforeHeaders",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSearchPrefetchSkipsCancel,
-             "SearchPrefetchSkipsCancel",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool SearchPrefetchBlockBeforeHeadersIsEnabled() {
-  return base::FeatureList::IsEnabled(kSearchPrefetchBlockBeforeHeaders);
-}
 
 bool SearchPrefetchServicePrefetchingIsEnabled() {
   if (!base::FeatureList::IsEnabled(kSearchPrefetchServicePrefetching)) {
@@ -54,25 +46,29 @@ base::TimeDelta SearchPrefetchErrorBackoffDuration() {
 }
 
 size_t SearchPrefetchMaxCacheEntries() {
+  if (g_cache_size_for_testing > 0) {
+    return g_cache_size_for_testing;
+  }
   return base::GetFieldTrialParamByFeatureAsInt(
       kSearchPrefetchServicePrefetching, "cache_size", 10);
 }
 
-base::TimeDelta SearchPrefetchBlockHeadStart() {
-  return base::Milliseconds(base::GetFieldTrialParamByFeatureAsInt(
-      kSearchPrefetchBlockBeforeHeaders, "block_head_start_ms", 0));
+void SetSearchPrefetchMaxCacheEntriesForTesting(size_t cache_size) {
+  g_cache_size_for_testing = cache_size;
 }
 
 BASE_FEATURE(kSearchNavigationPrefetch,
              "SearchNavigationPrefetch",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+const base::FeatureParam<std::string> kSuggestPrefetchParam{
+    &kSearchNavigationPrefetch, "suggest_prefetch_param", "cs"};
+
+const base::FeatureParam<std::string> kNavigationPrefetchParam{
+    &kSearchNavigationPrefetch, "navigation_prefetch_param", "cs"};
+
 bool IsSearchNavigationPrefetchEnabled() {
   return base::FeatureList::IsEnabled(kSearchNavigationPrefetch);
-}
-
-bool SearchPrefetchSkipsCancel() {
-  return base::FeatureList::IsEnabled(kSearchPrefetchSkipsCancel);
 }
 
 bool IsUpOrDownArrowPrefetchEnabled() {
@@ -83,6 +79,11 @@ bool IsUpOrDownArrowPrefetchEnabled() {
 bool IsSearchMouseDownPrefetchEnabled() {
   return base::GetFieldTrialParamByFeatureAsBool(kSearchNavigationPrefetch,
                                                  "mouse_down", true);
+}
+
+bool IsTouchDownPrefetchEnabled() {
+  return base::GetFieldTrialParamByFeatureAsBool(kSearchNavigationPrefetch,
+                                                 "touch_down", true);
 }
 
 bool AllowTopNavigationPrefetch() {
@@ -103,3 +104,27 @@ bool OnlyAllowDefaultMatchPreloading() {
   return base::FeatureList::IsEnabled(
       kSearchPrefetchOnlyAllowDefaultMatchPreloading);
 }
+
+BASE_FEATURE(kAutocompleteDictionaryPreload,
+             "AutocompleteDictionaryPreload",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<base::TimeDelta>
+    kAutocompletePreloadedDictionaryTimeout{
+        &kAutocompleteDictionaryPreload,
+        "autocomplete_preloaded_dictionary_timeout", base::Milliseconds(60000)};
+
+BASE_FEATURE(kSuppressesSearchPrefetchOnSlowNetwork,
+             "SuppressesSearchPrefetchOnSlowNetwork",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Regarding how this number was chosen, see the design doc linked from
+// crbug.com/350519234.
+const base::FeatureParam<base::TimeDelta>
+    kSuppressesSearchPrefetchOnSlowNetworkThreshold{
+        &kSuppressesSearchPrefetchOnSlowNetwork,
+        "slow_network_threshold_for_search_prefetch", base::Milliseconds(208)};
+
+BASE_FEATURE(kEnsureSearchPrefetchServiceOnInterceptor,
+             "EnsureSearchprefetchServiceOnInterceptor",
+             base::FEATURE_ENABLED_BY_DEFAULT);

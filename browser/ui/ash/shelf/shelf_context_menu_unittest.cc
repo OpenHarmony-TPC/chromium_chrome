@@ -43,7 +43,6 @@
 #include "chrome/browser/ui/ash/shelf/browser_shortcut_shelf_item_controller.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller_util.h"
-#include "chrome/browser/ui/ash/shelf/chrome_shelf_item_factory.h"
 #include "chrome/browser/ui/ash/shelf/extension_shelf_context_menu.h"
 #include "chrome/browser/ui/ash/shelf/shelf_controller_helper.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
@@ -134,10 +133,8 @@ class ShelfContextMenuTest : public ChromeAshTestBase {
     arc_test_.SetUp(profile());
 
     model_ = std::make_unique<ash::ShelfModel>();
-    shelf_item_factory_ = std::make_unique<ChromeShelfItemFactory>();
-    model_->SetShelfItemFactory(shelf_item_factory_.get());
-    shelf_controller_ = std::make_unique<ChromeShelfController>(
-        profile(), model_.get(), shelf_item_factory_.get());
+    shelf_controller_ =
+        std::make_unique<ChromeShelfController>(profile(), model_.get());
     shelf_controller_->SetProfileForTest(profile());
     shelf_controller_->SetShelfControllerHelperForTest(
         std::make_unique<ShelfControllerHelper>(profile()));
@@ -160,7 +157,9 @@ class ShelfContextMenuTest : public ChromeAshTestBase {
 
   // Creates app window and set optional ARC application id.
   views::Widget* CreateArcWindow(const std::string& window_app_id) {
-    views::Widget::InitParams params(views::Widget::InitParams::TYPE_WINDOW);
+    views::Widget::InitParams params(
+        views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
+        views::Widget::InitParams::TYPE_WINDOW);
     views::Widget* widget = new views::Widget();
     params.context = GetContext();
     widget->Init(std::move(params));
@@ -200,7 +199,6 @@ class ShelfContextMenuTest : public ChromeAshTestBase {
 
   void TearDown() override {
     shelf_controller_.reset();
-    shelf_item_factory_.reset();
 
     arc_test_.TearDown();
 
@@ -252,9 +250,8 @@ class ShelfContextMenuTest : public ChromeAshTestBase {
   ArcAppTest arc_test_;
   apps::AppServiceTest app_service_test_;
   std::unique_ptr<ash::ShelfModel> model_;
-  std::unique_ptr<ChromeShelfItemFactory> shelf_item_factory_;
   std::unique_ptr<ChromeShelfController> shelf_controller_;
-  raw_ptr<extensions::ExtensionService, ExperimentalAsh> extension_service_ =
+  raw_ptr<extensions::ExtensionService, DanglingUntriaged> extension_service_ =
       nullptr;
 };
 
@@ -633,7 +630,7 @@ TEST_F(ShelfContextMenuTest, InternalAppShelfContextMenuOptionsNumber) {
 
 // Checks the context menu for a "normal" crostini app (i.e. a registered one).
 // Particularly, we ensure that the density changing option exists.
-// TODO(crbug.com/1177126) Re-enable test
+// TODO(crbug.com/40168664) Re-enable test
 TEST_F(ShelfContextMenuTest, CrostiniNormalApp) {
   const std::string app_name = "foo";
   crostini_helper()->AddApp(crostini::CrostiniTestHelper::BasicApp(app_name));
@@ -697,7 +694,7 @@ TEST_F(ShelfContextMenuTest, WebApp) {
   constexpr char kWebAppUrl[] = "https://webappone.com/";
   constexpr char kWebAppName[] = "WebApp1";
 
-  const web_app::AppId app_id = web_app::test::InstallDummyWebApp(
+  const webapps::AppId app_id = web_app::test::InstallDummyWebApp(
       profile(), kWebAppName, GURL(kWebAppUrl));
 
   PinAppWithIDToShelf(app_id);

@@ -11,46 +11,62 @@
  * chrome/browser/resources/settings/site_settings_page/site_settings_page_util
  * for translations.
  */
+
 export enum ContentSettingsTypes {
   ADS = 'ads',
   ANTI_ABUSE = 'anti-abuse',
   AR = 'ar',
+  AUTO_PICTURE_IN_PICTURE = 'auto-picture-in-picture',
   AUTOMATIC_DOWNLOADS = 'multiple-automatic-downloads',
+  AUTOMATIC_FULLSCREEN = 'automatic-fullscreen',
   BACKGROUND_SYNC = 'background-sync',
   BLUETOOTH_DEVICES = 'bluetooth-devices',
   BLUETOOTH_SCANNING = 'bluetooth-scanning',
   CAMERA = 'media-stream-camera',
+  CAPTURED_SURFACE_CONTROL = 'captured-surface-control',
   CLIPBOARD = 'clipboard',
   COOKIES = 'cookies',
   FEDERATED_IDENTITY_API = 'federated-identity-api',
   FILE_SYSTEM_WRITE = 'file-system-write',
   GEOLOCATION = 'location',
+  HAND_TRACKING = 'hand-tracking',
   HID_DEVICES = 'hid-devices',
   IDLE_DETECTION = 'idle-detection',
   IMAGES = 'images',
   JAVASCRIPT = 'javascript',
+  JAVASCRIPT_OPTIMIZER = 'javascript-optimizer',
+  KEYBOARD_LOCK = 'keyboard-lock',
   LOCAL_FONTS = 'local-fonts',
   MIC = 'media-stream-mic',  // AKA Microphone.
   MIDI_DEVICES = 'midi-sysex',
   MIXEDSCRIPT = 'mixed-script',
   NOTIFICATIONS = 'notifications',
   PAYMENT_HANDLER = 'payment-handler',
+  PERFORMANCE = 'performance',
+  POINTER_LOCK = 'pointer-lock',
   POPUPS = 'popups',
   PRIVATE_NETWORK_DEVICES = 'private-network-devices',
   PROTECTED_CONTENT = 'protected-content',
   PROTOCOL_HANDLERS = 'register-protocol-handler',
   SENSORS = 'sensors',
   SERIAL_PORTS = 'serial-ports',
+  SMART_CARD_READERS = 'smart-card-readers',
   SOUND = 'sound',
+  STORAGE_ACCESS = 'storage-access',
+  TRACKING_PROTECTION = 'tracking-protection',
+  TOP_LEVEL_STORAGE_ACCESS = 'top-level-storage-access',
   USB_DEVICES = 'usb-devices',
   VR = 'vr',
-  WINDOW_MANAGEMENT = 'window-placement',
+  WEB_APP_INSTALLATION = 'web-app-installation',
+  WINDOW_MANAGEMENT = 'window-management',
   ZOOM_LEVELS = 'zoom-levels',
+  WEB_PRINTING = 'web-printing',
 
   // The following items are not in the C++ kContentSettingsTypeGroupNames, but
   // are used everywhere where ContentSettingsTypes is used in JS.
   PDF_DOCUMENTS = 'pdfDocuments',
   SITE_DATA = 'site-data',
+  OFFER_WRITING_HELP = 'offer-writing-help',
 }
 
 /**
@@ -90,6 +106,7 @@ export enum CookieControlsMode {
   OFF = 0,
   BLOCK_THIRD_PARTY = 1,
   INCOGNITO_ONLY = 2,
+  LIMITED = 3,
 }
 
 /**
@@ -111,14 +128,15 @@ export enum SiteSettingSource {
 }
 
 /**
- * Enumeration of states for the notification default setting generated pref.
- * Must be kept in sync with the enum of the same name located in:
- * chrome/browser/content_settings/generated_notification_pref.h
+ * Enumeration of states for the notification and geolocation default setting
+ * generated pref. Must be kept in sync with the SettingsState enum in:
+ * chrome/browser/content_settings/generated_permission_prompting_behavior_pref.h
  */
-export enum NotificationSetting {
-  ASK = 0,
-  QUIETER_MESSAGING = 1,
-  BLOCK = 2,
+export enum SettingsState {
+  LOUD = 0,
+  QUIET = 1,
+  CPSS = 2,
+  BLOCK = 3,
 }
 
 /**

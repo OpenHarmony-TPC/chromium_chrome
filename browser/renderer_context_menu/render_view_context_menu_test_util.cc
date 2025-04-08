@@ -40,6 +40,7 @@ std::unique_ptr<TestRenderViewContextMenu> TestRenderViewContextMenu::Create(
     const GURL& link_url,
     bool is_subframe) {
   content::ContextMenuParams params;
+  params.page_url = frame_url;
   params.frame_url = frame_url;
   params.link_url = link_url;
   params.is_subframe = is_subframe;
@@ -54,13 +55,13 @@ bool TestRenderViewContextMenu::IsItemPresent(int command_id) const {
 }
 
 bool TestRenderViewContextMenu::IsItemChecked(int command_id) const {
-  const absl::optional<size_t> index =
+  const std::optional<size_t> index =
       menu_model_.GetIndexOfCommandId(command_id);
   return index && menu_model_.IsItemCheckedAt(*index);
 }
 
 bool TestRenderViewContextMenu::IsItemEnabled(int command_id) const {
-  const absl::optional<size_t> index =
+  const std::optional<size_t> index =
       menu_model_.GetIndexOfCommandId(command_id);
   return index && menu_model_.IsEnabledAt(*index);
 }
@@ -79,7 +80,7 @@ bool TestRenderViewContextMenu::IsItemInRangePresent(
 
 bool TestRenderViewContextMenu::GetMenuModelAndItemIndex(
     int command_id,
-    MenuModel** found_model,
+    raw_ptr<MenuModel>* found_model,
     size_t* found_index) {
   std::vector<MenuModel*> models_to_search;
   models_to_search.push_back(&menu_model_);
@@ -136,3 +137,14 @@ void TestRenderViewContextMenu::set_dlp_rules_manager(
   dlp_rules_manager_ = dlp_rules_manager;
 }
 #endif
+
+#if BUILDFLAG(ENABLE_COMPOSE)
+ChromeComposeClient* TestRenderViewContextMenu::GetChromeComposeClient() const {
+  return compose_client_;
+}
+
+void TestRenderViewContextMenu::SetChromeComposeClient(
+    ChromeComposeClient* compose_client) {
+  compose_client_ = compose_client;
+}
+#endif  // BUILDFLAG(ENABLE_COMPOSE)

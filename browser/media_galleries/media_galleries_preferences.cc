@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/media_galleries/media_galleries_preferences.h"
 
 #include <stddef.h>
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/base_paths_posix.h"
@@ -26,7 +32,6 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/media_galleries/media_file_system_registry.h"
-#include "chrome/browser/media_galleries/media_galleries_histograms.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/apps/platform_apps/media_galleries_permission.h"
 #include "chrome/common/chrome_paths.h"
@@ -88,23 +93,6 @@ const char kMediaGalleriesDefaultGalleryTypeVideosDefaultValue[] = "videos";
 
 const int kCurrentPrefsVersion = 3;
 
-int NumberExtensionsUsingMediaGalleries(Profile* profile) {
-  int count = 0;
-  if (!profile)
-    return count;
-
-  for (const scoped_refptr<const extensions::Extension>& extension :
-       extensions::ExtensionRegistry::Get(profile)->enabled_extensions()) {
-    const extensions::PermissionsData* permissions_data =
-        extension->permissions_data();
-    if (permissions_data->HasAPIPermission(
-            extensions::mojom::APIPermissionID::kMediaGalleries)) {
-      count++;
-    }
-  }
-  return count;
-}
-
 bool GetPrefId(const base::Value::Dict& dict, MediaGalleryPrefId* value) {
   const std::string* string_id = dict.FindString(kMediaGalleriesPrefIdKey);
   if (!string_id || !base::StringToUint64(*string_id, value)) {
@@ -163,7 +151,6 @@ const char* TypeToStringValue(MediaGalleryPrefInfo::Type type) {
       break;
     default:
       NOTREACHED();
-      break;
   }
   return result;
 }
@@ -208,7 +195,6 @@ const char* DefaultGalleryTypeToStringValue(
       break;
     default:
       NOTREACHED();
-      break;
   }
   return result;
 }
@@ -217,7 +203,7 @@ const char* DefaultGalleryTypeToStringValue(
 // to `out` as a std::u16string. Returns false if no such string is found in
 // `dict`.
 bool FindU16StringInDict(const base::Value::Dict& dict,
-                         base::StringPiece key,
+                         std::string_view key,
                          std::u16string& out) {
   const std::string* string = dict.FindString(key);
   if (!string)
@@ -237,8 +223,8 @@ bool PopulateGalleryPrefInfoFromDictionary(
   std::u16string volume_label;
   std::u16string vendor_name;
   std::u16string model_name;
-  absl::optional<double> total_size_in_bytes;
-  absl::optional<double> last_attach_time;
+  std::optional<double> total_size_in_bytes;
+  std::optional<double> last_attach_time;
   bool volume_metadata_valid = false;
 
   if (!device_id || !path || !GetPrefId(dict, &pref_id) ||
@@ -259,11 +245,11 @@ bool PopulateGalleryPrefInfoFromDictionary(
     volume_metadata_valid = true;
   }
 
-  absl::optional<int> audio_count =
+  std::optional<int> audio_count =
       dict.FindInt(kMediaGalleriesScanAudioCountKey);
-  absl::optional<int> image_count =
+  std::optional<int> image_count =
       dict.FindInt(kMediaGalleriesScanImageCountKey);
-  absl::optional<int> video_count =
+  std::optional<int> video_count =
       dict.FindInt(kMediaGalleriesScanVideoCountKey);
 
   if (audio_count && image_count && video_count) {
@@ -349,7 +335,7 @@ bool GetMediaGalleryPermissionFromDictionary(
     const base::Value::Dict& dict,
     MediaGalleryPermission* out_permission) {
   const std::string* string_id = dict.FindString(kMediaGalleryIdKey);
-  absl::optional<bool> has_permission =
+  std::optional<bool> has_permission =
       dict.FindBool(kMediaGalleryHasPermissionKey);
   if (string_id && base::StringToUint64(*string_id, &out_permission->pref_id) &&
       has_permission) {
@@ -357,7 +343,6 @@ bool GetMediaGalleryPermissionFromDictionary(
     return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // For a device with |device_name| and a relative path |sub_folder|, construct
@@ -484,13 +469,6 @@ void MediaGalleriesPreferences::EnsureInitialized(base::OnceClosure callback) {
   on_initialize_callbacks_.push_back(std::move(callback));
   if (on_initialize_callbacks_.size() > 1)
     return;
-
-  // Check whether we should be initializing -- are there any extensions that
-  // are using media galleries?
-  media_galleries::UsageCount(media_galleries::PREFS_INITIALIZED);
-  if (NumberExtensionsUsingMediaGalleries(profile_) == 0) {
-    media_galleries::UsageCount(media_galleries::PREFS_INITIALIZED_ERROR);
-  }
 
   // We determine the freshness of the profile here, before any of the finders
   // return and add media galleries to it (hence why the APIHasBeenUsed check
@@ -1041,7 +1019,6 @@ bool MediaGalleriesPreferences::NonAutoGalleryHasPermission(
   for (const auto iter : extensions) {
     if (!crx_file::id_util::IdIsValid(iter.first)) {
       NOTREACHED();
-      continue;
     }
     std::vector<MediaGalleryPermission> permissions =
         GetGalleryPermissionsFromPrefs(iter.first);
@@ -1249,7 +1226,6 @@ void MediaGalleriesPreferences::RemoveGalleryPermissionsFromPrefs(
   for (const auto iter : extensions) {
     if (!crx_file::id_util::IdIsValid(iter.first)) {
       NOTREACHED();
-      continue;
     }
     UnsetGalleryPermissionInPrefs(iter.first, gallery_id);
   }

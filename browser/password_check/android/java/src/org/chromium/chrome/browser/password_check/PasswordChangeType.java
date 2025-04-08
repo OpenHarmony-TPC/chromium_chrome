@@ -18,13 +18,10 @@ import java.lang.annotation.RetentionPolicy;
 @Retention(RetentionPolicy.SOURCE)
 public @interface PasswordChangeType {
     int UNKNOWN = 0;
-    /**
-     * A user opened a site to change a password manually.
-     */
+
+    /** A user opened a site to change a password manually. */
     int MANUAL_CHANGE = 1;
 
-    /**
-     * Deprecated as a part of APC removal (crbug.com/1386065).
-     * int AUTOMATED_CHANGE = 2;
-     */
+    // Deprecated as a part of APC removal (crbug.com/1386065).
+    // int AUTOMATED_CHANGE = 2;
 }

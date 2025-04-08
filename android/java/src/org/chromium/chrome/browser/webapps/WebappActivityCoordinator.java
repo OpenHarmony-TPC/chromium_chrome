@@ -8,12 +8,9 @@ import android.app.Activity;
 
 import androidx.annotation.NonNull;
 
-import org.chromium.base.StrictModeContext;
-import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.intents.WebappInfo;
 import org.chromium.chrome.browser.browserservices.ui.SharedActivityCoordinator;
-import org.chromium.chrome.browser.browserservices.ui.controller.CurrentPageVerifier;
 import org.chromium.chrome.browser.browserservices.ui.splashscreen.webapps.WebappSplashController;
 import org.chromium.chrome.browser.dependency_injection.ActivityScope;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
@@ -38,49 +35,42 @@ public class WebappActivityCoordinator
     private final WebappDeferredStartupWithStorageHandler mDeferredStartupWithStorageHandler;
 
     // Whether the current page is within the webapp's scope.
-    private boolean mInScope = true;
 
     @Inject
-    public WebappActivityCoordinator(SharedActivityCoordinator sharedActivityCoordinator,
-            Activity activity, BrowserServicesIntentDataProvider intentDataProvider,
-            ActivityTabProvider activityTabProvider, CurrentPageVerifier currentPageVerifier,
-            WebappSplashController splashController,
+    public WebappActivityCoordinator(
+            SharedActivityCoordinator unused_sharedActivityCoordinator,
+            Activity activity,
+            BrowserServicesIntentDataProvider intentDataProvider,
+            WebappSplashController unused_splashController,
             WebappDeferredStartupWithStorageHandler deferredStartupWithStorageHandler,
-            WebappActionsNotificationManager actionsNotificationManager,
             ActivityLifecycleDispatcher lifecycleDispatcher) {
-        // We don't need to do anything with |sharedActivityCoordinator|, |splashController| or
-        // |actionsNotificationManager|. We just need to resolve it so that it starts working.
+        // We don't need to do anything with the _unused params. We just need to resolve it so that
+        // it starts working.
 
         mIntentDataProvider = intentDataProvider;
         mWebappInfo = WebappInfo.create(mIntentDataProvider);
         mActivity = activity;
         mDeferredStartupWithStorageHandler = deferredStartupWithStorageHandler;
 
-        // WebappActiveTabUmaTracker sets itself as an observer of |activityTabProvider|.
-        new WebappActiveTabUmaTracker(activityTabProvider, intentDataProvider, currentPageVerifier);
+        mDeferredStartupWithStorageHandler.addTask(
+                (storage, didCreateStorage) -> {
+                    if (lifecycleDispatcher.isActivityFinishingOrDestroyed()) return;
 
-        mDeferredStartupWithStorageHandler.addTask((storage, didCreateStorage) -> {
-            if (lifecycleDispatcher.isActivityFinishingOrDestroyed()) return;
-
-            if (storage != null) {
-                updateStorage(storage);
-            }
-        });
+                    if (storage != null) {
+                        updateStorage(storage);
+                    }
+                });
 
         lifecycleDispatcher.register(this);
 
         // Initialize the WebappRegistry and warm up the shared preferences for this web app. No-ops
         // if the registry and this web app are already initialized. Must override Strict Mode to
         // avoid a violation.
-        try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
-            WebappRegistry.getInstance();
-            WebappRegistry.warmUpSharedPrefsForId(mWebappInfo.id());
-        }
+        WebappRegistry.getInstance();
+        WebappRegistry.warmUpSharedPrefsForId(mWebappInfo.id());
     }
 
-    /**
-     * Invoked to add deferred startup tasks to queue.
-     */
+    /** Invoked to add deferred startup tasks to queue. */
     public void initDeferredStartupForActivity() {
         mDeferredStartupWithStorageHandler.initDeferredStartupForActivity();
     }

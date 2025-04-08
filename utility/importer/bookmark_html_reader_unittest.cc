@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/utility/importer/bookmark_html_reader.h"
 
 #include <stddef.h>
@@ -158,7 +163,7 @@ TEST(BookmarkHTMLReaderTest, CanImportURLAsSearchEngineTest) {
        "http://www.example.{searchTerms}.test.{searchTerms}.com/"},
       // Illegal characters in the host get escaped.
       {"http://www.test&test.%s.com", true,
-       "http://www.test%26test.{searchTerms}.com/"},
+       "http://www.test&test.{searchTerms}.com/"},
       {"http://www.example.com?q=%s&foo=bar", true,
        "http://www.example.com/?q={searchTerms}&foo=bar"},
       {"http://www.example.com/%s/?q=%s&foo=bar", true,

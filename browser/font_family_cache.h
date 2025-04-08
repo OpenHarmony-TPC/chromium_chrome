@@ -19,8 +19,6 @@ class Profile;
 
 FORWARD_DECLARE_TEST(FontFamilyCacheTest, Caching);
 
-extern const char kFontFamilyCacheKey[];
-
 // Caches font family preferences associated with a PrefService. This class
 // relies on the assumption that each concatenation of map_name + '.' + script
 // is a unique string. It also relies on the assumption that the (const char*)
@@ -85,7 +83,7 @@ class FontFamilyCache : public base::SupportsUserData::Data {
   // Weak reference.
   // Note: The lifetime of this object is tied to the lifetime of the
   // PrefService, so there is no worry about an invalid pointer.
-  raw_ptr<const PrefService, DanglingUntriaged> prefs_;
+  raw_ptr<const PrefService, AcrossTasksDanglingUntriaged> prefs_;
 
   // Reacts to profile font changes. |font_change_registrar_| will be
   // automatically unregistered when the FontPrefChangeNotifier is destroyed as

@@ -35,7 +35,7 @@ void AudioHandler::GetActiveOutputDeviceName(
   if (output_device) {
     std::move(callback).Run(output_device->display_name);
   } else {
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
   }
 }
 
@@ -48,13 +48,13 @@ void AudioHandler::GetActiveInputDeviceName(
   if (input_device) {
     std::move(callback).Run(input_device->display_name);
   } else {
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
   }
 }
 
 void AudioHandler::OpenFeedbackDialog() {
   chrome::OpenFeedbackDialog(chrome::FindBrowserWithActiveWindow(),
-                             chrome::kFeedbackSourceMdSettingsAboutPage);
+                             feedback::kFeedbackSourceMdSettingsAboutPage);
 }
 
 void AudioHandler::OnAudioNodesChanged() {

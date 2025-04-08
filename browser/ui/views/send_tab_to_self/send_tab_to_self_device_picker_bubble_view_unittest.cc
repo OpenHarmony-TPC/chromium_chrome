@@ -66,7 +66,9 @@ class SendTabToSelfDevicePickerBubbleViewTest : public ChromeViewsTestBase {
     ChromeViewsTestBase::SetUp();
 
     // Create an anchor for the bubble.
-    anchor_widget_ = CreateTestWidget(views::Widget::InitParams::TYPE_WINDOW);
+    anchor_widget_ =
+        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+                         views::Widget::InitParams::TYPE_WINDOW);
 
     web_contents_ =
         content::WebContentsTester::CreateTestWebContents(&profile_, nullptr);
@@ -90,7 +92,7 @@ class SendTabToSelfDevicePickerBubbleViewTest : public ChromeViewsTestBase {
   content::RenderViewHostTestEnabler test_render_host_factories_;
   std::unique_ptr<content::WebContents> web_contents_;
   std::unique_ptr<views::Widget> anchor_widget_;
-  raw_ptr<SendTabToSelfDevicePickerBubbleView> bubble_;
+  raw_ptr<SendTabToSelfDevicePickerBubbleView, DanglingUntriaged> bubble_;
   // Owned by WebContents.
   raw_ptr<SendTabToSelfBubbleControllerMock> controller_;
 };

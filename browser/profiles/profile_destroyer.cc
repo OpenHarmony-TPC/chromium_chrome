@@ -13,6 +13,7 @@
 #include "base/location.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
+#include "base/not_fatal_until.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
@@ -362,7 +363,7 @@ ProfileDestroyer::~ProfileDestroyer() {
   CHECK(!observations_.IsObservingAnySource())
       << "Some render process hosts were not destroyed early enough!";
   auto iter = PendingDestroyers().find(this);
-  DCHECK(iter != PendingDestroyers().end());
+  CHECK(iter != PendingDestroyers().end(), base::NotFatalUntil::M130);
   PendingDestroyers().erase(iter);
 }
 
@@ -409,8 +410,9 @@ void ProfileDestroyer::GetHostsForProfile(HostSet* out,
       continue;
 
     // Ignore the spare RenderProcessHost.
-    if (render_process_host->HostHasNotBeenUsed() && !include_spare_rph)
+    if (render_process_host->IsSpare() && !include_spare_rph) {
       continue;
+    }
 
     TRACE_EVENT(
         "shutdown", "ProfileDestroyer::GetHostsForProfile",

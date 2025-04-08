@@ -5,6 +5,7 @@
 #include "chrome/browser/notifications/platform_notification_service_impl.h"
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
@@ -26,6 +27,7 @@
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/permissions/notifications_engagement_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/safe_browsing/notification_content_detection_service_factory.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/common/chrome_features.h"
@@ -38,11 +40,12 @@
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/safe_browsing/content/browser/notification_content_detection/notification_content_detection_service.h"
+#include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/platform_notification_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/notifications/notification_resources.h"
 #include "third_party/blink/public/common/notifications/platform_notification_data.h"
 #include "third_party/blink/public/mojom/notifications/notification.mojom.h"
@@ -69,12 +72,32 @@
 #include "extensions/common/constants.h"
 #endif
 
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+#include "base/metrics/histogram_functions.h"
+#endif  // IS_CHROMEOS_ASH
+
 using content::BrowserContext;
 using content::BrowserThread;
 using content::NotificationDatabaseData;
 using message_center::NotifierId;
 
 namespace {
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+
+constexpr char kNotificationResourceActionIconMemorySizeHistogram[] =
+    "Ash.NotificationResource.ActionIconSizeInKB";
+
+constexpr char kNotificationResourceBadgeMemorySizeHistogram[] =
+    "Ash.NotificationResource.BadgeMemorySizeInKB";
+
+constexpr char kNotificationReourceIconMemorySizeHistogram[] =
+    "Ash.NotificationResource.IconMemorySizeInKB";
+
+constexpr char kNotificationResourceImageMemorySizeHistogram[] =
+    "Ash.NotificationResource.ImageMemorySizeInKB";
+
+#endif  // IS_CHROMEOS_ASH
 
 // Whether a web notification should be displayed when chrome is in full
 // screen mode.
@@ -86,7 +109,7 @@ static bool ShouldDisplayWebNotificationOnFullScreen(Profile* profile,
 #else
   // Check to see if this notification comes from a webpage that is displaying
   // fullscreen content.
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     // Only consider the browsers for the profile that created the notification
     if (browser->profile() != profile)
       continue;
@@ -183,14 +206,11 @@ void PlatformNotificationServiceImpl::OnContentSettingChanged(
 
   auto recorder = base::MakeRefCounted<RevokeDeleteCountRecorder>();
   profile_->ForEachLoadedStoragePartition(
-      base::BindRepeating(
-          [](scoped_refptr<RevokeDeleteCountRecorder> recorder,
-             content::StoragePartition* partition) {
-            partition->GetPlatformNotificationContext()
-                ->DeleteAllNotificationDataForBlockedOrigins(base::BindOnce(
-                    &RevokeDeleteCountRecorder::OnDeleted, recorder));
-          },
-          recorder));
+      [&](content::StoragePartition* partition) {
+        partition->GetPlatformNotificationContext()
+            ->DeleteAllNotificationDataForBlockedOrigins(base::BindOnce(
+                &RevokeDeleteCountRecorder::OnDeleted, recorder));
+      });
 }
 
 bool PlatformNotificationServiceImpl::WasClosedProgrammatically(
@@ -230,14 +250,11 @@ void PlatformNotificationServiceImpl::DisplayNotification(
       ContentSettingsType::NOTIFICATIONS, profile_, nullptr,
       notification.origin_url());
 
-  if (base::FeatureList::IsEnabled(
-          permissions::features::kNotificationInteractionHistory)) {
     auto* service =
         NotificationsEngagementServiceFactory::GetForProfile(profile_);
     // This service might be missing for incognito profiles and in tests.
     if (service)
       service->RecordNotificationDisplayed(notification.origin_url());
-  }
 }
 
 void PlatformNotificationServiceImpl::DisplayPersistentNotification(
@@ -264,20 +281,33 @@ void PlatformNotificationServiceImpl::DisplayPersistentNotification(
   auto metadata = std::make_unique<PersistentNotificationMetadata>();
   metadata->service_worker_scope = service_worker_scope;
 
+  if (safe_browsing::IsSafeBrowsingEnabled(*profile_->GetPrefs()) &&
+      base::FeatureList::IsEnabled(
+          safe_browsing::kOnDeviceNotificationContentDetectionModel)) {
+    auto* notification_content_service = safe_browsing::
+        NotificationContentDetectionServiceFactory::GetForProfile(profile_);
+    if (notification_content_service) {
+      notification_content_service->MaybeCheckNotificationContentDetectionModel(
+          notification_data, origin);
+    }
+  }
+
   NotificationDisplayServiceFactory::GetForProfile(profile_)->Display(
       NotificationHandler::Type::WEB_PERSISTENT, notification,
       std::move(metadata));
 
   NotificationMetricsLoggerFactory::GetForBrowserContext(profile_)
       ->LogPersistentNotificationShown();
+  if (safe_browsing::IsEnhancedProtectionEnabled(*profile_->GetPrefs())) {
+    NotificationMetricsLoggerFactory::GetForBrowserContext(profile_)
+        ->LogPersistentNotificationSize(profile_, notification_data, origin);
+  }
 
-  if (base::FeatureList::IsEnabled(
-          permissions::features::kNotificationInteractionHistory)) {
-    auto* service =
-        NotificationsEngagementServiceFactory::GetForProfile(profile_);
-    // This service might be missing for incognito profiles and in tests.
-    if (service)
-      service->RecordNotificationDisplayed(notification.origin_url());
+  auto* service =
+      NotificationsEngagementServiceFactory::GetForProfile(profile_);
+  // This service might be missing for incognito profiles and in tests.
+  if (service) {
+    service->RecordNotificationDisplayed(notification.origin_url());
   }
 
   permissions::PermissionUmaUtil::RecordPermissionUsage(
@@ -324,6 +354,25 @@ void PlatformNotificationServiceImpl::GetDisplayedNotifications(
       std::move(callback));
 }
 
+void PlatformNotificationServiceImpl::GetDisplayedNotificationsForOrigin(
+    const GURL& origin,
+    DisplayedNotificationsCallback callback) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  if (g_browser_process->IsShuttingDown() || !profile_) {
+    return;
+  }
+
+  // Tests will not have a message center.
+  if (profile_->AsTestingProfile()) {
+    std::set<std::string> displayed_notifications;
+    std::move(callback).Run(std::move(displayed_notifications),
+                            false /* supports_synchronization */);
+    return;
+  }
+  NotificationDisplayServiceFactory::GetForProfile(profile_)
+      ->GetDisplayedForOrigin(origin, std::move(callback));
+}
+
 void PlatformNotificationServiceImpl::ScheduleTrigger(base::Time timestamp) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (g_browser_process->IsShuttingDown() || !profile_)
@@ -336,7 +385,6 @@ void PlatformNotificationServiceImpl::ScheduleTrigger(base::Time timestamp) {
   if (current_trigger > timestamp)
     prefs->SetTime(prefs::kNotificationNextTriggerTime, timestamp);
 
-  trigger_scheduler_->ScheduleTrigger(timestamp);
 }
 
 base::Time PlatformNotificationServiceImpl::ReadNextTriggerTimestamp() {
@@ -375,13 +423,11 @@ void PlatformNotificationServiceImpl::RecordNotificationUkmEvent(
     return;
   }
 
-  // Check if this event can be recorded via UKM.
-  auto* ukm_background_service =
-      ukm::UkmBackgroundRecorderFactory::GetForProfile(profile_);
-  ukm_background_service->GetBackgroundSourceIdIfAllowed(
-      url::Origin::Create(data.origin),
-      base::BindOnce(&PlatformNotificationServiceImpl::DidGetBackgroundSourceId,
-                     std::move(ukm_recorded_closure_for_testing_), data));
+  ukm::SourceId source_id = ukm::UkmRecorder::GetSourceIdForNotificationEvent(
+      base::PassKey<PlatformNotificationServiceImpl>(), data.origin);
+
+  RecordNotificationUkmEventWithSourceId(
+      std::move(ukm_recorded_closure_for_testing_), data, source_id);
 }
 
 NotificationTriggerScheduler*
@@ -390,15 +436,11 @@ PlatformNotificationServiceImpl::GetNotificationTriggerScheduler() {
 }
 
 // static
-void PlatformNotificationServiceImpl::DidGetBackgroundSourceId(
+void PlatformNotificationServiceImpl::RecordNotificationUkmEventWithSourceId(
     base::OnceClosure recorded_closure,
     const content::NotificationDatabaseData& data,
-    absl::optional<ukm::SourceId> source_id) {
-  // This background event did not meet the requirements for the UKM service.
-  if (!source_id)
-    return;
-
-  ukm::builders::Notification builder(*source_id);
+    ukm::SourceId source_id) {
+  ukm::builders::Notification builder(source_id);
 
   int64_t time_until_first_click_millis =
       data.time_until_first_click_millis.has_value()
@@ -454,23 +496,36 @@ PlatformNotificationServiceImpl::CreateNotificationFromData(
   optional_fields.settings_button_handler =
       message_center::SettingsButtonHandler::INLINE;
 
-  absl::optional<WebAppIconAndTitle> web_app_icon_and_title;
+  // TODO(crbug.com/40277066): We can do a better job than basing this
+  // purely on `web_app_hint_url`, for example for non-persistent notifications
+  // triggered from workers (where `web_app_hint_url` is always blank) but also
+  // for persistent notifications triggered from web pages (where the page url
+  // might be a better "hint" than the service worker scope).
+  std::optional<webapps::AppId> web_app_id = FindWebAppId(web_app_hint_url);
+
+  std::optional<WebAppIconAndTitle> web_app_icon_and_title;
 #if BUILDFLAG(IS_CHROMEOS)
   web_app_icon_and_title = FindWebAppIconAndTitle(web_app_hint_url);
-  if (web_app_icon_and_title && notification_resources.badge.isNull()) {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
+  if (web_app_icon_and_title && notification_resources.badge.isNull()) {
     // ChromeOS: Enables web app theme color only if monochrome web app icon
     // has been specified. `badge` Notifications API icons must be masked with
     // the accent color.
     optional_fields.ignore_accent_color_for_small_image = true;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   }
+
+  base::UmaHistogramMemoryKB(
+      kNotificationReourceIconMemorySizeHistogram,
+      notification_resources.notification_icon.computeByteSize() / 1024);
+
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   message_center::NotifierId notifier_id(
-      origin, web_app_icon_and_title
-                  ? absl::make_optional(web_app_icon_and_title->title)
-                  : absl::nullopt);
+      origin,
+      web_app_icon_and_title ? std::make_optional(web_app_icon_and_title->title)
+                             : std::nullopt,
+      web_app_id);
 
   // TODO(peter): Handle different screen densities instead of always using the
   // 1x bitmap - crbug.com/585815.
@@ -492,20 +547,27 @@ PlatformNotificationServiceImpl::CreateNotificationFromData(
         message_center::FullscreenVisibility::OVER_USER);
   }
 
-  if (!notification_resources.image.drawsNothing()) {
+  if (const SkBitmap& image = notification_resources.image;
+      !image.drawsNothing()) {
     notification.set_type(message_center::NOTIFICATION_TYPE_IMAGE);
-    notification.set_image(
-        gfx::Image::CreateFrom1xBitmap(notification_resources.image));
+    notification.SetImage(gfx::Image::CreateFrom1xBitmap(image));
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+    base::UmaHistogramMemoryKB(kNotificationResourceImageMemorySizeHistogram,
+                               image.computeByteSize() / 1024);
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   }
 
   if (web_app_icon_and_title && !web_app_icon_and_title->icon.isNull())
-    notification.set_small_image(gfx::Image(web_app_icon_and_title->icon));
+    notification.SetSmallImage(gfx::Image(web_app_icon_and_title->icon));
 
   // TODO(peter): Handle different screen densities instead of always using the
   // 1x bitmap - crbug.com/585815.
-  if (!notification_resources.badge.isNull()) {
-    notification.set_small_image(
-        gfx::Image::CreateFrom1xBitmap(notification_resources.badge));
+  if (const SkBitmap& badge = notification_resources.badge; !badge.isNull()) {
+    notification.SetSmallImage(gfx::Image::CreateFrom1xBitmap(badge));
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+    base::UmaHistogramMemoryKB(kNotificationResourceBadgeMemorySizeHistogram,
+                               badge.computeByteSize() / 1024);
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   }
 
   // Developer supplied action buttons.
@@ -515,8 +577,13 @@ PlatformNotificationServiceImpl::CreateNotificationFromData(
     message_center::ButtonInfo button(action->title);
     // TODO(peter): Handle different screen densities instead of always using
     // the 1x bitmap - crbug.com/585815.
-    button.icon =
-        gfx::Image::CreateFrom1xBitmap(notification_resources.action_icons[i]);
+    const SkBitmap& action_icon = notification_resources.action_icons[i];
+    button.icon = gfx::Image::CreateFrom1xBitmap(action_icon);
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+    base::UmaHistogramMemoryKB(
+        kNotificationResourceActionIconMemorySizeHistogram,
+        action_icon.computeByteSize() / 1024);
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
     if (action->type == blink::mojom::NotificationActionType::TEXT) {
       button.placeholder = action->placeholder.value_or(
           l10n_util::GetStringUTF16(IDS_NOTIFICATION_REPLY_PLACEHOLDER));
@@ -567,7 +634,11 @@ std::u16string PlatformNotificationServiceImpl::DisplayNameForContextMessage(
     const GURL& origin) const {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // If the source is an extension, lookup the display name.
-  if (origin.SchemeIs(extensions::kExtensionScheme)) {
+  if (origin.SchemeIs(extensions::kExtensionScheme)
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      || origin.SchemeIs(extensions::kArkwebExtensionScheme)
+#endif
+  ) {
     const extensions::Extension* extension =
         extensions::ExtensionRegistry::Get(profile_)->GetExtensionById(
             origin.host(), extensions::ExtensionRegistry::EVERYTHING);
@@ -580,18 +651,32 @@ std::u16string PlatformNotificationServiceImpl::DisplayNameForContextMessage(
   return std::u16string();
 }
 
-absl::optional<PlatformNotificationServiceImpl::WebAppIconAndTitle>
+std::optional<webapps::AppId> PlatformNotificationServiceImpl::FindWebAppId(
+    const GURL& web_app_hint_url) const {
+#if !BUILDFLAG(IS_ANDROID)
+  web_app::WebAppProvider* web_app_provider =
+      web_app::WebAppProvider::GetForLocalAppsUnchecked(profile_);
+  if (web_app_provider) {
+    return web_app_provider->registrar_unsafe().FindInstalledAppWithUrlInScope(
+        web_app_hint_url);
+  }
+#endif
+
+  return std::nullopt;
+}
+
+std::optional<PlatformNotificationServiceImpl::WebAppIconAndTitle>
 PlatformNotificationServiceImpl::FindWebAppIconAndTitle(
     const GURL& web_app_hint_url) const {
 #if !BUILDFLAG(IS_ANDROID)
   web_app::WebAppProvider* web_app_provider =
       web_app::WebAppProvider::GetForLocalAppsUnchecked(profile_);
   if (web_app_provider) {
-    const absl::optional<web_app::AppId> app_id =
+    const std::optional<webapps::AppId> app_id =
         web_app_provider->registrar_unsafe().FindAppWithUrlInScope(
             web_app_hint_url);
     if (app_id) {
-      absl::optional<WebAppIconAndTitle> icon_and_title;
+      std::optional<WebAppIconAndTitle> icon_and_title;
       icon_and_title.emplace();
 
       icon_and_title->title = base::UTF8ToUTF16(
@@ -603,7 +688,7 @@ PlatformNotificationServiceImpl::FindWebAppIconAndTitle(
   }
 #endif
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool PlatformNotificationServiceImpl::IsActivelyInstalledWebAppScope(
@@ -618,11 +703,10 @@ bool PlatformNotificationServiceImpl::IsActivelyInstalledWebAppScope(
   if (!web_app_provider) {
     return false;
   }
-
-  const absl::optional<web_app::AppId> app_id =
-      web_app_provider->registrar_unsafe().FindAppWithUrlInScope(web_app_url);
-  return app_id.has_value() &&
-         web_app_provider->registrar_unsafe().IsActivelyInstalled(
-             app_id.value());
+  const std::optional<webapps::AppId> app_id =
+      web_app_provider->registrar_unsafe().FindBestAppWithUrlInScope(
+          web_app_url,
+          {web_app::proto::InstallState::INSTALLED_WITH_OS_INTEGRATION});
+  return app_id.has_value();
 #endif
 }

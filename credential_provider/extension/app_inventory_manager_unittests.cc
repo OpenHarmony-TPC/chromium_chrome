@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/credential_provider/extension/app_inventory_manager.h"
+
 #include <windows.h>
 
 #include <memory>
@@ -13,7 +15,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_path_override.h"
-#include "chrome/credential_provider/extension/app_inventory_manager.h"
 #include "chrome/credential_provider/extension/user_device_context.h"
 #include "chrome/credential_provider/gaiacp/gcpw_strings.h"
 #include "chrome/credential_provider/gaiacp/mdm_utils.h"
@@ -150,9 +151,8 @@ TEST_P(AppInventoryManagerTest, uploadAppInventory) {
       AppInventoryManager::Get()->GetGemServiceUploadAppInventoryUrl();
   ASSERT_TRUE(app_inventory_url.is_valid());
 
-  base::Value expected_response_value(base::Value::Type::DICT);
-  expected_response_value.SetStringKey("deviceResourceId",
-                                       base::WideToUTF8(device_resource_id));
+  auto expected_response_value = base::Value::Dict().Set(
+      "deviceResourceId", base::WideToUTF8(device_resource_id));
   std::string expected_response;
   base::JSONWriter::Write(expected_response_value, &expected_response);
 
@@ -179,7 +179,7 @@ TEST_P(AppInventoryManagerTest, uploadAppInventory) {
     FakeWinHttpUrlFetcherFactory::RequestData request_data =
         fake_http_url_fetcher_factory()->GetRequestData(0);
 
-    absl::optional<base::Value> body_value =
+    std::optional<base::Value> body_value =
         base::JSONReader::Read(request_data.body);
 
     base::Value::Dict request;

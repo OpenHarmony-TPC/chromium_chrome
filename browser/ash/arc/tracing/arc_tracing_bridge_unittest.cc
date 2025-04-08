@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ash/arc/tracing/arc_tracing_bridge.h"
+
 #include <memory>
 
 #include "ash/components/arc/session/arc_bridge_service.h"
@@ -9,8 +11,8 @@
 #include "ash/components/arc/test/fake_tracing_instance.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/test/trace_test_utils.h"
 #include "base/trace_event/trace_event.h"
-#include "chrome/browser/ash/arc/tracing/arc_tracing_bridge.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "content/public/test/browser_task_environment.h"
@@ -64,11 +66,13 @@ class ArcTracingBridgeTest : public testing::Test {
  private:
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<TestingProfileManager> profile_manager_;
-  raw_ptr<Profile, ExperimentalAsh> profile_ = nullptr;
+  raw_ptr<Profile, DanglingUntriaged> profile_ = nullptr;
 
   ArcBridgeService bridge_service_;
   std::unique_ptr<ArcTracingBridge> tracing_bridge_;
   FakeTracingInstance fake_tracing_instance_;
+ private:
+  ::base::test::TracingEnvironment tracing_environment_;
 };
 
 TEST_F(ArcTracingBridgeTest, Creation) {

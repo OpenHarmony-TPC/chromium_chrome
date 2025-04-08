@@ -4,19 +4,23 @@
 
 // clang-format off
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {DomIf, flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {AutofillManagerImpl, PasswordsSectionElement, PasswordListItemElement, PaymentsManagerImpl, SettingsAutofillSectionElement, SettingsPaymentsSectionElement} from 'chrome://settings/lazy_load.js';
-import {buildRouter, Router, routes} from 'chrome://settings/settings.js';
-import {CrSettingsPrefs, OpenWindowProxyImpl, PasswordManagerImpl, SettingsAutofillPageElement, SettingsPluralStringProxyImpl, SettingsPrefsElement, SettingsRoutes, PasswordManagerPage} from 'chrome://settings/settings.js';
-import {assertDeepEquals, assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import type {DomIf} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
+import type {SettingsAutofillSectionElement, SettingsPaymentsSectionElement, SettingsAutofillPredictionImprovementsSectionElement} from 'chrome://settings/lazy_load.js';
+import {AutofillManagerImpl, PaymentsManagerImpl, UserAnnotationsManagerProxyImpl} from 'chrome://settings/lazy_load.js';
+import {resetRouterForTesting} from 'chrome://settings/settings.js';
+import type {CrLinkRowElement, SettingsAutofillPageElement, SettingsPrefsElement} from 'chrome://settings/settings.js';
+import {CrSettingsPrefs, OpenWindowProxyImpl, PasswordManagerImpl, SettingsPluralStringProxyImpl, PasswordManagerPage} from 'chrome://settings/settings.js';
+import {assertEquals, assertDeepEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {FakeSettingsPrivate} from 'chrome://webui-test/fake_settings_private.js';
 import {TestPluralStringProxy} from 'chrome://webui-test/test_plural_string_proxy.js';
-import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
+import {Router, routes} from 'chrome://settings/settings.js';
 
-import {AutofillManagerExpectations, createAddressEntry, createCreditCardEntry, createExceptionEntry, createIbanEntry, createPasswordEntry, PaymentsManagerExpectations, STUB_USER_ACCOUNT_INFO, TestAutofillManager, TestPaymentsManager} from './passwords_and_autofill_fake_data.js';
-import {makeInsecureCredential} from './passwords_and_autofill_fake_data.js';
-import {PasswordManagerExpectations,TestPasswordManagerProxy} from './test_password_manager_proxy.js';
+import {AutofillManagerExpectations, createAddressEntry, createCreditCardEntry, createIbanEntry, PaymentsManagerExpectations, STUB_USER_ACCOUNT_INFO, TestAutofillManager, TestPaymentsManager} from './autofill_fake_data.js';
+import {TestUserAnnotationsManagerProxyImpl} from './test_user_annotations_manager_proxy.js';
+import {TestPasswordManagerProxy} from './test_password_manager_proxy.js';
 
 // clang-format on
 
@@ -32,12 +36,6 @@ suite('PasswordsAndForms', function() {
     flush();
 
     // Force-render all subppages.
-
-    if (!loadTimeData.getBoolean('enableNewPasswordManagerPage')) {
-      element.shadowRoot!
-          .querySelector<DomIf>('dom-if[route-path="/passwords"]')!.if = true;
-    }
-
     element.shadowRoot!.querySelector<DomIf>(
                            'dom-if[route-path="/payments"]')!.if = true;
     element.shadowRoot!.querySelector<DomIf>(
@@ -56,37 +54,43 @@ suite('PasswordsAndForms', function() {
       CrSettingsPrefs.deferInitialization = true;
       const prefs = document.createElement('settings-prefs');
       prefs.initialize(new FakeSettingsPrivate([
-                         {
-                           key: 'autofill.enabled',
-                           type: chrome.settingsPrivate.PrefType.BOOLEAN,
-                           value: autofill,
-                         },
-                         {
-                           key: 'autofill.profile_enabled',
-                           type: chrome.settingsPrivate.PrefType.BOOLEAN,
-                           value: true,
-                         },
-                         {
-                           key: 'autofill.credit_card_enabled',
-                           type: chrome.settingsPrivate.PrefType.BOOLEAN,
-                           value: true,
-                         },
-                         {
-                           key: 'credentials_enable_service',
-                           type: chrome.settingsPrivate.PrefType.BOOLEAN,
-                           value: passwords,
-                         },
-                         {
-                           key: 'credentials_enable_autosignin',
-                           type: chrome.settingsPrivate.PrefType.BOOLEAN,
-                           value: true,
-                         },
-                         {
-                           key: 'payments.can_make_payment_enabled',
-                           type: chrome.settingsPrivate.PrefType.BOOLEAN,
-                           value: true,
-                         },
-                       ]) as unknown as typeof chrome.settingsPrivate);
+        {
+          key: 'autofill.enabled',
+          type: chrome.settingsPrivate.PrefType.BOOLEAN,
+          value: autofill,
+        },
+        {
+          key: 'autofill.profile_enabled',
+          type: chrome.settingsPrivate.PrefType.BOOLEAN,
+          value: true,
+        },
+        {
+          key: 'autofill.credit_card_enabled',
+          type: chrome.settingsPrivate.PrefType.BOOLEAN,
+          value: true,
+        },
+        {
+          key: 'credentials_enable_service',
+          type: chrome.settingsPrivate.PrefType.BOOLEAN,
+          value: passwords,
+        },
+        {
+          key: 'credentials_enable_autosignin',
+          type: chrome.settingsPrivate.PrefType.BOOLEAN,
+          value: true,
+        },
+        {
+          key: 'payments.can_make_payment_enabled',
+          type: chrome.settingsPrivate.PrefType.BOOLEAN,
+          value: true,
+        },
+        {
+          key: 'autofill.payment_methods_mandatory_reauth',
+          type: chrome.settingsPrivate.PrefType.BOOLEAN,
+          value: true,
+
+        },
+      ]));
 
       CrSettingsPrefs.initialized.then(function() {
         resolve(prefs);
@@ -102,21 +106,6 @@ suite('PasswordsAndForms', function() {
     CrSettingsPrefs.resetForTesting();
     CrSettingsPrefs.deferInitialization = false;
     prefs.resetForTesting();
-  }
-
-  /**
-   * Creates PasswordManagerExpectations with the values expected after first
-   * creating the element.
-   */
-  function basePasswordExpectations(): PasswordManagerExpectations {
-    const expected = new PasswordManagerExpectations();
-    expected.requested.passwords = 1;
-    expected.requested.exceptions = 1;
-    expected.requested.accountStorageOptInState = 1;
-    expected.listening.passwords = 1;
-    expected.listening.exceptions = 1;
-    expected.listening.accountStorageOptInState = 1;
-    return expected;
   }
 
   /**
@@ -142,17 +131,12 @@ suite('PasswordsAndForms', function() {
     return expected;
   }
 
-  let passwordManager: TestPasswordManagerProxy;
   let autofillManager: TestAutofillManager;
   let paymentsManager: TestPaymentsManager;
+  let userAnnotationManager: TestUserAnnotationsManagerProxyImpl;
 
-
-  setup(async function() {
+  setup(function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
-
-    // Override the PasswordManagerImpl for testing.
-    passwordManager = new TestPasswordManagerProxy();
-    PasswordManagerImpl.setInstance(passwordManager);
 
     // Override the AutofillManagerImpl for testing.
     autofillManager = new TestAutofillManager();
@@ -161,14 +145,15 @@ suite('PasswordsAndForms', function() {
     // Override the PaymentsManagerImpl for testing.
     paymentsManager = new TestPaymentsManager();
     PaymentsManagerImpl.setInstance(paymentsManager);
+
+    // Override the UserAnnotationsManagerProxyImpl for testing.
+    userAnnotationManager = new TestUserAnnotationsManagerProxyImpl();
+    UserAnnotationsManagerProxyImpl.setInstance(userAnnotationManager);
   });
 
   test('baseLoadAndRemove', function() {
     return createPrefs(true, true).then(function(prefs) {
       const element = createAutofillElement(prefs);
-
-      const passwordsExpectations = basePasswordExpectations();
-      passwordManager.assertExpectations(passwordsExpectations);
 
       const autofillExpectations = baseAutofillExpectations();
       autofillManager.assertExpectations(autofillExpectations);
@@ -178,11 +163,6 @@ suite('PasswordsAndForms', function() {
 
       element.remove();
       flush();
-
-      passwordsExpectations.listening.passwords = 0;
-      passwordsExpectations.listening.exceptions = 0;
-      passwordsExpectations.listening.accountStorageOptInState = 0;
-      passwordManager.assertExpectations(passwordsExpectations);
 
       autofillExpectations.listeningAddresses = 0;
       autofillManager.assertExpectations(autofillExpectations);
@@ -194,59 +174,35 @@ suite('PasswordsAndForms', function() {
     });
   });
 
-  test('loadPasswordsAsync', function() {
-    return createPrefs(true, true).then(function(prefs) {
-      const element = createAutofillElement(prefs);
-
-      const list = [
-        createPasswordEntry({url: 'one.com', username: 'user1', id: 0}),
-        createPasswordEntry({url: 'two.com', username: 'user1', id: 1}),
-      ];
-
-      passwordManager.lastCallback.addSavedPasswordListChangedListener!(list);
-      flush();
-
-      assertDeepEquals(
-          list,
-          element.shadowRoot!
-              .querySelector<PasswordsSectionElement>(
-                  '#passwordSection')!.savedPasswords);
-
-      // The callback is coming from the manager, so the element shouldn't
-      // have additional calls to the manager after the base expectations.
-      passwordManager.assertExpectations(basePasswordExpectations());
-      autofillManager.assertExpectations(baseAutofillExpectations());
-      paymentsManager.assertExpectations(basePaymentsExpectations());
-
-      destroyPrefs(prefs);
+  test('autofillPredictionImprovementsEnabled', async function() {
+    loadTimeData.overrideValues({
+      autofillPredictionImprovementsEnabled: true,
     });
+    const prefs = await createPrefs(true, true);
+    const element = createAutofillElement(prefs);
+    await flushTasks();
+    const autofillPredictionImprovementsManagerButton =
+        element.shadowRoot!.querySelector<CrLinkRowElement>(
+            '#autofillPredictionImprovementsManagerButton');
+    assertTrue(autofillPredictionImprovementsManagerButton !== null);
+    element.remove();
+    flush();
+    destroyPrefs(prefs);
   });
 
-  test('loadExceptionsAsync', function() {
-    return createPrefs(true, true).then(function(prefs) {
-      const element = createAutofillElement(prefs);
-
-      const list = [
-        createExceptionEntry({url: 'one.com', id: 0}),
-        createExceptionEntry({url: 'two.com', id: 1}),
-      ];
-      passwordManager.lastCallback.addExceptionListChangedListener!(list);
-      flush();
-
-      assertDeepEquals(
-          list,
-          element.shadowRoot!
-              .querySelector<PasswordsSectionElement>(
-                  '#passwordSection')!.passwordExceptions);
-
-      // The callback is coming from the manager, so the element shouldn't
-      // have additional calls to the manager after the base expectations.
-      passwordManager.assertExpectations(basePasswordExpectations());
-      autofillManager.assertExpectations(baseAutofillExpectations());
-      paymentsManager.assertExpectations(basePaymentsExpectations());
-
-      destroyPrefs(prefs);
+  test('autofillPredictionImprovementsDisabled', async function() {
+    loadTimeData.overrideValues({
+      autofillPredictionImprovementsEnabled: false,
     });
+    const prefs = await createPrefs(true, true);
+    const element = createAutofillElement(prefs);
+    const autofillPredictionImprovementsManagerButton =
+        element.shadowRoot!.querySelector<CrLinkRowElement>(
+            '#autofillPredictionImprovementsManagerButton');
+    assertTrue(autofillPredictionImprovementsManagerButton === null);
+    element.remove();
+    flush();
+    destroyPrefs(prefs);
   });
 
   test('loadAddressesAsync', function() {
@@ -264,7 +220,7 @@ suite('PasswordsAndForms', function() {
           (addressList, cardList, ibanList, accountInfo);
       flush();
 
-      assertEquals(
+      assertDeepEquals(
           addressList,
           element.shadowRoot!
               .querySelector<SettingsAutofillSectionElement>(
@@ -272,7 +228,6 @@ suite('PasswordsAndForms', function() {
 
       // The callback is coming from the manager, so the element shouldn't
       // have additional calls to the manager after the base expectations.
-      passwordManager.assertExpectations(basePasswordExpectations());
       autofillManager.assertExpectations(baseAutofillExpectations());
       paymentsManager.assertExpectations(basePaymentsExpectations());
 
@@ -303,7 +258,6 @@ suite('PasswordsAndForms', function() {
 
       // The callback is coming from the manager, so the element shouldn't
       // have additional calls to the manager after the base expectations.
-      passwordManager.assertExpectations(basePasswordExpectations());
       autofillManager.assertExpectations(baseAutofillExpectations());
       paymentsManager.assertExpectations(basePaymentsExpectations());
 
@@ -334,7 +288,6 @@ suite('PasswordsAndForms', function() {
 
       // The callback is coming from the manager, so the element shouldn't
       // have additional calls to the manager after the base expectations.
-      passwordManager.assertExpectations(basePasswordExpectations());
       autofillManager.assertExpectations(baseAutofillExpectations());
       paymentsManager.assertExpectations(basePaymentsExpectations());
 
@@ -383,135 +336,8 @@ suite('PasswordsUITest', function() {
     autofillPage.remove();
   });
 
-  test('Compromised Credential', async function() {
-    // Check if sublabel is empty
-    assertEquals(
-        '',
-        autofillPage.shadowRoot!
-            .querySelector<HTMLElement>(
-                '#passwordManagerSubLabel')!.innerText.trim());
-
-    // Simulate one compromised password
-    const leakedPasswords = [
-      makeInsecureCredential(
-          'google.com', 'jdoerrie',
-          [chrome.passwordsPrivate.CompromiseType.LEAKED]),
-    ];
-    passwordManager.data.insecureCredentials = leakedPasswords;
-
-    // create autofill page with leaked credentials
-    autofillPage = createAutofillPageSection();
-
-    await passwordManager.whenCalled('getInsecureCredentials');
-    await pluralString.whenCalled('getPluralString');
-
-    // With compromised credentials sublabel should have text
-    assertNotEquals(
-        '',
-        autofillPage.shadowRoot!
-            .querySelector<HTMLElement>(
-                '#passwordManagerSubLabel')!.innerText.trim());
-  });
-
-  ['passwords-section', 'password-view'].forEach(
-      testCase => test(
-          `After "password-view-page-requested" event from ${
-              testCase}, password view page is visible after auth`,
-          async function() {
-            const SHOWN_URL = 'www.google.com';
-            loadTimeData.overrideValues({enablePasswordViewPage: true});
-            Router.resetInstanceForTesting(buildRouter());
-            routes.PASSWORD_VIEW =
-                (Router.getInstance().getRoutes() as SettingsRoutes)
-                    .PASSWORD_VIEW;
-            const autofillSection = createAutofillPageSection();
-
-            const entry = createPasswordEntry({url: SHOWN_URL, id: 1});
-
-            if (testCase === 'passwords-section') {
-              autofillSection.shadowRoot!
-                  .querySelector<DomIf>('dom-if[route-path="/passwords"]')!.if =
-                  true;
-            } else {
-              autofillSection.shadowRoot!
-                  .querySelector<DomIf>(
-                      'dom-if[route-path="/passwords/view"]')!.if = true;
-            }
-            await flushTasks();
-            const dispatchingElement =
-                autofillSection.shadowRoot!.querySelector(testCase)!;
-            const eventDetail = document.createElement('password-list-item');
-            eventDetail.entry = entry;
-
-            passwordManager.setRequestCredentialsDetailsResponse(entry);
-
-            dispatchingElement.dispatchEvent(
-                new CustomEvent('password-view-page-requested', {
-                  bubbles: true,
-                  composed: true,
-                  detail: eventDetail,
-                }));
-            await flushTasks();
-
-            assertEquals(
-                routes.PASSWORD_VIEW, Router.getInstance().getCurrentRoute());
-            assertDeepEquals(entry, autofillSection.credential);
-
-            const subpage =
-                [...autofillSection.shadowRoot!.querySelectorAll(
-                     'settings-subpage')]
-                    .find(
-                        (element: HTMLElement) =>
-                            element.classList.contains('iron-selected'));
-            assertTrue(!!subpage);
-            assertEquals(`http://${SHOWN_URL}/login`, subpage.faviconSiteUrl!);
-            assertEquals(SHOWN_URL, subpage.pageTitle!);
-          }));
-
-  test(
-      `After "password-view-page-requested" event with invalid id,
-      password main page is opened`,
-      async function() {
-        loadTimeData.overrideValues({enablePasswordViewPage: true});
-        Router.resetInstanceForTesting(buildRouter());
-        routes.PASSWORD_VIEW =
-            (Router.getInstance().getRoutes() as SettingsRoutes).PASSWORD_VIEW;
-        const autofillSection = createAutofillPageSection();
-
-        autofillSection.shadowRoot!
-            .querySelector<DomIf>('dom-if[route-path="/passwords/view"]')!.if =
-            true;
-        await flushTasks();
-        Router.getInstance().setCurrentRoute(
-            routes.PASSWORD_VIEW, new URLSearchParams('id=123'), false);
-        await flushTasks();
-
-        // <if expr="is_chromeos">
-        if (!loadTimeData.getBoolean(
-                'useSystemAuthenticationForPasswordManager')) {
-          autofillSection.tokenRequestManager.resolve();
-          await flushTasks();
-        }
-        // </if>
-
-        const eventDetail = {entry: {id: 123}} as unknown as
-            PasswordListItemElement;
-        autofillSection.shadowRoot!.querySelector('password-view')!
-            .dispatchEvent(new CustomEvent('password-view-page-requested', {
-              bubbles: true,
-              composed: true,
-              detail: eventDetail,
-            }));
-        await flushTasks();
-
-        assertEquals(routes.PASSWORDS, Router.getInstance().getCurrentRoute());
-        assertFalse(!!autofillSection.credential);
-      });
-
-  test('New Password Manager UI enabled', async function() {
-    // Enable new Password Manager UI.
-    loadTimeData.overrideValues({enableNewPasswordManagerPage: true});
-    Router.resetInstanceForTesting(buildRouter());
+  test('Clicking Password Manager item', async function() {
+    resetRouterForTesting();
 
     const autofillSection = createAutofillPageSection();
     assertTrue(autofillSection.$.passwordManagerButton.external);
@@ -520,17 +346,42 @@ suite('PasswordsUITest', function() {
     const param = await passwordManager.whenCalled('showPasswordManager');
     assertEquals(PasswordManagerPage.PASSWORDS, param);
   });
+});
 
-  test('New Password Manager UI disabled', async function() {
-    // Enable new Password Manager UI.
-    loadTimeData.overrideValues({enableNewPasswordManagerPage: false});
-    Router.resetInstanceForTesting(buildRouter());
 
-    const autofillSection = createAutofillPageSection();
+suite('AutofillPredictionImprovementsRedirectTest', function() {
+  let section: SettingsAutofillPredictionImprovementsSectionElement;
+  let userAnnotationsManager: TestUserAnnotationsManagerProxyImpl;
 
-    assertFalse(autofillSection.$.passwordManagerButton.external);
+  setup(async function() {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
 
-    autofillSection.$.passwordManagerButton.click();
-    assertEquals(routes.PASSWORDS, Router.getInstance().getCurrentRoute());
+    // Enable the Autofill Prediction Improvements feature so that the route is
+    // defined.
+    loadTimeData.overrideValues({
+      autofillPredictionImprovementsEnabled: true,
+    });
+
+    resetRouterForTesting();
+
+    userAnnotationsManager = new TestUserAnnotationsManagerProxyImpl();
+    UserAnnotationsManagerProxyImpl.setInstance(userAnnotationsManager);
+
+    // Simulate navigating to the AUTOFILL_PREDICTION_IMPROVEMENTS route.
+    Router.getInstance().navigateTo(routes.AUTOFILL_PREDICTION_IMPROVEMENTS);
+  });
+
+  test('Redirects to Autofill when disabled and no entries', async function() {
+    // Mock getEntries to return an empty array to simulate no entries.
+    userAnnotationsManager.setEntries([]);
+
+    section = document.createElement(
+        'settings-autofill-prediction-improvements-section');
+    section.disabled = true;
+
+    document.body.appendChild(section);
+    await flushTasks();
+
+    assertEquals(routes.AUTOFILL, Router.getInstance().getCurrentRoute());
   });
 });

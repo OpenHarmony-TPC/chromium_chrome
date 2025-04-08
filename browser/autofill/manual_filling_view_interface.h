@@ -10,7 +10,7 @@
 
 #include "base/types/strong_alias.h"
 #include "build/build_config.h"
-#include "components/autofill/core/browser/ui/accessory_sheet_enums.h"
+#include "chrome/browser/keyboard_accessory/android/accessory_sheet_enums.h"
 #include "url/gurl.h"
 
 class ManualFillingController;
@@ -29,7 +29,8 @@ class WebContents;
 class ManualFillingViewInterface {
  public:
   // Defines which item types exist.
-  // TODO(crbug.com/902425): Remove this once AccessorySheetData is used on the
+  // TODO(crbug.com/40601211): Remove this once AccessorySheetData is used on
+  // the
   //                         frontend to represent data to present.
   // GENERATED_JAVA_ENUM_PACKAGE: (
   //   org.chromium.chrome.browser.autofill.keyboard_accessory)
@@ -56,6 +57,7 @@ class ManualFillingViewInterface {
   };
 
   using WaitForKeyboard = base::StrongAlias<struct WaitForKeyboardTag, bool>;
+  using ShouldShowAction = base::StrongAlias<struct ShouldShowActionTag, bool>;
 
   virtual ~ManualFillingViewInterface() = default;
 
@@ -63,9 +65,10 @@ class ManualFillingViewInterface {
   // accessory sheet of the same type.
   virtual void OnItemsAvailable(autofill::AccessorySheetData data) = 0;
 
-  // Called when the generation action should be offered or rescinded
-  // in the keyboard accessory.
-  virtual void OnAutomaticGenerationStatusChanged(bool available) = 0;
+  // Called when a keyboard accessory action should be offered or rescinded.
+  virtual void OnAccessoryActionAvailabilityChanged(
+      ShouldShowAction shouldShowAction,
+      autofill::AccessoryAction action) = 0;
 
   // Called to inform the view that the accessory sheet should be closed now.
   virtual void CloseAccessorySheet() = 0;

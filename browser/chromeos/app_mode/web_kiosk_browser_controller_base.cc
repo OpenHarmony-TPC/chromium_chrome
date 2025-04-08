@@ -12,15 +12,16 @@
 #include "chrome/browser/ui/web_applications/web_app_ui_manager_impl.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 
-namespace ash {
+namespace chromeos {
 
 WebKioskBrowserControllerBase::WebKioskBrowserControllerBase(
     web_app::WebAppProvider& provider,
     Browser* browser,
-    web_app::AppId app_id)
+    webapps::AppId app_id)
     : AppBrowserController(browser, std::move(app_id), false),
       provider_(provider) {}
 
@@ -83,23 +84,17 @@ bool WebKioskBrowserControllerBase::IsInstalled() const {
 void WebKioskBrowserControllerBase::OnTabInserted(
     content::WebContents* contents) {
   AppBrowserController::OnTabInserted(contents);
-  web_app::SetAppPrefsForWebContents(contents);
-
-  // If a `WebContents` is inserted into an app browser (e.g. after
-  // installation), it is "appy". Note that if and when it's moved back into a
-  // tabbed browser window (e.g. via "Open in Chrome" menu item), it is still
-  // considered "appy".
-  web_app::WebAppTabHelper::FromWebContents(contents)->set_acting_as_app(true);
+  web_app::WebAppTabHelper::FromWebContents(contents)->SetIsInAppWindow(true);
 }
 
 void WebKioskBrowserControllerBase::OnTabRemoved(
     content::WebContents* contents) {
   AppBrowserController::OnTabRemoved(contents);
-  web_app::ClearAppPrefsForWebContents(contents);
+  web_app::WebAppTabHelper::FromWebContents(contents)->SetIsInAppWindow(false);
 }
 
 web_app::WebAppRegistrar& WebKioskBrowserControllerBase::registrar() const {
   return provider_->registrar_unsafe();
 }
 
-}  // namespace ash
+}  // namespace chromeos

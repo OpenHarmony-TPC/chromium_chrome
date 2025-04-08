@@ -4,8 +4,9 @@
 
 #include "chrome/browser/ui/views/file_system_access/file_system_access_usage_bubble_view.h"
 
+#include <vector>
+
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/i18n/message_formatter.h"
 #include "base/i18n/unicodestring.h"
 #include "base/memory/raw_ptr.h"
@@ -16,15 +17,17 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/file_system_access/file_system_access_ui_helpers.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
-#include "chrome/browser/ui/views/file_system_access/file_system_access_ui_helpers.h"
+#include "chrome/browser/ui/views/file_system_access/file_system_access_views_helpers.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
+#include "content/public/browser/file_system_access_permission_context.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
@@ -34,6 +37,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/paint_vector_icon.h"
@@ -127,9 +131,9 @@ int ComputeHeadingMessageFromUsage(
 // first few items, with a toggle button to expand a table below to contain the
 // full list of items.
 class CollapsibleListView : public views::View {
- public:
-  METADATA_HEADER(CollapsibleListView);
+  METADATA_HEADER(CollapsibleListView, views::View)
 
+ public:
   // How many rows to show in the expanded table without having to scroll.
   static constexpr int kExpandedTableRowCount = 3;
 
@@ -184,7 +188,7 @@ class CollapsibleListView : public views::View {
 
     std::vector<ui::TableColumn> table_columns{ui::TableColumn()};
     auto table_view = std::make_unique<views::TableView>(
-        model, std::move(table_columns), views::ICON_AND_TEXT,
+        model, std::move(table_columns), views::TableType::kIconAndText,
         /*single_selection=*/true);
     table_view->SetEnabled(false);
     int row_height = table_view->GetRowHeight();
@@ -201,6 +205,11 @@ class CollapsibleListView : public views::View {
                   std::min(table_height, kExpandedTableRowCount * row_height) +
                       inset_height));
     table_view_parent_->SetVisible(false);
+  }
+
+  void ClearModel() {
+    static_cast<views::TableView*>(table_view_parent_->contents())
+        ->SetModel(nullptr);
   }
 
   // views::View
@@ -231,7 +240,7 @@ class CollapsibleListView : public views::View {
   raw_ptr<views::ToggleImageButton> expand_collapse_button_;
 };
 
-BEGIN_METADATA(CollapsibleListView, views::View)
+BEGIN_METADATA(CollapsibleListView)
 END_METADATA
 
 }  // namespace
@@ -261,10 +270,10 @@ std::u16string FileSystemAccessUsageBubbleView::FilePathListModel::GetText(
   // user has already granted the site access to.
   if (row < files_.size()) {
     return file_system_access_ui_helper::GetPathForDisplayAsParagraph(
-        files_[row]);
+        content::PathInfo(files_[row]));
   }
   return file_system_access_ui_helper::GetPathForDisplayAsParagraph(
-      directories_[row - files_.size()]);
+      content::PathInfo(directories_[row - files_.size()]));
 }
 
 ui::ImageModel FileSystemAccessUsageBubbleView::FilePathListModel::GetIcon(
@@ -297,7 +306,7 @@ void FileSystemAccessUsageBubbleView::ShowBubble(
   base::RecordAction(
       base::UserMetricsAction("NativeFileSystemAPI.OpenedBubble"));
 
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser)
     return;
 
@@ -309,12 +318,12 @@ void FileSystemAccessUsageBubbleView::ShowBubble(
   // the readable lists.
   std::set<base::FilePath> writable_directories(
       usage.writable_directories.begin(), usage.writable_directories.end());
-  base::EraseIf(usage.readable_directories, [&](const base::FilePath& path) {
+  std::erase_if(usage.readable_directories, [&](const base::FilePath& path) {
     return base::Contains(writable_directories, path);
   });
   std::set<base::FilePath> writable_files(usage.writable_files.begin(),
                                           usage.writable_files.end());
-  base::EraseIf(usage.readable_files, [&](const base::FilePath& path) {
+  std::erase_if(usage.readable_files, [&](const base::FilePath& path) {
     return base::Contains(writable_files, path);
   });
 
@@ -346,16 +355,19 @@ FileSystemAccessUsageBubbleView::FileSystemAccessUsageBubbleView(
     content::WebContents* web_contents,
     const url::Origin& origin,
     Usage usage)
-    : LocationBarBubbleDelegateView(anchor_view, web_contents),
+    : LocationBarBubbleDelegateView(anchor_view,
+                                    web_contents,
+                                    /*autosize=*/true),
       origin_(origin),
       usage_(std::move(usage)),
       readable_paths_model_(std::move(usage_.readable_files),
                             std::move(usage_.readable_directories)),
       writable_paths_model_(std::move(usage_.writable_files),
                             std::move(usage_.writable_directories)) {
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, l10n_util::GetStringUTF16(IDS_DONE));
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
+                 l10n_util::GetStringUTF16(IDS_DONE));
   SetButtonLabel(
-      ui::DIALOG_BUTTON_CANCEL,
+      ui::mojom::DialogButton::kCancel,
       l10n_util::GetStringUTF16(IDS_FILE_SYSTEM_ACCESS_USAGE_REMOVE_ACCESS));
   SetCancelCallback(
       base::BindOnce(&FileSystemAccessUsageBubbleView::OnDialogCancelled,
@@ -364,11 +376,20 @@ FileSystemAccessUsageBubbleView::FileSystemAccessUsageBubbleView(
       views::DISTANCE_BUBBLE_PREFERRED_WIDTH));
 }
 
-FileSystemAccessUsageBubbleView::~FileSystemAccessUsageBubbleView() = default;
+FileSystemAccessUsageBubbleView::~FileSystemAccessUsageBubbleView() {
+  if (readable_collapsible_list_view_) {
+    static_cast<CollapsibleListView*>(readable_collapsible_list_view_)
+        ->ClearModel();
+  }
+  if (writable_collapsible_list_view_) {
+    static_cast<CollapsibleListView*>(writable_collapsible_list_view_)
+        ->ClearModel();
+  }
+}
 
 std::u16string FileSystemAccessUsageBubbleView::GetAccessibleWindowTitle()
     const {
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents());
+  Browser* browser = chrome::FindBrowserWithTab(web_contents());
   // Don't crash if the web_contents is destroyed/unloaded.
   if (!browser)
     return {};
@@ -425,7 +446,7 @@ void FileSystemAccessUsageBubbleView::Init() {
         label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
         AddChildView(std::move(label));
       }
-      AddChildView(
+      writable_collapsible_list_view_ = AddChildView(
           std::make_unique<CollapsibleListView>(&writable_paths_model_));
     }
 
@@ -439,7 +460,7 @@ void FileSystemAccessUsageBubbleView::Init() {
         label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
         AddChildView(std::move(label));
       }
-      AddChildView(
+      readable_collapsible_list_view_ = AddChildView(
           std::make_unique<CollapsibleListView>(&readable_paths_model_));
     }
   }
@@ -458,9 +479,7 @@ void FileSystemAccessUsageBubbleView::OnDialogCancelled() {
   if (!context)
     return;
 
-  context->RevokeGrants(
-      origin_, ChromeFileSystemAccessPermissionContext::
-                   PersistedPermissionOptions::kUpdatePersistedPermission);
+  context->RevokeGrants(origin_);
 }
 
 void FileSystemAccessUsageBubbleView::WindowClosing() {
@@ -477,8 +496,5 @@ void FileSystemAccessUsageBubbleView::CloseBubble() {
   LocationBarBubbleDelegateView::CloseBubble();
 }
 
-void FileSystemAccessUsageBubbleView::ChildPreferredSizeChanged(
-    views::View* child) {
-  LocationBarBubbleDelegateView::ChildPreferredSizeChanged(child);
-  SizeToContents();
-}
+BEGIN_METADATA(FileSystemAccessUsageBubbleView)
+END_METADATA

@@ -21,7 +21,8 @@ SubscriberCrosapi* SubscriberCrosapiFactory::GetForProfile(Profile* profile) {
 
 // static
 SubscriberCrosapiFactory* SubscriberCrosapiFactory::GetInstance() {
-  return base::Singleton<SubscriberCrosapiFactory>::get();
+  static base::NoDestructor<SubscriberCrosapiFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -37,15 +38,20 @@ SubscriberCrosapiFactory::SubscriberCrosapiFactory()
           "SubscriberCrosapi",
           ProfileSelections::Builder()
               .WithGuest(ProfileSelection::kOffTheRecordOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   // The Lacros app service proxy that will talk with the
   // the SubscriberCrosapi will be created by AppServiceProxyFactory.
   DependsOn(apps::AppServiceProxyFactory::GetInstance());
 }
 
-KeyedService* SubscriberCrosapiFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+SubscriberCrosapiFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new SubscriberCrosapi(Profile::FromBrowserContext(context));
+  return std::make_unique<SubscriberCrosapi>(
+      Profile::FromBrowserContext(context));
 }
 
 }  // namespace apps

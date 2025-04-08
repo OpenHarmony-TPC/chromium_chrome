@@ -6,12 +6,12 @@
 
 #include <functional>
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/json/json_string_value_serializer.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/strings/string_piece.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "chrome/common/printing/printer_capabilities.h"
@@ -135,7 +135,7 @@ void RecordGetCapability(base::Value::Dict& capabilities_out,
 
 // Converts JSON string to `base::Value` object.
 // On failure, fills `error` string and the return value is not a list.
-base::Value GetJSONAsValue(const base::StringPiece& json, std::string& error) {
+base::Value GetJSONAsValue(std::string_view json, std::string& error) {
   return base::Value::FromUniquePtrValue(
       JSONStringValueDeserializer(json).Deserialize(nullptr, &error));
 }
@@ -257,6 +257,11 @@ class LocalPrinterHandlerDefaultTestBase : public testing::Test {
                 /*sandboxed=*/false);
       }
 #endif  // BUILDFLAG(IS_WIN)
+
+      // Client registration is normally covered by `PrintPreviewUI`, so mimic
+      // that here.
+      service_manager_client_id_ =
+          PrintBackendServiceManager::GetInstance().RegisterQueryClient();
 #else
       NOTREACHED();
 #endif  // BUILDFLAG(ENABLE_OOP_PRINTING)
@@ -271,8 +276,10 @@ class LocalPrinterHandlerDefaultTestBase : public testing::Test {
 #if BUILDFLAG(ENABLE_OOP_PRINTING)
 
   void TearDown() override {
-#if BUILDFLAG(IS_WIN)
     if (UseService()) {
+      PrintBackendServiceManager::GetInstance().UnregisterClient(
+          service_manager_client_id_);
+#if BUILDFLAG(IS_WIN)
       service_task_runner_->DeleteSoon(
           FROM_HERE, std::move(sandboxed_print_backend_service_));
       if (SupportFallback()) {
@@ -283,8 +290,10 @@ class LocalPrinterHandlerDefaultTestBase : public testing::Test {
         data_decoder_task_runner_->DeleteSoon(FROM_HERE,
                                               std::move(data_decoder_));
       }
-    }
 #endif  // BUILDFLAG(IS_WIN)
+    } else {
+      PrintBackend::SetPrintBackendForTesting(nullptr);
+    }
 
     PrintBackendServiceManager::ResetForTesting();
   }
@@ -416,6 +425,7 @@ class LocalPrinterHandlerDefaultTestBase : public testing::Test {
   std::unique_ptr<PrintBackendServiceTestImpl> sandboxed_print_backend_service_;
   std::unique_ptr<PrintBackendServiceTestImpl>
       unsandboxed_print_backend_service_;
+  PrintBackendServiceManager::ClientId service_manager_client_id_;
 
 #if BUILDFLAG(IS_WIN)
   scoped_refptr<base::SingleThreadTaskRunner> service_task_runner_;
@@ -577,7 +587,7 @@ TEST_P(LocalPrinterHandlerDefaultTest, GetPrinters) {
   EXPECT_EQ(call_count, 1u);
   EXPECT_TRUE(is_done);
 
-  constexpr base::StringPiece expected_list = R"(
+  constexpr std::string_view expected_list = R"(
     [
       {
         "deviceName": "printer1",

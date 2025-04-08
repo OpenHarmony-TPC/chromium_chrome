@@ -11,12 +11,12 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/tab_modal_confirm_dialog.h"
+#include "chrome/browser/ui/tabs/public/tab_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/javascript_dialogs/app_modal_dialog_manager.h"
 #include "components/javascript_dialogs/tab_modal_dialog_manager.h"
 #include "components/javascript_dialogs/tab_modal_dialog_view.h"
 #include "components/navigation_metrics/navigation_metrics.h"
-#include "components/safe_browsing/buildflags.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
@@ -36,8 +36,6 @@ JavaScriptTabModalDialogManagerDelegateDesktop::
 
 void JavaScriptTabModalDialogManagerDelegateDesktop::WillRunDialog() {
   BrowserList::AddObserver(this);
-
-#if BUILDFLAG(FULL_SAFE_BROWSING)
   // SafeBrowsing Delayed Warnings experiment can delay some SafeBrowsing
   // warnings until user interaction. If the current page has a delayed warning,
   // it'll have a user interaction observer attached. Show the warning
@@ -48,7 +46,6 @@ void JavaScriptTabModalDialogManagerDelegateDesktop::WillRunDialog() {
   if (observer) {
     observer->OnJavaScriptDialog();
   }
-#endif  // BUILDFLAG(FULL_SAFE_BROWSING)
 }
 
 void JavaScriptTabModalDialogManagerDelegateDesktop::DidCloseDialog() {
@@ -57,7 +54,7 @@ void JavaScriptTabModalDialogManagerDelegateDesktop::DidCloseDialog() {
 
 void JavaScriptTabModalDialogManagerDelegateDesktop::SetTabNeedsAttention(
     bool attention) {
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents_);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents_);
   if (!browser) {
     // It's possible that the WebContents is no longer in the tab strip. If so,
     // just give up. https://crbug.com/786178
@@ -83,8 +80,13 @@ bool JavaScriptTabModalDialogManagerDelegateDesktop::IsWebContentsForemost() {
 }
 
 bool JavaScriptTabModalDialogManagerDelegateDesktop::IsApp() {
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents_);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents_);
   return browser && (browser->is_type_app() || browser->is_type_app_popup());
+}
+
+bool JavaScriptTabModalDialogManagerDelegateDesktop::CanShowModalUI() {
+  tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(web_contents_);
+  return tab && tab->CanShowModalUI();
 }
 
 void JavaScriptTabModalDialogManagerDelegateDesktop::OnBrowserSetLastActive(

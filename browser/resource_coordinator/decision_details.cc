@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/resource_coordinator/decision_details.h"
 
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -38,6 +43,7 @@ const char* kDecisionFailureReasonStrings[] = {
     "Tab is currently holding an IndexedDB lock",
     "Tab has notification permission ",
     "Tab is a web application window",
+    "Tab is displaying content in picture-in-picture",
 };
 static_assert(std::size(kDecisionFailureReasonStrings) ==
                   static_cast<size_t>(DecisionFailureReason::MAX),
@@ -69,7 +75,6 @@ void PopulateSuccessReason(
       break;
     case DecisionSuccessReason::MAX:
       NOTREACHED();
-      break;
   }
 }
 
@@ -151,9 +156,11 @@ void PopulateFailureReason(
     case DecisionFailureReason::LIVE_WEB_APP:
       ukm->SetFailureLiveWebApp(1);
       break;
+    case DecisionFailureReason::LIVE_PICTURE_IN_PICTURE:
+      ukm->SetFailureLivePictureInPicture(1);
+      break;
     case DecisionFailureReason::MAX:
       NOTREACHED();
-      break;
   }
 }
 

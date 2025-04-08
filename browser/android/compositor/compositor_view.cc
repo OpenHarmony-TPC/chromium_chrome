@@ -19,14 +19,13 @@
 #include "base/trace_event/trace_event.h"
 #include "cc/slim/layer.h"
 #include "cc/slim/solid_color_layer.h"
-#include "chrome/android/chrome_jni_headers/CompositorView_jni.h"
 #include "chrome/browser/android/compositor/layer/toolbar_layer.h"
 #include "chrome/browser/android/compositor/layer_title_cache.h"
 #include "chrome/browser/android/compositor/tab_content_manager.h"
 #include "chrome/browser/ui/android/layouts/scene_layer.h"
 #include "content/public/browser/android/compositor.h"
 #include "content/public/browser/child_process_data.h"
-#include "content/public/browser/peak_gpu_memory_tracker.h"
+#include "content/public/browser/peak_gpu_memory_tracker_factory.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/process_type.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -35,6 +34,9 @@
 #include "ui/android/window_android.h"
 #include "ui/gfx/android/java_bitmap.h"
 #include "ui/gfx/geometry/rect.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/CompositorView_jni.h"
 
 using base::android::JavaParamRef;
 
@@ -121,7 +123,7 @@ base::android::ScopedJavaLocalRef<jobject> CompositorView::GetResourceManager(
 
 void CompositorView::RecreateSurface() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  compositor_->SetSurface(nullptr, false);
+  compositor_->SetSurface(nullptr, false, nullptr);
   Java_CompositorView_recreateSurface(env, obj_);
 }
 
@@ -162,28 +164,33 @@ void CompositorView::SurfaceCreated(JNIEnv* env,
 
 void CompositorView::SurfaceDestroyed(JNIEnv* env,
                                       const JavaParamRef<jobject>& object) {
-  compositor_->SetSurface(nullptr, false);
+  compositor_->SetSurface(nullptr, false, nullptr);
   current_surface_format_ = 0;
   tab_content_manager_->OnUIResourcesWereEvicted();
 }
 
-void CompositorView::SurfaceChanged(JNIEnv* env,
-                                    const JavaParamRef<jobject>& object,
-                                    jint format,
-                                    jint width,
-                                    jint height,
-                                    bool can_be_used_with_surface_control,
-                                    const JavaParamRef<jobject>& surface) {
+std::optional<int> CompositorView::SurfaceChanged(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& object,
+    jint format,
+    jint width,
+    jint height,
+    bool can_be_used_with_surface_control,
+    const JavaParamRef<jobject>& surface,
+    const JavaParamRef<jobject>& browser_input_token) {
+  std::optional<int> surface_handle = std::nullopt;
   DCHECK(surface);
   if (current_surface_format_ != format) {
     current_surface_format_ = format;
-    compositor_->SetSurface(surface, can_be_used_with_surface_control);
+    surface_handle = compositor_->SetSurface(
+        surface, can_be_used_with_surface_control, browser_input_token);
   }
   gfx::Size size = gfx::Size(width, height);
   compositor_->SetWindowBounds(size);
   content_width_ = size.width();
   content_height_ = size.height();
   root_layer_->SetBounds(gfx::Size(content_width_, content_height_));
+  return surface_handle;
 }
 
 void CompositorView::OnPhysicalBackingSizeChanged(
@@ -230,8 +237,8 @@ void CompositorView::SetLayoutBounds(JNIEnv* env,
 }
 
 void CompositorView::SetBackground(bool visible, SkColor color) {
-  // TODO(crbug.com/770911): Set the background color on the compositor.
-  // TODO(crbug/1308932): Remove FromColor and make all SkColor4f.
+  // TODO(crbug.com/41347744): Set the background color on the compositor.
+  // TODO(crbug.com/40219248): Remove FromColor and make all SkColor4f.
   root_layer_->SetBackgroundColor(SkColor4f::FromColor(color));
   root_layer_->SetIsDrawable(visible);
 }
@@ -285,17 +292,15 @@ void CompositorView::SetSceneLayer(JNIEnv* env,
     scene_layer_ = scene_layer;
 
     if (!scene_layer) {
-      scene_layer_layer_ = nullptr;
       return;
     }
 
-    scene_layer_layer_ = scene_layer->layer();
     root_layer_->InsertChild(scene_layer->layer(), 0);
   }
 
   if (overlay_immersive_ar_mode_) {
     // Suppress the scene background's default background which breaks
-    // transparency. TODO(https://crbug.com/1002270): Remove this workaround
+    // transparency. TODO(crbug.com/40098084): Remove this workaround
     // once the issue with StaticTabSceneLayer's unexpected background is
     // resolved.
     bool should_show_background = scene_layer->ShouldShowBackground();
@@ -347,7 +352,7 @@ void CompositorView::BrowserChildProcessKilled(
           base::android::SDK_VERSION_R &&
       data.process_type == content::PROCESS_TYPE_GPU) {
     JNIEnv* env = base::android::AttachCurrentThread();
-    compositor_->SetSurface(nullptr, false);
+    compositor_->SetSurface(nullptr, false, nullptr);
     Java_CompositorView_recreateSurface(env, obj_);
   }
 }
@@ -379,12 +384,12 @@ void CompositorView::OnTabChanged(
   if (!compositor_) {
     return;
   }
-  std::unique_ptr<content::PeakGpuMemoryTracker> tracker =
-      content::PeakGpuMemoryTracker::Create(
-          content::PeakGpuMemoryTracker::Usage::CHANGE_TAB);
+  std::unique_ptr<input::PeakGpuMemoryTracker> tracker =
+      content::PeakGpuMemoryTrackerFactory::Create(
+          input::PeakGpuMemoryTracker::Usage::CHANGE_TAB);
   compositor_->RequestSuccessfulPresentationTimeForNextFrame(base::BindOnce(
-      [](std::unique_ptr<content::PeakGpuMemoryTracker> tracker,
-         base::TimeTicks presentation_timestamp) {
+      [](std::unique_ptr<input::PeakGpuMemoryTracker> tracker,
+         const viz::FrameTimingDetails& frame_timing_details) {
         // This callback will be ran once the content::Compositor presents the
         // next frame. The destruction of |tracker| will get the peak GPU memory
         // and record a histogram.

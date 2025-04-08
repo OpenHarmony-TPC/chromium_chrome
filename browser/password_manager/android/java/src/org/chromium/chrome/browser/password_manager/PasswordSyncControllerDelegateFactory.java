@@ -9,13 +9,14 @@ import static org.chromium.base.ThreadUtils.assertOnUiThread;
 import android.content.Context;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.ResettersForTesting;
+import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.chrome.browser.password_manager.PasswordStoreAndroidBackend.BackendException;
 
 /**
- * This factory returns an implementation for the {@link PasswordSyncControllerDelegate}.
- * The factory itself is implemented downstream, too.
+ * This factory returns an implementation for the {@link PasswordSyncControllerDelegate}. The
+ * factory itself is implemented downstream, too.
  */
 public abstract class PasswordSyncControllerDelegateFactory {
     private static PasswordSyncControllerDelegateFactory sInstance;
@@ -28,7 +29,12 @@ public abstract class PasswordSyncControllerDelegateFactory {
      */
     public static PasswordSyncControllerDelegateFactory getInstance() {
         assertOnUiThread();
-        if (sInstance == null) sInstance = new PasswordSyncControllerDelegateFactoryImpl();
+        if (sInstance == null) {
+            sInstance = ServiceLoaderUtil.maybeCreate(PasswordSyncControllerDelegateFactory.class);
+        }
+        if (sInstance == null) {
+            sInstance = new PasswordSyncControllerDelegateFactoryUpstreamImpl();
+        }
         return sInstance;
     }
 
@@ -51,13 +57,15 @@ public abstract class PasswordSyncControllerDelegateFactory {
      */
     protected PasswordSyncControllerDelegate doCreateDelegate(Context context)
             throws BackendException {
-        throw new BackendException("Downstream implementation is not present.",
+        throw new BackendException(
+                "Downstream implementation is not present.",
                 AndroidBackendErrorType.BACKEND_NOT_AVAILABLE);
     }
 
-    @VisibleForTesting
     public static void setFactoryInstanceForTesting(
             @Nullable PasswordSyncControllerDelegateFactory factory) {
+        var oldValue = sInstance;
         sInstance = factory;
+        ResettersForTesting.register(() -> sInstance = oldValue);
     }
 }

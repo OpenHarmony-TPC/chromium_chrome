@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ash/extensions/extensions_permissions_tracker.h"
 
 #include "base/memory/raw_ptr.h"
@@ -16,7 +21,6 @@
 #include "extensions/browser/pref_names.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/permissions/permissions_data.h"
-#include "extensions/common/value_builder.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -105,7 +109,7 @@ class ExtensionsPermissionsTrackerTest : public testing::Test {
       const std::vector<std::string>& permissions) {
     auto extension = ExtensionBuilder(extension_id)
                          .SetID(extension_id)
-                         .AddPermissions(permissions)
+                         .AddAPIPermissions(permissions)
                          .Build();
     registry_->AddEnabled(extension);
 
@@ -115,8 +119,8 @@ class ExtensionsPermissionsTrackerTest : public testing::Test {
  protected:
   content::BrowserTaskEnvironment task_environment_;
   TestingProfile profile_;
-  raw_ptr<sync_preferences::TestingPrefServiceSyncable, ExperimentalAsh> prefs_;
-  raw_ptr<ExtensionRegistry, ExperimentalAsh> registry_;
+  raw_ptr<sync_preferences::TestingPrefServiceSyncable> prefs_;
+  raw_ptr<ExtensionRegistry> registry_;
   ScopedTestingLocalState testing_local_state_;
   std::unique_ptr<MockExtensionsPermissionsTracker> permissions_tracker_;
 };

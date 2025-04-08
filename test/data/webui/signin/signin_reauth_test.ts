@@ -5,11 +5,11 @@
 import 'chrome://signin-reauth/signin_reauth_app.js';
 
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {SigninReauthAppElement} from 'chrome://signin-reauth/signin_reauth_app.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {SigninReauthAppElement} from 'chrome://signin-reauth/signin_reauth_app.js';
 import {SigninReauthBrowserProxyImpl} from 'chrome://signin-reauth/signin_reauth_browser_proxy.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {isVisible} from 'chrome://webui-test/test_util.js';
+import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestSigninReauthBrowserProxy} from './test_signin_reauth_browser_proxy.js';
 
@@ -37,7 +37,7 @@ suite('SigninReauthTest', function() {
   test('LoadPage', function() {
     assertDefaultLocale();
     assertEquals(
-        'Use your Google Account to save and fill passwords?',
+        loadTimeData.getString('signinReauthTitle'),
         app.$.signinReauthTitle.textContent!.trim());
   });
 
@@ -55,14 +55,14 @@ suite('SigninReauthTest', function() {
     await browserProxy.whenCalled('initialize');
     assertFalse(isVisible(app.$.confirmButton));
     assertFalse(isVisible(app.$.cancelButton));
-    assertTrue(isVisible(app.shadowRoot!.querySelector('paper-spinner-lite')));
+    assertTrue(!!app.shadowRoot!.querySelector('.spinner'));
 
     webUIListenerCallback('reauth-type-determined');
-    flush();
+    await microtasksFinished();
 
     assertTrue(isVisible(app.$.confirmButton));
     assertTrue(isVisible(app.$.cancelButton));
-    assertFalse(isVisible(app.shadowRoot!.querySelector('paper-spinner-lite')));
+    assertFalse(!!app.shadowRoot!.querySelector('.spinner'));
 
     assertDefaultLocale();
     assertEquals('Yes', app.$.confirmButton.textContent!.trim());

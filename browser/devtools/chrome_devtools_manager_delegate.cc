@@ -10,9 +10,12 @@
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
+#include "base/not_fatal_until.h"
+#include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "cef/libcef/features/features.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/devtools/chrome_devtools_session.h"
 #include "chrome/browser/devtools/device/android_device_manager.h"
@@ -24,6 +27,7 @@
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/policy/developer_tools_policy_handler.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
+#include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_navigator.h"
@@ -31,6 +35,7 @@
 #include "chrome/browser/ui/tab_contents/tab_contents_iterator.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
+#include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_switches.h"
@@ -49,13 +54,24 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/process_manager.h"
 #include "extensions/browser/view_type_utils.h"
-#include "extensions/common/constants.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/mojom/view_type.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/gfx/switches.h"
+#include "ui/views/controls/webview/webview.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/constants/chromeos_features.h"
+#include "chromeos/constants/pref_names.h"
+#include "components/prefs/pref_service.h"
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "ash/constants/ash_switches.h"
+#endif
+
+#if BUILDFLAG(ENABLE_CEF)
+#include "cef/libcef/browser/chrome/extensions/chrome_extension_util.h"
 #endif
 
 using content::DevToolsAgentHost;
@@ -66,6 +82,38 @@ const char ChromeDevToolsManagerDelegate::kTypeBackgroundPage[] =
 const char ChromeDevToolsManagerDelegate::kTypePage[] = "page";
 
 namespace {
+
+std::optional<std::string> GetIsolatedWebAppNameAndVersion(
+    content::WebContents* web_contents) {
+  const webapps::AppId* app_id =
+      web_app::WebAppTabHelper::GetAppId(web_contents);
+  if (!app_id) {
+    return std::nullopt;
+  }
+  const web_app::WebAppProvider* provider =
+      web_app::WebAppProvider::GetForWebContents(web_contents);
+  if (!provider) {
+    return std::nullopt;
+  }
+  // In this case we will not modify any data and reading stale data is
+  // fine, since the app will already be installed and open in the case
+  // it needs to be checked in DevTools.
+  const web_app::WebAppRegistrar& registrar = provider->registrar_unsafe();
+  const web_app::WebApp* web_app = registrar.GetAppById(*app_id);
+
+  if (web_app && registrar.IsIsolated(*app_id)) {
+    // Version is a key part of IWA so should be displayed in inspect tool
+    return base::StrCat({registrar.GetAppShortName(*app_id), " (",
+                         web_app->isolation_data()->version().GetString(),
+                         ")"});
+  }
+
+  return std::nullopt;
+}
+
+bool IsIsolatedWebApp(content::WebContents* web_contents) {
+  return GetIsolatedWebAppNameAndVersion(web_contents).has_value();
+}
 
 bool GetExtensionInfo(content::WebContents* wc,
                       std::string* name,
@@ -95,14 +143,38 @@ bool GetExtensionInfo(content::WebContents* wc,
 
   auto view_type = extensions::GetViewType(wc);
   if (view_type == extensions::mojom::ViewType::kExtensionPopup ||
-      view_type == extensions::mojom::ViewType::kExtensionSidePanel) {
+      view_type == extensions::mojom::ViewType::kExtensionSidePanel ||
+      view_type == extensions::mojom::ViewType::kOffscreenDocument) {
     // Note that we are intentionally not setting name here, so that we can
     // construct a name based on the URL or page title in
     // RenderFrameDevToolsAgentHost::GetTitle()
     *type = ChromeDevToolsManagerDelegate::kTypePage;
     return true;
   }
-  return false;
+
+  // Set type to other for extensions if not matched previously.
+  *type = DevToolsAgentHost::kTypeOther;
+  return true;
+}
+
+policy::DeveloperToolsPolicyHandler::Availability GetDevToolsAvailability(
+    Profile* profile) {
+  using Availability = policy::DeveloperToolsPolicyHandler::Availability;
+  Availability availability =
+      policy::DeveloperToolsPolicyHandler::GetEffectiveAvailability(profile);
+#if BUILDFLAG(IS_CHROMEOS)
+  // On ChromeOS disable dev tools for captive portal signin windows to prevent
+  // them from being used for general navigation.
+  if (availability != Availability::kDisallowed) {
+    const PrefService::Preference* const captive_portal_pref =
+        profile->GetPrefs()->FindPreference(
+            chromeos::prefs::kCaptivePortalSignin);
+    if (captive_portal_pref && captive_portal_pref->GetValue()->GetBool()) {
+      availability = Availability::kDisallowed;
+    }
+  }
+#endif
+  return availability;
 }
 
 ChromeDevToolsManagerDelegate* g_instance;
@@ -124,7 +196,8 @@ ChromeDevToolsManagerDelegate::ChromeDevToolsManagerDelegate() {
   // manager daemon. The extra keep alive is not needed and makes ChromeOS
   // not able to shutdown chrome properly. See https://crbug.com/1174627.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kNoStartupWindow) &&
+  if ((command_line->HasSwitch(switches::kNoStartupWindow) ||
+       command_line->HasSwitch(switches::kHeadless)) &&
       (command_line->HasSwitch(switches::kRemoteDebuggingPipe) ||
        command_line->HasSwitch(switches::kRemoteDebuggingPort))) {
     // If running without a startup window with remote debugging,
@@ -133,6 +206,18 @@ ChromeDevToolsManagerDelegate::ChromeDevToolsManagerDelegate() {
     // protocol.
     keep_alive_ = std::make_unique<ScopedKeepAlive>(
         KeepAliveOrigin::REMOTE_DEBUGGING, KeepAliveRestartOption::DISABLED);
+
+    // Also keep the initial profile alive so that TargetHandler::CreateTarget()
+    // can retrieve it without risking disk access even when all pages are
+    // closed. Keep-a-living the very first loaded profile looks like a
+    // reasonable option.
+    if (Profile* profile = ProfileManager::GetLastUsedProfile()) {
+      if (profile->IsOffTheRecord()) {
+        profile = profile->GetOriginalProfile();
+      }
+      profile_keep_alive_ = std::make_unique<ScopedProfileKeepAlive>(
+          profile, ProfileKeepAliveOrigin::kRemoteDebugging);
+    }
   }
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
 }
@@ -144,7 +229,30 @@ ChromeDevToolsManagerDelegate::~ChromeDevToolsManagerDelegate() {
 
 void ChromeDevToolsManagerDelegate::Inspect(
     content::DevToolsAgentHost* agent_host) {
-  DevToolsWindow::OpenDevToolsWindow(agent_host, nullptr);
+  DevToolsWindow::OpenDevToolsWindow(agent_host, nullptr,
+                                     DevToolsOpenedByAction::kInspectLink);
+}
+
+void ChromeDevToolsManagerDelegate::Activate(
+    content::DevToolsAgentHost* agent_host) {
+  auto* web_contents = agent_host->GetWebContents();
+  if (!web_contents) {
+    return;
+  }
+
+  // Brings the tab to foreground. We need to do this in case the devtools
+  // window is undocked and this is being called from another tab that is in
+  // the foreground.
+  web_contents->GetDelegate()->ActivateContents(web_contents);
+
+  // Brings a undocked devtools window to the foreground.
+  DevToolsWindow* devtools_window =
+      DevToolsWindow::GetInstanceForInspectedWebContents(
+          agent_host->GetWebContents());
+  if (!devtools_window) {
+    return;
+  }
+  devtools_window->ActivateWindow();
 }
 
 void ChromeDevToolsManagerDelegate::HandleCommand(
@@ -157,29 +265,50 @@ void ChromeDevToolsManagerDelegate::HandleCommand(
     // This should not happen, but happens. NOTREACHED tries to get
     // a repro in some test.
     NOTREACHED();
-    return;
   }
   it->second->HandleCommand(message, std::move(callback));
 }
 
 std::string ChromeDevToolsManagerDelegate::GetTargetType(
     content::WebContents* web_contents) {
+  if (IsIsolatedWebApp(web_contents)) {
+    return ChromeDevToolsManagerDelegate::kTypeApp;
+  }
+
   if (base::Contains(AllTabContentses(), web_contents))
     return DevToolsAgentHost::kTypePage;
 
   std::string extension_name;
   std::string extension_type;
-  if (!GetExtensionInfo(web_contents, &extension_name, &extension_type))
-    return DevToolsAgentHost::kTypeOther;
-  return extension_type;
+  if (GetExtensionInfo(web_contents, &extension_name, &extension_type)) {
+    return extension_type;
+  }
+
+  if (views::WebView::IsWebViewContents(web_contents)) {
+    return DevToolsAgentHost::kTypePage;
+  }
+
+#if BUILDFLAG(ENABLE_CEF)
+  if (cef::IsAlloyContents(web_contents, /*primary_only=*/true)) {
+    return DevToolsAgentHost::kTypePage;
+  }
+#endif
+
+  return DevToolsAgentHost::kTypeOther;
 }
 
 std::string ChromeDevToolsManagerDelegate::GetTargetTitle(
     content::WebContents* web_contents) {
+  if (auto iwa_name_version = GetIsolatedWebAppNameAndVersion(web_contents)) {
+    return *iwa_name_version;
+  }
+
   std::string extension_name;
   std::string extension_type;
-  if (!GetExtensionInfo(web_contents, &extension_name, &extension_type))
+  if (!GetExtensionInfo(web_contents, &extension_name, &extension_type)) {
     return std::string();
+  }
+
   return extension_name;
 }
 
@@ -197,7 +326,7 @@ bool ChromeDevToolsManagerDelegate::AllowInspectingRenderFrameHost(
 
   if (auto* web_app_provider =
           web_app::WebAppProvider::GetForWebApps(profile)) {
-    absl::optional<web_app::AppId> app_id =
+    std::optional<webapps::AppId> app_id =
         web_app_provider->registrar_unsafe().FindAppWithUrlInScope(
             rfh->GetMainFrame()->GetLastCommittedURL());
     if (app_id) {
@@ -224,7 +353,7 @@ bool ChromeDevToolsManagerDelegate::AllowInspection(
       return AllowInspection(profile, extension);
     }
 
-    const web_app::AppId* app_id =
+    const webapps::AppId* app_id =
         web_app::WebAppTabHelper::GetAppId(web_contents);
     auto* web_app_provider =
         web_app::WebAppProvider::GetForWebContents(web_contents);
@@ -243,8 +372,14 @@ bool ChromeDevToolsManagerDelegate::AllowInspection(
     Profile* profile,
     const extensions::Extension* extension) {
   using Availability = policy::DeveloperToolsPolicyHandler::Availability;
-  Availability availability =
-      policy::DeveloperToolsPolicyHandler::GetEffectiveAvailability(profile);
+  Availability availability;
+  if (extension) {
+    availability =
+        policy::DeveloperToolsPolicyHandler::GetEffectiveAvailability(profile);
+  } else {
+    // Perform additional checks for browser windows (extension == null).
+    availability = GetDevToolsAvailability(profile);
+  }
   switch (availability) {
     case Availability::kDisallowed:
       return false;
@@ -261,23 +396,11 @@ bool ChromeDevToolsManagerDelegate::AllowInspection(
       // profiles.
       if (extensions::Manifest::IsComponentLocation(extension->location()) &&
           profile->GetProfilePolicyConnector()->IsManaged()) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-        // This is an ugly carve out, but Tast tests for ChromeOS require the
-        // ability inspect these specific component extensions in order to run.
-        // TODO(crbug.com/1439649): Remove both of these extension ID based
-        // exceptions after modifying the Tast tests to always allow inspecting
-        // extensions.
-        if (extension->id() == extension_misc::kGuestModeTestExtensionId ||
-            extension->id() == extension_misc::kChromeOSXKB) {
-          return true;
-        }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
         return false;
       }
       return true;
     default:
       NOTREACHED() << "Unknown developer tools policy";
-      return true;
   }
 }
 
@@ -293,11 +416,19 @@ bool ChromeDevToolsManagerDelegate::AllowInspection(
       return false;
     case Availability::kAllowed:
       return true;
-    case Availability::kDisallowedForForceInstalledExtensions:
-      return !web_app || !web_app->IsKioskInstalledApp();
+    case Availability::kDisallowedForForceInstalledExtensions: {
+      if (!web_app) {
+        return true;
+      }
+      // DevTools should be blocked for Kiosk apps and policy-installed IWAs.
+      if (web_app->IsKioskInstalledApp() ||
+          web_app->IsIwaPolicyInstalledApp()) {
+        return false;
+      }
+      return true;
+    }
     default:
       NOTREACHED() << "Unknown developer tools policy";
-      return true;
   }
 }
 
@@ -314,17 +445,18 @@ void ChromeDevToolsManagerDelegate::ClientDetached(
 
 scoped_refptr<DevToolsAgentHost> ChromeDevToolsManagerDelegate::CreateNewTarget(
     const GURL& url,
-    bool for_tab) {
+    DevToolsManagerDelegate::TargetType target_type) {
   NavigateParams params(ProfileManager::GetLastUsedProfile(), url,
                         ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
   Navigate(&params);
   if (!params.navigated_or_inserted_contents)
     return nullptr;
-  return for_tab ? DevToolsAgentHost::GetOrCreateForTab(
-                       params.navigated_or_inserted_contents)
-                 : DevToolsAgentHost::GetOrCreateFor(
-                       params.navigated_or_inserted_contents);
+  return target_type == DevToolsManagerDelegate::kTab
+             ? DevToolsAgentHost::GetOrCreateForTab(
+                   params.navigated_or_inserted_contents)
+             : DevToolsAgentHost::GetOrCreateFor(
+                   params.navigated_or_inserted_contents);
 }
 
 std::vector<content::BrowserContext*>
@@ -380,7 +512,7 @@ void ChromeDevToolsManagerDelegate::UpdateDeviceDiscovery() {
     auto it1 = remote_locations.begin();
     auto it2 = remote_locations_.begin();
     while (it1 != remote_locations.end()) {
-      DCHECK(it2 != remote_locations_.end());
+      CHECK(it2 != remote_locations_.end(), base::NotFatalUntil::M130);
       if (!(*it1).Equals(*it2))
         equals = false;
       ++it1;
@@ -423,11 +555,16 @@ void ChromeDevToolsManagerDelegate::ResetAndroidDeviceManagerForTesting() {
 void ChromeDevToolsManagerDelegate::CloseBrowserSoon() {
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE, base::BindOnce([]() {
-        if (GetInstance()) {
-          // Do not keep the application running anymore, we got an explicit
-          // request to close.
-          GetInstance()->keep_alive_.reset();
-        }
+        // Do not keep the application running anymore, we got an explicit
+        // request to close.
+        AllowBrowserToClose();
         chrome::ExitIgnoreUnloadHandlers();
       }));
+}
+
+// static
+void ChromeDevToolsManagerDelegate::AllowBrowserToClose() {
+  if (auto* instance = GetInstance()) {
+    instance->keep_alive_.reset();
+  }
 }

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/privacy_budget/privacy_budget_browsertest_util.h"
+#include "base/memory/raw_ptr.h"
 
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/test/base/chrome_test_utils.h"
@@ -47,12 +48,12 @@ PrivacyBudgetBrowserTestBaseWithTestRecorder::GetReportedSurfaceKeys(
 
 int PrivacyBudgetBrowserTestBaseWithTestRecorder::GetSurfaceKeyCount(
     uint64_t expected_key) {
-  std::vector<const ukm::mojom::UkmEntry*> entries =
+  std::vector<raw_ptr<const ukm::mojom::UkmEntry, VectorExperimental>> entries =
       ukm_recorder_->GetEntriesByName(
           ukm::builders::Identifiability::kEntryName);
 
   int count = 0;
-  for (const auto* entry : entries) {
+  for (const ukm::mojom::UkmEntry* entry : entries) {
     for (const auto& metric : entry->metrics) {
       if (expected_key == metric.first)
         count++;
@@ -126,6 +127,11 @@ bool PrivacyBudgetBrowserTestBaseWithUkmRecording::DisableUkmRecording() {
   g_browser_process->GetMetricsServicesManager()->UpdateUploadPermissions(true);
   ChromeMetricsServiceAccessor::SetMetricsAndCrashReportingForTesting(nullptr);
   return !ukm::UkmTestHelper(ukm_service()).IsRecordingEnabled();
+}
+
+content::WebContents*
+PrivacyBudgetBrowserTestBaseWithUkmRecording::web_contents() {
+  return chrome_test_utils::GetActiveWebContents(this);
 }
 
 void PrivacyBudgetBrowserTestBaseWithUkmRecording::TearDown() {

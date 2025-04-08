@@ -6,11 +6,15 @@
 
 #include <memory>
 #include <set>
+#include <string_view>
 
+#include "ash/constants/ash_features.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_base.h"
 #include "base/path_service.h"
-#include "base/strings/string_piece.h"
+#include "base/strings/strcat.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/ash/login/login_wizard.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
@@ -20,10 +24,10 @@
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/oobe_screen_exit_waiter.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/webui/ash/login/assistant_optin_flow_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/oobe_ui.h"
@@ -67,10 +71,26 @@ constexpr char kValueProp[] = "valueProp";
 constexpr char kRelatedInfo[] = "relatedInfo";
 constexpr char kVoiceMatch[] = "voiceMatch";
 
+constexpr char kSettingsZippyTitle[] = "Settings-Zippy-Title";
+constexpr char kSettingsZippyDescription[] = "Settings-Zippy-Description";
+constexpr char kSettingsZippyAdditionalInfo[] =
+    "Settings-Zippy-Additional-Info";
+constexpr char kSettingsZippyLearnMoreLink[] = "Learn more";
+
+// &ensp;
+constexpr char kEnsp[] = "\xe2\x80\x82";
+
 const test::UIPath kAssistantLoading = {kAssistantOptInId,
                                         kAssistantOptInFlowCard, kLoading};
 const test::UIPath kLoadingRetryButton = {
     kAssistantOptInId, kAssistantOptInFlowCard, kLoading, "retry-button"};
+const test::UIPath kSettingsZippyTitleFirst = {
+    kAssistantOptInId, kAssistantOptInFlowCard, kValueProp, "title-0"};
+const test::UIPath kSettingsZippyDescriptionFirst = {
+    kAssistantOptInId, kAssistantOptInFlowCard, kValueProp, "description-0"};
+const test::UIPath kSettingsZippyAdditionalInfoFirst = {
+    kAssistantOptInId, kAssistantOptInFlowCard, kValueProp,
+    "additional-info-0"};
 
 const test::UIPath kAssistantValueProp = {kAssistantOptInId,
                                           kAssistantOptInFlowCard, kValueProp};
@@ -250,11 +270,11 @@ class ScopedAssistantSettings : public assistant::AssistantSettings {
     activity_control_ui->add_footer_paragraph();
     activity_control_ui->set_footer_paragraph(0, "A footer");
     auto* setting = activity_control_ui->add_setting_zippy();
-    setting->set_title("Cool feature");
+    setting->set_title(kSettingsZippyTitle);
     setting->add_description_paragraph();
-    setting->set_description_paragraph(0, "But needs consent");
+    setting->set_description_paragraph(0, kSettingsZippyDescription);
     setting->add_additional_info_paragraph();
-    setting->set_additional_info_paragraph(0, "And it's really cool");
+    setting->set_additional_info_paragraph(0, kSettingsZippyAdditionalInfo);
     setting->set_icon_uri("assistant_icon");
     setting->set_setting_set_id(assistant::SettingSetId::WAA);
   }
@@ -332,14 +352,14 @@ class ScopedAssistantSettings : public assistant::AssistantSettings {
   bool is_minor_user_ = false;
 };
 
-class AssistantOptInFlowTest : public OobeBaseTest {
+class AssistantOptInFlowBaseTest : public OobeBaseTest {
  public:
-  AssistantOptInFlowTest() = default;
-  ~AssistantOptInFlowTest() override = default;
+  AssistantOptInFlowBaseTest() = default;
+  ~AssistantOptInFlowBaseTest() override = default;
 
   void RegisterAdditionalRequestHandlers() override {
     embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
-        &AssistantOptInFlowTest::HandleRequest, base::Unretained(this)));
+        &AssistantOptInFlowBaseTest::HandleRequest, base::Unretained(this)));
   }
 
   void SetUpOnMainThread() override {
@@ -352,7 +372,7 @@ class AssistantOptInFlowTest : public OobeBaseTest {
     original_callback_ =
         assistant_optin_flow_screen->get_exit_callback_for_testing();
     assistant_optin_flow_screen->set_exit_callback_for_testing(
-        base::BindRepeating(&AssistantOptInFlowTest::HandleScreenExit,
+        base::BindRepeating(&AssistantOptInFlowBaseTest::HandleScreenExit,
                             base::Unretained(this)));
   }
 
@@ -390,18 +410,18 @@ class AssistantOptInFlowTest : public OobeBaseTest {
 
   // Waits for the button specified by IDs in `button_path` to become enabled,
   // and then taps it.
-  void TapWhenEnabled(std::initializer_list<base::StringPiece> button_path) {
+  void TapWhenEnabled(std::initializer_list<std::string_view> button_path) {
     test::OobeJS().CreateEnabledWaiter(true, button_path)->Wait();
     test::OobeJS().TapOnPath(button_path);
   }
 
-  bool ElementHasAttribute(std::initializer_list<base::StringPiece> element,
+  bool ElementHasAttribute(std::initializer_list<std::string_view> element,
                            const std::string& attribute) {
     return test::OobeJS().GetBool(test::GetOobeElementPath(element) +
                                   ".getAttribute('" + attribute + "')");
   }
 
-  void WaitForElementAttribute(std::initializer_list<base::StringPiece> element,
+  void WaitForElementAttribute(std::initializer_list<std::string_view> element,
                                const std::string& attribute) {
     test::OobeJS()
         .CreateWaiter(test::GetOobeElementPath(element) + ".getAttribute('" +
@@ -425,14 +445,13 @@ class AssistantOptInFlowTest : public OobeBaseTest {
 
   std::unique_ptr<ScopedAssistantSettings> assistant_settings_;
 
-  absl::optional<AssistantOptInFlowScreen::Result> screen_result_;
+  std::optional<AssistantOptInFlowScreen::Result> screen_result_;
   base::HistogramTester histogram_tester_;
 
   // If set, HandleRequest will return an error for the next value prop URL
   // request..
   bool fail_next_value_prop_url_request_ = false;
 
- protected:
   base::test::ScopedFeatureList scoped_feature_list_;
 
  private:
@@ -464,6 +483,15 @@ class AssistantOptInFlowTest : public OobeBaseTest {
   AssistantOptInFlowScreen::ScreenExitCallback original_callback_;
 
   LoginManagerMixin login_manager_{&mixin_host_};
+};
+
+class AssistantOptInFlowTest : public AssistantOptInFlowBaseTest {
+ public:
+  AssistantOptInFlowTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        ash::features::kOobeSkipAssistant);
+  }
+  ~AssistantOptInFlowTest() override = default;
 };
 
 IN_PROC_BROWSER_TEST_F(AssistantOptInFlowTest, Basic) {
@@ -573,7 +601,9 @@ IN_PROC_BROWSER_TEST_F(AssistantOptInFlowTest, AssistantStateUpdateAfterShow) {
                                      1);
 }
 
-IN_PROC_BROWSER_TEST_F(AssistantOptInFlowTest, RetryOnWebviewLoadFail) {
+// TODO(crbug.com/41486294): Flaky on ChromeOS.
+IN_PROC_BROWSER_TEST_F(AssistantOptInFlowTest,
+                       DISABLED_RetryOnWebviewLoadFail) {
   auto force_lib_assistant_enabled =
       AssistantOptInFlowScreen::ForceLibAssistantEnabledForTesting(true);
   SetUpAssistantScreensForTest();
@@ -642,7 +672,13 @@ IN_PROC_BROWSER_TEST_F(AssistantOptInFlowTest, RejectValueProp) {
                                      1);
 }
 
-IN_PROC_BROWSER_TEST_F(AssistantOptInFlowTest, SkipShowingValueProp) {
+// TODO(crbug.com/40917081): Flaky on ChromeOS.
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_SkipShowingValueProp DISABLED_SkipShowingValueProp
+#else
+#define MAYBE_SkipShowingValueProp SkipShowingValueProp
+#endif
+IN_PROC_BROWSER_TEST_F(AssistantOptInFlowTest, MAYBE_SkipShowingValueProp) {
   auto force_lib_assistant_enabled =
       AssistantOptInFlowScreen::ForceLibAssistantEnabledForTesting(true);
   assistant_settings_->set_consent_ui_flags(
@@ -978,6 +1014,14 @@ IN_PROC_BROWSER_TEST_F(AssistantOptInFlowMinorModeTest,
   test::OobeJS().CreateVisibilityWaiter(true, kAssistantValueProp)->Wait();
   EXPECT_FALSE(
       test::OobeJS().GetAttributeBool("inverse", kValuePropNextButton));
+  test::OobeJS().ExpectElementText(kSettingsZippyTitle,
+                                   kSettingsZippyTitleFirst);
+  test::OobeJS().ExpectElementText(
+      base::StrCat(
+          {kSettingsZippyDescription, kEnsp, kSettingsZippyLearnMoreLink}),
+      kSettingsZippyDescriptionFirst);
+  test::OobeJS().ExpectElementText(kSettingsZippyAdditionalInfo,
+                                   kSettingsZippyAdditionalInfoFirst);
   TapWhenEnabled(kValuePropNextButton);
   EXPECT_FALSE(
       test::OobeJS().GetAttributeBool("inverse", kValuePropNextButton));
@@ -1110,6 +1154,31 @@ IN_PROC_BROWSER_TEST_F(AssistantOptInFlowMinorModeTest,
   histogram_tester_.ExpectTotalCount(kAssistantOptInScreenExitReason, 1);
   histogram_tester_.ExpectTotalCount(kAssistantOptInScreenStepCompletionTime,
                                      1);
+}
+
+class AssistantOptInFlowSkipFeatureTest : public AssistantOptInFlowBaseTest {
+ public:
+  AssistantOptInFlowSkipFeatureTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        ash::features::kOobeSkipAssistant);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(AssistantOptInFlowSkipFeatureTest, AssistantSkipped) {
+  AssistantState::Get()->NotifyStatusChanged(assistant::AssistantStatus::READY);
+  ShowAssistantOptInFlowScreen();
+  WaitForScreenExit();
+  EXPECT_EQ(screen_result_.value(),
+            AssistantOptInFlowScreen::Result::NOT_APPLICABLE);
+
+  ExpectCollectedOptIns({});
+  histogram_tester_.ExpectTotalCount(kAssistantOptInScreenExitReason, 0);
+  histogram_tester_.ExpectTotalCount(kAssistantOptInScreenStepCompletionTime,
+                                     0);
+
+  PrefService* const prefs = ProfileManager::GetActiveUserProfile()->GetPrefs();
+  EXPECT_FALSE(prefs->GetBoolean(assistant::prefs::kAssistantHotwordEnabled));
+  EXPECT_FALSE(prefs->GetBoolean(assistant::prefs::kAssistantContextEnabled));
 }
 
 }  // namespace

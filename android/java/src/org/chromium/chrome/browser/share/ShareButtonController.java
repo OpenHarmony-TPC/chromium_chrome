@@ -18,7 +18,7 @@ import org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.toolbar.BaseButtonDataProvider;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
-import org.chromium.chrome.browser.user_education.IPHCommandBuilder;
+import org.chromium.chrome.browser.user_education.IphCommandBuilder;
 import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter.HighlightParams;
 import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter.HighlightShape;
 import org.chromium.components.feature_engagement.EventConstants;
@@ -52,15 +52,26 @@ public class ShareButtonController extends BaseButtonDataProvider {
      *                        does not actually handle sharing, but can provide supplemental
      *                        functionality when the share button is pressed.
      */
-    public ShareButtonController(Context context, Drawable buttonDrawable,
+    public ShareButtonController(
+            Context context,
+            Drawable buttonDrawable,
             ActivityTabProvider tabProvider,
             ObservableSupplier<ShareDelegate> shareDelegateSupplier,
-            Supplier<Tracker> trackerSupplier, ShareUtils shareUtils,
-            ModalDialogManager modalDialogManager, Runnable onShareRunnable) {
-        super(tabProvider, modalDialogManager, buttonDrawable, context.getString(R.string.share),
+            Supplier<Tracker> trackerSupplier,
+            ShareUtils shareUtils,
+            ModalDialogManager modalDialogManager,
+            Runnable onShareRunnable) {
+        super(
+                tabProvider,
+                modalDialogManager,
+                buttonDrawable,
+                context.getString(R.string.share),
                 /* actionChipLabelResId= */ Resources.ID_NULL,
-                /*supportsTinting=*/true,
-                /*iphCommandBuilder=*/null, AdaptiveToolbarButtonVariant.SHARE);
+                /* supportsTinting= */ true,
+                /* iphCommandBuilder= */ null,
+                AdaptiveToolbarButtonVariant.SHARE,
+                /* tooltipTextResId= */ R.string.adaptive_toolbar_button_preference_share,
+                /* showHoverHighlight= */ true);
 
         mShareUtils = shareUtils;
         mShareDelegateSupplier = shareDelegateSupplier;
@@ -71,8 +82,8 @@ public class ShareButtonController extends BaseButtonDataProvider {
     @Override
     public void onClick(View view) {
         ShareDelegate shareDelegate = mShareDelegateSupplier.get();
-        assert shareDelegate
-                != null : "Share delegate became null after share button was displayed";
+        assert shareDelegate != null
+                : "Share delegate became null after share button was displayed";
         if (shareDelegate == null) return;
         Tab tab = mActiveTabSupplier.get();
         assert tab != null : "Tab became null after share button was displayed";
@@ -80,14 +91,16 @@ public class ShareButtonController extends BaseButtonDataProvider {
         if (mOnShareRunnable != null) mOnShareRunnable.run();
         RecordUserAction.record("MobileTopToolbarShareButton");
         if (tab.getWebContents() != null) {
-            new UkmRecorder.Bridge().recordEventWithBooleanMetric(
-                    tab.getWebContents(), "TopToolbar.Share", "HasOccurred");
+            new UkmRecorder(tab.getWebContents(), "TopToolbar.Share")
+                    .addBooleanMetric("HasOccurred")
+                    .record();
         }
-        shareDelegate.share(tab, /*shareDirectly=*/false, ShareOrigin.TOP_TOOLBAR);
+        shareDelegate.share(tab, /* shareDirectly= */ false, ShareOrigin.TOP_TOOLBAR);
 
         if (mTrackerSupplier.hasValue()) {
-            mTrackerSupplier.get().notifyEvent(
-                    EventConstants.ADAPTIVE_TOOLBAR_CUSTOMIZATION_SHARE_OPENED);
+            mTrackerSupplier
+                    .get()
+                    .notifyEvent(EventConstants.ADAPTIVE_TOOLBAR_CUSTOMIZATION_SHARE_OPENED);
         }
     }
 
@@ -101,17 +114,22 @@ public class ShareButtonController extends BaseButtonDataProvider {
     /**
      * Returns an IPH for this button. Only called once native is initialized and when {@code
      * AdaptiveToolbarFeatures.isCustomizationEnabled()} is true.
+     *
      * @param tab Current tab.
      */
     @Override
-    protected IPHCommandBuilder getIphCommandBuilder(Tab tab) {
+    protected IphCommandBuilder getIphCommandBuilder(Tab tab) {
         HighlightParams params = new HighlightParams(HighlightShape.CIRCLE);
         params.setBoundsRespectPadding(true);
-        IPHCommandBuilder iphCommandBuilder = new IPHCommandBuilder(tab.getContext().getResources(),
-                FeatureConstants.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_SHARE_FEATURE,
-                /* stringId = */ R.string.adaptive_toolbar_button_share_iph,
-                /* accessibilityStringId = */ R.string.adaptive_toolbar_button_share_iph)
-                                                      .setHighlightParams(params);
+        IphCommandBuilder iphCommandBuilder =
+                new IphCommandBuilder(
+                                tab.getContext().getResources(),
+                                FeatureConstants
+                                        .ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_SHARE_FEATURE,
+                                /* stringId= */ R.string.adaptive_toolbar_button_share_iph,
+                                /* accessibilityStringId= */ R.string
+                                        .adaptive_toolbar_button_share_iph)
+                        .setHighlightParams(params);
         return iphCommandBuilder;
     }
 }

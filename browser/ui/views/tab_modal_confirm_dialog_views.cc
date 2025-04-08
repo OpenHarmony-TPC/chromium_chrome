@@ -15,6 +15,8 @@
 #include "chrome/common/chrome_switches.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/views/controls/button/label_button.h"
@@ -33,8 +35,10 @@ TabModalConfirmDialogViews::TabModalConfirmDialogViews(
     content::WebContents* web_contents)
     : delegate_(std::move(delegate)) {
   SetButtons(delegate_->GetDialogButtons());
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, delegate_->GetAcceptButtonTitle());
-  SetButtonLabel(ui::DIALOG_BUTTON_CANCEL, delegate_->GetCancelButtonTitle());
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
+                 delegate_->GetAcceptButtonTitle());
+  SetButtonLabel(ui::mojom::DialogButton::kCancel,
+                 delegate_->GetCancelButtonTitle());
 
   SetAcceptCallback(base::BindOnce(&TabModalConfirmDialogDelegate::Accept,
                                    base::Unretained(delegate_.get())));
@@ -42,10 +46,10 @@ TabModalConfirmDialogViews::TabModalConfirmDialogViews(
                                    base::Unretained(delegate_.get())));
   SetCloseCallback(base::BindOnce(&TabModalConfirmDialogDelegate::Close,
                                   base::Unretained(delegate_.get())));
-  SetModalType(ui::MODAL_TYPE_CHILD);
+  SetModalType(ui::mojom::ModalType::kChild);
   SetOwnedByWidget(true);
 
-  absl::optional<int> default_button = delegate_->GetDefaultDialogButton();
+  std::optional<int> default_button = delegate_->GetDefaultDialogButton();
   if (bool(default_button))
     SetDefaultButton(*default_button);
 
@@ -106,14 +110,16 @@ void TabModalConfirmDialogViews::LinkClicked(const ui::Event& event) {
 }
 
 views::View* TabModalConfirmDialogViews::GetInitiallyFocusedView() {
-  absl::optional<int> focused_button = delegate_->GetInitiallyFocusedButton();
+  std::optional<int> focused_button = delegate_->GetInitiallyFocusedButton();
   if (!focused_button) {
     return DialogDelegate::GetInitiallyFocusedView();
   }
 
-  if (*focused_button == ui::DIALOG_BUTTON_OK)
+  if (*focused_button == static_cast<int>(ui::mojom::DialogButton::kOk)) {
     return GetOkButton();
-  if (*focused_button == ui::DIALOG_BUTTON_CANCEL)
+  }
+  if (*focused_button == static_cast<int>(ui::mojom::DialogButton::kCancel)) {
     return GetCancelButton();
+  }
   return nullptr;
 }

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/crostini/crostini_installer.h"
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
@@ -15,7 +17,6 @@
 #include "chrome/browser/ash/crostini/crostini_installer_ui_delegate.h"
 #include "chrome/browser/ash/crostini/crostini_test_helper.h"
 #include "chrome/browser/ash/crostini/crostini_types.mojom.h"
-#include "chrome/browser/component_updater/fake_cros_component_manager.h"
 #include "chrome/browser/notifications/system_notification_helper.h"
 #include "chrome/test/base/browser_process_platform_part_test_api_chromeos.h"
 #include "chrome/test/base/scoped_testing_local_state.h"
@@ -33,10 +34,10 @@
 #include "chromeos/ash/components/dbus/vm_concierge/concierge_service.pb.h"
 #include "chromeos/ash/components/disks/disk_mount_manager.h"
 #include "chromeos/ash/components/disks/mock_disk_mount_manager.h"
+#include "components/component_updater/ash/fake_component_manager_ash.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using crostini::mojom::InstallerError;
 using crostini::mojom::InstallerState;
@@ -99,20 +100,20 @@ class CrostiniInstallerTest : public testing::Test {
   void SetOSRelease() {
     vm_tools::cicerone::OsRelease os_release;
     os_release.set_id("debian");
-    os_release.set_version_id("10");
+    os_release.set_version_id("11");
     ash::FakeCiceroneClient::Get()->set_lxd_container_os_release(os_release);
   }
 
   void SetUp() override {
     component_manager_ =
-        base::MakeRefCounted<component_updater::FakeCrOSComponentManager>();
+        base::MakeRefCounted<component_updater::FakeComponentManagerAsh>();
     component_manager_->set_supported_components({"cros-termina"});
     component_manager_->ResetComponentState(
         "cros-termina",
-        component_updater::FakeCrOSComponentManager::ComponentInfo(
-            component_updater::CrOSComponentManager::Error::NONE,
+        component_updater::FakeComponentManagerAsh::ComponentInfo(
+            component_updater::ComponentManagerAsh::Error::NONE,
             base::FilePath("/install/path"), base::FilePath("/mount/path")));
-    browser_part_.InitializeCrosComponentManager(component_manager_);
+    browser_part_.InitializeComponentManager(component_manager_);
 
     ash::DlcserviceClient::InitializeFake();
     ash::ChunneldClient::InitializeFake();
@@ -161,7 +162,7 @@ class CrostiniInstallerTest : public testing::Test {
     ash::DlcserviceClient::Shutdown();
     ash::FakeSpacedClient::Shutdown();
 
-    browser_part_.ShutdownCrosComponentManager();
+    browser_part_.ShutdownComponentManager();
     component_manager_.reset();
   }
 
@@ -189,10 +190,10 @@ class CrostiniInstallerTest : public testing::Test {
   base::HistogramTester histogram_tester_;
 
   // Owned by DiskMountManager
-  raw_ptr<ash::disks::MockDiskMountManager, ExperimentalAsh>
+  raw_ptr<ash::disks::MockDiskMountManager, DanglingUntriaged>
       disk_mount_manager_mock_ = nullptr;
 
-  raw_ptr<WaitingFakeConciergeClient, ExperimentalAsh>
+  raw_ptr<WaitingFakeConciergeClient, DanglingUntriaged>
       waiting_fake_concierge_client_ = nullptr;
 
   std::unique_ptr<TestingProfile> profile_;
@@ -201,7 +202,7 @@ class CrostiniInstallerTest : public testing::Test {
 
  private:
   std::unique_ptr<ScopedTestingLocalState> local_state_;
-  scoped_refptr<component_updater::FakeCrOSComponentManager> component_manager_;
+  scoped_refptr<component_updater::FakeComponentManagerAsh> component_manager_;
   BrowserProcessPlatformPartTestApi browser_part_;
 };
 

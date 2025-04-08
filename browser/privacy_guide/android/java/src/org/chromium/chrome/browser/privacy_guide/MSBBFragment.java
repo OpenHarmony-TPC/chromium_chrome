@@ -9,16 +9,13 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import androidx.appcompat.widget.SwitchCompat;
-import androidx.fragment.app.Fragment;
-
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.UnifiedConsentServiceBridge;
+import org.chromium.components.browser_ui.widget.MaterialSwitchWithText;
 
-/**
- * Controls the behaviour of the MSBB privacy guide page.
- */
-public class MSBBFragment extends Fragment {
+/** Controls the behavior of the MSBB privacy guide page. */
+public class MSBBFragment extends PrivacyGuideBasePage {
+    private MaterialSwitchWithText mMSBBSwitch;
+
     @Override
     public View onCreateView(
             LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -27,13 +24,24 @@ public class MSBBFragment extends Fragment {
 
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
-        SwitchCompat msbbSwitch = view.findViewById(R.id.msbb_switch);
-        msbbSwitch.setChecked(PrivacyGuideUtils.isMsbbEnabled());
+        mMSBBSwitch = view.findViewById(R.id.msbb_switch);
+        setMSBBSwitchState();
 
-        msbbSwitch.setOnCheckedChangeListener((button, isChecked) -> {
-            PrivacyGuideMetricsDelegate.recordMetricsOnMSBBChange(isChecked);
-            UnifiedConsentServiceBridge.setUrlKeyedAnonymizedDataCollectionEnabled(
-                    Profile.getLastUsedRegularProfile(), isChecked);
-        });
+        mMSBBSwitch.setOnCheckedChangeListener(
+                (button, isChecked) -> {
+                    PrivacyGuideMetricsDelegate.recordMetricsOnMSBBChange(isChecked);
+                    UnifiedConsentServiceBridge.setUrlKeyedAnonymizedDataCollectionEnabled(
+                            getProfile(), isChecked);
+                });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        setMSBBSwitchState();
+    }
+
+    private void setMSBBSwitchState() {
+        mMSBBSwitch.setChecked(PrivacyGuideUtils.isMsbbEnabled(getProfile()));
     }
 }

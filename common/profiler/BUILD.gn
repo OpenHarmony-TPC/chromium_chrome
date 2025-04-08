@@ -6,22 +6,26 @@ import("//extensions/buildflags/buildflags.gni")
 
 source_set("profiler") {
   public = [
+    "chrome_thread_group_profiler_client.h",
+    "chrome_thread_profiler_client.h",
     "main_thread_stack_sampling_profiler.h",
     "process_type.h",
-    "thread_profiler.h",
     "thread_profiler_configuration.h",
     "unwind_util.h",
   ]
 
   sources = [
+    "chrome_thread_group_profiler_client.cc",
+    "chrome_thread_profiler_client.cc",
     "main_thread_stack_sampling_profiler.cc",
     "process_type.cc",
-    "thread_profiler.cc",
     "thread_profiler_configuration.cc",
     "thread_profiler_platform_configuration.cc",
     "thread_profiler_platform_configuration.h",
     "unwind_util.cc",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   deps = [
     "//base",
@@ -31,6 +35,7 @@ source_set("profiler") {
     "//components/metrics",
     "//components/metrics:call_stack_profile_builder",
     "//components/metrics/public/mojom:call_stack_mojo_bindings",
+    "//components/sampling_profiler",
     "//components/version_info:version_info",
     "//content/public/common",
     "//extensions/buildflags",
@@ -59,7 +64,6 @@ source_set("unit_tests") {
   sources = [
     "process_type_unittest.cc",
     "thread_profiler_platform_configuration_unittest.cc",
-    "thread_profiler_unittest.cc",
     "unwind_util_unittest.cc",
   ]
 
@@ -71,6 +75,7 @@ source_set("unit_tests") {
     "//chrome/common:non_code_constants",
     "//components/metrics",
     "//components/metrics:call_stack_profile_builder",
+    "//components/sampling_profiler",
     "//components/version_info:version_info",
     "//content/public/common",
     "//extensions/buildflags",

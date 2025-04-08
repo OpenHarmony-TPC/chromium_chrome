@@ -14,22 +14,41 @@
 #include "content/public/renderer/render_frame.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "pdf/buildflags.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/public/web/web_element.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "url/origin.h"
 
 #if BUILDFLAG(ENABLE_PDF)
-#include "chrome/common/pdf_util.h"
+#include "components/pdf/common/pdf_util.h"
 #include "extensions/renderer/guest_view/mime_handler_view/post_message_support.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
 
-ChromePrintRenderFrameHelperDelegate::ChromePrintRenderFrameHelperDelegate() =
-    default;
+namespace {
+
+std::optional<bool> g_next_print_preview_enabled;
+
+}  // namespace
+
+ChromePrintRenderFrameHelperDelegate::ChromePrintRenderFrameHelperDelegate(
+    std::optional<bool> print_preview_enabled)
+    : print_preview_enabled_(print_preview_enabled.has_value()
+                                 ? print_preview_enabled
+                                 : g_next_print_preview_enabled) {
+  if (g_next_print_preview_enabled.has_value()) {
+    g_next_print_preview_enabled = std::nullopt;
+  }
+}
 
 ChromePrintRenderFrameHelperDelegate::~ChromePrintRenderFrameHelperDelegate() =
     default;
+
+// static
+void ChromePrintRenderFrameHelperDelegate::SetNextPrintPreviewEnabled(
+    std::optional<bool> enabled) {
+  g_next_print_preview_enabled = enabled;
+}
 
 // Return the PDF object element if `frame` is the out of process PDF extension
 // or its child frame.
@@ -47,6 +66,10 @@ blink::WebElement ChromePrintRenderFrameHelperDelegate::GetPdfElement(
 }
 
 bool ChromePrintRenderFrameHelperDelegate::IsPrintPreviewEnabled() {
+  if (print_preview_enabled_.has_value()) {
+    return *print_preview_enabled_;
+  }
+
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   return !command_line->HasSwitch(switches::kDisablePrintPreview);
 }

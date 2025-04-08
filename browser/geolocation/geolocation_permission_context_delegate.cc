@@ -27,7 +27,6 @@ bool GeolocationPermissionContextDelegate::DecidePermission(
     permissions::BrowserPermissionCallback* callback,
     permissions::GeolocationPermissionContext* context) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-
   bool permission_set;
   bool new_permission;
   if (extensions_context_.DecidePermission(id, requesting_origin, user_gesture,

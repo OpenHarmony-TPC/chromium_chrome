@@ -34,6 +34,7 @@
 #include "ui/aura/window.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/strings/grit/ui_strings.h"
 #include "ui/views/controls/menu/menu_host.h"
@@ -138,7 +139,7 @@ RenderViewContextMenuViews* RenderViewContextMenuViews::Create(
 
 void RenderViewContextMenuViews::RunMenuAt(views::Widget* parent,
                                            const gfx::Point& point,
-                                           ui::MenuSourceType type) {
+                                           ui::mojom::MenuSourceType type) {
   static_cast<ToolkitDelegateViews*>(toolkit_delegate())->
       RunMenuAt(parent, point, type);
 }
@@ -149,8 +150,9 @@ void RenderViewContextMenuViews::RunMenuAt(views::Widget* parent,
 bool RenderViewContextMenuViews::GetAcceleratorForCommandId(
     int command_id,
     ui::Accelerator* accel) const {
-  if (RenderViewContextMenu::GetAcceleratorForCommandId(command_id, accel))
+  if (RenderViewContextMenu::GetAcceleratorForCommandId(command_id, accel)) {
     return true;
+  }
 
   // There are no formally defined accelerators we can query so we assume
   // that Ctrl+C, Ctrl+V, Ctrl+X, Ctrl-A, etc do what they normally do.
@@ -210,7 +212,7 @@ bool RenderViewContextMenuViews::GetAcceleratorForCommandId(
       *accel = ui::Accelerator(ui::VKEY_R, ui::EF_CONTROL_DOWN);
       return true;
 
-    case IDC_CONTENT_CONTEXT_SAVEAVAS:
+    case IDC_CONTENT_CONTEXT_SAVEPLUGINAS:
     case IDC_SAVE_PAGE:
       *accel = ui::Accelerator(ui::VKEY_S, ui::EF_CONTROL_DOWN);
       return true;
@@ -285,7 +287,7 @@ bool RenderViewContextMenuViews::GetAcceleratorForCommandId(
 #elif BUILDFLAG(IS_CHROMEOS_LACROS)
       return false;
 #else
-      NOTREACHED_NORETURN();
+      NOTREACHED();
 #endif
     default:
       return false;
@@ -297,16 +299,24 @@ void RenderViewContextMenuViews::ExecuteCommand(int command_id,
   switch (command_id) {
     case IDC_WRITING_DIRECTION_DEFAULT:
       // WebKit's current behavior is for this menu item to always be disabled.
-      NOTREACHED_NORETURN();
+      NOTREACHED();
 
     case IDC_WRITING_DIRECTION_RTL:
     case IDC_WRITING_DIRECTION_LTR: {
-      content::RenderViewHost* view_host = GetRenderViewHost();
-      view_host->GetWidget()->UpdateTextDirection(
-          (command_id == IDC_WRITING_DIRECTION_RTL)
-              ? base::i18n::RIGHT_TO_LEFT
-              : base::i18n::LEFT_TO_RIGHT);
-      view_host->GetWidget()->NotifyTextDirection();
+      // Note: we get the local render frame host so that the writing mode
+      // settings changes apply to the correct frame. See crbug.com/1129073
+      // for a description of what happens if we use the outermost frame.
+      content::RenderFrameHost* rfh = GetRenderFrameHost();
+      // It's possible that the frame drops out from under us while the context
+      // menu is open. In this case, we'll not perform the action, but still
+      // record metrics.
+      if (rfh) {
+        rfh->GetRenderWidgetHost()->UpdateTextDirection(
+            (command_id == IDC_WRITING_DIRECTION_RTL)
+                ? base::i18n::RIGHT_TO_LEFT
+                : base::i18n::LEFT_TO_RIGHT);
+        rfh->GetRenderWidgetHost()->NotifyTextDirection();
+      }
       RenderViewContextMenu::RecordUsedItem(command_id);
       break;
     }
@@ -379,21 +389,11 @@ void RenderViewContextMenuViews::AppendPlatformEditableItems() {
       &bidi_submenu_model_);
 }
 
-void RenderViewContextMenuViews::ExecOpenInReadAnything() {
-  Browser* browser = GetBrowser();
-  if (!browser) {
-    return;
-  }
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-  if (!browser_view) {
-    return;
-  }
-  browser_view->side_panel_coordinator()->Show(
-      SidePanelEntry::Id::kReadAnything,
-      SidePanelUtil::SidePanelOpenTrigger::kReadAnythingContextMenu);
-}
-
 void RenderViewContextMenuViews::Show() {
+  if (UseShowHandler()) {
+    return;
+  }
+
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kKioskMode))
     return;
 
@@ -434,6 +434,11 @@ void RenderViewContextMenuViews::Show() {
     submenu_view_observer_ =
         std::make_unique<SubmenuViewObserver>(this, submenu_view);
   }
+}
+
+bool RenderViewContextMenuViews::IsRunning() {
+  return static_cast<ToolkitDelegateViews*>(toolkit_delegate())
+      ->IsMenuRunning();
 }
 
 views::Widget* RenderViewContextMenuViews::GetTopLevelWidget() {

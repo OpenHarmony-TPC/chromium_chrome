@@ -10,13 +10,15 @@
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notreached.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/ui/ash/wallpaper_controller_client_impl.h"
+#include "chrome/browser/ui/ash/wallpaper/wallpaper_controller_client_impl.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/user.h"
 #include "content/public/browser/browser_thread.h"
+#include "extensions/browser/extension_function_crash_keys.h"
 #include "services/data_decoder/public/cpp/decode_image.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/image/image_skia.h"
@@ -47,8 +49,9 @@ gfx::ImageSkia ScaleAspectRatioAndCropCenter(const gfx::Size& size,
                                              const gfx::ImageSkia& image) {
   float scale = std::min(static_cast<float>(image.width()) / size.width(),
                          static_cast<float>(image.height()) / size.height());
-  gfx::Size scaled_size = {base::ClampFloor(scale * size.width()),
-                           base::ClampFloor(scale * size.height())};
+  gfx::Size scaled_size = {
+      std::max(1, base::ClampFloor(scale * size.width())),
+      std::max(1, base::ClampFloor(scale * size.height()))};
   gfx::Rect bounds{{0, 0}, image.size()};
   bounds.ClampToCenteredSize(scaled_size);
   auto scaled_and_cropped_image = gfx::ImageSkiaOperations::CreateTiledImage(
@@ -66,10 +69,13 @@ void RecordCustomWallpaperLayout(const ash::WallpaperLayout& layout) {
 
 std::vector<uint8_t> GenerateThumbnail(const gfx::ImageSkia& image,
                                        const gfx::Size& size) {
-  std::vector<uint8_t> data_out;
-  gfx::JPEGCodec::Encode(*ScaleAspectRatioAndCropCenter(size, image).bitmap(),
-                         kThumbnailEncodeQuality, &data_out);
-  return data_out;
+  std::optional<std::vector<uint8_t>> data_out = gfx::JPEGCodec::Encode(
+      *ScaleAspectRatioAndCropCenter(size, image).bitmap(),
+      kThumbnailEncodeQuality);
+  if (!data_out) {
+    return {};
+  }
+  return data_out.value();
 }
 
 }  // namespace
@@ -90,23 +96,8 @@ void WallpaperAsh::SetWallpaperDeprecated(
     const std::string& extension_id,
     const std::string& extension_name,
     SetWallpaperDeprecatedCallback callback) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  CHECK(ash::LoginState::Get()->IsUserLoggedIn());
-  // Prevent any in progress decodes from changing wallpaper.
-  weak_ptr_factory_.InvalidateWeakPtrs();
-  // Notify the last pending request, if any, that it is canceled.
-  if (deprecated_pending_callback_) {
-    std::move(deprecated_pending_callback_).Run(std::vector<uint8_t>());
-  }
-  deprecated_pending_callback_ = std::move(callback);
-  const std::vector<uint8_t>& data = wallpaper_settings->data;
-  data_decoder::DecodeImage(
-      &data_decoder_, data, data_decoder::mojom::ImageCodec::kDefault,
-      /*shrink_to_fit=*/true, data_decoder::kDefaultMaxSizeInBytes,
-      /*desired_image_frame_size=*/gfx::Size(),
-      base::BindOnce(
-          &WallpaperAsh::OnWallpaperDecoded, weak_ptr_factory_.GetWeakPtr(),
-          std::move(wallpaper_settings), extension_id, extension_name));
+  // Delete this method once deletion is supported. https://crbug.com/1156872.
+  NOTIMPLEMENTED();
 }
 
 void WallpaperAsh::SetWallpaper(mojom::WallpaperSettingsPtr wallpaper_settings,
@@ -122,26 +113,27 @@ void WallpaperAsh::SetWallpaper(mojom::WallpaperSettingsPtr wallpaper_settings,
     SendErrorResult(
         "Received a new SetWallpaper request that overrides this one.");
   }
+  extension_id_ = extension_id;
+  extensions::extension_function_crash_keys::StartExtensionFunctionCall(
+      extension_id_);
   pending_callback_ = std::move(callback);
   const std::vector<uint8_t>& data = wallpaper_settings->data;
   data_decoder::DecodeImage(
       &data_decoder_, data, data_decoder::mojom::ImageCodec::kDefault,
       /*shrink_to_fit=*/true, data_decoder::kDefaultMaxSizeInBytes,
       /*desired_image_frame_size=*/gfx::Size(),
-      base::BindOnce(
-          &WallpaperAsh::OnWallpaperDecoded, weak_ptr_factory_.GetWeakPtr(),
-          std::move(wallpaper_settings), extension_id, extension_name));
+      base::BindOnce(&WallpaperAsh::OnWallpaperDecoded,
+                     weak_ptr_factory_.GetWeakPtr(),
+                     std::move(wallpaper_settings)));
 }
 
 void WallpaperAsh::OnWallpaperDecoded(
     mojom::WallpaperSettingsPtr wallpaper_settings,
-    const std::string& extension_id,
-    const std::string& extension_name,
     const SkBitmap& bitmap) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (bitmap.isNull()) {
     LOG(ERROR) << "Decoding wallpaper data failed from extension_id '"
-               << extension_id << "'";
+               << extension_id_ << "'";
     SendErrorResult("Decoding wallpaper data failed.");
     return;
   }
@@ -184,32 +176,21 @@ void WallpaperAsh::OnWallpaperDecoded(
 }
 
 void WallpaperAsh::SendErrorResult(const std::string& response) {
-  if (pending_callback_) {
-    DCHECK(!deprecated_pending_callback_)
-        << "There should only be one callback at a time.";
-    std::move(pending_callback_)
-        .Run(crosapi::mojom::SetWallpaperResult::NewErrorMessage(response));
-  }
-  if (deprecated_pending_callback_) {
-    DCHECK(!pending_callback_)
-        << "There should only be one callback at a time.";
-    std::move(deprecated_pending_callback_).Run(std::vector<uint8_t>());
-  }
+  std::move(pending_callback_)
+      .Run(crosapi::mojom::SetWallpaperResult::NewErrorMessage(response));
+  extensions::extension_function_crash_keys::EndExtensionFunctionCall(
+      extension_id_);
+  extension_id_.clear();
 }
 
 void WallpaperAsh::SendSuccessResult(
     const std::vector<uint8_t>& thumbnail_data) {
-  if (pending_callback_) {
-    DCHECK(!deprecated_pending_callback_)
-        << "There should only be one callback at a time.";
-    std::move(pending_callback_)
-        .Run(crosapi::mojom::SetWallpaperResult::NewThumbnailData(
-            thumbnail_data));
-  }
-  if (deprecated_pending_callback_) {
-    DCHECK(!pending_callback_)
-        << "There should only be one callback at a time.";
-    std::move(deprecated_pending_callback_).Run(thumbnail_data);
-  }
+  std::move(pending_callback_)
+      .Run(
+          crosapi::mojom::SetWallpaperResult::NewThumbnailData(thumbnail_data));
+  extensions::extension_function_crash_keys::EndExtensionFunctionCall(
+      extension_id_);
+  extension_id_.clear();
 }
+
 }  // namespace crosapi

@@ -19,10 +19,8 @@
 #include "build/build_config.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
-#include "chrome/browser/extensions/permissions_updater.h"
+#include "chrome/browser/extensions/permissions/permissions_updater.h"
 #include "chrome/test/base/testing_profile.h"
-#include "content/public/browser/notification_registrar.h"
-#include "content/public/browser/notification_types.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
@@ -454,7 +452,6 @@ TEST_F(BackgroundApplicationListModelTest, RandomTest) {
         break;
       default:
         NOTREACHED();
-        break;
     }
   }
 }

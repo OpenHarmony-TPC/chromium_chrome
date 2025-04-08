@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/views/apps/chrome_native_app_window_views.h"
 
 #include <stddef.h>
@@ -9,8 +14,8 @@
 #include <utility>
 
 #include "base/no_destructor.h"
+#include "base/not_fatal_until.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
 #include "chrome/browser/devtools/devtools_toggle_action.h"
@@ -27,6 +32,8 @@
 #include "extensions/browser/extension_util.h"
 #include "third_party/skia/include/core/SkRegion.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_operations.h"
@@ -77,7 +84,7 @@ std::map<ui::Accelerator, int> AcceleratorsFromMapping(
 }
 
 const std::map<ui::Accelerator, int>& GetAcceleratorTable() {
-  if (!chrome::IsRunningInForcedAppMode()) {
+  if (!IsRunningInForcedAppMode()) {
     static base::NoDestructor<std::map<ui::Accelerator, int>> accelerators(
         AcceleratorsFromMapping(kAppWindowAcceleratorMap,
                                 std::size(kAppWindowAcceleratorMap)));
@@ -111,10 +118,11 @@ void ChromeNativeAppWindowViews::OnBeforeWidgetInit(
 
 void ChromeNativeAppWindowViews::InitializeDefaultWindow(
     const AppWindow::CreateParams& create_params) {
-  views::Widget::InitParams init_params(views::Widget::InitParams::TYPE_WINDOW);
+  views::Widget::InitParams init_params(
+      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
+      views::Widget::InitParams::TYPE_WINDOW);
   init_params.delegate = this;
   init_params.remove_standard_frame = ShouldRemoveStandardFrame();
-  init_params.use_system_default_icon = true;
   if (create_params.alpha_enabled) {
     init_params.opacity =
         views::Widget::InitParams::WindowOpacity::kTranslucent;
@@ -135,12 +143,12 @@ void ChromeNativeAppWindowViews::InitializeDefaultWindow(
   gfx::Rect init_param_bounds = init_params.bounds;
   widget()->Init(std::move(init_params));
 
-  // The frame insets are required to resolve the bounds specifications
-  // correctly. So we set the window bounds and constraints now.
+  // The frame insets and window radii are required to resolve the bounds
+  // specifications correctly. So we set the window bounds and constraints now.
   gfx::Insets frame_insets = GetFrameInsets();
   gfx::Rect window_bounds =
       init_param_bounds.IsEmpty()
-          ? create_params.GetInitialWindowBounds(frame_insets)
+          ? create_params.GetInitialWindowBounds(frame_insets, GetWindowRadii())
           : init_param_bounds;
   SetContentSizeConstraints(create_params.GetContentMinimumSize(frame_insets),
                             create_params.GetContentMaximumSize(frame_insets));
@@ -166,7 +174,7 @@ void ChromeNativeAppWindowViews::InitializeDefaultWindow(
     }
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   if (create_params.is_ime_window)
     return;
 #endif
@@ -175,7 +183,7 @@ void ChromeNativeAppWindowViews::InitializeDefaultWindow(
   views::FocusManager* focus_manager = GetFocusManager();
   const std::map<ui::Accelerator, int>& accelerator_table =
       GetAcceleratorTable();
-  const bool is_kiosk_app_mode = chrome::IsRunningInForcedAppMode();
+  const bool is_kiosk_app_mode = IsRunningInForcedAppMode();
 
   // Ensures that kiosk mode accelerators are enabled when in kiosk mode (to be
   // future proof). This is needed because GetAcceleratorTable() uses a static
@@ -196,8 +204,9 @@ void ChromeNativeAppWindowViews::InitializeDefaultWindow(
   for (auto iter = accelerator_table.begin(); iter != accelerator_table.end();
        ++iter) {
     if (is_kiosk_app_mode &&
-        !chrome::IsCommandAllowedInAppMode(iter->second, /* is_popup */ false))
+        !IsCommandAllowedInAppMode(iter->second, /* is_popup */ false)) {
       continue;
+    }
 
     focus_manager->RegisterAccelerator(
         iter->first, ui::AcceleratorManager::kNormalPriority, this);
@@ -219,13 +228,14 @@ gfx::Rect ChromeNativeAppWindowViews::GetRestoredBounds() const {
   return widget()->GetRestoredBounds();
 }
 
-ui::WindowShowState ChromeNativeAppWindowViews::GetRestoredState() const {
+ui::mojom::WindowShowState ChromeNativeAppWindowViews::GetRestoredState()
+    const {
   if (IsMaximized())
-    return ui::SHOW_STATE_MAXIMIZED;
+    return ui::mojom::WindowShowState::kMaximized;
   if (IsFullscreen())
-    return ui::SHOW_STATE_FULLSCREEN;
+    return ui::mojom::WindowShowState::kFullscreen;
 
-  return ui::SHOW_STATE_NORMAL;
+  return ui::mojom::WindowShowState::kNormal;
 }
 
 ui::ZOrderLevel ChromeNativeAppWindowViews::GetZOrderLevel() const {
@@ -299,7 +309,7 @@ bool ChromeNativeAppWindowViews::AcceleratorPressed(
   const std::map<ui::Accelerator, int>& accelerator_table =
       GetAcceleratorTable();
   auto iter = accelerator_table.find(accelerator);
-  DCHECK(iter != accelerator_table.end());
+  CHECK(iter != accelerator_table.end(), base::NotFatalUntil::M130);
   int command_id = iter->second;
   switch (command_id) {
     case IDC_CLOSE_WINDOW:
@@ -317,20 +327,23 @@ bool ChromeNativeAppWindowViews::AcceleratorPressed(
       zoom::PageZoom::Zoom(web_view()->GetWebContents(), content::PAGE_ZOOM_IN);
       return true;
     case IDC_DEV_TOOLS:
-      DevToolsWindow::OpenDevToolsWindow(web_view()->GetWebContents(),
-                                         DevToolsToggleAction::Show());
+      DevToolsWindow::OpenDevToolsWindow(
+          web_view()->GetWebContents(), DevToolsToggleAction::Show(),
+          DevToolsOpenedByAction::kMainMenuOrMainShortcut);
       return true;
     case IDC_DEV_TOOLS_CONSOLE:
       DevToolsWindow::OpenDevToolsWindow(
           web_view()->GetWebContents(),
-          DevToolsToggleAction::ShowConsolePanel());
+          DevToolsToggleAction::ShowConsolePanel(),
+          DevToolsOpenedByAction::kConsoleShortcut);
       return true;
     case IDC_DEV_TOOLS_INSPECT:
-      DevToolsWindow::OpenDevToolsWindow(web_view()->GetWebContents(),
-                                         DevToolsToggleAction::Inspect());
+      DevToolsWindow::OpenDevToolsWindow(
+          web_view()->GetWebContents(), DevToolsToggleAction::Inspect(),
+          DevToolsOpenedByAction::kInspectorModeShortcut);
       return true;
     default:
-      NOTREACHED_NORETURN() << "Unknown accelerator sent to app window.";
+      NOTREACHED() << "Unknown accelerator sent to app window.";
   }
 }
 

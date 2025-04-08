@@ -5,18 +5,20 @@
 #include "chrome/browser/ui/webui/help/version_updater_chromeos.h"
 
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <string>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/ptr_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash_factory.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/ui/webui/help/help_utils_chromeos.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/dbus/update_engine/update_engine_client.h"
@@ -24,11 +26,12 @@
 #include "chromeos/ash/components/network/network_state.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/ash/components/network/network_type_pattern.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
+#include "components/policy/core/common/management/management_service.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -93,7 +96,6 @@ std::u16string GetConnectionTypeAsUTF16(const ash::NetworkState* network,
   if (ash::NetworkTypePattern::VPN().MatchesType(type))
     return l10n_util::GetStringUTF16(IDS_NETWORK_TYPE_VPN);
   NOTREACHED();
-  return std::u16string();
 }
 
 // Returns whether an update is allowed. If not, it calls the callback with
@@ -132,8 +134,9 @@ bool EnsureCanUpdate(bool interactive,
 
 }  // namespace
 
-VersionUpdater* VersionUpdater::Create(content::WebContents* web_contents) {
-  return new VersionUpdaterCros(web_contents);
+std::unique_ptr<VersionUpdater> VersionUpdater::Create(
+    content::WebContents* web_contents) {
+  return base::WrapUnique(new VersionUpdaterCros(web_contents));
 }
 
 void VersionUpdaterCros::GetUpdateStatus(StatusCallback callback) {
@@ -218,7 +221,7 @@ void VersionUpdaterCros::OnSetUpdateOverCellularOneTimePermission(
     // One time permission is set successfully, so we can proceed to update.
     CheckForUpdate(callback_, VersionUpdater::PromoteCallback());
   } else {
-    // TODO(https://crbug.com/927452): invoke callback to signal about page to
+    // TODO(crbug.com/40612027): invoke callback to signal about page to
     // show appropriate error message.
     LOG(ERROR) << "Error setting update over cellular one time permission.";
     callback_.Run(VersionUpdater::FAILED, 0, false, false, std::string(), 0,
@@ -268,7 +271,7 @@ void VersionUpdaterCros::IsFeatureEnabled(const std::string& feature,
 }
 
 void VersionUpdaterCros::OnIsFeatureEnabled(IsFeatureEnabledCallback callback,
-                                            absl::optional<bool> enabled) {
+                                            std::optional<bool> enabled) {
   std::move(callback).Run(std::move(enabled));
 }
 
@@ -323,7 +326,16 @@ void VersionUpdaterCros::UpdateStatusChanged(
       if (status.last_attempt_error() ==
           static_cast<int32_t>(
               update_engine::ErrorCode::kOmahaUpdateIgnoredPerPolicy)) {
-        my_status = DISABLED_BY_ADMIN;
+        if (policy::ManagementServiceFactory::GetForPlatform()->IsManaged()) {
+          my_status = DISABLED_BY_ADMIN;
+        } else {
+          // Handle the special case where after a consumer rollback,
+          // updating to the previously installed version just rolledback from
+          // is disallowed.
+          // TODO(b/277962165) Update the platform side to expose a more
+          // specific error code for this case.
+          my_status = UPDATE_TO_ROLLBACK_VERSION_DISALLOWED;
+        }
       } else if (status.last_attempt_error() ==
                  static_cast<int32_t>(
                      update_engine::ErrorCode::kOmahaErrorInHTTPResponse)) {

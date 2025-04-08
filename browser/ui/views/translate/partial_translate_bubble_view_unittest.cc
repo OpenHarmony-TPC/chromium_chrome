@@ -104,7 +104,9 @@ class PartialTranslateBubbleViewTest : public ChromeViewsTestBase {
     ChromeViewsTestBase::SetUp();
 
     // The bubble needs the parent as an anchor.
-    anchor_widget_ = CreateTestWidget(views::Widget::InitParams::TYPE_WINDOW);
+    anchor_widget_ =
+        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+                         views::Widget::InitParams::TYPE_WINDOW);
     anchor_widget_->Show();
 
     mock_model_ = new FakePartialTranslateBubbleModel(
@@ -122,7 +124,7 @@ class PartialTranslateBubbleViewTest : public ChromeViewsTestBase {
   void PressButton(PartialTranslateBubbleView::ButtonID id) {
     views::Button* button =
         static_cast<views::Button*>(bubble_->GetViewByID(id));
-    ui::KeyEvent key_event(ui::ET_KEY_PRESSED, ui::VKEY_RETURN,
+    ui::KeyEvent key_event(ui::EventType::kKeyPressed, ui::VKEY_RETURN,
                            ui::DomCode::ENTER, ui::EF_NONE);
     views::test::ButtonTestApi(button).NotifyClick(key_event);
   }
@@ -135,8 +137,8 @@ class PartialTranslateBubbleViewTest : public ChromeViewsTestBase {
   }
 
   std::unique_ptr<views::Widget> anchor_widget_;
-  raw_ptr<FakePartialTranslateBubbleModel> mock_model_;
-  raw_ptr<PartialTranslateBubbleView> bubble_;
+  raw_ptr<FakePartialTranslateBubbleModel, DanglingUntriaged> mock_model_;
+  raw_ptr<PartialTranslateBubbleView, DanglingUntriaged> bubble_;
 };
 
 TEST_F(PartialTranslateBubbleViewTest,
@@ -189,7 +191,7 @@ TEST_F(PartialTranslateBubbleViewTest, SourceLanguageTabUpdatesViewState) {
             bubble_->GetViewState());
 }
 
-// TODO(crbug.com/1337110): For some reason calling bubble_->TabSelectedAt(1)
+// TODO(crbug.com/40848161): For some reason calling bubble_->TabSelectedAt(1)
 // before bubble_->TabSelectedAt(0) in a test causes TabSelectedAt(0) to be
 // run twice, resulting in the corresponding sample being logged twice. This
 // does not happen in production. For now, test this logging separately to avoid

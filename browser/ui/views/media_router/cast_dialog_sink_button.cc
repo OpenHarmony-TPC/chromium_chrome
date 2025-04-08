@@ -108,21 +108,26 @@ CastDialogSinkButton::~CastDialogSinkButton() = default;
 
 void CastDialogSinkButton::OverrideStatusText(
     const std::u16string& status_text) {
-  if (subtitle()) {
-    if (!saved_status_text_)
-      saved_status_text_ = subtitle()->GetText();
-    subtitle()->SetText(status_text);
+  if (!subtitle()) {
+    return;
   }
-  SetTooltipAndAccessibleName();
+
+  if (!saved_status_text_) {
+    saved_status_text_ = subtitle()->GetText();
+  }
+
+  subtitle()->SetText(status_text);
 }
 
 void CastDialogSinkButton::RestoreStatusText() {
-  if (saved_status_text_) {
-    if (subtitle())
-      subtitle()->SetText(*saved_status_text_);
-    saved_status_text_.reset();
+  if (!saved_status_text_) {
+    return;
   }
-  SetTooltipAndAccessibleName();
+
+  if (subtitle()) {
+    subtitle()->SetText(*saved_status_text_);
+  }
+  saved_status_text_.reset();
 }
 
 bool CastDialogSinkButton::OnMousePressed(const ui::MouseEvent& event) {
@@ -138,6 +143,7 @@ void CastDialogSinkButton::OnMouseReleased(const ui::MouseEvent& event) {
 }
 
 void CastDialogSinkButton::OnEnabledChanged() {
+  HoverButton::OnEnabledChanged();
   // Prevent a DCHECK failure seen at https://crbug.com/912687 by not having an
   // InkDrop if the button is disabled.
   views::InkDrop::Get(this)->SetMode(
@@ -148,22 +154,20 @@ void CastDialogSinkButton::OnEnabledChanged() {
   if (sink_.state != UIMediaSinkState::AVAILABLE)
     return;
 
+  ui::ImageModel icon;
   if (GetEnabled()) {
-    if (saved_status_text_)
+    if (saved_status_text_) {
       RestoreStatusText();
-    static_cast<views::ImageView*>(icon_view())
-        ->SetImage(CreateSinkIcon(sink_.icon_type));
-  } else {
-    if (IsIncompatibleDialSink(sink_)) {
-      OverrideStatusText(
-          l10n_util::GetStringUTF16(IDS_MEDIA_ROUTER_AVAILABLE_SPECIFIC_SITES));
-    } else {
-      OverrideStatusText(
-          l10n_util::GetStringUTF16(IDS_MEDIA_ROUTER_SOURCE_NOT_SUPPORTED));
     }
-    static_cast<views::ImageView*>(icon_view())
-        ->SetImage(CreateDisabledSinkIcon(sink_.icon_type));
+    icon = CreateSinkIcon(sink_.icon_type);
+  } else {
+    int status_text = IsIncompatibleDialSink(sink_)
+                          ? IDS_MEDIA_ROUTER_AVAILABLE_SPECIFIC_SITES
+                          : IDS_MEDIA_ROUTER_SOURCE_NOT_SUPPORTED;
+    OverrideStatusText(l10n_util::GetStringUTF16(status_text));
+    icon = CreateDisabledSinkIcon(sink_.icon_type);
   }
+  static_cast<views::ImageView*>(icon_view())->SetImage(icon);
 
   if (GetWidget())
     UpdateTitleTextStyle();
@@ -174,7 +178,7 @@ void CastDialogSinkButton::UpdateTitleTextStyle() {
       GetColorProvider()->GetColor(ui::kColorDialogBackground);
   SetTitleTextStyle(
       GetEnabled() ? views::style::STYLE_PRIMARY : views::style::STYLE_DISABLED,
-      background_color);
+      background_color, /*color_id=*/std::nullopt);
 }
 
 void CastDialogSinkButton::RequestFocus() {
@@ -246,7 +250,7 @@ const gfx::VectorIcon* CastDialogSinkButton::GetVectorIcon(UIMediaSink sink) {
                     : GetVectorIcon(sink.icon_type);
 }
 
-BEGIN_METADATA(CastDialogSinkButton, HoverButton)
+BEGIN_METADATA(CastDialogSinkButton)
 END_METADATA
 
 }  // namespace media_router

@@ -8,6 +8,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/not_fatal_until.h"
 #include "base/ranges/algorithm.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -68,7 +69,7 @@ std::unique_ptr<ThumbnailImage::Subscription> ThumbnailImage::Subscribe() {
 }
 
 void ThumbnailImage::AssignSkBitmap(SkBitmap bitmap,
-                                    absl::optional<uint64_t> frame_id) {
+                                    std::optional<uint64_t> frame_id) {
   thumbnail_id_ = base::Token::CreateRandom();
 
   base::ThreadPool::PostTaskAndReplyWithResult(
@@ -121,7 +122,7 @@ size_t ThumbnailImage::GetCompressedDataSizeInBytes() const {
 
 void ThumbnailImage::AssignJPEGData(base::Token thumbnail_id,
                                     base::TimeTicks assign_sk_bitmap_time,
-                                    absl::optional<uint64_t> frame_id_for_trace,
+                                    std::optional<uint64_t> frame_id_for_trace,
                                     std::vector<uint8_t> data) {
   // If the image is stale (a new thumbnail was assigned or the
   // thumbnail was cleared after AssignSkBitmap), ignore it.
@@ -204,37 +205,32 @@ void ThumbnailImage::NotifyCompressedDataObservers(
 // static
 std::vector<uint8_t> ThumbnailImage::CompressBitmap(
     SkBitmap bitmap,
-    absl::optional<uint64_t> frame_id) {
+    std::optional<uint64_t> frame_id) {
   constexpr int kCompressionQuality = 97;
-  std::vector<uint8_t> data;
-
-  // Similar to above, extract logic into function so we can select a
-  // TRACE_EVENT_* macro.
-  auto compress = [&]() {
-    const bool result =
-        gfx::JPEGCodec::Encode(bitmap, kCompressionQuality, &data);
-    DCHECK(result);
-  };
+  std::optional<std::vector<uint8_t>> data;
 
   if (frame_id) {
     TRACE_EVENT_WITH_FLOW0(
         "ui", "Tab.Preview.CompressJPEGWithFlow", *frame_id,
         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-    compress();
+    data = gfx::JPEGCodec::Encode(bitmap, kCompressionQuality);
   } else {
     TRACE_EVENT0("ui", "Tab.Preview.CompressJPEG");
-    compress();
+    data = gfx::JPEGCodec::Encode(bitmap, kCompressionQuality);
   }
 
-  return data;
+  return data.value();
 }
 
 // static
 gfx::ImageSkia ThumbnailImage::UncompressImage(
     CompressedThumbnailData compressed) {
-  gfx::ImageSkia result =
-      gfx::ImageSkia::CreateFrom1xBitmap(*gfx::JPEGCodec::Decode(
-          compressed->data.data(), compressed->data.size()));
+  gfx::ImageSkia result;
+  SkBitmap bitmap = gfx::JPEGCodec::Decode(compressed->data);
+  if (!bitmap.isNull()) {
+    result = gfx::ImageSkia::CreateFrom1xBitmap(bitmap);
+  }
+
   result.MakeThreadSafe();
   return result;
 }
@@ -280,7 +276,7 @@ void ThumbnailImage::HandleSubscriptionDestroyed(Subscription* subscription) {
   // |subscription| in |subscribers_| with the last element, then pop it
   // off the back.
   auto it = base::ranges::find(subscribers_, subscription);
-  DCHECK(it != subscribers_.end());
+  CHECK(it != subscribers_.end(), base::NotFatalUntil::M130);
   std::swap(*it, *(subscribers_.end() - 1));
   subscribers_.pop_back();
 

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/page_info/page_info_history_controller.h"
 
+#include "base/time/time.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -38,24 +39,25 @@ void PageInfoHistoryController::InitRow(views::View* container) {
       &PageInfoHistoryController::UpdateRow, weak_factory_.GetWeakPtr()));
 }
 
-void PageInfoHistoryController::UpdateRow(base::Time last_visit) {
+void PageInfoHistoryController::UpdateRow(
+    std::optional<base::Time> last_visit) {
   if (!container_tracker_.view())
     return;
 
   auto* container_view =
       static_cast<PageInfoMainView::ContainerView*>(container_tracker_.view());
   container_view->RemoveAllChildViews();
-  if (!last_visit.is_null()) {
+  if (last_visit.has_value()) {
     container_view->AddChildView(CreateHistoryButton(
         page_info::PageInfoHistoryDataSource::FormatLastVisitedTimestamp(
-            last_visit)));
+            last_visit.value())));
     container_view->Update();
   }
 }
 
 std::unique_ptr<views::View> PageInfoHistoryController::CreateHistoryButton(
     std::u16string last_visit) {
-  // TODO(crbug.com/1275042): Use correct icons and strings (tooltip).
+  // TODO(crbug.com/40808038): Use correct icons and strings (tooltip).
   auto button = std::make_unique<RichHoverButton>(
       base::BindRepeating(&PageInfoHistoryController::OpenHistoryPage,
                           weak_factory_.GetWeakPtr()),
@@ -69,7 +71,7 @@ std::unique_ptr<views::View> PageInfoHistoryController::CreateHistoryButton(
 }
 
 void PageInfoHistoryController::OpenHistoryPage() {
-  // TODO(crbug.com/1275042): Add test for destroring web content.
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents_);
+  // TODO(crbug.com/40808038): Add test for destroring web content.
+  Browser* browser = chrome::FindBrowserWithTab(web_contents_);
   chrome::ShowHistory(browser, site_url_.host());
 }

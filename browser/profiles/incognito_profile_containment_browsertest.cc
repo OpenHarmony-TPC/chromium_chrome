@@ -285,7 +285,7 @@ IN_PROC_BROWSER_TEST_F(IncognitoProfileContainmentBrowserTest,
 // state even if user did not explicitly open the browser in regular mode and if
 // so, please add the file to the allow_list at the top and file a bug to follow
 // up.
-// TODO(https://crbug.com/1277824): Flakes on Win 7.
+// TODO(crbug.com/40809832): Flakes on Win 7.
 IN_PROC_BROWSER_TEST_F(IncognitoProfileContainmentBrowserTest,
                        DISABLED_StoringDataDoesNotModifyProfileFolder) {
   // Take a snapshot of regular profile.
@@ -304,12 +304,11 @@ IN_PROC_BROWSER_TEST_F(IncognitoProfileContainmentBrowserTest,
       "LocalStorage", "ServiceWorker", "SessionCookie", "WebSql"};
 
   for (const std::string& type : kStorageTypes) {
-    bool data = false;
-    EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-        browser->tab_strip_model()->GetActiveWebContents(), "set" + type + "()",
-        &data));
-
-    ASSERT_TRUE(data) << "Couldn't create data for: " << type;
+    ASSERT_TRUE(
+        content::EvalJs(browser->tab_strip_model()->GetActiveWebContents(),
+                        "set" + type + "()")
+            .ExtractBool())
+        << "Couldn't create data for: " << type;
   }
 
   CloseBrowserSynchronously(browser);

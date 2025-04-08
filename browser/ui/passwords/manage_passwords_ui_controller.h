@@ -7,8 +7,10 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ui/passwords/manage_passwords_state.h"
 #include "chrome/browser/ui/passwords/passwords_client_ui_delegate.h"
@@ -16,7 +18,7 @@
 #include "chrome/browser/ui/passwords/passwords_model_delegate.h"
 #include "chrome/common/buildflags.h"
 #include "components/password_manager/core/browser/password_manager_client.h"
-#include "components/password_manager/core/browser/password_store_interface.h"
+#include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/browser/ui/post_save_compromised_helper.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -33,6 +35,7 @@ class WebContents;
 namespace password_manager {
 enum class CredentialType;
 struct InteractionsStats;
+struct PasswordForm;
 class MovePasswordToAccountStoreHelper;
 class PasswordFeatureManager;
 class PasswordFormManagerForUI;
@@ -44,7 +47,6 @@ constexpr int kMaxNumberOfTimesBiometricAuthForFillingPromoWillBeShown = 3;
 }
 
 class AccountChooserPrompt;
-struct AccountInfo;
 class AutoSigninFirstRunPrompt;
 class CredentialLeakPrompt;
 class ManagePasswordsIconView;
@@ -85,6 +87,8 @@ class ManagePasswordsUIController
       bool has_generated_password,
       bool is_update) override;
   void OnHideManualFallbackForSaving() override;
+  void OnOpenPasswordDetailsBubble(
+      const password_manager::PasswordForm& form) override;
   bool OnChooseCredentials(
       std::vector<std::unique_ptr<password_manager::PasswordForm>>
           local_credentials,
@@ -95,13 +99,13 @@ class ManagePasswordsUIController
       const url::Origin& origin) override;
   void OnPromptEnableAutoSignin() override;
   void OnAutomaticPasswordSave(
-      std::unique_ptr<password_manager::PasswordFormManagerForUI> form_manager)
-      override;
+      std::unique_ptr<password_manager::PasswordFormManagerForUI> form_manager,
+      bool is_update_confirmation) override;
   void OnPasswordAutofilled(
-      const std::vector<const password_manager::PasswordForm*>& password_forms,
+      base::span<const password_manager::PasswordForm> password_forms,
       const url::Origin& origin,
-      const std::vector<const password_manager::PasswordForm*>*
-          federated_matches) override;
+      base::span<const password_manager::PasswordForm> federated_matches)
+      override;
   void OnCredentialLeak(password_manager::CredentialLeakType leak_dialog_type,
                         const GURL& url,
                         const std::u16string& username) override;
@@ -110,7 +114,17 @@ class ManagePasswordsUIController
       override;
   void OnBiometricAuthenticationForFilling(PrefService* prefs) override;
   void ShowBiometricActivationConfirmation() override;
+  void ShowMovePasswordBubble(
+      const password_manager::PasswordForm& form) override;
   void OnBiometricAuthBeforeFillingDeclined() override;
+  void OnAddUsernameSaveClicked(
+      const std::u16string& username,
+      const password_manager::PasswordForm& form_to_update) override;
+  void OnKeychainError() override;
+  void OnPasskeySaved(bool gpm_pin_created, std::string passkey_rp_id) override;
+  void OnPasskeyDeleted() override;
+  void OnPasskeyUpdated(std::string passkey_rp_id) override;
+  void OnPasskeyNotAccepted(std::string passkey_rp_id) override;
 
   virtual void NotifyUnsyncedCredentialsWillBeDeleted(
       std::vector<password_manager::PasswordForm> unsynced_credentials);
@@ -150,11 +164,14 @@ class ManagePasswordsUIController
       const override;
   const std::vector<std::unique_ptr<password_manager::PasswordForm>>&
   GetCurrentForms() const override;
+  const std::optional<password_manager::PasswordForm>&
+  GetManagePasswordsSingleCredentialDetailsModeCredential() const override;
   const password_manager::InteractionsStats* GetCurrentInteractionStats()
       const override;
   size_t GetTotalNumberCompromisedPasswords() const override;
-  bool DidAuthForAccountStoreOptInFail() const override;
   bool BubbleIsManualFallbackForSaving() const override;
+  bool GpmPinCreatedDuringRecentPasskeyCreation() const override;
+  const std::string& PasskeyRpId() const override;
   void OnBubbleShown() override;
   void OnBubbleHidden() override;
   void OnNoInteraction() override;
@@ -168,24 +185,32 @@ class ManagePasswordsUIController
       override;
   void DiscardUnsyncedCredentials() override;
   void MovePasswordToAccountStore() override;
+  void MovePendingPasswordToAccountStoreUsingHelper(
+      const password_manager::PasswordForm& form,
+      password_manager::metrics_util::MoveToAccountStoreTrigger trigger)
+      override;
   void BlockMovingPasswordToAccountStore() override;
+  void PromptSaveBubbleAfterDefaultStoreChanged() override;
   void ChooseCredential(
       const password_manager::PasswordForm& form,
       password_manager::CredentialType credential_type) override;
-  void NavigateToPasswordManagerAccountDashboard(
-      password_manager::ManagePasswordsReferrer referrer) override;
   void NavigateToPasswordManagerSettingsPage(
       password_manager::ManagePasswordsReferrer referrer) override;
-  void EnableSync(const AccountInfo& account) override;
+  void NavigateToPasswordDetailsPageInPasswordManager(
+      const std::string& password_domain_name,
+      password_manager::ManagePasswordsReferrer referrer) override;
+  void NavigateToPasswordManagerSettingsAccountStoreToggle(
+      password_manager::ManagePasswordsReferrer referrer) override;
   void OnDialogHidden() override;
   void AuthenticateUserWithMessage(const std::u16string& message,
                                    AvailabilityCallback callback) override;
   void AuthenticateUserForAccountStoreOptInAndSavePassword(
       const std::u16string& username,
       const std::u16string& password) override;
-  void AuthenticateUserForAccountStoreOptInAndMovePassword() override;
   void AuthenticateUserForAccountStoreOptInAfterSavingLocallyAndMovePassword()
       override;
+  void MaybeShowIOSPasswordPromo() override;
+  void RelaunchChrome() override;
   // Skips user os level authentication during the life time of the returned
   // object. To be used in tests of flows that require user authentication.
   [[nodiscard]] std::unique_ptr<base::AutoReset<bool>>
@@ -197,11 +222,17 @@ class ManagePasswordsUIController
   }
 #endif  // defined(UNIT_TEST)
 
+  // Hides the bubble if opened. Mocked in the tests.
+  virtual void HidePasswordBubble();
+
+  bool IsShowingBubble() const {
+    return bubble_status_ == BubbleStatus::SHOWN ||
+           bubble_status_ == BubbleStatus::SHOWN_PENDING_ICON_UPDATE;
+  }
+
  protected:
   explicit ManagePasswordsUIController(content::WebContents* web_contents);
 
-  // Hides the bubble if opened. Mocked in the tests.
-  virtual void HidePasswordBubble();
 
   // Called when a PasswordForm is autofilled, when a new PasswordForm is
   // submitted, or when a navigation occurs to update the visibility of the
@@ -222,6 +253,14 @@ class ManagePasswordsUIController
 
   // Check if |web_contents()| is attached to some Browser. Mocked in tests.
   virtual bool HasBrowserWindow() const;
+
+  // Creates new MovePasswordToAccountStoreHelper object and thus starts the
+  // moving process for the pending password.
+  virtual std::unique_ptr<password_manager::MovePasswordToAccountStoreHelper>
+  CreateMovePasswordToAccountStoreHelper(
+      const password_manager::PasswordForm& form,
+      password_manager::metrics_util::MoveToAccountStoreTrigger trigger,
+      base::OnceCallback<void()> on_move_finished);
 
   // Returns whether the bubble is currently open.
   bool IsShowingBubbleForTest() const { return IsShowingBubble(); }
@@ -248,12 +287,10 @@ class ManagePasswordsUIController
     SHOWN,
     // Same as SHOWN but the icon is to be updated when the bubble is closed.
     SHOWN_PENDING_ICON_UPDATE,
+    // The bubble is to be popped up in the next call to
+    // UpdateBubbleAndIconVisibility() and will be focused automatically.
+    SHOULD_POP_UP_WITH_FOCUS,
   };
-
-  bool IsShowingBubble() const {
-    return bubble_status_ == BubbleStatus::SHOWN ||
-           bubble_status_ == BubbleStatus::SHOWN_PENDING_ICON_UPDATE;
-  }
 
   // Returns whether saving credentials prompts for the current form in
   // |passwords_data_| is blocked due to explicit action of the user asking to
@@ -296,18 +333,11 @@ class ManagePasswordsUIController
       password_manager::PostSaveCompromisedHelper::BubbleType type,
       size_t count_compromised_passwords_);
 
-  // Triggered from a reauthentication flow. If |form_manager| is still valid
-  // and the reauth was successful, the password is moved to the account store.
-  void FinishMovingPasswordAfterAccountStoreOptInAuth(
-      password_manager::PasswordFormManagerForUI* form_manager,
-      password_manager::PasswordManagerClient::ReauthSucceeded
-          reauth_succeeded);
-
   // Called from an opt-in/reauth flow that was triggered after a new
   // account-storage-eligible user saved a password locally. If the opt-in was
   // successful, this moves the just-saved password into the account store.
   void MoveJustSavedPasswordAfterAccountStoreOptIn(
-      password_manager::PasswordForm form,
+      const password_manager::PasswordForm& form,
       password_manager::PasswordManagerClient::ReauthSucceeded
           reauth_succeeded);
 
@@ -318,6 +348,10 @@ class ManagePasswordsUIController
 
   // Cancels current authentication and releases |biometric_authenticator_|.
   void CancelAnyOngoingBiometricAuth();
+
+  // Returns true if the password that is about to be changed was previously
+  // phished.
+  bool IsPendingPasswordPhished() const;
 
   // Timeout in seconds for the manual fallback for saving.
   static int save_fallback_timeout_in_seconds_;
@@ -345,12 +379,13 @@ class ManagePasswordsUIController
   std::list<std::unique_ptr<password_manager::MovePasswordToAccountStoreHelper>>
       move_to_account_store_helpers_;
 
-  scoped_refptr<device_reauth::DeviceAuthenticator> biometric_authenticator_;
+  std::unique_ptr<device_reauth::DeviceAuthenticator> biometric_authenticator_;
 
   // Used to bypass user authentication in integration tests.
   bool bypass_user_auth_for_testing_ = false;
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS_ASH) || \
+    BUILDFLAG(IS_OHOS)
   bool was_biometric_authentication_for_filling_promo_shown_ = false;
 #endif
 

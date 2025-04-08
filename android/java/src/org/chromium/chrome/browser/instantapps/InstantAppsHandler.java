@@ -4,12 +4,10 @@
 
 package org.chromium.chrome.browser.instantapps;
 
-import org.chromium.chrome.browser.AppHooks;
+import org.chromium.base.ServiceLoaderUtil;
 
 /** A launcher for Instant Apps. */
 public class InstantAppsHandler {
-    private static final String TAG = "InstantAppsHandler";
-
     private static final Object INSTANCE_LOCK = new Object();
     private static InstantAppsHandler sInstance;
 
@@ -17,7 +15,12 @@ public class InstantAppsHandler {
     public static InstantAppsHandler getInstance() {
         synchronized (INSTANCE_LOCK) {
             if (sInstance == null) {
-                sInstance = AppHooks.get().createInstantAppsHandler();
+                InstantAppsHandler instance =
+                        ServiceLoaderUtil.maybeCreate(InstantAppsHandler.class);
+                if (instance == null) {
+                    instance = new InstantAppsHandler();
+                }
+                sInstance = instance;
             }
         }
         return sInstance;

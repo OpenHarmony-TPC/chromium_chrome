@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/arc/input_method_manager/arc_input_method_state.h"
 
 #include <memory>
+#include <optional>
 
 #include "ash/components/arc/mojom/input_method_manager.mojom.h"
 #include "ash/public/cpp/tablet_mode.h"
@@ -38,7 +39,8 @@ class FakeDelegate : public ArcInputMethodState::Delegate {
   InputMethodDescriptor BuildInputMethodDescriptor(
       const mojom::ImeInfoPtr& info) const override {
     return InputMethodDescriptor(info->ime_id, "", "", {}, {}, false, GURL(),
-                                 GURL());
+                                 GURL(),
+                                 /*handwriting_language=*/std::nullopt);
   }
   bool allowed = false;
 };

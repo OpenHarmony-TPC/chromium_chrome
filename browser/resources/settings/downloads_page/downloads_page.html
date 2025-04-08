@@ -9,10 +9,10 @@
           $i18n{downloadLocation}
         </div>
         <div class="secondary" id="defaultDownloadPath" aria-hidden="true">
-<if expr="not chromeos_ash">
+<if expr="not chromeos_ash and not is_ohos">
           [[prefs.download.default_directory.value]]
 </if>
-<if expr="chromeos_ash">
+<if expr="chromeos_ash or is_ohos">
           [[downloadLocation_]]
 </if>
         </div>
@@ -41,7 +41,7 @@
         </cr-button>
       </div>
     </template>
-    <template is="dom-if" if="[[downloadBubbleEnabled_]]">
+    <template is="dom-if" if="[[downloadBubblePartialViewControlledByPref_]]">
       <settings-toggle-button id="showDownloadsToggle"
           class="hr"
           pref="{{prefs.download_bubble.partial_view_enabled}}"

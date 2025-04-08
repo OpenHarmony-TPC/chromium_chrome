@@ -33,7 +33,6 @@ OverlayWindowAndroid::OverlayWindowAndroid(
       controller_(controller) {
   surface_layer_->SetIsDrawable(true);
   surface_layer_->SetStretchContentToFillBounds(true);
-  surface_layer_->SetMayContainVideo(true);
   surface_layer_->SetBackgroundColor(SkColors::kBlack);
 
   auto* web_contents = controller_->GetWebContents();
@@ -140,6 +139,10 @@ void OverlayWindowAndroid::OnActivityStopped() {
 void OverlayWindowAndroid::Destroy(JNIEnv* env) {
   java_ref_.reset();
 
+  // Stop the timer for completeness, though resetting `java_ref_` will make it
+  // a no-op.
+  update_action_timer_->Stop();
+
   if (window_android_) {
     window_android_->RemoveObserver(this);
     window_android_ = nullptr;
@@ -150,6 +153,7 @@ void OverlayWindowAndroid::Destroy(JNIEnv* env) {
       /*should_pause_video=*/visible_actions_.find(
           static_cast<int>(media_session::mojom::MediaSessionAction::kPlay)) !=
       visible_actions_.end());
+  // `this` may be destroyed.
 }
 
 void OverlayWindowAndroid::TogglePlayPause(JNIEnv* env, bool toggleOn) {
@@ -222,6 +226,7 @@ void OverlayWindowAndroid::Close() {
 void OverlayWindowAndroid::Hide() {
   CloseInternal();
   controller_->OnWindowDestroyed(/*should_pause_video=*/false);
+  // `this` may be destroyed.
 }
 
 void OverlayWindowAndroid::CloseInternal() {
@@ -233,6 +238,11 @@ void OverlayWindowAndroid::CloseInternal() {
   window_android_ = nullptr;
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_PictureInPictureActivity_close(env, java_ref_.get(env));
+
+  // Stop any in-flight action button updates.  We won't find out if the Android
+  // window is destroyed since that comes from `WindowAndroidObserver` but we
+  // just unregistered from that.
+  update_action_timer_->Stop();
 }
 
 bool OverlayWindowAndroid::IsActive() const {

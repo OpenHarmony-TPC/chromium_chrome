@@ -25,7 +25,7 @@
 namespace arc {
 class ArcIntentHelperBridge;
 class IntentFilter;
-}
+}  // namespace arc
 #endif
 
 class Profile;
@@ -75,7 +75,7 @@ apps::IntentFilterPtr CreateLockScreenFilter();
 // Create an intent struct with filesystem:// type URLs from the file paths and
 // mime types of a list of files. This util has to live under chrome/ because it
 // uses fileapis and cannot be included in components/.
-// TODO(crbug.com/1253219): Use FilePaths in intents to avoid dependency on
+// TODO(crbug.com/40199088): Use FilePaths in intents to avoid dependency on
 // File Manager.
 apps::IntentPtr CreateShareIntentFromFiles(
     Profile* profile,
@@ -116,6 +116,8 @@ arc::IntentFilter ConvertAppServiceToArcIntentFilter(
     const std::string& package_name,
     const apps::IntentFilterPtr& intent_filter);
 
+// Create App Service intent filter from ARC intent filter, could return
+// nullptr if the intent filter from ARC is not valid.
 apps::IntentFilterPtr CreateIntentFilterForArc(
     const arc::IntentFilter& arc_intent_filter);
 #endif
@@ -126,7 +128,7 @@ apps::IntentFilterPtr CreateIntentFilterForArc(
 // null otherwise.
 // If |profile| is null when converting intent contains files, the files
 // fields will not be converted.
-// TODO(crbug.com/1253219): Needs manual conversion rather than mojom traits
+// TODO(crbug.com/40199088): Needs manual conversion rather than mojom traits
 // because Lacros does not support FileSystemURL as Ash, this method can be
 // replaced with mojom traits after migrating the App Service Intent to use the
 // file path.
@@ -140,7 +142,7 @@ crosapi::mojom::IntentPtr ConvertAppServiceToCrosapiIntent(
 // null otherwise.
 // If |profile| is null when converting intent contains files, the files
 // fields will not be converted.
-// TODO(crbug.com/1253219): Needs manual conversion rather than mojom traits
+// TODO(crbug.com/40199088): Needs manual conversion rather than mojom traits
 // because Lacros does not support FileSystemURL as Ash, this method can be
 // replaced with mojom traits after migrating the App Service Intent to use the
 // file path.

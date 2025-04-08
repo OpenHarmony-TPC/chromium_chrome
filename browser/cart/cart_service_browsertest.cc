@@ -35,7 +35,7 @@ cart_db::ChromeCartContentProto BuildProto(const char* domain,
   cart_db::ChromeCartContentProto proto;
   proto.set_key(domain);
   proto.set_merchant_cart_url(merchant_url);
-  proto.set_timestamp(base::Time::Now().ToDoubleT());
+  proto.set_timestamp(base::Time::Now().InSecondsFSinceUnixEpoch());
   return proto;
 }
 
@@ -122,7 +122,7 @@ class CartServiceBrowserTest : public InProcessBrowserTest {
     ui_test_utils::NavigateToURLWithDisposition(
         browser(), url, disposition,
         ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
-    // TODO(crbug.com/1206094): Investigate TabStripModelObserver-based waiting
+    // TODO(crbug.com/40180767): Investigate TabStripModelObserver-based waiting
     // mechanism.
     base::PlatformThread::Sleep(base::Seconds(2));
     base::RunLoop().RunUntilIdle();
@@ -271,7 +271,7 @@ class CartServiceBrowserDiscountTest : public CartServiceBrowserTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-// TODO(crbug.com/1218979): Similar to TestNavigationUKMCollection, add tests
+// TODO(crbug.com/40185906): Similar to TestNavigationUKMCollection, add tests
 // that open tab with different WindowOpenDisposition for this test. Figure out
 // a proper way to wait for the second load of the discount URL.
 // Flaky. crbug.com/1220949
@@ -284,7 +284,7 @@ IN_PROC_BROWSER_TEST_F(CartServiceBrowserDiscountTest,
   added_discount->set_rule_id("fake_id");
   added_discount->set_percent_off(5);
   added_discount->set_raw_merchant_offer_id("fake_offer_id");
-  service_->AddCart(GURL(kFakeMerchantURLA), absl::nullopt, merchant_proto);
+  service_->AddCart(GURL(kFakeMerchantURLA), std::nullopt, merchant_proto);
 
   GURL foo_url("https://www.foo.com/cart.html");
   GURL bar_url("https://www.bar.com/cart.html");

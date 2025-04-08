@@ -10,11 +10,11 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/run_until.h"
 #include "base/test/test_timeouts.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -23,6 +23,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_browsertest_util.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/test_launcher_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -31,7 +32,6 @@
 #include "components/guest_view/browser/guest_view_manager_delegate.h"
 #include "components/guest_view/browser/guest_view_manager_factory.h"
 #include "components/guest_view/browser/test_guest_view_manager.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -60,6 +60,7 @@
 #include "ui/base/ime/composition_text.h"
 #include "ui/base/ime/ime_text_span.h"
 #include "ui/base/ime/text_input_client.h"
+#include "ui/base/ozone_buildflags.h"
 #include "ui/base/test/ui_controls.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/geometry/rect.h"
@@ -70,10 +71,6 @@
 #include "ui/base/test/scoped_fake_nswindow_fullscreen.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
-#include "ui/ozone/buildflags.h"
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
-
 using extensions::AppWindow;
 using extensions::ExtensionsAPIClient;
 using guest_view::GuestViewBase;
@@ -81,15 +78,7 @@ using guest_view::GuestViewManager;
 using guest_view::TestGuestViewManager;
 using guest_view::TestGuestViewManagerFactory;
 
-// The build flag OZONE_PLATFORM_WAYLAND is only available on
-// Linux or ChromeOS, so this simplifies the next set of ifdefs.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
-#if BUILDFLAG(OZONE_PLATFORM_WAYLAND)
-#define OZONE_PLATFORM_WAYLAND
-#endif  // BUILDFLAG(OZONE_PLATFORM_WAYLAND)
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if !defined(OZONE_PLATFORM_WAYLAND)
+#if !BUILDFLAG(IS_OZONE_WAYLAND)
 // Some test helpers, like ui_test_utils::SendMouseMoveSync, don't work properly
 // on some platforms. Tests that require these helpers need to be skipped for
 // these cases.
@@ -142,9 +131,7 @@ class WebViewInteractiveTest : public extensions::PlatformAppBrowserTest {
         embedder_web_contents_(nullptr),
         corner_(gfx::Point()),
         mouse_click_result_(false),
-        first_click_(true) {
-    GuestViewManager::set_factory_for_testing(&factory_);
-  }
+        first_click_(true) {}
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     extensions::PlatformAppBrowserTest::SetUpCommandLine(command_line);
@@ -159,18 +146,9 @@ class WebViewInteractiveTest : public extensions::PlatformAppBrowserTest {
   }
 
   TestGuestViewManager* GetGuestViewManager() {
-    TestGuestViewManager* manager = static_cast<TestGuestViewManager*>(
-        TestGuestViewManager::FromBrowserContext(browser()->profile()));
-    // Test code may access the TestGuestViewManager before it would be created
-    // during creation of the first guest.
-    if (!manager) {
-      manager = static_cast<TestGuestViewManager*>(
-          GuestViewManager::CreateWithDelegate(
-              browser()->profile(),
-              ExtensionsAPIClient::Get()->CreateGuestViewManagerDelegate(
-                  browser()->profile())));
-    }
-    return manager;
+    return factory_.GetOrCreateTestGuestViewManager(
+        browser()->profile(),
+        ExtensionsAPIClient::Get()->CreateGuestViewManagerDelegate());
   }
 
   void MoveMouseInsideWindowWithListener(gfx::Point point,
@@ -299,7 +277,7 @@ class WebViewInteractiveTest : public extensions::PlatformAppBrowserTest {
     auto done_listener =
         std::make_unique<ExtensionTestMessageListener>("TEST_PASSED");
     done_listener->set_failure_message("TEST_FAILED");
-    if (!content::ExecuteScript(
+    if (!content::ExecJs(
             *embedder_web_contents,
             base::StringPrintf("runTest('%s')", test_name.c_str()))) {
       LOG(ERROR) << "UNABLE TO START TEST";
@@ -324,7 +302,7 @@ class WebViewInteractiveTest : public extensions::PlatformAppBrowserTest {
   }
 
   void SendMessageToEmbedder(const std::string& message) {
-    ASSERT_TRUE(content::ExecuteScript(
+    ASSERT_TRUE(content::ExecJs(
         GetFirstAppWindowWebContents(),
         base::StringPrintf("onAppMessage('%s');", message.c_str())));
   }
@@ -443,10 +421,7 @@ class WebViewInteractiveTest : public extensions::PlatformAppBrowserTest {
     }
 
     size_t initial_widget_count_ = 0;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #constexpr-ctor-field-initializer
-    RAW_PTR_EXCLUSION content::RenderWidgetHost* last_render_widget_host_ =
-        nullptr;
+    raw_ptr<content::RenderWidgetHost> last_render_widget_host_ = nullptr;
     std::unique_ptr<base::RunLoop> run_loop_;
   };
 
@@ -512,8 +487,9 @@ class WebViewInteractiveTest : public extensions::PlatformAppBrowserTest {
  protected:
   TestGuestViewManagerFactory factory_;
   // Only set if `SetupTest` or `TestHelper` are called.
-  raw_ptr<guest_view::GuestViewBase, DanglingUntriaged> guest_view_;
-  raw_ptr<content::WebContents, DanglingUntriaged> embedder_web_contents_;
+  raw_ptr<guest_view::GuestViewBase, AcrossTasksDanglingUntriaged> guest_view_;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged>
+      embedder_web_contents_;
 
   gfx::Point corner_;
   bool mouse_click_result_;
@@ -562,7 +538,7 @@ class WebViewImeInteractiveTest : public WebViewInteractiveTest {
 
     content::TextInputManagerTester tester_;
     std::unique_ptr<base::RunLoop> run_loop_;
-    absl::optional<uint32_t> last_composition_range_length_;
+    std::optional<uint32_t> last_composition_range_length_;
     uint32_t expected_length_ = 0;
   };
 };
@@ -578,7 +554,7 @@ class DISABLED_WebViewPopupInteractiveTest : public WebViewInteractiveTest {};
 
 // Timeouts flakily: crbug.com/1003345
 #if defined(SUPPORTS_SYNC_MOUSE_UTILS) && !BUILDFLAG(IS_CHROMEOS) && \
-    !BUILDFLAG(IS_MAC) && defined(NDEBUG)
+    !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN) && defined(NDEBUG)
 #define MAYBE_PointerLock PointerLock
 #else
 #define MAYBE_PointerLock DISABLED_PointerLock
@@ -677,8 +653,14 @@ IN_PROC_BROWSER_TEST_F(WebViewPointerLockInteractiveTest,
 
 // Tests that if a <webview> is focused before navigation then the guest starts
 // off focused.
+// TODO(crbug.com/346863842): Flaky on linux-rel.
+#if BUILDFLAG(IS_LINUX) && defined(NDEBUG)
+#define MAYBE_Focus_FocusBeforeNavigation DISABLED_Focus_FocusBeforeNavigation
+#else
+#define MAYBE_Focus_FocusBeforeNavigation Focus_FocusBeforeNavigation
+#endif
 IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest,
-                       Focus_FocusBeforeNavigation) {
+                       MAYBE_Focus_FocusBeforeNavigation) {
   TestHelper("testFocusBeforeNavigation", "web_view/focus", NO_TEST_SERVER);
 }
 
@@ -687,7 +669,14 @@ IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest, Focus_FocusEvent) {
   TestHelper("testFocusEvent", "web_view/focus", NO_TEST_SERVER);
 }
 
-IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest, Focus_FocusTakeFocus) {
+// TODO(crbug.com/334045674): Flaky timeouts on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_Focus_FocusTakeFocus DISABLED_Focus_FocusTakeFocus
+#else
+#define MAYBE_Focus_FocusTakeFocus Focus_FocusTakeFocus
+#endif
+IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest,
+                       MAYBE_Focus_FocusTakeFocus) {
   TestHelper("testFocusTakeFocus", "web_view/focus", NO_TEST_SERVER);
   ASSERT_TRUE(GetGuestRenderFrameHost());
 
@@ -734,7 +723,7 @@ IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest,
 
   ExtensionTestMessageListener next_step_listener("TEST_STEP_PASSED");
   next_step_listener.set_failure_message("TEST_STEP_FAILED");
-  EXPECT_TRUE(content::ExecuteScript(
+  EXPECT_TRUE(content::ExecJs(
       embedder_web_contents,
       "window.runCommand('testFocusTracksEmbedderRunNextStep');"));
 
@@ -794,8 +783,14 @@ IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest, Focus_BlurEvent) {
 }
 
 // Tests that a <webview> can't steal focus from the embedder.
+// TODO(crbug.com/349299938): Flaky on mac14-arm64-rel
+#if BUILDFLAG(IS_MAC) && defined(NDEBUG)
+#define MAYBE_FrameInGuestWontStealFocus DISABLED_FrameInGuestWontStealFocus
+#else
+#define MAYBE_FrameInGuestWontStealFocus FrameInGuestWontStealFocus
+#endif
 IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest,
-                       FrameInGuestWontStealFocus) {
+                       MAYBE_FrameInGuestWontStealFocus) {
   LoadAndLaunchPlatformApp("web_view/simple", "WebViewTest.LAUNCHED");
 
   content::WebContents* embedder_web_contents = GetFirstAppWindowWebContents();
@@ -814,7 +809,7 @@ IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest,
   // Try to focus an iframe in the guest.
   content::MainThreadFrameObserver embedder_observer(embedder_rwh);
   content::MainThreadFrameObserver guest_observer(guest_rwh);
-  EXPECT_TRUE(content::ExecuteScript(
+  EXPECT_TRUE(content::ExecJs(
       guest_rfh,
       "document.body.appendChild(document.createElement('iframe')); "
       "document.querySelector('iframe').focus()"));
@@ -826,8 +821,8 @@ IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest,
   EXPECT_NE(guest_rfh, embedder_web_contents->GetFocusedFrame());
 
   // Try to focus the guest from the embedder.
-  EXPECT_TRUE(content::ExecuteScript(
-      embedder_web_contents, "document.querySelector('webview').focus()"));
+  EXPECT_TRUE(content::ExecJs(embedder_web_contents,
+                              "document.querySelector('webview').focus()"));
   embedder_observer.Wait();
   guest_observer.Wait();
   // Guest should be focused.
@@ -839,13 +834,13 @@ IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest,
       (iframe_inside_guest == embedder_web_contents->GetFocusedFrame()));
 
   // Try to focus an iframe in the embedder.
-  EXPECT_TRUE(content::ExecuteScript(
+  EXPECT_TRUE(content::ExecJs(
       embedder_web_contents,
       "document.body.appendChild(document.createElement('iframe'))"));
   content::RenderFrameHost* iframe_rfh = ChildFrameAt(embedder_rfh, 1);
   content::FrameFocusedObserver iframe_focus_observer(iframe_rfh);
-  EXPECT_TRUE(content::ExecuteScript(
-      embedder_web_contents, "document.querySelector('iframe').focus()"));
+  EXPECT_TRUE(content::ExecJs(embedder_web_contents,
+                              "document.querySelector('iframe').focus()"));
   // Embedder is allowed to steal focus from guest.
   iframe_focus_observer.Wait();
   EXPECT_TRUE(content::IsRenderWidgetHostFocused(embedder_rwh));
@@ -940,8 +935,8 @@ IN_PROC_BROWSER_TEST_F(DISABLED_WebViewPopupInteractiveTest,
 }
 
 // Flaky on ChromeOS and Linux: http://crbug.com/526886
-// TODO(crbug.com/807446): Flaky on Mac.
-// TODO(crbug.com/809383): Flaky on Windows.
+// TODO(crbug.com/40560638): Flaky on Mac.
+// TODO(crbug.com/41369000): Flaky on Windows.
 // Tests that moving browser plugin (without resize/UpdateRects) correctly
 // repositions popup.
 IN_PROC_BROWSER_TEST_F(DISABLED_WebViewPopupInteractiveTest,
@@ -969,8 +964,8 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, Navigation_BackForwardKeys) {
   ExtensionTestMessageListener ready_back_key_listener("ReadyForBackKey");
   ExtensionTestMessageListener ready_forward_key_listener("ReadyForForwardKey");
 
-  EXPECT_TRUE(content::ExecuteScript(embedder_web_contents,
-                                     "runTest('testBackForwardKeys')"));
+  EXPECT_TRUE(
+      content::ExecJs(embedder_web_contents, "runTest('testBackForwardKeys')"));
 
   ASSERT_TRUE(ready_back_key_listener.WaitUntilSatisfied());
   SendBackShortcutToPlatformApp();
@@ -1039,7 +1034,7 @@ IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest, Focus_FocusRestored) {
         embedder_web_contents, 0, blink::WebMouseEvent::Button::kLeft,
         guest_rfh->GetView()->TransformPointToRootCoordSpace(
             gfx::Point(10, 10)));
-    EXPECT_TRUE(content::ExecuteScript(
+    EXPECT_TRUE(content::ExecJs(
         embedder_web_contents,
         "window.runCommand('testFocusRestoredRunNextStep', 1);"));
   }
@@ -1053,7 +1048,7 @@ IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest, Focus_FocusRestored) {
     content::SimulateMouseClickAt(embedder_web_contents, 0,
                                   blink::WebMouseEvent::Button::kLeft,
                                   gfx::Point(200, 20));
-    EXPECT_TRUE(content::ExecuteScript(
+    EXPECT_TRUE(content::ExecJs(
         embedder_web_contents,
         "window.runCommand('testFocusRestoredRunNextStep', 2);"));
   }
@@ -1069,7 +1064,7 @@ IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest, Focus_FocusRestored) {
         embedder_web_contents, 0, blink::WebMouseEvent::Button::kLeft,
         guest_rfh->GetView()->TransformPointToRootCoordSpace(
             gfx::Point(10, 10)));
-    EXPECT_TRUE(content::ExecuteScript(
+    EXPECT_TRUE(content::ExecJs(
         embedder_web_contents,
         "window.runCommand('testFocusRestoredRunNextStep', 3)"));
   }
@@ -1121,9 +1116,9 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, MAYBE_Focus_InputMethod) {
     ui::CompositionText composition;
     composition.text = u"InputTest123";
     text_input_client->SetCompositionText(composition);
-    EXPECT_TRUE(content::ExecuteScript(
-        embedder_web_contents,
-        "window.runCommand('testInputMethodRunNextStep', 1);"));
+    EXPECT_TRUE(
+        content::ExecJs(embedder_web_contents,
+                        "window.runCommand('testInputMethodRunNextStep', 1);"));
 
     // Wait for the next step to complete.
     ASSERT_TRUE(next_step_listener.WaitUntilSatisfied());
@@ -1137,9 +1132,9 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, MAYBE_Focus_InputMethod) {
     composition.text = u"InputTest456";
     text_input_client->SetCompositionText(composition);
     text_input_client->ConfirmCompositionText(/* keep_selection */ false);
-    EXPECT_TRUE(content::ExecuteScript(
-        embedder_web_contents,
-        "window.runCommand('testInputMethodRunNextStep', 2);"));
+    EXPECT_TRUE(
+        content::ExecJs(embedder_web_contents,
+                        "window.runCommand('testInputMethodRunNextStep', 2);"));
 
     // Wait for the next step to complete.
     ASSERT_TRUE(next_step_listener.WaitUntilSatisfied());
@@ -1163,9 +1158,9 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, MAYBE_Focus_InputMethod) {
     // Now we delete 'Test' in 'InputTest456', as the caret is after 'T':
     // delete before 1 character ('T') and after 3 characters ('est').
     text_input_client->ExtendSelectionAndDelete(1, 3);
-    EXPECT_TRUE(content::ExecuteScript(
-        embedder_web_contents,
-        "window.runCommand('testInputMethodRunNextStep', 3);"));
+    EXPECT_TRUE(
+        content::ExecJs(embedder_web_contents,
+                        "window.runCommand('testInputMethodRunNextStep', 3);"));
 
     // Wait for the next step to complete.
     ASSERT_TRUE(next_step_listener.WaitUntilSatisfied());
@@ -1174,7 +1169,7 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, MAYBE_Focus_InputMethod) {
 #endif
 
 #if BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)  // TODO(https://crbug.com/801552): Flaky.
+    BUILDFLAG(IS_CHROMEOS)  // TODO(crbug.com/41364503): Flaky.
 #define MAYBE_LongPressSelection DISABLED_LongPressSelection
 #else
 #define MAYBE_LongPressSelection LongPressSelection
@@ -1350,12 +1345,8 @@ IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest, MAYBE_FocusAndVisibility) {
 
 // Flaky timeouts on Linux. https://crbug.com/709202
 // Flaky timeouts on Win. https://crbug.com/846695
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
-#define MAYBE_KeyboardFocusSimple DISABLED_KeyboardFocusSimple
-#else
-#define MAYBE_KeyboardFocusSimple KeyboardFocusSimple
-#endif
-IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, MAYBE_KeyboardFocusSimple) {
+// Flaky timeouts on Mac. https://crbug.com/1520415
+IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, DISABLED_KeyboardFocusSimple) {
   TestHelper("testKeyboardFocusSimple", "web_view/focus", NO_TEST_SERVER);
 
   EXPECT_EQ(embedder_web_contents()->GetFocusedFrame(),
@@ -1381,7 +1372,7 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, MAYBE_KeyboardFocusSimple) {
       GetPlatformAppWindow(), ui::VKEY_C, false, false, false, false));
 
   next_step_listener.Reset();
-  EXPECT_TRUE(content::ExecuteScript(
+  EXPECT_TRUE(content::ExecJs(
       embedder_web_contents(),
       "window.runCommand('testKeyboardFocusRunNextStep', 'aBc');"));
 
@@ -1430,9 +1421,9 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, MAYBE_KeyboardFocusWindowCycle) {
   const extensions::Extension* extension =
       LoadAndLaunchPlatformApp("minimal", "Launched");
   extensions::AppWindow* window = GetFirstAppWindowForApp(extension->id());
-  EXPECT_TRUE(content::ExecuteScript(
-      embedder_web_contents(),
-      "window.runCommand('monitorGuestEvent', 'focus');"));
+  EXPECT_TRUE(
+      content::ExecJs(embedder_web_contents(),
+                      "window.runCommand('monitorGuestEvent', 'focus');"));
 
   ASSERT_TRUE(ui_test_utils::SendKeyPressToWindowSync(
       GetPlatformAppWindow(), ui::VKEY_F, false, false, false, false));
@@ -1445,9 +1436,8 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, MAYBE_KeyboardFocusWindowCycle) {
   CloseAppWindow(window);
   ASSERT_TRUE(ui_test_utils::ShowAndFocusNativeWindow(GetPlatformAppWindow()));
   next_step_listener.Reset();
-  EXPECT_TRUE(
-      content::ExecuteScript(embedder_web_contents(),
-                             "window.runCommand('waitGuestEvent', 'focus');"));
+  EXPECT_TRUE(content::ExecJs(embedder_web_contents(),
+                              "window.runCommand('waitGuestEvent', 'focus');"));
   ASSERT_TRUE(next_step_listener.WaitUntilSatisfied());
 
   ASSERT_TRUE(ui_test_utils::SendKeyPressToWindowSync(
@@ -1458,7 +1448,7 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, MAYBE_KeyboardFocusWindowCycle) {
       GetPlatformAppWindow(), ui::VKEY_Z, false, false, false, false));
 
   next_step_listener.Reset();
-  EXPECT_TRUE(content::ExecuteScript(
+  EXPECT_TRUE(content::ExecJs(
       embedder_web_contents(),
       "window.runCommand('testKeyboardFocusRunNextStep', 'aBcxYz');"));
 
@@ -1483,7 +1473,7 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest,
   // it.  Hence, have the guest request pointer lock and wait for its
   // destruction.
   content::RenderFrameDeletedObserver observer(guest_rfh);
-  EXPECT_TRUE(content::ExecuteScript(
+  EXPECT_TRUE(content::ExecJs(
       guest_rfh, "document.querySelector('div').requestPointerLock()"));
   observer.WaitUntilDeleted();
 
@@ -1608,14 +1598,11 @@ IN_PROC_BROWSER_TEST_F(WebViewFocusInteractiveTest,
   // Verify that the view is offset inside root view as expected.
   content::RenderWidgetHostView* guest_rwhv =
       GetGuestRenderFrameHost()->GetView();
-  while (guest_rwhv->TransformPointToRootCoordSpace(gfx::Point())
-             .OffsetFromOrigin()
-             .Length() < distance_from_root_view_origin) {
-    base::RunLoop run_loop;
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE, run_loop.QuitClosure(), TestTimeouts::tiny_timeout());
-    run_loop.Run();
-  }
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return guest_rwhv->TransformPointToRootCoordSpace(gfx::Point())
+               .OffsetFromOrigin()
+               .Length() >= distance_from_root_view_origin;
+  }));
 
   // Now trigger the popup and wait until it is displayed. The popup will get
   // dismissed after being shown.
@@ -1657,8 +1644,8 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest,
   content::RenderFrameHost* guest_rfh =
       GetGuestViewManager()->WaitForSingleGuestRenderFrameHostCreated();
   content::FrameFocusedObserver focus_observer(guest_rfh);
-  EXPECT_TRUE(content::ExecuteScript(
-      embedder_web_contents, "document.querySelector('webview').focus()"));
+  EXPECT_TRUE(content::ExecJs(embedder_web_contents,
+                              "document.querySelector('webview').focus()"));
   focus_observer.Wait();
   ASSERT_TRUE(
       content::IsRenderWidgetHostFocused(guest_rfh->GetRenderWidgetHost()));
@@ -1666,6 +1653,7 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest,
 
   // Wait for guest's document to consider itself focused. This avoids
   // flakiness on some platforms.
+  // TODO(crbug.com/41492111): `base::test::RunUntil` times out on mac.
   while (!content::EvalJs(guest_rfh, "document.hasFocus()").ExtractBool()) {
     base::RunLoop run_loop;
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
@@ -1678,8 +1666,7 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest,
   const GURL guest_url =
       embedded_test_server()->GetURL("a.test", "/title1.html");
   content::TestFrameNavigationObserver observer(guest_rfh);
-  EXPECT_TRUE(
-      ExecuteScript(guest_rfh, "location.href = '" + guest_url.spec() + "';"));
+  EXPECT_TRUE(ExecJs(guest_rfh, "location.href = '" + guest_url.spec() + "';"));
   observer.Wait();
   EXPECT_TRUE(observer.last_navigation_succeeded());
 
@@ -1692,4 +1679,8 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest,
       content::IsRenderWidgetHostFocused(guest_rfh2->GetRenderWidgetHost()));
   EXPECT_EQ(true, content::EvalJs(guest_rfh2, "document.hasFocus()"));
   EXPECT_EQ(guest_rfh2, embedder_web_contents->GetFocusedFrame());
+}
+
+IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, CannotLockKeyboard) {
+  TestHelper("testCannotLockKeyboard", "web_view/shim", NEEDS_TEST_SERVER);
 }

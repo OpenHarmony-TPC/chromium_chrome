@@ -5,8 +5,9 @@
 #ifndef CHROME_BROWSER_SUPERVISED_USER_CHROME_SUPERVISED_USER_WEB_CONTENT_HANDLER_BASE_H_
 #define CHROME_BROWSER_SUPERVISED_USER_CHROME_SUPERVISED_USER_WEB_CONTENT_HANDLER_BASE_H_
 
-#include "base/allocator/partition_allocator/pointers/raw_ptr.h"
+#include "base/memory/raw_ptr.h"
 #include "components/supervised_user/core/browser/web_content_handler.h"
+#include "content/public/browser/frame_tree_node_id.h"
 
 namespace content {
 class WebContents;
@@ -32,7 +33,7 @@ class ChromeSupervisedUserWebContentHandlerBase
 
  protected:
   ChromeSupervisedUserWebContentHandlerBase(content::WebContents* web_contents,
-                                            int frame_id,
+                                            content::FrameTreeNodeId frame_id,
                                             int64_t interstitial_navigation_id);
   raw_ptr<content::WebContents> web_contents_;
 
@@ -44,7 +45,7 @@ class ChromeSupervisedUserWebContentHandlerBase
   void OnInterstitialDone();
 
   // The uniquely identifying global id for the frame.
-  const int frame_id_;
+  const content::FrameTreeNodeId frame_id_;
   // The Navigation id of the navigation that last triggered the interstitial.
   int64_t interstitial_navigation_id_;
 };

@@ -5,12 +5,12 @@
 #ifndef CHROME_BROWSER_PERMISSIONS_CONTEXTUAL_NOTIFICATION_PERMISSION_UI_SELECTOR_H_
 #define CHROME_BROWSER_PERMISSIONS_CONTEXTUAL_NOTIFICATION_PERMISSION_UI_SELECTOR_H_
 
+#include <optional>
+
 #include "base/functional/callback.h"
 #include "chrome/browser/permissions/crowd_deny_preload_data.h"
 #include "chrome/browser/permissions/crowd_deny_safe_browsing_request.h"
 #include "components/permissions/permission_ui_selector.h"
-#include "components/safe_browsing/buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace permissions {
 class PermissionRequest;
@@ -60,9 +60,8 @@ class ContextualNotificationPermissionUiSelector
   void OnSiteReputationReady(
       const url::Origin& origin,
       const CrowdDenyPreloadData::SiteReputation* reputation);
-#if BUILDFLAG(FULL_SAFE_BROWSING)
-  absl::optional<CrowdDenySafeBrowsingRequest> safe_browsing_request_;
-#endif
+
+  std::optional<CrowdDenySafeBrowsingRequest> safe_browsing_request_;
   DecisionMadeCallback callback_;
   base::WeakPtrFactory<ContextualNotificationPermissionUiSelector>
       weak_factory_{this};

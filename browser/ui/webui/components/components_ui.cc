@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/components/components_ui.h"
 
 #include <stddef.h>
@@ -22,7 +27,8 @@
 #include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/grit/dev_ui_browser_resources.h"
+#include "chrome/grit/components_resources.h"
+#include "chrome/grit/components_resources_map.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "content/public/browser/web_ui.h"
@@ -35,10 +41,6 @@
 #include "components/user_manager/user_manager.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/startup/browser_params_proxy.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-
 namespace {
 
 void CreateAndAddComponentsUIHTMLSource(Profile* profile) {
@@ -46,11 +48,9 @@ void CreateAndAddComponentsUIHTMLSource(Profile* profile) {
       profile, chrome::kChromeUIComponentsHost);
 
   source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src chrome://resources 'self' 'unsafe-eval';");
-  source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::TrustedTypes,
-      "trusted-types jstemplate parse-html-subset;");
+      "trusted-types lit-html-desktop;");
+  source->EnableReplaceI18nInJS();
 
   static constexpr webui::LocalizedString kStrings[] = {
     {"componentsTitle", IDS_COMPONENTS_TITLE},
@@ -72,17 +72,14 @@ void CreateAndAddComponentsUIHTMLSource(Profile* profile) {
       "isGuest",
 #if BUILDFLAG(IS_CHROMEOS_ASH)
       user_manager::UserManager::Get()->IsLoggedInAsGuest() ||
-          user_manager::UserManager::Get()->IsLoggedInAsPublicAccount()
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-                      chromeos::BrowserParamsProxy::Get()->SessionType() ==
-                              crosapi::mojom::SessionType::kPublicSession ||
-                          profile->IsGuestSession()
+          user_manager::UserManager::Get()->IsLoggedInAsManagedGuestSession()
 #else
       profile->IsOffTheRecord()
 #endif
   );
   source->UseStringsJs();
-  source->AddResourcePath("components.js", IDR_COMPONENTS_COMPONENTS_JS);
+  source->AddResourcePaths(
+      base::make_span(kComponentsResources, kComponentsResourcesSize));
   source->SetDefaultResource(IDR_COMPONENTS_COMPONENTS_HTML);
 }
 

@@ -38,9 +38,10 @@ class LensUnifiedSidePanelView : public views::FlexLayoutView,
 
   // views::View
   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
 
   content::WebContents* GetWebContents();
+
+  views::View* GetWebView() { return web_view_; }
 
   void OpenUrl(const content::OpenURLParams& params);
 
@@ -70,9 +71,28 @@ class LensUnifiedSidePanelView : public views::FlexLayoutView,
   // if the lens results page is showing.
   void SetContentAndNewTabButtonVisible(bool visible,
                                         bool enable_new_tab_button);
+  // Sets the content and new tab button visibility for the given URL.
+  // The contents will be made visible if the URL is a valid Lens results URL,
+  // an error page, or a non-Lens URL. The new tab button will be made visible
+  // only if the URL is a valid Lens results URL.
+  void MaybeSetContentAndNewTabButtonVisible(const GURL& url);
+
+  // Registers a WebContentsModalDialogManager for our WebContents in order to
+  // display web modal dialogs triggered by it.
+  void RegisterModalDialogManager(Browser* browser);
 
   // content::WebContentsObserver:
+  // TODO(crbug.com/40916154): Clean up unused listeners and flags after
+  // determining which ones we want to listen to for server-side rendering
+  // backends.
   void DocumentOnLoadCompletedInPrimaryMainFrame() override;
+  void DOMContentLoaded(content::RenderFrameHost* render_frame_host) override;
+  void DidFinishNavigation(
+      content::NavigationHandle* navigation_handle) override;
+  void NavigationEntryCommitted(
+      const content::LoadCommittedDetails& load_details) override;
+  void DidFinishLoad(content::RenderFrameHost* render_frame_host,
+                     const GURL& validated_url) override;
   void PrimaryPageChanged(content::Page& page) override;
   void DidOpenRequestedURL(content::WebContents* new_contents,
                            content::RenderFrameHost* source_render_frame_host,
@@ -83,10 +103,23 @@ class LensUnifiedSidePanelView : public views::FlexLayoutView,
                            bool started_from_context_menu,
                            bool renderer_initiated) override;
 
+  void OnAccessibleRoleChanged(ax::mojom::Role role);
+  void OnAXNameChanged(ax::mojom::StringAttribute attribute,
+                       const std::optional<std::string>& name);
+  void UpdateAccessibleName(const std::string& name);
+  void OnAXChildTreeIdChanged(ax::mojom::StringAttribute attribute,
+                              const std::optional<std::string>& child_tree_id);
+
   // content::WebContentsDelegate:
   content::WebContents* OpenURLFromTab(
       content::WebContents* source,
-      const content::OpenURLParams& params) override;
+      const content::OpenURLParams& params,
+      base::OnceCallback<void(content::NavigationHandle&)>
+          navigation_handle_callback) override;
+  void RequestMediaAccessPermission(
+      content::WebContents* web_contents,
+      const content::MediaStreamRequest& request,
+      content::MediaResponseCallback callback) override;
 
   raw_ptr<BrowserView> browser_view_;
   raw_ptr<views::Separator> separator_;
@@ -97,6 +130,9 @@ class LensUnifiedSidePanelView : public views::FlexLayoutView,
   std::unique_ptr<content::OpenURLParams> side_panel_url_params_;
 
   base::RepeatingClosure update_new_tab_button_callback_;
+  base::CallbackListSubscription role_changed_subscription_;
+  base::CallbackListSubscription name_changed_subscription_;
+  base::CallbackListSubscription child_tree_id_changed_subscription_;
   base::WeakPtrFactory<LensUnifiedSidePanelView> weak_factory_{this};
 };
 

@@ -9,7 +9,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/ash/system_web_apps/test_support/test_system_web_app_installation.h"
 #include "chrome/browser/devtools/protocol/browser_handler.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
@@ -28,13 +27,13 @@
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
-#include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_utils.h"
 #include "content/public/test/theme_change_waiter.h"
 #include "extensions/browser/extension_registry.h"
@@ -86,7 +85,7 @@ class LoadFinishedWaiter : public TabStripModelObserver,
   }
 
  private:
-  raw_ptr<Browser> browser_;
+  raw_ptr<Browser> browser_ = nullptr;
   SkColor color_at_navigation_;
   base::RunLoop run_loop_;
 };
@@ -167,8 +166,8 @@ class AppBrowserControllerBrowserTest : public InProcessBrowserTest {
         ->GetVisibleURL();
   }
 
-  raw_ptr<Profile, DanglingUntriaged> profile_ = nullptr;
-  raw_ptr<Browser, DanglingUntriaged> app_browser_ = nullptr;
+  raw_ptr<Profile, AcrossTasksDanglingUntriaged> profile_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> app_browser_ = nullptr;
   GURL tabbed_app_url_;
 
  private:
@@ -269,8 +268,10 @@ IN_PROC_BROWSER_TEST_F(AppBrowserControllerBrowserTest, TabLoadNoThemeChange) {
       app_browser_->tab_strip_model()->GetActiveWebContents();
   content::ThemeChangeWaiter theme_waiter(web_contents);
   EXPECT_TRUE(content::ExecJs(web_contents, R"(
-      document.documentElement.innerHTML =
-          '<meta name="theme-color" content="yellow">';
+      const el = document.createElement("meta");
+      el.setAttribute("name", "theme-color");
+      el.setAttribute("content", "yellow");
+      document.documentElement.appendChild(el);
   )",
                               content::EXECUTE_SCRIPT_DEFAULT_OPTIONS,
                               /*world_id=*/1));
@@ -292,8 +293,6 @@ IN_PROC_BROWSER_TEST_F(AppBrowserControllerBrowserTest, TabLoadNoThemeChange) {
   EXPECT_EQ(GetFrameColor(app_browser_), SK_ColorGREEN);
 }
 
-// App Popups are only used on Chrome OS. See https://crbug.com/1060917.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
 IN_PROC_BROWSER_TEST_F(AppBrowserControllerBrowserTest,
                        WhiteThemeForSystemAppPopup) {
   InstallAndLaunchMockPopup();
@@ -358,7 +357,6 @@ IN_PROC_BROWSER_TEST_F(AppBrowserControllerBrowserTest,
   InstallAndLaunchMockPopup();
   EXPECT_EQ(app_browser_->window()->GetExtensionsContainer(), nullptr);
 }
-#endif
 
 class AppBrowserControllerChromeUntrustedBrowserTest
     : public InProcessBrowserTest {

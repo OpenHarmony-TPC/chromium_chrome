@@ -45,10 +45,8 @@ struct LocalFileSyncInfo;
 
 // Maintains local file change tracker and sync status.
 // Owned by SyncFileSystemService (which is a per-profile object).
-class LocalFileSyncService
-    : public RemoteChangeProcessor,
-      public LocalOriginChangeObserver,
-      public base::SupportsWeakPtr<LocalFileSyncService> {
+class LocalFileSyncService final : public RemoteChangeProcessor,
+                                   public LocalOriginChangeObserver {
  public:
   typedef base::RepeatingCallback<LocalChangeProcessor*(const GURL& origin)>
       GetLocalChangeProcessorCallback;
@@ -158,7 +156,8 @@ class LocalFileSyncService
   void SetOriginEnabled(const GURL& origin, bool enabled);
 
  private:
-  typedef std::map<GURL, storage::FileSystemContext*> OriginToContext;
+  typedef std::map<GURL, raw_ptr<storage::FileSystemContext, CtnExperimental>>
+      OriginToContext;
   friend class OriginChangeMapTest;
 
   class OriginChangeMap {
@@ -239,7 +238,8 @@ class LocalFileSyncService
   raw_ptr<LocalChangeProcessor> local_change_processor_;
   GetLocalChangeProcessorCallback get_local_change_processor_;
 
-  base::ObserverList<Observer>::Unchecked change_observers_;
+  base::ObserverList<Observer>::UncheckedAndDanglingUntriaged change_observers_;
+  base::WeakPtrFactory<LocalFileSyncService> weak_ptr_factory_{this};
 };
 
 }  // namespace sync_file_system

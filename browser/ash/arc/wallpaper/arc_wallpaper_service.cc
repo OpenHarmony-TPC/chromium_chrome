@@ -11,16 +11,19 @@
 
 #include "ash/components/arc/arc_browser_context_keyed_service_factory_base.h"
 #include "ash/components/arc/session/arc_bridge_service.h"
+#include "ash/public/cpp/wallpaper/wallpaper_controller.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/task/thread_pool.h"
-#include "chrome/browser/ui/ash/wallpaper_controller_client_impl.h"
+#include "chrome/browser/ui/ash/wallpaper/wallpaper_controller_client_impl.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "content/public/browser/browser_thread.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image.h"
@@ -34,10 +37,23 @@ namespace {
 
 constexpr char kAndroidWallpaperFilename[] = "android.jpg";
 
+// This enum is used for UMA. Do not reuse or modify values.
+enum class ArcWallpaperApi {
+  kSet = 0,
+  kSetDefault = 1,
+  kGet = 2,
+  kMaxValue = kGet,
+};
+
+void RecordApiUsage(const ArcWallpaperApi api) {
+  base::UmaHistogramEnumeration("Arc.WallpaperApiUsage", api);
+}
+
 std::vector<uint8_t> EncodeImagePng(const gfx::ImageSkia& image) {
-  std::vector<uint8_t> result;
-  gfx::PNGCodec::FastEncodeBGRASkBitmap(*image.bitmap(), true, &result);
-  return result;
+  std::optional<std::vector<uint8_t>> result =
+      gfx::PNGCodec::FastEncodeBGRASkBitmap(*image.bitmap(),
+                                            /*discard_transparency=*/true);
+  return result.value_or(std::vector<uint8_t>());
 }
 
 // Singleton factory for ArcWallpaperService.
@@ -103,7 +119,7 @@ class ArcWallpaperService::DecodeRequest : public ImageDecoder::ImageRequest {
 
  private:
   // ArcWallpaperService owns DecodeRequest, so it will outlive this.
-  const raw_ptr<ArcWallpaperService, ExperimentalAsh> service_;
+  const raw_ptr<ArcWallpaperService> service_;
   const int32_t android_id_;
 };
 
@@ -135,6 +151,8 @@ ArcWallpaperService::~ArcWallpaperService() {
 void ArcWallpaperService::SetWallpaper(const std::vector<uint8_t>& data,
                                        int32_t wallpaper_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  RecordApiUsage(ArcWallpaperApi::kSet);
+
   if (wallpaper_id == 0)
     wallpaper_id = -1;
 
@@ -147,20 +165,23 @@ void ArcWallpaperService::SetWallpaper(const std::vector<uint8_t>& data,
 
 void ArcWallpaperService::SetDefaultWallpaper() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  RecordApiUsage(ArcWallpaperApi::kSetDefault);
+
   // Previous request will be cancelled at destructor of
   // ImageDecoder::ImageRequest.
   decode_request_.reset();
   const user_manager::User* const primary_user =
       UserManager::Get()->GetPrimaryUser();
-  WallpaperControllerClientImpl::Get()->SetDefaultWallpaper(
+  ash::WallpaperController::Get()->SetDefaultWallpaper(
       primary_user->GetAccountId(),
       primary_user->is_active() /*show_wallpaper=*/, base::DoNothing());
 }
 
 void ArcWallpaperService::GetWallpaper(GetWallpaperCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  gfx::ImageSkia image =
-      WallpaperControllerClientImpl::Get()->GetWallpaperImage();
+  RecordApiUsage(ArcWallpaperApi::kGet);
+
+  gfx::ImageSkia image = ash::WallpaperController::Get()->GetWallpaperImage();
   if (!image.isNull())
     image.SetReadOnly();
   base::ThreadPool::PostTaskAndReplyWithResult(

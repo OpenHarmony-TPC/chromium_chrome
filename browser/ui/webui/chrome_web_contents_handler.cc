@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "build/chromeos_buildflags.h"
 #include "chrome/browser/file_select_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -30,13 +31,15 @@ ChromeWebContentsHandler::~ChromeWebContentsHandler() {
 
 // Opens a new URL inside |source|. |context| is the browser context that the
 // browser should be owned by. |params| contains the URL to open and various
-// attributes such as disposition. On return |out_new_contents| contains the
-// WebContents the URL is opened in. Returns the web contents opened by the
-// browser.
+// attributes such as disposition. Returns the WebContents opened by the browser
+// on success. Otherwise, returns nullptr. In ChromeOS Ash, the URL might be
+// opened in Lacros. In that case, this function returns nullptr.
 WebContents* ChromeWebContentsHandler::OpenURLFromTab(
     content::BrowserContext* context,
     WebContents* source,
-    const OpenURLParams& params) {
+    const OpenURLParams& params,
+    base::OnceCallback<void(content::NavigationHandle&)>
+        navigation_handle_callback) {
   if (!context)
     return nullptr;
 
@@ -65,7 +68,11 @@ WebContents* ChromeWebContentsHandler::OpenURLFromTab(
     nav_params.disposition = params.disposition;
   }
   nav_params.window_action = NavigateParams::SHOW_WINDOW;
-  Navigate(&nav_params);
+  base::WeakPtr<content::NavigationHandle> navigation_handle =
+      Navigate(&nav_params);
+  if (navigation_handle_callback && navigation_handle) {
+    std::move(navigation_handle_callback).Run(*navigation_handle);
+  }
 
   // Close the browser if chrome::Navigate created a new one.
   if (browser_created && (browser != nav_params.browser))

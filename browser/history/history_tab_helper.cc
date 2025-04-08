@@ -4,12 +4,14 @@
 
 #include "chrome/browser/history/history_tab_helper.h"
 
+#include <optional>
 #include <string>
 
 #include "build/build_config.h"
 #include "chrome/browser/complex_tasks/task_tab_helper.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/history_clusters/history_clusters_tab_helper.h"
+#include "chrome/browser/history_embeddings/history_embeddings_tab_helper.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/renderer_host/chrome_navigation_ui_data.h"
@@ -27,21 +29,26 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "net/http/http_response_headers.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "ui/base/page_transition_types.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/jni_string.h"
 #include "chrome/browser/android/background_tab_manager.h"
 #include "chrome/browser/feed/feed_service_factory.h"
 #include "chrome/browser/flags/android/chrome_session_state.h"
+#include "chrome/browser/history/jni_headers/HistoryTabHelper_jni.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
-#include "components/feed/core/v2/public/feed_api.h"
-#include "components/feed/core/v2/public/feed_service.h"
+#include "components/feed/core/v2/public/feed_api.h"      // nogncheck
+#include "components/feed/core/v2/public/feed_service.h"  // nogncheck
+#include "content/public/browser/web_contents.h"
 #else
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #endif
+
 
 namespace {
 
@@ -61,8 +68,7 @@ bool IsNavigationFromFeed(content::WebContents& web_contents, const GURL& url) {
 
   return feed_service->GetStream()->WasUrlRecentlyNavigatedFromFeed(url);
 }
-
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 
 bool ShouldConsiderForNtpMostVisited(
     content::WebContents& web_contents,
@@ -77,16 +83,16 @@ bool ShouldConsiderForNtpMostVisited(
                            navigation_handle->GetRedirectChain()[0])) {
     return false;
   }
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 
   return true;
 }
 
 // Returns the page associated with `opener_web_contents`.
-absl::optional<history::Opener> GetHistoryOpenerFromOpenerWebContents(
+std::optional<history::Opener> GetHistoryOpenerFromOpenerWebContents(
     base::WeakPtr<content::WebContents> opener_web_contents) {
   if (!opener_web_contents)
-    return absl::nullopt;
+    return std::nullopt;
 
   // The last committed entry could hypothetically change from when the opener
   // was set on `HistoryTabHelper` to when this function gets called. It is
@@ -96,7 +102,7 @@ absl::optional<history::Opener> GetHistoryOpenerFromOpenerWebContents(
   auto* last_committed_entry =
       opener_web_contents->GetController().GetLastCommittedEntry();
   if (!last_committed_entry)
-    return absl::nullopt;
+    return std::nullopt;
 
   return history::Opener(
       history::ContextIDForWebContents(opener_web_contents.get()),
@@ -116,6 +122,8 @@ history::VisitContextAnnotations::BrowserType GetBrowserType(
       return history::VisitContextAnnotations::BrowserType::kTabbed;
     case chrome::android::ActivityType::kCustomTab:
       return history::VisitContextAnnotations::BrowserType::kCustomTab;
+    case chrome::android::ActivityType::kAuthTab:
+      return history::VisitContextAnnotations::BrowserType::kAuthTab;
     case chrome::android::ActivityType::kTrustedWebActivity:
     case chrome::android::ActivityType::kWebapp:
     case chrome::android::ActivityType::kWebApk:
@@ -123,7 +131,7 @@ history::VisitContextAnnotations::BrowserType GetBrowserType(
       return history::VisitContextAnnotations::BrowserType::kUnknown;
   }
 #else
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return history::VisitContextAnnotations::BrowserType::kUnknown;
   }
@@ -257,20 +265,53 @@ history::HistoryAddPageArgs HistoryTabHelper::CreateHistoryAddPageArgs(
           ? nullptr
           : static_cast<ChromeNavigationUIData*>(
                 navigation_handle->GetNavigationUIData());
+
+  // (crbug.com/365922169) When generating the HistoryAddPageArgs below, we must
+  // calculate the value for its member `is_ephemeral`. This member represents
+  // whether our navigation came from a credentialless iframe (which is an
+  // ephemeral context). Our goal is to use this information to avoid storing
+  // ephemeral navigations from credentialless iframes in the history backend.
+  // Currently, this is behavior which will be tested behind the partitioned
+  // :visited links experiments flags (PartitionVisitedLinkDatabase and
+  // PartitionVisitedLinkDatabaseWithSelfLinks). HOWEVER, due to layering
+  // constraints, we do not have the ability to check these blink::feature flags
+  // in any code found in components/history/core/ (which is where most history
+  // DB code lives).
+
+  // Instead, we check the values of these flags here - setting `is_ephemeral`
+  // to false if neither of these experimental flags are enabled. Once the
+  // experiments have completed, is_ephemeral will go back to being a pure check
+  // of whether the navigation is from a credentialless iframe.
+  const bool are_partitioned_visited_links_enabled =
+      base::FeatureList::IsEnabled(
+          blink::features::kPartitionVisitedLinkDatabase) ||
+      base::FeatureList::IsEnabled(
+          blink::features::kPartitionVisitedLinkDatabaseWithSelfLinks);
+
   history::HistoryAddPageArgs add_page_args(
       navigation_handle->GetURL(), timestamp,
       history::ContextIDForWebContents(web_contents()), nav_entry_id,
-      referrer_url, navigation_handle->GetRedirectChain(), page_transition,
-      hidden, history::SOURCE_BROWSED, navigation_handle->DidReplaceEntry(),
+      navigation_handle->GetNavigationId(), referrer_url,
+      navigation_handle->GetRedirectChain(), page_transition, hidden,
+      history::SOURCE_BROWSED, navigation_handle->DidReplaceEntry(),
       ShouldConsiderForNtpMostVisited(*web_contents(), navigation_handle),
+      // Determine if this navigation is ephemeral.
+      are_partitioned_visited_links_enabled
+          ? navigation_handle->GetRenderFrameHost()
+                ->GetStorageKey()
+                .nonce()
+                .has_value()
+          : false,
       // Reloads do not result in calling TitleWasSet() (which normally sets
-      // the title), so a reload needs to set the title. This is important for
-      // a reload after clearing history.
+      // the title), so a reload needs to set the title. This is
+      // important for a reload after clearing history.
       navigation_handle->IsSameDocument() ||
               navigation_handle->GetReloadType() != content::ReloadType::NONE
-          ? absl::optional<std::u16string>(
+          ? std::optional<std::u16string>(
                 navigation_handle->GetWebContents()->GetTitle())
-          : absl::nullopt,
+          : std::nullopt,
+      // Our top-level site is the previous primary main frame.
+      navigation_handle->GetPreviousPrimaryMainFrameURL(),
       // Only compute the opener page if it's the first committed page for this
       // WebContents.
       navigation_handle->GetPreviousPrimaryMainFrameURL().is_empty()
@@ -278,13 +319,13 @@ history::HistoryAddPageArgs HistoryTabHelper::CreateHistoryAddPageArgs(
           // Or use the opener for same-document navigations to connect these
           // visits.
           : (navigation_handle->IsSameDocument()
-                 ? absl::make_optional(history::Opener(
+                 ? std::make_optional(history::Opener(
                        history::ContextIDForWebContents(web_contents()),
                        nav_entry_id,
                        navigation_handle->GetPreviousPrimaryMainFrameURL()))
-                 : absl::nullopt),
-      chrome_ui_data == nullptr ? absl::nullopt : chrome_ui_data->bookmark_id(),
-      std::move(context_annotations));
+                 : std::nullopt),
+      chrome_ui_data == nullptr ? std::nullopt : chrome_ui_data->bookmark_id(),
+      app_id_, std::move(context_annotations));
 
   if (ui::PageTransitionIsMainFrame(page_transition) &&
       virtual_url != navigation_handle->GetURL()) {
@@ -372,38 +413,12 @@ void HistoryTabHelper::DidFinishNavigation(
     clusters_tab_helper->OnUpdatedHistoryForNavigation(
         navigation_handle->GetNavigationId(), timestamp, add_page_args.url);
   }
-}
 
-// We update history upon the associated WebContents becoming the top level
-// contents of a tab from portal activation.
-// TODO(mcnee): Investigate whether the early return cases in
-// DidFinishNavigation apply to portal activation. See https://crbug.com/1072762
-void HistoryTabHelper::DidActivatePortal(
-    content::WebContents* predecessor_contents,
-    base::TimeTicks activation_time) {
-  history::HistoryService* hs = GetHistoryService();
-  if (!hs)
-    return;
-
-  content::NavigationEntry* last_committed_entry =
-      web_contents()->GetController().GetLastCommittedEntry();
-
-  // TODO(1058504): Update this when portal activations can be done with
-  // replacement.
-  const bool did_replace_entry = false;
-
-  const history::HistoryAddPageArgs add_page_args(
-      last_committed_entry->GetVirtualURL(),
-      last_committed_entry->GetTimestamp(),
-      history::ContextIDForWebContents(web_contents()),
-      last_committed_entry->GetUniqueID(),
-      last_committed_entry->GetReferrer().url,
-      /* redirects */ {}, ui::PAGE_TRANSITION_LINK,
-      /* hidden */ false, history::SOURCE_BROWSED, did_replace_entry,
-      /* consider_for_ntp_most_visited */ true,
-      last_committed_entry->GetTitle());
-  // TODO(crbug.com/1347012): Add on-visit ContextAnnotation fields here.
-  hs->AddPage(add_page_args);
+  if (HistoryEmbeddingsTabHelper* embeddings_tab_helper =
+          HistoryEmbeddingsTabHelper::FromWebContents(web_contents())) {
+    embeddings_tab_helper->OnUpdatedHistoryForNavigation(
+        navigation_handle, timestamp, add_page_args.url);
+  }
 }
 
 void HistoryTabHelper::DidFinishLoad(
@@ -509,18 +524,31 @@ bool HistoryTabHelper::IsEligibleTab(
     return true;
 
 #if BUILDFLAG(IS_ANDROID)
-  auto* background_tab_manager = BackgroundTabManager::GetInstance();
-  if (background_tab_manager->IsBackgroundTab(web_contents())) {
-    // No history insertion is done for now since this is a tab that speculates
-    // future navigations. Just caching and returning for now.
-    background_tab_manager->CacheHistory(add_page_args);
-    return false;
+  if (web_contents()) {
+    auto* background_tab_manager =
+        BackgroundTabManager::FromWebContents(web_contents());
+    if (background_tab_manager) {
+      // No history insertion is done for now since this is a tab that
+      // speculates future navigations. Just caching and returning for now.
+      background_tab_manager->CacheHistory(add_page_args);
+      return false;
+    }
   }
   return true;
 #else
   // Don't update history if this web contents isn't associated with a tab.
-  return chrome::FindBrowserWithWebContents(web_contents()) != nullptr;
+  return chrome::FindBrowserWithTab(web_contents()) != nullptr;
 #endif
 }
 
+#if BUILDFLAG(IS_ANDROID)
+static void JNI_HistoryTabHelper_SetAppIdNative(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jstring>& japp_id,
+    const base::android::JavaParamRef<jobject>& jweb_contents) {
+  auto* web_contents = content::WebContents::FromJavaWebContents(jweb_contents);
+  auto* history_tab_helper = HistoryTabHelper::FromWebContents(web_contents);
+  history_tab_helper->SetAppId(base::android::ConvertJavaStringToUTF8(japp_id));
+}
+#endif
 WEB_CONTENTS_USER_DATA_KEY_IMPL(HistoryTabHelper);

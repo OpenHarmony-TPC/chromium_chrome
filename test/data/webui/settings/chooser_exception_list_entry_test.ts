@@ -6,7 +6,8 @@
 import 'chrome://webui-test/cr_elements/cr_policy_strings.js';
 
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {ChooserExceptionListEntryElement, ChooserType, SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
+import type {ChooserExceptionListEntryElement} from 'chrome://settings/lazy_load.js';
+import {ChooserType, SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 
@@ -175,20 +176,18 @@ suite('ChooserExceptionListEntry', function() {
             policyIndicator!.shadowRoot!.querySelector('cr-tooltip-icon');
         assertTrue(!!icon);
 
-        const paperTooltip = icon!.shadowRoot!.querySelector('paper-tooltip');
-        assertTrue(!!paperTooltip);
+        const crTooltip = icon!.shadowRoot!.querySelector('cr-tooltip');
+        assertTrue(!!crTooltip);
 
         // This tooltip is never shown since a common tooltip will be used.
-        assertTrue(!!paperTooltip);
-        assertTooltipIsHidden(paperTooltip);
-        assertFalse(paperTooltip!._showing);
+        assertTrue(!!crTooltip);
+        assertTooltipIsHidden(crTooltip);
 
         const wait = eventToPromise('show-tooltip', document);
         icon!.$.indicator.dispatchEvent(
             new MouseEvent('mouseenter', {bubbles: true, composed: true}));
         return wait.then(() => {
-          assertTrue(paperTooltip!._showing);
-          assertTooltipIsHidden(paperTooltip);
+          assertTooltipIsHidden(crTooltip);
         });
       });
 

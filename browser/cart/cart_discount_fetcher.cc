@@ -6,10 +6,12 @@
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "chrome/browser/cart/cart_db.h"
 #include "chrome/browser/cart/cart_discount_metric_collector.h"
 #include "chrome/grit/generated_resources.h"
@@ -32,7 +34,7 @@ const char kClientDataHeader[] = "X-Client-Data";
 
 const char kFetchDiscountsEndpoint[] =
     "https://memex-pa.googleapis.com/v1/shopping/cart/discounts";
-const int64_t kTimeoutMs = 30000;
+constexpr base::TimeDelta kTimeout = base::Milliseconds(30000);
 
 const char kCartDiscountFetcherEndpointParam[] =
     "CartDiscountFetcherEndpointParam";
@@ -80,12 +82,12 @@ enum CouponType {
   RBD_WITH_CODE
 };
 
-// TODO(crbug.com/1207197): Consolidate to one util method to get string.
+// TODO(crbug.com/40181210): Consolidate to one util method to get string.
 std::string GetMerchantUrl(const base::Value::Dict* merchant_identifier) {
-  // TODO(crbug.com/1207197): Use a static constant for "cartUrl" instead.
+  // TODO(crbug.com/40181210): Use a static constant for "cartUrl" instead.
   const std::string* value = merchant_identifier->FindString("cartUrl");
   if (!value) {
-    NOTREACHED() << "Missing cart_url or it is not a string";
+    LOG(WARNING) << "Missing cart_url or it is not a string";
     return "";
   }
 
@@ -95,7 +97,7 @@ std::string GetMerchantUrl(const base::Value::Dict* merchant_identifier) {
 std::string GetMerchantId(const base::Value::Dict* merchant_identifier) {
   const std::string* value = merchant_identifier->FindString("merchantId");
   if (!value) {
-    NOTREACHED() << "Missing merchant_id or it is not a string";
+    LOG(WARNING) << "Missing merchant_id or it is not a string";
     return "";
   }
 
@@ -103,14 +105,14 @@ std::string GetMerchantId(const base::Value::Dict* merchant_identifier) {
 }
 
 std::string GetStringFromDict(const base::Value* dict,
-                              const std::string key,
+                              std::string_view key,
                               bool is_required) {
   DCHECK(dict->is_dict());
 
   const std::string* value = dict->GetDict().FindString(key);
   if (!value) {
     if (is_required) {
-      NOTREACHED() << "Missing " << key << " or it is not a string";
+      LOG(WARNING) << "Missing " << key << " or it is not a string";
     }
     return "";
   }
@@ -138,7 +140,7 @@ RuleDiscountInfo CovertToRuleDiscountInfo(
     // Parse ruleId
     const std::string* rule_id = rule_discount_dict.FindString("ruleId");
     if (!rule_id) {
-      NOTREACHED() << "Missing rule_id or it is not a string";
+      LOG(WARNING) << "Missing rule_id or it is not a string";
       continue;
     }
     discount_proto.set_rule_id(*rule_id);
@@ -147,7 +149,7 @@ RuleDiscountInfo CovertToRuleDiscountInfo(
     const std::string* merchant_rule_id =
         rule_discount_dict.FindString("merchantRuleId");
     if (!merchant_rule_id) {
-      NOTREACHED() << "Missing merchant_rule_id or it is not a string";
+      LOG(WARNING) << "Missing merchant_rule_id or it is not a string";
       continue;
     }
     discount_proto.set_merchant_rule_id(*merchant_rule_id);
@@ -158,7 +160,7 @@ RuleDiscountInfo CovertToRuleDiscountInfo(
     if (!raw_merchant_offer_id_value) {
       VLOG(1) << "raw_merchant_offer_id is empty";
     } else if (!raw_merchant_offer_id_value->is_string()) {
-      NOTREACHED() << "raw_merchant_offer_id is not a string";
+      LOG(WARNING) << "raw_merchant_offer_id is not a string";
       continue;
     } else {
       discount_proto.set_raw_merchant_offer_id(
@@ -169,14 +171,14 @@ RuleDiscountInfo CovertToRuleDiscountInfo(
     const base::Value::Dict* discount_dict =
         rule_discount_dict.FindDict("discount");
     if (!discount_dict) {
-      NOTREACHED() << "discount is missing or it is not a dictionary";
+      LOG(WARNING) << "discount is missing or it is not a dictionary";
       continue;
     }
 
     if (discount_dict->Find("percentOff")) {
-      absl::optional<int> percent_off = discount_dict->FindInt("percentOff");
+      std::optional<int> percent_off = discount_dict->FindInt("percentOff");
       if (!percent_off.has_value()) {
-        NOTREACHED() << "percent_off is not a int";
+        LOG(WARNING) << "percent_off is not a int";
         continue;
       }
       discount_proto.set_percent_off(*percent_off);
@@ -185,7 +187,7 @@ RuleDiscountInfo CovertToRuleDiscountInfo(
       const base::Value::Dict* amount_off_dict =
           discount_dict->FindDict("amountOff");
       if (!amount_off_dict) {
-        NOTREACHED() << "amount_off is not a dictionary";
+        LOG(WARNING) << "amount_off is not a dictionary";
         continue;
       }
 
@@ -194,7 +196,7 @@ RuleDiscountInfo CovertToRuleDiscountInfo(
       const std::string* currency_code_value =
           amount_off_dict->FindString("currencyCode");
       if (!currency_code_value) {
-        NOTREACHED() << "Missing currency_code or it is not a string";
+        LOG(WARNING) << "Missing currency_code or it is not a string";
         continue;
       }
       money->set_currency_code(*currency_code_value);
@@ -202,7 +204,7 @@ RuleDiscountInfo CovertToRuleDiscountInfo(
       // Parse units
       const base::Value* units_value = amount_off_dict->Find("units");
       if (!units_value || !units_value->is_string()) {
-        NOTREACHED() << "Missing units or it is not a string, it is a "
+        LOG(WARNING) << "Missing units or it is not a string, it is a "
                      << units_value->type();
         continue;
       }
@@ -213,9 +215,9 @@ RuleDiscountInfo CovertToRuleDiscountInfo(
       highest_amount_off = std::max(highest_amount_off, units);
 
       // Parse nanos
-      absl::optional<int> nano = amount_off_dict->FindInt("nanos");
+      std::optional<int> nano = amount_off_dict->FindInt("nanos");
       if (!nano.has_value()) {
-        NOTREACHED() << "Missing nanos or it is not a int";
+        LOG(WARNING) << "Missing nanos or it is not a int";
         continue;
       }
       money->set_nanos(*nano);
@@ -230,7 +232,7 @@ RuleDiscountInfo CovertToRuleDiscountInfo(
 
 CouponType ConvertToCouponType(const base::Value* type) {
   if (!type || !type->is_string()) {
-    NOTREACHED() << "Missing coupon type";
+    LOG(WARNING) << "Missing coupon type";
     return CouponType::UNSPECIFIED;
   }
 
@@ -243,7 +245,7 @@ CouponType ConvertToCouponType(const base::Value* type) {
     return CouponType::RBD_WITH_CODE;
   }
 
-  NOTREACHED() << "Unrecognized coupon type";
+  LOG(WARNING) << "Unrecognized coupon type";
   return CouponType::UNSPECIFIED;
 }
 
@@ -277,7 +279,7 @@ CouponDiscountInfo ConvertToCouponDiscountInfo(
       continue;
 
     // Parse description
-    // TODO(crbug.com/1266076): Need to parse languageCode and save it in
+    // TODO(crbug.com/40801865): Need to parse languageCode and save it in
     // coupon_info_proto.
     coupon_info_proto.set_coupon_description(GetStringFromDict(
         coupon_discount_dict.Find("description"), "title", true));
@@ -291,7 +293,7 @@ CouponDiscountInfo ConvertToCouponDiscountInfo(
     if (!base::StringToInt64(
             GetStringFromDict(&coupon_discount, "couponId", true),
             &coupon_id)) {
-      NOTREACHED() << "Failed to parsed couponId";
+      LOG(WARNING) << "Failed to parsed couponId";
       continue;
     }
     coupon_info_proto.set_coupon_id(coupon_id);
@@ -300,14 +302,14 @@ CouponDiscountInfo ConvertToCouponDiscountInfo(
     const base::Value* expiry_time_sec_value =
         coupon_discount_dict.Find("expiryTimeSec");
     if (!expiry_time_sec_value) {
-      NOTREACHED() << "Missing expiryTimeSec";
+      LOG(WARNING) << "Missing expiryTimeSec";
       continue;
     }
     if (expiry_time_sec_value->GetIfDouble() ||
         expiry_time_sec_value->GetIfInt()) {
       coupon_info_proto.set_expiry_time(expiry_time_sec_value->GetDouble());
     } else {
-      NOTREACHED() << "expiryTimeSec is in a wrong format: "
+      LOG(WARNING) << "expiryTimeSec is in a wrong format: "
                    << expiry_time_sec_value->type();
       continue;
     }
@@ -318,14 +320,14 @@ CouponDiscountInfo ConvertToCouponDiscountInfo(
   return CouponDiscountInfo(std::move(coupons));
 }
 
-bool ValidateResponse(const absl::optional<base::Value>& response) {
+bool ValidateResponse(const std::optional<base::Value>& response) {
   if (!response) {
-    NOTREACHED() << "Response is not valid";
+    LOG(WARNING) << "Response is not valid";
     return false;
   }
 
   if (!response->is_dict()) {
-    NOTREACHED()
+    LOG(WARNING)
         << "Wrong response format, response is not a dictionary. Response: "
         << response->DebugString();
     return false;
@@ -380,9 +382,9 @@ void CartDiscountFetcher::Fetch(
     CartDiscountFetcherCallback callback,
     std::vector<CartDB::KeyAndValue> proto_pairs,
     bool is_oauth_fetch,
-    const std::string access_token,
-    const std::string fetch_for_locale,
-    const std::string variation_headers) {
+    std::string access_token,
+    std::string fetch_for_locale,
+    std::string variation_headers) {
   CartDiscountFetcher::FetchForDiscounts(
       std::move(pending_factory), std::move(callback), std::move(proto_pairs),
       is_oauth_fetch, std::move(access_token), std::move(fetch_for_locale),
@@ -394,9 +396,9 @@ void CartDiscountFetcher::FetchForDiscounts(
     CartDiscountFetcherCallback callback,
     std::vector<CartDB::KeyAndValue> proto_pairs,
     bool is_oauth_fetch,
-    const std::string access_token,
-    const std::string fetch_for_locale,
-    const std::string variation_headers) {
+    std::string access_token,
+    std::string fetch_for_locale,
+    std::string variation_headers) {
   auto fetcher = CreateEndpointFetcher(
       std::move(pending_factory), std::move(proto_pairs), is_oauth_fetch,
       std::move(fetch_for_locale), std::move(variation_headers));
@@ -413,8 +415,8 @@ std::unique_ptr<EndpointFetcher> CartDiscountFetcher::CreateEndpointFetcher(
     std::unique_ptr<network::PendingSharedURLLoaderFactory> pending_factory,
     std::vector<CartDB::KeyAndValue> proto_pairs,
     bool is_oauth_fetch,
-    const std::string fetch_for_locale,
-    const std::string variation_headers) {
+    std::string fetch_for_locale,
+    std::string variation_headers) {
   net::NetworkTrafficAnnotationTag traffic_annotation =
       net::DefineNetworkTrafficAnnotation("chrome_cart_discounts_lookup", R"(
         semantics {
@@ -450,15 +452,14 @@ std::unique_ptr<EndpointFetcher> CartDiscountFetcher::CreateEndpointFetcher(
 
   return std::make_unique<EndpointFetcher>(
       GURL(kDiscountFetcherServerConfigEndpoint.Get()), kPostMethod,
-      kContentType, kTimeoutMs,
-      generatePostData(proto_pairs, base::Time::Now()), headers,
-      cors_exempt_headers, traffic_annotation,
+      kContentType, kTimeout, generatePostData(proto_pairs, base::Time::Now()),
+      headers, cors_exempt_headers, traffic_annotation,
       network::SharedURLLoaderFactory::Create(std::move(pending_factory)),
       is_oauth_fetch);
 }
 
 std::string CartDiscountFetcher::generatePostData(
-    std::vector<CartDB::KeyAndValue> proto_pairs,
+    const std::vector<CartDB::KeyAndValue>& proto_pairs,
     base::Time current_time) {
   base::Value::List carts_list;
 
@@ -473,7 +474,8 @@ std::string CartDiscountFetcher::generatePostData(
 
     // Set CartAbandonedTimeMinutes.
     int cart_abandoned_time_mintues =
-        (current_time - base::Time::FromDoubleT(cart_proto.timestamp()))
+        (current_time -
+         base::Time::FromSecondsSinceUnixEpoch(cart_proto.timestamp()))
             .InMinutes();
     cart_dict.Set("cartAbandonedTimeMinutes", cart_abandoned_time_mintues);
 
@@ -503,7 +505,7 @@ void CartDiscountFetcher::OnDiscountsAvailable(
     std::unique_ptr<EndpointResponse> responses) {
   VLOG(2) << "Response: " << responses->response;
   CartDiscountMap cart_discount_map;
-  absl::optional<base::Value> value =
+  std::optional<base::Value> value =
       base::JSONReader::Read(responses->response);
   if (!ValidateResponse(value)) {
     std::move(callback).Run(std::move(cart_discount_map), false);
@@ -513,14 +515,14 @@ void CartDiscountFetcher::OnDiscountsAvailable(
   base::Value::Dict& dict = value->GetDict();
   const base::Value* error_value = dict.Find("error");
   if (error_value) {
-    NOTREACHED() << "Error: " << responses->response;
+    LOG(WARNING) << "Error: " << responses->response;
     std::move(callback).Run(std::move(cart_discount_map), false);
     return;
   }
 
   const base::Value::List* discounts_list = dict.FindList("discounts");
   if (!discounts_list) {
-    NOTREACHED() << "Missing discounts or it is not a list";
+    LOG(WARNING) << "Missing discounts or it is not a list";
     std::move(callback).Run(std::move(cart_discount_map), false);
     return;
   }
@@ -532,7 +534,7 @@ void CartDiscountFetcher::OnDiscountsAvailable(
     const base::Value::Dict* merchant_identifier =
         merchant_discount_dict.FindDict("merchantIdentifier");
     if (!merchant_identifier) {
-      NOTREACHED() << "Missing merchant_identifier";
+      LOG(WARNING) << "Missing merchant_identifier";
       continue;
     }
     std::string merchant_url = GetMerchantUrl(merchant_identifier);
@@ -573,7 +575,7 @@ void CartDiscountFetcher::OnDiscountsAvailable(
                 cart_rule_based_discounts_info.highest_percent_off) +
             "%";
       } else {
-        NOTREACHED() << "Missing hightest discount info";
+        LOG(WARNING) << "Missing hightest discount info";
         continue;
       }
 
@@ -605,11 +607,11 @@ void CartDiscountFetcher::OnDiscountsAvailable(
   }
 
   bool is_tester = false;
-  absl::optional<bool> is_tester_value = dict.FindBool("externalTester");
+  std::optional<bool> is_tester_value = dict.FindBool("externalTester");
   if (is_tester_value.has_value()) {
     is_tester = *is_tester_value;
   } else {
-    absl::optional<bool> is_internal_tester_value =
+    std::optional<bool> is_internal_tester_value =
         dict.FindBool("internalTester");
     if (is_internal_tester_value.has_value()) {
       is_tester = *is_internal_tester_value;

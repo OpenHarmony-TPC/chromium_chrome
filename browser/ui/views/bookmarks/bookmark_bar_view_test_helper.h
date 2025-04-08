@@ -34,14 +34,20 @@ class BookmarkBarViewTestHelper {
     return bbv_->managed_bookmarks_button_;
   }
 
-  SavedTabGroupBar* saved_tab_group_bar() { return bbv_->saved_tab_group_bar_; }
+  tab_groups::SavedTabGroupBar* saved_tab_group_bar() {
+    return bbv_->saved_tab_group_bar_;
+  }
+
+  const views::View* saved_tab_groups_separator_view_() const {
+    return bbv_->GetSavedTabGroupsSeparatorViewForTesting();
+  }
 
   int GetDropLocationModelIndexForTesting() {
     return bbv_->GetDropLocationModelIndexForTesting();
   }
 
  private:
-  raw_ptr<BookmarkBarView, DanglingUntriaged> bbv_;
+  raw_ptr<BookmarkBarView, AcrossTasksDanglingUntriaged> bbv_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_BOOKMARKS_BOOKMARK_BAR_VIEW_TEST_HELPER_H_

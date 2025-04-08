@@ -34,9 +34,7 @@ public class MultiInstanceState implements ApplicationStatus.TaskVisibilityListe
         void onMultiInstanceStateChanged(boolean inMultiInstanceMode);
     }
 
-    /**
-     * Predicate returning true if a given activity can be the base activity for Chrome task.
-     */
+    /** Predicate returning true if a given activity can be the base activity for Chrome task. */
     public interface BaseActivityName {
         boolean is(String baseActivity);
     }
@@ -122,7 +120,6 @@ public class MultiInstanceState implements ApplicationStatus.TaskVisibilityListe
     }
 
     void clear() {
-        // TODO(jinsukkim): Do the cleanup when the last base activity is destroyed.
         ApplicationStatus.unregisterTaskVisibilityListener(this);
         mObservers.clear();
         sInstance = null;

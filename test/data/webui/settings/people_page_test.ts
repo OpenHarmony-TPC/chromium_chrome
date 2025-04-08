@@ -7,19 +7,18 @@ import 'chrome://settings/lazy_load.js';
 
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 // <if expr="not is_chromeos">
-import {listenOnce} from 'chrome://resources/js/util_ts.js';
+import {listenOnce} from 'chrome://resources/js/util.js';
 // </if>
 
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 // <if expr="not is_chromeos">
-import {CrCheckboxElement} from 'chrome://settings/lazy_load.js';
+import type {CrCheckboxElement} from 'chrome://settings/lazy_load.js';
 // </if>
 
-// <if expr="not chromeos_lacros">
 import {loadTimeData} from 'chrome://settings/settings.js';
-// </if>
 
-import {pageVisibility, ProfileInfoBrowserProxyImpl, Router, routes, SettingsPeoplePageElement, StatusAction, SyncBrowserProxyImpl} from 'chrome://settings/settings.js';
+import type {SettingsPeoplePageElement} from 'chrome://settings/settings.js';
+import {pageVisibility, ProfileInfoBrowserProxyImpl, Router, routes, SignedInState, StatusAction, SyncBrowserProxyImpl} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 // <if expr="not is_chromeos">
 import {assertLT} from 'chrome://webui-test/chai_assert.js';
@@ -61,7 +60,7 @@ suite('ProfileInfoTests', function() {
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     peoplePage = document.createElement('settings-people-page');
-    peoplePage.pageVisibility = pageVisibility;
+    peoplePage.pageVisibility = pageVisibility || {};
     document.body.appendChild(peoplePage);
 
     await syncBrowserProxy.whenCalled('getSyncStatus');
@@ -113,7 +112,7 @@ suite('SigninDisallowedTests', function() {
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     peoplePage = document.createElement('settings-people-page');
-    peoplePage.pageVisibility = pageVisibility;
+    peoplePage.pageVisibility = pageVisibility || {};
     document.body.appendChild(peoplePage);
   });
 
@@ -131,7 +130,7 @@ suite('SigninDisallowedTests', function() {
 
     // Control element doesn't exist when policy forbids sync.
     simulateSyncStatus({
-      signedIn: false,
+      signedInState: SignedInState.SIGNED_IN,
       syncSystemEnabled: true,
       statusAction: StatusAction.NO_ACTION,
     });
@@ -154,7 +153,7 @@ suite('SyncStatusTests', function() {
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     peoplePage = document.createElement('settings-people-page');
-    peoplePage.pageVisibility = pageVisibility;
+    peoplePage.pageVisibility = pageVisibility || {};
     document.body.appendChild(peoplePage);
   });
 
@@ -181,7 +180,7 @@ suite('SyncStatusTests', function() {
     assertFalse(!!peoplePage.shadowRoot!.querySelector('#profile-row'));
 
     simulateSyncStatus({
-      signedIn: false,
+      signedInState: SignedInState.SIGNED_IN,
       syncSystemEnabled: true,
       statusAction: StatusAction.NO_ACTION,
     });
@@ -231,7 +230,7 @@ suite('SyncStatusTests', function() {
     // Google Account being shown.
     simulateStoredAccounts([{email: 'foo@foo.com'}]);
     simulateSyncStatus({
-      signedIn: false,
+      signedInState: SignedInState.SIGNED_IN,
       hasError: false,
       statusAction: StatusAction.NO_ACTION,
     });
@@ -242,7 +241,7 @@ suite('SyncStatusTests', function() {
     // Google Account being shown.
     simulateStoredAccounts([{email: 'foo@foo.com'}]);
     simulateSyncStatus({
-      signedIn: false,
+      signedInState: SignedInState.SIGNED_IN,
       hasError: true,
       statusAction: StatusAction.NO_ACTION,
     });
@@ -253,7 +252,7 @@ suite('SyncStatusTests', function() {
     // Google Account being shown.
     simulateStoredAccounts([{email: 'foo@foo.com'}]);
     simulateSyncStatus({
-      signedIn: true,
+      signedInState: SignedInState.SYNCING,
       hasError: false,
       statusAction: StatusAction.NO_ACTION,
     });
@@ -264,7 +263,7 @@ suite('SyncStatusTests', function() {
     // the Google Account being shown.
     simulateStoredAccounts([{email: 'foo@foo.com'}]);
     simulateSyncStatus({
-      signedIn: true,
+      signedInState: SignedInState.SYNCING,
       hasError: true,
       statusAction: StatusAction.NO_ACTION,
     });
@@ -301,23 +300,6 @@ suite('SyncStatusTests', function() {
     assertFalse(deleteProfile);
   });
 
-  // <if expr="chromeos_lacros">
-  test('SignoutDialogLacrosMainProfile', function() {
-    loadTimeData.overrideValues({
-      isSecondaryUser: false,
-    });
-    // Navigate to chrome://settings/signOut
-    Router.getInstance().navigateTo(routes.SIGN_OUT);
-
-    await flushTasks();
-    const signoutDialog =
-        peoplePage.shadowRoot!.querySelector('settings-signout-dialog')!;
-    assertTrue(signoutDialog.$.dialog.open);
-    // Delete profile is not allowed for Lacros main profile.
-    assertFalse(!!signoutDialog.shadowRoot!.querySelector('#deleteProfile'));
-  });
-  // </if>
-
   test('SignOutDialogManagedProfileTurnOffSyncDisallowed', async function() {
     let accountControl = null;
     await syncBrowserProxy.whenCalled('getSyncStatus');
@@ -325,7 +307,7 @@ suite('SyncStatusTests', function() {
       turnOffSyncAllowedForManagedProfiles: false,
     });
     simulateSyncStatus({
-      signedIn: true,
+      signedInState: SignedInState.SYNCING,
       domain: 'example.com',
       syncSystemEnabled: true,
       statusAction: StatusAction.NO_ACTION,
@@ -370,7 +352,7 @@ suite('SyncStatusTests', function() {
       turnOffSyncAllowedForManagedProfiles: true,
     });
     simulateSyncStatus({
-      signedIn: true,
+      signedInState: SignedInState.SYNCING,
       domain: 'example.com',
       syncSystemEnabled: true,
       statusAction: StatusAction.NO_ACTION,
@@ -477,7 +459,7 @@ suite('SyncStatusTests', function() {
                                   'settings-signout-dialog')!.$.dialog.open);
 
     simulateSyncStatus({
-      signedIn: false,
+      signedInState: SignedInState.SIGNED_OUT,
       statusAction: StatusAction.NO_ACTION,
     });
 
@@ -504,7 +486,7 @@ suite('SyncSettings', function() {
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     peoplePage = document.createElement('settings-people-page');
-    peoplePage.pageVisibility = pageVisibility;
+    peoplePage.pageVisibility = pageVisibility || {};
     document.body.appendChild(peoplePage);
 
     await syncBrowserProxy.whenCalled('getSyncStatus');
@@ -521,7 +503,7 @@ suite('SyncSettings', function() {
 
     // Make sures the subpage opens even when logged out or has errors.
     simulateSyncStatus({
-      signedIn: false,
+      signedInState: SignedInState.SIGNED_OUT,
       statusAction: StatusAction.REAUTHENTICATE,
     });
 

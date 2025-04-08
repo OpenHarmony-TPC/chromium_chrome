@@ -22,7 +22,6 @@
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/signin/signin_features.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
@@ -41,6 +40,7 @@
 #include "components/policy/test_support/embedded_policy_test_server.h"
 #include "components/policy/test_support/policy_storage.h"
 #include "components/signin/public/base/signin_metrics.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/common/extension.h"
@@ -209,7 +209,7 @@ class ComponentCloudPolicyTest : public extensions::ExtensionBrowserTest {
         PolicyBuilder::GetFakeAccountIdForTesting());
     policy_manager->Connect(
         g_browser_process->local_state(),
-        UserPolicySigninServiceBase::CreateCloudPolicyClient(
+        std::make_unique<CloudPolicyClient>(
             connector->device_management_service(),
             g_browser_process->shared_url_loader_factory()));
 
@@ -237,8 +237,7 @@ class ComponentCloudPolicyTest : public extensions::ExtensionBrowserTest {
         IdentityManagerFactory::GetForProfile(browser()->profile())
             ->GetPrimaryAccountMutator();
     primary_account_mutator->ClearPrimaryAccount(
-        signin_metrics::ProfileSignout::kTest,
-        signin_metrics::SignoutDelete::kIgnoreMetric);
+        signin_metrics::ProfileSignout::kTest);
   }
 #endif
 
@@ -247,7 +246,8 @@ class ComponentCloudPolicyTest : public extensions::ExtensionBrowserTest {
         browser()->profile()->GetProfilePolicyConnector();
     PolicyService* policy_service = profile_connector->policy_service();
     base::RunLoop run_loop;
-    policy_service->RefreshPolicies(run_loop.QuitClosure());
+    policy_service->RefreshPolicies(run_loop.QuitClosure(),
+                                    PolicyFetchReason::kTest);
     run_loop.Run();
   }
 

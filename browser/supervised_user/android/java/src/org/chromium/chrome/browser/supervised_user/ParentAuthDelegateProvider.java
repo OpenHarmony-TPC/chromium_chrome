@@ -8,12 +8,10 @@ import androidx.annotation.AnyThread;
 import androidx.annotation.MainThread;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.base.ThreadUtils;
 
-/**
- * Helper class that provides a test or production instance for
- * {@link ParentAuthDelegate}.
- */
+/** Helper class that provides a test or production instance for {@link ParentAuthDelegate}. */
 public class ParentAuthDelegateProvider {
     private static ParentAuthDelegate sInstance;
     private static ParentAuthDelegate sTestingInstance;
@@ -26,12 +24,13 @@ public class ParentAuthDelegateProvider {
     @AnyThread
     public static void setInstanceForTests(ParentAuthDelegate parentAuthDelegate) {
         // TODO(b/243916194): Change to the recommended alternative for deprecated method.
-        ThreadUtils.runOnUiThread(() -> { sTestingInstance = parentAuthDelegate; });
+        ThreadUtils.runOnUiThread(
+                () -> {
+                    sTestingInstance = parentAuthDelegate;
+                });
     }
 
-    /**
-     * Returns singleton instance.
-     */
+    /** Returns singleton instance. */
     @MainThread
     public static ParentAuthDelegate getInstance() {
         ThreadUtils.assertOnUiThread();
@@ -39,7 +38,7 @@ public class ParentAuthDelegateProvider {
             return sTestingInstance;
         }
         if (sInstance == null) {
-            sInstance = new ParentAuthDelegateImpl();
+            sInstance = ServiceLoaderUtil.maybeCreate(ParentAuthDelegate.class);
         }
         return sInstance;
     }

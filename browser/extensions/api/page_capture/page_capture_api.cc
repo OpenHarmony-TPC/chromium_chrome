@@ -21,7 +21,6 @@
 #include "content/public/common/mhtml_generation_params.h"
 #include "extensions/browser/extension_api_frame_id_map.h"
 #include "extensions/browser/extension_util.h"
-#include "extensions/common/extension_messages.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "url/origin.h"
 
@@ -129,30 +128,7 @@ bool PageCaptureSaveAsMHTMLFunction::CanCaptureCurrentPage(
   return can_capture_page;
 }
 
-bool PageCaptureSaveAsMHTMLFunction::OnMessageReceived(
-    const IPC::Message& message) {
-  if (message.type() != ExtensionHostMsg_ResponseAck::ID)
-    return false;
-
-  int message_request_id;
-  base::PickleIterator iter(message);
-  if (!iter.ReadInt(&message_request_id)) {
-    NOTREACHED() << "malformed extension message";
-    return true;
-  }
-
-  if (message_request_id != request_id())
-    return false;
-
-  // The extension process has processed the response and has created a
-  // reference to the blob, it is safe for us to go away.
-  Release();  // Balanced in Run()
-
-  return true;
-}
-
-void PageCaptureSaveAsMHTMLFunction::OnServiceWorkerAck() {
-  DCHECK(is_from_service_worker());
+void PageCaptureSaveAsMHTMLFunction::OnResponseAck() {
   // The extension process has processed the response and has created a
   // reference to the blob, it is safe for us to go away.
   // This instance may be deleted after this call, so no code goes after
@@ -256,7 +232,7 @@ void PageCaptureSaveAsMHTMLFunction::ReturnSuccess(int file_size) {
   base::Value::Dict response;
   response.Set("mhtmlFilePath", mhtml_path_.AsUTF8Unsafe());
   response.Set("mhtmlFileLength", file_size);
-  response.Set("requestId", request_id());
+  response.Set("requestId", request_uuid().AsLowercaseString());
 
   // Add a reference, extending the lifespan of this extension function until
   // the response has been received by the renderer. This function generates a
@@ -264,21 +240,18 @@ void PageCaptureSaveAsMHTMLFunction::ReturnSuccess(int file_size) {
   // blob to remain alive, we have to stick around until a reference has
   // been obtained by the renderer. The response ack is the signal that the
   // renderer has it's reference, so we can release ours.
-  // TODO(crbug.com/1050887): Potential memory leak here.
+  // TODO(crbug.com/40673405): Potential memory leak here.
   AddRef();  // Balanced in either OnMessageReceived()
-  if (is_from_service_worker())
-    AddWorkerResponseTarget();
+  AddResponseTarget();
 
   Respond(WithArguments(std::move(response)));
 }
 
 WebContents* PageCaptureSaveAsMHTMLFunction::GetWebContents() {
-  Browser* browser = nullptr;
   content::WebContents* web_contents = nullptr;
-
   if (!ExtensionTabUtil::GetTabById(params_->details.tab_id, browser_context(),
-                                    include_incognito_information(), &browser,
-                                    nullptr, &web_contents, nullptr)) {
+                                    include_incognito_information(),
+                                    &web_contents)) {
     return nullptr;
   }
   return web_contents;

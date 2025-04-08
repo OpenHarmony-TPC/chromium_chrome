@@ -15,9 +15,11 @@
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
@@ -103,7 +105,7 @@ void PaymentRequestItemList::Item::Init() {
     views::InkDrop::Get(edit_button.get())->SetBaseColorId(ui::kColorIcon);
     edit_button->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
     edit_button->SetID(static_cast<int>(DialogViewID::EDIT_ITEM_BUTTON));
-    edit_button->SetAccessibleName(
+    edit_button->GetViewAccessibility().SetName(
         l10n_util::GetStringUTF16(IDS_PAYMENTS_EDIT));
     container->AddChildView(std::move(edit_button));
   }
@@ -133,7 +135,7 @@ std::unique_ptr<views::ImageView> PaymentRequestItemList::Item::CreateCheckmark(
   checkmark->SetID(static_cast<int>(DialogViewID::CHECKMARK_VIEW));
   checkmark->SetCanProcessEventsWithinSubtree(false);
   checkmark->SetImage(
-      gfx::CreateVectorIcon(views::kMenuCheckIcon, kCheckmarkColor));
+      ui::ImageModel::FromVectorIcon(views::kMenuCheckIcon, kCheckmarkColor));
   checkmark->SetVisible(selected);
   checkmark->SetFocusBehavior(views::View::FocusBehavior::NEVER);
   return checkmark;
@@ -151,7 +153,7 @@ void PaymentRequestItemList::Item::UpdateAccessibleName() {
                 : l10n_util::GetStringFUTF16(
                       IDS_PAYMENTS_ROW_ACCESSIBLE_NAME_FORMAT,
                       GetNameForDataType(), accessible_item_description_);
-  SetAccessibleName(accessible_content);
+  GetViewAccessibility().SetName(accessible_content);
 }
 
 void PaymentRequestItemList::Item::ButtonPressed() {
@@ -165,6 +167,9 @@ void PaymentRequestItemList::Item::ButtonPressed() {
     PerformSelectionFallback();
   }
 }
+
+BEGIN_METADATA(PaymentRequestItemList, Item)
+END_METADATA
 
 PaymentRequestItemList::PaymentRequestItemList(
     base::WeakPtr<PaymentRequestDialogView> dialog)

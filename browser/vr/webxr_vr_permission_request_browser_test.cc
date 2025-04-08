@@ -38,12 +38,12 @@ WEBXR_VR_ALL_RUNTIMES_BROWSER_TEST_F(
       "navigator.geolocation.getCurrentPosition( ()=>{}, ()=>{} )");
   base::RunLoop().RunUntilIdle();
   auto utils = UiUtils::Create();
-  utils->PerformActionAndWaitForVisibilityStatus(
+  utils->WaitForVisibilityStatus(
       UserFriendlyElementName::kWebXrExternalPromptNotification,
-      true /* visible */, base::DoNothing());
+      true /* visible */);
 }
 
-// TODO(https://crbug.com/920697): Add tests verifying the notification
+// TODO(crbug.com/41434932): Add tests verifying the notification
 // disappears when the permission is accepted/denied once we can query element
 // visibility at any time using PermissionRequestManagerTestApi.
 

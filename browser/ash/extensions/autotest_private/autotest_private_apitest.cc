@@ -2,30 +2,32 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/ash/extensions/autotest_private/autotest_private_api.h"
-
 #include <memory>
 
+#include "ash/ambient/ambient_ui_settings.h"
 #include "ash/app_list/app_list_public_test_util.h"
 #include "ash/app_list/views/search_box_view.h"
 #include "ash/components/arc/arc_prefs.h"
 #include "ash/components/arc/session/arc_bridge_service.h"
 #include "ash/components/arc/session/arc_service_manager.h"
 #include "ash/components/arc/session/connection_holder.h"
+#include "ash/components/arc/test/arc_task_window_builder.h"
 #include "ash/components/arc/test/arc_util_test_support.h"
 #include "ash/components/arc/test/connection_holder_util.h"
 #include "ash/components/arc/test/fake_app_instance.h"
 #include "ash/components/arc/test/fake_arc_session.h"
 #include "ash/components/arc/test/fake_process_instance.h"
-#include "ash/constants/ash_features.h"
+#include "ash/public/cpp/ambient/ambient_prefs.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
 #include "ash/public/cpp/holding_space/holding_space_prefs.h"
 #include "ash/public/cpp/overview_test_api.h"
 #include "ash/public/cpp/test/app_list_test_api.h"
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "base/json/json_writer.h"
+#include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -38,13 +40,18 @@
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
 #include "chrome/browser/ash/arc/tracing/arc_app_performance_tracing.h"
 #include "chrome/browser/ash/arc/tracing/arc_app_performance_tracing_session.h"
-#include "chrome/browser/ash/arc/tracing/arc_app_performance_tracing_test_helper.h"
+#include "chrome/browser/ash/arc/tracing/test/arc_app_performance_tracing_test_helper.h"
+#include "chrome/browser/ash/extensions/autotest_private/autotest_private_api.h"
 #include "chrome/browser/ash/settings/scoped_testing_cros_settings.h"
 #include "chrome/browser/ash/system_web_apps/test_support/test_system_web_app_installation.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_prefs.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "components/device_event_log/device_event_log.h"
 #include "components/feature_engagement/public/feature_constants.h"
+#include "components/language/core/browser/pref_names.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "components/policy/core/common/policy_map.h"
@@ -56,6 +63,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
+#include "services/viz/privileged/mojom/compositing/features.mojom-features.h"
 #include "ui/aura/window.h"
 #include "ui/events/event_utils.h"
 #include "ui/events/test/event_generator.h"
@@ -71,7 +79,8 @@ namespace {
 class TestSearchProvider : public app_list::SearchProvider {
  public:
   explicit TestSearchProvider(ash::AppListSearchResultType result_type)
-      : result_type_(result_type) {}
+      : SearchProvider(app_list::SearchCategory::kTest),
+        result_type_(result_type) {}
 
   ~TestSearchProvider() override = default;
 
@@ -108,17 +117,13 @@ class TestSearchProvider : public app_list::SearchProvider {
 class AutotestPrivateApiTest : public ExtensionApiTest {
  public:
   AutotestPrivateApiTest() {
-    // App pin syncing code makes an untitled Play Store icon appear in the
-    // shelf. Sync isn't relevant to this test, so skip pinned app sync.
-    // https://crbug.com/1085597
-    ChromeShelfPrefs::SkipPinnedAppsFromSyncForTest();
+    feature_list_.InitAndEnableFeature(viz::mojom::EnableVizTestApis);
   }
 
   AutotestPrivateApiTest(const AutotestPrivateApiTest&) = delete;
   AutotestPrivateApiTest& operator=(const AutotestPrivateApiTest&) = delete;
 
   ~AutotestPrivateApiTest() override = default;
-
   void SetUpCommandLine(base::CommandLine* command_line) override {
     ExtensionApiTest::SetUpCommandLine(command_line);
     // Make ARC enabled for tests.
@@ -156,14 +161,30 @@ class AutotestPrivateApiTest : public ExtensionApiTest {
   }
 
   ash::ScopedTestingCrosSettings scoped_testing_cros_settings_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(AutotestPrivateApiTest, AutotestPrivate) {
+// TODO(crbug.com/356369542): Fix flakiness on sanitizer bots.
+
+#if defined(ADDRESS_SANITIZER) || defined(LEAK_SANITIZER) ||  \
+    BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_AutotestPrivate DISABLED_AutotestPrivate
+#else
+#define MAYBE_AutotestPrivate AutotestPrivate
+#endif
+IN_PROC_BROWSER_TEST_F(AutotestPrivateApiTest, MAYBE_AutotestPrivate) {
   ASSERT_TRUE(RunAutotestPrivateExtensionTest("default")) << message_;
 }
 
 // Set of tests where ARC is enabled and test apps and packages are registered.
-IN_PROC_BROWSER_TEST_F(AutotestPrivateApiTest, AutotestPrivateArcEnabled) {
+// TODO(crbug.com/41486987): re-enable the following test.
+#if defined(ADDRESS_SANITIZER) || defined(LEAK_SANITIZER)
+#define MAYBE_AutotestPrivateArcEnabled DISABLED_AutotestPrivateArcEnabled
+#else
+#define MAYBE_AutotestPrivateArcEnabled AutotestPrivateArcEnabled
+#endif
+IN_PROC_BROWSER_TEST_F(AutotestPrivateApiTest,
+                       MAYBE_AutotestPrivateArcEnabled) {
   ArcAppListPrefs* const prefs = ArcAppListPrefs::Get(browser()->profile());
   ASSERT_TRUE(prefs);
 
@@ -217,7 +238,14 @@ IN_PROC_BROWSER_TEST_F(AutotestPrivateApiTest, AutotestPrivateArcEnabled) {
   arc::SetArcPlayStoreEnabledForProfile(profile(), false);
 }
 
-IN_PROC_BROWSER_TEST_F(AutotestPrivateApiTest, AutotestPrivateArcProcess) {
+// TODO(crbug.com/331532893): Flaky on ASan/LSan.
+#if defined(ADDRESS_SANITIZER) || defined(LEAK_SANITIZER)
+#define MAYBE_AutotestPrivateArcProcess DISABLED_AutotestPrivateArcProcess
+#else
+#define MAYBE_AutotestPrivateArcProcess AutotestPrivateArcProcess
+#endif
+IN_PROC_BROWSER_TEST_F(AutotestPrivateApiTest,
+                       MAYBE_AutotestPrivateArcProcess) {
   arc::FakeProcessInstance fake_process_instance;
   arc::ArcServiceManager::Get()->arc_bridge_service()->process()->SetInstance(
       &fake_process_instance);
@@ -241,18 +269,13 @@ IN_PROC_BROWSER_TEST_F(AutotestPrivateApiTest, ShelfAPITest) {
   ASSERT_TRUE(RunAutotestPrivateExtensionTest("shelf")) << message_;
 }
 
+IN_PROC_BROWSER_TEST_F(AutotestPrivateApiTest, IsFeatureEnabled) {
+  ASSERT_TRUE(RunAutotestPrivateExtensionTest("isFeatureEnabled")) << message_;
+}
+
 class AutotestPrivateHoldingSpaceApiTest
     : public AutotestPrivateApiTest,
       public ::testing::WithParamInterface<bool /* mark_time_of_first_add */> {
- public:
-  AutotestPrivateHoldingSpaceApiTest() {
-    // TODO(crbug.com/1382945): Parameterize.
-    scoped_feature_list_.InitAndDisableFeature(
-        ash::features::kHoldingSpacePredictability);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 INSTANTIATE_TEST_SUITE_P(All,
@@ -281,22 +304,22 @@ IN_PROC_BROWSER_TEST_P(AutotestPrivateHoldingSpaceApiTest,
       RunAutotestPrivateExtensionTest("holdingSpace", std::move(suite_args)))
       << message_;
 
-  absl::optional<base::Time> timeOfFirstAdd =
+  std::optional<base::Time> timeOfFirstAdd =
       ash::holding_space_prefs::GetTimeOfFirstAdd(prefs);
-  absl::optional<base::Time> timeOfFirstAvailability =
+  std::optional<base::Time> timeOfFirstAvailability =
       ash::holding_space_prefs::GetTimeOfFirstAvailability(prefs);
 
   ASSERT_TRUE(ash::holding_space_prefs::IsPreviewsEnabled(prefs));
   ASSERT_EQ(timeOfFirstAdd.has_value(), mark_time_of_first_add);
-  ASSERT_NE(timeOfFirstAvailability, absl::nullopt);
-  ASSERT_EQ(ash::holding_space_prefs::GetTimeOfFirstEntry(prefs),
-            absl::nullopt);
+  ASSERT_NE(timeOfFirstAvailability, std::nullopt);
+  ASSERT_EQ(ash::holding_space_prefs::GetTimeOfFirstEntry(prefs), std::nullopt);
   ASSERT_EQ(ash::holding_space_prefs::GetTimeOfFirstFilesAppChipPress(prefs),
-            absl::nullopt);
-  ASSERT_EQ(ash::holding_space_prefs::GetTimeOfFirstPin(prefs), absl::nullopt);
+            std::nullopt);
+  ASSERT_EQ(ash::holding_space_prefs::GetTimeOfFirstPin(prefs), std::nullopt);
 
-  if (timeOfFirstAdd)
+  if (timeOfFirstAdd) {
     ASSERT_GT(timeOfFirstAdd, timeOfFirstAvailability);
+  }
 }
 
 class AutotestPrivateApiOverviewTest : public AutotestPrivateApiTest {
@@ -315,8 +338,9 @@ class AutotestPrivateApiOverviewTest : public AutotestPrivateApiTest {
     base::RunLoop run_loop;
     ash::OverviewTestApi().SetOverviewMode(
         /*start=*/true, base::BindLambdaForTesting([&run_loop](bool finished) {
-          if (!finished)
+          if (!finished) {
             ADD_FAILURE() << "Failed to enter overview.";
+          }
           run_loop.Quit();
         }));
     run_loop.Run();
@@ -348,7 +372,7 @@ IN_PROC_BROWSER_TEST_F(AutotestPrivateApiOverviewTest, Drag) {
 
   ui::GestureEvent long_press(
       start_point.x(), start_point.y(), 0, ui::EventTimeForNow(),
-      ui::GestureEventDetails(ui::ET_GESTURE_LONG_PRESS));
+      ui::GestureEventDetails(ui::EventType::kGestureLongPress));
   generator.Dispatch(&long_press);
 
   // 50 is arbitrary number of dip to move a bit to ensure the item is being
@@ -359,7 +383,7 @@ IN_PROC_BROWSER_TEST_F(AutotestPrivateApiOverviewTest, Drag) {
   ASSERT_TRUE(RunAutotestPrivateExtensionTest("overviewDrag")) << message_;
 }
 
-IN_PROC_BROWSER_TEST_F(AutotestPrivateApiOverviewTest, LeftSnapped) {
+IN_PROC_BROWSER_TEST_F(AutotestPrivateApiOverviewTest, PrimarySnapped) {
   const ash::OverviewInfo info =
       ash::OverviewTestApi().GetOverviewInfo().value();
   const gfx::Point start_point =
@@ -375,13 +399,13 @@ IN_PROC_BROWSER_TEST_F(AutotestPrivateApiOverviewTest, LeftSnapped) {
 
   ui::GestureEvent long_press(
       start_point.x(), start_point.y(), 0, ui::EventTimeForNow(),
-      ui::GestureEventDetails(ui::ET_GESTURE_LONG_PRESS));
+      ui::GestureEventDetails(ui::EventType::kGestureLongPress));
   generator.Dispatch(&long_press);
 
   generator.MoveTouch(end_point);
   generator.ReleaseTouch();
 
-  ASSERT_TRUE(RunAutotestPrivateExtensionTest("splitviewLeftSnapped"))
+  ASSERT_TRUE(RunAutotestPrivateExtensionTest("splitviewPrimarySnapped"))
       << message_;
 }
 
@@ -438,17 +462,21 @@ class AutotestPrivateArcPerformanceTracing : public AutotestPrivateApiTest {
   // AutotestPrivateApiTest:
   void SetUpOnMainThread() override {
     AutotestPrivateApiTest::SetUpOnMainThread();
+
     tracing_helper_.SetUp(profile());
+    root_surface_ = std::make_unique<exo::Surface>();
     performance_tracing()->SetCustomSessionReadyCallbackForTesting(
         base::BindRepeating(
             &arc::ArcAppPerformanceTracingTestHelper::PlayDefaultSequence,
-            base::Unretained(&tracing_helper())));
+            base::Unretained(&tracing_helper_), root_surface_.get()));
   }
 
   void TearDownOnMainThread() override {
+    root_surface_.reset();
     performance_tracing()->SetCustomSessionReadyCallbackForTesting(
         arc::ArcAppPerformanceTracing::CustomSessionReadyCallback());
     tracing_helper_.TearDown();
+
     AutotestPrivateApiTest::TearDownOnMainThread();
   }
 
@@ -460,20 +488,27 @@ class AutotestPrivateArcPerformanceTracing : public AutotestPrivateApiTest {
     return tracing_helper_.GetTracing();
   }
 
+  std::unique_ptr<exo::Surface> root_surface_;
+
  private:
   arc::ArcAppPerformanceTracingTestHelper tracing_helper_;
 };
 
 IN_PROC_BROWSER_TEST_F(AutotestPrivateArcPerformanceTracing, Basic) {
-  views::Widget* const arc_widget =
-      arc::ArcAppPerformanceTracingTestHelper::CreateArcWindow(
-          "org.chromium.arc.1");
+  const auto arc_widget = arc::ArcTaskWindowBuilder()
+                              .SetShellRootSurface(root_surface_.get())
+                              .BuildOwnsNativeWidget();
+
   performance_tracing()->OnWindowActivated(
       wm::ActivationChangeObserver::ActivationReason::ACTIVATION_CLIENT,
-      arc_widget->GetNativeWindow(), arc_widget->GetNativeWindow());
+      arc_widget->GetNativeWindow(), nullptr);
 
   ASSERT_TRUE(RunAutotestPrivateExtensionTest("arcPerformanceTracing"))
       << message_;
+
+  performance_tracing()->OnWindowActivated(
+      wm::ActivationChangeObserver::ActivationReason::ACTIVATION_CLIENT,
+      nullptr, arc_widget->GetNativeWindow());
 }
 
 class AutotestPrivateSystemWebAppsTest : public AutotestPrivateApiTest {
@@ -488,49 +523,23 @@ class AutotestPrivateSystemWebAppsTest : public AutotestPrivateApiTest {
   std::unique_ptr<ash::TestSystemWebAppInstallation> installation_;
 };
 
-// TODO(crbug.com/1201545): Fix flakiness.
 IN_PROC_BROWSER_TEST_F(AutotestPrivateSystemWebAppsTest, SystemWebApps) {
   ASSERT_TRUE(RunAutotestPrivateExtensionTest("systemWebApps")) << message_;
-}
-
-class AutotestPrivateLacrosTest : public AutotestPrivateApiTest {
- public:
-  AutotestPrivateLacrosTest(const AutotestPrivateLacrosTest&) = delete;
-  AutotestPrivateLacrosTest& operator=(const AutotestPrivateLacrosTest&) =
-      delete;
-
- protected:
-  AutotestPrivateLacrosTest() {
-    feature_list_.InitAndEnableFeature(ash::features::kLacrosSupport);
-    crosapi::BrowserManager::DisableForTesting();
-  }
-  ~AutotestPrivateLacrosTest() override {
-    crosapi::BrowserManager::EnableForTesting();
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(AutotestPrivateLacrosTest, Lacros) {
-  ASSERT_TRUE(RunAutotestPrivateExtensionTest("lacrosEnabled")) << message_;
 }
 
 class AutotestPrivateSearchTest
     : public AutotestPrivateApiTest,
       public ::testing::WithParamInterface</* tablet_mode =*/bool> {
  public:
-  AutotestPrivateSearchTest() {
-    feature_list.InitAndEnableFeature(
-        ash::features::kAutocompleteExtendedSuggestions);
-  }
+  AutotestPrivateSearchTest() = default;
 
   ~AutotestPrivateSearchTest() override = default;
   AutotestPrivateSearchTest(const AutotestPrivateSearchTest&) = delete;
   AutotestPrivateSearchTest& operator=(const AutotestPrivateSearchTest&) =
       delete;
 
-  std::vector<ChromeSearchResult*> PublishedResults() {
+  std::vector<raw_ptr<ChromeSearchResult, VectorExperimental>>
+  PublishedResults() {
     return AppListClientImpl::GetInstance()
         ->GetModelUpdaterForTest()
         ->GetPublishedSearchResultsForTest();
@@ -568,17 +577,20 @@ class AutotestPrivateSearchTest
     }
     return results;
   }
-
- private:
-  base::test::ScopedFeatureList feature_list;
 };
 
 INSTANTIATE_TEST_SUITE_P(All,
                          AutotestPrivateSearchTest,
                          /* tablet_mode= */ ::testing::Bool());
 
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_LauncherSearchBoxStateAPITest \
+  DISABLED_LauncherSearchBoxStateAPITest
+#else
+#define MAYBE_LauncherSearchBoxStateAPITest LauncherSearchBoxStateAPITest
+#endif
 IN_PROC_BROWSER_TEST_P(AutotestPrivateSearchTest,
-                       LauncherSearchBoxStateAPITest) {
+                       MAYBE_LauncherSearchBoxStateAPITest) {
   ash::ShellTestApi().SetTabletModeEnabledForTest(GetParam());
   test::GetAppListClient()->ShowAppList(ash::AppListShowSource::kSearchKey);
   if (!GetParam()) {
@@ -603,11 +615,12 @@ IN_PROC_BROWSER_TEST_P(AutotestPrivateSearchTest,
   results_waiter.Wait();
 
   std::vector<ChromeSearchResult*> results;
-  for (auto* result : PublishedResults()) {
+  for (ChromeSearchResult* result : PublishedResults()) {
     // There may be zero state results that are also published, but not visible
     // in the UI. This test should only check search list results.
-    if (result->display_type() != ash::SearchResultDisplayType::kList)
+    if (result->display_type() != ash::SearchResultDisplayType::kList) {
       continue;
+    }
 
     results.push_back(result);
   }
@@ -618,6 +631,65 @@ IN_PROC_BROWSER_TEST_P(AutotestPrivateSearchTest,
 
   ASSERT_TRUE(RunAutotestPrivateExtensionTest("launcherSearchBoxState"))
       << message_;
+}
+
+class AutotestPrivateIsFieldTrialActiveApiTest : public AutotestPrivateApiTest {
+ public:
+  AutotestPrivateIsFieldTrialActiveApiTest() {
+    base::FieldTrial* trial = base::FieldTrialList::CreateFieldTrial(
+        "ActiveTrialForTest", "GroupForTest");
+    trial->Activate();
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(AutotestPrivateIsFieldTrialActiveApiTest,
+                       IsFieldTrialActive) {
+  ASSERT_TRUE(RunAutotestPrivateExtensionTest("isFieldTrialActive"))
+      << message_;
+}
+
+IN_PROC_BROWSER_TEST_F(AutotestPrivateApiTest, ClearAllowedPref) {
+  static constexpr auto kTestTheme =
+      ash::personalization_app::mojom::AmbientTheme::kFloatOnBy;
+  ash::personalization_app::mojom::AmbientTheme default_theme =
+      ash::AmbientUiSettings::ReadFromPrefService(
+          *browser()->profile()->GetPrefs())
+          .theme();
+  ASSERT_NE(kTestTheme, default_theme);
+  ash::AmbientUiSettings(kTestTheme)
+      .WriteToPrefService(*browser()->profile()->GetPrefs());
+
+  base::Value::List suite_args;
+  suite_args.Append(base::Value(ash::ambient::prefs::kAmbientUiSettings));
+
+  ASSERT_TRUE(RunAutotestPrivateExtensionTest("clearAllowedPref",
+                                              std::move(suite_args)))
+      << message_;
+  // Value read back should be the default.
+  EXPECT_EQ(ash::AmbientUiSettings::ReadFromPrefService(
+                *browser()->profile()->GetPrefs())
+                .theme(),
+            default_theme);
+}
+
+IN_PROC_BROWSER_TEST_F(AutotestPrivateApiTest, SetDeviceLanguage) {
+  std::string target_locale = "ja-JP";
+  base::Value::List args;
+  args.Append(base::Value(target_locale));
+  ASSERT_TRUE(
+      RunAutotestPrivateExtensionTest("setDeviceLanguage", std::move(args)))
+      << message_;
+  std::string cur_locale = browser()->profile()->GetPrefs()->GetString(
+      language::prefs::kApplicationLocale);
+  EXPECT_EQ(cur_locale, target_locale);
+}
+
+IN_PROC_BROWSER_TEST_F(AutotestPrivateApiTest, GetDeviceEventLog) {
+  device_event_log::ClearAll();
+  PRINTER_LOG(DEBUG) << "PrinterTestLog";
+  NET_LOG(DEBUG) << "NetworkTestLog";
+  USB_LOG(DEBUG) << "USBTestLog";
+  ASSERT_TRUE(RunAutotestPrivateExtensionTest("getDeviceEventLog")) << message_;
 }
 
 }  // namespace extensions

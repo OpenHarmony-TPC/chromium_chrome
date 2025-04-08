@@ -16,7 +16,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "chrome/browser/ash/throttle_service.h"
+#include "chromeos/ash/components/throttle/throttle_service.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "ui/aura/window_observer.h"
 #include "ui/events/event_handler.h"
@@ -70,8 +70,8 @@ class ArcPowerControlHandler : public content::WebUIMessageHandler,
   void OnIsDeveloperMode(bool developer_mode);
 
   // Unowned pointers.
-  const raw_ptr<arc::ArcPowerBridge, ExperimentalAsh> power_bridge_;
-  const raw_ptr<arc::ArcInstanceThrottle, ExperimentalAsh> instance_throttle_;
+  const raw_ptr<arc::ArcPowerBridge> power_bridge_;
+  const raw_ptr<arc::ArcInstanceThrottle> instance_throttle_;
 
   // Collects system stats runtime.
   base::Time timestamp_;

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 
 #include "base/containers/fixed_flat_map.h"
 #include "base/containers/span.h"
@@ -38,18 +39,16 @@
 #include "chrome/browser/ui/webui/tab_strip/tab_strip_ui_util.h"
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "chrome/browser/ui/webui/util/image_util.h"
-#include "chrome/browser/ui/webui/webui_util.h"
+#include "chrome/browser/ui/webui/webui_util_desktop.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "content/public/common/drop_data.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/input/web_gesture_event.h"
 #include "ui/aura/window_delegate.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/list_selection_model.h"
-#include "ui/base/models/simple_menu_model.h"
 #include "ui/base/theme_provider.h"
 #include "ui/color/color_id.h"
 #include "ui/events/event.h"
@@ -59,6 +58,7 @@
 #include "ui/gfx/geometry/point_conversions.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/range/range.h"
+#include "ui/menus/simple_menu_model.h"
 #include "url/gurl.h"
 
 // This should be after all other #includes.
@@ -70,8 +70,8 @@ namespace {
 
 // Delay in milliseconds of when the dragging UI should be shown for touch drag.
 // Note: For better user experience, this is made shorter than
-// ET_GESTURE_LONG_PRESS delay, which is too long for this case, e.g., about
-// 650ms.
+// EventType::kGestureLongPress delay, which is too long for this case, e.g.,
+// about 650ms.
 constexpr base::TimeDelta kTouchLongpressDelay = base::Milliseconds(300);
 
 class WebUIBackgroundMenuModel : public ui::SimpleMenuModel {
@@ -191,7 +191,8 @@ TabStripPageHandler::TabStripPageHandler(
   ThemeServiceFactory::GetForProfile(browser_->profile())->AddObserver(this);
 
   // Or native theme change.
-  theme_observation_.Observe(webui::GetNativeTheme(web_ui_->GetWebContents()));
+  theme_observation_.Observe(
+      webui::GetNativeThemeDeprecated(web_ui_->GetWebContents()));
 }
 
 void TabStripPageHandler::NotifyLayoutChanged() {
@@ -249,16 +250,16 @@ void TabStripPageHandler::OnTabGroupChanged(const TabGroupChange& change) {
 }
 
 void TabStripPageHandler::TabGroupedStateChanged(
-    absl::optional<tab_groups::TabGroupId> group,
-    content::WebContents* contents,
+    std::optional<tab_groups::TabGroupId> group,
+    tabs::TabInterface* tab,
     int index) {
   TRACE_EVENT0("browser", "TabStripPageHandler:TabGroupedStateChanged");
   const SessionID::id_type tab_id =
-      extensions::ExtensionTabUtil::GetTabId(contents);
+      extensions::ExtensionTabUtil::GetTabId(tab->GetContents());
   if (group.has_value()) {
     page_->TabGroupStateChanged(tab_id, index, group.value().ToString());
   } else {
-    page_->TabGroupStateChanged(tab_id, index, absl::optional<std::string>());
+    page_->TabGroupStateChanged(tab_id, index, std::optional<std::string>());
   }
 }
 
@@ -357,7 +358,7 @@ bool TabStripPageHandler::PreHandleGestureEvent(
         // Synthesize a long press event to start the drag and drop session.
         // TODO(tluk): Replace this with a better drag and drop trigger when
         // available.
-        ui::GestureEventDetails press_details(ui::ET_GESTURE_LONG_PRESS);
+        ui::GestureEventDetails press_details(ui::EventType::kGestureLongPress);
         press_details.set_device_type(
             ui::GestureDeviceType::DEVICE_TOUCHSCREEN);
         ui::GestureEvent press_event(
@@ -369,7 +370,8 @@ bool TabStripPageHandler::PreHandleGestureEvent(
 
         // Following the long press we need to dispatch a scroll end event to
         // ensure the gesture stream is not left in an inconsistent state.
-        ui::GestureEventDetails scroll_end_details(ui::ET_GESTURE_SCROLL_END);
+        ui::GestureEventDetails scroll_end_details(
+            ui::EventType::kGestureScrollEnd);
         scroll_end_details.set_device_type(
             ui::GestureDeviceType::DEVICE_TOUCHSCREEN);
         ui::GestureEvent scroll_end_event(
@@ -431,20 +433,18 @@ bool TabStripPageHandler::CanDragEnter(
     content::WebContents* source,
     const content::DropData& data,
     blink::DragOperationsMask operations_allowed) {
-  // TODO(crbug.com/1032592): Prevent dragging across Chromium instances.
-  if (data.custom_data.find(base::ASCIIToUTF16(kWebUITabIdDataType)) !=
-      data.custom_data.end()) {
+  // TODO(crbug.com/40110968): Prevent dragging across Chromium instances.
+  if (auto it = data.custom_data.find(kWebUITabIdDataType);
+      it != data.custom_data.end()) {
     int tab_id;
-    bool found_tab_id = base::StringToInt(
-        data.custom_data.at(base::ASCIIToUTF16(kWebUITabIdDataType)), &tab_id);
+    bool found_tab_id = base::StringToInt(it->second, &tab_id);
     return found_tab_id && extensions::ExtensionTabUtil::GetTabById(
                                tab_id, browser_->profile(), false, nullptr);
   }
 
-  if (data.custom_data.find(base::ASCIIToUTF16(kWebUITabGroupIdDataType)) !=
-      data.custom_data.end()) {
-    std::string group_id = base::UTF16ToUTF8(
-        data.custom_data.at(base::ASCIIToUTF16(kWebUITabGroupIdDataType)));
+  if (auto it = data.custom_data.find(kWebUITabGroupIdDataType);
+      it != data.custom_data.end()) {
+    std::string group_id = base::UTF16ToUTF8(it->second);
     Browser* found_browser = tab_strip_ui::GetBrowserWithGroupId(
         Profile::FromBrowserContext(browser_->profile()), group_id);
     return found_browser != nullptr;
@@ -472,7 +472,7 @@ tab_strip::mojom::TabPtr TabStripPageHandler::GetTabData(
   DCHECK(tab_data->id > 0);
   tab_data->index = index;
 
-  const absl::optional<tab_groups::TabGroupId> group_id =
+  const std::optional<tab_groups::TabGroupId> group_id =
       browser_->tab_strip_model()->GetTabGroupForTab(index);
   if (group_id.has_value()) {
     tab_data->group_id = group_id.value().ToString();
@@ -484,23 +484,29 @@ tab_strip::mojom::TabPtr TabStripPageHandler::GetTabData(
   tab_data->title = base::UTF16ToUTF8(tab_renderer_data.title);
   tab_data->url = tab_renderer_data.visible_url;
 
-  if (!tab_renderer_data.favicon.isNull()) {
+  const ui::ColorProvider& provider =
+      web_ui_->GetWebContents()->GetColorProvider();
+  const gfx::ImageSkia default_favicon =
+      favicon::GetDefaultFaviconModel().Rasterize(&provider);
+  const gfx::ImageSkia raster_favicon =
+      tab_renderer_data.favicon.Rasterize(&provider);
+
+  if (!tab_renderer_data.favicon.IsEmpty()) {
     // Themified icons only apply to a few select chrome URLs.
     if (tab_renderer_data.should_themify_favicon) {
-      tab_data->favicon_url = GURL(webui::EncodePNGAndMakeDataURI(
-          ThemeFavicon(tab_renderer_data.favicon, false),
-          web_ui_->GetDeviceScaleFactor()));
+      tab_data->favicon_url = GURL(
+          webui::EncodePNGAndMakeDataURI(ThemeFavicon(raster_favicon, false),
+                                         web_ui_->GetDeviceScaleFactor()));
       tab_data->active_favicon_url = GURL(webui::EncodePNGAndMakeDataURI(
-          ThemeFavicon(tab_renderer_data.favicon, true),
-          web_ui_->GetDeviceScaleFactor()));
+          ThemeFavicon(raster_favicon, true), web_ui_->GetDeviceScaleFactor()));
     } else {
       tab_data->favicon_url = GURL(webui::EncodePNGAndMakeDataURI(
-          tab_renderer_data.favicon, web_ui_->GetDeviceScaleFactor()));
+          tab_renderer_data.favicon.Rasterize(&provider),
+          web_ui_->GetDeviceScaleFactor()));
     }
 
     tab_data->is_default_favicon =
-        tab_renderer_data.favicon.BackedBySameObjectAs(
-            favicon::GetDefaultFavicon().AsImageSkia());
+        raster_favicon.BackedBySameObjectAs(default_favicon);
   } else {
     tab_data->is_default_favicon = true;
   }
@@ -511,8 +517,7 @@ tab_strip::mojom::TabPtr TabStripPageHandler::GetTabData(
   tab_data->crashed = tab_renderer_data.IsCrashed();
   // TODO(johntlee): Add the rest of TabRendererData
 
-  for (const auto alert_state :
-       chrome::GetTabAlertStatesForContents(contents)) {
+  for (const auto alert_state : GetTabAlertStatesForContents(contents)) {
     tab_data->alert_states.push_back(alert_state);
   }
 
@@ -566,13 +571,15 @@ void TabStripPageHandler::GetGroupVisualData(
 void TabStripPageHandler::GroupTab(int32_t tab_id,
                                    const std::string& group_id_string) {
   int tab_index = -1;
-  if (!extensions::ExtensionTabUtil::GetTabById(
-          tab_id, browser_->profile(), /*include_incognito=*/true, nullptr,
-          nullptr, nullptr, &tab_index)) {
+  if (!extensions::ExtensionTabUtil::GetTabById(tab_id, browser_->profile(),
+                                                /*include_incognito=*/true,
+                                                /*window=*/nullptr,
+                                                /*contents=*/nullptr,
+                                                &tab_index)) {
     return;
   }
 
-  absl::optional<tab_groups::TabGroupId> group_id =
+  std::optional<tab_groups::TabGroupId> group_id =
       tab_strip_ui::GetTabGroupIdFromString(
           browser_->tab_strip_model()->group_model(), group_id_string);
   if (group_id.has_value()) {
@@ -583,9 +590,11 @@ void TabStripPageHandler::GroupTab(int32_t tab_id,
 
 void TabStripPageHandler::UngroupTab(int32_t tab_id) {
   int tab_index = -1;
-  if (!extensions::ExtensionTabUtil::GetTabById(
-          tab_id, browser_->profile(), /*include_incognito=*/true, nullptr,
-          nullptr, nullptr, &tab_index)) {
+  if (!extensions::ExtensionTabUtil::GetTabById(tab_id, browser_->profile(),
+                                                /*include_incognito=*/true,
+                                                /*window=*/nullptr,
+                                                /*contents=*/nullptr,
+                                                &tab_index)) {
     return;
   }
 
@@ -605,7 +614,7 @@ void TabStripPageHandler::MoveGroup(const std::string& group_id_string,
     return;
   }
 
-  absl::optional<tab_groups::TabGroupId> group_id =
+  std::optional<tab_groups::TabGroupId> group_id =
       tab_strip_ui::GetTabGroupIdFromString(
           source_browser->tab_strip_model()->group_model(), group_id_string);
   TabGroup* group =
@@ -635,17 +644,8 @@ void TabStripPageHandler::MoveGroup(const std::string& group_id_string,
     return;
   }
 
-  target_browser->tab_strip_model()->group_model()->AddTabGroup(
-      group_id.value(),
-      absl::optional<tab_groups::TabGroupVisualData>{*group->visual_data()});
-
-  gfx::Range source_tab_indices = group->ListTabs();
-  const int tab_count = source_tab_indices.length();
-  const int from_index = source_tab_indices.start();
-  for (int i = 0; i < tab_count; i++) {
-    tab_strip_ui::MoveTabAcrossWindows(source_browser, from_index,
-                                       target_browser, to_index + i, group_id);
-  }
+  tab_strip_ui::MoveGroupAcrossWindows(source_browser, target_browser, to_index,
+                                       group_id.value());
 }
 
 void TabStripPageHandler::MoveTab(int32_t tab_id, int32_t to_index) {
@@ -653,25 +653,44 @@ void TabStripPageHandler::MoveTab(int32_t tab_id, int32_t to_index) {
     to_index = browser_->tab_strip_model()->count();
   }
 
-  Browser* source_browser;
+  extensions::WindowController* source_window = nullptr;
   int from_index = -1;
   if (!extensions::ExtensionTabUtil::GetTabById(tab_id, browser_->profile(),
-                                                true, &source_browser, nullptr,
-                                                nullptr, &from_index)) {
+                                                true, &source_window, nullptr,
+                                                &from_index)) {
     return;
   }
 
-  if (source_browser->profile() != browser_->profile()) {
+  if (source_window->profile() != browser_->profile()) {
     return;
   }
 
+  Browser* source_browser = source_window->GetBrowser();
   if (source_browser == browser_) {
     browser_->tab_strip_model()->MoveWebContentsAt(from_index, to_index, false);
     return;
   }
 
+  std::optional<tab_groups::TabGroupId> to_group_id = std::nullopt;
+
+  TabStripModel* target_tab_strip = browser_->GetTabStripModel();
+
+  // If the tab is being inserted in the middle of a group, the tab should be a
+  // part of the group.
+  if (target_tab_strip->SupportsTabGroups()) {
+    std::optional<tab_groups::TabGroupId> next_tab_dst_group =
+        target_tab_strip->GetTabGroupForTab(to_index);
+    std::optional<tab_groups::TabGroupId> prev_tab_dst_group =
+        target_tab_strip->GetTabGroupForTab(to_index - 1);
+
+    if (next_tab_dst_group.has_value() && prev_tab_dst_group.has_value() &&
+        next_tab_dst_group == prev_tab_dst_group) {
+      to_group_id = next_tab_dst_group;
+    }
+  }
+
   tab_strip_ui::MoveTabAcrossWindows(source_browser, from_index, browser_,
-                                     to_index);
+                                     to_index, to_group_id);
 }
 
 void TabStripPageHandler::CloseContainer() {
@@ -716,7 +735,7 @@ void TabStripPageHandler::ShowEditDialogForGroup(
     int32_t location_y,
     int32_t width,
     int32_t height) {
-  absl::optional<tab_groups::TabGroupId> group_id =
+  std::optional<tab_groups::TabGroupId> group_id =
       tab_strip_ui::GetTabGroupIdFromString(
           browser_->tab_strip_model()->group_model(), group_id_string);
   if (!group_id.has_value()) {
@@ -732,17 +751,18 @@ void TabStripPageHandler::ShowEditDialogForGroup(
 void TabStripPageHandler::ShowTabContextMenu(int32_t tab_id,
                                              int32_t location_x,
                                              int32_t location_y) {
-  gfx::PointF point(location_x, location_y);
-  Browser* browser = nullptr;
+  extensions::WindowController* window = nullptr;
   int tab_index = -1;
-  if (!extensions::ExtensionTabUtil::GetTabById(
-          tab_id, browser_->profile(), true /* include_incognito */, &browser,
-          nullptr, nullptr, &tab_index)) {
+  if (!extensions::ExtensionTabUtil::GetTabById(tab_id, browser_->profile(),
+                                                /*include_incognito=*/true,
+                                                &window, nullptr, &tab_index)) {
     return;
   }
+  CHECK(window);  // Shouldn't be trying to do this for a prerender window.
+  Browser* browser = window->GetBrowser();
 
   if (browser != browser_) {
-    // TODO(crbug.com/1141573): Investigate how a context menu is being opened
+    // TODO(crbug.com/40727240): Investigate how a context menu is being opened
     // for a tab that is no longer in the tab strip. Until then, fire a
     // tab-removed event so the tab is removed from this tab strip.
     page_->TabRemoved(tab_id);
@@ -750,6 +770,7 @@ void TabStripPageHandler::ShowTabContextMenu(int32_t tab_id,
   }
 
   DCHECK(embedder_);
+  gfx::PointF point(location_x, location_y);
   embedder_->ShowContextMenuAtPoint(
       gfx::ToRoundedPoint(point),
       std::make_unique<WebUITabContextMenu>(
@@ -882,7 +903,7 @@ void TabStripPageHandler::OnNativeThemeUpdated(
   // switch between light/dark mode. b) A different theme is enabled. e.g.
   // switch between GTK and classic theme on Linux. Reset observer in case b).
   ui::NativeTheme* current_theme =
-      webui::GetNativeTheme(web_ui_->GetWebContents());
+      webui::GetNativeThemeDeprecated(web_ui_->GetWebContents());
   if (observed_theme != current_theme) {
     theme_observation_.Reset();
     theme_observation_.Observe(current_theme);

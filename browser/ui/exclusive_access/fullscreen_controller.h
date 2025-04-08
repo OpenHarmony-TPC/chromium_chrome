@@ -6,9 +6,11 @@
 #define CHROME_BROWSER_UI_EXCLUSIVE_ACCESS_FULLSCREEN_CONTROLLER_H_
 
 #include "base/functional/callback.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "base/task/cancelable_task_tracker.h"
+#include "base/time/time.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_controller_base.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_observer.h"
 #include "components/content_settings/core/common/content_settings.h"
@@ -21,7 +23,7 @@ class PopunderPreventer;
 namespace content {
 class WebContents;
 class RenderFrameHost;
-}
+}  // namespace content
 
 // There are two different kinds of fullscreen mode - "tab fullscreen" and
 // "browser fullscreen". "Tab fullscreen" refers to a renderer-initiated
@@ -64,6 +66,8 @@ class FullscreenController : public ExclusiveAccessControllerBase {
 
   void AddObserver(FullscreenObserver* observer);
   void RemoveObserver(FullscreenObserver* observer);
+
+  static int64_t GetDisplayId(const content::WebContents& web_contents);
 
   // Browser/User Fullscreen ///////////////////////////////////////////////////
 
@@ -110,9 +114,7 @@ class FullscreenController : public ExclusiveAccessControllerBase {
 
   // Returns whether entering fullscreen with |EnterFullscreenModeForTab()| is
   // allowed.
-  bool CanEnterFullscreenModeForTab(
-      content::RenderFrameHost* requesting_frame,
-      const int64_t display_id = display::kInvalidDisplayId);
+  bool CanEnterFullscreenModeForTab(content::RenderFrameHost* requesting_frame);
 
   // Enter tab-initiated fullscreen mode. FullscreenController decides whether
   // to also fullscreen the browser window. See 'FullscreenWithinTab Note'.
@@ -144,6 +146,9 @@ class FullscreenController : public ExclusiveAccessControllerBase {
   void OnTabDetachedFromView(content::WebContents* web_contents) override;
   void OnTabClosing(content::WebContents* web_contents) override;
   bool HandleUserPressedEscape() override;
+  void HandleUserHeldEscape() override;
+  void HandleUserReleasedEscapeEarly() override;
+  bool RequiresPressAndHoldEscToExit() const override;
 
   void ExitExclusiveAccessToPreviousState() override;
   GURL GetURLForExclusiveAccessBubble() const override;
@@ -156,7 +161,7 @@ class FullscreenController : public ExclusiveAccessControllerBase {
 
   // Called by BrowserView::FullscreenStateChanged. This is called after
   // fullscreen mode is toggled and after the transition animation completes.
-  void FullscreenTransititionCompleted();
+  void FullscreenTransitionCompleted();
 
   // Runs the given closure unless a fullscreen transition is currently in
   // progress. If a transition is in progress, the execution of the closure is
@@ -170,10 +175,7 @@ class FullscreenController : public ExclusiveAccessControllerBase {
  private:
   friend class ExclusiveAccessTest;
 
-  enum FullscreenInternalOption {
-    BROWSER,
-    TAB
-  };
+  enum FullscreenInternalOption { BROWSER, TAB };
 
   // Posts a task to notify observers of the fullscreen state change.
   void PostFullscreenChangeNotification();
@@ -201,6 +203,13 @@ class FullscreenController : public ExclusiveAccessControllerBase {
   // Helper methods that should be used in a TAB context.
   GURL GetRequestingOrigin() const;
   GURL GetEmbeddingOrigin() const;
+
+  // This is recorded when the web page requests to go fullscreen, even if the
+  // fullscreen state doesn't change.
+  void RecordMetricsOnFullscreenApiRequested(
+      content::RenderFrameHost* requesting_frame);
+  // This is recorded after entering fullscreen.
+  void RecordMetricsOnEnteringFullscreen();
 
   // The origin of the specific frame requesting fullscreen, which may not match
   // the exclusive_access_tab()'s origin, if an embedded frame made the request.
@@ -236,19 +245,24 @@ class FullscreenController : public ExclusiveAccessControllerBase {
 
   // Set in OnTabDeactivated(). Used to see if we're in the middle of
   // deactivation of a tab.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION content::WebContents* deactivated_contents_ = nullptr;
+  raw_ptr<content::WebContents> deactivated_contents_ = nullptr;
 
   // Used in testing to set the state to tab fullscreen.
   bool is_tab_fullscreen_for_testing_ = false;
 
   // Tracks related popups that lost activation or were shown without activation
   // during content fullscreen sessions. This also activates the popups when
-  // fullscreen exits, to prevent sites from creating persisent popunders.
+  // fullscreen exits, to prevent sites from creating persistent popunders.
   std::unique_ptr<PopunderPreventer> popunder_preventer_;
 
   base::ObserverList<FullscreenObserver> observer_list_;
+
+  // Recorded when the controller switches to fullscreen or when the fullscreen
+  // window state changes, which ever comes first.
+  std::optional<base::TimeTicks> fullscreen_start_time_;
+
+  // This is used for accessing HistoryService.
+  base::CancelableTaskTracker task_tracker_;
 
   base::WeakPtrFactory<FullscreenController> ptr_factory_{this};
 };

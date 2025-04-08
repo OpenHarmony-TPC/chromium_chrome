@@ -33,7 +33,7 @@ class ChromeSelectFilePolicy : public ui::SelectFilePolicy {
   content::WebContents* source_contents() const { return source_contents_; }
 
  private:
-  raw_ptr<content::WebContents, DanglingUntriaged> source_contents_;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> source_contents_;
 };
 
 #endif  // CHROME_BROWSER_UI_CHROME_SELECT_FILE_POLICY_H_

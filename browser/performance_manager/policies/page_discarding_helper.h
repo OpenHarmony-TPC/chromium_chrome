@@ -5,20 +5,23 @@
 #ifndef CHROME_BROWSER_PERFORMANCE_MANAGER_POLICIES_PAGE_DISCARDING_HELPER_H_
 #define CHROME_BROWSER_PERFORMANCE_MANAGER_POLICIES_PAGE_DISCARDING_HELPER_H_
 
-#include "base/containers/flat_map.h"
+#include <optional>
+
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "chrome/browser/performance_manager/mechanisms/page_discarder.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom-shared.h"
+#include "components/memory_pressure/reclaim_target.h"
+#include "components/memory_pressure/unnecessary_discard_monitor.h"
 #include "components/performance_manager/public/decorators/page_live_state_decorator.h"
 #include "components/performance_manager/public/features.h"
 #include "components/performance_manager/public/graph/graph.h"
 #include "components/performance_manager/public/graph/graph_registered.h"
 #include "components/performance_manager/public/graph/node_data_describer.h"
 #include "components/performance_manager/public/graph/page_node.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace url_matcher {
 class URLMatcher;
@@ -42,40 +45,64 @@ constexpr base::TimeDelta kNonVisiblePagesUrgentProtectionTime =
     base::Minutes(10);
 #endif
 
+// Time during which a tab cannot be discarded after having played audio.
+constexpr base::TimeDelta kTabAudioProtectionTime = base::Minutes(1);
+
+// Whether a page can be discarded.
+enum class CanDiscardResult {
+  // The page can be discarded. The user should experience minimal disruption
+  // from discarding.
+  kEligible,
+  // The page can be discarded. The user will likely find discarding disruptive.
+  kProtected,
+  // The page cannot be discarded.
+  kDisallowed,
+};
+
 // Caches page node properties to facilitate sorting.
 class PageNodeSortProxy {
  public:
   PageNodeSortProxy(const PageNode* page_node,
-                    bool is_marked,
-                    bool is_protected,
+                    CanDiscardResult can_discard_result,
+                    bool is_visible,
+                    bool is_focused,
                     base::TimeDelta last_visible)
       : page_node_(page_node),
-        is_marked_(is_marked),
-        is_protected_(is_protected),
+        can_discard_result_(can_discard_result),
+        is_visible_(is_visible),
+        is_focused_(is_focused),
         last_visible_(last_visible) {}
+
   const PageNode* page_node() const { return page_node_; }
+  bool is_disallowed() const {
+    return can_discard_result_ == CanDiscardResult::kDisallowed;
+  }
+  bool is_protected() const {
+    return can_discard_result_ == CanDiscardResult::kProtected;
+  }
+  bool is_visible() const { return is_visible_; }
+  bool is_focused() const { return is_focused_; }
+  base::TimeDelta last_visible() const { return last_visible_; }
 
   // Returns true if the rhs is more important.
   bool operator<(const PageNodeSortProxy& rhs) const {
-    if (is_marked_ && !rhs.is_marked_) {
-      return false;
+    if (is_disallowed() != rhs.is_disallowed()) {
+      return rhs.is_disallowed();
     }
-    if (!is_marked_ && rhs.is_marked_) {
-      return true;
+    if (is_visible_ != rhs.is_visible_) {
+      return rhs.is_visible_;
     }
-    if (is_protected_ && !rhs.is_protected_) {
-      return false;
-    }
-    if (!is_protected_ && rhs.is_protected_) {
-      return true;
+    if (is_protected() != rhs.is_protected()) {
+      return rhs.is_protected();
     }
     return last_visible_ > rhs.last_visible_;
   }
 
  private:
   raw_ptr<const PageNode> page_node_;
-  bool is_marked_;
-  bool is_protected_;
+  CanDiscardResult can_discard_result_;
+  bool is_visible_;
+  bool is_focused_;
   // Delta between current time and last visibility change time.
   base::TimeDelta last_visible_;
 };
@@ -84,22 +111,17 @@ class PageNodeSortProxy {
 //
 // This is a GraphRegistered object and should be accessed via
 // PageDiscardingHelper::GetFromGraph(graph()).
-class PageDiscardingHelper : public GraphOwned,
-                             public PageNode::ObserverDefaultImpl,
-                             public GraphRegisteredImpl<PageDiscardingHelper>,
-                             public NodeDataDescriberDefaultImpl {
+class PageDiscardingHelper
+    : public GraphOwnedAndRegistered<PageDiscardingHelper>,
+      public NodeDataDescriberDefaultImpl {
  public:
-  enum class CanDiscardResult {
-    // Discarding eligible nodes is hard to notice for user.
-    kEligible,
-    // Discarding protected nodes is noticeable to user.
-    kProtected,
-    // Marked nodes can never be discarded.
-    kMarked,
-  };
-
   // Export discard reason in the public interface.
   using DiscardReason = ::mojom::LifecycleUnitDiscardReason;
+  // DiscardCallback passes the time of first discarding is done.
+  // If discarding fails or there is no candidate for discarding, this passes
+  // nullopt.
+  using DiscardCallback =
+      base::OnceCallback<void(std::optional<base::TimeTicks>)>;
 
   PageDiscardingHelper();
   ~PageDiscardingHelper() override;
@@ -111,7 +133,7 @@ class PageDiscardingHelper : public GraphOwned,
   // there's no more discard candidate.
   // `minimum_time_in_background` is passed to `CanDiscard()`, see the comment
   // there about its usage.
-  void DiscardAPage(base::OnceCallback<void(bool)> post_discard_cb,
+  void DiscardAPage(DiscardCallback post_discard_cb,
                     DiscardReason discard_reason,
                     base::TimeDelta minimum_time_in_background =
                         kNonVisiblePagesUrgentProtectionTime);
@@ -123,21 +145,18 @@ class PageDiscardingHelper : public GraphOwned,
   // kProtected) can also be discarded.
   // `minimum_time_in_background` is passed to `CanDiscard()`, see the comment
   // there about its usage.
-  void DiscardMultiplePages(absl::optional<uint64_t> reclaim_target_kb,
-                            bool discard_protected_tabs,
-                            base::OnceCallback<void(bool)> post_discard_cb,
-                            DiscardReason discard_reason,
-                            base::TimeDelta minimum_time_in_background =
-                                kNonVisiblePagesUrgentProtectionTime);
-
-  void ImmediatelyDiscardSpecificPage(
-      const PageNode* page_node,
+  void DiscardMultiplePages(
+      std::optional<memory_pressure::ReclaimTarget> reclaim_target,
+      bool discard_protected_tabs,
+      DiscardCallback post_discard_cb,
       DiscardReason discard_reason,
-      base::OnceCallback<void(bool)> post_discard_cb = base::DoNothing());
+      base::TimeDelta minimum_time_in_background =
+          kNonVisiblePagesUrgentProtectionTime);
 
-  // PageNodeObserver:
-  void OnBeforePageNodeRemoved(const PageNode* page_node) override;
-  void OnIsAudibleChanged(const PageNode* page_node) override;
+  void ImmediatelyDiscardMultiplePages(
+      const std::vector<const PageNode*>& page_nodes,
+      DiscardReason discard_reason,
+      DiscardCallback post_discard_cb = base::DoNothing());
 
   void SetNoDiscardPatternsForProfile(const std::string& browser_context_id,
                                       const std::vector<std::string>& patterns);
@@ -155,7 +174,6 @@ class PageDiscardingHelper : public GraphOwned,
                               base::TimeDelta minimum_time_in_background =
                                   kNonVisiblePagesUrgentProtectionTime) const;
 
-  void SetGraphForTesting(Graph* graph) { graph_ = graph; }
   static void AddDiscardAttemptMarkerForTesting(PageNode* page_node);
   static void RemovesDiscardAttemptMarkerForTesting(PageNode* page_node);
 
@@ -180,26 +198,21 @@ class PageDiscardingHelper : public GraphOwned,
   // there's been at least one successful discard or if there's no more discard
   // candidates.
   void PostDiscardAttemptCallback(
-      absl::optional<uint64_t> reclaim_target_kb,
+      std::optional<memory_pressure::ReclaimTarget> reclaim_target,
       bool discard_protected_tabs,
-      base::OnceCallback<void(bool)> post_discard_cb,
+      DiscardCallback post_discard_cb,
       DiscardReason discard_reason,
       base::TimeDelta minimum_time_in_background,
-      bool success);
-
-  // Map that associates a PageNode with the last time it became non audible.
-  // PageNodes that have never been audible are not present in this map.
-  base::flat_map<const PageNode*, base::TimeTicks>
-      last_change_to_non_audible_time_;
+      const std::vector<mechanism::PageDiscarder::DiscardEvent>&
+          discard_events);
 
   // The mechanism used to do the actual discarding.
-  std::unique_ptr<performance_manager::mechanism::PageDiscarder>
-      page_discarder_;
+  std::unique_ptr<mechanism::PageDiscarder> page_discarder_;
 
   std::map<std::string, std::unique_ptr<url_matcher::URLMatcher>>
       profiles_no_discard_patterns_;
 
-  raw_ptr<Graph> graph_ = nullptr;
+  memory_pressure::UnnecessaryDiscardMonitor unnecessary_discard_monitor_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

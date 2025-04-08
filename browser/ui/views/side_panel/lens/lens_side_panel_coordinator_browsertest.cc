@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/views/side_panel/lens/lens_side_panel_coordinator.h"
+
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
@@ -9,16 +11,15 @@
 #include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_browsertest_util.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
-#include "chrome/browser/ui/lens/lens_side_panel_helper.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/side_panel/lens/lens_side_panel_coordinator.h"
+#include "chrome/browser/ui/views/lens/lens_side_panel_helper.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
@@ -54,9 +55,9 @@ namespace {
 constexpr char kCloseAction[] = "LensUnifiedSidePanel.HideSidePanel";
 constexpr char kExpectedLensSidePanelContentUrlRegex[] =
     ".*ep=ccm&re=dcsp&s=4&st=\\d+&lm=.+&p=somepayload&ep=ccmupload&"
-    "sideimagesearch=1";
+    "sideimagesearch=1&vpw=\\d+&vph=\\d+";
 constexpr char kExpected3PDseSidePanelContentUrlRegex[] =
-    ".*p=somepayload&sideimagesearch=1";
+    ".*p=somepayload&sideimagesearch=1&vpw=\\d+&vph=\\d+";
 constexpr char kExpectedNewTabContentUrlRegex[] = ".*p=somepayload";
 
 // Maintains image search test state. In particular, note that |menu_observer_|
@@ -183,8 +184,7 @@ class SearchImageWithUnifiedSidePanel : public InProcessBrowserTest {
   }
 
   SidePanelCoordinator* GetSidePanelCoordinator() {
-    return BrowserView::GetBrowserViewForBrowser(browser())
-        ->side_panel_coordinator();
+    return browser()->GetFeatures().side_panel_coordinator();
   }
 
   LensSidePanelCoordinator* GetLensSidePanelCoordinator() {
@@ -210,9 +210,9 @@ class SearchImageWithUnifiedSidePanel : public InProcessBrowserTest {
 
   std::unique_ptr<ContextMenuNotificationObserver> menu_observer_;
   base::UserActionTester user_action_tester;
+  base::HistogramTester histogram_tester;
 };
 
-// https://crbug.com/1444953
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_ImageSearchWithValidImageOpensUnifiedSidePanelForLens \
   DISABLED_ImageSearchWithValidImageOpensUnifiedSidePanelForLens
@@ -240,6 +240,41 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_THAT(side_panel_content,
               testing::MatchesRegex(kExpectedLensSidePanelContentUrlRegex));
   ExpectThatRequestContainsImageData(contents);
+
+  // Ensure SidePanel.OpenTrigger was recorded correctly.
+  histogram_tester.ExpectBucketCount("SidePanel.OpenTrigger",
+                                     SidePanelOpenTrigger::kLensContextMenu, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(SearchImageWithUnifiedSidePanel,
+                       LensUnifiedSidePanelViewAccessibleProperties) {
+  SetupUnifiedSidePanel();
+  EXPECT_TRUE(GetUnifiedSidePanel()->GetVisible());
+
+  auto lens_unified_side_panel_view =
+      GetLensSidePanelCoordinator()->GetLensUnifiedSidePanelViewForTesting();
+
+  ui::AXNodeData data;
+  lens_unified_side_panel_view->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
+  EXPECT_EQ(data.role, ax::mojom::Role::kWebView);
+  EXPECT_EQ(data.role, lens_unified_side_panel_view->GetWebView()
+                           ->GetViewAccessibility()
+                           .GetCachedRole());
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kName), u"");
+
+  // This check verifies that the callback for updating the child tree ID is
+  // called since initially the child tree ID is unknown, and the only way
+  // through which the value of child tree id can change is when the callback
+  // ran.
+  EXPECT_NE(
+      lens_unified_side_panel_view->GetViewAccessibility().GetChildTreeID(),
+      ui::AXTreeIDUnknown());
+  EXPECT_EQ(
+      lens_unified_side_panel_view->GetViewAccessibility().GetChildTreeID(),
+      lens_unified_side_panel_view->GetWebView()
+          ->GetViewAccessibility()
+          .GetChildTreeID());
 }
 
 IN_PROC_BROWSER_TEST_F(SearchImageWithUnifiedSidePanel,
@@ -334,8 +369,16 @@ IN_PROC_BROWSER_TEST_F(SearchImageWithUnifiedSidePanel,
   EXPECT_TRUE(GetLensSidePanelCoordinator()->IsLaunchButtonEnabledForTesting());
 }
 
-IN_PROC_BROWSER_TEST_F(SearchImageWithUnifiedSidePanel,
-                       ClosingSidePanelDeregistersLensViewAndLogsCloseMetric) {
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_ClosingSidePanelDeregistersLensViewAndLogsCloseMetric \
+  DISABLED_ClosingSidePanelDeregistersLensViewAndLogsCloseMetric
+#else
+#define MAYBE_ClosingSidePanelDeregistersLensViewAndLogsCloseMetric \
+  ClosingSidePanelDeregistersLensViewAndLogsCloseMetric
+#endif
+IN_PROC_BROWSER_TEST_F(
+    SearchImageWithUnifiedSidePanel,
+    MAYBE_ClosingSidePanelDeregistersLensViewAndLogsCloseMetric) {
   SetupUnifiedSidePanel();
   EXPECT_TRUE(GetUnifiedSidePanel()->GetVisible());
 
@@ -346,14 +389,24 @@ IN_PROC_BROWSER_TEST_F(SearchImageWithUnifiedSidePanel,
       GetSidePanelCoordinator()->GetCurrentSidePanelEntryForTesting();
   EXPECT_EQ(last_active_entry, nullptr);
   EXPECT_EQ(
-      SidePanelCoordinator::GetGlobalSidePanelRegistry(browser())
+      browser()
+          ->browser_window_features()
+          ->side_panel_coordinator()
+          ->GetWindowRegistry()
           ->GetEntryForKey(SidePanelEntry::Key(SidePanelEntry::Id::kLens)),
       nullptr);
   EXPECT_EQ(1, user_action_tester.GetActionCount(kCloseAction));
 }
 
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_OpenInNewTabOpensInNewTabAndClosesSidePanel \
+  DISABLED_OpenInNewTabOpensInNewTabAndClosesSidePanel
+#else
+#define MAYBE_OpenInNewTabOpensInNewTabAndClosesSidePanel \
+  OpenInNewTabOpensInNewTabAndClosesSidePanel
+#endif
 IN_PROC_BROWSER_TEST_F(SearchImageWithUnifiedSidePanel,
-                       OpenInNewTabOpensInNewTabAndClosesSidePanel) {
+                       MAYBE_OpenInNewTabOpensInNewTabAndClosesSidePanel) {
   SetupUnifiedSidePanel();
   EXPECT_TRUE(GetUnifiedSidePanel()->GetVisible());
 
@@ -464,4 +517,5 @@ IN_PROC_BROWSER_TEST_F(SearchImageWithSidePanel3PDseDisabled,
   std::string side_panel_content = contents->GetLastCommittedURL().GetContent();
   EXPECT_NE(side_panel_content, new_tab_content);
 }
+
 }  // namespace

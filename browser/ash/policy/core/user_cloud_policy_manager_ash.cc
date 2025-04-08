@@ -25,25 +25,30 @@
 #include "chrome/browser/ash/login/helper.h"
 #include "chrome/browser/ash/login/session/user_session_manager.h"
 #include "chrome/browser/ash/login/users/affiliation.h"
-#include "chrome/browser/ash/login/users/chrome_user_manager_impl.h"
+#include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/policy/core/policy_oauth2_token_fetcher.h"
 #include "chrome/browser/ash/policy/login/wildcard_login_checker.h"
 #include "chrome/browser/ash/policy/remote_commands/user_commands_factory_ash.h"
 #include "chrome/browser/ash/policy/reporting/arc_app_install_event_log_uploader.h"
+#include "chrome/browser/ash/policy/skyvault/local_files_cleanup.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/enterprise/reporting/report_scheduler_desktop.h"
 #include "chrome/browser/enterprise/reporting/reporting_delegate_factory_desktop.h"
 #include "chrome/browser/invalidation/profile_invalidation_provider_factory.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/net/system_network_context_manager.h"
-#include "chrome/browser/policy/cloud/remote_commands_invalidator_impl.h"
+#include "chrome/browser/policy/cloud/user_fm_registration_token_uploader_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_content_client.h"
 #include "chrome/common/chrome_features.h"
+#include "components/enterprise/browser/reporting/real_time_report_controller.h"
 #include "components/enterprise/browser/reporting/report_generator.h"
 #include "components/enterprise/browser/reporting/report_scheduler.h"
-#include "components/invalidation/impl/profile_invalidation_provider.h"
+#include "components/invalidation/invalidation_listener.h"
+#include "components/invalidation/profile_invalidation_provider.h"
 #include "components/keyed_service/content/browser_context_keyed_service_shutdown_notifier_factory.h"
+#include "components/policy/core/common/cloud/affiliation.h"
 #include "components/policy/core/common/cloud/cloud_external_data_manager.h"
 #include "components/policy/core/common/cloud/cloud_policy_core.h"
 #include "components/policy/core/common/cloud/cloud_policy_refresh_scheduler.h"
@@ -51,6 +56,8 @@
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/policy/core/common/policy_types.h"
+#include "components/policy/core/common/remote_commands/remote_commands_constants.h"
+#include "components/policy/core/common/remote_commands/remote_commands_invalidator_impl.h"
 #include "components/policy/policy_constants.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/user_manager/known_user.h"
@@ -93,7 +100,7 @@ void RegistrationResultUMA(RegistrationResult registration_result) {
 bool IsChildUser(const AccountId& account_id) {
   const user_manager::User* const user =
       user_manager::UserManager::Get()->FindUser(account_id);
-  return user && user->GetType() == user_manager::USER_TYPE_CHILD;
+  return user && user->GetType() == user_manager::UserType::kChild;
 }
 
 // This class is used to subscribe for notifications that the current profile is
@@ -118,10 +125,17 @@ class UserCloudPolicyManagerAshNotifierFactory
       : BrowserContextKeyedServiceShutdownNotifierFactory(
             "UserRemoteCommandsInvalidator") {
     DependsOn(invalidation::ProfileInvalidationProviderFactory::GetInstance());
+    DependsOn(policy::UserFmRegistrationTokenUploaderFactory::GetInstance());
   }
 
   ~UserCloudPolicyManagerAshNotifierFactory() override = default;
 };
+
+// Returns true only if SkyVault TT is enabled, but GA is not.
+bool IsSkyVaultTTEnabled() {
+  return base::FeatureList::IsEnabled(features::kSkyVault) &&
+         !base::FeatureList::IsEnabled(features::kSkyVaultV2);
+}
 
 }  // namespace
 
@@ -139,11 +153,10 @@ UserCloudPolicyManagerAsh::UserCloudPolicyManagerAsh(
     : CloudPolicyManager(
           dm_protocol::kChromeUserPolicyType,
           std::string(),
-          store.get(),
+          std::move(store),
           task_runner,
           base::BindRepeating(content::GetNetworkConnectionTracker)),
       profile_(profile),
-      store_(std::move(store)),
       external_data_manager_(std::move(external_data_manager)),
       component_policy_cache_path_(component_policy_cache_path),
       waiting_for_policy_fetch_(enforcement_type ==
@@ -155,14 +168,6 @@ UserCloudPolicyManagerAsh::UserCloudPolicyManagerAsh(
       fatal_error_callback_(std::move(fatal_error_callback)) {
   DCHECK(profile_);
   DCHECK(local_state_);
-
-  // Some tests don't want to complete policy initialization until they have
-  // manually injected policy even though the profile itself is synchronously
-  // initialized.
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          ash::switches::kWaitForInitialPolicyFetchForTest)) {
-    waiting_for_policy_fetch_ = true;
-  }
 
   // If a refresh timeout was specified, set a timer to call us back.
   if (!policy_refresh_timeout.is_zero()) {
@@ -235,17 +240,16 @@ void UserCloudPolicyManagerAsh::ConnectManagementService(
 
     // If we are doing a synchronous load, then wait_for_policy_fetch_ should
     // never be set (because we can't wait).
-    CHECK(!waiting_for_policy_fetch_ ||
-          base::CommandLine::ForCurrentProcess()->HasSwitch(
-              ash::switches::kWaitForInitialPolicyFetchForTest));
+    CHECK(!waiting_for_policy_fetch_);
     if (!client()->is_registered() &&
         enforcement_type_ != PolicyEnforcement::kPolicyOptional) {
       // We expected to load policy, but we don't have policy, so exit the
       // session.
       LOG(ERROR) << "Failed to load policy during synchronous restart "
                  << "- terminating session";
-      if (fatal_error_callback_)
+      if (fatal_error_callback_) {
         std::move(fatal_error_callback_).Run();
+      }
       return;
     }
 
@@ -259,6 +263,12 @@ void UserCloudPolicyManagerAsh::ConnectManagementService(
 
   app_install_event_log_uploader_ =
       std::make_unique<ArcAppInstallEventLogUploader>(client(), profile_);
+
+  if (IsSkyVaultTTEnabled()) {
+    // Local files should be deleted if required by policy.
+    local_files_cleanup_ =
+        std::make_unique<local_user_files::LocalFilesCleanup>();
+  }
 }
 
 void UserCloudPolicyManagerAsh::OnAccessTokenAvailable(
@@ -292,8 +302,7 @@ void UserCloudPolicyManagerAsh::OnAccessTokenAvailable(
 }
 
 bool UserCloudPolicyManagerAsh::RequiresOAuthTokenForChildUser() const {
-  return IsChildUser(account_id_) &&
-         base::FeatureList::IsEnabled(features::kDMServerOAuthForChildUser);
+  return IsChildUser(account_id_);
 }
 
 void UserCloudPolicyManagerAsh::OnWildcardCheckCompleted(
@@ -314,8 +323,9 @@ void UserCloudPolicyManagerAsh::OnWildcardCheckCompleted(
     // task runners' priority/shutdown-behavior are configured.
     user_manager::UserManager::Get()->RemoveUserFromList(
         AccountId::FromUserEmail(username));
-    if (fatal_error_callback_)
+    if (fatal_error_callback_) {
       std::move(fatal_error_callback_).Run();
+    }
   }
 }
 
@@ -332,12 +342,15 @@ UserCloudPolicyManagerAsh::GetAppInstallEventLogUploader() {
 
 void UserCloudPolicyManagerAsh::Shutdown() {
   observed_profile_.Reset();
+  local_files_cleanup_.reset();
   app_install_event_log_uploader_.reset();
   report_scheduler_.reset();
-  if (client())
+  if (client()) {
     client()->RemoveObserver(this);
-  if (service())
+  }
+  if (service()) {
     service()->RemoveObserver(this);
+  }
   token_fetcher_.reset();
   external_data_manager_->Disconnect();
   CloudPolicyManager::Shutdown();
@@ -345,10 +358,12 @@ void UserCloudPolicyManagerAsh::Shutdown() {
 
 bool UserCloudPolicyManagerAsh::IsInitializationComplete(
     PolicyDomain domain) const {
-  if (!CloudPolicyManager::IsInitializationComplete(domain))
+  if (!CloudPolicyManager::IsInitializationComplete(domain)) {
     return false;
-  if (domain == POLICY_DOMAIN_CHROME)
+  }
+  if (domain == POLICY_DOMAIN_CHROME) {
     return !waiting_for_policy_fetch_;
+  }
   return true;
 }
 
@@ -423,9 +438,11 @@ void UserCloudPolicyManagerAsh::OnRegistrationStateChanged(
   if (waiting_for_policy_fetch_) {
     // If we're blocked on the policy fetch, now is a good time to issue it.
     if (client()->is_registered()) {
-      service()->RefreshPolicy(base::BindOnce(
-          &UserCloudPolicyManagerAsh::OnInitialPolicyFetchComplete,
-          base::Unretained(this)));
+      service()->RefreshPolicy(
+          base::BindOnce(
+              &UserCloudPolicyManagerAsh::OnInitialPolicyFetchComplete,
+              base::Unretained(this)),
+          PolicyFetchReason::kRegistrationChanged);
     } else {
       // If the client has switched to not registered, we bail out as this
       // indicates the cloud policy setup flow has been aborted.
@@ -461,7 +478,7 @@ void UserCloudPolicyManagerAsh::OnClientError(
     RegistrationResultUMA(RegistrationResult::kReregistrationUnsuccessful);
     LOG(ERROR) << "Re-registration failed, requiring the user to perform an "
                   "online sign-in.";
-    ash::ChromeUserManager::Get()->SaveForceOnlineSignin(account_id_, true);
+    user_manager::UserManager::Get()->SaveForceOnlineSignin(account_id_, true);
   }
 }
 
@@ -472,15 +489,17 @@ void UserCloudPolicyManagerAsh::OnComponentCloudPolicyUpdated() {
 
 void UserCloudPolicyManagerAsh::OnUserProfileLoaded(
     const AccountId& account_id) {
-  if (!user_manager::UserManager::Get())
+  if (!user_manager::UserManager::Get()) {
     return;
+  }
 
   const user_manager::User* primary_user =
       user_manager::UserManager::Get()->GetPrimaryUser();
 
   if (!primary_user || primary_user->GetAccountId() != account_id ||
-      !primary_user->is_profile_created())
+      !primary_user->is_profile_created()) {
     return;
+  }
 
   session_manager::SessionManager::Get()->RemoveObserver(this);
   StartReportSchedulerIfReady(false /* enable_delayed_creation */);
@@ -502,15 +521,21 @@ void UserCloudPolicyManagerAsh::OnStoreLoaded(
     enforcement_type_ = PolicyEnforcement::kPolicyOptional;
 
     DCHECK(policy_data->has_username());
-    ash::ChromeUserManager::Get()->SetUserAffiliation(
-        account_id_,
+
+    policy::BrowserPolicyConnectorAsh const* const connector =
+        g_browser_process->platform_part()->browser_policy_connector_ash();
+    const bool is_affiliated = policy::IsUserAffiliated(
         base::flat_set<std::string>(policy_data->user_affiliation_ids().begin(),
-                                    policy_data->user_affiliation_ids().end()));
+                                    policy_data->user_affiliation_ids().end()),
+        connector->device_affiliation_ids(), account_id_.GetUserEmail());
+
+    user_manager::UserManager::Get()->SetUserAffiliated(account_id_,
+                                                        is_affiliated);
   }
 }
 
 void UserCloudPolicyManagerAsh::SetPolicyRequired(bool policy_required) {
-  auto* user_manager = ash::ChromeUserManager::Get();
+  auto* user_manager = user_manager::UserManager::Get();
   user_manager::KnownUser known_user(local_state_);
   known_user.SetProfileRequiresPolicy(
       account_id_,
@@ -542,12 +567,14 @@ void UserCloudPolicyManagerAsh::GetChromePolicy(PolicyMap* policy_map) {
   // If the store has a verified policy blob received from the server then apply
   // the defaults for policies that haven't been configured by the administrator
   // given that this is an enterprise user.
-  if (!store()->has_policy())
+  if (!store()->has_policy()) {
     return;
+  }
 
   // Don't apply enterprise defaults for Child user.
-  if (IsChildUser(account_id_))
+  if (IsChildUser(account_id_)) {
     return;
+  }
 
   SetEnterpriseUsersDefaults(policy_map);
 }
@@ -587,13 +614,6 @@ void UserCloudPolicyManagerAsh::FetchPolicyOAuthToken() {
     return;
   }
 
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          ash::switches::kWaitForInitialPolicyFetchForTest)) {
-    // Some tests don't want to complete policy initialization until they have
-    // manually injected policy. Do not treat this as a policy fetch error.
-    return;
-  }
-
   LOG(ERROR) << "No refresh token for policy oauth token fetch!";
   OnOAuth2PolicyTokenFetched(
       std::string(),
@@ -606,8 +626,9 @@ void UserCloudPolicyManagerAsh::OnOAuth2PolicyTokenFetched(
   DCHECK(!client()->is_registered());
 
   if (error.state() == GoogleServiceAuthError::NONE) {
-    if (RequiresOAuthTokenForChildUser())
+    if (RequiresOAuthTokenForChildUser()) {
       client()->SetOAuthTokenAsAdditionalAuth(policy_token);
+    }
 
     // Start client registration. Either OnRegistrationStateChanged() or
     // OnClientError() will be called back.
@@ -615,11 +636,13 @@ void UserCloudPolicyManagerAsh::OnOAuth2PolicyTokenFetched(
         em::DeviceRegisterRequest::USER,
         em::DeviceRegisterRequest::FLAVOR_USER_REGISTRATION);
     if (user_manager::UserManager::Get()
-            ->IsCurrentUserCryptohomeDataEphemeral())
+            ->IsCurrentUserCryptohomeDataEphemeral()) {
       parameters.lifetime = em::DeviceRegisterRequest::LIFETIME_EPHEMERAL_USER;
+    }
     std::string client_id;
-    if (client()->requires_reregistration())
+    if (client()->requires_reregistration()) {
       client_id = client()->client_id();
+    }
     client()->Register(parameters, client_id, policy_token);
   } else {
     UMA_HISTOGRAM_ENUMERATION(kUMAInitialFetchOAuth2Error, error.state(),
@@ -652,8 +675,9 @@ void UserCloudPolicyManagerAsh::OnPolicyRefreshTimeout() {
 void UserCloudPolicyManagerAsh::CancelWaitForPolicyFetch(
     bool success,
     const std::string& failure_reason) {
-  if (!waiting_for_policy_fetch_)
+  if (!waiting_for_policy_fetch_) {
     return;
+  }
 
   policy_refresh_timeout_.Stop();
 
@@ -668,8 +692,9 @@ void UserCloudPolicyManagerAsh::CancelWaitForPolicyFetch(
     SYSLOG(ERROR) << "Policy fetching failed. " << failure_reason;
     // Need to exit the current user, because we've already started this user's
     // session.
-    if (fatal_error_callback_)
+    if (fatal_error_callback_) {
       std::move(fatal_error_callback_).Run();
+    }
     return;
   }
 
@@ -682,14 +707,17 @@ void UserCloudPolicyManagerAsh::CancelWaitForPolicyFetch(
 }
 
 void UserCloudPolicyManagerAsh::StartRefreshSchedulerIfReady() {
-  if (core()->refresh_scheduler())
+  if (core()->refresh_scheduler()) {
     return;  // Already started.
+  }
 
-  if (waiting_for_policy_fetch_)
+  if (waiting_for_policy_fetch_) {
     return;  // Still waiting for the initial, blocking fetch.
+  }
 
-  if (!service() || !local_state_)
+  if (!service() || !local_state_) {
     return;  // Not connected.
+  }
 
   if (component_policy_service() &&
       !component_policy_service()->is_initialized()) {
@@ -701,8 +729,9 @@ void UserCloudPolicyManagerAsh::StartRefreshSchedulerIfReady() {
 
   // Do not start refresh scheduler until OAuth token is available for child
   // user, because policy refresh will fail.
-  if (RequiresOAuthTokenForChildUser() && access_token_.empty())
+  if (RequiresOAuthTokenForChildUser() && access_token_.empty()) {
     return;
+  }
 
   core()->StartRefreshScheduler();
   core()->TrackRefreshDelayPref(local_state_,
@@ -711,17 +740,20 @@ void UserCloudPolicyManagerAsh::StartRefreshSchedulerIfReady() {
 
 void UserCloudPolicyManagerAsh::StartReportSchedulerIfReady(
     bool enable_delayed_creation) {
-  if (!client() || !client()->is_registered())
+  if (!client() || !client()->is_registered()) {
     return;
+  }
 
-  if (!user_manager::UserManager::Get())
+  if (!user_manager::UserManager::Get()) {
     return;
+  }
 
   const user_manager::User* primary_user =
       user_manager::UserManager::Get()->GetPrimaryUser();
 
-  if (!primary_user)
+  if (!primary_user) {
     return;
+  }
 
   // SessionManager uses another thread to load profiles. If the operation
   // doesn't finish, the creation of |report_scheduler_| will be delayed and
@@ -733,18 +765,19 @@ void UserCloudPolicyManagerAsh::StartReportSchedulerIfReady(
     return;
   }
 
-  // TODO(crbug.com/1102047): Split up Chrome OS reporting code into its own
+  // TODO(crbug.com/40703888): Split up Chrome OS reporting code into its own
   // delegates, then use the Chrome OS delegate factory here.
   enterprise_reporting::ReportingDelegateFactoryDesktop delegate_factory;
   enterprise_reporting::ReportScheduler::CreateParams params;
   params.client = client();
-  params.delegate =
-      std::make_unique<enterprise_reporting::ReportSchedulerDesktop>(profile_);
+  params.delegate = delegate_factory.GetReportSchedulerDelegate();
   params.report_generator =
       std::make_unique<enterprise_reporting::ReportGenerator>(
           &delegate_factory);
-  params.real_time_report_generator =
-      std::make_unique<enterprise_reporting::RealTimeReportGenerator>(
+
+  delegate_factory.SetProfileForRealTimeController(profile_);
+  params.real_time_report_controller =
+      std::make_unique<enterprise_reporting::RealTimeReportController>(
           &delegate_factory);
 
   report_scheduler_ = std::make_unique<enterprise_reporting::ReportScheduler>(
@@ -761,14 +794,16 @@ void UserCloudPolicyManagerAsh::OnProfileInitializationComplete(
   // Activate user remote commands only for unicorn accounts.
   // The server side only supports user-scoped remote commands for unicorn
   // accounts at the moment. See b/193450869 for more detail.
-  if (!IsChildUser(account_id_))
+  if (!IsChildUser(account_id_)) {
     return;
+  }
 
   invalidation::ProfileInvalidationProvider* const invalidation_provider =
       invalidation::ProfileInvalidationProviderFactory::GetForProfile(profile_);
 
-  if (!invalidation_provider)
+  if (!invalidation_provider) {
     return;
+  }
 
   core()->StartRemoteCommandsService(
       std::make_unique<UserCommandsFactoryAsh>(profile_),
@@ -778,8 +813,9 @@ void UserCloudPolicyManagerAsh::OnProfileInitializationComplete(
       PolicyInvalidationScope::kUser);
 
   invalidator_->Initialize(
-      invalidation_provider->GetInvalidationServiceForCustomSender(
-          kPolicyFCMInvalidationSenderID));
+      invalidation_provider->GetInvalidationServiceOrListener(
+          std::string(GetRemoteCommandsInvalidationProjectNumber(
+              PolicyInvalidationScope::kUser))));
 
   shutdown_subscription_ =
       UserCloudPolicyManagerAshNotifierFactory::GetInstance()
@@ -800,7 +836,7 @@ void UserCloudPolicyManagerAsh::SetUserContextRefreshTokenForTests(
     const std::string& refresh_token) {
   DCHECK(!refresh_token.empty());
   DCHECK(!user_context_refresh_token_for_tests_);
-  user_context_refresh_token_for_tests_ = absl::make_optional(refresh_token);
+  user_context_refresh_token_for_tests_ = std::make_optional(refresh_token);
 }
 
 enterprise_reporting::ReportScheduler*
@@ -811,6 +847,10 @@ UserCloudPolicyManagerAsh::GetReportSchedulerForTesting() {
 // static
 void UserCloudPolicyManagerAsh::EnsureFactoryBuilt() {
   UserCloudPolicyManagerAshNotifierFactory::GetInstance();
+}
+
+std::string_view UserCloudPolicyManagerAsh::name() const {
+  return "UserCloudPolicyManagerAsh";
 }
 
 }  // namespace policy

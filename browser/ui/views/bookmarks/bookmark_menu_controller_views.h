@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "components/bookmarks/browser/base_bookmark_model_observer.h"
 #include "components/bookmarks/browser/bookmark_node_data.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/views/controls/menu/menu_delegate.h"
 
 class BookmarkBarView;
@@ -94,7 +95,7 @@ class BookmarkMenuController : public bookmarks::BaseBookmarkModelObserver,
   bool ShowContextMenu(views::MenuItemView* source,
                        int id,
                        const gfx::Point& p,
-                       ui::MenuSourceType source_type) override;
+                       ui::mojom::MenuSourceType source_type) override;
   bool CanDrag(views::MenuItemView* menu) override;
   void WriteDragData(views::MenuItemView* sender,
                      ui::OSExchangeData* data) override;
@@ -121,7 +122,7 @@ class BookmarkMenuController : public bookmarks::BaseBookmarkModelObserver,
   std::unique_ptr<BookmarkMenuDelegate> menu_delegate_;
 
   // The node we're showing the contents of.
-  raw_ptr<const bookmarks::BookmarkNode> node_;
+  raw_ptr<const bookmarks::BookmarkNode, DanglingUntriaged> node_;
 
   // Data for the drop.
   bookmarks::BookmarkNodeData drop_data_;

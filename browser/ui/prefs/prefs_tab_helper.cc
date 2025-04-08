@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/prefs/prefs_tab_helper.h"
 
 #include <stddef.h>
@@ -59,6 +64,15 @@
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
+#endif
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+// If a font name in prefs default values starts with a comma, consider it's a
+// comma-separated font list and resolve it to the first available font.
+#define PREFS_FONT_LIST 1
+#include "ui/gfx/font_list.h"
+#else
+#define PREFS_FONT_LIST 0
 #endif
 
 using blink::web_pref::WebPreferences;
@@ -254,22 +268,23 @@ void OverrideFontFamily(blink::web_pref::WebPreferences* prefs,
                         const std::string& script,
                         const std::string& pref_value) {
   blink::web_pref::ScriptFontFamilyMap* map = nullptr;
-  if (generic_family == "standard")
+  if (generic_family == "standard") {
     map = &prefs->standard_font_family_map;
-  else if (generic_family == "fixed")
+  } else if (generic_family == "fixed") {
     map = &prefs->fixed_font_family_map;
-  else if (generic_family == "serif")
+  } else if (generic_family == "serif") {
     map = &prefs->serif_font_family_map;
-  else if (generic_family == "sansserif")
+  } else if (generic_family == "sansserif") {
     map = &prefs->sans_serif_font_family_map;
-  else if (generic_family == "cursive")
+  } else if (generic_family == "cursive") {
     map = &prefs->cursive_font_family_map;
-  else if (generic_family == "fantasy")
+  } else if (generic_family == "fantasy") {
     map = &prefs->fantasy_font_family_map;
-  else if (generic_family == "math")
+  } else if (generic_family == "math") {
     map = &prefs->math_font_family_map;
-  else
+  } else {
     NOTREACHED() << "Unknown generic font family: " << generic_family;
+  }
   (*map)[script] = base::UTF8ToUTF16(pref_value);
 }
 
@@ -364,10 +379,13 @@ void PrefsTabHelper::RegisterProfilePrefs(
   registry->RegisterBooleanPref(prefs::kScrollToTextFragmentEnabled, true);
 #if BUILDFLAG(IS_ANDROID)
   registry->RegisterDoublePref(browser_ui::prefs::kWebKitFontScaleFactor, 1.0);
+  registry->RegisterIntegerPref(prefs::kAccessibilityTextSizeContrastFactor, 0);
   registry->RegisterBooleanPref(browser_ui::prefs::kWebKitForceEnableZoom,
                                 pref_defaults.force_enable_zoom);
   registry->RegisterBooleanPref(prefs::kWebKitPasswordEchoEnabled,
                                 pref_defaults.password_echo_enabled);
+  registry->RegisterIntegerPref(prefs::kAccessibilityFontWeightAdjustment, 0);
+
 #endif
 
   bool force_dark_mode_enabled =
@@ -410,8 +428,17 @@ void PrefsTabHelper::RegisterProfilePrefs(
     // prefs (e.g., via the extensions workflow), or the problem turns out to
     // not be really critical after all.
     if (browser_script != pref_script) {
-      registry->RegisterStringPref(pref.pref_name,
-                                   l10n_util::GetStringUTF8(pref.resource_id));
+      std::string value = l10n_util::GetStringUTF8(pref.resource_id);
+#if PREFS_FONT_LIST
+      if (value.starts_with(',')) {
+        value = gfx::FontList::FirstAvailableOrFirst(value);
+      }
+#else   // !PREFS_FONT_LIST
+      DCHECK(!value.starts_with(','))
+          << "This platform doesn't support default font lists. "
+          << pref.pref_name << "=" << value;
+#endif  // PREFS_FONT_LIST
+      registry->RegisterStringPref(pref.pref_name, value);
       fonts_with_defaults.insert(pref.pref_name);
     }
   }
@@ -422,8 +449,7 @@ void PrefsTabHelper::RegisterProfilePrefs(
 
   registry->RegisterIntegerPref(prefs::kWebKitDefaultFontSize, 16);
   registry->RegisterIntegerPref(prefs::kWebKitDefaultFixedFontSize, 13);
-  RegisterLocalizedFontPref(registry, prefs::kWebKitMinimumFontSize,
-                            IDS_MINIMUM_FONT_SIZE);
+  registry->RegisterIntegerPref(prefs::kWebKitMinimumFontSize, 0);
   RegisterLocalizedFontPref(registry, prefs::kWebKitMinimumLogicalFontSize,
                             IDS_MINIMUM_LOGICAL_FONT_SIZE);
 #endif

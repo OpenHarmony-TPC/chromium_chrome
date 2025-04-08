@@ -27,8 +27,9 @@ void IncognitoClearBrowsingDataDialogCoordinator::Show(
           ->GetAvatarToolbarButton();
 
   // The full toolbar may not be visible.
-  if (!avatar_toolbar_button)
+  if (!avatar_toolbar_button) {
     return;
+  }
 
   auto bubble = std::make_unique<IncognitoClearBrowsingDataDialog>(
       avatar_toolbar_button, GetBrowser().profile(), type);

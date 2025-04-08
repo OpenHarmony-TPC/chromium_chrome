@@ -25,7 +25,6 @@ ChromeWebContentsViewDelegateAndroid::GetDragDestDelegate() {
   // GetDragDestDelegate is a pure virtual method from WebContentsViewDelegate
   // and must have an implementation although android doesn't use it.
   NOTREACHED();
-  return NULL;
 }
 
 void ChromeWebContentsViewDelegateAndroid::ShowContextMenu(

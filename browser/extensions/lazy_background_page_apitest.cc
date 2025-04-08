@@ -14,10 +14,12 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browser_features.h"
+#include "chrome/browser/chrome_browser_main_extra_parts_nacl_deprecation.h"
 #include "chrome/browser/devtools/chrome_devtools_manager_delegate.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
 #include "chrome/browser/extensions/api/developer_private/developer_private_api.h"
@@ -48,6 +50,7 @@
 #include "content/public/test/test_utils.h"
 #include "extensions/browser/api_test_utils.h"
 #include "extensions/browser/event_router.h"
+#include "extensions/browser/extension_action_manager.h"
 #include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_host_test_helper.h"
 #include "extensions/browser/extension_registry.h"
@@ -118,7 +121,9 @@ class LoadedIncognitoObserver : public ExtensionRegistryObserver {
 
 class LazyBackgroundPageApiTest : public ExtensionApiTest {
  public:
-  LazyBackgroundPageApiTest() {}
+  LazyBackgroundPageApiTest() {
+    feature_list_.InitAndEnableFeature(kNaclAllow);
+  }
 
   LazyBackgroundPageApiTest(const LazyBackgroundPageApiTest&) = delete;
   LazyBackgroundPageApiTest& operator=(const LazyBackgroundPageApiTest&) =
@@ -181,6 +186,9 @@ class LazyBackgroundPageApiTest : public ExtensionApiTest {
                                 browser()->profile(),
                                 api_test_utils::FunctionMode::kNone);
   }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest, BrowserActionCreateTab) {
@@ -357,11 +365,7 @@ IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest,
     }
     // There isn't really a tab corresponding to the extension background page,
     // but this is how DevTools refers to a top-level web contents.
-    std::string expected_type =
-        base::FeatureList::IsEnabled(::features::kDevToolsTabTarget)
-            ? content::DevToolsAgentHost::kTypeTab
-            : ChromeDevToolsManagerDelegate::kTypeBackgroundPage;
-    if (host->GetType() == expected_type) {
+    if (host->GetType() == content::DevToolsAgentHost::kTypeTab) {
       EXPECT_FALSE(background_host);
       background_host = host;
     }
@@ -425,10 +429,7 @@ IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest, DISABLED_WaitForRequest) {
   host_helper.RestrictToType(mojom::ViewType::kExtensionBackgroundPage);
 
   // Abort the request.
-  bool result = false;
-  EXPECT_TRUE(content::ExecuteScriptAndExtractBool(host->web_contents(),
-                                                   "abortRequest()", &result));
-  EXPECT_TRUE(result);
+  EXPECT_EQ(true, content::EvalJs(host->web_contents(), "abortRequest()"));
   host_helper.WaitForHostDestroyed();
 
   // Lazy Background Page has been shut down.
@@ -626,29 +627,53 @@ IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest, DISABLED_IncognitoSplitMode) {
   }
 }
 
+enum class BackForwardCacheParam {
+  kEnabledWithDisconnectingExtensionPortWhenPageEnterBFCache,
+  kEnabledWithoutDisconnectingExtensionPortWhenPageEnterBFCache,
+  kDisabled,
+};
+
 class LazyBackgroundPageApiWithBFCacheParamTest
     : public LazyBackgroundPageApiTest,
-      public testing::WithParamInterface<bool> {
+      public testing::WithParamInterface<BackForwardCacheParam> {
  public:
   LazyBackgroundPageApiWithBFCacheParamTest() {
-    if (IsBackForwardCacheEnabled()) {
-      feature_list_.InitWithFeaturesAndParameters(
-          content::GetBasicBackForwardCacheFeatureForTesting(),
-          content::GetDefaultDisabledBackForwardCacheFeaturesForTesting());
-    } else {
+    if (GetParam() == BackForwardCacheParam::kDisabled) {
       feature_list_.InitWithFeaturesAndParameters(
           {}, {features::kBackForwardCache});
+      return;
     }
+    auto enabled_features =
+        content::GetBasicBackForwardCacheFeatureForTesting();
+    auto disabled_features =
+        content::GetDefaultDisabledBackForwardCacheFeaturesForTesting();
+
+    if (GetParam() ==
+        BackForwardCacheParam::
+            kEnabledWithDisconnectingExtensionPortWhenPageEnterBFCache) {
+      enabled_features.push_back(
+          {features::kDisconnectExtensionMessagePortWhenPageEntersBFCache, {}});
+    } else {
+      disabled_features.push_back(
+          features::kDisconnectExtensionMessagePortWhenPageEntersBFCache);
+    }
+    feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                disabled_features);
   }
-  bool IsBackForwardCacheEnabled() { return GetParam(); }
 
  private:
   base::test::ScopedFeatureList feature_list_;
 };
 
-INSTANTIATE_TEST_SUITE_P(All,
-                         LazyBackgroundPageApiWithBFCacheParamTest,
-                         testing::Bool());
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    LazyBackgroundPageApiWithBFCacheParamTest,
+    testing::Values(
+        BackForwardCacheParam::
+            kEnabledWithDisconnectingExtensionPortWhenPageEnterBFCache,
+        BackForwardCacheParam::
+            kEnabledWithoutDisconnectingExtensionPortWhenPageEnterBFCache,
+        BackForwardCacheParam::kDisabled));
 
 // Tests that messages from the content script activate the lazy background
 // page, and keep it alive until all channels are closed.
@@ -683,14 +708,17 @@ IN_PROC_BROWSER_TEST_P(LazyBackgroundPageApiWithBFCacheParamTest,
   // Navigate away
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
 
-  if (IsBackForwardCacheEnabled()) {
-    // When the page is stored back/forward cache, the message channel should be
-    // kept.
+  if (GetParam() ==
+      BackForwardCacheParam::
+          kEnabledWithoutDisconnectingExtensionPortWhenPageEnterBFCache) {
+    // When the page is stored back/forward cache without enabling
+    // kDisconnectExtensionMessagePortWhenPageEntersBFCache, the message channel
+    // should be kept.
     WaitForLoadStop(browser()->tab_strip_model()->GetActiveWebContents());
     EXPECT_TRUE(IsBackgroundPageAlive(last_loaded_extension_id()));
   } else {
-    // Without back/forward cache, navigating away triggers closing the message
-    // channel and therefore the background page.
+    // Otherwise, navigating away triggers closing the message channel and
+    // therefore the background page.
     host_helper.WaitForHostDestroyed();
     EXPECT_FALSE(IsBackgroundPageAlive(last_loaded_extension_id()));
   }
@@ -700,15 +728,19 @@ IN_PROC_BROWSER_TEST_P(LazyBackgroundPageApiWithBFCacheParamTest,
 // close it, and that it can execute simple API calls that don't require an
 // asynchronous response.
 IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest, OnUnload) {
-  ASSERT_TRUE(LoadExtensionAndWait("on_unload"));
+  const Extension* extension = LoadExtensionAndWait("on_unload");
+  ASSERT_TRUE(extension);
 
   // Lazy Background Page has been shut down.
   EXPECT_FALSE(IsBackgroundPageAlive(last_loaded_extension_id()));
 
-  // The browser action has a new title.
-  auto browser_action = ExtensionActionTestHelper::Create(browser());
-  ASSERT_EQ(1, browser_action->NumberOfBrowserActions());
-  EXPECT_EQ("Success", browser_action->GetTooltip(last_loaded_extension_id()));
+  // The extension's action has a new title.
+  ExtensionAction* extension_action =
+      ExtensionActionManager::Get(browser()->profile())
+          ->GetExtensionAction(*extension);
+  ASSERT_TRUE(extension_action);
+  EXPECT_EQ("Success",
+            extension_action->GetTitle(ExtensionAction::kDefaultTabId));
 }
 
 // Tests that both a regular page and an event page will receive events when
@@ -798,7 +830,7 @@ IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest, EventListenerCleanup) {
 
 // Tests that an extension can fetch a file scheme URL from the lazy background
 // page, if it has file access.
-// TODO(crbug.com/1283851): Deflake test.
+// TODO(crbug.com/40813949): Deflake test.
 IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest,
                        DISABLED_FetchFileSchemeURLWithFileAccess) {
   ASSERT_TRUE(RunExtensionTest(

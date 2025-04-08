@@ -18,7 +18,11 @@
 #include "extensions/common/manifest.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/crosapi/browser_util.h"
+#include "chrome/browser/chromeos/upload_office_to_cloud/upload_office_to_cloud.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
+#include "chrome/browser/profiles/profile_manager.h"
+#include "chromeos/constants/chromeos_features.h"
 #endif
 
 namespace extensions {
@@ -40,6 +44,11 @@ void ExternalComponentLoader::StartLoading() {
     if (profile_->GetProfilePolicyConnector()->IsManaged()) {
       AddExternalExtension(extension_misc::kAssessmentAssistantExtensionId,
                            prefs);
+    }
+
+    if (chromeos::cloud_upload::IsMicrosoftOfficeOneDriveIntegrationAllowed(
+            profile_)) {
+      AddExternalExtension(extension_misc::kODFSExtensionId, prefs);
     }
   }
 #endif

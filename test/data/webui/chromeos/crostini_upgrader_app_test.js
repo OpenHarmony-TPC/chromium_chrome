@@ -5,6 +5,7 @@
 import 'chrome://crostini-upgrader/app.js';
 
 import {BrowserProxy} from 'chrome://crostini-upgrader/browser_proxy.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
@@ -78,7 +79,7 @@ suite('<crostini-upgrader-app>', () => {
 
   setup(async () => {
     fakeBrowserProxy = new FakeBrowserProxy();
-    BrowserProxy.instance_ = fakeBrowserProxy;
+    BrowserProxy.setInstance(fakeBrowserProxy);
 
     app = document.createElement('crostini-upgrader-app');
     PolymerTest.clearBody();

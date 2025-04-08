@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <shlobj.h>
 #include <windows.h>
+
+#include <shlobj.h>
 
 #include <string>
 
+#include "base/at_exit.h"
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/logging.h"
@@ -91,6 +93,8 @@ int DoMain(const base::CommandLine* command_line) {
 }  // namespace
 
 int main(int, char**) {
+  base::AtExitManager exit_manager;
+
   bool success = base::CommandLine::Init(0, nullptr);
   CHECK(success);
 

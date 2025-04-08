@@ -12,14 +12,22 @@
 #include "base/containers/flat_set.h"
 #include "base/functional/callback_forward.h"
 #include "base/lazy_instance.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/stack_allocated.h"
+#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #error This file should only be included on desktop.
 #endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "ui/gfx/native_widget_types.h"
+#endif
+
+enum class BrowserClosingStatus;
 
 class Browser;
 class Profile;
@@ -33,8 +41,9 @@ class BrowserListObserver;
 // Maintains a list of Browser objects.
 class BrowserList {
  public:
-  using BrowserSet = base::flat_set<Browser*>;
-  using BrowserVector = std::vector<Browser*>;
+  using BrowserSet = base::flat_set<raw_ptr<Browser, CtnExperimental>>;
+  using BrowserVector = std::vector<raw_ptr<Browser, VectorExperimental>>;
+  using BrowserWeakVector = std::vector<base::WeakPtr<Browser>>;
   using CloseCallback = base::RepeatingCallback<void(const base::FilePath&)>;
   using const_iterator = BrowserVector::const_iterator;
   using const_reverse_iterator = BrowserVector::const_reverse_iterator;
@@ -120,6 +129,11 @@ class BrowserList {
   // Notifies the observers when the current active browser becomes not active.
   static void NotifyBrowserNoLongerActive(Browser* browser);
 
+  // Notifies the observers that the attempted closure of `browser` was
+  // cancelled for a certain `reason`.
+  static void NotifyBrowserCloseCancelled(Browser* browser,
+                                          BrowserClosingStatus reason);
+
   // Notifies the observers when browser close was started. This may be called
   // more than once for a particular browser.
   static void NotifyBrowserCloseStarted(Browser* browser);
@@ -189,7 +203,7 @@ class BrowserList {
   // method to handle any other OnBeforeUnload events. If aborted in the
   // OnBeforeUnload event, PostTryToCloseBrowserWindow will call
   // |on_close_aborted| instead and reset all OnBeforeUnload event handlers.
-  static void TryToCloseBrowserList(const BrowserVector& browsers_to_close,
+  static void TryToCloseBrowserList(const BrowserWeakVector& browsers_to_close,
                                     const CloseCallback& on_close_success,
                                     const CloseCallback& on_close_aborted,
                                     const base::FilePath& profile_path,
@@ -201,12 +215,16 @@ class BrowserList {
   // |profile_path|. Otherwise, resets all the OnBeforeUnload event handlers and
   // calls |on_close_aborted|.
   static void PostTryToCloseBrowserWindow(
-      const BrowserVector& browsers_to_close,
+      const BrowserWeakVector& browsers_to_close,
       const CloseCallback& on_close_success,
       const CloseCallback& on_close_aborted,
       const base::FilePath& profile_path,
       const bool skip_beforeunload,
       bool tab_close_confirmed);
+
+#if BUILDFLAG(IS_OHOS)
+  gfx::AcceleratedWidget GetLastActiveAcceleratedWidget() const;
+#endif
 
   // A vector of the browsers in this list, in the order they were added.
   BrowserVector browsers_;
@@ -218,10 +236,22 @@ class BrowserList {
   // A vector of the browsers that are currently in the closing state.
   BrowserSet currently_closing_browsers_;
 
+  // If an observer is added while iterating over them and notifying, it should
+  // not be notified as it probably already saw the Browser* being added/removed
+  // in the BrowserList.
+  struct ObserverListTraits : base::internal::LeakyLazyInstanceTraits<
+                                  base::ObserverList<BrowserListObserver>> {
+    static base::ObserverList<BrowserListObserver>* New(void* instance) {
+      return new (instance) base::ObserverList<BrowserListObserver>(
+          base::ObserverListPolicy::EXISTING_ONLY);
+    }
+  };
+
   // A list of observers which will be notified of every browser addition and
   // removal across all BrowserLists.
-  static base::LazyInstance<
-      base::ObserverList<BrowserListObserver>::Unchecked>::Leaky observers_;
+  static base::LazyInstance<base::ObserverList<BrowserListObserver>,
+                            ObserverListTraits>
+      observers_;
 
   static BrowserList* instance_;
 };

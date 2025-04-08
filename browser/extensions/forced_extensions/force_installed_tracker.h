@@ -82,6 +82,10 @@ class ForceInstalledTracker : public ExtensionRegistryObserver,
   // Returns true if all extensions installed/failed installing.
   bool IsReady() const;
 
+  // Returns true if all extensions installed/failed installing and there is
+  // at least one such extension.
+  bool IsComplete() const;
+
   // Adds observers to this object, to get notified when installation is
   // finished.
   void AddObserver(Observer* observer);
@@ -146,7 +150,7 @@ class ForceInstalledTracker : public ExtensionRegistryObserver,
       const ExtensionId& id) const;
 
   static bool IsExtensionFetchedFromCache(
-      const absl::optional<ExtensionDownloaderDelegate::CacheStatus>& status);
+      const std::optional<ExtensionDownloaderDelegate::CacheStatus>& status);
 
  private:
   policy::PolicyService* policy_service();

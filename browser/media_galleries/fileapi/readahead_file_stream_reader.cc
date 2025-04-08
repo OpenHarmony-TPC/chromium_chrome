@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/media_galleries/fileapi/readahead_file_stream_reader.h"
 
 #include <stddef.h>
@@ -102,7 +107,7 @@ void ReadaheadFileStreamReader::ReadFromSourceIfNeeded() {
   source_has_pending_read_ = true;
 
   scoped_refptr<net::IOBuffer> buf =
-      base::MakeRefCounted<net::IOBuffer>(kBufferSize);
+      base::MakeRefCounted<net::IOBufferWithSize>(kBufferSize);
   int result = source_->Read(
       buf.get(), kBufferSize,
       base::BindOnce(&ReadaheadFileStreamReader::OnFinishReadFromSource,

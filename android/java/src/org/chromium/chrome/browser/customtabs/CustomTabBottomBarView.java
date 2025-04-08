@@ -15,9 +15,7 @@ import org.chromium.components.browser_ui.widget.BoundedLinearLayout;
 import org.chromium.components.browser_ui.widget.gesture.SwipeGestureListener;
 import org.chromium.components.browser_ui.widget.gesture.SwipeGestureListener.SwipeHandler;
 
-/**
- * A custom container view for the Custom Tab bottom bar that supports swipe gesture handling.
- */
+/** A custom container view for the Custom Tab bottom bar that supports swipe gesture handling. */
 public class CustomTabBottomBarView extends BoundedLinearLayout {
     private final Context mContext;
     private @Nullable BottomBarSwipeGestureListener mSwipeGestureListener;
@@ -58,7 +56,7 @@ public class CustomTabBottomBarView extends BoundedLinearLayout {
         return mSwipeGestureListener.onTouchEvent(ev);
     }
 
-    private class BottomBarSwipeGestureListener extends SwipeGestureListener {
+    private static class BottomBarSwipeGestureListener extends SwipeGestureListener {
         public BottomBarSwipeGestureListener(Context context, SwipeHandler handler) {
             super(context, handler);
         }

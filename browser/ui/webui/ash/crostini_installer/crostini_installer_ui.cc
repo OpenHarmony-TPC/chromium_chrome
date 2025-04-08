@@ -13,6 +13,7 @@
 #include "base/system/sys_info.h"
 #include "chrome/browser/ash/crostini/crostini_disk.h"
 #include "chrome/browser/ash/crostini/crostini_installer.h"
+#include "chrome/browser/ash/crostini/crostini_installer_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/ash/crostini_installer/crostini_installer_page_handler.h"
 #include "chrome/browser/ui/webui/webui_util.h"
@@ -23,6 +24,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "content/public/common/isolated_world_ids.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/text/bytes_formatting.h"
@@ -136,8 +138,8 @@ CrostiniInstallerUI::CrostiniInstallerUI(content::WebUI* web_ui)
   auto* profile = Profile::FromWebUI(web_ui);
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       profile, chrome::kChromeUICrostiniInstallerHost);
+  webui::EnableTrustedTypesCSP(source);
   webui::SetJSModuleDefaults(source);
-  source->DisableTrustedTypesCSP();
   AddStringResources(source);
   source->AddString("defaultContainerUsername",
                     crostini::DefaultContainerUserNameForProfile(profile));
@@ -175,7 +177,7 @@ void CrostiniInstallerUI::ClickInstallForTesting() {
       // before clicking "install" button.
       u"app.$$('#next:not([hidden])')?.click();"
       u"app.$.install.click();",
-      base::NullCallback());
+      base::NullCallback(), content::ISOLATED_WORLD_ID_GLOBAL);
 }
 
 void CrostiniInstallerUI::BindInterface(
@@ -195,7 +197,8 @@ void CrostiniInstallerUI::CreatePageHandler(
   DCHECK(pending_page.is_valid());
 
   page_handler_ = std::make_unique<CrostiniInstallerPageHandler>(
-      crostini::CrostiniInstaller::GetForProfile(Profile::FromWebUI(web_ui())),
+      crostini::CrostiniInstallerFactory::GetForProfile(
+          Profile::FromWebUI(web_ui())),
       std::move(pending_page_handler), std::move(pending_page),
       // Using Unretained(this) because |page_handler_| will not out-live
       // |this|.

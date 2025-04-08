@@ -8,17 +8,20 @@
  */
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/icons.html.js';
+import 'chrome://resources/cr_elements/policy/cr_policy_indicator.js';
 import '/shared/settings/controls/extension_controlled_indicator.js';
 import './search_engine_entry.css.js';
 import '../settings_shared.css.js';
 import '../site_favicon.js';
 
 import {AnchorAlignment} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './search_engine_entry.html.js';
-import {SearchEngine, SearchEnginesBrowserProxy, SearchEnginesBrowserProxyImpl} from './search_engines_browser_proxy.js';
+import type {SearchEngine, SearchEnginesBrowserProxy} from './search_engines_browser_proxy.js';
+import {ChoiceMadeLocation, SearchEnginesBrowserProxyImpl} from './search_engines_browser_proxy.js';
 
 export interface SettingsSearchEngineEntryElement {
   $: {
@@ -28,7 +31,10 @@ export interface SettingsSearchEngineEntryElement {
   };
 }
 
-export class SettingsSearchEngineEntryElement extends PolymerElement {
+const SettingsSearchEngineEntryElementBase = I18nMixin(PolymerElement);
+
+export class SettingsSearchEngineEntryElement extends
+    SettingsSearchEngineEntryElementBase {
   static get is() {
     return 'settings-search-engine-entry';
   }
@@ -45,13 +51,16 @@ export class SettingsSearchEngineEntryElement extends PolymerElement {
 
       showQueryUrl: {type: Boolean, value: false, reflectToAttribute: true},
 
-
       isDefault: {
         reflectToAttribute: true,
         type: Boolean,
         computed: 'computeIsDefault_(engine)',
       },
 
+      showEditIcon_: {
+        type: Boolean,
+        computed: 'computeShowEditIcon_(engine)',
+      },
     };
   }
 
@@ -61,6 +70,7 @@ export class SettingsSearchEngineEntryElement extends PolymerElement {
   isDefault: boolean;
   private browserProxy_: SearchEnginesBrowserProxy =
       SearchEnginesBrowserProxyImpl.getInstance();
+  private showEditIcon_: boolean;
 
   private closePopupMenu_() {
     this.shadowRoot!.querySelector('cr-action-menu')!.close();
@@ -68,6 +78,11 @@ export class SettingsSearchEngineEntryElement extends PolymerElement {
 
   private computeIsDefault_(): boolean {
     return this.engine.default;
+  }
+
+  private computeShowEditIcon_(): boolean {
+    return !this.engine.isStarterPack && !this.engine.canBeActivated &&
+        !this.engine.isManaged;
   }
 
   private onDeleteClick_(e: Event) {
@@ -102,12 +117,12 @@ export class SettingsSearchEngineEntryElement extends PolymerElement {
     });
   }
 
-  private onEditClick_(e: Event) {
+  private onViewOrEditClick_(e: Event) {
     e.preventDefault();
     this.closePopupMenu_();
     const anchor = this.shadowRoot!.querySelector('cr-icon-button');
     assert(anchor);
-    this.dispatchEvent(new CustomEvent('edit-search-engine', {
+    this.dispatchEvent(new CustomEvent('view-or-edit-search-engine', {
       bubbles: true,
       composed: true,
       detail: {
@@ -119,7 +134,9 @@ export class SettingsSearchEngineEntryElement extends PolymerElement {
 
   private onMakeDefaultClick_() {
     this.closePopupMenu_();
-    this.browserProxy_.setDefaultSearchEngine(this.engine.modelIndex);
+    this.browserProxy_.setDefaultSearchEngine(
+        this.engine.modelIndex, ChoiceMadeLocation.SEARCH_ENGINE_SETTINGS,
+        /*saveGuestChoice=*/ null);
   }
 
   private onActivateClick_() {
@@ -132,6 +149,21 @@ export class SettingsSearchEngineEntryElement extends PolymerElement {
     this.closePopupMenu_();
     this.browserProxy_.setIsActiveSearchEngine(
         this.engine.modelIndex, /*is_active=*/ false);
+  }
+
+  private getMoreActionsAriaLabel_(): string {
+    return this.i18n(
+        'searchEnginesMoreActionsAriaLabel', this.engine.displayName);
+  }
+
+  private getActivateButtonAriaLabel_(): string {
+    return this.i18n(
+        'searchEnginesActivateButtonAriaLabel', this.engine.displayName);
+  }
+
+  private getEditButtonAriaLabel_(): string {
+    return this.i18n(
+        'searchEnginesEditButtonAriaLabel', this.engine.displayName);
   }
 }
 

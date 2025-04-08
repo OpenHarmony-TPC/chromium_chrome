@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ui/webui/engagement/site_engagement_ui.h"
 
 #include <cmath>
@@ -13,8 +18,10 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/grit/dev_ui_browser_resources.h"
+#include "chrome/grit/engagement_resources.h"
+#include "chrome/grit/engagement_resources_map.h"
 #include "components/site_engagement/content/site_engagement_service.h"
 #include "components/site_engagement/core/mojom/site_engagement_details.mojom.h"
 #include "content/public/browser/web_ui.h"
@@ -53,8 +60,11 @@ class SiteEngagementDetailsProviderImpl
       GetSiteEngagementDetailsCallback callback) override {
     site_engagement::SiteEngagementService* service =
         site_engagement::SiteEngagementService::Get(profile_);
+
     std::vector<site_engagement::mojom::SiteEngagementDetails> scores =
-        service->GetAllDetails();
+        service->GetAllDetails(
+            site_engagement::SiteEngagementService::URLSets::HTTP |
+            site_engagement::SiteEngagementService::URLSets::WEB_UI);
 
     std::vector<site_engagement::mojom::SiteEngagementDetailsPtr>
         engagement_info;
@@ -92,18 +102,19 @@ class SiteEngagementDetailsProviderImpl
 
 }  // namespace
 
+bool SiteEngagementUIConfig::IsWebUIEnabled(
+    content::BrowserContext* browser_context) {
+  return site_engagement::SiteEngagementService::IsEnabled();
+}
+
 SiteEngagementUI::SiteEngagementUI(content::WebUI* web_ui)
     : ui::MojoWebUIController(web_ui) {
   // Set up the chrome://site-engagement/ source.
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       Profile::FromWebUI(web_ui), chrome::kChromeUISiteEngagementHost);
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src chrome://resources chrome://webui-test 'self';");
-  source->AddResourcePath("site_engagement.js", IDR_SITE_ENGAGEMENT_JS);
-  source->AddResourcePath("site_engagement_details.mojom-webui.js",
-                          IDR_SITE_ENGAGEMENT_DETAILS_MOJOM_WEBUI_JS);
-  source->SetDefaultResource(IDR_SITE_ENGAGEMENT_HTML);
+  webui::SetupWebUIDataSource(
+      source, base::make_span(kEngagementResources, kEngagementResourcesSize),
+      IDR_ENGAGEMENT_SITE_ENGAGEMENT_HTML);
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(SiteEngagementUI)

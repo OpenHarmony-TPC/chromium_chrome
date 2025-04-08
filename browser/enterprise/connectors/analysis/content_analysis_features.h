@@ -9,9 +9,11 @@
 
 namespace enterprise_connectors {
 
-// Controls whether the local content analysis feature can be used for any
-// service provider and/or policy configuration.
-BASE_DECLARE_FEATURE(kLocalContentAnalysisEnabled);
+// Controls whether the resumable upload protocol is enabled or not.
+BASE_DECLARE_FEATURE(kResumableUploadEnabled);
+
+// Returns true if resumable upload is enabled.
+bool IsResumableUploadEnabled();
 
 }  // namespace enterprise_connectors
 

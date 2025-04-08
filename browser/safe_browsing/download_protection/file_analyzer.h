@@ -18,10 +18,6 @@
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "third_party/protobuf/src/google/protobuf/repeated_field.h"
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
-#include "chrome/services/file_util/public/cpp/sandboxed_document_analyzer.h"
-#endif
-
 #if BUILDFLAG(IS_MAC)
 #include "chrome/common/safe_browsing/disk_image_type_sniffer_mac.h"
 #include "chrome/services/file_util/public/cpp/sandboxed_dmg_analyzer_mac.h"
@@ -75,11 +71,11 @@ class FileAnalyzer {
         detached_code_signatures;
 #endif
 
-    // For office documents, the features and metadata extracted from the file.
-    ClientDownloadRequest::DocumentSummary document_summary;
-
     // For archives, the features and metadata extracted from the file.
     ClientDownloadRequest::ArchiveSummary archive_summary;
+
+    // Information about the encryption on this file.
+    EncryptionInfo encryption_info;
   };
 
   explicit FileAnalyzer(
@@ -87,6 +83,7 @@ class FileAnalyzer {
   ~FileAnalyzer();
   void Start(const base::FilePath& target_path,
              const base::FilePath& tmp_path,
+             base::optional_ref<const std::string> password,
              base::OnceCallback<void(Results)> callback);
 
  private:
@@ -106,12 +103,6 @@ class FileAnalyzer {
       const safe_browsing::ArchiveAnalyzerResults& archive_results);
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
-  void StartExtractDocumentFeatures();
-  void OnDocumentAnalysisFinished(
-      const DocumentAnalyzerResults& document_results);
-#endif
-
   void StartExtractSevenZipFeatures();
   void OnSevenZipAnalysisFinished(
       const ArchiveAnalyzerResults& archive_results);
@@ -120,6 +111,7 @@ class FileAnalyzer {
 
   base::FilePath target_path_;
   base::FilePath tmp_path_;
+  std::optional<std::string> password_;
   scoped_refptr<BinaryFeatureExtractor> binary_feature_extractor_;
   base::OnceCallback<void(Results)> callback_;
   base::Time start_time_;
@@ -134,12 +126,6 @@ class FileAnalyzer {
 #if BUILDFLAG(IS_MAC)
   std::unique_ptr<SandboxedDMGAnalyzer, base::OnTaskRunnerDeleter>
       dmg_analyzer_{nullptr, base::OnTaskRunnerDeleter(nullptr)};
-#endif
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
-  std::unique_ptr<SandboxedDocumentAnalyzer, base::OnTaskRunnerDeleter>
-      document_analyzer_{nullptr, base::OnTaskRunnerDeleter(nullptr)};
-  base::TimeTicks document_analysis_start_time_;
 #endif
 
   std::unique_ptr<SandboxedSevenZipAnalyzer, base::OnTaskRunnerDeleter>

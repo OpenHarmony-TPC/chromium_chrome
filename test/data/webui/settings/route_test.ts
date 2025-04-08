@@ -3,12 +3,14 @@
 // found in the LICENSE file.
 
 // clang-format off
-import {buildRouter, Route, Router, routes, setPageVisibilityForTesting} from 'chrome://settings/settings.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import type {SettingsRoutes} from 'chrome://settings/settings.js';
+import {resetRouterForTesting, buildRouter, loadTimeData, Route, Router, routes, resetPageVisibilityForTesting} from 'chrome://settings/settings.js';
+import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 // clang-format on
 
-suite('route', function() {
+suite('Basic', function() {
   /**
    * Returns a new promise that resolves after a window 'popstate' event.
    */
@@ -165,6 +167,11 @@ suite('route', function() {
             routes.APPEARANCE);
       });
 
+  test('navigate back to nested sibling route', function() {
+    return testNavigateBackUsesHistory(
+        routes.FONTS, routes.SECURITY, routes.FONTS);
+  });
+
   test('navigate back to parent when previous route is deeper', function() {
     Router.getInstance().navigateTo(routes.SYNC);
     Router.getInstance().navigateTo(routes.PEOPLE);
@@ -255,7 +262,7 @@ suite('route', function() {
 
     // <if expr="chromeos_ash">
     // Regression test for b/265453606.
-    assertFalse(!!routes.SIGN_OUT);
+    assertFalse('SIGN_OUT' in routes);
     // </if>
 
     // <if expr="not chromeos_ash">
@@ -272,7 +279,7 @@ suite('route', function() {
   });
 
   test('pageVisibility affects route availability', function() {
-    setPageVisibilityForTesting({
+    resetPageVisibilityForTesting({
       appearance: false,
       autofill: false,
       defaultBrowser: false,
@@ -312,6 +319,17 @@ suite('route', function() {
         assertEquals(
             'chrome://settings/languages', routes.LANGUAGES.getAbsolutePath());
       });
+
+  test('resetRouterForTesting updates routes', function() {
+    resetRouterForTesting();
+    const routesLocal1 = Router.getInstance().getRoutes();
+    assertEquals(routes, routesLocal1);
+
+    resetRouterForTesting();
+    const routesLocal2 = Router.getInstance().getRoutes();
+    assertNotEquals(routesLocal1, routesLocal2);
+    assertEquals(routes, routesLocal2);
+  });
 });
 
 suite('DynamicParameters', function() {
@@ -359,5 +377,63 @@ suite('NonExistentRoute', function() {
   test('redirect to basic', function() {
     assertEquals(routes.BASIC, Router.getInstance().getCurrentRoute());
     assertEquals('/', location.pathname);
+  });
+});
+
+suite('SafetyHubReachable', function() {
+  let routes: SettingsRoutes;
+
+  setup(function() {
+    loadTimeData.overrideValues({enableSafetyHub: true});
+    resetRouterForTesting();
+
+    routes = Router.getInstance().getRoutes();
+    Router.getInstance().navigateTo(routes.BASIC);
+    return flushTasks();
+  });
+
+  test('SafetyHubRouteReachable', async function() {
+    let path = Router.getInstance().getCurrentRoute().path;
+    assertEquals('/', path);
+
+    Router.getInstance().navigateTo(routes.SAFETY_HUB);
+    await flushTasks();
+
+    // Assert that the route is changed to safety hub.
+    path = Router.getInstance().getCurrentRoute().path;
+    assertEquals('/safetyCheck', path);
+  });
+
+  test('SafetyCheckRouteNotReachable', async function() {
+    // When Safety Hub is enabled, SafetyCheck is not reachable.
+    assertEquals(routes.SAFETY_CHECK, undefined);
+  });
+});
+
+suite('SafetyHubNotReachable', function() {
+  let routes: SettingsRoutes;
+
+  setup(function() {
+    loadTimeData.overrideValues({enableSafetyHub: false});
+    resetRouterForTesting();
+
+    routes = Router.getInstance().getRoutes();
+  });
+
+  test('SafetyHubRouteNotReachable', async function() {
+    // Safety Hub should not be reachable.
+    assertEquals(routes.SAFETY_HUB, undefined);
+  });
+
+  test('SafetyCheckRouteReachable', async function() {
+    let path = Router.getInstance().getCurrentRoute().path;
+    assertEquals('/', path);
+
+    Router.getInstance().navigateTo(routes.SAFETY_CHECK);
+    await flushTasks();
+
+    // Assert that the route is changed to SafetyCheck.
+    path = Router.getInstance().getCurrentRoute().path;
+    assertEquals('/safetyCheck', path);
   });
 });

@@ -28,10 +28,9 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class FeedPlaceholderLayoutTest {
-    @Mock
-    AnimatorSet mAnimatorSet;
+    @Mock AnimatorSet mAnimatorSet;
 
-    private class TestFeedPlaceholderLayout extends FeedPlaceholderLayout {
+    private static class TestFeedPlaceholderLayout extends FeedPlaceholderLayout {
         // FeedPlaceholderLayout regards itself as visible if both isShown() and
         // isAttachedToWindow() are true. In order to reduce the number of test cases we will
         // control both at the same time with this variable.

@@ -23,15 +23,16 @@ struct Environment {
     mojo::core::Init();
     // Disable noisy logging as per "libFuzzer in Chrome" documentation:
     // testing/libfuzzer/getting_started.md#Disable-noisy-error-message-logging.
-    logging::SetMinLogLevel(logging::LOG_FATAL);
+    logging::SetMinLogLevel(logging::LOGGING_FATAL);
 
     // Create instance once to be reused between fuzzing rounds.
     decoder = std::make_unique<sharing::NearbySharingDecoder>(
-        remote.BindNewPipeAndPassReceiver());
+        remote.BindNewPipeAndPassReceiver(),
+        /*on_disconnect=*/base::DoNothing());
   }
 
   base::SingleThreadTaskExecutor task_executor;
-  mojo::Remote<sharing::mojom::NearbySharingDecoder> remote;
+  mojo::Remote<::sharing::mojom::NearbySharingDecoder> remote;
   std::unique_ptr<sharing::NearbySharingDecoder> decoder;
 };
 
@@ -43,7 +44,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   environment->decoder->DecodeAdvertisement(
       buffer, base::BindOnce(
                   [](base::RunLoop* run_loop,
-                     sharing::mojom::AdvertisementPtr advertisement) {
+                     ::sharing::mojom::AdvertisementPtr advertisement) {
                     run_loop->Quit();
                   },
                   &run_loop));

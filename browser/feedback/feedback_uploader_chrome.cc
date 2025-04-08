@@ -71,10 +71,15 @@ FeedbackUploaderChrome::FeedbackUploaderChrome(content::BrowserContext* context)
       FROM_HERE,
       base::BindOnce(&FeedbackReport::LoadReportsAndQueue,
                      feedback_reports_path(),
-                     base::BindRepeating(&QueueSingleReport, AsWeakPtr())));
+                     base::BindRepeating(&QueueSingleReport,
+                                         weak_ptr_factory_.GetWeakPtr())));
 }
 
 FeedbackUploaderChrome::~FeedbackUploaderChrome() = default;
+
+base::WeakPtr<FeedbackUploader> FeedbackUploaderChrome::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
 
 void FeedbackUploaderChrome::PrimaryAccountAccessTokenAvailable(
     GoogleServiceAuthError error,
@@ -113,7 +118,7 @@ void FeedbackUploaderChrome::StartDispatchingReport() {
 
   access_token_.clear();
 
-  // TODO(crbug.com/849591): Instead of getting the IdentityManager from the
+  // TODO(crbug.com/40579328): Instead of getting the IdentityManager from the
   // profile, we should pass the IdentityManager to FeedbackUploaderChrome's
   // ctor.
   Profile* profile = Profile::FromBrowserContext(context_);

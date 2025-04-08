@@ -12,10 +12,15 @@ import java.util.Map;
 
 /**
  * Used by various components to provide a set of feedback that can be gathered synchronously.
+ *
+ * <p>ATTENTION: Before making any changes or adding new FeedbackSources to feedback collection,
+ * please ensure the teams that operationalize feedback are aware and supportive. Contact:
+ * chrome-gtech@.
  */
 public interface FeedbackSource {
     /**
      * Called to get all relevant feedback for this source.
+     *
      * @return A map of all feedback reported by this source.
      */
     default @Nullable Map<String, String> getFeedback() {

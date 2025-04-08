@@ -2,8 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/extensions/extension_platform_apitest.h"
+#include "content/public/test/browser_test.h"
+
+#if !BUILDFLAG(IS_ANDROID)
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/event_router.h"
 #include "extensions/common/api/test.h"
@@ -11,17 +17,17 @@
 #include "extensions/test/result_catcher.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-
-using extensions::ResultCatcher;
+#endif
 
 namespace extensions {
 
-using ContextType = ExtensionApiTest::ContextType;
+#if !BUILDFLAG(IS_ANDROID)
 
-class AlarmsApiTest : public ExtensionApiTest,
-                      public testing::WithParamInterface<ContextType> {
+using extensions::ResultCatcher;
+
+class AlarmsApiTest : public ExtensionApiTest {
  public:
-  AlarmsApiTest() : ExtensionApiTest(GetParam()) {}
+  AlarmsApiTest() = default;
   ~AlarmsApiTest() override = default;
   AlarmsApiTest& operator=(const AlarmsApiTest&) = delete;
   AlarmsApiTest(const AlarmsApiTest&) = delete;
@@ -58,16 +64,9 @@ class AlarmsApiTest : public ExtensionApiTest,
   std::unique_ptr<base::HistogramTester> histogram_tester_;
 };
 
-INSTANTIATE_TEST_SUITE_P(EventPage,
-                         AlarmsApiTest,
-                         ::testing::Values(ContextType::kEventPage));
-INSTANTIATE_TEST_SUITE_P(ServiceWorker,
-                         AlarmsApiTest,
-                         ::testing::Values(ContextType::kServiceWorker));
-
 // Tests that an alarm created by an extension with incognito split mode is
 // only triggered in the browser context it was created in.
-IN_PROC_BROWSER_TEST_P(AlarmsApiTest, IncognitoSplit) {
+IN_PROC_BROWSER_TEST_F(AlarmsApiTest, IncognitoSplit) {
   // We need 2 ResultCatchers because we'll be running the same test in both
   // regular and incognito mode.
   Profile* incognito_profile =
@@ -100,7 +99,7 @@ IN_PROC_BROWSER_TEST_P(AlarmsApiTest, IncognitoSplit) {
 
 // Tests that the behavior for an alarm created in incognito context should be
 // the same if incognito is in spanning mode.
-IN_PROC_BROWSER_TEST_P(AlarmsApiTest, IncognitoSpanning) {
+IN_PROC_BROWSER_TEST_F(AlarmsApiTest, IncognitoSpanning) {
   ResultCatcher catcher;
   catcher.RestrictToBrowserContext(browser()->profile());
 
@@ -111,26 +110,16 @@ IN_PROC_BROWSER_TEST_P(AlarmsApiTest, IncognitoSpanning) {
 
   EXPECT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
-// Test that the histogram for counting the number of alarms for an extension
-// is working properly. The PRE step installs the alarms and we'll check the
-// histogram in the main part of the test.
-IN_PROC_BROWSER_TEST_P(AlarmsApiTest, PRE_Count) {
-  EXPECT_TRUE(RunExtensionTest("alarms/count")) << message_;
-}
-
-// TODO(crbug.com/1405713): Fix failing test on Mac builders.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_Count DISABLED_Count
+#if BUILDFLAG(IS_ANDROID)
+using AlarmsPlatformApiTest = ExtensionPlatformApiTest;
 #else
-#define MAYBE_Count Count
+using AlarmsPlatformApiTest = ExtensionApiTest;
 #endif
-IN_PROC_BROWSER_TEST_P(AlarmsApiTest, MAYBE_Count) {
-  // The histogram will be updated when the extension is loaded during
-  // startup. This will happen before we enter the test, so just check
-  // that the update is present.
-  histogram_tester_->ExpectUniqueSample(
-      "Extensions.AlarmManager.AlarmsLoadedCount", 100, 1);
+
+IN_PROC_BROWSER_TEST_F(AlarmsPlatformApiTest, Count) {
+  EXPECT_TRUE(RunExtensionTest("alarms/count")) << message_;
 }
 
 }  // namespace extensions

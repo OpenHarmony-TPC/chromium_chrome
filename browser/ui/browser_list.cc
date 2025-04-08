@@ -14,7 +14,6 @@
 #include "base/ranges/algorithm.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/buildflags.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/lifetime/termination_notification.h"
@@ -25,28 +24,36 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "content/public/browser/notification_service.h"
+
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/browser/browser_adapter.h"
+#include "ui/aura/window.h"
+#include "ui/aura/window_tree_host.h"
+#include "ui/gfx/native_widget_types.h"
+#endif
 
 using base::UserMetricsAction;
 using content::WebContents;
 
 namespace {
 
-BrowserList::BrowserVector GetBrowsersToClose(Profile* profile) {
-  BrowserList::BrowserVector browsers_to_close;
-  for (auto* browser : *BrowserList::GetInstance()) {
+BrowserList::BrowserWeakVector GetBrowsersToClose(Profile* profile) {
+  BrowserList::BrowserWeakVector browsers_to_close;
+  for (Browser* browser : *BrowserList::GetInstance()) {
     if (browser->profile()->GetOriginalProfile() ==
-        profile->GetOriginalProfile())
-      browsers_to_close.push_back(browser);
+        profile->GetOriginalProfile()) {
+      browsers_to_close.push_back(browser->AsWeakPtr());
+    }
   }
   return browsers_to_close;
 }
 
-BrowserList::BrowserVector GetIncognitoBrowsersToClose(Profile* profile) {
-  BrowserList::BrowserVector browsers_to_close;
-  for (auto* browser : *BrowserList::GetInstance()) {
-    if (browser->profile() == profile)
-      browsers_to_close.push_back(browser);
+BrowserList::BrowserWeakVector GetIncognitoBrowsersToClose(Profile* profile) {
+  BrowserList::BrowserWeakVector browsers_to_close;
+  for (Browser* browser : *BrowserList::GetInstance()) {
+    if (browser->profile() == profile) {
+      browsers_to_close.push_back(browser->AsWeakPtr());
+    }
   }
   return browsers_to_close;
 }
@@ -54,7 +61,8 @@ BrowserList::BrowserVector GetIncognitoBrowsersToClose(Profile* profile) {
 }  // namespace
 
 // static
-base::LazyInstance<base::ObserverList<BrowserListObserver>::Unchecked>::Leaky
+base::LazyInstance<base::ObserverList<BrowserListObserver>,
+                   BrowserList::ObserverListTraits>
     BrowserList::observers_ = LAZY_INSTANCE_INITIALIZER;
 
 // static
@@ -158,7 +166,7 @@ void BrowserList::RemoveObserver(BrowserListObserver* observer) {
 // static
 void BrowserList::CloseAllBrowsersWithProfile(Profile* profile) {
   BrowserVector browsers_to_close;
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     if (browser->profile()->GetOriginalProfile() ==
         profile->GetOriginalProfile())
       browsers_to_close.push_back(browser);
@@ -191,8 +199,7 @@ void BrowserList::CloseAllBrowsersWithIncognitoProfile(
     const CloseCallback& on_close_aborted,
     bool skip_beforeunload) {
   DCHECK(profile->IsOffTheRecord());
-  BrowserList::BrowserVector browsers_to_close =
-      GetIncognitoBrowsersToClose(profile);
+  auto browsers_to_close = GetIncognitoBrowsersToClose(profile);
 
   // When closing devtools browser related to incognito browser, do not skip
   // calling before unload handlers.
@@ -204,14 +211,15 @@ void BrowserList::CloseAllBrowsersWithIncognitoProfile(
 }
 
 // static
-void BrowserList::TryToCloseBrowserList(const BrowserVector& browsers_to_close,
-                                        const CloseCallback& on_close_success,
-                                        const CloseCallback& on_close_aborted,
-                                        const base::FilePath& profile_path,
-                                        const bool skip_beforeunload) {
-  for (auto it = browsers_to_close.begin(); it != browsers_to_close.end();
-       ++it) {
-    if ((*it)->TryToCloseWindow(
+void BrowserList::TryToCloseBrowserList(
+    const BrowserWeakVector& browsers_to_close,
+    const CloseCallback& on_close_success,
+    const CloseCallback& on_close_aborted,
+    const base::FilePath& profile_path,
+    const bool skip_beforeunload) {
+  for (auto& weak_browser : browsers_to_close) {
+    if (weak_browser &&
+        weak_browser->TryToCloseWindow(
             skip_beforeunload,
             base::BindRepeating(&BrowserList::PostTryToCloseBrowserWindow,
                                 browsers_to_close, on_close_success,
@@ -224,17 +232,18 @@ void BrowserList::TryToCloseBrowserList(const BrowserVector& browsers_to_close,
   if (on_close_success)
     on_close_success.Run(profile_path);
 
-  for (Browser* b : browsers_to_close) {
+  for (auto& weak_b : browsers_to_close) {
     // BeforeUnload handlers may close browser windows, so we need to explicitly
     // check whether they still exist.
-    if (b->window())
-      b->window()->Close();
+    if (weak_b && weak_b->window()) {
+      weak_b->window()->Close();
+    }
   }
 }
 
 // static
 void BrowserList::PostTryToCloseBrowserWindow(
-    const BrowserVector& browsers_to_close,
+    const BrowserWeakVector& browsers_to_close,
     const CloseCallback& on_close_success,
     const CloseCallback& on_close_aborted,
     const base::FilePath& profile_path,
@@ -250,9 +259,12 @@ void BrowserList::PostTryToCloseBrowserWindow(
                           profile_path, skip_beforeunload);
   } else if (!resetting_handlers) {
     base::AutoReset<bool> resetting_handlers_scoper(&resetting_handlers, true);
-    for (auto it = browsers_to_close.begin(); it != browsers_to_close.end();
-         ++it) {
-      (*it)->ResetTryToCloseWindow();
+    for (auto& weak_browser : browsers_to_close) {
+      // This function is called asynchronously, so that the Browser may have
+      // been destroyed by the time we get here.
+      if (weak_browser) {
+        weak_browser->ResetTryToCloseWindow();
+      }
     }
     if (on_close_aborted)
       on_close_aborted.Run(profile_path);
@@ -323,6 +335,14 @@ void BrowserList::NotifyBrowserNoLongerActive(Browser* browser) {
 }
 
 // static
+void BrowserList::NotifyBrowserCloseCancelled(Browser* browser,
+                                              BrowserClosingStatus reason) {
+  for (BrowserListObserver& observer : observers_.Get()) {
+    observer.OnBrowserCloseCancelled(browser, reason);
+  }
+}
+
+// static
 void BrowserList::NotifyBrowserCloseStarted(Browser* browser) {
   GetInstance()->currently_closing_browsers_.insert(browser);
 
@@ -332,7 +352,7 @@ void BrowserList::NotifyBrowserCloseStarted(Browser* browser) {
 
 // static
 bool BrowserList::IsOffTheRecordBrowserActive() {
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     if (browser->profile()->IsOffTheRecord())
       return true;
   }
@@ -377,9 +397,20 @@ bool BrowserList::IsOffTheRecordBrowserInUse(Profile* profile) {
 ////////////////////////////////////////////////////////////////////////////////
 // BrowserList, private:
 
-BrowserList::BrowserList() {}
+BrowserList::BrowserList() {
+#if BUILDFLAG(IS_OHOS)
+  auto& broser_adapter = ohos::adapter::BrowserAdapter::GetInstance();
+  broser_adapter.RegisterGetLastActiveCallback(
+      std::bind(&BrowserList::GetLastActiveAcceleratedWidget, this));
+#endif
+}
 
-BrowserList::~BrowserList() {}
+BrowserList::~BrowserList() {
+#if BUILDFLAG(IS_OHOS)
+  auto& broser_adapter = ohos::adapter::BrowserAdapter::GetInstance();
+  broser_adapter.UnRegisterGetLastActiveCallback();
+#endif
+}
 
 // static
 void BrowserList::RemoveBrowserFrom(Browser* browser,
@@ -388,3 +419,16 @@ void BrowserList::RemoveBrowserFrom(Browser* browser,
   if (remove_browser != browser_list->end())
     browser_list->erase(remove_browser);
 }
+
+#if BUILDFLAG(IS_OHOS)
+gfx::AcceleratedWidget BrowserList::GetLastActiveAcceleratedWidget() const {
+  Browser* browser = GetLastActive();
+  if (browser && browser->window()) {
+    aura::Window* native_window = browser->window()->GetNativeWindow();
+    if (native_window && native_window->GetHost()) {
+      return native_window->GetHost()->GetAcceleratedWidget();
+    }
+  }
+  return 0;
+}
+#endif

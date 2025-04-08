@@ -12,6 +12,16 @@
 #include "base/process/process_metrics.h"
 #include "base/trace_event/trace_event.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/base_paths.h"
+#include "base/files/file_path.h"
+#include "base/logging.h"
+#include "base/path_service.h"
+#include "content/public/browser/browser_thread.h"
+#include "content/public/browser/tracing_controller.h"
+#include "ohos/adapter/tracing/tracing_adapter.h"
+#endif
+
 namespace tracing {
 
 namespace {
@@ -43,6 +53,61 @@ class SystemStatsHolder : public base::trace_event::ConvertableToTraceFormat {
   const base::SystemMetrics system_metrics_;
 };
 
+#if BUILDFLAG(IS_OHOS)
+enum TraceEvent : int32_t { kTraceBegin = 0, kTraceEnd = 1 };
+
+static const char kDefaultTraceFile[] = "chromium_trace";
+static const char kDefaultTraceCategories[] =
+    "benchmark,blink,blink_gc,v8,cc,gpu,navigation,toplevel,viz,ui,views,"
+    "disk_cache,latency,renderer.scheduler,sequence_manager,timeline.frame,"
+    "disabled-by-default-v8.gc,disabled-by-default-blink_gc";
+
+void OnTraceDataCollected(const std::string& file_path) {
+  LOG(INFO) << "Tracing end, output file: " << file_path;
+}
+
+void TraceControllerCallback(int32_t event_id, const std::string& in_param) {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI)) {
+    content::GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE, base::BindOnce(TraceControllerCallback, event_id, in_param));
+    return;
+  }
+
+  switch (event_id) {
+    case TraceEvent::kTraceBegin: {  // start tracing
+      const std::string trace_categories =
+          in_param.empty() ? kDefaultTraceCategories : in_param;
+      base::trace_event::TraceConfig trace_config =
+          base::trace_event::TraceConfig(trace_categories, "");
+
+      LOG(INFO) << "Tracing begin, categories: " << trace_categories;
+      content::TracingController::GetInstance()->StartTracing(
+          trace_config, content::TracingController::StartTracingDoneCallback());
+
+      ohos::adapter::tracing::TracingAdapter::GetInstance()
+          .EnableAdapterTrace();
+      break;
+    }
+    case TraceEvent::kTraceEnd: {  // stop tracing
+      std::string file_name = in_param.empty() ? kDefaultTraceFile : in_param;
+      base::FilePath file_path;
+      base::PathService::Get(base::DIR_TEMP, &file_path);
+      file_path = file_path.Append(file_name);
+
+      content::TracingController::GetInstance()->StopTracing(
+          content::TracingController::CreateFileEndpoint(
+              file_path,
+              base::BindOnce(&OnTraceDataCollected, file_path.value())));
+
+      ohos::adapter::tracing::TracingAdapter::GetInstance()
+          .DisableAdapterTrace();
+      break;
+    }
+    default:
+      break;
+  }
+}
+#endif
 }  // namespace
 
 //////////////////////////////////////////////////////////////////////////////
@@ -55,13 +120,22 @@ TraceEventSystemStatsMonitor::TraceEventSystemStatsMonitor() {
   // Allow this to be instantiated on unsupported platforms, but don't run.
   base::trace_event::TraceLog::GetInstance()->AddAsyncEnabledStateObserver(
       weak_factory_.GetWeakPtr());
+#if BUILDFLAG(IS_OHOS)
+  ohos::adapter::tracing::TracingAdapter::GetInstance().RegisterTracingCallback(
+      TraceControllerCallback);
+#endif
 }
 
 TraceEventSystemStatsMonitor::~TraceEventSystemStatsMonitor() {
-  if (is_profiling_)
+  if (is_profiling_) {
     StopProfiling();
+  }
   base::trace_event::TraceLog::GetInstance()->RemoveAsyncEnabledStateObserver(
       this);
+#if BUILDFLAG(IS_OHOS)
+  ohos::adapter::tracing::TracingAdapter::GetInstance()
+      .UnregisterTracingCallback();
+#endif
 }
 
 void TraceEventSystemStatsMonitor::OnTraceLogEnabled() {
@@ -70,8 +144,9 @@ void TraceEventSystemStatsMonitor::OnTraceLogEnabled() {
 
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("system_stats"),
                                      &enabled);
-  if (!enabled)
+  if (!enabled) {
     return;
+  }
   StartProfiling();
 }
 
@@ -81,8 +156,9 @@ void TraceEventSystemStatsMonitor::OnTraceLogDisabled() {
 
 void TraceEventSystemStatsMonitor::StartProfiling() {
   // Watch for the tracing framework sending enabling more than once.
-  if (is_profiling_)
+  if (is_profiling_) {
     return;
+  }
 
   is_profiling_ = true;
   DCHECK(performance_monitor::SystemMonitor::Get());
@@ -108,8 +184,9 @@ void TraceEventSystemStatsMonitor::StopProfiling() {
   // Watch for the tracing framework sending disabling more than once.
   if (is_profiling_) {
     is_profiling_ = false;
-    if (auto* sys_monitor = performance_monitor::SystemMonitor::Get())
+    if (auto* sys_monitor = performance_monitor::SystemMonitor::Get()) {
       sys_monitor->RemoveObserver(this);
+    }
   }
 }
 

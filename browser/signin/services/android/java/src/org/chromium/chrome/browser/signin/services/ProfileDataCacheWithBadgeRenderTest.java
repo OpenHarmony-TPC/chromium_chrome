@@ -18,26 +18,26 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
+import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.ui.test.util.BlankUiTestActivityTestCase;
 import org.chromium.ui.widget.ChromeImageView;
 
 import java.io.IOException;
 
 /**
- * Tests for ProfileDataCache with a badge. Leverages RenderTest instead of reimplementing
- * bitmap comparison to simplify access to the compared images on buildbots (via result_details).
+ * Tests for ProfileDataCache with a badge. Leverages RenderTest instead of reimplementing bitmap
+ * comparison to simplify access to the compared images on buildbots (via result_details).
  */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(ProfileDataCacheRenderTest.PROFILE_DATA_BATCH_NAME)
 public class ProfileDataCacheWithBadgeRenderTest extends BlankUiTestActivityTestCase {
-    private static final String TEST_ACCOUNT_NAME = "test@example.com";
 
     @Rule
     public final ChromeRenderTestRule mRenderTestRule =
@@ -54,16 +54,19 @@ public class ProfileDataCacheWithBadgeRenderTest extends BlankUiTestActivityTest
 
     @Before
     public void setUp() {
-        mAccountManagerTestRule.addAccount(TEST_ACCOUNT_NAME);
+        mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            Activity activity = getActivity();
-            mContentView = new FrameLayout(activity);
-            mImageView = new ChromeImageView(activity);
-            mContentView.addView(mImageView, ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT);
-            activity.setContentView(mContentView);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Activity activity = getActivity();
+                    mContentView = new FrameLayout(activity);
+                    mImageView = new ChromeImageView(activity);
+                    mContentView.addView(
+                            mImageView,
+                            ViewGroup.LayoutParams.WRAP_CONTENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT);
+                    activity.setContentView(mContentView);
+                });
     }
 
     @Test
@@ -121,30 +124,49 @@ public class ProfileDataCacheWithBadgeRenderTest extends BlankUiTestActivityTest
     }
 
     private void setUpProfileDataCache(@DrawableRes int badgeResId) {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mProfileDataCache = badgeResId != 0
-                    ? ProfileDataCache.createWithDefaultImageSize(getActivity(), badgeResId)
-                    : ProfileDataCache.createWithoutBadge(getActivity(), R.dimen.user_picture_size);
-        });
-        CriteriaHelper.pollUiThread(() -> {
-            return !TextUtils.isEmpty(
-                    mProfileDataCache.getProfileDataOrDefault(TEST_ACCOUNT_NAME).getFullName());
-        });
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mImageView.setImageDrawable(
-                    mProfileDataCache.getProfileDataOrDefault(TEST_ACCOUNT_NAME).getImage());
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mProfileDataCache =
+                            badgeResId != 0
+                                    ? ProfileDataCache.createWithDefaultImageSize(
+                                            getActivity(), badgeResId)
+                                    : ProfileDataCache.createWithoutBadge(
+                                            getActivity(), R.dimen.user_picture_size);
+                });
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    return !TextUtils.isEmpty(
+                            mProfileDataCache
+                                    .getProfileDataOrDefault(TestAccounts.ACCOUNT1.getEmail())
+                                    .getFullName());
+                });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mImageView.setImageDrawable(
+                            mProfileDataCache
+                                    .getProfileDataOrDefault(TestAccounts.ACCOUNT1.getEmail())
+                                    .getImage());
+                });
     }
 
     private void setBadgeConfig(@DrawableRes int badgeResId) {
-        TestThreadUtils.runOnUiThreadBlocking(() -> { mProfileDataCache.setBadge(badgeResId); });
-        CriteriaHelper.pollUiThread(() -> {
-            return !TextUtils.isEmpty(
-                    mProfileDataCache.getProfileDataOrDefault(TEST_ACCOUNT_NAME).getFullName());
-        });
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mImageView.setImageDrawable(
-                    mProfileDataCache.getProfileDataOrDefault(TEST_ACCOUNT_NAME).getImage());
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mProfileDataCache.setBadge(badgeResId);
+                });
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    return !TextUtils.isEmpty(
+                            mProfileDataCache
+                                    .getProfileDataOrDefault(TestAccounts.ACCOUNT1.getEmail())
+                                    .getFullName());
+                });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mImageView.setImageDrawable(
+                            mProfileDataCache
+                                    .getProfileDataOrDefault(TestAccounts.ACCOUNT1.getEmail())
+                                    .getImage());
+                });
     }
 }
