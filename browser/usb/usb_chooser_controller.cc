@@ -94,8 +94,8 @@ UsbChooserController::UsbChooserController(
           CreateChooserTitle(render_frame_host, IDS_USB_DEVICE_CHOOSER_PROMPT)),
       filters_(std::move(device_filters)),
       callback_(std::move(callback)),
-      requesting_frame_(render_frame_host) {
-  RenderFrameHost* main_frame = requesting_frame_->GetMainFrame();
+      render_frame_host_id_(render_frame_host->GetGlobalId()) {
+  RenderFrameHost* main_frame = render_frame_host->GetMainFrame();
   origin_ = main_frame->GetLastCommittedOrigin();
   Profile* profile =
       Profile::FromBrowserContext(main_frame->GetBrowserContext());
@@ -197,7 +197,15 @@ void UsbChooserController::Cancel() {
 void UsbChooserController::Close() {}
 
 void UsbChooserController::OpenHelpCenterUrl() const {
-  WebContents::FromRenderFrameHost(requesting_frame_)
+  content::RenderFrameHost* render_frame_host =
+      content::RenderFrameHost::FromID(render_frame_host_id_);
+  if (!render_frame_host) {
+    // When |render_frame_host| is not valid anymore we don't want to open help
+    // center url.
+    return;
+  }
+
+  WebContents::FromRenderFrameHost(render_frame_host)
       ->OpenURL(content::OpenURLParams(
           GURL(chrome::kChooserUsbOverviewURL), content::Referrer(),
           WindowOpenDisposition::NEW_FOREGROUND_TAB,
@@ -260,6 +268,14 @@ void UsbChooserController::GotUsbDeviceList(
 
 bool UsbChooserController::DisplayDevice(
     const device::mojom::UsbDeviceInfo& device_info) const {
+  content::RenderFrameHost* render_frame_host =
+      content::RenderFrameHost::FromID(render_frame_host_id_);
+  if (!render_frame_host) {
+    // When |render_frame_host| is not valid anymore we don't want to display
+    // any device information.
+    return false;
+  }
+
   if (!device::UsbDeviceFilterMatchesAny(filters_, device_info))
     return false;
 
