@@ -226,7 +226,7 @@ class DiscardsGraphDumpImpl : public discards::mojom::GraphDump,
   void SetBrowserForeground(
     const performance_manager::PageNode* page_node) override {}
   // Ignored.
-  void SetBrowserForeground(
+  void SetBrowserBackground(
     const performance_manager::PageNode* page_node) override {}
     
  private:
