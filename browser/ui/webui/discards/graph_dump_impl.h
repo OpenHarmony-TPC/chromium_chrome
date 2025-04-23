@@ -222,7 +222,13 @@ class DiscardsGraphDumpImpl : public discards::mojom::GraphDump,
   void OnPriorityAndReasonChanged(
       const performance_manager::WorkerNode* worker_node,
       const performance_manager::PriorityAndReason& previous_value) override {}
-
+  // Ignored.
+  void SetBrowserForeground(
+    const performance_manager::PageNode* page_node) override {}
+  // Ignored.
+  void SetBrowserBackground(
+    const performance_manager::PageNode* page_node) override {}
+    
  private:
   // The favicon requests happen on the UI thread. This helper class
   // maintains the state required to do that.
