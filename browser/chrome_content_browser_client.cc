@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "arkweb/build/features/features.h"
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
 #include "base/base_switches.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
@@ -854,8 +853,12 @@
 #include "content/public/browser/render_widget_host.h"
 #endif
 
-#if BUILDFLAG(ARKWEB_EXT_HTTP_DNS_FALLBACK)
+#if BUILDFLAG(ARKWEB_EX_HTTP_DNS_FALLBACK)
 #include "arkweb/chromium_ext/servieces/network/public/mojom/network_config_ohos.mojom.h"
+#endif
+
+#if BUILDFLAG(IS_ARKWEB_EXT)
+#include "arkweb/ohos_nweb_ex/build/features/features.h"
 #endif
 
 using blink::mojom::EffectiveConnectionType;
@@ -7252,7 +7255,7 @@ void ChromeContentBrowserClient::OnNetworkServiceCreated(
   }
 #endif
 
-#if BUILDFLAG(ARKWEB_EXT_NETWORK_CONNECTION)
+#if BUILDFLAG(ARKWEB_EX_NETWORK_CONNECTION)
   network_service->SetConnectTimeout(
       net_service::NetHelpers::connection_timeout);
 #endif
