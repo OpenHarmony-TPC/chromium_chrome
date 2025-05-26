@@ -74,6 +74,10 @@
 #include "components/user_manager/user_manager.h"
 #endif
 
+#if BUILDFLAG(IS_ARKWEB)
+#include "arkweb/chromium_ext/chrome/browser/extensions/extension_system_impl_for_include.cc"
+#endif
+
 namespace extensions {
 
 namespace {
@@ -366,17 +370,8 @@ void ExtensionSystemImpl::InitForRegularProfile(bool extensions_enabled) {
   shared_->Init(extensions_enabled);
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   extension_registry_info_manager_ = std::make_unique<ExtensionRegistryInfoManager>(profile_.get());
-  ExtensionRegistry* registry = ExtensionRegistry::Get(profile_.get());
-  if (!registry) {
-    LOG(ERROR) << "registry is null";
-  }
-  registry->AddObserver(extension_registry_info_manager_.get());
-
-  MenuManager* menu_manager = MenuManager::Get(profile_.get());
-  if (!menu_manager) {
-    LOG(ERROR) << "menu_manager is null";
-  }
-  menu_manager->AddLoadObserver(extension_registry_info_manager_.get());
+  InitForRegularProfileForInclude(profile_.get(),
+                                  extension_registry_info_manager_.get());
 #endif
 }
 
@@ -474,11 +469,5 @@ bool ExtensionSystemImpl::FinishDelayedInstallationIfReady(
          service->FinishDelayedInstallationIfReady(extension_id,
                                                    install_immediately);
 }
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-ExtensionRegistryInfoManager* ExtensionSystemImpl::GetExtensionRegistryInfoManager() {
-  return extension_registry_info_manager_.get();
-}
-#endif
 
 }  // namespace extensions

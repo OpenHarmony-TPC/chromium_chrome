@@ -410,8 +410,8 @@ bool CanAccessTarget(const PermissionsData& permissions,
     *error_out = "Cannot specify both 'frameIds' and 'documentIds'.";
     return false;
   }
-  ScriptExecutor* script_executor = tab_helper->script_executor();
 
+  ScriptExecutor* script_executor = tab_helper->script_executor();
   DCHECK(script_executor);
   ScriptExecutor::FrameScope frame_scope =
       target.all_frames && *target.all_frames == true

@@ -121,6 +121,10 @@
 #include "chrome/browser/plugins/plugin_prefs.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_PERMISSION)
+#include "cef/ohos_cef_ext/libcef/browser/permission/alloy_permission_manager.h"
+#endif  // BUILDFLAG(ARKWEB_PERMISSION)
+
 using content::BrowserThread;
 using content::DownloadManagerDelegate;
 using content::HostZoomMap;
@@ -488,7 +492,14 @@ OffTheRecordProfileImpl::GetSSLHostStateDelegate() {
 // instead of repeating them inside all Profile implementations.
 content::PermissionControllerDelegate*
 OffTheRecordProfileImpl::GetPermissionControllerDelegate() {
+#if BUILDFLAG(ARKWEB_PERMISSION)
+  if (!permission_manager_.get()) {
+    permission_manager_.reset(new AlloyPermissionManager());
+  }
+  return permission_manager_.get();
+#else
   return PermissionManagerFactory::GetForProfile(this);
+#endif  // BUILDFLAG(ARKWEB_PERMISSION)
 }
 
 content::ClientHintsControllerDelegate*
@@ -648,9 +659,8 @@ std::unique_ptr<Profile> Profile::CreateOffTheRecordProfile(
   if (!profile)
     profile = std::make_unique<OffTheRecordProfileImpl>(parent, otr_profile_id);
   // With CEF we want to delay initialization.
-  if (!otr_profile_id.IsUniqueForCEF()) {
+  if (!otr_profile_id.IsUniqueForCEF())
     profile->Init();
-  }
   return std::move(profile);
 }
 

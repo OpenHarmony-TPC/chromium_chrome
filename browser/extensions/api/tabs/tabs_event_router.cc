@@ -25,7 +25,6 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/common/extensions/api/tabs.h"
 #include "chrome/common/extensions/extension_constants.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "content/public/browser/favicon_status.h"
@@ -92,70 +91,6 @@ bool WillDispatchTabUpdatedEvent(
   event_args_out->Append(std::move(tab_value));
   return true;
 }
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-api::tabs::Tab CreateTabObject(int tab_id,
-                               WebContents* contents,
-                               const std::string& url) {
-  api::tabs::Tab tab_object;
-  tab_object.id = tab_id;
-  tab_object.index = -1;
-  tab_object.window_id = -1;
-  tab_object.active = false;
-  tab_object.selected = false;
-  tab_object.highlighted = false;
-  tab_object.pinned = false;
-  tab_object.group_id = -1;
-  tab_object.audible = false;
-  tab_object.discarded = false;
-  tab_object.auto_discardable = false;
-  tab_object.muted_info = ExtensionTabUtil::CreateMutedInfo(contents);
-  tab_object.incognito = false;
-  tab_object.width = 0;
-  tab_object.height = 0;
-  tab_object.url =
-      url.length() > 0 ? url : contents->GetLastCommittedURL().spec();
-
-  content::NavigationEntry* pending_entry =
-      contents->GetController().GetPendingEntry();
-  if (pending_entry) {
-    tab_object.pending_url = pending_entry->GetVirtualURL().spec();
-  }
-  tab_object.title = base::UTF16ToUTF8(contents->GetTitle());
-  return tab_object;
-}
-#endif
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-bool ArkwebWillDispatchTabUpdatedEvent(
-    int tab_id,
-    WebContents* contents,
-    std::string url,
-    const std::vector<std::string> changed_property_names,
-    content::BrowserContext* browser_context,
-    mojom::ContextType target_context,
-    const Extension* extension,
-    const base::Value::Dict* listener_filter,
-    std::optional<base::Value::List>& event_args_out,
-    mojom::EventFilteringInfoPtr& event_filtering_info_out) {
-  api::tabs::Tab tab_object = CreateTabObject(tab_id, contents, url);
-
-  base::Value::Dict tab_value = tab_object.ToValue();
-
-  base::Value::Dict changed_properties;
-  for (const auto& property : changed_property_names) {
-    if (const base::Value* value = tab_value.Find(property)) {
-      changed_properties.Set(property, value->Clone());
-    }
-  }
-
-  event_args_out.emplace();
-  event_args_out->Append(tab_id);
-  event_args_out->Append(std::move(changed_properties));
-  event_args_out->Append(std::move(tab_value));
-  return true;
-}
-#endif
 
 bool WillDispatchTabCreatedEvent(
     WebContents* contents,
@@ -702,35 +637,6 @@ void TabsEventRouter::DispatchTabUpdatedEvent(
                           std::move(changed_property_names));
   EventRouter::Get(profile)->BroadcastEvent(std::move(event));
 }
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-void TabsEventRouter::DispatchTabUpdatedEvent(
-    int tab_id,
-    WebContents* contents,
-    const std::vector<std::string>& changed_property_names,
-    const std::string& url) {
-  DCHECK(!changed_property_names.empty());
-  DCHECK(contents);
-
-  std::vector<std::string> changes = changed_property_names;
-  if (url.length() > 0) {
-    changes.push_back(kStatusKey);
-  }
-
-  Profile* profile = Profile::FromBrowserContext(contents->GetBrowserContext());
-
-  auto event = std::make_unique<Event>(
-      events::TABS_ON_UPDATED, api::tabs::OnUpdated::kEventName,
-      // The event arguments depend on the extension's permission. They are set
-      // in WillDispatchTabUpdatedEvent().
-      base::Value::List(), profile);
-  event->user_gesture = EventRouter::USER_GESTURE_NOT_ENABLED;
-  event->will_dispatch_callback =
-      base::BindRepeating(&ArkwebWillDispatchTabUpdatedEvent, tab_id, contents,
-                          url, std::move(changes));
-  EventRouter::Get(profile)->BroadcastEvent(std::move(event));
-}
-#endif
 
 void TabsEventRouter::RegisterForTabNotifications(WebContents* contents) {
   favicon_scoped_observations_.AddObservation(

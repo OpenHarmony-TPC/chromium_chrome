@@ -5182,15 +5182,15 @@ static_library("ui") {
 
     if (is_ohos) {
       sources += [
-        "views/chrome_views_delegate_ohos.cc",
-        "views/frame/desktop_browser_frame_aura_ohos.cc",
-        "views/frame/desktop_browser_frame_aura_ohos.h",
-        "views/frame/browser_desktop_window_tree_host_ohos.cc",
-        "views/frame/browser_desktop_window_tree_host_ohos.h",
+        "//arkweb/chromium_ext/chrome/browser/ui/views/chrome_views_delegate_ohos.cc",
+        "//arkweb/chromium_ext/chrome/browser/ui/views/frame/desktop_browser_frame_aura_ohos.cc",
+        "//arkweb/chromium_ext/chrome/browser/ui/views/frame/desktop_browser_frame_aura_ohos.h",
+        "//arkweb/chromium_ext/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_ohos.cc",
+        "//arkweb/chromium_ext/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_ohos.h",
         "webui/help/version_updater_basic.cc",
         "webui/help/version_updater_basic.h",
-        "views/status_icons/status_tray_ohos.cc",
-        "webui/settings/settings_utils_ohos.cc",
+        "//arkweb/chromium_ext/chrome/browser/ui/views/status_icons/status_tray_ohos.cc",
+        "webui/settings/settings_utils_linux.cc",
       ]
       deps += [ 
         "//ohos/adapter:adapter",
@@ -5248,8 +5248,8 @@ static_library("ui") {
 
     if (is_ohos) {
       sources += [
-        "views/chrome_browser_main_extra_parts_views_ohos.cc",
-        "views/chrome_browser_main_extra_parts_views_ohos.h",
+        "//arkweb/chromium_ext/chrome/browser/ui/views/chrome_browser_main_extra_parts_views_ohos.cc",
+        "//arkweb/chromium_ext/chrome/browser/ui/views/chrome_browser_main_extra_parts_views_ohos.h",
       ]
     }
 
@@ -5689,26 +5689,6 @@ static_library("ui") {
       "webui/certificate_manager_localized_strings_provider.h",
       "webui/certificates_handler.cc",
       "webui/certificates_handler.h",
-    ]
-
-    if (use_aura) {
-      sources += [
-        "views/crypto_module_password_dialog_view.cc",
-        "views/crypto_module_password_dialog_view.h",
-      ]
-    }
-  }
-
-  if (is_ohos) {
-    sources += [
-      "webui/certificate_manager_localized_strings_provider.cc",
-      "webui/certificate_manager_localized_strings_provider.h",
-      "webui/certificates_handler.cc",
-      "webui/certificates_handler.h",
-    ]
-
-    deps += [
-      "//ohos/adapter:adapter"
     ]
 
     if (use_aura) {

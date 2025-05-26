@@ -53,11 +53,7 @@
 #include "url/origin.h"
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "base/command_line.h"
 #include "base/logging.h"
-#include "content/public/common/content_switches.h"
-#include "ohos_nweb/src/capi/web_extension_tab_items.h"
-#include "ohos_cef_ext/libcef/browser/extensions/tab_extensions_util.h"
 #include "ohos_nweb/src/cef_delegate/nweb_extension_action_cef_delegate.h"
 #endif
 
@@ -286,12 +282,28 @@ void ExtensionActionFunction::SetVisible(bool visible) {
 ExtensionFunction::ResponseAction
 ExtensionActionShowFunction::RunExtensionAction() {
   SetVisible(true);
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  std::optional<int> tab_id;
+  if (tab_id_ != ExtensionAction::kDefaultTabId) {
+    tab_id = tab_id_;
+  }
+  LOG(INFO) << "ExtensionActionShowFunction::RunExtensionAction";
+  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnEnable(extension()->id(), tab_id);
+#endif // ARKWEB_ARKWEB_EXTENSIONS
   return RespondNow(NoArguments());
 }
 
 ExtensionFunction::ResponseAction
 ExtensionActionHideFunction::RunExtensionAction() {
   SetVisible(false);
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  std::optional<int> tab_id;
+  if (tab_id_ != ExtensionAction::kDefaultTabId) {
+    tab_id = tab_id_;
+  }
+  LOG(INFO) << "ExtensionActionHideFunction::RunExtensionAction";
+  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnDisable(extension()->id(), tab_id);
+#endif // ARKWEB_ARKWEB_EXTENSIONS
   return RespondNow(NoArguments());
 }
 

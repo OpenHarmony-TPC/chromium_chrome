@@ -112,19 +112,16 @@ export function getHtml(this: ItemElement) {
           <!--Note: We wrap inspect-views in a div so that the outer div
               doesn't shrink (because it's not display: flex).-->
           <div>
-            <div id="inspect-views" class="cr-secondary-text">
+            <div id="inspect-views" class="cr-secondary-text" hidden = true>
               <span aria-describedby="a11yAssociation">
                 $i18n{itemInspectViews}
               </span>
-              <a class="clippable-flex-text" is="action-link"
-                  title="${this.computeFirstInspectTitle_()}"
-                  @click="${this.onInspectClick_}">
+              <span aria-describedby="a11yAssociation">
                 ${this.computeFirstInspectLabel_()}
-              </a>
-              <a is="action-link" ?hidden="${this.computeExtraViewsHidden_()}"
-                  @click="${this.onExtraInspectClick_}">
+              </span>
+              <span aria-describedby="a11yAssociation" ?hidden="${this.computeExtraViewsHidden_()}">
                 &nbsp;${this.computeExtraInspectLabel_()}
-              </a>
+              </span>
             </div>
           </div>` : ''}` : ''}
     </div>

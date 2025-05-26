@@ -845,12 +845,6 @@ class TabDragController : public views::WidgetObserver,
   std::unique_ptr<ui::PresentationTimeRecorder> presentation_time_recorder_;
 
   base::WeakPtrFactory<TabDragController> weak_factory_{this};
-#if BUILDFLAG(IS_OHOS)
-  gfx::Rect drag_window_bounds_;
-  // When you drag a tab across a window, the tab is sucked into the
-  // corresponding tab bar and the mouse simulation lift to end the dragging.
-  void EndAcrossWindowTabDrag();
-#endif
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_TAB_DRAG_CONTROLLER_H_

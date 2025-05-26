@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "arkweb/build/features/features.h"
+#include "arkweb/ohos_nweb_ex/build/features/features.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/debug/crash_logging.h"
@@ -185,10 +186,6 @@
 #include "url/origin.h"
 #include "v8/include/v8-isolate.h"
 
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/renderer/sandbox_status_extension_android.h"
 #include "chrome/renderer/wallet/boarding_pass_extractor.h"
@@ -276,7 +273,8 @@
 #endif  // BUILDFLAG(HAS_SPELLCHECK_PANEL)
 #endif  // BUILDFLAG(ENABLE_SPELLCHECK)
 
-#if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_ANDROID) || BUILDFLAG(ARKWEB_ENABLE_CDM)
 #include "chrome/renderer/media/chrome_key_systems.h"
 #endif
 
@@ -317,6 +315,10 @@ using SecureContextRequired = autofill::AutofillAgent::SecureContextRequired;
 using UserGestureRequired = autofill::AutofillAgent::UserGestureRequired;
 using UsesKeyboardAccessoryForSuggestions =
     autofill::AutofillAgent::UsesKeyboardAccessoryForSuggestions;
+#if BUILDFLAG(ARKWEB_AUTOFILL)
+using autofill::AutofillAgentExt;
+using autofill::PasswordAutofillAgentExt;
+#endif
 
 namespace {
 
@@ -631,29 +633,6 @@ void ChromeContentRendererClient::ExposeInterfacesToBrowser(
 
 void ChromeContentRendererClient::RenderFrameCreated(
     content::RenderFrame* render_frame) {
-  // Owned by |render_frame|.
-  page_load_metrics::MetricsRenderFrameObserver* metrics_render_frame_observer =
-      new page_load_metrics::MetricsRenderFrameObserver(render_frame);
-  // There is no render thread, thus no UnverifiedRulesetDealer in
-  // ChromeRenderViewTests.
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  if (subresource_filter_ruleset_dealer_) {
-    auto* subresource_filter_agent =
-        new subresource_filter::SubresourceFilterAgent(
-            render_frame, subresource_filter_ruleset_dealer_.get());
-    subresource_filter_agent->Initialize();
-  }
-
-  page_load_metrics::MetricsRenderFrameObserver*
-      user_metrics_render_frame_observer =
-          new page_load_metrics::MetricsRenderFrameObserver(render_frame);
-  if (subresource_filter_user_ruleset_dealer_) {
-    auto* user_subresource_filter_agent =
-        new subresource_filter::UserSubresourceFilterAgent(
-            render_frame, subresource_filter_user_ruleset_dealer_.get());
-    user_subresource_filter_agent->Initialize();
-  }
-#endif
   ChromeRenderFrameObserver* render_frame_observer =
       new ChromeRenderFrameObserver(render_frame, web_cache_impl_.get());
   service_manager::BinderRegistry* registry = render_frame_observer->registry();
@@ -670,7 +649,11 @@ void ChromeContentRendererClient::RenderFrameCreated(
       extensions::ExtensionsRendererClient::Get()->dispatcher());
 #endif
   content_settings::ContentSettingsAgentImpl* content_settings =
+#if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
+      new content_settings::ArkWebContentSettingsAgentImplExt(
+#else
       new content_settings::ContentSettingsAgentImpl(
+#endif
           render_frame, std::move(content_settings_delegate));
   if (chrome_observer_.get()) {
     if (chrome_observer_->content_settings_manager()) {
@@ -682,12 +665,8 @@ void ChromeContentRendererClient::RenderFrameCreated(
   }
 
 #if BUILDFLAG(ARKWEB_NETWORK_BASE) && BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kEnableNwebEx) &&
-      chrome_observer_.get() && content_settings) {
-    content_settings->SetContentSettingRules(
-        chrome_observer_->content_setting_rules());
-  }
+  AsArkWebChromeContentRendererClientExt()->RenderFrameCreatedContentSettings(
+      content_settings, this);
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -774,11 +753,19 @@ void ChromeContentRendererClient::RenderFrameCreated(
 
   if (!render_frame->IsInFencedFrameTree() ||
       base::FeatureList::IsEnabled(blink::features::kFencedFramesAPIChanges)) {
+#if BUILDFLAG(ARKWEB_PASSWORD_AUTOFILL)
+    auto password_autofill_agent = std::make_unique<PasswordAutofillAgentExt>(
+#else
     auto password_autofill_agent = std::make_unique<PasswordAutofillAgent>(
+#endif  // ARKWEB_PASSWORD_AUTOFILL
         render_frame, associated_interfaces);
     auto password_generation_agent = std::make_unique<PasswordGenerationAgent>(
         render_frame, password_autofill_agent.get(), associated_interfaces);
+#if BUILDFLAG(ARKWEB_AUTOFILL)
+    new AutofillAgentExt(
+#else
     new AutofillAgent(
+#endif
         render_frame,
         {ExtractAllDatalists(false), FocusRequiresScroll(true),
          QueryPasswordSuggestions(false), SecureContextRequired(false),
@@ -808,6 +795,35 @@ void ChromeContentRendererClient::RenderFrameCreated(
           base::BindRepeating(
               &extensions::MimeHandlerViewContainerManager::BindReceiver,
               base::Unretained(render_frame)));
+#endif
+
+  // Owned by |render_frame|.
+  new page_load_metrics::MetricsRenderFrameObserver(render_frame);
+  // There is no render thread, thus no UnverifiedRulesetDealer in
+  // ChromeRenderViewTests.
+  if (subresource_filter_ruleset_dealer_) {
+    auto* subresource_filter_agent =
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+        new subresource_filter::ArkWebSubresourceFilterAgentExt(
+#else
+        new subresource_filter::SubresourceFilterAgent(
+#endif
+            render_frame, subresource_filter_ruleset_dealer_.get());
+    subresource_filter_agent->Initialize();
+  }
+
+  if (fingerprinting_protection_filter::features::
+          IsFingerprintingProtectionFeatureEnabled() &&
+      fingerprinting_protection_ruleset_dealer_) {
+    auto* fingerprinting_protection_renderer_agent =
+        new fingerprinting_protection_filter::RendererAgent(
+            render_frame, fingerprinting_protection_ruleset_dealer_.get());
+    fingerprinting_protection_renderer_agent->Initialize();
+  }
+
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+  AsArkWebChromeContentRendererClientExt()
+      ->RenderFrameCreateSubresourceFilterAgent(render_frame, this);
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1690,7 +1706,8 @@ std::unique_ptr<media::KeySystemSupportRegistration>
 ChromeContentRendererClient::GetSupportedKeySystems(
     content::RenderFrame* render_frame,
     media::GetSupportedKeySystemsCB cb) {
-#if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_ANDROID) || BUILDFLAG(ARKWEB_ENABLE_CDM)
   return GetChromeKeySystems(render_frame, std::move(cb));
 #else
   std::move(cb).Run({});
@@ -1740,18 +1757,8 @@ bool ChromeContentRendererClient::IsPluginAllowedToUseCameraDeviceAPI(
 void ChromeContentRendererClient::RunScriptsAtDocumentStart(
     content::RenderFrame* render_frame) {
 #if BUILDFLAG(ARKWEB_ADBLOCK)
-  auto routing_id = render_frame->GetRoutingID();
-  render_frame->GetTaskRunner(blink::TaskType::kDOMManipulation)
-      ->PostTask(FROM_HERE,
-                 base::BindOnce(
-                     &ChromeContentRendererClient::TriggerElementHidingInFrame,
-                     base::Unretained(this), routing_id));
-  render_frame->GetTaskRunner(blink::TaskType::kDOMManipulation)
-      ->PostTask(
-          FROM_HERE,
-          base::BindOnce(
-              &ChromeContentRendererClient::TriggerUserElementHidingInFrame,
-              base::Unretained(this), routing_id));
+  AsArkWebChromeContentRendererClientExt()
+      ->RenderFrameCreateSubresourceFilterAgentTriggerHide(render_frame);
 #endif
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   extensions::ExtensionsRendererClient::Get()->RunScriptsAtDocumentStart(
@@ -1986,186 +1993,3 @@ std::unique_ptr<blink::WebLinkPreviewTriggerer>
 ChromeContentRendererClient::CreateLinkPreviewTriggerer() {
   return ::CreateWebLinkPreviewTriggerer();
 }
-
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-bool ChromeContentRendererClient::GetAdBlockEnabledByFrame(
-    content::RenderFrame* render_frame) {
-  if (!render_frame) {
-    return false;
-  }
-  // check global switch
-  if (!render_frame->GetGlobalAdblockEnabled()) {
-    return false;
-  }
-  if (render_frame->IsMainFrame()) {
-    blink::WebLocalFrame* main_web_frame = render_frame->GetWebFrame();
-    if (main_web_frame) {
-      return main_web_frame->GetAdBlockEnabled();
-    }
-  }
-
-  // Subframe should get adblock switch from MainFrame
-  auto* main_render_frame = render_frame->GetMainRenderFrame();
-  if (main_render_frame) {
-    blink::WebLocalFrame* main_web_frame = main_render_frame->GetWebFrame();
-    if (!main_web_frame) {
-      return false;
-    }
-    return main_web_frame->GetAdBlockEnabled();
-  }
-  return false;
-}
-
-void ChromeContentRendererClient::TriggerElementHidingInFrame(int routing_id) {
-  // |render_frame| might be dead by now.
-  auto* render_frame = content::RenderFrame::FromRoutingID(routing_id);
-  if (!render_frame) {
-    LOG(ERROR) << "[AdBlock] TriggerElementHidingInFrame render_frame null";
-#ifdef OHOS_LOGGER_REPORT
-    LOG_FEEDBACK(ERROR)
-        << "[AdBlock] TriggerElementHidingInFrame render_frame null";
-#endif
-    return;
-  }
-
-  blink::WebLocalFrame* web_frame = render_frame->GetWebFrame();
-  if (!web_frame) {
-    LOG(ERROR) << "[AdBlock] TriggerElementHidingInFrame web_frame null";
-#ifdef OHOS_LOGGER_REPORT
-    LOG_FEEDBACK(ERROR)
-        << "[AdBlock] TriggerElementHidingInFrame web_frame null";
-#endif
-    return;
-  }
-
-  blink::WebDocumentSubresourceFilter* filter =
-      web_frame->GetDocumentLoader()->GetWebSubresourceFilter();
-  if (!filter) {
-    LOG(DEBUG) << "[AdBlock] TriggerElementHidingInFrame filter null";
-    return;
-  }
-
-  if (!GetAdBlockEnabledByFrame(render_frame)) {
-    LOG(DEBUG) << "[AdBlock] AdBlock disabled";
-    return;
-  }
-
-  blink::WebDocument document = web_frame->GetDocument();
-  if (!document.Url().ProtocolIs("https") &&
-      !document.Url().ProtocolIs("http")) {
-    LOG(ERROR) << "[AdBlock] TriggerElementHidingInFrame scheme error";
-#ifdef OHOS_LOGGER_REPORT
-    LOG_FEEDBACK(ERROR) << "[AdBlock] TriggerElementHidingInFrame scheme error";
-#endif
-    return;
-  }
-  if (web_frame->GetHasDocumentTypeOption()) {
-    LOG(WARNING) << "[AdBlock] Match $document for " << "***";
-#ifdef OHOS_LOGGER_REPORT
-    LOG_FEEDBACK(WARNING) << "[AdBlock] Match $document for "
-                          << url::LogUtils::ConvertUrlWithMask(
-                                 document.Url().GetString().Utf8());
-#endif
-    return;
-  }
-  if (web_frame->GetHasElemHideTypeOption()) {
-    LOG(WARNING) << "[AdBlock] Match selemhide for " << "***";
-#ifdef OHOS_LOGGER_REPORT
-    LOG_FEEDBACK(WARNING) << "[AdBlock] Match $elemhide for "
-                          << url::LogUtils::ConvertUrlWithMask(
-                                 document.Url().GetString().Utf8());
-#endif
-    return;
-  }
-  bool has_generichide = web_frame->GetHasGenericHideTypeOption();
-  if (has_generichide) {
-    LOG(WARNING) << "[AdBlock] Match sgenerichide for " << "***";
-#ifdef OHOS_LOGGER_REPORT
-    LOG_FEEDBACK(WARNING) << "[AdBlock] Match $generichide for "
-                          << url::LogUtils::ConvertUrlWithMask(
-                                 document.Url().GetString().Utf8());
-#endif
-  }
-
-  base::TimeTicks start = base::TimeTicks::Now();
-  std::unique_ptr<std::string> selectors;
-  selectors =
-      filter->GetElementHidingSelectors(document.Url(), !has_generichide);
-
-  if (!selectors->empty()) {
-    document.InsertStyleSheet(blink::WebString::FromUTF8(*selectors), nullptr,
-                              blink::WebCssOrigin::kAuthor,
-                              blink::BackForwardCacheAware::kAllow,
-                              blink::WebDocument::StyleSheetType::kAdBlock);
-    base::TimeDelta duration = base::TimeTicks::Now() - start;
-    LOG(WARNING) << "[AdBlock] Element hiding for " << "***" << "assumming "
-                 << duration.InMicroseconds() << "microseconds";
-#ifdef OHOS_LOGGER_REPORT
-    LOG_FEEDBACK(WARNING) << "[AdBlock] Element hiding for "
-                          << url::LogUtils::ConvertUrlWithMask(
-                                 document.Url().GetString().Utf8())
-                          << "assumming " << duration.InMicroseconds()
-                          << "microseconds";
-#endif
-    return;
-  }
-
-  selectors.reset();
-}
-
-void ChromeContentRendererClient::TriggerUserElementHidingInFrame(
-    int routing_id) {
-  // |render_frame| might be dead by now.
-  auto* render_frame = content::RenderFrame::FromRoutingID(routing_id);
-  if (!render_frame) {
-    LOG(ERROR) << "[AdBlock] TriggerUserElementHidingInFrame render_frame null";
-
-#ifdef OHOS_LOGGER_REPORT
-    LOG_FEEDBACK(ERROR)
-        << "[AdBlock] TriggerUserElementHidingInFrame render_frame null";
-#endif
-
-    return;
-  }
-
-  blink::WebLocalFrame* web_frame = render_frame->GetWebFrame();
-  if (!web_frame) {
-    return;
-  }
-
-  blink::WebDocument document = web_frame->GetDocument();
-  if (!document.Url().ProtocolIs("https") &&
-      !document.Url().ProtocolIs("http")) {
-    return;
-  }
-  blink::WebDocumentSubresourceFilter* filter =
-      web_frame->GetDocumentLoader()->GetWebUserSubresourceFilter();
-  if (!filter) {
-    return;
-  }
-  base::TimeTicks start = base::TimeTicks::Now();
-  std::unique_ptr<std::string> selectors;
-  selectors = filter->GetElementHidingSelectors(document.Url(), true);
-  if (!selectors->empty()) {
-    document.InsertStyleSheet(blink::WebString::FromUTF8(*selectors), nullptr,
-                              blink::WebCssOrigin::kAuthor,
-                              blink::BackForwardCacheAware::kAllow,
-                              blink::WebDocument::StyleSheetType::kUserAdBlock);
-    base::TimeDelta duration = base::TimeTicks::Now() - start;
-    LOG(WARNING) << "[User AdBlock] Element hiding for " << "***"
-                 << " assumming " << duration.InMicroseconds()
-                 << " microseconds";
-
-#ifdef OHOS_LOGGER_REPORT
-    LOG_FEEDBACK(WARNING) << "[User AdBlock] Element hiding for "
-                          << url::LogUtils::ConvertUrlWithMask(
-                                 document.Url().GetString().Utf8())
-                          << " assumming " << duration.InMicroseconds()
-                          << " microseconds";
-#endif
-
-    return;
-  }
-  selectors.reset();
-}
-#endif

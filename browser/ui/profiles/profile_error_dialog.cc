@@ -66,10 +66,11 @@ void ShowProfileErrorDialog(ProfileErrorType type,
       l10n_util::GetStringUTF16(IDS_PROFILE_ERROR_DIALOG_CHECKBOX),
       base::BindOnce(&OnProfileErrorDialogDismissed, diagnostics));
 #else   // BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  // TODO(arkweb): fix crash temporarily.
-  // chrome::ShowWarningMessageBox(
-  //     nullptr, l10n_util::GetStringUTF16(IDS_PROFILE_ERROR_DIALOG_TITLE),
-  //     l10n_util::GetStringUTF16(message_id));
+#if !BUILDFLAG(IS_ARKWEB)
+  chrome::ShowWarningMessageBox(
+    nullptr, l10n_util::GetStringUTF16(IDS_PROFILE_ERROR_DIALOG_TITLE),
+    l10n_util::GetStringUTF16(message_id));
+#endif
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 #endif  // BUILDFLAG(IS_ANDROID)

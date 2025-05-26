@@ -417,8 +417,7 @@ PasswordsPrivateDelegateImpl::~PasswordsPrivateDelegateImpl() {
   device_authenticator_.reset();
 }
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 std::unique_ptr<device_reauth::DeviceAuthenticator>
 PasswordsPrivateDelegateImpl::GetDeviceAuthenticator(
     content::WebContents* web_contents,
@@ -1287,8 +1286,7 @@ void PasswordsPrivateDelegateImpl::AuthenticateUser(
   auto callback = password_manager::metrics_util::TimeCallbackMediumTimes(
       std::move(auth_callback), "PasswordManager.Settings.AuthenticationTime2");
 
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_CHROMEOS) && \
-    !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_CHROMEOS)
   std::move(callback).Run(true);
 #else
   CHECK(web_contents);

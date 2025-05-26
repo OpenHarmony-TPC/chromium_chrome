@@ -16,8 +16,8 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/common/mojom/context_type.mojom.h"
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "ohos_cef_ext/libcef/browser/extensions/tab_extensions_util.h"
+#if BUILDFLAG(IS_ARKWEB)
+#include "arkweb/chromium_ext/chrome/browser/extensions/extension_action_dispatcher_ext.cc"
 #endif
 namespace extensions {
 
@@ -99,25 +99,6 @@ void ExtensionActionDispatcher::DispatchExtensionActionClicked(
                              event_name, std::move(args));
   }
 }
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-void ExtensionActionDispatcher::DispatchExtensionActionClickedWithCustomArgs(
-    content::WebContents* web_contents,
-    std::string extension_id,
-    const NWebExtensionTab* custom_tab) {
-  LOG(DEBUG) << "ExtensionActionAPI "
-                "DispatchExtensionActionClickedWithCustomArgs called";
-  events::HistogramValue histogram_value = events::ACTION_ON_CLICKED;
-  const char* event_name = "action.onClicked";
-  base::Value::List args;
-
-  args.Append(GetTabValue(*custom_tab));
-
-  DispatchEventToExtension(web_contents->GetBrowserContext(),
-                            extension_id, histogram_value,
-                            event_name, std::move(args));
-}
-#endif  // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
 void ExtensionActionDispatcher::ClearAllValuesForTab(
     content::WebContents* web_contents) {

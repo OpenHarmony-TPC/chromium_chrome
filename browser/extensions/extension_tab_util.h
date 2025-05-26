@@ -337,10 +337,6 @@ class ExtensionTabUtil {
 
   static bool TabIsInSavedTabGroup(content::WebContents* contents,
                                    TabStripModel* tab_strip_model);
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  static content::WebContents* GetWebContentByTabId(int tab_id);
-#endif
 };
 
 }  // namespace extensions

@@ -43,6 +43,10 @@ namespace user_prefs {
 class PrefRegistrySyncable;
 }
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+struct NWebExtensionTab;
+#endif // ARKWEB_ARKWEB_EXTENSIONS
+
 namespace extensions {
 
 // Converts a ZoomMode to its ZoomSettings representation.
@@ -115,6 +119,12 @@ class TabsQueryFunction : public ExtensionFunction {
 class TabsCreateFunction : public ExtensionFunction {
   ~TabsCreateFunction() override {}
   ResponseAction Run() override;
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  static void OnTabCreated(const base::WeakPtr<TabsCreateFunction>& function,
+                           const NWebExtensionTab* tab);
+  bool call_create_tab_ = false;
+  base::WeakPtrFactory<TabsCreateFunction> weak_ptr_factory_{this};
+#endif // ARKWEB_ARKWEB_EXTENSIONS
   DECLARE_EXTENSION_FUNCTION("tabs.create", TABS_CREATE)
 };
 class TabsDuplicateFunction : public ExtensionFunction {

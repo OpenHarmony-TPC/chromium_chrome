@@ -132,12 +132,8 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 
-#if BUILDFLAG(IS_OHOS)
-#include "ohos/adapter/drag_drop/drag_drop_ohos_adapter.h"
-#endif
-
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "extensions/browser/extension_registry_info_manager.h"
+#include "arkweb/chromium_ext/chrome/browser/extensions/api/developer_private_api_ext.cc"
 #endif // ARKWEB_ARKWEB_EXTENSIONS
 
 namespace extensions {
@@ -1413,10 +1409,18 @@ void DeveloperPrivateLoadUnpackedFunction::StartFileLoad(
   installer->set_be_noisy_on_failure(!fail_quietly_);
   installer->set_completion_callback(base::BindOnce(
       &DeveloperPrivateLoadUnpackedFunction::OnLoadComplete, this));
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  base::FilePath real_path = base::FilePath(base::GetRealPath(file_path));
+  installer->Load(real_path);
+
+  retry_guid_ = DeveloperPrivateAPI::Get(browser_context())
+                    ->AddUnpackedPath(GetSenderWebContents(), real_path);
+#else
   installer->Load(file_path);
 
   retry_guid_ = DeveloperPrivateAPI::Get(browser_context())
                     ->AddUnpackedPath(GetSenderWebContents(), file_path);
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 void DeveloperPrivateLoadUnpackedFunction::OnLoadComplete(
@@ -1467,14 +1471,8 @@ DeveloperPrivateInstallDroppedFileFunction::Run() {
   if (!web_contents)
     return RespondNow(Error(kCouldNotFindWebContentsError));
 
-#if BUILDFLAG(IS_OHOS)
-  std::string file_name = ohos::adapter::DragDropOhosAdapter::GetInstance()
-                              .GetDraggedExtensionFileName();
-  base::FilePath path = base::FilePath(file_name);
-#else
   DeveloperPrivateAPI* api = DeveloperPrivateAPI::Get(browser_context());
   base::FilePath path = api->GetDraggedPath(web_contents);
-#endif
   if (path.empty())
     return RespondNow(Error("No dragged path"));
 
@@ -2940,24 +2938,6 @@ void DeveloperPrivateDismissMv2DeprecationNoticeForExtensionFunction::
 
   Respond(NoArguments());
 }
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-DeveloperPrivateOpenUrlFunction::
-    DeveloperPrivateOpenUrlFunction() = default;
-
-DeveloperPrivateOpenUrlFunction::
-    ~DeveloperPrivateOpenUrlFunction() = default;
-
-ExtensionFunction::ResponseAction
-DeveloperPrivateOpenUrlFunction::Run() {
-  std::optional<developer::OpenUrl::Params> params =
-      api::developer_private::OpenUrl::Params::Create(args());
-  EXTENSION_FUNCTION_VALIDATE(params);
-
-  ExtensionRegistryInfoManager::OnExtensionOpenUrlCallBack(params->url);
-  return RespondNow(NoArguments());
-}
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 }  // namespace api
 

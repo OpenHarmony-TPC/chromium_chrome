@@ -15,10 +15,6 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 
-#if BUILDFLAG(IS_OHOS)
-#include "ohos/adapter/device_info/device_info.h"
-#endif
-
 namespace settings {
 
 SystemHandler::SystemHandler() {}
@@ -29,15 +25,6 @@ SystemHandler::~SystemHandler() {}
 void SystemHandler::AddLoadTimeData(content::WebUIDataSource* data_source) {
   data_source->AddBoolean("hardwareAccelerationEnabledAtStartup",
       g_browser_process->gpu_mode_manager()->initial_gpu_mode_pref());
-#if BUILDFLAG(IS_OHOS)
-  std::string deviceType = ohos::adapter::device_info::DeviceInfo::Get(
-      ohos::adapter::device_info::kDeviceType);
-  if (deviceType == "tablet") {
-    data_source->AddBoolean("systemPageVisibility", false);
-  } else {
-    data_source->AddBoolean("systemPageVisibility", true);
-  }
-#endif
 }
 
 void SystemHandler::RegisterMessages() {

@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 
+#include "arkweb/ohos_nweb_ex/build/features/features.h"
 #include "ash/constants/ash_constants.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
@@ -249,6 +250,10 @@
 #if BUILDFLAG(ENABLE_PDF)
 #include "chrome/browser/pdf/pdf_pref_names.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
+
+#if BUILDFLAG(IS_ARKWEB) && BUILDFLAG(ARKWEB_ENABLE_CDM)
+#include "components/cdm/browser/media_drm_storage_impl.h"
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/accessibility/accessibility_prefs/android/accessibility_prefs_controller.h"
@@ -554,6 +559,12 @@
 
 #if BUILDFLAG(ARKWEB_ADBLOCK)
 #include "components/subresource_filter/core/browser/user_ruleset_version.h"
+#endif
+
+#if BUILDFLAG(ARKWEB_EXT_UA)
+#include "base/command_line.h"
+#include "content/public/common/content_switches.h"
+#include "ohos_nweb_ex/overrides/cef/libcef/browser/alloy/alloy_browser_ua_config.h"
 #endif
 
 namespace {
@@ -1923,6 +1934,10 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   // Always call this last.
   browser_prefs::RegisterLocalStatePrefs(registry);
 #endif
+
+#if BUILDFLAG(ARKWEB_EXT_PASSWORD)
+  browser_prefs::RegisterMigratePasswordsPrefs(registry);
+#endif
 }
 
 // Register prefs applicable to all profiles.
@@ -2027,6 +2042,13 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   translate::TranslatePrefs::RegisterProfilePrefs(registry);
   omnibox::RegisterProfilePrefs(registry);
   ZeroSuggestProvider::RegisterProfilePrefs(registry);
+#if BUILDFLAG(ARKWEB_EXT_UA)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableNwebExUa)) {
+    nweb_ex::AlloyBrowserUAConfig::RegisterProfilePrefs(registry);
+    registry->RegisterDictionaryPref(nweb_ex::kUACloudConfigInfo);
+  }
+#endif
 
 #if BUILDFLAG(ENABLE_SESSION_SERVICE)
   RegisterSessionServiceLogProfilePrefs(registry);
@@ -2068,6 +2090,11 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
 
 #if BUILDFLAG(ENABLE_RLZ)
   ChromeRLZTrackerDelegate::RegisterProfilePrefs(registry);
+#endif
+
+#if BUILDFLAG(IS_ARKWEB) && BUILDFLAG(ARKWEB_ENABLE_CDM)
+  LOG(INFO) << "[DRM]" << __func__;
+  cdm::MediaDrmStorageImpl::RegisterProfilePrefs(registry);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)

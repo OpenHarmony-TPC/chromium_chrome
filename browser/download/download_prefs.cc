@@ -60,19 +60,10 @@
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #endif
 
-#if BUILDFLAG(IS_OHOS)
-#include "ohos/adapter/context_path/context_path_adapter.h"
-#include "ohos/adapter/permission_manager/permission_manager_adapter.h"
-#endif
-
 using content::BrowserContext;
 using content::BrowserThread;
 using content::DownloadManager;
 using safe_browsing::FileTypePolicies;
-
-#if BUILDFLAG(IS_OHOS)
-namespace ohos_permission = ohos::adapter::permission;
-#endif
 
 namespace {
 
@@ -221,13 +212,6 @@ DownloadPrefs::DownloadPrefs(Profile* profile) : profile_(profile) {
       static_cast<DownloadPromptStatus>(*prompt_for_download_android_));
   auto_open_pdf_enabled_.Init(prefs::kAutoOpenPdfEnabled, prefs);
 #endif
-#if BUILDFLAG(IS_OHOS)
-  prompt_for_download_ohos_.Init(prefs::kPromptForDownloadOhos, prefs);
-  prompt_for_download_ohos_confirmed_.Init(
-      prefs::kDownloadDefaultDirectoryOhosConfirmed, prefs);
-  download_path_ohos_ =
-      prefs->GetFilePath(prefs::kDownloadDefaultDirectoryOhos);
-#endif
   download_path_.Init(prefs::kDownloadDefaultDirectory, prefs);
   save_file_path_.Init(prefs::kSaveFileDefaultDirectory, prefs);
   save_file_type_.Init(prefs::kSaveFileType, prefs);
@@ -301,13 +285,8 @@ void DownloadPrefs::RegisterProfilePrefs(
   registry->RegisterListPref(prefs::kDownloadExtensionsToOpenByPolicy, {});
   registry->RegisterListPref(prefs::kDownloadAllowedURLsForOpenByPolicy, {});
   registry->RegisterBooleanPref(prefs::kDownloadDirUpgraded, false);
-#if BUILDFLAG(IS_OHOS)
-  registry->RegisterIntegerPref(prefs::kSaveFileType,
-                                content::SAVE_PAGE_TYPE_AS_MHTML);
-#else
   registry->RegisterIntegerPref(prefs::kSaveFileType,
                                 content::SAVE_PAGE_TYPE_AS_COMPLETE_HTML);
-#endif
   registry->RegisterIntegerPref(policy::policy_prefs::kDownloadRestrictions, 0);
   // The following two prefs are ignored on ChromeOS Lacros if SysUI integration
   // is enabled.
@@ -322,15 +301,6 @@ void DownloadPrefs::RegisterProfilePrefs(
   const base::FilePath& default_download_path = GetDefaultDownloadDirectory();
   registry->RegisterFilePathPref(prefs::kDownloadDefaultDirectory,
                                  default_download_path);
-#if BUILDFLAG(IS_OHOS)
-  registry->RegisterBooleanPref(
-      prefs::kPromptForDownloadOhos, false,
-      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
-  registry->RegisterFilePathPref(prefs::kDownloadDefaultDirectoryOhos,
-                                 default_download_path);
-  registry->RegisterBooleanPref(prefs::kDownloadDefaultDirectoryOhosConfirmed,
-                                false);
-#endif
   registry->RegisterFilePathPref(prefs::kSaveFileDefaultDirectory,
                                  default_download_path);
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
@@ -366,41 +336,6 @@ const base::FilePath& DownloadPrefs::GetDefaultDownloadDirectory() {
   return GetDefaultDownloadDirectorySingleton().path();
 }
 
-#if BUILDFLAG(IS_OHOS)
-bool DownloadPrefs::IsShouldCancel() {
-  return is_should_cancel_;
-}
-void DownloadPrefs::ResetDownloadPath() {
-  is_should_cancel_ = false;
-  PrefService* prefs = profile_->GetPrefs();
-  if (prefs->FindPreference(prefs::kDownloadDefaultDirectory)
-          ->IsUserControlled()) {
-    prompt_for_download_ohos_.SetValue(false);
-    download_path_ohos_ = prefs->GetFilePath(prefs::kDownloadDefaultDirectory);
-    return;
-  }
-  if (ohos_permission::PermissionManagerAdapter::RequestPermission(
-          ohos_permission::OHOSPermissionType::USER_DOWNLOAD_DIR)) {
-    base::FilePath path_ = base::FilePath(
-        ::ohos::adapter::ContextPathAdapter::GetUserDownloadDir());
-    download_path_ohos_ = path_;
-    prefs->SetFilePath(prefs::kDownloadDefaultDirectoryOhos, path_);
-    prompt_for_download_ohos_.SetValue(false);
-    prompt_for_download_ohos_confirmed_.SetValue(true);
-  } else {
-    if (*prompt_for_download_ohos_confirmed_) {
-      int index =
-          ohos_permission::PermissionManagerAdapter::OpenPermissionConfirm();
-      if (index == ohos_permission::CONFIRM_INDEX) {
-        is_should_cancel_ = true;
-      }
-    }
-    prompt_for_download_ohos_.SetValue(true);
-    prompt_for_download_ohos_confirmed_.SetValue(true);
-  }
-}
-#endif
-
 // static
 DownloadPrefs* DownloadPrefs::FromDownloadManager(
     DownloadManager* download_manager) {
@@ -428,22 +363,10 @@ bool DownloadPrefs::IsFromTrustedSource(const download::DownloadItem& item) {
 }
 
 base::FilePath DownloadPrefs::DownloadPath() const {
-#if BUILDFLAG(IS_OHOS)
-  PrefService* prefs = profile_->GetPrefs();
-  if (!prefs->FindPreference(prefs::kDownloadDefaultDirectory)
-           ->IsUserControlled()) {
-    return SanitizeDownloadTargetPath(download_path_ohos_);
-  }
-#endif
   return SanitizeDownloadTargetPath(*download_path_);
 }
 
 void DownloadPrefs::SetDownloadPath(const base::FilePath& path) {
-#if BUILDFLAG(IS_OHOS)
-  PrefService* prefs = profile_->GetPrefs();
-  prefs->SetFilePath(prefs::kDownloadDefaultDirectoryOhos, path);
-  download_path_ohos_ = path;
-#endif
   download_path_.SetValue(path);
   SetSaveFilePath(path);
 }
@@ -475,11 +398,6 @@ bool DownloadPrefs::PromptForDownload() const {
   // dialog shown, show the dialog.
   return *prompt_for_download_android_ !=
          static_cast<int>(DownloadPromptStatus::DONT_SHOW);
-#elif BUILDFLAG(IS_OHOS)
-  if (*prompt_for_download_) {
-    return *prompt_for_download_;
-  }
-  return *prompt_for_download_ohos_;
 #else
   return *prompt_for_download_;
 #endif
