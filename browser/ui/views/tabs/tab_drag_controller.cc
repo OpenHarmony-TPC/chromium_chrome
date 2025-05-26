@@ -105,11 +105,6 @@
 #include "ui/ozone/public/ozone_platform.h"
 #endif
 
-#if BUILDFLAG(IS_OHOS)
-#include "ui/aura/window_tree_host.h"
-#include "ui/ozone/platform/ohos/host/ohos_event_source.h"
-#endif
-
 using content::OpenURLParams;
 using content::WebContents;
 
@@ -717,9 +712,6 @@ void TabDragController::Drag(const gfx::Point& point_in_screen) {
         new_bounds.Offset(-widget->GetRestoredBounds().x() +
                               point_in_screen.x() - mouse_offset_.x(),
                           0);
-#if BUILDFLAG(IS_OHOS)
-        drag_window_bounds_ = new_bounds;
-#endif
         widget->SetVisibilityChangedAnimationsEnabled(false);
         widget->Restore();
         widget->SetBounds(new_bounds);
@@ -1735,13 +1727,6 @@ void TabDragController::RunMoveLoop(const gfx::Vector2d& drag_offset) {
     // Move the tabs into position.
     MoveAttached(point_in_screen, true);
     attached_context_->GetWidget()->Activate();
-#if BUILDFLAG(IS_OHOS)
-    // When you drag a tab across a window to the
-    // other window, the dragging operation ends
-    if (source_context_ != attached_context_) {
-      EndAcrossWindowTabDrag();
-    }
-#endif
     // Activate may trigger a focus loss, destroying us.
     if (!ref)
       return;
@@ -2093,8 +2078,7 @@ void TabDragController::CompleteDrag() {
       }
 
       // If source window was maximized - maximize the new window as well.
-#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_MAC) && \
-    !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_MAC)
       // Keeping maximized state breaks snap to Grid on Windows when dragging
       // tabs from maximized windows. TODO:(crbug.com/727051) Explore doing this
       // for other desktop OS's. kMaximizedStateRetainedOnTabDrag in
@@ -2105,8 +2089,7 @@ void TabDragController::CompleteDrag() {
       // management actions.
       if (was_source_maximized_ || was_source_fullscreen_)
         MaximizeAttachedWindow();
-#endif  // !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_MAC) && \
-        // !BUILDFLAG(IS_OHOS)
+#endif  // !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_MAC)
     }
     attached_context_->StoppedDragging();
 
@@ -2371,11 +2354,6 @@ void TabDragController::AdjustBrowserAndTabBoundsForDrag(
     views::View::ConvertPointToWidget(attached_context_,
                                       &cursor_offset_in_widget);
     gfx::Rect bounds = GetAttachedBrowserWidget()->GetWindowBoundsInScreen();
-#if BUILDFLAG(IS_OHOS)
-    if (!drag_window_bounds_.IsEmpty()) {
-      bounds = drag_window_bounds_;
-    }
-#endif
     bounds.set_x(point_in_screen.x() - cursor_offset_in_widget.x());
 
     // This function is about horizontal alignment and assumes `drag_offset`'s Y
@@ -2880,13 +2858,3 @@ void TabDragController::OnDragDropClientDestroying() {
   drag_drop_client_observation_.Reset();
 }
 #endif  // defined(USE_AURA)
-
-#if BUILDFLAG(IS_OHOS)
-void TabDragController::EndAcrossWindowTabDrag() {
-  views::Widget* widget = GetAttachedBrowserWidget();
-  aura::Window* widget_window = widget->GetNativeWindow();
-  aura::WindowTreeHost* window_tree_host = widget_window->GetHost();
-  auto* event_source = ui::PlatformEventSource::GetInstance();
-  gfx::AcceleratedWidget widget_id = window_tree_host->GetAcceleratedWidget();
-}
-#endif

@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "arkweb/ohos_nweb_ex/build/features/features.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "build/chromeos_buildflags.h"
@@ -20,10 +21,6 @@
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/renderer/chromeos_delayed_callback_group.h"

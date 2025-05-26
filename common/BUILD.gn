@@ -282,6 +282,10 @@ static_library("common_lib") {
     public_deps += [ "//components/cdm/common" ]
   }
 
+  if (is_arkweb && arkweb_enable_cdm) {
+    public_deps += [ "//components/cdm/common" ]
+  }
+
   if (enable_ppapi) {
     public_deps += [ "//ppapi/shared_impl" ]
   }
@@ -369,6 +373,11 @@ static_library("common_lib") {
       "read_anything/read_anything_constants.cc",
       "read_anything/read_anything_constants.h",
     ]
+  }
+
+  if (is_arkweb && arkweb_enable_cdm) {
+    import("//arkweb/chromium_ext/chrome/common/media/arkweb_chrome_browser_media_ohos_ext.gni")
+    sources += arkweb_chrome_common_media_ohos_sources
   }
 
   if (is_win) {
@@ -629,7 +638,7 @@ static_library("constants") {
     sources += [ "chrome_paths_linux.cc" ]
     deps += [ ":channel_info" ]
   } else if (is_ohos) {
-    sources += [ "chrome_paths_ohos.cc" ]
+    sources += [ "//arkweb/chromium_ext/chrome/common/chrome_paths_ohos.cc" ]
   }
   if (is_mac) {
     sources += [ "chrome_paths_mac.mm" ]

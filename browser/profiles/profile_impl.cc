@@ -1043,9 +1043,8 @@ Profile* ProfileImpl::GetOffTheRecordProfile(const OTRProfileID& otr_profile_id,
   otr_profiles_[otr_profile_id] = std::move(otr_profile);
 
   // With CEF we want to delay initialization.
-  if (!otr_profile_id.IsUniqueForCEF()) {
+  if (!otr_profile_id.IsUniqueForCEF())
     NotifyOffTheRecordProfileCreated(raw_otr_profile);
-  }
 
   return raw_otr_profile;
 }
@@ -1249,7 +1248,8 @@ bool ProfileImpl::ShouldRestoreOldSessionCookies() {
 #if BUILDFLAG(IS_ANDROID)
   SessionStartupPref startup_pref(SessionStartupPref::GetDefaultStartupType());
   return startup_pref.ShouldRestoreLastSession();
-#elif BUILDFLAG(IS_ARKWEB)
+#else
+#if BUILDFLAG(ARKWEB_PERMISSION)
   return !IsOffTheRecord();
 #else
   SessionStartupPref startup_pref =
@@ -1257,6 +1257,7 @@ bool ProfileImpl::ShouldRestoreOldSessionCookies() {
           *base::CommandLine::ForCurrentProcess(), this);
   return ExitTypeService::GetLastSessionExitType(this) == ExitType::kCrashed ||
          startup_pref.ShouldRestoreLastSession();
+#endif
 #endif
 }
 

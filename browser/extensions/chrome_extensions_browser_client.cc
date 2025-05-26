@@ -125,9 +125,6 @@
 #include "extensions/browser/updater/null_extension_cache.h"
 #endif
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "ohos_cef_ext/libcef/browser/extensions/extensions_browser_api_provider.h"
-#endif
 namespace extensions {
 
 namespace {
@@ -214,11 +211,7 @@ bool RegisterTransformers() {
 ChromeExtensionsBrowserClient::ChromeExtensionsBrowserClient()
     : event_router_forwarder_(base::MakeRefCounted<EventRouterForwarder>()) {
   AddAPIProvider(std::make_unique<CoreExtensionsBrowserAPIProvider>());
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  AddAPIProvider(std::make_unique<CefExtensionsBrowserAPIProvider>());
-#else
   AddAPIProvider(std::make_unique<ChromeExtensionsBrowserAPIProvider>());
-#endif // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   // This ensures transformers are only registered once. This is required
   // because testing will create the singleton ChromeExtensionsBrowserClient
   // instance multiple times within the same process.

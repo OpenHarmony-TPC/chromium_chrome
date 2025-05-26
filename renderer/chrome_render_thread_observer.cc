@@ -56,10 +56,6 @@
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
 
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
-
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/renderer/ash_merge_session_loader_throttle.h"
 #endif
@@ -252,14 +248,4 @@ void ChromeRenderThreadObserver::
   identifiability_study_configurator_receivers_.Add(this, std::move(receiver));
 }
 
-#if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-void ChromeRenderThreadObserver::SetContentSettingRules(
-    const RendererContentSettingRules& rules) {
-  content_setting_rules_ = rules;
-}
-
-const RendererContentSettingRules*
-ChromeRenderThreadObserver::content_setting_rules() const {
-  return &content_setting_rules_;
-}
-#endif  // BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
+#include "arkweb/chromium_ext/chrome/renderer/chrome_render_thread_observer_for_include.cc"

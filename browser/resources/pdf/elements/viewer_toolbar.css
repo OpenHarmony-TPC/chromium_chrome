@@ -98,14 +98,14 @@
 @media(max-width: 600px) {
   #title,
   #zoom-controls input {
-    display: none;
+    display: inline-table;
   }
 }
 
 @media(max-width: 500px) {
   #start,
   #fit {
-    display: none;
+    display: flex;
   }
 }
 
@@ -230,4 +230,18 @@ cr-progress,
 cr-action-menu hr {
   border: none;
   border-top: var(--cr-separator-line);
+}
+
+/* arkweb_pdf display print button none */
+@media(max-width: 500px) {
+  #print {
+    display: none;
+  }
+}
+
+/* arkweb_pdf display more button none */
+@media(max-width: 500px) {
+  #more {
+    display: none;
+  }
 }

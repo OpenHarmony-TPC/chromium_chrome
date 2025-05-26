@@ -1131,7 +1131,7 @@ void BrowserView::ToggleCompactModeUI() {
 
 BrowserView::~BrowserView() {
   if (browser_) {
-    browser_->GetFeatures().TearDownPreBrowserViewDestruction();
+  browser_->GetFeatures().TearDownPreBrowserViewDestruction();
   }
 
   // Destroy the top controls slide controller first as it depends on the
@@ -1141,7 +1141,7 @@ BrowserView::~BrowserView() {
   // All the tabs should have been destroyed already. If we were closed by the
   // OS with some tabs than the NativeBrowserFrame should have destroyed them.
   if (browser_) {
-    DCHECK_EQ(0, browser_->tab_strip_model()->count());
+  DCHECK_EQ(0, browser_->tab_strip_model()->count());
   }
 
   // Stop the animation timer explicitly here to avoid running it in a nested
@@ -1156,12 +1156,12 @@ BrowserView::~BrowserView() {
   WillDestroyToolbar();
 
   if (browser_) {
-    auto* global_registry =
-        extensions::ExtensionCommandsGlobalRegistry::Get(browser_->profile());
-    if (global_registry->registry_for_active_window() ==
-        extension_keybinding_registry_.get()) {
-      global_registry->set_registry_for_active_window(nullptr);
-    }
+  auto* global_registry =
+      extensions::ExtensionCommandsGlobalRegistry::Get(browser_->profile());
+  if (global_registry->registry_for_active_window() ==
+      extension_keybinding_registry_.get()) {
+    global_registry->set_registry_for_active_window(nullptr);
+  }
   }
 
   // These are raw pointers to child views, so they need to be set to null
@@ -2166,13 +2166,12 @@ bool BrowserView::ShouldHideUIForFullscreen() const {
   // Immersive mode needs UI for the slide-down top panel.
   // Avoid callback into |immersive_mode_controller_| during construction.
   // See CEF issue #3527.
-  if (immersive_mode_controller_ && immersive_mode_controller_->IsEnabled()) {
+  if (immersive_mode_controller_ &&
+      immersive_mode_controller_->IsEnabled())
     return false;
-  }
 
-  if (!frame_->GetFrameView()) {
+  if (!frame_->GetFrameView())
     return false;
-  }
   return frame_->GetFrameView()->ShouldHideTopUIForFullscreen();
 }
 
@@ -3354,9 +3353,8 @@ views::View* BrowserView::GetTopContainer() {
 }
 
 DownloadBubbleUIController* BrowserView::GetDownloadBubbleUIController() {
-  if (!toolbar_button_provider_) {
+  if (!toolbar_button_provider_)
     return nullptr;
-  }
   if (auto* download_button = toolbar_button_provider_->GetDownloadButton())
     return download_button->bubble_controller();
   return nullptr;
@@ -3924,9 +3922,8 @@ void BrowserView::ReparentTopContainerForEndOfImmersive() {
   if (top_container()->parent() == this)
     return;
 
-  if (overlay_view_) {
+  if (overlay_view_)
     overlay_view_->SetVisible(false);
-  }
   top_container()->DestroyLayer();
   AddChildViewAt(top_container(), 0);
   EnsureFocusOrder();
@@ -4457,8 +4454,9 @@ bool BrowserView::ShouldDescendIntoChildForEventHandling(
 
     // Draggable regions should be ignored for clicks into any browser view's
     // owned widgets, for example alerts, permission prompts or find bar.
-    return !draggable_region->contains(point_in_contents_web_view_coords.x(),
-                                       point_in_contents_web_view_coords.y()) ||
+    return !draggable_region->contains(
+               point_in_contents_web_view_coords.x(),
+               point_in_contents_web_view_coords.y()) ||
            WidgetOwnedByAnchorContainsPoint(point_in_contents_web_view_coords);
   }
 
@@ -4567,12 +4565,10 @@ void BrowserView::Layout(PassKey) {
 
   // TODO(jamescook): Why was this in the middle of layout code?
   toolbar_->location_bar()->omnibox_view()->SetFocusBehavior(
-      (IsToolbarVisible() || browser_->toolbar_overridden())
-          ? FocusBehavior::ALWAYS
-          : FocusBehavior::NEVER);
-  if (frame()->GetFrameView()) {
+      (IsToolbarVisible() || browser_->toolbar_overridden()) ?
+          FocusBehavior::ALWAYS : FocusBehavior::NEVER);
+  if (frame()->GetFrameView())
     frame()->GetFrameView()->UpdateMinimumSize();
-  }
 
   // Some of the situations when the BrowserView is laid out are:
   // - Enter/exit immersive fullscreen mode.
@@ -4640,9 +4636,8 @@ void BrowserView::AddedToWidget() {
 
   // This browser view may already have a custom button provider set (e.g the
   // hosted app frame).
-  if (!toolbar_button_provider_) {
+  if (!toolbar_button_provider_)
     SetToolbarButtonProvider(toolbar_);
-  }
 
   toolbar_->Init();
 
@@ -4686,10 +4681,10 @@ void BrowserView::AddedToWidget() {
 
   EnsureFocusOrder();
 
+
   frame_->OnBrowserViewInitViewsComplete();
-  if (frame_->GetFrameView()) {
+  if (frame_->GetFrameView())
     frame_->GetFrameView()->UpdateMinimumSize();
-  }
   using_native_frame_ = frame_->ShouldUseNativeFrame();
 
   MaybeInitializeWebUITabStrip();
@@ -5050,10 +5045,9 @@ void BrowserView::ProcessFullscreen(bool fullscreen, const int64_t display_id) {
   // On Mac platforms, FullscreenStateChanged() is invoked from
   // BrowserFrameMac::OnWindowFullscreenTransitionComplete when the asynchronous
   // fullscreen transition is complete.
-  // On Lacros, FullscreenStateChanged() is invoked from
-  // BrowserDesktopWindowTreeHostLacros::OnFullscreenModeChanged when the
-  // fullscreen state is updated on Ash side and Lacros is notified of the
-  // updates through wayland messages.
+  // On Ohos,FullscreenStateChanged() is invoked from
+  // BrowserDesktopWindowTreeHostOhos::OnFullscreenModeChanged when the
+  // fullscreen state is updated after.
   // On other platforms, there is no asynchronous transition so we synchronously
   // invoke the function.
   FullscreenStateChanged();
@@ -5062,9 +5056,8 @@ void BrowserView::ProcessFullscreen(bool fullscreen, const int64_t display_id) {
   // Undo our anti-jankiness hacks and force a re-layout.
   in_process_fullscreen_ = false;
   ToolbarSizeChanged(false);
-  if (frame_->GetFrameView()) {
+  if (frame_->GetFrameView())
     frame_->GetFrameView()->OnFullscreenStateChanged();
-  }
 }
 
 void BrowserView::RequestFullscreen(bool fullscreen, int64_t display_id) {
@@ -5548,9 +5541,8 @@ Profile* BrowserView::GetProfile() {
 }
 
 void BrowserView::UpdateUIForTabFullscreen() {
-  if (!frame_->GetFrameView()) {
+  if (!frame_->GetFrameView())
     return;
-  }
   frame()->GetFrameView()->UpdateFullscreenTopUI();
 }
 
@@ -5573,9 +5565,8 @@ void BrowserView::HideDownloadShelf() {
 }
 
 bool BrowserView::CanUserExitFullscreen() const {
-  if (!frame_->GetFrameView()) {
+  if (!frame_->GetFrameView())
     return true;
-  }
   return frame_->GetFrameView()->CanUserExitFullscreen();
 }
 

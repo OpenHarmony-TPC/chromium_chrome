@@ -102,6 +102,10 @@
 #include "chrome/common/media/chrome_media_drm_bridge_client.h"
 #endif
 
+#if BUILDFLAG(IS_ARKWEB) && BUILDFLAG(ARKWEB_ENABLE_CDM)
+#include "chrome/common/media/chrome_media_drm_bridge_client_ohos.h"
+#endif
+
 namespace {
 
 #if BUILDFLAG(ENABLE_NACL)
@@ -399,6 +403,12 @@ media::MediaDrmBridgeClient* ChromeContentClient::GetMediaDrmBridgeClient() {
   return new ChromeMediaDrmBridgeClient();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ARKWEB) && BUILDFLAG(ARKWEB_ENABLE_CDM)
+media::OHOSMediaDrmBridgeClient* ChromeContentClient::GetMediaDrmBridgeClient() {
+  return new ChromeMediaDrmBridgeClientOHOS();
+}
+#endif  // BUILDFLAG(IS_ARKWEB) && BUILDFLAG(ARKWEB_ENABLE_CDM)
 
 void ChromeContentClient::ExposeInterfacesToBrowser(
     scoped_refptr<base::SequencedTaskRunner> io_task_runner,

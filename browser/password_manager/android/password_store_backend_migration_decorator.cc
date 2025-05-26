@@ -153,6 +153,12 @@ void PasswordStoreBackendMigrationDecorator::UpdateLoginAsync(
   active_backend()->UpdateLoginAsync(form, std::move(callback));
 }
 
+#if BUILDFLAG(ARKWEB_EXT_PASSWORD)
+void PasswordStoreBackendMigrationDecorator::UpdateLoginDisplayNameAsync(const PasswordForm& form) {
+  return;
+}
+#endif
+
 void PasswordStoreBackendMigrationDecorator::RemoveLoginAsync(
     const base::Location& location,
     const PasswordForm& form,

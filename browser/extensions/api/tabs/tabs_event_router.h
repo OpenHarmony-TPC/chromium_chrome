@@ -103,6 +103,16 @@ class TabsEventRouter : public TabStripModelObserver,
       content::WebContents* contents,
       const std::vector<std::string>& changed_property_names,
       const std::string& url);
+
+  void DispatchTabUpdatedEvent(
+      int tab_id,
+      content::WebContents* contents,
+      const std::vector<std::string>& changed_property_names,
+      std::unique_ptr<NWebExtensionTabChangeInfo> changeInfo);
+
+  void DispatchTabActiveEvent(int tab_id,
+                              int window_id,
+                              content::WebContents* contents);
 #endif
 
  private:

@@ -146,7 +146,11 @@ const base::FilePath::CharType kOfflinePagePrefetchStoreDirname[] =
     FPL("Offline Pages/prefech_store");
 const base::FilePath::CharType kOfflinePageRequestQueueDirname[] =
     FPL("Offline Pages/request_queue");
+#if BUILDFLAG(IS_ARKWEB)
+const base::FilePath::CharType kPreferencesFilename[] = FPL("UserPrefs.json");
+#else
 const base::FilePath::CharType kPreferencesFilename[] = FPL("Preferences");
+#endif
 const base::FilePath::CharType kPreviewsOptOutDBFilename[] =
     FPL("previews_opt_out.db");
 const base::FilePath::CharType kQueryTileStorageDirname[] = FPL("Query Tiles");

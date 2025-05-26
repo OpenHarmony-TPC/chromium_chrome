@@ -1073,12 +1073,6 @@ bool ChromeDownloadManagerDelegate::InterceptDownloadIfApplicable(
   return false;
 }
 
-#if BUILDFLAG(IS_OHOS)
-void ChromeDownloadManagerDelegate::ResetDownloadPath() {
-  download_prefs_->ResetDownloadPath();
-}
-#endif
-
 void ChromeDownloadManagerDelegate::GetSaveDir(
     content::BrowserContext* browser_context,
     base::FilePath* website_save_dir,

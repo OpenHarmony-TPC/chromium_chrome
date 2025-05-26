@@ -30,7 +30,6 @@
 #include "base/functional/callback.h"
 #include "base/task/thread_pool.h"
 #include "components/permissions/permission_request_id.h"
-#include "ohos/adapter/permission_manager/permission_manager_adapter.h"
 #endif
 
 namespace {
@@ -108,32 +107,6 @@ ContentSetting MediaStreamDevicePermissionContext::GetPermissionStatusInternal(
   return setting;
 }
 
-#if BUILDFLAG(IS_OHOS)
-void MediaStreamDevicePermissionContext::RequestPermission(
-    permissions::PermissionRequestData request_data,
-    permissions::BrowserPermissionCallback callback) {
-  namespace ohos_permission = ohos::adapter::permission;
-
-  ohos_permission::OHOSPermissionType type{};
-  if (content_settings_type_ == ContentSettingsType::MEDIASTREAM_MIC) {
-    type = ohos_permission::OHOSPermissionType::MICROPHONE;
-  } else if (content_settings_type_ ==
-             ContentSettingsType::MEDIASTREAM_CAMERA) {
-    type = ohos_permission::OHOSPermissionType::CAMERA;
-  } else {
-    LOG(ERROR) << "Unexpected permission requests";
-    return;
-  }
-
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, base::MayBlock(),
-      base::BindOnce(
-          &ohos_permission::PermissionManagerAdapter::RequestPermission, type),
-      base::BindOnce(&MediaStreamDevicePermissionContext::RequestReply,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(request_data),
-                     std::move(callback)));
-}
-
 void MediaStreamDevicePermissionContext::RequestReply(
     permissions::PermissionRequestData request_data,
     permissions::BrowserPermissionCallback callback,
@@ -146,8 +119,6 @@ void MediaStreamDevicePermissionContext::RequestReply(
   permissions::PermissionContextBase::RequestPermission(std::move(request_data),
                                                         std::move(callback));
 }
-
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
 // There are two other permissions that need to check corresponding OS-level

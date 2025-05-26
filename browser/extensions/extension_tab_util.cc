@@ -77,6 +77,7 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_CEF)
+#include "cef/ohos_cef_ext/libcef/browser/chrome/extensions/arkweb_chrome_extension_util_ext.h"
 #include "cef/libcef/browser/chrome/extensions/chrome_extension_util.h"
 #endif
 
@@ -442,7 +443,7 @@ int ExtensionTabUtil::GetWindowIdOfTabStripModel(
 
 int ExtensionTabUtil::GetTabId(const WebContents* web_contents) {
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  return web_contents->ExtensionGetTabId();
+  return cef::GetTabIdForWebContents(web_contents);
 #else
   return sessions::SessionTabHelper::IdForTab(web_contents).id();
 #endif
@@ -1281,12 +1282,5 @@ bool ExtensionTabUtil::TabIsInSavedTabGroup(content::WebContents* contents,
 
   return tab_group_service->GetGroup(tab_group_id.value()).has_value();
 }
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-// static
-content::WebContents* ExtensionTabUtil::GetWebContentByTabId(int tab_id) {
-  return cef::GetWebContentByTabId(tab_id);
-}
-#endif
 
 }  // namespace extensions

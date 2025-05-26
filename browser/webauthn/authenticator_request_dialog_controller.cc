@@ -196,6 +196,9 @@ password_manager::PasskeyCredential::Source ToPasswordManagerSource(
           kGooglePasswordManager;
     case AuthenticatorType::kChromeOS:
     case AuthenticatorType::kOther:
+#if BUILDFLAG(ARKWEB_FIDO)
+      case AuthenticatorType::kOhosNative:
+#endif  // BUILDFLAG(ARKWEB_FIDO)
       return password_manager::PasskeyCredential::Source::kOther;
   }
 }
@@ -385,6 +388,9 @@ bool IsChromeImplemented(AuthenticatorType type) {
     case AuthenticatorType::kChromeOS:
       return true;
     case AuthenticatorType::kOther:
+#if BUILDFLAG(ARKWEB_FIDO)
+    case AuthenticatorType::kOhosNative:
+#endif  // BUILDFLAG(ARKWEB_FIDO)
       // For testing purposes.
       return true;
   }
