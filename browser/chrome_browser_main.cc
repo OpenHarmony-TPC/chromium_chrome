@@ -817,7 +817,11 @@ int ChromeBrowserMainParts::PreEarlyInitialization() {
 
   // Create BrowserProcess in PreEarlyInitialization() so that we can load
   // field trials (and all it depends upon).
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+  browser_process_ = std::make_unique<BrowserProcessImplExt>(startup_data_);
+#else
   browser_process_ = std::make_unique<BrowserProcessImpl>(startup_data_);
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
   startup_data_->CreateProfilePrefService();
@@ -1289,7 +1293,8 @@ int ChromeBrowserMainParts::PreMainMessageLoopRun() {
 #if BUILDFLAG(ARKWEB_ADBLOCK)
   if (g_browser_process) {
     g_browser_process->subresource_filter_ruleset_service();
-    g_browser_process->subresource_filter_user_ruleset_service();
+    g_browser_process->AsBrowserProcessImplExt()
+        ->subresource_filter_user_ruleset_service();
   }
 #endif
 
@@ -1348,10 +1353,6 @@ void ChromeBrowserMainParts::PreProfileInit() {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   SetChromeAppModalDialogManagerDelegate();
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-        // todo
-  //  #if !BUILDFLAG(IS_OHOS) || BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
-  //    media_router::ChromeMediaRouterFactory::DoPlatformInit();
-  //  #endif
 
   media_router::ChromeMediaRouterFactory::DoPlatformInit();
 }
@@ -1668,9 +1669,8 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
       "ProfilePicker.StartupMode.CreateInitialProfile", profile_info.mode);
 #if !BUILDFLAG(IS_OHOS)
   // TODO:OHOS
-  if (profile_info.mode == StartupProfileMode::kError) {
+  if (profile_info.mode == StartupProfileMode::kError)
     return content::RESULT_CODE_NORMAL_EXIT;
-  }
 #endif
 
   if (profile_info.mode == StartupProfileMode::kError)

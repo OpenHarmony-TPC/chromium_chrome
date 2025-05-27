@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "arkweb/build/features/features.h"
+#include "arkweb/ohos_nweb_ex/build/features/features.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
@@ -47,10 +48,6 @@
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/video_effects/public/mojom/video_effects_processor.mojom-forward.h"
 #include "third_party/blink/public/mojom/worker/shared_worker_info.mojom.h"
-
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
 
 #if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
 #include "chrome/common/renderer_configuration.mojom.h"
@@ -1137,6 +1134,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
  private:
   friend class DisableWebRtcEncryptionFlagTest;
   friend class InProcessBrowserTest;
+  friend class ChromeContentBrowserClientUtils;
 
   FRIEND_TEST_ALL_PREFIXES(ChromeSiteIsolationPolicyTest,
                            IsolatedOriginsContainChromeOrigins);
@@ -1334,8 +1332,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   bool handled_uia_provider_request_ = false;
 #endif
 
-  base::WeakPtrFactory<ChromeContentBrowserClient> weak_factory_{this};
-
 #if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
   mojo::AssociatedRemote<chrome::mojom::RendererConfiguration>
   GetRendererConfiguration(content::RenderProcessHost* render_process_host);
@@ -1353,6 +1349,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
                                 ui::PageTransition transition,
                                 bool* ignore_navigation) override;
 #endif
+  base::WeakPtrFactory<ChromeContentBrowserClient> weak_factory_{this};
 };
 
 // DO NOT USE. Functions in this namespace are only for the migration of DIPS to

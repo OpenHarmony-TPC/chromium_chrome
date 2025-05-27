@@ -247,9 +247,17 @@
 #include "ui/ozone/public/ozone_platform.h"
 #endif  // BUILDFLAG(IS_OZONE)
 
+#if BUILDFLAG(IS_ARKWEB)
+#include "arkweb/chromium_ext/chrome/app/chrome_main_delegate_for_include.cc"
+#endif
+
 base::LazyInstance<ChromeContentGpuClient>::DestructorAtExit
     g_chrome_content_gpu_client = LAZY_INSTANCE_INITIALIZER;
+#if BUILDFLAG(IS_ARKWEB)
+base::LazyInstance<ArkWebChromeContentRendererClientExt>::DestructorAtExit
+#else
 base::LazyInstance<ChromeContentRendererClient>::DestructorAtExit
+#endif
     g_chrome_content_renderer_client = LAZY_INSTANCE_INITIALIZER;
 
 extern int NaClMain(content::MainFunctionParams);
@@ -573,6 +581,7 @@ struct MainFunction {
   int (*function)(content::MainFunctionParams);
 };
 
+// #if !BUILDFLAG(ENABLE_CEF)
 // Initializes the user data dir. Must be called before InitializeLocalState().
 void InitializeUserDataDir(base::CommandLine* command_line) {
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -622,10 +631,15 @@ void InitializeUserDataDir(base::CommandLine* command_line) {
   policy::path_parser::CheckUserDataDirPolicy(&user_data_dir);
 #endif  // BUILDFLAG(IS_MAC)
 
+#if BUILDFLAG(IS_ARKWEB)
+  const bool specified_directory_was_invalid = SetUserDataDirForArkweb(user_data_dir);
+#else
   const bool specified_directory_was_invalid =
       !user_data_dir.empty() &&
       !base::PathService::OverrideAndCreateIfNeeded(chrome::DIR_USER_DATA,
                                                     user_data_dir, false, true);
+#endif
+
   // Save inaccessible or invalid paths so the user may be prompted later.
   if (specified_directory_was_invalid)
     chrome::SetInvalidSpecifiedUserDataDir(user_data_dir);
@@ -657,6 +671,7 @@ void InitializeUserDataDir(base::CommandLine* command_line) {
     command_line->AppendSwitchPath(switches::kUserDataDir, user_data_dir);
 #endif  // BUILDFLAG(IS_WIN)
 }
+// #endif  // !BUILDFLAG(ENABLE_CEF)
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_OHOS)
 void InitLogging(const std::string& process_type) {
@@ -967,10 +982,10 @@ std::optional<int> ChromeMainDelegate::PostEarlyInitialization(
   CommonEarlyInitialization(invoked_in);
 
   // Initializes the resource bundle and determines the locale.
-  std::string actual_locale =
-      LoadLocalState(chrome_feature_list_creator, GetResourceBundleDelegate(),
-                     invoked_in_browser->is_running_test);
-  chrome_feature_list_creator->SetApplicationLocale(actual_locale);
+  std::string actual_locale = LoadLocalState(
+      chrome_feature_list_creator, GetResourceBundleDelegate(),
+      invoked_in_browser->is_running_test);
+chrome_feature_list_creator->SetApplicationLocale(actual_locale);
 #if !BUILDFLAG(IS_OHOS)
   // TODO:OHOS
   chrome_feature_list_creator->OverrideCachedUIStrings();
@@ -1461,12 +1476,10 @@ void ChromeMainDelegate::PreSandboxStartup() {
 #endif
   }  // !cef::IsChromeRuntimeEnabled()
 
-#if !BUILDFLAG(ENABLE_CEF)
   // Initialize the user data dir for any process type that needs it.
   if (chrome::ProcessNeedsProfileDir(process_type)) {
     InitializeUserDataDir(base::CommandLine::ForCurrentProcess());
   }
-#endif  // !BUILDFLAG(ENABLE_CEF)
 
   // Register component_updater PathProvider after DIR_USER_DATA overridden by
   // command line flags. Maybe move the chrome PathProvider down here also?
@@ -1581,6 +1594,7 @@ void ChromeMainDelegate::PreSandboxStartup() {
     CHECK(!loaded_locale.empty()) << "Locale could not be found for " << locale;
   }
 
+  // if (!cef::IsChromeRuntimeEnabled()) {
   if (false) {
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
   // Zygote needs to call InitCrashReporter() in RunZygote().

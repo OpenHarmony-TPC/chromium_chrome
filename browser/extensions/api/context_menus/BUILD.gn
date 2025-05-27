@@ -22,7 +22,4 @@ source_set("context_menus") {
     "//extensions/browser",
     "//extensions/common",
   ]
-  include_dirs = [
-    "//cef",
-  ]
 }

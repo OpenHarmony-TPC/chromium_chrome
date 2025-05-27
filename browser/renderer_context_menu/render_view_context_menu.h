@@ -155,15 +155,14 @@ class RenderViewContextMenu
 
   // Registers a callback that will be called each time a context menu is
   // created.
-  using MenuCreatedCallback =
-      base::RepeatingCallback<std::unique_ptr<RenderViewContextMenuObserver>(
-          RenderViewContextMenu*)>;
+  using MenuCreatedCallback = base::RepeatingCallback<
+      std::unique_ptr<RenderViewContextMenuObserver>(RenderViewContextMenu*)>;
   static void RegisterMenuCreatedCallback(MenuCreatedCallback cb);
 
   // Registers a callback that will be called each time before context menu is
   // shown. The callback should return true if the show has handled.
-  using MenuShowHandlerCallback =
-      base::RepeatingCallback<bool(RenderViewContextMenu*)>;
+  using MenuShowHandlerCallback = base::RepeatingCallback<
+      bool(RenderViewContextMenu*)>;
   static void RegisterMenuShowHandlerCallback(MenuShowHandlerCallback cb);
 
  protected:

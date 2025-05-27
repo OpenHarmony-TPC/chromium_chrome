@@ -252,7 +252,7 @@ class HeaderInjectionURLLoaderClient : public network::mojom::URLLoaderClient {
 
 #if BUILDFLAG(ARKWEB_RESOURCE_INTERCEPTION)
   void OnTransferDataWithSharedMemory(base::ReadOnlySharedMemoryRegion region,
-                                      uint64_t buffer_size) override{};
+                                      uint64_t buffer_size) override{}
 #endif
 
   void OnReceiveResponse(

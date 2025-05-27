@@ -72,7 +72,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_CEF)
-#include "cef/ohos_cef_ext/include/cef_version.h"
+#include "cef/include/cef_version.h"
 #endif
 
 using content::WebUIDataSource;

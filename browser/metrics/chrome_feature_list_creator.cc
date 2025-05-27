@@ -71,6 +71,10 @@
 #include "components/subresource_filter/core/browser/user_ruleset_version.h"
 #include "components/subresource_filter/core/common/constants.h"
 
+#if BUILDFLAG(ARKWEB_EDM_POLICY)
+#include "cef/ohos_cef_ext/libcef/browser/policy/browser_policy_handler.h"
+#endif
+
 namespace {
 
 // Returns a list of extra switch-dependent feature overrides to be applied
@@ -193,6 +197,12 @@ void ChromeFeatureListCreator::CreatePrefService() {
   base::UmaHistogramBoolean("UMA.Startup.LocalStateFileExistence",
                             base::PathExists(local_state_file));
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(ARKWEB_EDM_POLICY)
+  base::FilePath policy_path;
+  base::PathService::Get(base::DIR_CACHE, &policy_path);
+  policy::BrowserPolicyHandler::GetInstance()->InitPolicyFromFile(policy_path);
+#endif
 
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
   RegisterLocalState(pref_registry.get());

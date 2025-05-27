@@ -87,21 +87,4 @@ void TabsWindowsAPI::OnListenerAdded(const EventListenerInfo& details) {
   EventRouter::Get(browser_context_)->UnregisterObserver(this);
 }
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-void TabsWindowsAPI::TabUpdated(
-    int tab_id,
-    content::WebContents* contents,
-    const std::vector<std::string>& changed_property_names,
-    const std::string& url) {
-  auto browser_context = contents->GetBrowserContext();
-  if (!browser_context || browser_context->IsOffTheRecord()) {
-    // extensions not supported in OTR modes yet
-    return;
-  }
-
-  tabs_event_router()->DispatchTabUpdatedEvent(tab_id, contents,
-                                               changed_property_names, url);
-}
-#endif
-
 }  // namespace extensions

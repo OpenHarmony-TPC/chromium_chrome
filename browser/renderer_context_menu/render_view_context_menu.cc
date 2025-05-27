@@ -642,9 +642,8 @@ int FindUMAEnumValueForCommand(int id, UmaEnumIdLookupType type) {
   }
 
   // Match the MENU_ID_USER_FIRST to MENU_ID_USER_LAST range from cef_types.h.
-  if (id >= 26500 && id <= 28500) {
+  if (id >= 26500 && id <= 28500)
     return 1;
-  }
 
   id = CollapseCommandsForUMA(id);
   const auto& map = GetIdcToUmaMap(type);

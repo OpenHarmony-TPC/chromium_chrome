@@ -96,6 +96,10 @@ namespace screen_ai {
 class ScreenAIInstallState;
 }  // namespace screen_ai
 
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+class BrowserProcessImplExt;
+#endif
+
 // Real implementation of BrowserProcess that creates and returns the services.
 class BrowserProcessImpl : public BrowserProcess,
                            public KeepAliveStateObserver {
@@ -109,6 +113,10 @@ class BrowserProcessImpl : public BrowserProcess,
   BrowserProcessImpl& operator=(const BrowserProcessImpl&) = delete;
 
   ~BrowserProcessImpl() override;
+
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+  friend class BrowserProcessImplExt;
+#endif
 
   // Called to complete initialization.
   void Init();
@@ -202,10 +210,6 @@ class BrowserProcessImpl : public BrowserProcess,
   safe_browsing::SafeBrowsingService* safe_browsing_service() override;
   subresource_filter::RulesetService* subresource_filter_ruleset_service()
       override;
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  subresource_filter::UserRulesetService*
-  subresource_filter_user_ruleset_service() override;
-#endif
   subresource_filter::RulesetService*
   fingerprinting_protection_ruleset_service() override;
 
@@ -264,10 +268,6 @@ class BrowserProcessImpl : public BrowserProcess,
   void CreateBackgroundPrintingManager();
   void CreateSafeBrowsingService();
   void CreateSubresourceFilterRulesetService();
-
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  void CreateSubresourceFilterUserRulesetService();
-#endif
 
   void CreateFingerprintingProtectionRulesetService();
   void CreateOptimizationGuideService();
@@ -384,14 +384,6 @@ class BrowserProcessImpl : public BrowserProcess,
   std::unique_ptr<subresource_filter::RulesetService>
       subresource_filter_ruleset_service_;
 
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  bool created_subresource_filter_user_ruleset_service_ = false;
-  std::unique_ptr<subresource_filter::UserRulesetService>
-      subresource_filter_user_ruleset_service_;
-
-  SEQUENCE_CHECKER(user_sequence_checker_);
-#endif
-
   bool created_fingerprinting_protection_ruleset_service_ = false;
   std::unique_ptr<subresource_filter::RulesetService>
       fingerprinting_protection_ruleset_service_;
@@ -506,5 +498,9 @@ class BrowserProcessImpl : public BrowserProcess,
 
   SEQUENCE_CHECKER(sequence_checker_);
 };
+
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+#include "arkweb/chromium_ext/chrome/browser/browser_process_impl_ext.h"
+#endif
 
 #endif  // CHROME_BROWSER_BROWSER_PROCESS_IMPL_H_

@@ -20,6 +20,18 @@
   width: 100%;
 }
 
+@media(max-width: 500px) {
+  :host {
+    --viewer-pdf-sidenav-width: 110px;
+  }
+}
+
+@media(min-width: 500px) and (max-width: 1000px) {
+  :host {
+    --viewer-pdf-sidenav-width: 250px;
+  }
+}
+
 viewer-pdf-sidenav,
 viewer-toolbar {
   --pdf-toolbar-text-color: rgb(241, 241, 241);
@@ -50,7 +62,6 @@ viewer-toolbar {
 
 #sidenav-container {
   overflow: hidden;
-  transition: transform 250ms cubic-bezier(.6, 0, 0, 1), visibility 250ms;
   visibility: visible;
   width: var(--viewer-pdf-sidenav-width);
 }
@@ -81,7 +92,7 @@ viewer-toolbar {
 @media(max-width: 500px),
 (max-height: 250px) {
   #sidenav-container {
-    display: none;
+    display: flex;
   }
 }
 

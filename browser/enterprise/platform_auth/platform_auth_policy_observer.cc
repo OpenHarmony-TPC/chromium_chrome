@@ -19,7 +19,7 @@
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/enterprise/platform_auth/platform_auth_features.h"
 #include "components/policy/core/common/management/management_service.h"
-#endif  //  BUILDFLAG(IS_MAC)
+#endif  //  BUILFLAG(IS_MAC)
 
 PlatformAuthPolicyObserver::PlatformAuthPolicyObserver(
     PrefService* local_state) {

@@ -361,9 +361,11 @@ void ChromePasswordReuseDetectionManagerClient::OnPaste() {
   // policy.
   ui::DataTransferEndpoint data_dst = ui::DataTransferEndpoint(
       ui::EndpointType::kDefault, {.notify_if_restricted = false});
+#if !BUILDFLAG(ARKWEB_CLIPBOARD)
   clipboard->ReadText(ui::ClipboardBuffer::kCopyPaste, &data_dst, &text);
 
   password_reuse_detection_manager_.OnPaste(std::move(text));
+#endif // BUILDFLAG(ARKWEB_CLIPBOARD)
   phishy_interaction_tracker_.HandlePasteEvent();
 }
 

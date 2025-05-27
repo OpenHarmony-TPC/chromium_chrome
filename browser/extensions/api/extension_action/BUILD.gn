@@ -34,7 +34,4 @@ source_set("extension_action") {
     "//ui/gfx",
     "//url",
   ]
-  include_dirs = [
-      "//cef",
-    ]
 }

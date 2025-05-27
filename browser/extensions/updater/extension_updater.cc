@@ -600,14 +600,10 @@ void ExtensionUpdater::OnExtensionDownloadFailed(
 
   switch (error) {
     case Error::CRX_FETCH_FAILED:
-      LOG(WARNING) << "Extension download failed as CRX_FETCH_FAILED, id:"
-                   << id;
       install_stage_tracker->ReportFetchError(
           id, InstallStageTracker::FailureReason::CRX_FETCH_FAILED, data);
       break;
     case Error::CRX_FETCH_URL_EMPTY:
-      LOG(WARNING) << "Extension download failed as CRX_FETCH_URL_EMPTY, id:"
-                   << id;
       DCHECK(data.additional_info);
       install_stage_tracker->ReportInfoOnNoUpdatesFailure(
           id, data.additional_info.value());
@@ -615,37 +611,30 @@ void ExtensionUpdater::OnExtensionDownloadFailed(
           id, InstallStageTracker::FailureReason::CRX_FETCH_URL_EMPTY);
       break;
     case Error::CRX_FETCH_URL_INVALID:
-      LOG(WARNING) << "Extension download failed as CRX_FETCH_URL_INVALID, id:"
-                   << id;
       install_stage_tracker->ReportFailure(
           id, InstallStageTracker::FailureReason::CRX_FETCH_URL_INVALID);
       break;
     case Error::MANIFEST_FETCH_FAILED:
-      LOG(WARNING) << "Extension download failed as MANIFEST_FETCH_FAILED, id:"
-                   << id;
       install_stage_tracker->ReportFetchError(
           id, InstallStageTracker::FailureReason::MANIFEST_FETCH_FAILED, data);
       break;
     case Error::MANIFEST_INVALID:
-      LOG(WARNING) << "Extension download failed as MANIFEST_INVALID, id:"
-                   << id;
       DCHECK(data.manifest_invalid_error);
       install_stage_tracker->ReportManifestInvalidFailure(id, data);
       break;
     case Error::NO_UPDATE_AVAILABLE:
-      LOG(WARNING) << "Extension download failed as NO_UPDATE_AVAILABLE, id:"
-                   << id;
       install_stage_tracker->ReportFailure(
           id, InstallStageTracker::FailureReason::NO_UPDATE);
       break;
     case Error::DISABLED:
-      LOG(WARNING) << "Extension download failed as DISABLED, id:" << id;
       // Error::DISABLED corresponds to the browser having disabled extension
       // updates, the extension updater does not actually run when this error
       // code is emitted.
       break;
   }
 
+  LOG(WARNING) << "Extension download failed as " << (int)error
+               << ", id:" << id;
   UpdatePingData(id, ping);
   bool install_immediately = false;
   for (const int request_id : request_ids) {

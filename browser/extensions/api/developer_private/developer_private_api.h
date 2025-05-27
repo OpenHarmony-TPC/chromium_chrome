@@ -1098,25 +1098,12 @@ class DeveloperPrivateDismissMv2DeprecationNoticeForExtensionFunction
   std::optional<bool> accept_bubble_for_testing_;
 };
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-class DeveloperPrivateOpenUrlFunction
-    : public DeveloperPrivateAPIFunction {
-  DECLARE_EXTENSION_FUNCTION("developerPrivate.openUrl",
-                             DEVELOPERPRIVATE_OPENURL)
-  DeveloperPrivateOpenUrlFunction();
-
-  DeveloperPrivateOpenUrlFunction(
-      const DeveloperPrivateOpenUrlFunction&) = delete;
-  DeveloperPrivateOpenUrlFunction& operator=(
-      const DeveloperPrivateOpenUrlFunction&) = delete;
-private:
- ~DeveloperPrivateOpenUrlFunction() override;
-
- ResponseAction Run() override;
-};
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 }  // namespace api
 
 }  // namespace extensions
+
+#if BUILDFLAG(IS_ARKWEB)
+#include "arkweb/chromium_ext/chrome/browser/extensions/api/developer_private_api_for_include.h"
+#endif
 
 #endif  // CHROME_BROWSER_EXTENSIONS_API_DEVELOPER_PRIVATE_DEVELOPER_PRIVATE_API_H_

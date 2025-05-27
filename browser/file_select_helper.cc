@@ -552,11 +552,11 @@ FileSelectHelper::GetFileTypesFromAcceptType(
 
     if (!current_extensions.empty()) {
       all_extensions.push_back(current_extensions);
-      all_overrides.push_back(description_id != 0
-                                  ? l10n_util::GetStringUTF16(description_id)
-                                  : std::u16string());
-      all_mimetypes.push_back(ascii_type.empty() ? std::u16string()
-                                                 : accept_type);
+      all_overrides.push_back(description_id != 0 ?
+                              l10n_util::GetStringUTF16(description_id) :
+                              std::u16string());
+      all_mimetypes.push_back(ascii_type.empty() ?
+                              std::u16string() : accept_type);
 
       extensions->insert(extensions->end(), current_extensions.begin(),
                          current_extensions.end());
@@ -576,28 +576,29 @@ FileSelectHelper::GetFileTypesFromAcceptType(
   //    "ehtml,shtml,htm,html" for "text/html". On Windows, the select file
   //    dialog uses the first extension in the list to form the description,
   //    like "EHTML Files". This is not what we want.
-  if (valid_type_count > 1 || (valid_type_count == 1 && description_id == 0 &&
-                               extensions->size() > 1)) {
+  if (valid_type_count > 1 ||
+      (valid_type_count == 1 && description_id == 0 && extensions->size() > 1)) {
     description_id = IDS_CUSTOM_FILES;
     ascii_type.clear();
   }
 
   file_type->extension_description_overrides.push_back(
-      description_id != 0 ? l10n_util::GetStringUTF16(description_id)
-                          : std::u16string());
+      description_id != 0 ?
+          l10n_util::GetStringUTF16(description_id) :
+          std::u16string());
   file_type->extension_mimetypes.push_back(
       ascii_type.empty() ? std::u16string() : base::ASCIIToUTF16(ascii_type));
 
   if (all_extensions.size() > 1) {
     // Insert filters for the specific accept types at the beginning.
     file_type->extensions.insert(file_type->extensions.begin(),
-                                 all_extensions.begin(), all_extensions.end());
+        all_extensions.begin(), all_extensions.end());
     file_type->extension_description_overrides.insert(
         file_type->extension_description_overrides.begin(),
         all_overrides.begin(), all_overrides.end());
     file_type->extension_mimetypes.insert(
-        file_type->extension_mimetypes.begin(), all_mimetypes.begin(),
-        all_mimetypes.end());
+        file_type->extension_mimetypes.begin(),
+        all_mimetypes.begin(), all_mimetypes.end());
   }
 
   return file_type;

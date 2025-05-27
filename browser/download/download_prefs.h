@@ -64,10 +64,6 @@ class DownloadPrefs {
   // Identify whether the downloaded item was downloaded from a trusted source.
   bool IsFromTrustedSource(const download::DownloadItem& item);
 
-#if BUILDFLAG(IS_OHOS)
-  void ResetDownloadPath();
-  bool IsShouldCancel();
-#endif
   base::FilePath DownloadPath() const;
   void SetDownloadPath(const base::FilePath& path);
   base::FilePath SaveFilePath() const;
@@ -149,13 +145,6 @@ class DownloadPrefs {
 #if BUILDFLAG(IS_ANDROID)
   IntegerPrefMember prompt_for_download_android_;
   BooleanPrefMember auto_open_pdf_enabled_;
-#endif
-
-#if BUILDFLAG(IS_OHOS)
-  BooleanPrefMember prompt_for_download_ohos_;
-  BooleanPrefMember prompt_for_download_ohos_confirmed_;
-  base::FilePath download_path_ohos_;
-  bool is_should_cancel_ = false;
 #endif
 
   FilePathPrefMember download_path_;
