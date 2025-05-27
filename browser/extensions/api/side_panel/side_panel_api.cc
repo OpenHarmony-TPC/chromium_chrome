@@ -10,11 +10,10 @@
 #include "base/values.h"
 #include "chrome/browser/extensions/api/side_panel/side_panel_service.h"
 #include "chrome/common/extensions/api/side_panel.h"
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "base/logging.h"
-#include "chrome/browser/extensions/extension_tab_util.h"
-#include "ohos_nweb/src/cef_delegate/nweb_extension_side_panel_cef_delegate.h"
-#endif // ARKWEB_ARKWEB_EXTENSIONS
+
+#if BUILDFLAG(IS_ARKWEB)
+#include "arkweb/chromium_ext/chrome/browser/extensions/api/side_panel/side_panel_api_for_include.cc"
+#endif
 
 namespace extensions {
 
@@ -42,31 +41,14 @@ ExtensionFunction::ResponseAction SidePanelGetOptionsFunction::RunFunction() {
 }
 
 ExtensionFunction::ResponseAction SidePanelSetOptionsFunction::RunFunction() {
-  LOG(INFO) << "SidePanelSetOptionsFunction::RunFunction";
   std::optional<api::side_panel::SetOptions::Params> params =
       api::side_panel::SetOptions::Params::Create(args());
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  std::optional<std::string> absolute_path;
-  std::optional<bool> enabled;
-  std::optional<int> tab_id;
-  if (params->options.path.has_value()) {
-    absolute_path = extension()->GetResourceURL(*params->options.path).spec();
-  }
-  if (params->options.enabled.has_value()) {
-    enabled = *params->options.enabled;
-  }
-  if (params->options.tab_id.has_value()) {
-    tab_id = *params->options.tab_id;
-  }
-#endif
   EXTENSION_FUNCTION_VALIDATE(params);
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  RunFunctionForInclude(this, params);
+#endif
   // TODO(crbug.com/40226489): Validate the relative extension path exists.
   GetService()->SetOptions(*extension(), std::move(params->options));
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  OHOS::NWeb::NWebExtensionSidePanelCefDelegate::OnSetOptions(
-      extension()->id(), enabled, tab_id, absolute_path);
-#endif
   return RespondNow(NoArguments());
 }
 

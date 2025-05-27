@@ -1884,8 +1884,8 @@ void DevToolsWindow::CreateDevToolsBrowser() {
 
     browser_ = Browser::Create(std::move(create_params));
     browser_->tab_strip_model()->AddWebContents(
-        std::move(devtools_contents), -1, ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
-        AddTabTypes::ADD_ACTIVE);
+      std::move(devtools_contents),
+      -1, ui::PAGE_TRANSITION_AUTO_TOPLEVEL, AddTabTypes::ADD_ACTIVE);
   }
 
   OverrideAndSyncDevToolsRendererPrefs();

@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "arkweb/ohos_nweb_ex/build/features/features.h"
 #include "base/check_is_test.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
@@ -47,10 +48,6 @@
 #include "content/public/common/content_switches.h"
 #include "extensions/buildflags/buildflags.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/registry.h"

@@ -124,10 +124,6 @@
 #include "components/signin/core/browser/active_primary_accounts_metrics_recorder.h"
 #include "components/subresource_filter/content/browser/safe_browsing_ruleset_publisher.h"
 #include "components/subresource_filter/content/shared/browser/ruleset_service.h"
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-#include "components/subresource_filter/content/browser/safe_browsing_user_ruleset_publisher.h"
-#include "components/subresource_filter/content/shared/browser/user_ruleset_service.h"
-#endif
 #include "components/subresource_filter/core/browser/subresource_filter_features.h"
 #include "components/subresource_filter/core/common/constants.h"
 #include "components/translate/core/browser/translate_download_manager.h"
@@ -267,13 +263,7 @@
 #endif
 
 #if BUILDFLAG(ARKWEB_ADBLOCK)
-#include "base/files/file_util.h"
-#include "base/logging.h"
-#include "base/path_service.h"
-#include "components/subresource_filter/core/browser/subresource_filter_constants.h"
-#include "components/subresource_filter/core/browser/subresource_filter_features.h"
 #include "ohos_cef_ext/libcef/browser/subresource_filter/adblock_ruleset_manager.h"
-#include "ohos_cef_ext/libcef/browser/subresource_filter/user_adblock_ruleset_manager.h"
 #endif
 
 #if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS))
@@ -1192,18 +1182,6 @@ BrowserProcessImpl::subresource_filter_ruleset_service() {
   return subresource_filter_ruleset_service_.get();
 }
 
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-::subresource_filter::UserRulesetService*
-BrowserProcessImpl::subresource_filter_user_ruleset_service() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(user_sequence_checker_);
-  if (!created_subresource_filter_user_ruleset_service_) {
-    CreateSubresourceFilterUserRulesetService();
-  }
-
-  return subresource_filter_user_ruleset_service_.get();
-}
-#endif
-
 subresource_filter::RulesetService*
 BrowserProcessImpl::fingerprinting_protection_ruleset_service() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -1551,24 +1529,6 @@ void BrowserProcessImpl::CreateSubresourceFilterRulesetService() {
           subresource_filter::SafeBrowsingRulesetPublisher::Factory());
 #endif
 }
-
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-void BrowserProcessImpl::CreateSubresourceFilterUserRulesetService() {
-  DCHECK(!subresource_filter_user_ruleset_service_);
-  created_subresource_filter_user_ruleset_service_ = true;
-
-  base::FilePath user_data_dir;
-
-  base::PathService::Get(base::DIR_CACHE, &user_data_dir);
-  LOG(INFO) << "adblock path: " << user_data_dir.value();
-  subresource_filter_user_ruleset_service_ =
-      subresource_filter::UserRulesetService::Create(
-          subresource_filter::kSafeBrowsingUserRulesetConfig, local_state(),
-          user_data_dir,
-          subresource_filter::UserAdblockRulesetManager::GetInstance(),
-          subresource_filter::SafeBrowsingUserRulesetPublisher::Factory());
-}
-#endif
 
 void BrowserProcessImpl::CreateFingerprintingProtectionRulesetService() {
   CHECK(!fingerprinting_protection_ruleset_service_);

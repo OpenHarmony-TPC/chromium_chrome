@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "arkweb/ohos_nweb_ex/build/features/features.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -69,6 +70,9 @@ class PasswordStoreBackendMigrationDecorator : public PasswordStoreBackend {
                      PasswordChangesOrErrorReply callback) override;
   void UpdateLoginAsync(const PasswordForm& form,
                         PasswordChangesOrErrorReply callback) override;
+#if BUILDFLAG(ARKWEB_EXT_PASSWORD)
+  void UpdateLoginDisplayNameAsync(const PasswordForm& form) override;
+#endif
   void RemoveLoginAsync(const base::Location& location,
                         const PasswordForm& form,
                         PasswordChangesOrErrorReply callback) override;

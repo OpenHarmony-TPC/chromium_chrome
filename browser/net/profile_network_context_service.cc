@@ -1194,7 +1194,9 @@ ProfileNetworkContextService::CreateClientCertStore() {
   // selection dialog.
   return nullptr;
 #elif BUILDFLAG(IS_OHOS)
-  return std::make_unique<net::ClientCertStoreOHOS>();
+  LOG(ERROR)
+      << "ProfileNetworkContextService::CreateClientCertStore TODO for OS_OHOS";
+  return nullptr;
 #else
 #error Unknown platform.
 #endif

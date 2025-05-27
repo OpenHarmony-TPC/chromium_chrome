@@ -77,9 +77,6 @@ class ActivePrimaryAccountsMetricsRecorder;
 
 namespace subresource_filter {
 class RulesetService;
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-class UserRulesetService;
-#endif
 }
 
 namespace variations {
@@ -127,6 +124,10 @@ class ResourceCoordinatorParts;
 class TabManager;
 }
 
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+class BrowserProcessImplExt;
+#endif
+
 // NOT THREAD SAFE, call only from the main thread.
 // These functions shouldn't return NULL unless otherwise noted.
 class BrowserProcess {
@@ -137,6 +138,10 @@ class BrowserProcess {
   BrowserProcess& operator=(const BrowserProcess&) = delete;
 
   virtual ~BrowserProcess();
+
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+  virtual BrowserProcessImplExt* AsBrowserProcessImplExt() { return nullptr; }
+#endif
 
   // Invoked when the user is logging out/shutting down. When logging off we may
   // not have enough time to do a normal shutdown. This method is invoked prior
@@ -244,13 +249,6 @@ class BrowserProcess {
   // Browsing subresource filter.
   virtual subresource_filter::RulesetService*
   subresource_filter_ruleset_service() = 0;
-
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  // Returns the service providing versioned storage for user rules used by the
-  // Safe Browsing subresource filter.
-  virtual subresource_filter::UserRulesetService*
-  subresource_filter_user_ruleset_service() = 0;
-#endif
 
   // Returns the service providing versioned storage for rules used by the
   // Fingerprinting Protection subresource filter.

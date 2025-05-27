@@ -766,8 +766,9 @@ int PictureInPictureBrowserFrameView::NonClientHitTest(
                                         browser_view()->contents_web_view(),
                                         &point_in_contents_web_view_coords);
 
-      if (draggable_region->contains(point_in_contents_web_view_coords.x(),
-                                     point_in_contents_web_view_coords.y())) {
+      if (draggable_region->contains(
+              point_in_contents_web_view_coords.x(),
+              point_in_contents_web_view_coords.y())) {
         return HTCAPTION;
       }
     }
@@ -841,8 +842,8 @@ void PictureInPictureBrowserFrameView::Layout(PassKey) {
   gfx::Rect content_area = GetLocalBounds();
   content_area.Inset(FrameBorderInsets());
   gfx::Rect top_bar = content_area;
-  top_bar.set_height(top_bar_container_view_->GetVisible() ? kTopControlsHeight
-                                                           : 0);
+  top_bar.set_height(
+      top_bar_container_view_->GetVisible() ? kTopControlsHeight : 0);
   top_bar_container_view_->SetBoundsRect(top_bar);
 #if !BUILDFLAG(IS_ANDROID)
   if (auto_pip_setting_overlay_) {

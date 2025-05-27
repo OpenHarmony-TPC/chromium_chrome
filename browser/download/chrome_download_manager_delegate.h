@@ -130,9 +130,6 @@ class ChromeDownloadManagerDelegate
       int64_t content_length,
       bool is_transient,
       content::WebContents* web_contents) override;
-#if BUILDFLAG(IS_OHOS)
-  void ResetDownloadPath() override;
-#endif
   void GetSaveDir(content::BrowserContext* browser_context,
                   base::FilePath* website_save_dir,
                   base::FilePath* download_save_dir) override;

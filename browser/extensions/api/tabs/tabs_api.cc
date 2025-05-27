@@ -464,24 +464,6 @@ void NotifyExtensionTelemetry(Profile* profile,
   extension_telemetry_service->AddSignal(std::move(tabs_api_signal));
 }
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-content::WebContents* GetWebContentsByTabId(int tab_id) {
-  content::WebContents* web_contents = nullptr;
-
-  if (tab_id <= 0) {
-    // TODO(ohos): get a default WebContents
-    LOG(ERROR) << "cannot get default WebContents";
-    return nullptr;
-  }
-
-  web_contents = ExtensionTabUtil::GetWebContentByTabId(tab_id);
-  if (!web_contents) {
-    LOG(ERROR) << "cannot find WebContents by tabId:" << tab_id;
-  }
-  return web_contents;
-}
-#endif
-
 }  // namespace
 
 void ZoomModeToZoomSettings(ZoomController::ZoomMode zoom_mode,
@@ -587,6 +569,7 @@ ExtensionFunction::ResponseAction WindowsGetLastFocusedFunction::Run() {
   return RespondNow(WithArguments(std::move(windows)));
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction WindowsGetAllFunction::Run() {
   std::optional<windows::GetAll::Params> params =
       windows::GetAll::Params::Create(args());
@@ -610,6 +593,7 @@ ExtensionFunction::ResponseAction WindowsGetAllFunction::Run() {
 
   return RespondNow(WithArguments(std::move(window_list)));
 }
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
   std::optional<windows::Create::Params> params =
@@ -1195,6 +1179,7 @@ ExtensionFunction::ResponseAction TabsGetAllInWindowFunction::Run() {
       window_controller->CreateTabList(extension(), source_context_type())));
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction TabsQueryFunction::Run() {
   std::optional<tabs::Query::Params> params =
       tabs::Query::Params::Create(args());
@@ -1403,7 +1388,9 @@ ExtensionFunction::ResponseAction TabsQueryFunction::Run() {
 
   return RespondNow(WithArguments(std::move(result)));
 }
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction TabsCreateFunction::Run() {
   std::optional<tabs::Create::Params> params =
       tabs::Create::Params::Create(args());
@@ -1438,6 +1425,7 @@ ExtensionFunction::ResponseAction TabsCreateFunction::Run() {
     return has_callback() ? WithArguments(std::move(*result)) : NoArguments();
   }());
 }
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 ExtensionFunction::ResponseAction TabsDuplicateFunction::Run() {
   std::optional<tabs::Duplicate::Params> params =
@@ -1488,6 +1476,7 @@ ExtensionFunction::ResponseAction TabsDuplicateFunction::Run() {
                             new_tab_strip, new_tab_index))));
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction TabsGetFunction::Run() {
   std::optional<tabs::Get::Params> params = tabs::Get::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -1513,6 +1502,7 @@ ExtensionFunction::ResponseAction TabsGetFunction::Run() {
       CreateTabObjectHelper(contents, extension(), source_context_type(),
                             tab_strip, tab_index))));
 }
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 ExtensionFunction::ResponseAction TabsGetCurrentFunction::Run() {
   DCHECK(dispatcher());
@@ -1605,31 +1595,12 @@ bool TabsHighlightFunction::HighlightTab(TabStripModel* tabstrip,
 
 TabsUpdateFunction::TabsUpdateFunction() : web_contents_(nullptr) {}
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
   std::optional<tabs::Update::Params> params =
       tabs::Update::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  int tab_id = -1;
-  std::string error;
 
-  tab_id = params->tab_id ? *params->tab_id : -1;
-  content::WebContents* web_contents = GetWebContentsByTabId(tab_id);
-  if (!web_contents) {
-    error = ErrorUtils::FormatErrorMessage(ExtensionTabUtil::kTabNotFoundError,
-                                           base::NumberToString(tab_id));
-    return RespondNow(Error(std::move(error)));
-  }
-  web_contents_ = web_contents;
-
-  if (params->update_properties.url.has_value()) {
-    std::string updated_url = *params->update_properties.url;
-    if (!UpdateURL(updated_url, tab_id, &error)) {
-      return RespondNow(Error(std::move(error)));
-    }
-  }
-  return RespondNow(GetResult());
-#else
   int tab_id = -1;
   WebContents* contents = nullptr;
   if (!params->tab_id) {
@@ -1772,8 +1743,7 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
   // Navigate the tab to a new location if the url is different.
   if (params->update_properties.url) {
     std::string updated_url = *params->update_properties.url;
-    auto* profile = Profile::FromBrowserContext(browser_context());
-    if (profile->IsIncognitoProfile() &&
+    if (browser->profile()->IsIncognitoProfile() &&
         !IsURLAllowedInIncognito(GURL(updated_url))) {
       return RespondNow(Error(ErrorUtils::FormatErrorMessage(
           tabs_constants::kURLsNotAllowedInIncognitoError, updated_url)));
@@ -1788,14 +1758,14 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
       return RespondNow(Error(std::move(error)));
     }
 
-    NotifyExtensionTelemetry(profile, extension(),
-                             safe_browsing::TabsApiInfo::UPDATE, current_url,
-                             updated_url, js_callstack());
+    NotifyExtensionTelemetry(profile,
+                             extension(), safe_browsing::TabsApiInfo::UPDATE,
+                             current_url, updated_url, js_callstack());
   }
 
   return RespondNow(GetResult());
-#endif
 }
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 bool TabsUpdateFunction::UpdateURL(const std::string& url_string,
                                    int tab_id,
@@ -1807,9 +1777,6 @@ bool TabsUpdateFunction::UpdateURL(const std::string& url_string,
     return false;
   }
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  web_contents_->WebExtensionUpdateTabUrl(tab_id, url.value());
-#else
   NavigationController::LoadURLParams load_params(*url);
 
   // Treat extension-initiated navigations as renderer-initiated so that the URL
@@ -1832,11 +1799,11 @@ bool TabsUpdateFunction::UpdateURL(const std::string& url_string,
 
   DCHECK_EQ(*url,
             web_contents_->GetController().GetPendingEntry()->GetVirtualURL());
-#endif
 
   return true;
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseValue TabsUpdateFunction::GetResult() {
   if (!has_callback())
     return NoArguments();
@@ -1844,6 +1811,7 @@ ExtensionFunction::ResponseValue TabsUpdateFunction::GetResult() {
   return ArgumentList(tabs::Get::Results::Create(CreateTabObjectHelper(
       web_contents_, extension(), source_context_type(), nullptr, -1)));
 }
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 ExtensionFunction::ResponseAction TabsMoveFunction::Run() {
   std::optional<tabs::Move::Params> params = tabs::Move::Params::Create(args());

@@ -271,16 +271,16 @@
 #endif
 
 #if BUILDFLAG(ENABLE_CEF)
-#define CALL_CEF_DELEGATE(name, ...)          \
-  if (cef_browser_delegate_) {                \
+#define CALL_CEF_DELEGATE(name, ...) \
+  if (cef_browser_delegate_) { \
     cef_browser_delegate_->name(__VA_ARGS__); \
   }
-#define CALL_CEF_DELEGATE_RETURN(name, ...)          \
-  if (cef_browser_delegate_) {                       \
+#define CALL_CEF_DELEGATE_RETURN(name, ...) \
+  if (cef_browser_delegate_) { \
     return cef_browser_delegate_->name(__VA_ARGS__); \
   }
-#define CALL_CEF_DELEGATE_RESULT(name, result, ...)    \
-  if (cef_browser_delegate_) {                         \
+#define CALL_CEF_DELEGATE_RESULT(name, result, ...) \
+  if (cef_browser_delegate_) { \
     result = cef_browser_delegate_->name(__VA_ARGS__); \
   }
 #else  // !BUILDFLAG(ENABLE_CEF)
@@ -309,10 +309,6 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/preloading/preview/preview_manager.h"
-#endif
-
-#if BUILDFLAG(IS_OHOS)
-#include "ohos/adapter/browser/browser_adapter.h"
 #endif
 
 using base::UserMetricsAction;
@@ -581,34 +577,6 @@ Browser* Browser::Create(const CreateParams& params) {
   return new Browser(params);
 }
 
-#if BUILDFLAG(IS_OHOS)
-void Browser::NewWindowTask(std::string url) {
-  if (BrowserList::GetInstance() == nullptr) {
-    return;
-  }
-
-  Browser* browser = BrowserList::GetInstance()->GetLastActive();
-  if (browser == nullptr || browser->command_controller() == nullptr) {
-    return;
-  }
-
-  if (url.empty()) {
-    browser->command_controller()->ExecuteCommandWithDisposition(
-        IDC_NEW_WINDOW, WindowOpenDisposition::NEW_WINDOW,
-        base::TimeTicks::Now());
-  } else {
-    const GURL gurl(url);
-    chrome::AddTabAt(browser, gurl, -1, true);
-  }
-}
-
-void Browser::NewWindow(std::string url) {
-  content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE, base::BindOnce(&Browser::NewWindowTask, base::Unretained(this),
-                                std::move(url)));
-}
-#endif
-
 Browser::Browser(const CreateParams& params)
     : create_params_(params),
       type_(params.type),
@@ -742,12 +710,6 @@ Browser::Browser(const CreateParams& params)
   features_->InitPostWindowConstruction(this);
 
   BrowserList::AddBrowser(this);
-
-#if BUILDFLAG(IS_OHOS)
-  auto& broser_adapter = ohos::adapter::BrowserAdapter::GetInstance();
-  broser_adapter.RegisterNewWindowCallback(
-      std::bind(&Browser::NewWindow, this, std::placeholders::_1));
-#endif
 }
 
 Browser::~Browser() {
@@ -1770,9 +1732,8 @@ content::KeyboardEventProcessingResult Browser::PreHandleKeyboardEvent(
 #if BUILDFLAG(ENABLE_CEF)
   if (cef_browser_delegate_) {
     auto result = cef_browser_delegate_->PreHandleKeyboardEvent(source, event);
-    if (result != content::KeyboardEventProcessingResult::NOT_HANDLED) {
+    if (result != content::KeyboardEventProcessingResult::NOT_HANDLED)
       return result;
-    }
   }
 #endif
 
@@ -2708,9 +2669,8 @@ void Browser::RequestMediaAccessPermission(
   if (cef_browser_delegate_) {
     callback = cef_browser_delegate_->RequestMediaAccessPermissionEx(
         web_contents, request, std::move(callback));
-    if (callback.is_null()) {
+    if (callback.is_null())
       return;
-    }
   }
 #endif
 

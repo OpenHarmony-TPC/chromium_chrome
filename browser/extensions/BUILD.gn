@@ -641,10 +641,6 @@ source_set("extensions") {
     "window_controller_list_observer.h",
   ]
 
-  if (arkweb_asan) {
-    sources -= []
-  }
-
   include_dirs = [
       "//cef",
   ]
@@ -661,7 +657,7 @@ source_set("extensions") {
     "//build/config:precompiled_headers",
     "//build/config/compiler:wexit_time_destructors",
   ]
-  defines = [ "USING_CHROMIUM_INCLUDES" ]
+  defines = []
 
   allow_circular_includes_from = [
     # TODO(b/40251079): Remove this circular dependency.
@@ -1423,15 +1419,20 @@ source_set("extensions") {
       "propsys.lib",
     ]
   } else if (use_aura && !is_chromeos) {
-    sources += [
-      "system_display/display_info_provider_aura.cc",
-      "system_display/display_info_provider_aura.h",
-    ]
+    if (is_arkweb) {
+      import("//arkweb/chromium_ext/chromium_ext.gni")
+      sources += arkweb_chrome_browser_extensions_system_display_sources
+    } else {
+      sources += [
+        "system_display/display_info_provider_aura.cc",
+        "system_display/display_info_provider_aura.h",
+      ]
+    }
   }
 
   if (is_ohos) {
     sources += [
-      "api/image_writer_private/removable_storage_provider_ohos.cc",
+      "//arkweb/chromium_ext/chrome/browser/extensions/api/image_writer_private/removable_storage_provider_ohos.cc",
     ]
   }
 

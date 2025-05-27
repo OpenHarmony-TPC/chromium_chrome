@@ -11,10 +11,7 @@ import("//extensions/buildflags/buildflags.gni")
 import("//tools/grit/repack.gni")
 
 import("//arkweb/build/features/features.gni")
-
-if (defined(is_arkweb_ext) && is_arkweb_ext) {
-  import("//arkweb/ohos_nweb_ex/build/features/features.gni")
-}
+import("//arkweb/ohos_nweb_ex/build/features/features.gni")
  
 assert(!is_ios, "Chromium/iOS shouldn't use anything in //chrome")
 
@@ -89,7 +86,7 @@ template("chrome_repack_locales") {
       }
     }
 
-    if (defined(is_arkweb_ext) && is_arkweb_ext) {
+    if (arkweb_nweb_ex) {
       source_patterns += [ "${root_gen_dir}/ohos_nweb_ex/overrides/ui/strings/ohos_nweb_ex_strings_" ]
       deps += [ "//ohos_nweb_ex/overrides/ui/strings" ]
     }

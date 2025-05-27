@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "arkweb/build/features/features.h"
+#include "arkweb/ohos_nweb_ex/build/features/features.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
@@ -40,21 +41,12 @@
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "v8/include/v8-forward.h"
 
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
-
 #if BUILDFLAG(IS_WIN)
 #include "chrome/common/conflicts/remote_module_watcher_win.h"
 #endif
 
 #if BUILDFLAG(ENABLE_PLUGINS)
 #include "chrome/common/plugin.mojom.h"
-#endif
-
-#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
-#include "cef/libcef/renderer/browser_impl.h"
-#include "cef/libcef/renderer/render_manager.h"
 #endif
 
 class ChromeRenderThreadObserver;
@@ -103,6 +95,8 @@ namespace web_cache {
 class WebCacheImpl;
 }
 
+class ArkWebChromeContentRendererClientExt;
+
 class ChromeContentRendererClient
     : public content::ContentRendererClient,
       public service_manager::LocalInterfaceProvider {
@@ -114,6 +108,11 @@ class ChromeContentRendererClient
       delete;
 
   ~ChromeContentRendererClient() override;
+  friend class ArkWebChromeContentRendererClientExt;
+  virtual ArkWebChromeContentRendererClientExt*
+  AsArkWebChromeContentRendererClientExt() {
+    return nullptr;
+  }
 
   void RenderThreadStarted() override;
   void ExposeInterfacesToBrowser(mojo::BinderMap* binders) override;
@@ -271,14 +270,6 @@ class ChromeContentRendererClient
   SpellCheck* GetSpellCheck();
 #endif
 
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  bool GetAdBlockEnabledByFrame(content::RenderFrame* render_frame);
-
-  void TriggerElementHidingInFrame(int routing_id) override;
-
-  void TriggerUserElementHidingInFrame(int routing_id) override;
-#endif
-
  private:
   FRIEND_TEST_ALL_PREFIXES(ChromeContentRendererClientTest, NaClRestriction);
   FRIEND_TEST_ALL_PREFIXES(ChromeContentRendererClientTest,
@@ -336,5 +327,10 @@ class ChromeContentRendererClient
   scoped_refptr<blink::ThreadSafeBrowserInterfaceBrokerProxy>
       browser_interface_broker_;
 };
+
+#if BUILDFLAG(ARKWEB_ADBLOCK) || BUILDFLAG(ARKWEB_NETWORK_BASE) || \
+    BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
+#include "arkweb/chromium_ext/chrome/renderer/arkweb_chrome_content_renderer_client_ext.h"
+#endif
 
 #endif  // CHROME_RENDERER_CHROME_CONTENT_RENDERER_CLIENT_H_
