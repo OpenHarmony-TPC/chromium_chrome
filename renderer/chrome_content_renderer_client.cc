@@ -11,7 +11,6 @@
 #include <utility>
 
 #include "arkweb/build/features/features.h"
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/debug/crash_logging.h"
@@ -185,6 +184,10 @@
 #include "ui/base/webui/jstemplate_builder.h"
 #include "url/origin.h"
 #include "v8/include/v8-isolate.h"
+
+#if BUILDFLAG(IS_ARKWEB_EXT)
+#include "arkweb/ohos_nweb_ex/build/features/features.h"
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/renderer/sandbox_status_extension_android.h"
