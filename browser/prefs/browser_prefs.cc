@@ -9,7 +9,6 @@
 #include <string>
 #include <string_view>
 
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
 #include "ash/constants/ash_constants.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
@@ -199,6 +198,10 @@
 #include "ppapi/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "rlz/buildflags/buildflags.h"
+
+#if BUILDFLAG(IS_ARKWEB_EXT)
+#include "arkweb/ohos_nweb_ex/build/features/features.h"
+#endif
 
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
 #include "chrome/browser/background/background_mode_manager.h"
