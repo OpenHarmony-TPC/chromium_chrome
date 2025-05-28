@@ -18,7 +18,10 @@ import("chrome_repack_locales.gni")
 
 import("//arkweb/build/features/features.gni")
 
-import("//arkweb/ohos_nweb_ex/build/features/features.gni")
+if (defined(is_arkweb_ext) && is_arkweb_ext) {
+  import("//arkweb/ohos_nweb_ex/build/features/features.gni")
+}
+
 assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
 
 # Generates a rule to repack a set of resources, substituting a given string
@@ -160,7 +163,7 @@ template("chrome_extra_paks") {
     if (defined(invoker.additional_paks)) {
       sources += invoker.additional_paks
     }
-    if (arkweb_nweb_ex) {
+    if (defined(is_arkweb_ext) && is_arkweb_ext) {
       sources += [ "$root_gen_dir/ohos_nweb_ex/overrides/ui/resources/ohos_nweb_ex_resources.pak" ]
       deps += [ "//ohos_nweb_ex/overrides/ui/resources" ]
     }
