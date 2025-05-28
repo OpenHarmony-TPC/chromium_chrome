@@ -7072,7 +7072,7 @@ void ChromeContentBrowserClient::OnNetworkServiceCreated(
   }
 #endif
 
-#if BUILDFLAG(ARKWEB_EXT_NETWORK_CONNECTION)
+#if BUILDFLAG(ARKWEB_EX_NETWORK_CONNECTION)
   network_service->SetConnectTimeout(
       net_service::NetHelpers::connection_timeout);
 #endif
