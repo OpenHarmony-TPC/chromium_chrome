@@ -169,13 +169,8 @@ TabSharingUIViews::TabSharingUIViews(
       profile_(ProfileManager::GetLastUsedProfileAllowedByPolicy()),
       capturer_(capturer),
       capturer_origin_(GetOriginFromId(capturer)),
-      can_focus_capturer_(
-          (GetOriginFromId(capturer).scheme() != extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-          && (GetOriginFromId(capturer).scheme() !=
-              extensions::kArkwebExtensionScheme)
-#endif
-              ),
+      can_focus_capturer_(GetOriginFromId(capturer).scheme() !=
+                          extensions::kExtensionScheme),
       capturer_restricted_to_same_origin_(
           CapturerRestrictedToSameOrigin(capturer)),
       shared_tab_media_id_(media_id),

@@ -61,10 +61,6 @@
 #include "chrome/browser/win/mica_titlebar.h"
 #endif
 
-#if BUILDFLAG(IS_OHOS)
-#include "chrome/browser/ui/layout_constants.h"
-#endif
-
 namespace {
 
 // Helper to track whether a ThemeChange event has been received by the widget.
@@ -116,26 +112,15 @@ ui::ColorProviderKey::SchemeVariant GetSchemeVariant(
 ////////////////////////////////////////////////////////////////////////////////
 // BrowserFrame, public:
 
-BrowserFrame::BrowserFrame() : BrowserFrame(nullptr) {}
-
 BrowserFrame::BrowserFrame(BrowserView* browser_view)
     : native_browser_frame_(nullptr),
       root_view_(nullptr),
       browser_frame_view_(nullptr),
-      browser_view_(nullptr) {
+      browser_view_(browser_view) {
+  browser_view_->set_frame(this);
   set_is_secondary_widget(false);
   // Don't focus anything on creation, selecting a tab will set the focus.
   set_focus_on_creation(false);
-  if (browser_view) {
-    SetBrowserView(browser_view);
-  }
-}
-
-void BrowserFrame::SetBrowserView(BrowserView* browser_view) {
-  browser_view_ = browser_view;
-  if (browser_view_) {
-    browser_view_->set_frame(this);
-  }
 }
 
 BrowserFrame::~BrowserFrame() {}
@@ -170,11 +155,7 @@ void BrowserFrame::InitBrowserFrame() {
 
   if (native_browser_frame_->ShouldRestorePreviousBrowserWidgetState()) {
     if (browser->is_type_normal() || browser->is_type_devtools() ||
-        browser->is_type_app()
-#if BUILDFLAG(IS_OHOS)
-        || browser->is_type_popup()
-#endif
-    ) {
+        browser->is_type_app()) {
       // Typed panel/popup can only return a size once the widget has been
       // created.
       // DevTools counts as a popup, but DevToolsWindow::CreateDevToolsBrowser
@@ -198,12 +179,6 @@ void BrowserFrame::InitBrowserFrame() {
       }
     }
   }
-#if BUILDFLAG(IS_OHOS)
-  if (browser->is_type_popup()) {
-    params.bounds.set_height(params.bounds.height() +
-                             GetLayoutConstant(LOCATION_BAR_HEIGHT));
-  }
-#endif
 
   Init(std::move(params));
 
@@ -251,20 +226,10 @@ void BrowserFrame::LayoutWebAppWindowTitle(
 }
 
 int BrowserFrame::GetTopInset() const {
-  if (!browser_frame_view_) {
-    // With CEF the browser may already be part of a larger Views layout. Zero
-    // out the adjustment in BrowserView::GetTopInsetInBrowserView() so that
-    // the browser isn't shifted to the top of the window.
-    return browser_view_->y();
-  }
   return browser_frame_view_->GetTopInset(false);
 }
 
 void BrowserFrame::UpdateThrobber(bool running) {
-  if (!browser_frame_view_) {
-    // Not supported with CEF Views-hosted DevTools windows.
-    return;
-  }
   browser_frame_view_->UpdateThrobber(running);
 }
 
@@ -273,9 +238,6 @@ BrowserNonClientFrameView* BrowserFrame::GetFrameView() const {
 }
 
 bool BrowserFrame::UseCustomFrame() const {
-  if (!native_browser_frame_) {
-    return true;
-  }
   return native_browser_frame_->UseCustomFrame();
 }
 
@@ -290,33 +252,20 @@ bool BrowserFrame::ShouldDrawFrameHeader() const {
 void BrowserFrame::GetWindowPlacement(
     gfx::Rect* bounds,
     ui::mojom::WindowShowState* show_state) const {
-  if (!native_browser_frame_) {
-    *show_state = ui::mojom::WindowShowState::kDefault;
-    return;
-  }
   return native_browser_frame_->GetWindowPlacement(bounds, show_state);
 }
 
 content::KeyboardEventProcessingResult BrowserFrame::PreHandleKeyboardEvent(
     const input::NativeWebKeyboardEvent& event) {
-  if (!native_browser_frame_) {
-    return content::KeyboardEventProcessingResult::NOT_HANDLED;
-  }
   return native_browser_frame_->PreHandleKeyboardEvent(event);
 }
 
 bool BrowserFrame::HandleKeyboardEvent(
     const input::NativeWebKeyboardEvent& event) {
-  if (!native_browser_frame_) {
-    return false;
-  }
   return native_browser_frame_->HandleKeyboardEvent(event);
 }
 
 void BrowserFrame::OnBrowserViewInitViewsComplete() {
-  if (!browser_frame_view_) {
-    return;
-  }
   browser_frame_view_->OnBrowserViewInitViewsComplete();
 }
 
@@ -417,9 +366,6 @@ ui::ColorProviderKey::ThemeInitializerSupplier* BrowserFrame::GetCustomTheme()
 }
 
 void BrowserFrame::OnNativeWidgetWorkspaceChanged() {
-  if (!browser_view_) {
-    return;
-  }
   chrome::SaveWindowWorkspace(browser_view_->browser(), GetWorkspace());
   chrome::SaveWindowVisibleOnAllWorkspaces(browser_view_->browser(),
                                            IsVisibleOnAllWorkspaces());
@@ -626,13 +572,6 @@ void BrowserFrame::SelectNativeTheme() {
     return;
   }
 
-  // Always use the NativeTheme for forced color modes.
-  if (ui::NativeTheme::IsForcedDarkMode() ||
-      ui::NativeTheme::IsForcedLightMode()) {
-    SetNativeTheme(native_theme);
-    return;
-  }
-
   // Ignore the system theme for web apps with window-controls-overlay as the
   // display_override so the web contents can blend with the overlay by using
   // the developer-provided theme color for a better experience. Context:
@@ -698,8 +637,5 @@ bool BrowserFrame::RegenerateFrameOnThemeChange(
 }
 
 bool BrowserFrame::IsIncognitoBrowser() const {
-  if (!browser_view_) {
-    return true;
-  }
   return browser_view_->browser()->profile()->IsIncognitoProfile();
 }

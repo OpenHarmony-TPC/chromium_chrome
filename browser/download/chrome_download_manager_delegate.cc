@@ -31,7 +31,6 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "cef/libcef/features/features.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/download/bubble/download_bubble_prefs.h"
 #include "chrome/browser/download/download_core_service.h"
@@ -158,10 +157,6 @@
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/policy/skyvault/skyvault_rename_handler.h"
-#endif
-
-#if BUILDFLAG(ENABLE_CEF)
-#include "cef/libcef/browser/download_manager_delegate.h"
 #endif
 
 using content::BrowserThread;
@@ -522,21 +517,6 @@ ChromeDownloadManagerDelegate::ChromeDownloadManagerDelegate(Profile* profile)
   download_dialog_bridge_ = std::make_unique<DownloadDialogBridge>();
   download_message_bridge_ = std::make_unique<DownloadMessageBridge>();
 #endif
-
-#if BUILDFLAG(ENABLE_CEF)
-  cef_delegate_ =
-      cef::DownloadManagerDelegate::Create(profile_->GetDownloadManager());
-#endif
-
-#if BUILDFLAG(IS_OHOS)
-  // The default path obtained without kDownloadDefault Directory is'/'and does
-  // not have read and write permissions
-  if (download_prefs_->DownloadPath().value() == "/") {
-    base::FilePath path;
-    base::PathService::Get(chrome::DIR_DEFAULT_DOWNLOADS, &path);
-    download_prefs_->SetDownloadPath(path);
-  }
-#endif
 }
 
 ChromeDownloadManagerDelegate::~ChromeDownloadManagerDelegate() {
@@ -596,9 +576,6 @@ void ChromeDownloadManagerDelegate::Shutdown() {
     download_manager_->RemoveObserver(this);
     download_manager_ = nullptr;
   }
-#if BUILDFLAG(ENABLE_CEF)
-  cef_delegate_.reset();
-#endif
 }
 
 void ChromeDownloadManagerDelegate::OnDownloadCanceledAtShutdown(
@@ -666,16 +643,6 @@ bool ChromeDownloadManagerDelegate::DetermineDownloadTarget(
       !download->HasUserGesture()) {
     ReportPDFLoadStatus(PDFLoadStatus::kTriggeredNoGestureDriveByDownload);
   }
-
-#if BUILDFLAG(ARKWEB_EX_DOWNLOAD)
-  return cef_delegate_->DetermineDownloadTarget(download, callback);
-#endif
-
-#if BUILDFLAG(ENABLE_CEF)
-  if (cef_delegate_->DetermineDownloadTarget(download, callback)) {
-    return true;
-  }
-#endif
 
   DownloadTargetDeterminer::CompletionCallback target_determined_callback =
       base::BindOnce(&ChromeDownloadManagerDelegate::OnDownloadTargetDetermined,
@@ -929,15 +896,11 @@ void ChromeDownloadManagerDelegate::ShouldCompleteDownloadInternal(
 bool ChromeDownloadManagerDelegate::ShouldCompleteDownload(
     DownloadItem* item,
     base::OnceClosure user_complete_callback) {
-#if BUILDFLAG(ARKWEB_EX_DOWNLOAD)
-  return true;
-#else
   return IsDownloadReadyForCompletion(
       item, base::BindOnce(
                 &ChromeDownloadManagerDelegate::ShouldCompleteDownloadInternal,
                 weak_ptr_factory_.GetWeakPtr(), item->GetId(),
                 std::move(user_complete_callback)));
-#endif
 }
 
 bool ChromeDownloadManagerDelegate::ShouldOpenDownload(
@@ -1157,11 +1120,8 @@ void ChromeDownloadManagerDelegate::OpenDownload(DownloadItem* download) {
   Browser* browser =
       web_contents ? chrome::FindBrowserWithTab(web_contents) : nullptr;
   std::unique_ptr<chrome::ScopedTabbedBrowserDisplayer> browser_displayer;
-  if (!browser
-#if !BUILDFLAG(ENABLE_CEF)
-      || !browser->CanSupportWindowFeature(Browser::FEATURE_TABSTRIP)
-#endif
-  ) {
+  if (!browser ||
+      !browser->CanSupportWindowFeature(Browser::FEATURE_TABSTRIP)) {
     browser_displayer =
         std::make_unique<chrome::ScopedTabbedBrowserDisplayer>(profile_);
     browser = browser_displayer->browser();
@@ -1910,13 +1870,6 @@ bool ChromeDownloadManagerDelegate::IsOpenInBrowserPreferredForFile(
     return true;
   }
 #endif
-
-#if BUILDFLAG(IS_OHOS)
-  if (path.MatchesExtension(FILE_PATH_LITERAL(".mhtml"))) {
-    return true;
-  }
-#endif
-
   return false;
 }
 

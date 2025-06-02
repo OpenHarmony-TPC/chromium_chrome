@@ -13,10 +13,6 @@
 #include "components/password_manager/core/browser/password_store/password_store_backend.h"
 #include "components/sync/service/sync_service_observer.h"
 
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
-
 class PrefService;
 
 namespace password_manager {
@@ -73,9 +69,6 @@ class PasswordStoreBackendMigrationDecorator : public PasswordStoreBackend {
                      PasswordChangesOrErrorReply callback) override;
   void UpdateLoginAsync(const PasswordForm& form,
                         PasswordChangesOrErrorReply callback) override;
-#if BUILDFLAG(ARKWEB_EXT_PASSWORD)
-  void UpdateLoginDisplayNameAsync(const PasswordForm& form) override;
-#endif
   void RemoveLoginAsync(const base::Location& location,
                         const PasswordForm& form,
                         PasswordChangesOrErrorReply callback) override;

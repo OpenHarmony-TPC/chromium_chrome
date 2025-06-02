@@ -53,11 +53,7 @@ bool CanCreateDesktopShortcut(Browser* browser) {
   bool is_valid_for_shortcuts = site_url.SchemeIsHTTPOrHTTPS();
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   is_valid_for_shortcuts =
-      is_valid_for_shortcuts || site_url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || site_url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-      ;
+      is_valid_for_shortcuts || site_url.SchemeIs(extensions::kExtensionScheme);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   return is_valid_for_shortcuts;

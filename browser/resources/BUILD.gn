@@ -101,7 +101,7 @@ group("resources") {
     ]
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos_ash || is_ohos) {
+  if (is_win || is_mac || is_linux || is_chromeos_ash) {
     public_deps += [ "connectors_internals:resources" ]
   }
 
@@ -109,11 +109,11 @@ group("resources") {
     public_deps += [ "chromeos/dlp_internals:resources" ]
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos || is_ohos) {
+  if (is_win || is_mac || is_linux || is_chromeos) {
     public_deps += [ "discards:resources" ]
   }
 
-  if (is_win || is_mac || is_linux || is_ohos) {
+  if (is_win || is_mac || is_linux) {
     public_deps += [
       "app_home:resources",
       "app_settings:resources",

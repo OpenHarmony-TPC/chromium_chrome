@@ -5,7 +5,6 @@
 import("//build/config/buildflags_paint_preview.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
-import("//cef/libcef/features/features.gni")
 import("//chrome/common/features.gni")
 import("//components/nacl/features.gni")
 import("//components/offline_pages/buildflags/features.gni")
@@ -19,9 +18,6 @@ import("//ppapi/buildflags/buildflags.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/widevine/cdm/widevine.gni")
 import("//tools/grit/grit_rule.gni")
-#if BUILDFLAG(IS_ARKWEB)
-import("//arkweb/chromium_ext/chromium_ext.gni")
-#endif
 
 assert(enable_supervised_users)
 
@@ -127,9 +123,6 @@ static_library("renderer") {
     "worker_content_settings_client.cc",
     "worker_content_settings_client.h",
   ]
-  if (is_arkweb) {
-    sources += arkweb_chrome_renderer_sources
-  }
 
   defines = []
 
@@ -143,7 +136,6 @@ static_library("renderer") {
     ":process_state",
     "//base/allocator:buildflags",
     "//build:chromeos_buildflags",
-    "//cef/libcef/features",
     "//chrome:resources",
     "//chrome:strings",
     "//chrome/common",
@@ -246,7 +238,6 @@ static_library("renderer") {
     "//v8",
   ]
 
-  deps += ["//components/js_injection/renderer"]
   data_deps = [ "//tools/v8_context_snapshot" ]
 
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
@@ -258,10 +249,6 @@ static_library("renderer") {
       "bound_session_credentials/bound_session_request_throttled_in_renderer_manager.cc",
       "bound_session_credentials/bound_session_request_throttled_in_renderer_manager.h",
     ]
-  }
-
-  if (enable_cef) {
-    configs += [ "//cef/libcef/features:config" ]
   }
 
   if (enable_nacl) {
@@ -323,7 +310,7 @@ static_library("renderer") {
     deps += [ "//third_party/widevine/cdm:headers" ]
   }
 
-  if (enable_library_cdms || is_win || is_android || arkweb_enable_cdm) {
+  if (enable_library_cdms || is_win || is_android) {
     sources += [
       "media/chrome_key_systems.cc",
       "media/chrome_key_systems.h",

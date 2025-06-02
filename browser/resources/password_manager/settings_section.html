@@ -64,7 +64,7 @@
       sub-label="$i18n{autosigninDescription}"
       pref="{{prefs.credentials_enable_autosignin}}">
   </pref-toggle-button>
-  <if expr="is_win or is_macosx or is_chromeos or is_ohos">
+  <if expr="is_win or is_macosx or is_chromeos">
     <template is="dom-if"
         if="[[isBiometricAuthenticationForFillingToggleVisible_]]">
       <pref-toggle-button id="biometricAuthenticationToggle" class="hr"
@@ -145,7 +145,7 @@
         on-click="onChangePasswordManagerPinRowClick_">
     </cr-link-row>
   </template>
-  <if expr="is_win or is_macosx or is_ohos">
+  <if expr="is_win or is_macosx">
     <template is="dom-if" if="[[hasPasskeys_]]" restamp>
       <cr-link-row id="managePasskeysRow" external
           class="cr-row settings-cr-link-row" on-click="onManagePasskeysClick_"

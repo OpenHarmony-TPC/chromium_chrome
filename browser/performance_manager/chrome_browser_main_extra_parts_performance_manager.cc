@@ -86,14 +86,6 @@
 #include "components/performance_manager/graph/policies/prefetch_virtual_memory_policy.h"
 #endif
 
-#if BUILDFLAG(ARKWEB_PERFORMANCE_PERSISTENT_TASK)
-#include "ohos_nweb/browser/performance_manager/policies/background_task_policy.h"
-#endif
-
-#if BUILDFLAG(ARKWEB_BFCACHE)
-#include "ohos_nweb/browser/performance_manager/policies/ohos_bfcache_policy.h"
-#endif
-
 namespace {
 
 ChromeBrowserMainExtraPartsPerformanceManager* g_instance = nullptr;
@@ -232,16 +224,11 @@ void ChromeBrowserMainExtraPartsPerformanceManager::CreatePoliciesAndDecorators(
                        performance_manager::policies::FrameThrottlingPolicy>());
   }
 
-#if BUILDFLAG(ARKWEB_BFCACHE)
-  graph->PassToGraph(
-      std::make_unique<performance_manager::policies::OHOSBFCachePolicy>());
-#else
   if (base::FeatureList::IsEnabled(
           performance_manager::features::kBFCachePerformanceManagerPolicy)) {
     graph->PassToGraph(
         std::make_unique<performance_manager::policies::BFCachePolicy>());
   }
-#endif
 
 #if !BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(
@@ -263,11 +250,6 @@ void ChromeBrowserMainExtraPartsPerformanceManager::CreatePoliciesAndDecorators(
     }
   }
 #endif  // BUILDFLAG(IS_WIN)
-
-#if BUILDFLAG(ARKWEB_PERFORMANCE_PERSISTENT_TASK)
-  graph->PassToGraph(
-      std::make_unique<performance_manager::policies::BackgroundTaskPolicy>());
-#endif
 }
 
 content::FeatureObserverClient*

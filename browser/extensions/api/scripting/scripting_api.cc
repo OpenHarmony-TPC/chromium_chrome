@@ -413,6 +413,7 @@ bool CanAccessTarget(const PermissionsData& permissions,
 
   ScriptExecutor* script_executor = tab_helper->script_executor();
   DCHECK(script_executor);
+
   ScriptExecutor::FrameScope frame_scope =
       target.all_frames && *target.all_frames == true
           ? ScriptExecutor::INCLUDE_SUB_FRAMES

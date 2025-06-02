@@ -6,7 +6,6 @@
 
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "cef/libcef/features/features.h"
 #include "chrome/browser/optimization_guide/optimization_guide_internals_ui.h"
 #include "chrome/browser/ui/webui/about/about_ui.h"
 #include "chrome/browser/ui/webui/accessibility/accessibility_ui.h"
@@ -211,21 +210,11 @@ void RegisterChromeWebUIConfigs() {
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   auto& map = content::WebUIConfigMap::GetInstance();
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  map.AddWebUIConfig(std::make_unique<extensions::ExtensionsUIConfig>());
-#endif
-#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
-  map.AddWebUIConfig(std::make_unique<NetExportUIConfig>());
-#endif
-  return;
   map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
   map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<BluetoothInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<BrowsingTopicsInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<chromeos::DeviceLogUIConfig>());
-#if BUILDFLAG(ENABLE_CEF)
-  map.AddWebUIConfig(std::make_unique<ChromeUILicenseConfig>());
-#endif
   map.AddWebUIConfig(std::make_unique<ChromeURLsUIConfig>());
   map.AddWebUIConfig(std::make_unique<CrashesUIConfig>());
   map.AddWebUIConfig(std::make_unique<commerce::CommerceInternalsUIConfig>());

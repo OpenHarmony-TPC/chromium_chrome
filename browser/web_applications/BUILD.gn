@@ -391,10 +391,6 @@ source_set("web_applications") {
     ]
   }
 
-  if (is_ohos) {
-    sources += [ "os_integration/web_app_stubs.cc" ]
-  }
-
   if (is_linux) {
     # Desktop linux, doesn't count ChromeOS.
     sources += [

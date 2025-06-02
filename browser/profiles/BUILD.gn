@@ -5,7 +5,6 @@
 import("//build/config/chromeos/ui_mode.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
-import("//arkweb/build/features/features.gni")
 
 # This target should be the default place for adding public interface things
 # (ie, non-factory, non-impl). There will likely need to be a :factory or :impl

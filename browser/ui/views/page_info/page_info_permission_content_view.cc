@@ -228,7 +228,7 @@ void PageInfoPermissionContentView::SetPermissionInfo(
   bool is_toggle_on = PageInfoUI::IsToggleOn(permission_);
   toggle_button_->SetIsOn(is_toggle_on);
 
-#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(IS_CHROMEOS)
   if (previews_coordinator_) {
     previews_coordinator_->OnPermissionChange(is_toggle_on);
   }

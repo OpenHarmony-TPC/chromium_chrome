@@ -44,7 +44,7 @@ void PrintViewManagerBasic::BindPrintManagerHost(
   print_manager->BindReceiver(std::move(receiver), rfh);
 }
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_ARKWEB)
+#if BUILDFLAG(IS_ANDROID)
 void PrintViewManagerBasic::PdfWritingDone(int page_count) {
   pdf_writing_done_callback().Run(page_count);
 }

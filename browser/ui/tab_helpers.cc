@@ -234,7 +234,7 @@
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
+    BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ui/blocked_content/framebust_block_tab_helper.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/hats/hats_helper.h"
@@ -645,9 +645,7 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
     SearchEngineChoiceTabHelper::CreateForWebContents(web_contents);
   }
 
-#if !BUILDFLAG(IS_OHOS)
   SadTabHelper::CreateForWebContents(web_contents);
-#endif // BUILDFLAG(IS_OHOS)
   SearchTabHelper::CreateForWebContents(web_contents);
   TabDialogs::CreateForWebContents(web_contents);
   MemorySaverChipTabHelper::CreateForWebContents(web_contents);

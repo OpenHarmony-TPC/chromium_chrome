@@ -32,7 +32,6 @@ NoStatePrefetchContents* ChromeNoStatePrefetchContentsDelegate::FromWebContents(
 
 void ChromeNoStatePrefetchContentsDelegate::OnNoStatePrefetchContentsCreated(
     content::WebContents* web_contents) {
-#ifndef BUILDFLAG(ARKWEB_NO_STATE_PREFETCH)
   DCHECK(web_contents);
   TabHelpers::AttachTabHelpers(web_contents);
 
@@ -40,7 +39,6 @@ void ChromeNoStatePrefetchContentsDelegate::OnNoStatePrefetchContentsCreated(
   // Tag the NoStatePrefetch contents with the task manager specific prerender
   // tag, so that it shows up in the task manager.
   task_manager::WebContentsTags::CreateForNoStatePrefetchContents(web_contents);
-#endif
 #endif
 }
 

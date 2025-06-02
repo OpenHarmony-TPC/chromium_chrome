@@ -56,10 +56,6 @@
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
 
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
-
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/renderer/ash_merge_session_loader_throttle.h"
 #endif
@@ -251,5 +247,3 @@ void ChromeRenderThreadObserver::
             chrome::mojom::IdentifiabilityStudyConfigurator> receiver) {
   identifiability_study_configurator_receivers_.Add(this, std::move(receiver));
 }
-
-#include "arkweb/chromium_ext/chrome/renderer/chrome_render_thread_observer_for_include.cc"

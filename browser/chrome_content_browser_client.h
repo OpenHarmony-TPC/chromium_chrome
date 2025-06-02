@@ -14,7 +14,6 @@
 #include <string_view>
 #include <vector>
 
-#include "arkweb/build/features/features.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
@@ -47,15 +46,6 @@
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/video_effects/public/mojom/video_effects_processor.mojom-forward.h"
 #include "third_party/blink/public/mojom/worker/shared_worker_info.mojom.h"
-
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
-
-#if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-#include "chrome/common/renderer_configuration.mojom.h"
-#include "mojo/public/cpp/bindings/associated_remote.h"
-#endif
 
 class ChromeContentBrowserClientParts;
 class PrefRegistrySimple;
@@ -157,8 +147,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       delete;
 
   ~ChromeContentBrowserClient() override;
-
-  virtual void CleanupOnUIThread();
 
   // TODO(crbug.com/41356866): This file is about calls from content/ out
   // to chrome/ to get values or notify about events, but both of these
@@ -267,10 +255,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       const GURL& current_effective_url,
       const GURL& destination_effective_url) override;
   bool ShouldIsolateErrorPage(bool in_main_frame) override;
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  void UpdateAdBlockEnabledForSite(content::RenderFrameHost* rfh,
-                                   const GURL& gurl) override;
-#endif
   std::vector<url::Origin> GetOriginsRequiringDedicatedProcess() override;
   bool ShouldEnableStrictSiteIsolation() override;
   bool ShouldDisableSiteIsolation(
@@ -462,10 +446,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       const GURL& request_url,
       bool is_primary_main_frame_request,
       bool strict_enforcement,
-#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
-      const GURL& origin_url,
-      const std::string& referrer,
-#endif
       base::OnceCallback<void(content::CertificateRequestResultType)> callback)
       override;
 #if !BUILDFLAG(IS_ANDROID)
@@ -736,7 +716,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       override;
   void OnNetworkServiceCreated(
       network::mojom::NetworkService* network_service) override;
-  bool ConfigureNetworkContextParams(
+  void ConfigureNetworkContextParams(
       content::BrowserContext* context,
       bool in_memory,
       const base::FilePath& relative_partition_path,
@@ -1137,7 +1117,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
  private:
   friend class DisableWebRtcEncryptionFlagTest;
   friend class InProcessBrowserTest;
-  friend class ChromeContentBrowserClientUtils;
 
   FRIEND_TEST_ALL_PREFIXES(ChromeSiteIsolationPolicyTest,
                            IsolatedOriginsContainChromeOrigins);
@@ -1295,7 +1274,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
 #if !BUILDFLAG(IS_ANDROID)
   uint64_t num_keepalive_requests_ = 0;
-  std::unique_ptr<base::OneShotTimer> keepalive_timer_;
+  base::OneShotTimer keepalive_timer_;
   base::TimeTicks keepalive_deadline_;
 #endif
 
@@ -1335,23 +1314,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   bool handled_uia_provider_request_ = false;
 #endif
 
-#if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-  mojo::AssociatedRemote<chrome::mojom::RendererConfiguration>
-  GetRendererConfiguration(content::RenderProcessHost* render_process_host);
-#endif  // BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-
-#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
-  bool ShouldOverrideUrlLoading(content::FrameTreeNodeId frame_tree_node_id,
-                                bool browser_initiated,
-                                const GURL& gurl,
-                                const std::string& request_method,
-                                bool has_user_gesture,
-                                bool is_redirect,
-                                bool is_outermost_main_frame,
-                                bool is_prerendering,
-                                ui::PageTransition transition,
-                                bool* ignore_navigation) override;
-#endif
   base::WeakPtrFactory<ChromeContentBrowserClient> weak_factory_{this};
 };
 

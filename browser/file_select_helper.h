@@ -64,8 +64,7 @@ class FileSelectHelper : public base::RefCountedThreadSafe<
   static void RunFileChooser(
       content::RenderFrameHost* render_frame_host,
       scoped_refptr<content::FileSelectListener> listener,
-      const blink::mojom::FileChooserParams& params,
-      bool run_from_cef = false);
+      const blink::mojom::FileChooserParams& params);
 
   // Enumerates all the files in directory.
   static void EnumerateDirectory(
@@ -336,9 +335,6 @@ class FileSelectHelper : public base::RefCountedThreadSafe<
   std::unique_ptr<ScopedDisallowPictureInPicture>
       scoped_disallow_picture_in_picture_;
 #endif  // !BUILDFLAG(IS_ANDROID)
-
-  // Set to true if this dialog was triggered via CEF.
-  bool run_from_cef_ = false;
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   base::WeakPtrFactory<FileSelectHelper> weak_ptr_factory_{this};

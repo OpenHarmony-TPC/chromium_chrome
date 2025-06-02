@@ -1239,4 +1239,5 @@ void PrintPreviewHandler::HandleManagePrinters(const base::Value::List& args) {
   printing::PrinterManagerDialog::ShowPrinterManagerDialog();
 #endif
 }
+
 }  // namespace printing

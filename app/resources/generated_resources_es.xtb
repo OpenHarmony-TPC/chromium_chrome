@@ -1315,7 +1315,7 @@ Los permisos que hayas dado a aplicaciones se pueden aplicar a esta cuenta. Pued
 <translation id="1896043844785689584">Para configurar la huella digital, pídele a tu hijo/a que toque el sensor de huellas digitales, que está en la esquina inferior derecha del teclado. Los datos de la huella digital de tu hijo/a se almacenan de forma segura y nunca salen de este <ph name="DEVICE_TYPE" />.</translation>
 <translation id="1897120393475391208">Usar contraseña segura</translation>
 <translation id="1897860317037652061">Error al analizar</translation>
-<translation id="1898804291554630487">Haz una pregunta sobre esta página</translation>
+<translation id="1898804291554630487">Preguntar sobre esta página</translation>
 <translation id="1900305421498694955">Es posible que las aplicaciones de Google Play necesiten acceso completo al sistema de archivos para leer y escribir archivos en dispositivos de almacenamiento externo. Los usuarios de la unidad externa podrán ver los archivos y las carpetas que se hayan creado en el dispositivo. <ph name="LINK_BEGIN" />Más información<ph name="LINK_END" /></translation>
 <translation id="1901213235765457754">Pide a tu administrador que actualice esta aplicación</translation>
 <translation id="1901303067676059328">Seleccionar &amp;todo</translation>
@@ -2479,7 +2479,7 @@ Puedes gestionar la configuración de esta cuenta instalando la aplicación Fami
 <translation id="270516211545221798">Velocidad del panel táctil</translation>
 <translation id="2705736684557713153">Desplázate hasta el final de la pantalla y activa la opción Conexión compartida instantánea si aparece. Si no, ya has terminado.</translation>
 <translation id="2706304388244371417">Crea copias de seguridad en Google Drive. Recupera datos de forma sencilla o cambia de dispositivo en cualquier momento. Esta copia de seguridad incluye datos de aplicaciones. Las copias de seguridad se suben a Google y se cifran con la contraseña de la cuenta de Google de tu hijo/a. <ph name="BEGIN_LINK1" />Más información sobre las copias de seguridad<ph name="BEGIN_LINK1_END" />Más información<ph name="END_LINK1" /></translation>
-<translation id="2706462751667573066">Flecha hacia arriba</translation>
+<translation id="2706462751667573066">Arriba</translation>
 <translation id="270921614578699633">Por encima de la media</translation>
 <translation id="2709516037105925701">Autocompletar</translation>
 <translation id="2710101514844343743">Datos de uso y diagnóstico</translation>
@@ -4672,7 +4672,7 @@ Puede tratarse de información sobre el software instalado, los archivos, tu nav
 <translation id="4254813446494774748">Idioma de traducción:</translation>
 <translation id="4255016471934258618">Abrir mucho la boca</translation>
 <translation id="425573743389990240">Tasa de descarga de la batería en vatios (si el valor es negativo, significa que la batería se está cargando)</translation>
-<translation id="4255841059940367080">Protección basada en IA en tiempo real contra descargas, extensiones y sitios peligrosos, que se basa en el envío de tus datos de navegación a Google.</translation>
+<translation id="4255841059940367080">Protección en tiempo real y basada en IA contra descargas, extensiones y sitios peligrosos, que requiere el envío de tus datos de navegación a Google.</translation>
 <translation id="4256316378292851214">Gu&amp;ardar vídeo como...</translation>
 <translation id="4258348331913189841">Sistemas de archivos</translation>
 <translation id="4259388776256904261">Este proceso puede tardar un poco</translation>
@@ -5563,7 +5563,7 @@ Usa Ctrl + Alt + Reducir el brillo para reducir la pantalla.</translation>
 <translation id="4892328231620815052">Cuando quieras, busca tu lista de lectura en Marcadores y listas</translation>
 <translation id="489258173289528622">Modo de inactividad con batería</translation>
 <translation id="4892811427319351753">No se puede habilitar la <ph name="EXTENSION_TYPE_PARAMETER" /></translation>
-<translation id="4892981359753171125">Control facial</translation>
+<translation id="4892981359753171125">Control con gestos faciales</translation>
 <translation id="4893073099212494043">Habilitar sugerencia de siguiente palabra</translation>
 <translation id="4893336867552636863">Se eliminarán de forma permanente los datos de navegación del dispositivo.</translation>
 <translation id="4893454800196085005">Buena - DVD</translation>
@@ -7368,7 +7368,7 @@ Exponente público (<ph name="PUBLIC_EXPONENT_NUM_BITS" /> bits):
 <translation id="622125358038862905">{NUM_OF_FILES,plural, =1{No se ha podido copiar el archivo a <ph name="CLOUD_PROVIDER" />}other{No se han podido copiar los archivos a <ph name="CLOUD_PROVIDER" />}}</translation>
 <translation id="6224481128663248237">El proceso de formateo se ha realizado correctamente.</translation>
 <translation id="622474711739321877">Este contenedor ya existe.</translation>
-<translation id="622484624075952240">Flecha hacia abajo</translation>
+<translation id="622484624075952240">Abajo</translation>
 <translation id="622537739776246443">Se eliminará el perfil</translation>
 <translation id="6225475702458870625">Conexión de datos disponible desde tu <ph name="PHONE_NAME" /></translation>
 <translation id="6226777517901268232">Archivo de clave privada (opcional)</translation>

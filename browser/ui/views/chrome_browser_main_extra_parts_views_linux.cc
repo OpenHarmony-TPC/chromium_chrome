@@ -56,10 +56,7 @@ void ChromeBrowserMainExtraPartsViewsLinux::ToolkitInitialized() {
     ui::CursorFactory::GetInstance()->ObserveThemeChanges();
   }
 #if defined(USE_DBUS)
-  if (!ui::NativeTheme::IsForcedDarkMode() &&
-      !ui::NativeTheme::IsForcedLightMode()) {
-    dark_mode_manager_ = std::make_unique<ui::DarkModeManagerLinux>();
-  }
+  dark_mode_manager_ = std::make_unique<ui::DarkModeManagerLinux>();
 #endif
 }
 

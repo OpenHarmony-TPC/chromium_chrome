@@ -172,12 +172,6 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
           'SettingsMenu_AiPageEntryPointClicked');
     }
   }
-
-  // <if expr="is_ohos">
-  private systemPageVisibility_(): boolean {
-    return loadTimeData.getBoolean('systemPageVisibility');
-  }
-  // </if>
 }
 
 declare global {

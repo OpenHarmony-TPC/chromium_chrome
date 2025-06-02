@@ -6699,11 +6699,6 @@ test("unit_tests") {
     "//base:path_service_unittest",
   ]
 
-  # FIXME
-  if (is_ohos) {
-    deps -= [ "//third_party/rust/fend_core/v1/wrapper:unit_tests" ]
-  }
-
   if (is_chromeos) {
     sources += [ "../browser/device_reauth/chromeos/device_authenticator_chromeos_unittest.cc" ]
 

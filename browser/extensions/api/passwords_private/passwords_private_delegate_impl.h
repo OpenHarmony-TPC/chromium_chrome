@@ -150,16 +150,14 @@ class PasswordsPrivateDelegateImpl
 
   base::WeakPtr<PasswordsPrivateDelegate> AsWeakPtr() override;
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator(
       content::WebContents* web_contents,
       base::TimeDelta auth_validity_period);
 #endif
 
 #if defined(UNIT_TEST)
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   void SetDeviceAuthenticatorForTesting(
       std::unique_ptr<device_reauth::DeviceAuthenticator>
           device_authenticator) {

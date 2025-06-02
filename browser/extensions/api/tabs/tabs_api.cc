@@ -569,7 +569,6 @@ ExtensionFunction::ResponseAction WindowsGetLastFocusedFunction::Run() {
   return RespondNow(WithArguments(std::move(windows)));
 }
 
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction WindowsGetAllFunction::Run() {
   std::optional<windows::GetAll::Params> params =
       windows::GetAll::Params::Create(args());
@@ -593,7 +592,6 @@ ExtensionFunction::ResponseAction WindowsGetAllFunction::Run() {
 
   return RespondNow(WithArguments(std::move(window_list)));
 }
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
   std::optional<windows::Create::Params> params =
@@ -1179,7 +1177,6 @@ ExtensionFunction::ResponseAction TabsGetAllInWindowFunction::Run() {
       window_controller->CreateTabList(extension(), source_context_type())));
 }
 
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction TabsQueryFunction::Run() {
   std::optional<tabs::Query::Params> params =
       tabs::Query::Params::Create(args());
@@ -1388,9 +1385,7 @@ ExtensionFunction::ResponseAction TabsQueryFunction::Run() {
 
   return RespondNow(WithArguments(std::move(result)));
 }
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction TabsCreateFunction::Run() {
   std::optional<tabs::Create::Params> params =
       tabs::Create::Params::Create(args());
@@ -1425,7 +1420,6 @@ ExtensionFunction::ResponseAction TabsCreateFunction::Run() {
     return has_callback() ? WithArguments(std::move(*result)) : NoArguments();
   }());
 }
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 ExtensionFunction::ResponseAction TabsDuplicateFunction::Run() {
   std::optional<tabs::Duplicate::Params> params =
@@ -1476,7 +1470,6 @@ ExtensionFunction::ResponseAction TabsDuplicateFunction::Run() {
                             new_tab_strip, new_tab_index))));
 }
 
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction TabsGetFunction::Run() {
   std::optional<tabs::Get::Params> params = tabs::Get::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -1502,7 +1495,6 @@ ExtensionFunction::ResponseAction TabsGetFunction::Run() {
       CreateTabObjectHelper(contents, extension(), source_context_type(),
                             tab_strip, tab_index))));
 }
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 ExtensionFunction::ResponseAction TabsGetCurrentFunction::Run() {
   DCHECK(dispatcher());
@@ -1595,7 +1587,6 @@ bool TabsHighlightFunction::HighlightTab(TabStripModel* tabstrip,
 
 TabsUpdateFunction::TabsUpdateFunction() : web_contents_(nullptr) {}
 
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
   std::optional<tabs::Update::Params> params =
       tabs::Update::Params::Create(args());
@@ -1661,7 +1652,7 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
       return RespondNow(Error(ExtensionTabUtil::kTabStripNotEditableError));
     }
 
-    if (tab_strip && tab_strip->active_index() != tab_index) {
+    if (tab_strip->active_index() != tab_index) {
       tab_strip->ActivateTabAt(tab_index);
       DCHECK_EQ(contents, tab_strip->GetActiveWebContents());
     }
@@ -1675,7 +1666,7 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
     }
 
     bool highlighted = *params->update_properties.highlighted;
-    if (tab_strip && highlighted != tab_strip->IsTabSelected(tab_index)) {
+    if (highlighted != tab_strip->IsTabSelected(tab_index)) {
       tab_strip->ToggleSelectionAt(tab_index);
     }
   }
@@ -1687,7 +1678,7 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
         kCannotUpdateMuteCaptured, base::NumberToString(tab_id))));
   }
 
-  if (tab_strip && params->update_properties.opener_tab_id) {
+  if (params->update_properties.opener_tab_id) {
     int opener_id = *params->update_properties.opener_tab_id;
     WebContents* opener_contents = nullptr;
     if (opener_id == tab_id) {
@@ -1722,7 +1713,7 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
         ->SetAutoDiscardable(state);
   }
 
-  if (tab_strip && params->update_properties.pinned) {
+  if (params->update_properties.pinned) {
     // Bug fix for crbug.com/1197888. Don't let the extension update the tab if
     // the user is dragging tabs.
     if (!ExtensionTabUtil::IsTabStripEditable()) {
@@ -1758,14 +1749,13 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
       return RespondNow(Error(std::move(error)));
     }
 
-    NotifyExtensionTelemetry(profile,
+    NotifyExtensionTelemetry(Profile::FromBrowserContext(browser_context()),
                              extension(), safe_browsing::TabsApiInfo::UPDATE,
                              current_url, updated_url, js_callstack());
   }
 
   return RespondNow(GetResult());
 }
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 bool TabsUpdateFunction::UpdateURL(const std::string& url_string,
                                    int tab_id,
@@ -1803,7 +1793,6 @@ bool TabsUpdateFunction::UpdateURL(const std::string& url_string,
   return true;
 }
 
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseValue TabsUpdateFunction::GetResult() {
   if (!has_callback())
     return NoArguments();
@@ -1811,7 +1800,6 @@ ExtensionFunction::ResponseValue TabsUpdateFunction::GetResult() {
   return ArgumentList(tabs::Get::Results::Create(CreateTabObjectHelper(
       web_contents_, extension(), source_context_type(), nullptr, -1)));
 }
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 ExtensionFunction::ResponseAction TabsMoveFunction::Run() {
   std::optional<tabs::Move::Params> params = tabs::Move::Params::Create(args());

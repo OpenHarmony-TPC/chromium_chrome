@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ui/views/frame/desktop_browser_frame_aura_linux.h"
 
-#include "arkweb/build/features/features.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/profiles/profile.h"

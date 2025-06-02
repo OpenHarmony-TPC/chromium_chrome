@@ -841,10 +841,8 @@ void SystemNetworkContextManager::DisableQuic() {
 void SystemNetworkContextManager::
     AddCookieEncryptionManagerToNetworkContextParams(
         network::mojom::NetworkContextParams* network_context_params) {
-#if !BUILDFLAG(ARKWEB_NETWORK_BASE)
   network_context_params->cookie_encryption_provider =
       cookie_encryption_provider_.BindNewRemote();
-#endif
 }
 
 void SystemNetworkContextManager::AddSSLConfigToNetworkContextParams(

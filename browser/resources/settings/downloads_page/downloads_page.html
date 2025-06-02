@@ -9,10 +9,10 @@
           $i18n{downloadLocation}
         </div>
         <div class="secondary" id="defaultDownloadPath" aria-hidden="true">
-<if expr="not chromeos_ash and not is_ohos">
+<if expr="not chromeos_ash">
           [[prefs.download.default_directory.value]]
 </if>
-<if expr="chromeos_ash or is_ohos">
+<if expr="chromeos_ash">
           [[downloadLocation_]]
 </if>
         </div>

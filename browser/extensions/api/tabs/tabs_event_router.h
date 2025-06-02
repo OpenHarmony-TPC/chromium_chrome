@@ -9,7 +9,6 @@
 #include <set>
 #include <string>
 
-#include "arkweb/build/features/features.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/scoped_observation.h"
@@ -96,24 +95,6 @@ class TabsEventRouter : public TabStripModelObserver,
       std::optional<LifecycleUnitDiscardReason> discard_reason) override;
   void OnTabAutoDiscardableStateChange(content::WebContents* contents,
                                        bool is_auto_discardable) override;
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  void DispatchTabUpdatedEvent(
-      int tab_id,
-      content::WebContents* contents,
-      const std::vector<std::string>& changed_property_names,
-      const std::string& url);
-
-  void DispatchTabUpdatedEvent(
-      int tab_id,
-      content::WebContents* contents,
-      const std::vector<std::string>& changed_property_names,
-      std::unique_ptr<NWebExtensionTabChangeInfo> changeInfo);
-
-  void DispatchTabActiveEvent(int tab_id,
-                              int window_id,
-                              content::WebContents* contents);
-#endif
 
  private:
   // Methods called from OnTabStripModelChanged.

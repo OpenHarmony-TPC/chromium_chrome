@@ -287,7 +287,7 @@ export class SettingsSecurityPageElement extends
   private focusConfigChanged_(_newConfig: FocusConfig, oldConfig: FocusConfig) {
     assert(!oldConfig);
     // TODO(crbug.com/40928765): fix this for new cert management UI.
-    // <if expr="use_nss_certs or is_ohos">
+    // <if expr="use_nss_certs">
     if (routes.CERTIFICATES) {
       this.focusConfig.set(routes.CERTIFICATES.path, () => {
         const toFocus = this.shadowRoot!.querySelector<HTMLElement>(
@@ -548,7 +548,7 @@ export class SettingsSecurityPageElement extends
   }
 
   private onManageCertificatesClick_() {
-    // <if expr="use_nss_certs or is_ohos">
+    // <if expr="use_nss_certs">
     Router.getInstance().navigateTo(routes.CERTIFICATES);
     // </if>
     // <if expr="is_win or is_macosx">

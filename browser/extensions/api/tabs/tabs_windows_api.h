@@ -12,10 +12,6 @@
 #include "extensions/browser/browser_context_keyed_api_factory.h"
 #include "extensions/browser/event_router.h"
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-struct NWebExtensionTabChangeInfo;
-#endif // ARKWEB_ARKWEB_EXTENSIONS
-
 namespace extensions {
 class TabsEventRouter;
 class WindowsEventRouter;
@@ -40,20 +36,6 @@ class TabsWindowsAPI : public BrowserContextKeyedAPI,
 
   // EventRouter::Observer implementation.
   void OnListenerAdded(const extensions::EventListenerInfo& details) override;
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  void TabUpdated(int tab_id,
-                  content::WebContents* contents,
-                  const std::vector<std::string>& changed_property_names,
-                  const std::string& url);
-
-  void TabUpdated(int tab_id,
-      content::WebContents* contents,
-      const std::vector<std::string>& changed_property_names,
-      std::unique_ptr<NWebExtensionTabChangeInfo> changeInfo);
-
-  void TabActived(int tab_id, int window_id, content::WebContents* contents);
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 
  private:
   friend class BrowserContextKeyedAPIFactory<TabsWindowsAPI>;

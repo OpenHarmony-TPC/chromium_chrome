@@ -449,11 +449,7 @@ bool ChromeWebAuthenticationDelegate::
   // Allow chrome-extensions:// origins to make WebAuthn requests.
   // `MaybeGetRelyingPartyId` will override the RP ID if it matches the
   // extension origin.
-  if (caller_origin.scheme() != extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      && caller_origin.scheme() != extensions::kArkwebExtensionScheme
-#endif
-    ) {
+  if (caller_origin.scheme() != extensions::kExtensionScheme) {
     return false;
   }
   const extensions::Extension* extension =
@@ -522,12 +518,8 @@ ChromeWebAuthenticationDelegate::MaybeGetRelyingPartyIdOverride(
   // whole origin to avoid collisions with the RP ID space for HTTPS origins.
   // Extensions may not claim other extensions RP IDs, even if they have host
   // permissions on them.
-  if ((caller_origin.scheme() == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || caller_origin.scheme() == extensions::kArkwebExtensionScheme
-#endif
-    ) && claimed_relying_party_id == caller_origin.host()
-    ) {
+  if (caller_origin.scheme() == extensions::kExtensionScheme &&
+      claimed_relying_party_id == caller_origin.host()) {
     return caller_origin.Serialize();
   }
 

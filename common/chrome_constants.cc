@@ -6,7 +6,6 @@
 
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "cef/libcef/features/features.h"
 #include "chrome/common/chrome_version.h"
 
 #define FPL FILE_PATH_LITERAL
@@ -90,22 +89,13 @@ const char kMacHelperSuffixAlerts[] = " (Alerts)";
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN)
-const base::FilePath::CharType kBrowserResourcesDll[] =
-#if BUILDFLAG(ENABLE_CEF)
-    FPL("libcef.dll");
-#else
-    FPL("chrome.dll");
-#endif
+const base::FilePath::CharType kBrowserResourcesDll[] = FPL("chrome.dll");
 const base::FilePath::CharType kElfDll[] = FPL("chrome_elf.dll");
 const base::FilePath::CharType kStatusTrayWindowClass[] =
     FPL("Chrome_StatusTrayWindow");
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_ARKWEB)
-const char kInitialProfile[] = ".";
-#else
 const char kInitialProfile[] = "Default";
-#endif
 const char kMultiProfileDirPrefix[] = "Profile ";
 const base::FilePath::CharType kGuestProfileDir[] = FPL("Guest Profile");
 const base::FilePath::CharType kSystemProfileDir[] = FPL("System Profile");
@@ -146,11 +136,7 @@ const base::FilePath::CharType kOfflinePagePrefetchStoreDirname[] =
     FPL("Offline Pages/prefech_store");
 const base::FilePath::CharType kOfflinePageRequestQueueDirname[] =
     FPL("Offline Pages/request_queue");
-#if BUILDFLAG(IS_ARKWEB)
-const base::FilePath::CharType kPreferencesFilename[] = FPL("UserPrefs.json");
-#else
 const base::FilePath::CharType kPreferencesFilename[] = FPL("Preferences");
-#endif
 const base::FilePath::CharType kPreviewsOptOutDBFilename[] =
     FPL("previews_opt_out.db");
 const base::FilePath::CharType kQueryTileStorageDirname[] = FPL("Query Tiles");

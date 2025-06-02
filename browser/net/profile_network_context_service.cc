@@ -131,10 +131,6 @@
 #include "net/ssl/client_cert_store_mac.h"
 #endif  // BUILDFLAG(IS_MAC)
 
-#if BUILDFLAG(IS_OHOS)
-#include "net/ssl/client_cert_store_ohos.h"
-#endif  // BUILDFLAG(IS_OHOS)
-
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "extensions/common/constants.h"
 #endif
@@ -159,10 +155,6 @@
 #include "chrome/browser/net/server_certificate_database.pb.h"  // nogncheck
 #include "chrome/browser/net/server_certificate_database_service.h"  // nogncheck
 #include "chrome/browser/net/server_certificate_database_service_factory.h"  // nogncheck
-#endif
-
-#if BUILDFLAG(ARKWEB_NETWORK_BASE)
-#include "cef/ohos_cef_ext/libcef//browser/net_service/arkweb_proxy_config_monitor.h"
 #endif
 
 namespace {
@@ -386,11 +378,7 @@ bool NeedsIpProtection(const IpProtectionCoreHost* ipp_core_host,
 }  // namespace
 
 ProfileNetworkContextService::ProfileNetworkContextService(Profile* profile)
-#if BUILDFLAG(ARKWEB_NETWORK_BASE)
-    : profile_(profile) {
-#else
     : profile_(profile), proxy_config_monitor_(profile) {
-#endif
   TRACE_EVENT0("startup", "ProfileNetworkContextService::ctor");
   PrefService* profile_prefs = profile->GetPrefs();
   quic_allowed_.Init(prefs::kQuicAllowed, profile_prefs,
@@ -1033,10 +1021,6 @@ ProfileNetworkContextService::CreateCookieManagerParams(
       extensions::kExtensionScheme);
   out->third_party_cookies_allowed_schemes.push_back(
       content::kChromeDevToolsScheme);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  out->third_party_cookies_allowed_schemes.push_back(
-      extensions::kArkwebExtensionScheme);
-#endif
 #endif
 
   HostContentSettingsMap* host_content_settings_map =
@@ -1094,9 +1078,7 @@ void ProfileNetworkContextService::FlushMatchingCachedClientCert(
 }
 
 void ProfileNetworkContextService::FlushProxyConfigMonitorForTesting() {
-#if !BUILDFLAG(ARKWEB_NETWORK_BASE)
   proxy_config_monitor_.FlushForTesting();
-#endif
 }
 
 void ProfileNetworkContextService::SetDiscardDomainReliabilityUploadsForTesting(
@@ -1192,10 +1174,6 @@ ProfileNetworkContextService::CreateClientCertStore() {
   // Android does not use the ClientCertStore infrastructure. On Android client
   // cert matching is done by the OS as part of the call to show the cert
   // selection dialog.
-  return nullptr;
-#elif BUILDFLAG(IS_OHOS)
-  LOG(ERROR)
-      << "ProfileNetworkContextService::CreateClientCertStore TODO for OS_OHOS";
   return nullptr;
 #else
 #error Unknown platform.
@@ -1392,13 +1370,7 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
     network_context_params->hsts_policy_bypass_list.push_back(*string_value);
   }
 
-#if BUILDFLAG(ARKWEB_NETWORK_BASE)
-  // Add proxy settings
-  NWEB::ProxyConfigMonitor::GetInstance()->AddProxyToNetworkContextParams(
-      network_context_params);
-#else
   proxy_config_monitor_.AddToNetworkContextParams(network_context_params);
-#endif
 
   network_context_params->enable_certificate_reporting = true;
 

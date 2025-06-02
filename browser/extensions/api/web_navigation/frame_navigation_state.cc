@@ -46,11 +46,7 @@ bool FrameNavigationState::IsValidUrl(const GURL& url) {
     return true;
   }
 
-  return allow_extension_scheme_ && (url.scheme() == kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-                                     || url.scheme() == kArkwebExtensionScheme
-#endif
-                                    );
+  return allow_extension_scheme_ && url.scheme() == kExtensionScheme;
 }
 
 bool FrameNavigationState::CanSendEvents() const {

@@ -2174,13 +2174,8 @@ void DevToolsUIBindings::AddDevToolsExtensionsToClient() {
     }
     GURL url =
         extensions::chrome_manifest_urls::GetDevToolsPage(extension.get());
-    const bool is_extension_url =
-        (url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-         || url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-             ) &&
-        url.host_piece() == extension->id();
+    const bool is_extension_url = url.SchemeIs(extensions::kExtensionScheme) &&
+                                  url.host_piece() == extension->id();
     CHECK(is_extension_url || url.SchemeIsHTTPOrHTTPS());
 
     // Each devtools extension will need to be able to run in the devtools

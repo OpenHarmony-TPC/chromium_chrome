@@ -94,11 +94,7 @@ bool ChromeContentBrowserClientWebUiPart::OverrideWebPreferencesAfterNavigation(
   // Extensions are handled by ChromeContentBrowserClientExtensionsPart.
   const GURL& site_url =
       web_contents->GetPrimaryMainFrame()->GetSiteInstance()->GetSiteURL();
-  if (site_url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || site_url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-  ) {
+  if (site_url.SchemeIs(extensions::kExtensionScheme)) {
     return false;
   }
 
