@@ -13,14 +13,11 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/no_destructor.h"
 #include "base/path_service.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "cef/libcef/features/features.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/policy/configuration_policy_handler_list_factory.h"
@@ -47,10 +44,6 @@
 #include "content/public/common/content_switches.h"
 #include "extensions/buildflags/buildflags.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/registry.h"
@@ -79,18 +72,9 @@
 #include "components/policy/core/common/proxy_policy_provider.h"
 #endif
 
-#if BUILDFLAG(ARKWEB_EDM_POLICY)
-#include "arkweb/chromium_ext/components/policy/core/common/policy_loader_ohos.h"
-#endif
-
 namespace policy {
 namespace {
 bool g_command_line_enabled_for_testing = false;
-
-std::string* PlatformPolicyId() {
-  static base::NoDestructor<std::string> id;
-  return id.get();
-}
 }  // namespace
 
 ChromeBrowserPolicyConnector::ChromeBrowserPolicyConnector()
@@ -271,73 +255,6 @@ void ChromeBrowserPolicyConnector::EnableCommandLineSupportForTesting() {
   g_command_line_enabled_for_testing = true;
 }
 
-// static
-void ChromeBrowserPolicyConnector::EnablePlatformPolicySupport(
-    const std::string& id) {
-  *PlatformPolicyId() = id;
-}
-
-#if BUILDFLAG(IS_WIN)
-
-// static
-std::wstring ChromeBrowserPolicyConnector::GetPolicyKey() {
-#if BUILDFLAG(ENABLE_CEF)
-  const std::string& policy_id = *PlatformPolicyId();
-  if (!policy_id.empty()) {
-    return base::UTF8ToWide(policy_id);
-  }
-  return std::wstring();
-#else
-  return kRegistryChromePolicyKey;
-#endif
-}
-
-#elif BUILDFLAG(IS_MAC)
-
-// static
-base::apple::ScopedCFTypeRef<CFStringRef>
-ChromeBrowserPolicyConnector::GetBundleId() {
-#if BUILDFLAG(ENABLE_CEF)
-  const std::string& policy_id = *PlatformPolicyId();
-  if (policy_id.empty()) {
-    return base::apple::ScopedCFTypeRef<CFStringRef>();
-  }
-
-  return base::SysUTF8ToCFStringRef(policy_id);
-#elif BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  // Explicitly access the "com.google.Chrome" bundle ID, no matter what this
-  // app's bundle ID actually is. All channels of Chrome should obey the same
-  // policies.
-  return CFSTR("com.google.Chrome");
-#else
-  return base::SysUTF8ToCFStringRef(base::apple::BaseBundleID());
-#endif
-}
-
-#elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
-
-// static
-bool ChromeBrowserPolicyConnector::GetDirPolicyFilesPath(base::FilePath* path) {
-#if BUILDFLAG(ENABLE_CEF)
-  const std::string& policy_id = *PlatformPolicyId();
-  if (policy_id.empty()) {
-    return false;
-  }
-
-  base::FilePath policy_path(policy_id);
-  if (!policy_path.IsAbsolute()) {
-    return false;
-  }
-
-  *path = policy_path;
-  return true;
-#else
-  return base::PathService::Get(chrome::DIR_POLICY_FILES, path);
-#endif
-}
-
-#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
-
 base::flat_set<std::string>
 ChromeBrowserPolicyConnector::device_affiliation_ids() const {
   if (!device_affiliation_ids_for_testing_.empty()) {
@@ -377,7 +294,7 @@ ChromeBrowserPolicyConnector::CreatePolicyProviders() {
     providers.insert(providers.begin(), std::move(platform_provider));
   }
 
-#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(IS_CHROMEOS)
   MaybeCreateCloudPolicyManager(&providers);
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
@@ -401,29 +318,25 @@ ChromeBrowserPolicyConnector::CreatePolicyProviders() {
 std::unique_ptr<ConfigurationPolicyProvider>
 ChromeBrowserPolicyConnector::CreatePlatformProvider() {
 #if BUILDFLAG(IS_WIN)
-  const std::wstring policy_key = GetPolicyKey();
-  if (policy_key.empty()) {
-    return nullptr;
-  }
   std::unique_ptr<AsyncPolicyLoader> loader(PolicyLoaderWin::Create(
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),
-      ManagementServiceFactory::GetForPlatform(), policy_key));
-  return std::make_unique<AsyncPolicyProvider>(GetSchemaRegistry(),
-                                               std::move(loader));
-#elif BUILDFLAG(IS_ARKWEB)
-  std::unique_ptr<AsyncPolicyLoader> loader =
-      std::make_unique<PolicyLoaderOhos>(
-          base::ThreadPool::CreateSequencedTaskRunner(
-              {base::MayBlock(), base::TaskPriority::BEST_EFFORT}));
+      ManagementServiceFactory::GetForPlatform(), kRegistryChromePolicyKey));
   return std::make_unique<AsyncPolicyProvider>(GetSchemaRegistry(),
                                                std::move(loader));
 #elif BUILDFLAG(IS_MAC)
-  base::apple::ScopedCFTypeRef<CFStringRef> bundle_id_scoper(GetBundleId());
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  // Explicitly watch the "com.google.Chrome" bundle ID, no matter what this
+  // app's bundle ID actually is. All channels of Chrome should obey the same
+  // policies.
+  CFStringRef bundle_id = CFSTR("com.google.Chrome");
+#elif BUILDFLAG(GOOGLE_CHROME_FOR_TESTING_BRANDING)
+  CFStringRef bundle_id = CFSTR("com.google.ChromeForTesting");
+#else
+  base::apple::ScopedCFTypeRef<CFStringRef> bundle_id_scoper =
+      base::SysUTF8ToCFStringRef(base::apple::BaseBundleID());
   CFStringRef bundle_id = bundle_id_scoper.get();
-  if (!bundle_id) {
-    return nullptr;
-  }
+#endif
   auto loader = std::make_unique<PolicyLoaderMac>(
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),
@@ -433,7 +346,7 @@ ChromeBrowserPolicyConnector::CreatePlatformProvider() {
                                                std::move(loader));
 #elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
   base::FilePath config_dir_path;
-  if (GetDirPolicyFilesPath(&config_dir_path)) {
+  if (base::PathService::Get(chrome::DIR_POLICY_FILES, &config_dir_path)) {
     auto loader = std::make_unique<ConfigDirPolicyLoader>(
         base::ThreadPool::CreateSequencedTaskRunner(
             {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),

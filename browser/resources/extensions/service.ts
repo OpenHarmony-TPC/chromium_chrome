@@ -258,9 +258,7 @@ export class Service implements ServiceInterface {
   }
 
   openUrl(url: string): void {
-    // window.open(url);
-    // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-    chrome.developerPrivate.openUrl(url);
+    window.open(url);
   }
 
   reloadItem(id: string): Promise<void> {

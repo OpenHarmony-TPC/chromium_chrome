@@ -4,7 +4,6 @@
         padding: 0 var(--cr-section-padding);
       }
 
-
       .bullet-line {
         align-items: center;
         display: flex;
@@ -350,7 +349,7 @@
 <if expr="not use_nss_certs">
           external
 </if>
-<if expr="use_nss_certs or is_ohos">
+<if expr="use_nss_certs">
           role-description="$i18n{subpageArrowRoleDescription}"
 </if>
           label="$i18n{manageCertificates}"
@@ -358,7 +357,6 @@
           on-click="onManageCertificatesClick_">
       </cr-link-row>
 
-<if expr="not is_ohos">
       <cr-link-row id="chromeCertificates"
           class="hr"
           external
@@ -390,7 +388,6 @@
           sub-label="$i18n{chromeCertificatesDescription}"
           on-click="onChromeCertificatesClick_">
       </cr-link-row>
-</if>
 </if>
 
     <cr-link-row id="advanced-protection-program-link" class="hr"

@@ -1106,11 +1106,6 @@ views::View::DropCallback BookmarkBarView::GetDropCallback(
     return base::NullCallback();
   }
 
-#if BUILDFLAG(IS_OHOS)
-  const OSExchangeData& data = event.data();
-  drop_info_->data.Read(data);
-#endif
-
   size_t index = -1;
   const bookmarks::BookmarkNode* parent_node =
       GetParentNodeAndIndexForDrop(index);

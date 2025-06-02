@@ -100,10 +100,7 @@ are declared in tools/grit/grit_rule.gni.
     <!-- Pseudolocales -->
     <output filename="generated_resources_ar-XB.pak" type="data_package" lang="ar-XB" />
     <output filename="generated_resources_en-XA.pak" type="data_package" lang="en-XA" />
-    <!-- <if expr="pp_ifdef('arkweb_i18n')"> -->
-      <output filename="generated_resources_bo-CN.pak" type="data_package" lang="bo-CN" />
-      <output filename="generated_resources_ug.pak" type="data_package" lang="ug" />
-    <!-- </if> -->
+
     <!-- On Android, output some strings into Android's xml string format.
          These strings are tagged with formatter_data="android_java" -->
     <if expr="is_android">
@@ -276,10 +273,6 @@ are declared in tools/grit/grit_rule.gni.
     <file path="resources/generated_resources_zh-HK.xtb" lang="zh-HK" />
     <file path="resources/generated_resources_zh-TW.xtb" lang="zh-TW" />
     <file path="resources/generated_resources_zu.xtb" lang="zu" />
-    <!-- <if expr="pp_ifdef('arkweb_i18n')"> -->
-    <file path="resources/generated_resources_bo-CN.xtb" lang="bo-CN" />
-    <file path="resources/generated_resources_ug.xtb" lang="ug" />
-    <!-- </if> -->
   </translations>
   <release seq="1">
     <messages fallback_to_english="true">
@@ -3897,7 +3890,7 @@ are declared in tools/grit/grit_rule.gni.
       </if>
 
       <!-- Bluetooth Device Credentials (i.e. PIN/Passkey) dialog -->
-      <if expr="is_win or is_linux or is_ohos">
+      <if expr="is_win or is_linux">
         <message name="IDS_BLUETOOTH_DEVICE_CREDENTIALS_TITLE" desc="Title of the Bluetooth device credentials prompt dialog.">
           Device Credentials
         </message>
@@ -6511,11 +6504,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
           Old versions of Chrome Apps won't open on Linux devices after December 2022. Contact your administrator to update to a new version or remove this app.
         </message>
       </if>
-      <if expr="is_ohos">
-        <message name="IDS_FORCE_INSTALLED_DEPRECATED_APPS_CONTENT" desc="Content of the force installed deprecated app dialog">
-          Old versions of Chrome Apps won't open on Ohos devices after December 2022. Contact your administrator to update to a new version or remove this app.
-        </message>
-      </if>
       <if expr="is_fuchsia">
         <message name="IDS_FORCE_INSTALLED_DEPRECATED_APPS_CONTENT" desc="Content of the force installed deprecated app dialog">
           Old versions of Chrome Apps won't open after December 2022. Contact your administrator to update to a new version or remove this app.
@@ -6560,11 +6548,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <if expr="is_linux">
         <message name="IDS_DEPRECATED_APPS_MONITOR_RENDERER" desc="Dialog content that educates users that Chrome Apps will soon no longer launch.">
           Old versions of Chrome apps won't open on Linux devices after December 2022. You can check if there's a new version available.
-        </message>
-      </if>
-      <if expr="is_ohos">
-        <message name="IDS_DEPRECATED_APPS_MONITOR_RENDERER" desc="Dialog content that educates users that Chrome Apps will soon no longer launch.">
-          Old versions of Chrome apps won't open on Ohos devices after December 2022. You can check if there's a new version available.
         </message>
       </if>
       <if expr="is_fuchsia">

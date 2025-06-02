@@ -162,11 +162,7 @@ void MaybeShowExtensionControlledNewTabPage(
   if (!entry)
     return;
   GURL active_url = entry->GetURL();
-  if (!active_url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      && !active_url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-  )
+  if (!active_url.SchemeIs(extensions::kExtensionScheme))
     return;  // Not a URL that we care about.
 
   // See if the current active URL matches a transformed NewTab URL.

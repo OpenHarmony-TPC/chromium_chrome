@@ -174,12 +174,6 @@ void PasswordStoreProxyBackend::UpdateLoginAsync(
   main_backend()->UpdateLoginAsync(form, std::move(callback));
 }
 
-#if BUILDFLAG(ARKWEB_EXT_PASSWORD)
-void  PasswordStoreProxyBackend::UpdateLoginDisplayNameAsync(const PasswordForm& form) {
-  return;
-}
-#endif
-
 void PasswordStoreProxyBackend::RemoveLoginAsync(
     const base::Location& location,
     const PasswordForm& form,

@@ -62,7 +62,7 @@ scoped_refptr<RefcountedKeyedService> BuildPasswordStore(
 
   scoped_refptr<PasswordStore> ps;
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(IS_OZONE) || BUILDFLAG(IS_OHOS)
+    BUILDFLAG(IS_OZONE)
   os_crypt_async::OSCryptAsync* os_crypt_async =
       base::FeatureList::IsEnabled(
           password_manager::features::kUseAsyncOsCryptInLoginDatabase)

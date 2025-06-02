@@ -42,7 +42,6 @@
 #include "base/trace_event/trace_event_impl.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "cef/libcef/features/features.h"
 #include "chrome/browser/buildflags.h"
 #include "chrome/browser/chrome_content_browser_client.h"
 #include "chrome/browser/chrome_resource_bundle_helper.h"
@@ -200,7 +199,7 @@
 #endif
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
+    BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/policy/policy_path_parser.h"
 #include "components/crash/core/app/crashpad.h"
 #endif
@@ -247,24 +246,16 @@
 #include "ui/ozone/public/ozone_platform.h"
 #endif  // BUILDFLAG(IS_OZONE)
 
-#if BUILDFLAG(IS_ARKWEB)
-#include "arkweb/chromium_ext/chrome/app/chrome_main_delegate_for_include.cc"
-#endif
-
 base::LazyInstance<ChromeContentGpuClient>::DestructorAtExit
     g_chrome_content_gpu_client = LAZY_INSTANCE_INITIALIZER;
-#if BUILDFLAG(IS_ARKWEB)
-base::LazyInstance<ArkWebChromeContentRendererClientExt>::DestructorAtExit
-#else
 base::LazyInstance<ChromeContentRendererClient>::DestructorAtExit
-#endif
     g_chrome_content_renderer_client = LAZY_INSTANCE_INITIALIZER;
 
 extern int NaClMain(content::MainFunctionParams);
 
 const char* const ChromeMainDelegate::kNonWildcardDomainNonPortSchemes[] = {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-    extensions::kExtensionScheme,      extensions::kArkwebExtensionScheme,
+    extensions::kExtensionScheme,
 #endif
     chrome::kChromeSearchScheme,       chrome::kIsolatedAppScheme,
     content::kChromeDevToolsScheme,    content::kChromeUIScheme,
@@ -447,7 +438,7 @@ void HandleHelpSwitches(const base::CommandLine& command_line) {
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
 
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
 void SIGTERMProfilingShutdown(int signal) {
   content::Profiling::Stop();
   struct sigaction sigact;
@@ -464,7 +455,7 @@ void SetUpProfilingShutdownHandler() {
   sigemptyset(&sigact.sa_mask);
   CHECK_EQ(sigaction(SIGTERM, &sigact, nullptr), 0);
 }
-#endif  // !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_OHOS)
+#endif  // !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
 
 #endif  // BUILDFLAG(IS_POSIX)
 
@@ -581,7 +572,6 @@ struct MainFunction {
   int (*function)(content::MainFunctionParams);
 };
 
-// #if !BUILDFLAG(ENABLE_CEF)
 // Initializes the user data dir. Must be called before InitializeLocalState().
 void InitializeUserDataDir(base::CommandLine* command_line) {
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -631,15 +621,10 @@ void InitializeUserDataDir(base::CommandLine* command_line) {
   policy::path_parser::CheckUserDataDirPolicy(&user_data_dir);
 #endif  // BUILDFLAG(IS_MAC)
 
-#if BUILDFLAG(IS_ARKWEB)
-  const bool specified_directory_was_invalid = SetUserDataDirForArkweb(user_data_dir);
-#else
   const bool specified_directory_was_invalid =
       !user_data_dir.empty() &&
       !base::PathService::OverrideAndCreateIfNeeded(chrome::DIR_USER_DATA,
                                                     user_data_dir, false, true);
-#endif
-
   // Save inaccessible or invalid paths so the user may be prompted later.
   if (specified_directory_was_invalid)
     chrome::SetInvalidSpecifiedUserDataDir(user_data_dir);
@@ -660,9 +645,8 @@ void InitializeUserDataDir(base::CommandLine* command_line) {
 
     // The browser process (which is identified by an empty |process_type|) will
     // handle the error later; other processes that need the dir crash here.
-    // TODO: IS_OHOS
-    // CHECK(process_type.empty()) << "Unable to get the user data directory "
-    //                            << "for process type: " << process_type;
+    CHECK(process_type.empty()) << "Unable to get the user data directory "
+                                << "for process type: " << process_type;
   }
 
   // Append the fallback user data directory to the commandline. Otherwise,
@@ -671,9 +655,8 @@ void InitializeUserDataDir(base::CommandLine* command_line) {
     command_line->AppendSwitchPath(switches::kUserDataDir, user_data_dir);
 #endif  // BUILDFLAG(IS_WIN)
 }
-// #endif  // !BUILDFLAG(ENABLE_CEF)
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(IS_ANDROID)
 void InitLogging(const std::string& process_type) {
   logging::OldFileDeletionState file_state = logging::APPEND_TO_OLD_LOG_FILE;
   if (process_type.empty()) {
@@ -807,10 +790,6 @@ ChromeMainDelegate::~ChromeMainDelegate() {
 ChromeMainDelegate::~ChromeMainDelegate() = default;
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-void ChromeMainDelegate::CleanupOnUIThread() {
-  memory_system_.reset();
-}
-
 std::optional<int> ChromeMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
   DUMP_WILL_BE_CHECK(base::ThreadPoolInstance::Get());
@@ -836,7 +815,7 @@ std::optional<int> ChromeMainDelegate::PostEarlyInitialization(
     // future session's metrics.
     DeferBrowserMetrics(user_data_dir);
 
-#if BUILDFLAG(IS_WIN) && !BUILDFLAG(ENABLE_CEF)
+#if BUILDFLAG(IS_WIN)
     // In the case the process is not the singleton process, the uninstall tasks
     // need to be executed here. A window will be displayed asking to close all
     // running instances.
@@ -983,13 +962,9 @@ std::optional<int> ChromeMainDelegate::PostEarlyInitialization(
 
   // Initializes the resource bundle and determines the locale.
   std::string actual_locale = LoadLocalState(
-      chrome_feature_list_creator, GetResourceBundleDelegate(),
-      invoked_in_browser->is_running_test);
-chrome_feature_list_creator->SetApplicationLocale(actual_locale);
-#if !BUILDFLAG(IS_OHOS)
-  // TODO:OHOS
+      chrome_feature_list_creator, invoked_in_browser->is_running_test);
+  chrome_feature_list_creator->SetApplicationLocale(actual_locale);
   chrome_feature_list_creator->OverrideCachedUIStrings();
-#endif
 
   // On Chrome OS, initialize D-Bus clients that depend on feature list.
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -1004,8 +979,6 @@ chrome_feature_list_creator->SetApplicationLocale(actual_locale);
       new net::NetworkChangeNotifierFactoryAndroid());
 #endif
 
-#if !BUILDFLAG(ENABLE_CEF)
-  // Avoid CEF crash with multi-threaded-message-loop.
   if (base::FeatureList::IsEnabled(
           features::kWriteBasicSystemProfileToPersistentHistogramsFile)) {
     bool record = true;
@@ -1016,7 +989,6 @@ chrome_feature_list_creator->SetApplicationLocale(actual_locale);
     if (record)
       chrome_content_browser_client_->startup_data()->RecordCoreSystemProfile();
   }
-#endif  // !BUILDFLAG(ENABLE_CEF)
 
 #if BUILDFLAG(IS_ANDROID)
   UmaSessionStats::OnStartup();
@@ -1245,11 +1217,8 @@ std::optional<int> ChromeMainDelegate::BasicStartupComplete() {
 
   content::Profiling::ProcessStarted();
 
-#if !BUILDFLAG(IS_OHOS)
-  // TODO:OHOS
   // Setup tracing sampler profiler as early as possible at startup if needed.
   SetupTracing();
-#endif
 
 #if BUILDFLAG(IS_WIN)
   v8_crashpad_support::SetUp();
@@ -1462,9 +1431,7 @@ void ChromeMainDelegate::PreSandboxStartup() {
   std::string process_type =
       command_line.GetSwitchValueASCII(switches::kProcessType);
 
-  // if (!cef::IsChromeRuntimeEnabled()) {
-  if (false) {
-    crash_reporter::InitializeCrashKeys();
+  crash_reporter::InitializeCrashKeys();
 
 #if BUILDFLAG(IS_POSIX)
   ChromeCrashReporterClient::Create();
@@ -1474,7 +1441,6 @@ void ChromeMainDelegate::PreSandboxStartup() {
   InitMacCrashReporter(command_line, process_type);
   SetUpInstallerPreferences(command_line);
 #endif
-  }  // !cef::IsChromeRuntimeEnabled()
 
   // Initialize the user data dir for any process type that needs it.
   if (chrome::ProcessNeedsProfileDir(process_type)) {
@@ -1494,7 +1460,7 @@ void ChromeMainDelegate::PreSandboxStartup() {
                                           chrome::DIR_INTERNAL_PLUGINS,
                                           updated_components_dir);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_WIN)
   // Android does InitLogging when library is loaded. Skip here.
   // For windows we call InitLogging when the sandbox is initialized.
   InitLogging(process_type);
@@ -1583,8 +1549,7 @@ void ChromeMainDelegate::PreSandboxStartup() {
 #else
     const std::string loaded_locale =
         ui::ResourceBundle::InitSharedInstanceWithLocale(
-            locale, GetResourceBundleDelegate(),
-            ui::ResourceBundle::LOAD_COMMON_RESOURCES);
+            locale, nullptr, ui::ResourceBundle::LOAD_COMMON_RESOURCES);
 
     base::FilePath resources_pack_path;
     base::PathService::Get(chrome::FILE_RESOURCES_PACK, &resources_pack_path);
@@ -1594,8 +1559,6 @@ void ChromeMainDelegate::PreSandboxStartup() {
     CHECK(!loaded_locale.empty()) << "Locale could not be found for " << locale;
   }
 
-  // if (!cef::IsChromeRuntimeEnabled()) {
-  if (false) {
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
   // Zygote needs to call InitCrashReporter() in RunZygote().
   if (process_type != switches::kZygoteProcess &&
@@ -1617,10 +1580,8 @@ void ChromeMainDelegate::PreSandboxStartup() {
     }
 #else
     crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
-#if !defined(__MUSL__)
     crash_reporter::SetFirstChanceExceptionHandler(
         v8::TryHandleWebAssemblyTrapPosix);
-#endif
 #endif  // BUILDFLAG(IS_ANDROID)
   }
 #endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
@@ -1634,7 +1595,6 @@ void ChromeMainDelegate::PreSandboxStartup() {
   // After all the platform Breakpads have been initialized, store the command
   // line for crash reporting.
   crash_keys::SetCrashKeysFromCommandLine(command_line);
-  }  // !cef::IsChromeRuntimeEnabled()
 
 #if BUILDFLAG(ENABLE_PDF)
   MaybePatchGdiGetFontData();
@@ -1753,7 +1713,6 @@ void ChromeMainDelegate::ZygoteForked() {
     SetUpProfilingShutdownHandler();
   }
 
-#if !BUILDFLAG(ENABLE_CEF)
   // Needs to be called after we have chrome::DIR_USER_DATA.  BrowserMain sets
   // this up for the browser process in a different manner.
   const base::CommandLine* command_line =
@@ -1761,14 +1720,11 @@ void ChromeMainDelegate::ZygoteForked() {
   std::string process_type =
       command_line->GetSwitchValueASCII(switches::kProcessType);
   crash_reporter::InitializeCrashpad(false, process_type);
-#if !defined(__MUSL__)
   crash_reporter::SetFirstChanceExceptionHandler(
       v8::TryHandleWebAssemblyTrapPosix);
-#endif
 
   // Reset the command line for the newly spawned process.
   crash_keys::SetCrashKeysFromCommandLine(*command_line);
-#endif  // !BUILDFLAG(ENABLE_CEF)
 }
 
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -1879,7 +1835,6 @@ void ChromeMainDelegate::InitializeMemorySystem() {
                              : memory_system::DispatcherParameters::
                                    AllocationTraceRecorderInclusion::kIgnore;
 
-  memory_system_ = std::make_unique<memory_system::MemorySystem>();
   memory_system::Initializer()
       .SetGwpAsanParameters(gwp_asan_boost_sampling, process_type)
       .SetProfilingClientParameters(chrome::GetChannel(),
@@ -1887,5 +1842,5 @@ void ChromeMainDelegate::InitializeMemorySystem() {
       .SetDispatcherParameters(memory_system::DispatcherParameters::
                                    PoissonAllocationSamplerInclusion::kEnforce,
                                allocation_recorder_inclusion, process_type)
-      .Initialize(*memory_system_);
+      .Initialize(memory_system_);
 }

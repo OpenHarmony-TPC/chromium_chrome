@@ -226,6 +226,7 @@ DownloadTargetDeterminer::Result
   bool is_forced_path = !download_->GetForcedFilePath().empty();
 
   next_state_ = STATE_SET_INSECURE_DOWNLOAD_STATUS;
+
   // Transient download should use the existing path.
   if (download_->IsTransient()) {
     if (is_forced_path) {

@@ -333,7 +333,7 @@ void ExtensionUpdater::AddToDownloader(
     const Extension& extension = **extension_iter;
     const ExtensionId& extension_id = extension.id();
     if (!Manifest::IsAutoUpdateableLocation(extension.location())) {
-      LOG(INFO) << "Extension " << extension_id << " is not auto updateable";
+      VLOG(2) << "Extension " << extension_id << " is not auto updateable";
       continue;
     }
     // An extension might be overwritten by policy, and have its update url
@@ -394,7 +394,7 @@ void ExtensionUpdater::CheckNow(CheckParams params) {
 
   int request_id = next_request_id_++;
 
-  LOG(INFO) << "Starting update check " << request_id;
+  VLOG(2) << "Starting update check " << request_id;
   if (params.ids.empty())
     NotifyStarted();
 
@@ -467,7 +467,7 @@ void ExtensionUpdater::CheckNow(CheckParams params) {
         update_check_params.update_info[pending_id] =
             GetExtensionUpdateData(pending_id);
       } else if (!Manifest::IsAutoUpdateableLocation(info->install_source())) {
-        LOG(INFO) << "Extension " << pending_id << " is not auto updateable";
+        VLOG(2) << "Extension " << pending_id << " is not auto updateable";
         continue;
       }
       // We have to mark high-priority extensions (such as policy-forced
@@ -633,8 +633,6 @@ void ExtensionUpdater::OnExtensionDownloadFailed(
       break;
   }
 
-  LOG(WARNING) << "Extension download failed as " << (int)error
-               << ", id:" << id;
   UpdatePingData(id, ping);
   bool install_immediately = false;
   for (const int request_id : request_ids) {
@@ -669,7 +667,7 @@ void ExtensionUpdater::OnExtensionDownloadFinished(
       file.extension_id, InstallStageTracker::Stage::INSTALLING);
   UpdatePingData(file.extension_id, ping);
 
-  LOG(INFO) << download_url << " written to " << file.path.value();
+  VLOG(2) << download_url << " written to " << file.path.value();
 
   FetchedCRXFile fetched(file, file_ownership_passed, request_ids,
                          std::move(callback));
@@ -792,8 +790,8 @@ bool ExtensionUpdater::CanUseUpdateService(
 void ExtensionUpdater::InstallCRXFile(FetchedCRXFile crx_file) {
   std::set<int> request_ids;
 
-  LOG(INFO) << "updating " << crx_file.info.extension_id << " with "
-            << crx_file.info.path.value();
+  VLOG(2) << "updating " << crx_file.info.extension_id << " with "
+          << crx_file.info.path.value();
 
   // The ExtensionService is now responsible for cleaning up the temp file
   // at |crx_file.info.path|.
@@ -901,7 +899,7 @@ void ExtensionUpdater::NotifyIfFinished(int request_id) {
   InProgressCheck& request = requests_in_progress_[request_id];
   if (!request.in_progress_ids.empty() || request.awaiting_update_service)
     return;  // This request is not done yet.
-  LOG(INFO) << "Finished update check " << request_id;
+  VLOG(2) << "Finished update check " << request_id;
   if (!request.callback.is_null())
     std::move(request.callback).Run();
   requests_in_progress_.erase(request_id);

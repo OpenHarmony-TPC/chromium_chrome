@@ -24,16 +24,9 @@
               hidden$="[[!noDestinations]]" selected$="[[noDestinations]]">
         $i18n{noDestinationsMessage}
       </option>
-<if expr="not is_ohos">
       <option value="seeMore" aria-label$="[[i18n(seeMoreDestinationsLabel)]]">
         $i18n{seeMore}
       </option>
-</if>
-<if expr="is_ohos">
-      <option value="systemPrint" aria-label$="[[i18n(systemPrint)]]">
-        $i18n{systemPrint}
-      </option>
-</if>
     </select>
   </div>
 </print-preview-settings-section>

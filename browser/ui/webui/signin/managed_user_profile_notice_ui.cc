@@ -260,7 +260,7 @@ void ManagedUserProfileNoticeUI::Initialize(
         l10n_util::GetStringUTF16(IDS_ENTERPRISE_WELCOME_PROFILE_SETUP_TITLE));
 
     update_data.Set("showLinkDataCheckbox", false);
-#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(IS_CHROMEOS)
     update_data.Set(
         "useUpdatedUi",
         base::FeatureList::IsEnabled(

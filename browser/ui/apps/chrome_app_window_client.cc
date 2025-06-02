@@ -53,7 +53,7 @@ std::unique_ptr<extensions::NativeAppWindow>
 ChromeAppWindowClient::CreateNativeAppWindow(
     extensions::AppWindow* window,
     extensions::AppWindow::CreateParams* params) {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_ANDROID)
   return nullptr;
 #else
   return base::WrapUnique(CreateNativeAppWindowImpl(window, *params));

@@ -305,11 +305,7 @@ bool ChromeHidDelegate::IsServiceWorkerAllowedForOrigin(
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // WebHID is only available on extension service workers with feature flag
   // enabled for now.
-  if ((origin.scheme() == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-       || origin.scheme() == extensions::kArkwebExtensionScheme
-#endif
-       )) {
+  if (origin.scheme() == extensions::kExtensionScheme) {
     return true;
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
@@ -332,11 +328,7 @@ void ChromeHidDelegate::IncrementConnectionCount(
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Don't track connection when the feature isn't enabled or the connection
   // isn't made by an extension origin.
-  if ((origin.scheme() != extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-       && origin.scheme() != extensions::kArkwebExtensionScheme
-#endif
-       )) {
+  if (origin.scheme() != extensions::kExtensionScheme) {
     return;
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
@@ -354,11 +346,7 @@ void ChromeHidDelegate::DecrementConnectionCount(
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Don't track connection when the feature isn't enabled or the connection
   // isn't made by an extension origin.
-  if (origin.scheme() != extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-       && origin.scheme() != extensions::kArkwebExtensionScheme
-#endif
-     ) {
+  if (origin.scheme() != extensions::kExtensionScheme) {
     return;
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)

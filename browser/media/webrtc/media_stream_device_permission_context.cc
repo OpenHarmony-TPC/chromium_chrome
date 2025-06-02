@@ -26,12 +26,6 @@
 #include "content/public/browser/web_contents.h"
 #endif
 
-#if BUILDFLAG(IS_OHOS)
-#include "base/functional/callback.h"
-#include "base/task/thread_pool.h"
-#include "components/permissions/permission_request_id.h"
-#endif
-
 namespace {
 
 blink::mojom::PermissionsPolicyFeature GetPermissionsPolicyFeature(
@@ -105,19 +99,6 @@ ContentSetting MediaStreamDevicePermissionContext::GetPermissionStatusInternal(
     setting = CONTENT_SETTING_ASK;
 
   return setting;
-}
-
-void MediaStreamDevicePermissionContext::RequestReply(
-    permissions::PermissionRequestData request_data,
-    permissions::BrowserPermissionCallback callback,
-    bool reply_success) {
-  if (!reply_success) {
-    std::move(callback).Run(CONTENT_SETTING_ASK);
-    return;
-  }
-
-  permissions::PermissionContextBase::RequestPermission(std::move(request_data),
-                                                        std::move(callback));
 }
 
 #if BUILDFLAG(IS_ANDROID)

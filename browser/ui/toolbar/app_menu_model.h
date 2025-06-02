@@ -231,7 +231,6 @@ class AppMenuModel : public ui::SimpleMenuModel,
   void ExecuteCommand(int command_id, int event_flags) override;
   bool IsCommandIdChecked(int command_id) const override;
   bool IsCommandIdEnabled(int command_id) const override;
-  bool IsCommandIdVisible(int command_id) const override;
   bool IsCommandIdAlerted(int command_id) const override;
   bool IsElementIdAlerted(ui::ElementIdentifier element_id) const override;
   bool GetAcceleratorForCommandId(int command_id,
@@ -271,8 +270,6 @@ class AppMenuModel : public ui::SimpleMenuModel,
   // notification.
   void LogSafetyHubInteractionMetrics(safety_hub::SafetyHubModuleType sh_module,
                                       int event_flags);
-
-  bool IsCommandIdEnabledInternal(int command_id) const;
 
  private:
   // Adds actionable global error menu items to the menu.

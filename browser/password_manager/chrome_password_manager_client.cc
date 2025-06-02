@@ -174,10 +174,6 @@
 #include "chrome/browser/ui/browser.h"
 #endif
 
-#if BUILDFLAG(ARKWEB_PASSWORD_AUTOFILL)
-#include "libcef/browser/autofill/oh_autofill_client.h"
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
 using base::android::BuildInfo;
 using password_manager::CredentialCache;
@@ -238,6 +234,7 @@ void MaybeShowPostMigrationSheetWrapper(
 }
 
 #endif
+
 }  // namespace
 
 // static
@@ -249,11 +246,7 @@ void ChromePasswordManagerClient::CreateForWebContents(
 
   contents->SetUserData(
       UserDataKey(),
-#if BUILDFLAG(ARKWEB_PASSWORD_AUTOFILL)
-      base::WrapUnique(new ChromePasswordManagerClientExt(contents)));
-#else
       base::WrapUnique(new ChromePasswordManagerClient(contents)));
-#endif
 }
 
 // static
@@ -381,8 +374,6 @@ bool ChromePasswordManagerClient::PromptUserToSaveOrUpdatePassword(
       base::Unretained(&save_update_password_message_delegate_),
       base::Unretained(web_contents()), std::move(form_to_save),
       update_password, base::Unretained(this)));
-#elif BUILDFLAG(ARKWEB_PASSWORD_AUTOFILL)
-  AsChromePasswordManagerClientExt()->ArkPromptUserToSaveOrUpdatePassword(std::move(form_to_save));
 #else
   PasswordsClientUIDelegate* manage_passwords_ui_controller =
       PasswordsClientUIDelegateFromWebContents(web_contents());
@@ -563,11 +554,7 @@ void ChromePasswordManagerClient::ShowKeyboardReplacingSurface(
   }
 
   password_manager::ContentPasswordManagerDriver* content_driver =
-#if BUILDFLAG(ARKWEB_PASSWORD_AUTOFILL)
-      static_cast<password_manager::ContentPasswordManagerDriverExt*>(driver);
-#else
       static_cast<password_manager::ContentPasswordManagerDriver*>(driver);
-#endif
 
   if (GetOrCreateCredManController()->Show(
           GetWebAuthnCredManDelegateForDriver(driver),
@@ -633,7 +620,7 @@ void ChromePasswordManagerClient::
 bool ChromePasswordManagerClient::IsReauthBeforeFillingRequired(
     device_reauth::DeviceAuthenticator* authenticator) {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
+    BUILDFLAG(IS_CHROMEOS)
   if (!GetLocalStatePrefs() || !GetPrefs() || !authenticator) {
     return false;
   }
@@ -830,8 +817,7 @@ void ChromePasswordManagerClient::PasswordWasAutofilled(
   manage_passwords_ui_controller->OnPasswordAutofilled(best_matches, origin,
                                                        federated_matches);
 #endif
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS_ASH) || \
-    BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS_ASH)
   if (was_autofilled_on_pageload &&
       !IsAuthenticatorRequestWindowUrl(GetLastCommittedURL()) &&
       password_manager_util::
@@ -890,7 +876,7 @@ void ChromePasswordManagerClient::NotifyUserCredentialsWereLeaked(
 }
 
 void ChromePasswordManagerClient::NotifyKeychainError() {
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   PasswordsClientUIDelegate* manage_passwords_ui_controller =
       PasswordsClientUIDelegateFromWebContents(web_contents());
   if (manage_passwords_ui_controller) {
@@ -1272,11 +1258,7 @@ password_manager::WebAuthnCredentialsDelegate*
 ChromePasswordManagerClient::GetWebAuthnCredentialsDelegateForDriver(
     PasswordManagerDriver* driver) {
   auto* frame_host =
-#if BUILDFLAG(ARKWEB_PASSWORD_AUTOFILL)
-      static_cast<password_manager::ContentPasswordManagerDriverExt*>(driver)
-#else
       static_cast<password_manager::ContentPasswordManagerDriver*>(driver)
-#endif
           ->render_frame_host();
   return ChromeWebAuthnCredentialsDelegateFactory::GetFactory(web_contents())
       ->GetDelegateForFrame(frame_host);
@@ -1665,9 +1647,6 @@ bool ChromePasswordManagerClient::CanShowBubbleOnURL(const GURL& url) {
               scheme) &&
 #if BUILDFLAG(ENABLE_EXTENSIONS)
           scheme != extensions::kExtensionScheme &&
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-          scheme != extensions::kArkwebExtensionScheme &&
-#endif
 #endif
           scheme != content::kChromeDevToolsScheme);
 }

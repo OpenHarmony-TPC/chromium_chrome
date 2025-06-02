@@ -20,8 +20,6 @@ source_set("path_parser") {
     sources += [ "policy_path_parser_mac.mm" ]
   } else if (is_win) {
     sources += [ "policy_path_parser_win.cc" ]
-  } else if (is_ohos) {
-    sources += [ "//arkweb/chromium_ext/chrome/browser/policy/policy_path_parser_ohos.cc" ]
   }
 
   deps = [

@@ -19,10 +19,8 @@
 #include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/file_opening_job.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
 #include "components/enterprise/connectors/core/analysis_settings.h"
-#include "components/safe_browsing/buildflags.h"
 #include "content/public/browser/clipboard_types.h"
 #include "url/gurl.h"
 
@@ -528,10 +526,6 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
   // `callback_running_` to handle race conditions where non-blocking scans
   // should wait before deleting `this`.
   bool all_work_done_ = false;
-
-#if BUILDFLAG(FULL_SAFE_BROWSING)
-  std::unique_ptr<safe_browsing::FileOpeningJob> file_opening_job_;
-#endif
 
   // Content type of the page that triggered the action.
   std::string page_content_type_;

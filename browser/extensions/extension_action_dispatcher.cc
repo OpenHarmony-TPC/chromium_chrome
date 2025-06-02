@@ -16,9 +16,6 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/common/mojom/context_type.mojom.h"
 
-#if BUILDFLAG(IS_ARKWEB)
-#include "arkweb/chromium_ext/chrome/browser/extensions/extension_action_dispatcher_ext.cc"
-#endif
 namespace extensions {
 
 static base::LazyInstance<

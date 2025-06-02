@@ -132,10 +132,6 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "arkweb/chromium_ext/chrome/browser/extensions/api/developer_private_api_ext.cc"
-#endif // ARKWEB_ARKWEB_EXTENSIONS
-
 namespace extensions {
 
 namespace developer = api::developer_private;
@@ -1409,18 +1405,10 @@ void DeveloperPrivateLoadUnpackedFunction::StartFileLoad(
   installer->set_be_noisy_on_failure(!fail_quietly_);
   installer->set_completion_callback(base::BindOnce(
       &DeveloperPrivateLoadUnpackedFunction::OnLoadComplete, this));
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  base::FilePath real_path = base::FilePath(base::GetRealPath(file_path));
-  installer->Load(real_path);
-
-  retry_guid_ = DeveloperPrivateAPI::Get(browser_context())
-                    ->AddUnpackedPath(GetSenderWebContents(), real_path);
-#else
   installer->Load(file_path);
 
   retry_guid_ = DeveloperPrivateAPI::Get(browser_context())
                     ->AddUnpackedPath(GetSenderWebContents(), file_path);
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 void DeveloperPrivateLoadUnpackedFunction::OnLoadComplete(

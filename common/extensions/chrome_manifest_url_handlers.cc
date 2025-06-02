@@ -69,11 +69,7 @@ bool DevToolsPageHandler::Parse(Extension* extension, std::u16string* error) {
   // SharedModuleInfo::IsImportedPath() does not require knowledge of data from
   // extension, so we can call it right here in Parse() and not Validate() and
   // do not need to specify DevToolsPageHandler::PrerequisiteKeys()
-  const bool is_extension_url = (url.SchemeIs(kExtensionScheme) 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-                                 || url.SchemeIs(kArkwebExtensionScheme)
-#endif
-                                ) &&
+  const bool is_extension_url = url.SchemeIs(kExtensionScheme) &&
                                 url.host_piece() == extension->id() &&
                                 !SharedModuleInfo::IsImportedPath(url.path());
   if (!is_extension_url) {

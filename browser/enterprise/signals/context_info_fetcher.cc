@@ -352,7 +352,7 @@ ScopedUfwConfigPathForTesting::~ScopedUfwConfigPathForTesting() {
 
 std::vector<std::string> ContextInfoFetcher::GetDnsServers() {
   std::vector<std::string> dns_addresses;
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_POSIX)
   std::unique_ptr<net::ScopedResState> res = net::ResolvReader().GetResState();
   if (res) {
     std::optional<std::vector<net::IPEndPoint>> nameservers =

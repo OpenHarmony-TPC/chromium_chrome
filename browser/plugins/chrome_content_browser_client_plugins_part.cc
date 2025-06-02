@@ -191,12 +191,7 @@ bool ChromeContentBrowserClientPluginsPart::AllowPepperSocketAPI(
 #endif
   } else {
     // Access to public socket APIs is controlled by extension permissions.
-    if (url.is_valid() &&
-        (url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-         || url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-             ) &&
+    if (url.is_valid() && url.SchemeIs(extensions::kExtensionScheme) &&
         extension_set) {
       const extensions::Extension* extension =
           extension_set->GetByID(url.host());
@@ -240,11 +235,7 @@ bool ChromeContentBrowserClientPluginsPart::IsPepperVpnProviderAPIAllowed(
     return false;
 
   // Access to the vpnProvider API is controlled by extension permissions.
-  if (url.is_valid() && (url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-                         || url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-                             )) {
+  if (url.is_valid() && url.SchemeIs(extensions::kExtensionScheme)) {
     const extensions::Extension* extension = extension_set->GetByID(url.host());
     if (extension) {
       if (extension->permissions_data()->HasAPIPermission(

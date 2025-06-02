@@ -267,10 +267,6 @@
 #include "chrome/browser/spellchecker/spellcheck_service.h"
 #endif
 
-#if BUILDFLAG(ARKWEB_PERMISSION)
-#include "cef/ohos_cef_ext/libcef/browser/permission/alloy_permission_manager.h"
-#endif  // BUILDFLAG(ARKWEB_PERMISSION)
-
 using bookmarks::BookmarkModel;
 using content::BrowserThread;
 using content::DownloadManagerDelegate;
@@ -1042,9 +1038,7 @@ Profile* ProfileImpl::GetOffTheRecordProfile(const OTRProfileID& otr_profile_id,
 
   otr_profiles_[otr_profile_id] = std::move(otr_profile);
 
-  // With CEF we want to delay initialization.
-  if (!otr_profile_id.IsUniqueForCEF())
-    NotifyOffTheRecordProfileCreated(raw_otr_profile);
+  NotifyOffTheRecordProfileCreated(raw_otr_profile);
 
   return raw_otr_profile;
 }
@@ -1249,15 +1243,11 @@ bool ProfileImpl::ShouldRestoreOldSessionCookies() {
   SessionStartupPref startup_pref(SessionStartupPref::GetDefaultStartupType());
   return startup_pref.ShouldRestoreLastSession();
 #else
-#if BUILDFLAG(ARKWEB_PERMISSION)
-  return !IsOffTheRecord();
-#else
   SessionStartupPref startup_pref =
       StartupBrowserCreator::GetSessionStartupPref(
           *base::CommandLine::ForCurrentProcess(), this);
   return ExitTypeService::GetLastSessionExitType(this) == ExitType::kCrashed ||
          startup_pref.ShouldRestoreLastSession();
-#endif
 #endif
 }
 
@@ -1403,14 +1393,7 @@ ProfileImpl::GetBrowsingDataRemoverDelegate() {
 // instead of repeating them inside all Profile implementations.
 content::PermissionControllerDelegate*
 ProfileImpl::GetPermissionControllerDelegate() {
-#if BUILDFLAG(ARKWEB_PERMISSION)
-  if (!permission_manager_.get()) {
-    permission_manager_.reset(new AlloyPermissionManager());
-  }
-  return permission_manager_.get();
-#else
   return PermissionManagerFactory::GetForProfile(this);
-#endif  // BUILDFLAG(ARKWEB_PERMISSION)
 }
 
 content::ClientHintsControllerDelegate*

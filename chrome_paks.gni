@@ -6,7 +6,6 @@ import("//ash/ambient/resources/resources.gni")
 import("//build/config/chrome_build.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/locales.gni")
-import("//cef/libcef/features/features.gni")
 import("//chrome/browser/buildflags.gni")
 import("//chrome/common/features.gni")
 import("//components/compose/features.gni")
@@ -15,12 +14,6 @@ import("//pdf/features.gni")
 import("//ui/base/ui_features.gni")
 import("//ui/webui/webui_features.gni")
 import("chrome_repack_locales.gni")
-
-import("//arkweb/build/features/features.gni")
-
-if (defined(is_arkweb_ext) && is_arkweb_ext) {
-  import("//arkweb/ohos_nweb_ex/build/features/features.gni")
-}
 
 assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
 
@@ -163,14 +156,7 @@ template("chrome_extra_paks") {
     if (defined(invoker.additional_paks)) {
       sources += invoker.additional_paks
     }
-    if (defined(is_arkweb_ext) && is_arkweb_ext) {
-      sources += [ "$root_gen_dir/ohos_nweb_ex/overrides/ui/resources/ohos_nweb_ex_resources.pak" ]
-      deps += [ "//ohos_nweb_ex/overrides/ui/resources" ]
-    }
-    if (arkweb_ai) {
-      sources += [ "$root_gen_dir/ohos_resources/data_detector/data_detector_resources.pak" ]
-      deps += [ "//ohos_resources/data_detector:data_detector_resources" ]
-    }
+
     if (!is_android) {
       # New paks should be added here by default.
       sources += [
@@ -453,12 +439,12 @@ template("chrome_extra_paks") {
       ]
     }
 
-    if (is_win || is_mac || is_linux || is_ohos) {
+    if (is_win || is_mac || is_linux) {
       sources += [ "$root_gen_dir/chrome/app_home_resources.pak" ]
       deps += [ "//chrome/browser/resources/app_home:resources" ]
     }
 
-    if (is_win || is_mac || is_linux || is_ohos) {
+    if (is_win || is_mac || is_linux) {
       sources += [
         "$root_gen_dir/chrome/app_settings_resources.pak",
         "$root_gen_dir/chrome/on_device_translation_internals_resources.pak",
@@ -471,12 +457,12 @@ template("chrome_extra_paks") {
       deps += [ "//chrome/browser/resources/connectors_internals:resources" ]
     }
 
-    if (is_win || is_mac || is_linux || is_chromeos_lacros || is_ohos) {
+    if (is_win || is_mac || is_linux || is_chromeos_lacros) {
       sources += [ "$root_gen_dir/chrome/browser_switch_resources.pak" ]
       deps += [ "//chrome/browser/resources/browser_switch:resources" ]
     }
 
-    if (is_win || is_mac || is_linux || is_chromeos || is_ohos) {
+    if (is_win || is_mac || is_linux || is_chromeos) {
       sources += [ "$root_gen_dir/chrome/discards_resources.pak" ]
       deps += [ "//chrome/browser/resources/discards:resources" ]
     }
@@ -492,10 +478,6 @@ template("chrome_extra_paks") {
         "$root_gen_dir/extensions/extensions_resources.pak",
       ]
       deps += [ "//extensions:extensions_resources" ]
-    }
-    if (enable_cef) {
-      sources += [ "$root_gen_dir/cef/cef_resources.pak" ]
-      deps += [ "//cef:cef_resources" ]
     }
     if (enable_extensions) {
       sources += [ "$root_gen_dir/chrome/extensions_resources.pak" ]
@@ -611,18 +593,11 @@ template("chrome_paks") {
       repack_allowlist = invoker.repack_allowlist
     }
 
-    if (arkweb_i18n) {
-      input_locales = locales_for_ohos
-    } else {
-      input_locales = platform_pak_locales
-    }
-
+    input_locales = platform_pak_locales
     output_dir = "${invoker.output_dir}/locales"
 
     if (is_mac) {
       output_locales = locales_as_apple_outputs
-    } else if (arkweb_i18n) {
-      output_locales = locales_for_ohos
     } else {
       output_locales = platform_pak_locales
     }
