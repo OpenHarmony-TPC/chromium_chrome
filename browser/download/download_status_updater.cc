@@ -180,7 +180,7 @@ void DownloadStatusUpdater::UpdateProfileKeepAlive(
   }
 }
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_OHOS)
 void DownloadStatusUpdater::UpdateAppIconDownloadProgress(
     download::DownloadItem* download) {
   // TODO(avi): Implement for Android?

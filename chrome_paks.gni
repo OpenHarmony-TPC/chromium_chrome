@@ -439,12 +439,12 @@ template("chrome_extra_paks") {
       ]
     }
 
-    if (is_win || is_mac || is_linux) {
+    if (is_win || is_mac || is_linux || is_ohos) {
       sources += [ "$root_gen_dir/chrome/app_home_resources.pak" ]
       deps += [ "//chrome/browser/resources/app_home:resources" ]
     }
 
-    if (is_win || is_mac || is_linux) {
+    if (is_win || is_mac || is_linux || is_ohos) {
       sources += [
         "$root_gen_dir/chrome/app_settings_resources.pak",
         "$root_gen_dir/chrome/on_device_translation_internals_resources.pak",
@@ -457,12 +457,12 @@ template("chrome_extra_paks") {
       deps += [ "//chrome/browser/resources/connectors_internals:resources" ]
     }
 
-    if (is_win || is_mac || is_linux || is_chromeos_lacros) {
+    if (is_win || is_mac || is_linux || is_chromeos_lacros || is_ohos) {
       sources += [ "$root_gen_dir/chrome/browser_switch_resources.pak" ]
       deps += [ "//chrome/browser/resources/browser_switch:resources" ]
     }
 
-    if (is_win || is_mac || is_linux || is_chromeos) {
+    if (is_win || is_mac || is_linux || is_chromeos || is_ohos) {
       sources += [ "$root_gen_dir/chrome/discards_resources.pak" ]
       deps += [ "//chrome/browser/resources/discards:resources" ]
     }

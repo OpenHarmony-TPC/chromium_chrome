@@ -131,6 +131,10 @@
 #include "net/ssl/client_cert_store_mac.h"
 #endif  // BUILDFLAG(IS_MAC)
 
+#if BUILDFLAG(IS_OHOS)
+#include "net/ssl/client_cert_store_ohos.h"
+#endif  // BUILDFLAG(IS_OHOS)
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "extensions/common/constants.h"
 #endif
@@ -1175,6 +1179,8 @@ ProfileNetworkContextService::CreateClientCertStore() {
   // cert matching is done by the OS as part of the call to show the cert
   // selection dialog.
   return nullptr;
+#elif BUILDFLAG(IS_OHOS)
+  return std::make_unique<net::ClientCertStoreOHOS>();
 #else
 #error Unknown platform.
 #endif

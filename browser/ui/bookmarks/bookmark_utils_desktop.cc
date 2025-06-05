@@ -42,6 +42,11 @@
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/permission_manager/permission_manager_adapter.h"
+namespace ohos_permission = ohos::adapter::permission;
+#endif
+
 using bookmarks::BookmarkModel;
 using bookmarks::BookmarkNode;
 
@@ -171,8 +176,21 @@ OpenedWebContentsSet OpenAllHelper(
   for (std::vector<UrlAndId>::const_iterator url_and_id_it =
            bookmark_urls.begin();
        url_and_id_it != bookmark_urls.end(); ++url_and_id_it) {
+#if BUILDFLAG(IS_OHOS)
+    if (url_and_id_it->url.is_valid() && url_and_id_it->url.SchemeIsFile()) {
+      ohos_permission::PermissionActivationResult activate_result =
+          ohos_permission::PermissionManagerAdapter::ActivateFileAccessPersist(
+              url_and_id_it->url.spec());
+      if (activate_result !=
+          ohos_permission::PermissionActivationResult::SUCCESS) {
+        LOG(ERROR) << "Failed to activate file url: "
+                   << url_and_id_it->url.spec()
+                   << "error code: " << static_cast<int32_t>(activate_result);
+      }
+    }
+#endif
     const bool url_allowed_in_incognito =
-        IsURLAllowedInIncognito(url_and_id_it->url);
+      IsURLAllowedInIncognito(url_and_id_it->url);
 
     // Set the browser from which the URL will be opened. If neither
     // `incognito_browser` nor `regular_browser` is set we use the original

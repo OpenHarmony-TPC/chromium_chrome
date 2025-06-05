@@ -2137,6 +2137,11 @@ inline constexpr char kTaskManagerEndProcessEnabled[] =
 // restore on startup.
 inline constexpr char kAppWindowPlacement[] = "browser.app_window_placement";
 
+#if BUILDFLAG(IS_OHOS)
+inline extern const char kAdvancedSecurityModeEnabled[] =
+    "advanced_security_mode_enabled";
+#endif
+
 // String which specifies where to download files to by default.
 inline constexpr char kDownloadDefaultDirectory[] =
     "download.default_directory";
@@ -2146,7 +2151,7 @@ inline constexpr char kDownloadDefaultDirectory[] =
 inline constexpr char kDownloadDirUpgraded[] = "download.directory_upgrade";
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_MAC)
+    BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
 inline constexpr char kOpenPdfDownloadInSystemReader[] =
     "download.open_pdf_in_system_reader";
 #endif

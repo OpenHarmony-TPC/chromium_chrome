@@ -390,6 +390,7 @@ using flags_ui::kOsCrOSOwnerOnly;
 using flags_ui::kOsLacros;
 using flags_ui::kOsLinux;
 using flags_ui::kOsMac;
+using flags_ui::kOsOhOS;
 using flags_ui::kOsWin;
 
 namespace about_flags {
@@ -397,11 +398,11 @@ namespace about_flags {
 namespace {
 
 const unsigned kOsAll =
-    kOsMac | kOsWin | kOsLinux | kOsCrOS | kOsAndroid | kOsLacros;
-const unsigned kOsDesktop = kOsMac | kOsWin | kOsLinux | kOsCrOS | kOsLacros;
+    kOsMac | kOsWin | kOsLinux | kOsCrOS | kOsAndroid | kOsLacros | kOsOhOS;
+const unsigned kOsDesktop = kOsMac | kOsWin | kOsLinux | kOsCrOS | kOsLacros | kOsOhOS;
 
 #if defined(USE_AURA)
-const unsigned kOsAura = kOsWin | kOsLinux | kOsCrOS | kOsLacros;
+const unsigned kOsAura = kOsWin | kOsLinux | kOsCrOS | kOsLacros | kOsOhOS;
 #endif  // USE_AURA
 
 #if defined(USE_AURA)
@@ -3938,6 +3939,19 @@ const FeatureEntry::FeatureVariation kLocationProviderManagerVariations[] = {
     {"HybridPlatform", kLocationProviderManagerModeHybridPlatform,
      std::size(kLocationProviderManagerModeHybridPlatform), nullptr}};
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_OHOS)
+const FeatureEntry::FeatureParam kLocationProviderManagerModePlatformOnly[] = {
+    {"LocationProviderManagerMode", "PlatformOnly"}};
+const FeatureEntry::FeatureParam kLocationProviderManagerModeHybridPlatform[] =
+    {{"LocationProviderManagerMode", "HybridPlatform"}};
+
+const FeatureEntry::FeatureVariation kLocationProviderManagerVariations[] = {
+    {"PlatformOnly", kLocationProviderManagerModePlatformOnly,
+     std::size(kLocationProviderManagerModePlatformOnly), nullptr},
+    {"HybridPlatform", kLocationProviderManagerModeHybridPlatform,
+     std::size(kLocationProviderManagerModeHybridPlatform), nullptr}};
+#endif  // BUILDFLAG(IS_OHOS)
 
 #if !BUILDFLAG(IS_ANDROID)
 const FeatureEntry::FeatureParam kWebAuthnEnclaveAuthenticatorEnabledParam = {
@@ -8344,14 +8358,14 @@ const FeatureEntry kFeatureEntries[] = {
      FEATURE_VALUE_TYPE(ash::assistant::features::kAssistantAudioEraser)},
 #endif
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_OHOS)
     {"enable-location-provider-manager",
      flag_descriptions::kLocationProviderManagerName,
-     flag_descriptions::kLocationProviderManagerDescription, kOsMac | kOsWin,
+     flag_descriptions::kLocationProviderManagerDescription, kOsMac | kOsWin | kOsOhOS,
      FEATURE_WITH_PARAMS_VALUE_TYPE(features::kLocationProviderManager,
                                     kLocationProviderManagerVariations,
                                     "LocationProviderManager")},
-#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_OHOS)
 
 #if !BUILDFLAG(IS_ANDROID)
     {"mute-notification-snooze-action",
@@ -11957,6 +11971,13 @@ const FeatureEntry kFeatureEntries[] = {
      FEATURE_WITH_PARAMS_VALUE_TYPE(features::kServiceWorkerAutoPreload,
                                     kServiceWorkerAutoPreloadVariations,
                                     "ServiceWorkerAutoPreload")},
+    
+#if BUILDFLAG(IS_OHOS)
+    {"network-preload",
+     flag_descriptions::kNetworkPreloadName,
+     flag_descriptions::kNetworkPreloadDescription, kOsOhOS,
+     FEATURE_VALUE_TYPE(net::features::kEnableNetworkPreload)},
+#endif  // BUILDFLAG(IS_OHOS)
 
     // NOTE: Adding a new flag requires adding a corresponding entry to enum
     // "LoginCustomFlags" in tools/metrics/histograms/enums.xml. See "Flag

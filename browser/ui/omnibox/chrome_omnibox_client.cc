@@ -424,6 +424,14 @@ void ChromeOmniboxClient::OnTextChanged(const AutocompleteMatch& current_match,
       if (current_match.destination_url != GetURL())
         DoPrerender(current_match);
       break;
+#if BUILDFLAG(IS_OHOS)
+    case AutocompleteActionPredictor::ACTION_PREFETCH:
+      if (!CurrentPageExists())
+        break;
+      if (current_match.destination_url != GetURL())
+        DoPrefetch(current_match);
+      break;
+#endif
     case AutocompleteActionPredictor::ACTION_PRECONNECT:
       DoPreconnect(current_match);
       break;
@@ -604,6 +612,20 @@ void ChromeOmniboxClient::DoPrerender(const AutocompleteMatch& match) {
       ->StartPrerendering(match.destination_url, *web_contents,
                           container_bounds.size());
 }
+
+#if BUILDFLAG(IS_OHOS)
+void ChromeOmniboxClient::DoPrefetch(const AutocompleteMatch& match) {
+  content::WebContents* web_contents = location_bar_->GetWebContents();
+  // Don't prefetch when DevTools is open in this tab.
+  if (content::DevToolsAgentHost::IsDebuggerAttached(web_contents))
+    return;
+ 
+  DCHECK(!AutocompleteMatch::IsSearchType(match.type));
+  gfx::Rect container_bounds = web_contents->GetContainerBounds();
+  predictors::AutocompleteActionPredictorFactory::GetForProfile(profile_)
+      ->TryPrefetch(match.destination_url, *web_contents, container_bounds.size());
+}
+#endif
 
 void ChromeOmniboxClient::DoPreconnect(const AutocompleteMatch& match) {
   if (match.destination_url.SchemeIs(extensions::kExtensionScheme))

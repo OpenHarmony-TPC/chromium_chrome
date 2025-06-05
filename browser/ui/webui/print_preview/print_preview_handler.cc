@@ -99,6 +99,10 @@
 #include "base/debug/stack_trace.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/print/ohos_print_adapter.h"
+#endif
+
 using content::RenderFrameHost;
 using content::WebContents;
 
@@ -461,6 +465,13 @@ void PrintPreviewHandler::RegisterMessages() {
       "managePrinters",
       base::BindRepeating(&PrintPreviewHandler::HandleManagePrinters,
                           base::Unretained(this)));
+ 
+#if BUILDFLAG(IS_OHOS)
+  web_ui()->RegisterMessageCallback(
+      "systemPrint",
+      base::BindRepeating(&PrintPreviewHandler::HandleSystemPrint,
+                          base::Unretained(this)));
+#endif
 }
 
 void PrintPreviewHandler::OnJavascriptAllowed() {
@@ -1240,4 +1251,19 @@ void PrintPreviewHandler::HandleManagePrinters(const base::Value::List& args) {
 #endif
 }
 
+#if BUILDFLAG(IS_OHOS)
+void PrintPreviewHandler::HandleSystemPrint(const base::Value::List& args) {
+  scoped_refptr<base::RefCountedMemory> data;
+  print_preview_ui()->GetPrintPreviewDataForIndex(
+      COMPLETE_PREVIEW_DOCUMENT_INDEX, &data);
+  if (!data) {
+    ohos::adapter::print::PrintAdapter::GetInstance().ShowPrintTipsDialog();
+    return;
+  }
+  uint32_t data_size = data->size();
+  std::shared_ptr<char[]> buff = std::make_shared<char[]>(data_size);
+  memcpy(buff.get(), base::as_string_view(*data).data(), data_size);
+  ohos::adapter::print::PrintAdapter::GetInstance().PrintPdfFile(buff, data_size);
+}
+#endif
 }  // namespace printing

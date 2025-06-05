@@ -17,6 +17,7 @@
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
+#include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -230,6 +231,7 @@
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest_handlers/background_info.h"
 #include "net/base/filename_util.h"
+#include "ohos/adapter/file_manager/file_manager_adapter.h"
 #include "ppapi/buildflags/buildflags.h"
 #include "third_party/blink/public/common/security/protocol_handler_security_level.h"
 #include "third_party/blink/public/mojom/frame/blocked_navigation_types.mojom.h"
@@ -290,6 +292,12 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/preloading/preview/preview_manager.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/browser/browser_adapter.h"
+#include "ui/aura/window.h"
+#include "ui/aura/window_tree_host.h"
 #endif
 
 using base::UserMetricsAction;
@@ -554,6 +562,59 @@ Browser* Browser::Create(const CreateParams& params) {
   return new Browser(params);
 }
 
+#if BUILDFLAG(IS_OHOS)
+void Browser::NewWindowTask(const std::string& url, bool force_open) {
+  if (BrowserList::GetInstance() == nullptr) {
+    return;
+  }
+
+  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  if (browser == nullptr || browser->command_controller() == nullptr) {
+    return;
+  }
+
+  if (force_open) {
+    const GURL gurl(url);
+    browser->OpenGURL(gurl, WindowOpenDisposition::NEW_WINDOW);
+    return;
+  }
+
+  if (url.empty()) {
+    browser->command_controller()->ExecuteCommandWithDisposition(
+        IDC_NEW_WINDOW,
+        WindowOpenDisposition::NEW_WINDOW, base::TimeTicks::Now());
+  } else {
+    const GURL gurl(url);
+    if (gurl.SchemeIsFile()) {
+      std::string file_path_str;
+      ohos::adapter::FileManagerAdapter::GetInstance().GetPathForUri(
+          url.c_str(), file_path_str);
+      if (!file_path_str.empty()) {
+        base::FilePath file_path(file_path_str);
+        const GURL file_url = net::FilePathToFileURL(file_path);
+        chrome::AddTabAt(browser, file_url, -1, true);
+      } else {
+        LOG(ERROR) << "NewWindowTask GetPathForUri failed!";
+        chrome::AddTabAt(browser, gurl, -1, true);
+      }
+    } else {
+      chrome::AddTabAt(browser, gurl, -1, true);
+    }
+  }
+}
+
+void Browser::NewWindow(const std::string& url, bool force_open) {
+  content::GetUIThreadTaskRunner({})->PostTask(
+    FROM_HERE,
+    base::BindOnce(
+      &Browser::NewWindowTask,
+      base::Unretained(this), 
+      std::move(url), 
+      force_open)
+  );
+}
+#endif
+
 Browser::Browser(const CreateParams& params)
     : create_params_(params),
       type_(params.type),
@@ -683,6 +744,16 @@ Browser::Browser(const CreateParams& params)
   features_->InitPostWindowConstruction(this);
 
   BrowserList::AddBrowser(this);
+
+#if BUILDFLAG(IS_OHOS)
+  auto& browser_adapter = ohos::adapter::BrowserAdapter::GetInstance();
+  browser_adapter.RegisterNewWindowCallback(
+    std::bind(
+      &Browser::NewWindow,
+      this,
+      std::placeholders::_1,
+      std::placeholders::_2));
+#endif
 }
 
 Browser::~Browser() {
@@ -1009,6 +1080,11 @@ Browser::WarnBeforeClosingResult Browser::MaybeWarnBeforeClosing(
   // true or there are no pending downloads we need to prompt about) then
   // there's no need to warn.
   if (force_skip_warning_user_on_close_) {
+#if BUILDFLAG(IS_OHOS)
+    ohos::adapter::BrowserAdapter::GetInstance().SetBrowserCloseResponse(
+        this->GetAcceleratedWidget(),
+        ohos::adapter::BrowserCloseResponse::kClosingContinue);
+#endif
     return WarnBeforeClosingResult::kOkToClose;
   }
 
@@ -1016,6 +1092,11 @@ Browser::WarnBeforeClosingResult Browser::MaybeWarnBeforeClosing(
   bool can_close_with_downloads = CanCloseWithInProgressDownloads();
   if (can_close_with_downloads &&
       !ShouldShowCookieMigrationNoticeForBrowser(*this)) {
+#if BUILDFLAG(IS_OHOS)
+    ohos::adapter::BrowserAdapter::GetInstance().SetBrowserCloseResponse(
+        this->GetAcceleratedWidget(),
+        ohos::adapter::BrowserCloseResponse::kClosingContinue);
+#endif
     return WarnBeforeClosingResult::kOkToClose;
   }
 
@@ -1032,6 +1113,11 @@ Browser::WarnBeforeClosingResult Browser::MaybeWarnBeforeClosing(
       << "Tried to close window during close warning; dialog should be modal.";
   warn_before_closing_callback_ = std::move(warn_callback);
 
+#if BUILDFLAG(IS_OHOS)
+  ohos::adapter::BrowserAdapter::GetInstance().SetBrowserCloseResponse(
+      this->GetAcceleratedWidget(),
+      ohos::adapter::BrowserCloseResponse::kClosingInterrupt);
+#endif
   return WarnBeforeClosingResult::kDoNotClose;
 }
 
@@ -1322,6 +1408,23 @@ void Browser::OnWindowClosing() {
 
 ////////////////////////////////////////////////////////////////////////////////
 // In-progress download termination handling:
+
+#if BUILDFLAG(IS_OHOS)
+gfx::AcceleratedWidget Browser::GetAcceleratedWidget() {
+  LOG(INFO) << "Browser::GetAcceleratedWidget begin";
+  if (this->window()) {
+    gfx::NativeWindow native_window = this->window()->GetNativeWindow();
+    if (native_window && native_window->GetHost()) {
+      auto widget_id = native_window->GetHost()->GetAcceleratedWidget();
+      LOG(INFO) << "Browser::GetAcceleratedWidget, return " << widget_id;
+      return widget_id;
+    }
+  }
+  LOG(INFO) << "Browser::GetAcceleratedWidget, return "
+            << gfx::kNullAcceleratedWidget;
+  return gfx::kNullAcceleratedWidget;
+}
+#endif
 
 Browser::DownloadCloseType Browser::OkToCloseWithInProgressDownloads(
     int* num_downloads_blocking) const {
@@ -3210,11 +3313,21 @@ void Browser::FinishWarnBeforeClosing(WarnBeforeClosingResult result) {
   switch (result) {
     case WarnBeforeClosingResult::kOkToClose:
       chrome::CloseWindow(this);
+#if BUILDFLAG(IS_OHOS)
+      ohos::adapter::BrowserAdapter::GetInstance().SetBrowserCloseResponse(
+          this->GetAcceleratedWidget(),
+          ohos::adapter::BrowserCloseResponse::kClosedAnyway);
+#endif
       break;
     case WarnBeforeClosingResult::kDoNotClose:
       // Reset UnloadController::is_attempting_to_close_browser_ so that we
       // don't prompt every time any tab is closed. http://crbug.com/305516
       unload_controller_.CancelWindowClose();
+#if BUILDFLAG(IS_OHOS)
+      ohos::adapter::BrowserAdapter::GetInstance().SetBrowserCloseResponse(
+          this->GetAcceleratedWidget(),
+          ohos::adapter::BrowserCloseResponse::kCloseCancelled);
+#endif
   }
 }
 

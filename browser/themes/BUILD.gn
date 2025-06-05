@@ -4,7 +4,7 @@
 
 import("//extensions/buildflags/buildflags.gni")
 
-assert(is_win || is_mac || is_linux || is_chromeos)
+assert(is_win || is_mac || is_linux || is_chromeos || is_ohos)
 
 source_set("themes") {
   public = [
@@ -94,5 +94,9 @@ source_set("themes") {
       "//ui/linux:linux_ui_factory",
       "//ui/ozone",
     ]
+  }
+  if (is_ohos) {
+    public += [ "theme_service_ohos.h" ]
+    sources += [ "theme_service_ohos.cc" ]
   }
 }

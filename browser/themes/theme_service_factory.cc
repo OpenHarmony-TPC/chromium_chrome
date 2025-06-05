@@ -35,6 +35,10 @@
 #include "ui/linux/linux_ui_factory.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/themes/theme_service_ohos.h"
+#endif
+
 namespace {
 
 const ThemeHelper& GetThemeHelper() {
@@ -110,6 +114,8 @@ ThemeServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* profile) const {
 #if BUILDFLAG(IS_LINUX)
   using ThemeService = ThemeServiceAuraLinux;
+#elif BUILDFLAG(IS_OHOS)
+  using ThemeService = ThemeServiceOhos;
 #endif
 
   auto provider = std::make_unique<ThemeService>(static_cast<Profile*>(profile),

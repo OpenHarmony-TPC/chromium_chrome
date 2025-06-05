@@ -628,6 +628,8 @@ static_library("constants") {
   } else if (is_linux || is_chromeos) {
     sources += [ "chrome_paths_linux.cc" ]
     deps += [ ":channel_info" ]
+  } else if (is_ohos) {
+    sources += [ "chrome_paths_ohos.cc" ]
   }
   if (is_mac) {
     sources += [ "chrome_paths_mac.mm" ]

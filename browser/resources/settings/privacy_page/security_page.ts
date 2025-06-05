@@ -111,6 +111,19 @@ export class SettingsSecurityPageElement extends
       },
       // </if>
 
+      // <if expr="is_ohos">
+      /**
+       * Whether the Advanced-Security-Mode setting should be displayed.
+       */
+      showAdvancedSecurityModeSetting_: {
+        type: Boolean,
+        readOnly: true,
+        value: function() {
+          return loadTimeData.getBoolean('showAdvancedSecurityModeSetting');
+        },
+      },
+      // </if>
+
       /**
        * Whether the secure DNS setting should be displayed.
        */
@@ -260,6 +273,10 @@ export class SettingsSecurityPageElement extends
   // </if>
   private showSecureDnsSetting_: boolean;
 
+  // <if expr="is_ohos">
+  private showAdvancedSecurityModeSetting_: boolean;
+  // </if>
+
   // <if expr="is_chromeos">
   private showSecureDnsSettingLink_: boolean;
   // </if>
@@ -287,7 +304,7 @@ export class SettingsSecurityPageElement extends
   private focusConfigChanged_(_newConfig: FocusConfig, oldConfig: FocusConfig) {
     assert(!oldConfig);
     // TODO(crbug.com/40928765): fix this for new cert management UI.
-    // <if expr="use_nss_certs">
+    // <if expr="use_nss_certs or is_ohos">
     if (routes.CERTIFICATES) {
       this.focusConfig.set(routes.CERTIFICATES.path, () => {
         const toFocus = this.shadowRoot!.querySelector<HTMLElement>(
@@ -516,6 +533,13 @@ export class SettingsSecurityPageElement extends
     return value.toString();
   }
 
+  // <if expr="is_ohos">
+  private getAdvancedSecurityModeSubLabel_(): string {
+    const generatedPref = this.getPref('generated.advanced_security_mode_enabled');
+    return this.i18n('advancedSecurityModeDescription');
+  }
+// </if>
+
   private getHttpsFirstModeSubLabel_(): string {
     // If the backing HTTPS-Only Mode preference is enabled, but the
     // generated preference has its user control disabled, then additional
@@ -548,7 +572,7 @@ export class SettingsSecurityPageElement extends
   }
 
   private onManageCertificatesClick_() {
-    // <if expr="use_nss_certs">
+    // <if expr="use_nss_certs or is_ohos">
     Router.getInstance().navigateTo(routes.CERTIFICATES);
     // </if>
     // <if expr="is_win or is_macosx">

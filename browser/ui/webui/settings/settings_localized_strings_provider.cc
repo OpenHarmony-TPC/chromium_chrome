@@ -158,7 +158,7 @@
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(USE_NSS_CERTS)
+#if BUILDFLAG(USE_NSS_CERTS) || BUILDFLAG(IS_OHOS)
 #include "chrome/browser/ui/webui/certificate_manager_localized_strings_provider.h"
 #endif
 
@@ -1253,7 +1253,7 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_AUTOFILL_VIRTUAL_CARD_UNENROLL_DIALOG_TITLE},
       {"unenrollVirtualCardDialogConfirm",
        IDS_AUTOFILL_VIRTUAL_CARD_UNENROLL_DIALOG_CONFIRM_BUTTON_LABEL},
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
       {"managePasskeysLabel", IDS_AUTOFILL_MANAGE_PASSKEYS_LABEL},
       {"managePasskeysTitle", IDS_AUTOFILL_MANAGE_PASSKEYS_TITLE},
       {"managePasskeysSearch", IDS_AUTOFILL_MANAGE_PASSKEYS_SEARCH},
@@ -1273,6 +1273,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"managePasskeysSubTitle", IDS_AUTOFILL_MANAGE_PASSKEYS_SUB_TITLE_MAC},
 #elif BUILDFLAG(IS_WIN)
       {"managePasskeysSubTitle", IDS_AUTOFILL_MANAGE_PASSKEYS_SUB_TITLE_WIN},
+#elif BUILDFLAG(IS_OHOS)
+      {"managePasskeysSubTitle", IDS_AUTOFILL_MANAGE_PASSKEYS_SUB_TITLE_OHOS},
 #endif
       {"plusAddressSettings", IDS_PLUS_ADDRESS_SETTINGS_LABEL},
       {"plusAddressSettingsSublabel", IDS_PLUS_ADDRESS_SETTINGS_SUBLABEL},
@@ -1797,6 +1799,10 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SECURE_CONNECTIONS_SECTION_TITLE},
       {"secureConnectionsSectionDescription",
        IDS_SETTINGS_SECURE_CONNECTIONS_SECTION_DESCRIPTION},
+#if BUILDFLAG(IS_OHOS)
+      {"advancedSecurityModeTitle", IDS_ADVANCES_SECURITY_MODE},
+      {"advancedSecurityModeDescription", IDS_ADVANCES_SECURITY_MODE_DESCRIPTION},
+#endif
       {"httpsOnlyModeTitle", IDS_SETTINGS_HTTPS_ONLY_MODE},
       {"httpsOnlyModeDescription", IDS_SETTINGS_HTTPS_ONLY_MODE_DESCRIPTION},
       {"httpsOnlyModeDescriptionAdvancedProtection",
@@ -1983,6 +1989,12 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
 
   html_source->AddString("relatedWebsiteSetsLearnMoreURL",
                          chrome::kRelatedWebsiteSetsLearnMoreURL);
+
+#if BUILDFLAG(IS_OHOS)
+  html_source->AddBoolean(
+      "showAdvancedSecurityModeSetting",
+      base::FeatureList::IsEnabled(features::kAdvancedSecurityMode));
+#endif
 
   html_source->AddString("safeBrowsingHelpCenterURL",
                          chrome::kSafeBrowsingHelpCenterUpdatedURL);
@@ -3756,7 +3768,7 @@ void AddLocalizedStrings(content::WebUIDataSource* html_source,
   AddSystemStrings(html_source);
 #endif
 
-#if BUILDFLAG(USE_NSS_CERTS)
+#if BUILDFLAG(USE_NSS_CERTS) || BUILDFLAG(IS_OHOS)
   certificate_manager::AddLocalizedStrings(html_source);
 #endif
 
