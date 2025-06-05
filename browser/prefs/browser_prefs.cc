@@ -2292,8 +2292,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   side_panel_prefs::RegisterProfilePrefs(registry);
 
   tabs::RegisterProfilePrefs(registry);
-
+#if !BUILDFLAG(IS_OHOS)
   CertificateManagerPageHandler::RegisterProfilePrefs(registry);
+#endif
 #endif  // !BUILDFLAG(IS_ANDROID)
 
   registry->RegisterBooleanPref(webauthn::pref_names::kAllowWithBrokenCerts,

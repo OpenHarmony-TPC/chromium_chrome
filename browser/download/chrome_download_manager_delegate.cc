@@ -159,6 +159,11 @@
 #include "chrome/browser/ash/policy/skyvault/skyvault_rename_handler.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/permission_manager/permission_manager_adapter.h"
+namespace ohos_permission = ohos::adapter::permission;
+#endif
+
 using content::BrowserThread;
 using content::DownloadManager;
 using download::DownloadItem;
@@ -516,6 +521,15 @@ ChromeDownloadManagerDelegate::ChromeDownloadManagerDelegate(Profile* profile)
 #if BUILDFLAG(IS_ANDROID)
   download_dialog_bridge_ = std::make_unique<DownloadDialogBridge>();
   download_message_bridge_ = std::make_unique<DownloadMessageBridge>();
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  // The default path obtained without kDownloadDefault Directory is'/'and does not have read and write permissions
+  if (download_prefs_->DownloadPath().value() == "/") {
+    base::FilePath path;
+    base::PathService::Get(chrome::DIR_DEFAULT_DOWNLOADS, &path);
+    download_prefs_->SetDownloadPath(path);
+  }
 #endif
 }
 
@@ -1098,6 +1112,22 @@ void ChromeDownloadManagerDelegate::OpenDownload(DownloadItem* download) {
   DCHECK(!download->GetTargetFilePath().empty());
   if (!download->CanOpenDownload())
     return;
+
+#if BUILDFLAG(IS_OHOS)
+  GURL file_url = net::FilePathToFileURL(download->GetTargetFilePath());
+  if (file_url.is_valid()) {
+    ohos_permission::PermissionActivationResult activate_result =
+      ohos_permission::PermissionManagerAdapter::ActivateFileAccessPersist(
+          file_url.spec());
+    if (activate_result !=
+        ohos_permission::PermissionActivationResult::SUCCESS) {
+      LOG(ERROR) << "The file exists, but activating file permissions failed, "
+                    "file url: "
+                 << file_url.spec()
+                 << "error code: " << static_cast<int32_t>(activate_result);
+    }
+  }
+#endif
 
   if (!IsMostRecentDownloadItemAtFilePath(download))
     return;
@@ -1870,6 +1900,13 @@ bool ChromeDownloadManagerDelegate::IsOpenInBrowserPreferredForFile(
     return true;
   }
 #endif
+
+#if BUILDFLAG(IS_OHOS)
+  if (path.MatchesExtension(FILE_PATH_LITERAL(".mhtml"))) {
+    return true;
+  }
+#endif
+
   return false;
 }
 

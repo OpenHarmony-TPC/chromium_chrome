@@ -327,6 +327,7 @@ class AccountSelectionViewBase : public PictureInPictureOcclusionObserver {
   // Returns the network traffic annotation tag for FedCM.
   static net::NetworkTrafficAnnotationTag GetTrafficAnnotation();
 
+
   // Updates the position of the dialog. Used when the contents of the dialog
   // has changed or when the widget which the dialog is anchored on has been
   // resized.

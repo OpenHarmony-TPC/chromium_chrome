@@ -103,6 +103,9 @@ void DownloadsHandler::HandleSelectDownloadLocation(
       std::make_unique<ChromeSelectFilePolicy>(web_ui()->GetWebContents()));
   ui::SelectFileDialog::FileTypeInfo info;
   info.allowed_paths = ui::SelectFileDialog::FileTypeInfo::NATIVE_PATH;
+#if BUILDFLAG(IS_OHOS)
+  info.file_access_persist = true;
+#endif
   select_folder_dialog_->SelectFile(
       ui::SelectFileDialog::SELECT_FOLDER,
       l10n_util::GetStringUTF16(IDS_SETTINGS_DOWNLOAD_LOCATION),

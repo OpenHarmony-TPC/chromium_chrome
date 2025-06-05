@@ -447,6 +447,7 @@
 <translation id="1296410481664942178">不显示 Google 日历</translation>
 <translation id="1296911687402551044">固定所选标签页</translation>
 <translation id="1297175357211070620">目标打印机</translation>
+<translation id="129754985466769971">坚盾守护模式可以保护您的设备不遭受复杂网络攻击。当您认为自己处于高度针对型网络攻击环境中时，打开此模式将提升设备的防护状态，保护个人信息安全。</translation>
 <translation id="129770436432446029">针对实验“<ph name="EXPERIMENT_NAME" />”发送反馈</translation>
 <translation id="129808599775632797">修改(&amp;M)</translation>
 <translation id="130097046531636712">开启此设置后，系统会通过限制后台活动和视觉效果（例如流畅滚动）来节省电池电量</translation>
@@ -7776,6 +7777,7 @@
 <translation id="654039047105555694"><ph name="BEGIN_BOLD" />注意：<ph name="END_BOLD" />除非您有意这么做或被要求这样做，否则请不要随意启用这项功能，因为收集数据可能会降低性能。</translation>
 <translation id="6540488083026747005">您已允许此网站使用第三方 Cookie</translation>
 <translation id="6541638731489116978">此网站已被禁止使用您的移动传感器。</translation>
+<translation id="6542192216288339414">坚盾守护模式</translation>
 <translation id="6542417422899025860">自动移除大部分个人信息</translation>
 <translation id="6542521951477560771">正在投放到<ph name="RECEIVER_NAME" /></translation>
 <translation id="6544134392255015460">键盘背光切换开关</translation>
@@ -11046,6 +11048,7 @@
 <translation id="8849262417389398097"><ph name="CHECKED" /> 个（共 <ph name="CHECKING" /> 个）</translation>
 <translation id="8849541329228110748">对您的互联网流量有访问权限的各方可以看到您访问的网页</translation>
 <translation id="8850251000316748990">查看更多…</translation>
+<translation id="8890944795668818744">系统打印</translation>
 <translation id="885246833287407341">API 函数参数</translation>
 <translation id="8853586775156634952">此卡的信息将仅保存到此设备上</translation>
 <translation id="8854745870658584490">“选择”快捷方式</translation>

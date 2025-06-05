@@ -138,8 +138,14 @@
           <cr-ripple></cr-ripple>
         </a>
   <if expr="not chromeos_ash">
+    <if expr="is_ohos">
+        <a role="menuitem" id="system" href="/system" class="cr-nav-menu-item"
+            hidden="[[!systemPageVisibility_()]]">
+    </if>
+    <if expr="not is_ohos">
         <a role="menuitem" id="system" href="/system" class="cr-nav-menu-item"
             hidden="[[!pageVisibility.system]]">
+    </if>
           <cr-icon icon="settings:system"></cr-icon>
           $i18n{systemPageTitle}
           <cr-ripple></cr-ripple>

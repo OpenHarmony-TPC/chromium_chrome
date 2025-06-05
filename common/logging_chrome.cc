@@ -55,6 +55,10 @@
 #include "content/public/common/content_switches.h"
 #include "ipc/ipc_logging.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/device_info/device_info.h"
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS)
 #include "base/i18n/time_formatting.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
@@ -75,6 +79,10 @@
 #include "chrome/common/win/eventlog_messages.h"
 #include "chrome/install_static/install_details.h"
 #include "sandbox/policy/switches.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+namespace device_info = ohos::adapter::device_info;
 #endif
 
 namespace logging {
@@ -222,6 +230,14 @@ LoggingDestination LoggingDestFromCommandLine(
     }
 #endif
   }
+#if BUILDFLAG(IS_OHOS)
+  // Logs are printed only for the beta version
+  std::string osReleaseType =
+      device_info::DeviceInfo::GetInstance().Get(device_info::kOsReleaseType);
+  if (osReleaseType.find("Release") == std::string::npos) {
+    return kDefaultLoggingMode | LOG_TO_SYSTEM_DEBUG_LOG;
+  }
+#endif
   return kDefaultLoggingMode;
 }
 

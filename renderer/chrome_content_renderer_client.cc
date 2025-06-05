@@ -412,11 +412,13 @@ void ChromeContentRendererClient::RenderThreadStarted() {
   main_thread_profiler_->SetAuxUnwinderFactory(base::BindRepeating(
       &CreateV8Unwinder, base::Unretained(v8::Isolate::GetCurrent())));
 
+#if !BUILDFLAG(IS_OHOS)
+  // TODO:OHOS
   // In the case of single process mode, the v8 unwinding will not work.
   tracing::TracingSamplerProfiler::SetAuxUnwinderFactoryOnMainThread(
       base::BindRepeating(&CreateV8Unwinder,
                           base::Unretained(v8::Isolate::GetCurrent())));
-
+#endif
   const bool is_extension = IsStandaloneContentExtensionProcess();
 
   thread->SetRendererProcessType(
@@ -1423,11 +1425,14 @@ void ChromeContentRendererClient::PostCompositorThreadCreated(
   // Enable stack sampling for tracing.
   // We pass in CreateCoreUnwindersFactory here since it lives in the chrome/
   // layer while TracingSamplerProfiler is outside of chrome/.
+#if !BUILDFLAG(IS_OHOS)
+  // TODO:OHOS
   compositor_thread_task_runner->PostTask(
       FROM_HERE,
       base::BindOnce(&tracing::TracingSamplerProfiler::
                          CreateOnChildThreadWithCustomUnwinders,
                      base::BindRepeating(&CreateCoreUnwindersFactory)));
+#endif
 }
 
 bool ChromeContentRendererClient::RunIdleHandlerWhenWidgetsHidden() {

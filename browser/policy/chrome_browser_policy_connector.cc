@@ -49,6 +49,8 @@
 #include "base/win/registry.h"
 #include "chrome/browser/browser_switcher/browser_switcher_policy_migrator.h"
 #include "components/policy/core/common/policy_loader_win.h"
+#elif BUILDFLAG(IS_OHOS)
+#include "components/policy/core/common/policy_loader_ohos.h"
 #elif BUILDFLAG(IS_MAC)
 #include <CoreFoundation/CoreFoundation.h>
 #include "base/apple/foundation_util.h"
@@ -294,7 +296,7 @@ ChromeBrowserPolicyConnector::CreatePolicyProviders() {
     providers.insert(providers.begin(), std::move(platform_provider));
   }
 
-#if !BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_OHOS)
   MaybeCreateCloudPolicyManager(&providers);
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
@@ -322,6 +324,12 @@ ChromeBrowserPolicyConnector::CreatePlatformProvider() {
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),
       ManagementServiceFactory::GetForPlatform(), kRegistryChromePolicyKey));
+  return std::make_unique<AsyncPolicyProvider>(GetSchemaRegistry(),
+                                               std::move(loader));
+#elif BUILDFLAG(IS_OHOS)
+  auto loader = std::make_unique<PolicyLoaderOhos>(
+      base::ThreadPool::CreateSequencedTaskRunner(
+          {base::MayBlock(), base::TaskPriority::BEST_EFFORT}));
   return std::make_unique<AsyncPolicyProvider>(GetSchemaRegistry(),
                                                std::move(loader));
 #elif BUILDFLAG(IS_MAC)

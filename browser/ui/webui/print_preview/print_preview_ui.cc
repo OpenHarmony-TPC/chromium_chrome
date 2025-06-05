@@ -95,6 +95,10 @@
 #include "chrome/browser/printing/print_backend_service_manager.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/print/ohos_print_adapter.h"
+#endif
+
 using content::WebContents;
 
 namespace printing {
@@ -272,6 +276,9 @@ void AddPrintPreviewStrings(content::WebUIDataSource* source) {
 #if BUILDFLAG(IS_CHROMEOS)
     {"serverSearchBoxPlaceholder",
      IDS_PRINT_PREVIEW_SERVER_SEARCH_BOX_PLACEHOLDER},
+#endif
+#if BUILDFLAG(IS_OHOS)
+    {"systemPrint", IDS_PRINT_PREVIEW_SYSTEM_PRINT},
 #endif
     {"title", IDS_PRINT_PREVIEW_TITLE},
     {"top", IDS_PRINT_PREVIEW_TOP_MARGIN_LABEL},
@@ -492,9 +499,26 @@ void PrintPreviewUI::GetPrintPreviewDataForIndex(
 void PrintPreviewUI::SetPrintPreviewDataForIndex(
     int index,
     scoped_refptr<base::RefCountedMemory> data) {
+#if BUILDFLAG(IS_OHOS)
+  PrintPdf(data);
+#endif
   PrintPreviewDataService::GetInstance()->SetDataEntry(*id_, index,
                                                        std::move(data));
 }
+
+#if BUILDFLAG(IS_OHOS)
+void PrintPreviewUI::PrintPdf(
+    scoped_refptr<base::RefCountedMemory> print_data) {
+  if (!print_data || !print_data->size()) {
+    return;
+  }
+  uint32_t data_size = print_data->size();
+  std::shared_ptr<char[]> buff = std::make_shared<char[]>(data_size);
+  memcpy(buff.get(), base::as_string_view(*print_data).data(), data_size);
+  ohos::adapter::print::PrintAdapter::GetInstance().SetPdfBuff(
+      buff, data_size);
+}
+#endif
 
 void PrintPreviewUI::ClearAllPreviewData() {
   PrintPreviewDataService::GetInstance()->RemoveEntry(*id_);

@@ -363,7 +363,11 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
 
     // Note: `tab_strip_` can be destroyed during drag, also destroying `this`.
     base::WeakPtr<TabDragContext> weak_ptr(weak_factory_.GetWeakPtr());
+  #if BUILDFLAG(IS_OHOS)
+    drag_controller_->Drag(screen_location, event.display_id());
+  #else
     drag_controller_->Drag(screen_location);
+  #endif
 
     return weak_ptr ? Liveness::kAlive : Liveness::kDeleted;
   }

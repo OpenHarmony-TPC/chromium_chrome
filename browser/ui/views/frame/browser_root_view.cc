@@ -583,6 +583,12 @@ void BrowserRootView::NavigateToDroppedUrls(
   // Phase two: Create one tab for each remaining dropped URL, in reverse order.
   // This preserves the ordering of the dropped URLs.
 
+#if BUILDFLAG(IS_OHOS)
+  std::vector<GURL> filtered_urls;
+  ProcessDropUrls(event, filtered_urls);
+  drop_info->urls = std::move(filtered_urls);
+#endif
+
   base::span<GURL> urls(drop_info->urls);
   CHECK(!urls.empty());
   int insertion_index = drop_info->index->index;
@@ -629,6 +635,35 @@ void BrowserRootView::NavigateToDroppedUrls(
 
   output_drag_op = GetDropEffect(event);
 }
+
+#if BUILDFLAG(IS_OHOS)
+void BrowserRootView::ProcessDropUrls(const ui::DropTargetEvent& event,
+                                      std::vector<GURL>& filtered_urls) {
+  std::vector<GURL> urls = GetURLsForDrop(event);
+  if (urls.empty()) {
+    const std::optional<GURL> paste_and_go_url = GetPasteAndGoURL(event.data());
+    if (paste_and_go_url.has_value()) {
+      urls.push_back(paste_and_go_url.value());
+    }
+  }
+
+  // Filter all HTTP/HTTPS URLs.
+  std::vector<GURL> http_or_https_urls;
+  std::copy_if(urls.begin(), urls.end(), std::back_inserter(http_or_https_urls),
+               [](const GURL& url) { return url.SchemeIsHTTPOrHTTPS(); });
+
+  if (!http_or_https_urls.empty()) {
+    filtered_urls = std::move(http_or_https_urls);
+    return;
+  }
+
+  for (const GURL &url : urls) {
+    if (!url.SchemeIs(url::kJavaScriptScheme)) {
+      filtered_urls.push_back(url);
+    }
+  }
+}
+#endif
 
 BEGIN_METADATA(BrowserRootView)
 END_METADATA

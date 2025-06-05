@@ -53,6 +53,9 @@ namespace {
 
 const int kHorizontalMargin = 10;
 const float kWindowAlphaValue = 0.96f;
+#if BUILDFLAG(IS_OHOS)
+const gfx::Size kOhosMinimumWindowSize = gfx::Size(300, 90);
+#endif
 
 // A ClientView that overrides NonClientHitTest() so that the whole window area
 // acts as a window caption, except a rect specified using SetClientRect().
@@ -117,6 +120,11 @@ class ScreenCaptureNotificationUIViews : public views::WidgetDelegateView,
   views::ClientView* CreateClientView(views::Widget* widget) override;
   std::unique_ptr<views::NonClientFrameView> CreateNonClientFrameView(
       views::Widget* widget) override;
+
+#if BUILDFLAG(IS_OHOS)
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
+#endif
 
   // views::ViewObserver:
   void OnViewBoundsChanged(views::View* observed_view) override;
@@ -258,10 +266,25 @@ ScreenCaptureNotificationUIViews::CreateNonClientFrameView(
   constexpr auto kPadding = gfx::Insets::VH(5, 10);
   auto frame =
       std::make_unique<views::BubbleFrameView>(gfx::Insets(), kPadding);
+#if BUILDFLAG(IS_OHOS)
+  frame->SetBubbleBorder(std::make_unique<views::BubbleBorder>(
+      views::BubbleBorder::NONE, views::BubbleBorder::NO_SHADOW));
+#else
   frame->SetBubbleBorder(std::make_unique<views::BubbleBorder>(
       views::BubbleBorder::NONE, views::BubbleBorder::STANDARD_SHADOW));
+#endif
   return frame;
 }
+
+#if BUILDFLAG(IS_OHOS)
+gfx::Size ScreenCaptureNotificationUIViews::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
+  auto preferred_size = View::CalculatePreferredSize(available_size);
+  return gfx::Size{
+      std::max(preferred_size.width(), kOhosMinimumWindowSize.width()),
+      std::max(preferred_size.height(), kOhosMinimumWindowSize.height())};
+}
+#endif
 
 void ScreenCaptureNotificationUIViews::OnViewBoundsChanged(
     views::View* observed_view) {
@@ -330,6 +353,11 @@ gfx::NativeViewId ScreenCaptureNotificationUIImpl::OnStarted(
   params.remove_standard_frame = true;
   params.z_order = ui::ZOrderLevel::kFloatingUIElement;
   params.name = "ScreenCaptureNotificationUIViews";
+
+#if BUILDFLAG(IS_OHOS)
+  params.caption_button_visible = false;
+  params.is_stateless = true;
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   // TODO(sergeyu): The notification bar must be shown on the monitor that's

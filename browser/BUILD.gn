@@ -112,7 +112,7 @@ buildflag_header("buildflags") {
 
   # Android and ChromeOS don't support multiple browser processes, so they don't
   # employ ProcessSingleton.
-  if (is_android || is_chromeos) {
+  if (is_android || is_chromeos || is_ohos) {
     flags += [ "ENABLE_PROCESS_SINGLETON=0" ]
   } else {
     flags += [ "ENABLE_PROCESS_SINGLETON=1" ]
@@ -1690,6 +1690,21 @@ static_library("browser") {
     "webid/identity_provider_permission_request.cc",
     "webid/identity_provider_permission_request.h",
   ]
+
+  if (is_ohos) {
+    sources += [
+      "device_reauth/ohos/authenticator_ohos.cc",
+      "device_reauth/ohos/authenticator_ohos.h",
+      "device_reauth/ohos/device_authenticator_ohos.cc",
+      "device_reauth/ohos/device_authenticator_ohos.h",
+      "password_manager/password_manager_util_ohos.cc",
+      "password_manager/password_manager_util_ohos.h",
+      "performance_manager/policies/page_discarding_policy_ohos.cc",
+      "performance_manager/policies/page_discarding_policy_ohos.h",
+      "safe_browsing/generated_advanced_security_mode_pref.cc",
+      "safe_browsing/generated_advanced_security_mode_pref.h",
+    ]
+  }
 
   configs += [
     "//build/config/compiler:wexit_time_destructors",
@@ -4175,6 +4190,13 @@ static_library("browser") {
       "webauthn/webauthn_switches.cc",
       "webauthn/webauthn_switches.h",
     ]
+
+    if (is_ohos) {
+      sources -= [
+        "headless/chrome_browser_main_extra_parts_headless.cc",
+        "headless/chrome_browser_main_extra_parts_headless.h",
+      ]
+    }
 
     #!is_android
     public_deps += [ "//ui/base/mojom:ui_base_types" ]
@@ -6665,7 +6687,7 @@ static_library("browser") {
     ]
   }
 
-  if (is_android || is_mac || is_win || is_chromeos) {
+  if (is_android || is_mac || is_win || is_chromeos || is_ohos) {
     sources += [
       "device_reauth/chrome_device_authenticator_factory.cc",
       "device_reauth/chrome_device_authenticator_factory.h",
@@ -6929,6 +6951,24 @@ static_library("browser") {
     }
   }
 
+  if (is_ohos) {
+    sources += [
+      "first_run/first_run_internal_linux.cc",
+      "memory_details_linux.cc",
+      "obsolete_system/obsolete_system_stub.cc",
+      "policy/browser_dm_token_storage_linux.cc",
+      "policy/browser_dm_token_storage_linux.h",
+      "supervised_user/linux_mac_windows/supervised_user_web_content_handler_impl.cc",
+      "supervised_user/linux_mac_windows/supervised_user_web_content_handler_impl.h",
+      "enterprise/profile_management/profile_management_features.cc",
+      "enterprise/profile_management/profile_management_features.h",
+      "supervised_user/supervised_user_verification_page.cc",
+      "supervised_user/supervised_user_verification_page.h",
+      "supervised_user/supervised_user_verification_page_youtube.cc",
+      "supervised_user/supervised_user_verification_page_youtube.h",
+    ]
+  }
+
   if (is_linux || is_chromeos) {
     sources += [
       "chrome_browser_main_linux.cc",
@@ -6968,6 +7008,19 @@ static_library("browser") {
       "//chrome/common:chrome_features",
       "//components/dbus/utils",
       "//components/os_crypt/async/browser:secret_portal_key_provider",
+    ]
+  }
+
+  if (is_ohos) {
+    sources += [
+      "first_run/upgrade_util_ohos.cc",
+      "shell_integration_ohos.cc",
+      "platform_util_ohos.cc",
+      "icon_loader_ohos.cc",
+    ]
+    deps += [
+      "//chrome/app/theme:chrome_unscaled_resources_grit",
+      "//ohos/adapter:adapter",
     ]
   }
 
@@ -7024,6 +7077,20 @@ static_library("browser") {
     }
   }
 
+  if (is_ohos) {
+    sources += [
+      "media/webrtc/window_icon_util_ozone.cc",
+      "notifications/notification_platform_bridge_ohos.cc",
+      "notifications/notification_platform_bridge_ohos.h",
+    ]
+    deps += [
+      "//ohos/adapter:adapter",
+    ]
+    if (use_ozone) {
+      sources += [ "fullscreen_ozone.cc" ]
+    }
+  }
+
   if (is_posix) {
     sources += [
       "download/trusted_sources_manager_posix.cc",
@@ -7034,7 +7101,7 @@ static_library("browser") {
     ]
   }
 
-  if (is_win || is_linux || is_chromeos) {
+  if (is_win || is_linux || is_chromeos || is_ohos) {
     sources += [
       "renderer_context_menu/spelling_options_submenu_observer.cc",
       "renderer_context_menu/spelling_options_submenu_observer.h",
@@ -7312,6 +7379,9 @@ static_library("browser") {
     }
     if (is_linux) {
       sources += [ "printing/printer_manager_dialog_linux.cc" ]
+    }
+    if (is_ohos) {
+      sources += [ "printing/printer_manager_dialog_ohos.cc" ]
     }
     if (enable_oop_printing) {
       sources += [
@@ -8362,6 +8432,13 @@ static_library("browser") {
     }
   }
 
+  if (is_ohos) {
+    sources += [
+      "certificate_manager_model_ohos.cc",
+      "certificate_manager_model_ohos.h"
+    ]
+  }
+
   if (use_udev) {
     deps += [ "//device/udev_linux" ]
   }
@@ -8771,7 +8848,7 @@ static_library("browser_generated_files") {
       public_deps += [ "//chrome/browser/win/conflicts:module_list_proto" ]
     }
   }
-  if (is_win || is_mac || is_linux) {
+  if (is_win || is_mac || is_linux || is_ohos) {
     public_deps += [
       "//chrome/browser/enterprise/connectors/device_trust/attestation/common/proto:attestation_ca_proto",
       "//chrome/browser/enterprise/connectors/device_trust/attestation/common/proto:google_key_proto",
@@ -8781,7 +8858,7 @@ static_library("browser_generated_files") {
       "//chrome/browser/ui/webui/whats_new:mojo_bindings",
     ]
   }
-  if (is_win || is_mac || is_linux || is_chromeos_ash) {
+  if (is_win || is_mac || is_linux || is_chromeos_ash || is_ohos) {
     public_deps +=
         [ "//chrome/browser/ui/webui/connectors_internals:mojo_bindings" ]
   }
@@ -9410,7 +9487,7 @@ if (!is_android) {
       "//ui/webui/resources/cr_components/app_management:mojo_bindings",
     ]
 
-    if (is_win || is_mac || is_linux) {
+    if (is_win || is_mac || is_linux || is_ohos) {
       public_deps += [ "//chrome/browser/ui/webui/app_home:mojo_bindings" ]
     }
   }

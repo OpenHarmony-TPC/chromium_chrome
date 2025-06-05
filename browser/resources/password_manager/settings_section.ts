@@ -75,7 +75,7 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
         value: () => [],
       },
 
-      // <if expr="is_win or is_macosx or is_chromeos">
+      // <if expr="is_win or is_macosx or is_chromeos or is_ohos">
       isBiometricAuthenticationForFillingToggleVisible_: {
         type: Boolean,
         value() {
@@ -319,7 +319,7 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
     PasswordManagerImpl.getInstance().removeBlockedSite(event.model.item.id);
   }
 
-  // <if expr="is_win or is_macosx or is_chromeos">
+  // <if expr="is_win or is_macosx or is_chromeos or is_ohos">
   private switchBiometricAuthBeforeFillingState_(e: Event) {
     const biometricAuthenticationForFillingToggle =
         e!.target as PrefToggleButtonElement;

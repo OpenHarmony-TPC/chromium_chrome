@@ -1413,6 +1413,12 @@ source_set("extensions") {
     ]
   }
 
+  if (is_ohos) {
+    sources += [
+      "api/image_writer_private/removable_storage_provider_ohos.cc",
+    ]
+  }
+
   if (enable_plugins) {
     sources += [
       "plugin_manager.cc",

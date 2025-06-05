@@ -13,13 +13,22 @@
 #include "base/task/cancelable_task_tracker.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/certificate_manager_model.h"
 #include "chrome/browser/ui/webui/certificate_manager/certificate_manager_utils.h"
 #include "components/file_access/scoped_file_access.h"
 #include "content/public/browser/web_ui_message_handler.h"
-#include "net/cert/nss_cert_database.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
+
+#if BUILDFLAG(IS_OHOS)
+#include "base/files/file_path.h"
+#include "base/files/file_path_watcher.h"
+#include "base/files/file_util.h"
+#include "chrome/browser/certificate_manager_model_ohos.h"
+#include "crypto/crypto_buildflags.h"
+#else
+#include "chrome/browser/certificate_manager_model.h"
+#include "net/cert/nss_cert_database.h"
+#endif
 
 namespace user_prefs {
 class PrefRegistrySyncable;
@@ -94,7 +103,9 @@ class CertificatesHandler : public content::WebUIMessageHandler,
   void HandleExportPersonal(const base::Value::List& args);
   void ExportPersonalFileSelected(const base::FilePath& path);
   void HandleExportPersonalPasswordSelected(const base::Value::List& args);
+  #if BUILDFLAG(USE_NSS_CERTS)
   void ExportPersonalSlotsUnlocked();
+  #endif
   void ExportPersonalFileWritten(const int* write_errno);
 
   // Import from PKCS #12 or cert file.  The sequence goes like:
@@ -171,11 +182,18 @@ class CertificatesHandler : public content::WebUIMessageHandler,
   // Reject the pending JS callback with a generic error.
   void RejectCallbackWithError(const std::string& title,
                                const std::string& error);
-
+#if BUILDFLAG(USE_NSS_CERTS)
   // Reject the pending JS callback with a certificate import error.
   void RejectCallbackWithImportError(
       const std::string& title,
       const net::NSSCertDatabase::ImportCertFailureList& not_imported);
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  void StartWatch(const base::FilePath& path_to_watch);
+  void RemoveWatch(const base::FilePath& file_path);
+  void OnFilePathChanged(const base::FilePath& file_path, bool error);
+#endif
 
   // Assigns a new |webui_callback_id_|. Returns false if a previous request
   // is still in-flight, in which case the new request should be rejected and
@@ -221,16 +239,25 @@ class CertificatesHandler : public content::WebUIMessageHandler,
   // password, etc the user chose while we wait for them to enter a password,
   // wait for file to be read, etc.
   base::FilePath file_path_;
+  #if !BUILDFLAG(IS_OHOS)
   std::u16string password_;
+  #endif
   // The WebUI callback ID of the last in-flight async request. There is always
   // only one in-flight such request.
   std::string webui_callback_id_;
   bool use_hardware_backed_;
   std::string file_data_;
-  net::ScopedCERTCertificateList selected_cert_list_;
+#if BUILDFLAG(USE_NSS_CERTS)
+   net::ScopedCERTCertificateList selected_cert_list_;
+   crypto::ScopedPK11Slot slot_;
+#endif
   scoped_refptr<ui::SelectFileDialog> select_file_dialog_;
   std::optional<PendingOperation> pending_operation_;
-  crypto::ScopedPK11Slot slot_;
+
+#if BUILDFLAG(IS_OHOS)
+  std::map<base::FilePath, base::FilePathWatcher> watchers_;
+  std::string ca_cert_dir_;
+#endif
 
   // Used in reading and writing certificate files.
   base::CancelableTaskTracker tracker_;

@@ -4,6 +4,10 @@
         padding: 0 var(--cr-section-padding);
       }
 
+      #advancedSecurityModeToggle {
+        padding: 0 var(--cr-section-padding);
+      }
+
       .bullet-line {
         align-items: center;
         display: flex;
@@ -279,6 +283,17 @@
                         prefs.generated.password_leak_detection.*)]]">
       </settings-toggle-button>
     </template>
+<if expr="is_ohos">
+    <template is="dom-if" if="[[showAdvancedSecurityModeSetting_]]">
+      <settings-toggle-button
+          id="advancedSecurityModeToggle"
+          pref="{{prefs.generated.advanced_security_mode_enabled}}"
+          label="$i18n{advancedSecurityModeTitle}"
+          sub-label="[[getAdvancedSecurityModeSubLabel_(
+                        prefs.generated.advanced_security_mode_enabled.*)]]">
+      </settings-toggle-button>
+    </template>
+</if>
     <template is="dom-if" if="[[!enableHttpsFirstModeNewSettings_]]" restamp>
       <settings-toggle-button id="httpsOnlyModeToggle"
           pref="{{prefs.generated.https_first_mode_enabled}}"
@@ -349,7 +364,7 @@
 <if expr="not use_nss_certs">
           external
 </if>
-<if expr="use_nss_certs">
+<if expr="use_nss_certs or is_ohos">
           role-description="$i18n{subpageArrowRoleDescription}"
 </if>
           label="$i18n{manageCertificates}"
@@ -357,6 +372,7 @@
           on-click="onManageCertificatesClick_">
       </cr-link-row>
 
+<if expr="not is_ohos">
       <cr-link-row id="chromeCertificates"
           class="hr"
           external
@@ -364,6 +380,7 @@
           sub-label="$i18n{chromeCertificatesDescription}"
           on-click="onChromeCertificatesClick_">
       </cr-link-row>
+</if>
     </template>
 </if>
 
@@ -373,7 +390,7 @@
 <if expr="not use_nss_certs">
           external
 </if>
-<if expr="use_nss_certs">
+<if expr="use_nss_certs or is_ohos">
           role-description="$i18n{subpageArrowRoleDescription}"
 </if>
           label="$i18n{manageCertificates}"
@@ -381,6 +398,7 @@
           on-click="onManageCertificatesClick_">
       </cr-link-row>
 
+<if expr="not is_ohos">
       <cr-link-row id="chromeCertificates"
           class="hr"
           external
@@ -388,6 +406,7 @@
           sub-label="$i18n{chromeCertificatesDescription}"
           on-click="onChromeCertificatesClick_">
       </cr-link-row>
+</if>
 </if>
 
     <cr-link-row id="advanced-protection-program-link" class="hr"

@@ -30,6 +30,12 @@ class WindowFinder {
   virtual gfx::NativeWindow GetLocalProcessWindowAtPoint(
       const gfx::Point& screen_point,
       const std::set<gfx::NativeWindow>& ignore);
+#if BUILDFLAG(IS_OHOS)
+  virtual gfx::NativeWindow GetLocalProcessWindowAtPoint(
+      const gfx::Point& screen_point,
+      const std::set<gfx::NativeWindow>& ignore,
+      const int32_t display_id);
+#endif
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_WINDOW_FINDER_H_

@@ -159,7 +159,16 @@ SavePackageFilePicker::SavePackageFilePicker(
         !suggested_path_copy.MatchesExtension(FILE_PATH_LITERAL(".html"))) {
       extra_extension = suggested_path_copy.FinalExtension().substr(1);
     }
-
+#if BUILDFLAG(IS_OHOS)
+    if (can_save_as_complete_) {
+      AddSingleFileFileTypeInfo(&file_type_info);
+      save_types_.push_back(content::SAVE_PAGE_TYPE_AS_MHTML);
+    }
+    if (ShouldSaveAsOnlyHTML(web_contents)) {
+      AddHtmlOnlyFileTypeInfo(&file_type_info, extra_extension);
+      save_types_.push_back(content::SAVE_PAGE_TYPE_AS_ONLY_HTML);
+    }
+#else
     if (ShouldSaveAsOnlyHTML(web_contents)) {
       AddHtmlOnlyFileTypeInfo(&file_type_info, extra_extension);
       save_types_.push_back(content::SAVE_PAGE_TYPE_AS_ONLY_HTML);
@@ -169,6 +178,7 @@ SavePackageFilePicker::SavePackageFilePicker(
       AddSingleFileFileTypeInfo(&file_type_info);
       save_types_.push_back(content::SAVE_PAGE_TYPE_AS_MHTML);
     }
+#endif
 
 #if !BUILDFLAG(IS_CHROMEOS_ASH)
     AddCompleteFileTypeInfo(&file_type_info, extra_extension);

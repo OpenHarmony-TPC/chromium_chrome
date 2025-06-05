@@ -54,6 +54,9 @@ import type {PrintPreviewDestinationSelectCrosElement} from './destination_selec
 // </if>
 import {getTemplate} from './destination_settings.html.js';
 import {SettingsMixin} from './settings_mixin.js';
+// <if expr="is_ohos">
+import {NativeLayerImpl} from '../native_layer.js';
+// </if>
 
 export enum DestinationState {
   INIT = 0,
@@ -451,6 +454,10 @@ export class PrintPreviewDestinationSettingsElement extends
       this.destinationStore_!.startLoadAllDestinations();
       this.$.destinationDialog.get().show();
       this.isDialogOpen_ = true;
+// <if expr="is_ohos">
+    } else if (value === 'systemPrint') {
+      NativeLayerImpl.getInstance().systemPrint();
+// </if>
     } else {
       this.destinationStore_!.selectDestinationByKey(value);
     }

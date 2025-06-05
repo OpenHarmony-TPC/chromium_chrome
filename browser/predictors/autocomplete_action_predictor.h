@@ -57,6 +57,15 @@ namespace predictors {
 class AutocompleteActionPredictor : public KeyedService,
                                     public history::HistoryServiceObserver {
  public:
+ #if BUILDFLAG(IS_OHOS)
+  enum Action {
+    ACTION_PRERENDER = 0,
+    ACTION_PREFETCH,
+    ACTION_PRECONNECT,
+    ACTION_NONE,
+    LAST_PREDICT_ACTION = ACTION_NONE
+  };
+#else
   // An `Action` is a recommendation on what pre* technology to invoke on a
   // given `AutocompleteMatch`.
   enum Action {
@@ -70,6 +79,7 @@ class AutocompleteActionPredictor : public KeyedService,
     // The recommendation is to not perform any action.
     ACTION_NONE,
   };
+#endif
 
   explicit AutocompleteActionPredictor(Profile* profile);
 
@@ -120,6 +130,12 @@ class AutocompleteActionPredictor : public KeyedService,
   void StartPrerendering(const GURL& url,
                          content::WebContents& web_contents,
                          const gfx::Size& size);
+
+#if BUILDFLAG(IS_OHOS)
+  void TryPrefetch(const GURL& url,
+                  content::WebContents& web_contents,
+                  const gfx::Size& size);
+#endif
 
   // Returns true if the suggestion type warrants a TCP/IP preconnection.
   // i.e., it is now quite likely that the user will select the related domain.

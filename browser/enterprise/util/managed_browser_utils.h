@@ -16,6 +16,10 @@
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/values.h"
+#endif // BUILDFLAG(IS_OHOS)
+
 struct AccountInfo;
 class GURL;
 class PrefRegistrySimple;
@@ -100,6 +104,10 @@ bool IsKnownConsumerDomain(const std::string& email_domain);
 void GetManagementIcon(const GURL& url,
                        Profile* profile,
                        base::OnceCallback<void(const gfx::Image&)> callback);
+
+#if BUILDFLAG(IS_OHOS)
+void SetTemplistForOhosTest(base::Value::List list, GURL url);
+#endif  // BUILDFLAG(IS_OHOS)
 
 }  // namespace enterprise_util
 

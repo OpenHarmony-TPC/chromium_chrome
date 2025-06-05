@@ -222,6 +222,10 @@ class PrintPreviewHandler : public content::WebUIMessageHandler {
   // dialog. |args| is unused.
   void HandleManagePrinters(const base::Value::List& args);
 
+#if BUILDFLAG(IS_OHOS)
+  void HandleSystemPrint(const base::Value::List& args);
+#endif
+
   void SendInitialSettings(const std::string& callback_id,
                            base::Value::Dict policies,
                            const std::string& default_printer);
