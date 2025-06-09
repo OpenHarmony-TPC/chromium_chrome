@@ -278,7 +278,9 @@ class ChromeFileSystemAccessPermissionContextTest : public testing::Test {
 #if BUILDFLAG(IS_OHOS)
     // The tmp directory should not be at the same level as the exe directory
     temp_override_ = std::make_unique<base::ScopedPathOverride>(
-        base::DIR_TEMP, base::FilePath("../tmp_override"), true, true);
+        base::DIR_TEMP,
+        base::FilePath("../tmp_override"),
+        true, true);
 #endif
     // Create a scoped directory under %TEMP% instead of using
     // `base::ScopedTempDir::CreateUniqueTempDir`.

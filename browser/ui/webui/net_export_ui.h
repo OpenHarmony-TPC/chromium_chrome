@@ -10,28 +10,13 @@
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/webui_config.h"
 
-#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
-#include "cef/ohos_cef_ext/libcef//browser/net/ohos_net_export_ui.h"
-
-class OhosNetExportUI;
-#endif
-
 class NetExportUI;
 
-#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
-class NetExportUIConfig : public content::DefaultWebUIConfig<OhosNetExportUI> {
-#else
 class NetExportUIConfig : public content::DefaultWebUIConfig<NetExportUI> {
-#endif
  public:
   NetExportUIConfig()
-#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
-      : DefaultWebUIConfig(content::kArkWebUIScheme,
-#else
       : DefaultWebUIConfig(content::kChromeUIScheme,
-#endif
-                           chrome::kChromeUINetExportHost) {
-  }
+                           chrome::kChromeUINetExportHost) {}
 };
 
 // The C++ back-end for the chrome://net-export webui page.

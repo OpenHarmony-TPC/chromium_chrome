@@ -61,7 +61,7 @@ namespace {
 #if BUILDFLAG(IS_OHOS)
 base::Value::List g_templist;
 GURL g_tempurl;
-#endif  // BUILDFLAG(IS_OHOS)
+#endif // BUILDFLAG(IS_OHOS)
 
 // Returns client certificate auto-selection filters configured for the given
 // URL in |ContentSettingsType::AUTO_SELECT_CERTIFICATE| content setting. The
@@ -138,7 +138,7 @@ base::Value::List getList(GURL url) {
   }
   return base::Value::List();
 }
-#endif  // BUILDFLAG(IS_OHOS)
+#endif // BUILDFLAG(IS_OHOS)
 
 }  // namespace
 
@@ -147,7 +147,7 @@ void SetTemplistForOhosTest(base::Value::List list, GURL url) {
   g_tempurl = std::move(url);
   g_templist = std::move(list);
 }
-#endif  // BUILDFLAG(IS_OHOS)
+#endif // BUILDFLAG(IS_OHOS)
 
 bool IsBrowserManaged(Profile* profile) {
   DCHECK(profile);

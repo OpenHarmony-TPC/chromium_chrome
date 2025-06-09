@@ -250,11 +250,6 @@ class HeaderInjectionURLLoaderClient : public network::mojom::URLLoaderClient {
     url_loader_client_->OnReceiveEarlyHints(std::move(early_hints));
   }
 
-#if BUILDFLAG(ARKWEB_RESOURCE_INTERCEPTION)
-  void OnTransferDataWithSharedMemory(base::ReadOnlySharedMemoryRegion region,
-                                      uint64_t buffer_size) override{}
-#endif
-
   void OnReceiveResponse(
       network::mojom::URLResponseHeadPtr response_head,
       mojo::ScopedDataPipeConsumerHandle body,

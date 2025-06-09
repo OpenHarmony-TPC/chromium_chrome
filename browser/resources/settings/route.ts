@@ -52,7 +52,7 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
         r.PRIVACY_SANDBOX.createChild('/adPrivacy/measurement');
   }
 
-  // <if expr="use_nss_certs">
+  // <if expr="use_nss_certs or is_ohos">
   r.CERTIFICATES = r.SECURITY.createChild('/certificates');
   // </if>
 

@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "arkweb/build/features/features.h"
 #include "ash/constants/ash_features.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -821,9 +820,6 @@ void PopulateChromeFrameBinders(
   map->Add<blink::mojom::UnhandledTapNotifier>(
       base::BindRepeating(&BindUnhandledTapWebContentsObserver));
 #endif  // BUILDFLAG(ENABLE_UNHANDLED_TAP)
-
-#elif BUILDFLAG(ARKWEB_ASAN)
-  LOG(INFO) << "WebPayments not supported on OHOS";
 
 #else
   map->Add<blink::mojom::BadgeService>(

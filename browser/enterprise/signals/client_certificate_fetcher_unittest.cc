@@ -27,6 +27,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/enterprise/util/managed_browser_utils.h"
+#endif
+
 namespace enterprise_signals {
 namespace {
 const char kRequestingUrl[] = "https://www.example.com";
@@ -115,6 +119,11 @@ class ClientCertificateFetcherTest : public testing::Test,
   }
 
   void SetPolicyValueInContentSettings(base::Value::List filters) {
+#if BUILDFLAG(IS_OHOS)
+    chrome::enterprise_util::SetTemplistForOhosTest(std::move(filters),
+                                                    GURL(kRequestingUrl));
+//Configuring Temporary URLs and Environments
+#endif
     HostContentSettingsMap* m =
         HostContentSettingsMapFactory::GetForProfile(profile());
 

@@ -302,11 +302,20 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   constructor() {
     super();
 
+    // <if expr="not is_ohos">
     // TODO(dpapad): Add tests after crbug.com/1111459 is fixed.
     this.sidenavCollapsed_ = Boolean(Number.parseInt(
         LocalStorageProxyImpl.getInstance().getItem(
             LOCAL_STORAGE_SIDENAV_COLLAPSED_KEY)!,
         10));
+    // </if>
+    // <if expr="is_ohos">
+    // ohos default collapse to optimize preview
+    this.sidenavCollapsed_ = Boolean(Number.parseInt(
+        LocalStorageProxyImpl.getInstance().getItem(
+            LOCAL_STORAGE_SIDENAV_COLLAPSED_KEY) ?? '1',
+        10));
+    // </if>
   }
 
   override updated(changedProperties: PropertyValues<this>) {

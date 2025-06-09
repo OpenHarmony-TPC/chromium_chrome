@@ -90,13 +90,8 @@ bool SetOmniboxDefaultSuggestion(
 // Returns a string used as a template URL string of the extension.
 std::string GetTemplateURLStringForExtension(const ExtensionId& extension_id) {
   // This URL is not actually used for navigation. It holds the extension's ID.
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  return std::string(extensions::kArkwebExtensionScheme) + "://" +
-      extension_id + "/?q={searchTerms}";
-#else
   return std::string(extensions::kExtensionScheme) + "://" +
       extension_id + "/?q={searchTerms}";
-#endif
 }
 
 }  // namespace

@@ -10,7 +10,6 @@
 #include "chrome/common/crash_keys.h"
 
 #include <deque>
-#include <iterator>
 #include <string_view>
 
 #include "base/base_switches.h"
@@ -111,10 +110,8 @@ void HandleEnableDisableFeatures(const base::CommandLine& command_line) {
       "commandline-disabled-feature");
 }
 
-}  // namespace
-
 // Return true if we DON'T want to upload this flag to the crash server.
-bool IsBoringChromeSwitch(const std::string& flag) {
+bool IsBoringSwitch(const std::string& flag) {
   static const std::string_view kIgnoreSwitches[] = {
     kStringAnnotationsSwitch,
     switches::kEnableLogging,
@@ -174,8 +171,6 @@ bool IsBoringChromeSwitch(const std::string& flag) {
   return false;
 }
 
-namespace {
-
 std::deque<CrashKeyWithName>& GetCommandLineStringAnnotations() {
   static base::NoDestructor<std::deque<CrashKeyWithName>>
       command_line_string_annotations;
@@ -221,7 +216,7 @@ void AppendStringAnnotationsCommandLineSwitch(base::CommandLine* command_line) {
 void SetCrashKeysFromCommandLine(const base::CommandLine& command_line) {
   SetStringAnnotations(command_line);
   HandleEnableDisableFeatures(command_line);
-  SetSwitchesFromCommandLine(command_line, &IsBoringChromeSwitch);
+  SetSwitchesFromCommandLine(command_line, &IsBoringSwitch);
 }
 
 }  // namespace crash_keys

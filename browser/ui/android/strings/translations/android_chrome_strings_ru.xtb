@@ -113,7 +113,7 @@
 <translation id="1436784010935106834">Удалено</translation>
 <translation id="1437543266176261764">Выполняется в <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Упорядочивайте отслеживаемые товары в закладках</translation>
-<translation id="1460751212339734034">Экономьте время при вводе</translation>
+<translation id="1460751212339734034">Экономьте время</translation>
 <translation id="1466383950273130737">Выбор языка для Chrome</translation>
 <translation id="1477626028522505441">Не удалось скачать файл <ph name="FILE_NAME" /> из-за неполадок на сервере.</translation>
 <translation id="147982357559798527">Изменено</translation>
@@ -211,7 +211,7 @@
 <translation id="1963056249988316027">Не удалось выполнить проверку личности</translation>
 <translation id="1963976881984600709">Стандартная защита</translation>
 <translation id="1966710179511230534">Обновите учетные данные</translation>
-<translation id="1969037871259811890">При удалении данных о работе в браузере вы не выйдете из аккаунта Google. Это потребуется <ph name="BEGIN_LINK1" />сделать вручную<ph name="END_LINK1" />.</translation>
+<translation id="1969037871259811890">Удаление данных о работе в браузере не приведет к выходу из аккаунта Google. Вы можете <ph name="BEGIN_LINK1" />сделать это вручную<ph name="END_LINK1" />.</translation>
 <translation id="197288927597451399">Сохранить</translation>
 <translation id="1973912524893600642">Не удалять данные</translation>
 <translation id="1974060860693918893">Дополнительные настройки</translation>

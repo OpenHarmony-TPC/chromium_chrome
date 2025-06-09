@@ -52,7 +52,7 @@ export class SettingsDownloadsPageElement extends
         value: false,
       },
 
-      // <if expr="chromeos_ash or is_ohos">
+      // <if expr="chromeos_ash">
       /**
        * The download location string that is suitable to display in the UI.
        */
@@ -73,7 +73,7 @@ export class SettingsDownloadsPageElement extends
     };
   }
 
-  // <if expr="chromeos_ash or is_ohos">
+  // <if expr="chromeos_ash">
   static get observers() {
     return [
       'handleDownloadLocationChanged_(prefs.download.default_directory.value)',
@@ -84,7 +84,7 @@ export class SettingsDownloadsPageElement extends
 
   private autoOpenDownloads_: boolean;
 
-  // <if expr="chromeos_ash or is_ohos">
+  // <if expr="chromeos_ash">
   private downloadLocation_: string;
   // </if>
 
@@ -108,7 +108,7 @@ export class SettingsDownloadsPageElement extends
     this.browserProxy_.selectDownloadLocation();
   }
 
-  // <if expr="chromeos_ash or is_ohos">
+  // <if expr="chromeos_ash">
   private handleDownloadLocationChanged_() {
     this.browserProxy_
         .getDownloadLocationText(

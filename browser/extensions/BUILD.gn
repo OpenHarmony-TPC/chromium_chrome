@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//arkweb/build/features/features.gni")
 import("//build/config/chromebox_for_meetings/buildflags.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
@@ -19,7 +18,6 @@ import("//rlz/buildflags/buildflags.gni")
 import("//services/screen_ai/buildflags/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/protobuf/proto_library.gni")
-import("//arkweb/build/features/features.gni")
 
 assert(enable_extensions)
 assert(enable_supervised_users)
@@ -641,10 +639,6 @@ source_set("extensions") {
     "window_controller_list_observer.h",
   ]
 
-  include_dirs = [
-      "//cef",
-  ]
-
   # Chrome OS does not support Native Messaging policies.
   if (!is_chromeos) {
     sources += [
@@ -977,12 +971,6 @@ source_set("extensions") {
     "//ui/strings",
     "//url",
   ]
-
-  if (arkweb_arkweb_extensions) {
-    deps += [
-      "//components/services/unzip:in_process",
-    ]
-  }
 
   if (is_linux || is_mac || is_win) {
     sources += [
@@ -1419,20 +1407,15 @@ source_set("extensions") {
       "propsys.lib",
     ]
   } else if (use_aura && !is_chromeos) {
-    if (is_arkweb) {
-      import("//arkweb/chromium_ext/chromium_ext.gni")
-      sources += arkweb_chrome_browser_extensions_system_display_sources
-    } else {
-      sources += [
-        "system_display/display_info_provider_aura.cc",
-        "system_display/display_info_provider_aura.h",
-      ]
-    }
+    sources += [
+      "system_display/display_info_provider_aura.cc",
+      "system_display/display_info_provider_aura.h",
+    ]
   }
 
   if (is_ohos) {
     sources += [
-      "//arkweb/chromium_ext/chrome/browser/extensions/api/image_writer_private/removable_storage_provider_ohos.cc",
+      "api/image_writer_private/removable_storage_provider_ohos.cc",
     ]
   }
 

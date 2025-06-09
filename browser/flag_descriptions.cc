@@ -5697,7 +5697,7 @@ const char kUseSCContentSharingPickerDescription[] =
 
 // Windows and Mac -------------------------------------------------------------
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
 
 const char kLocationProviderManagerName[] =
     "Enable location provider manager for Geolocation API";
@@ -8379,6 +8379,11 @@ const char kSupervisedProfileShowKiteBadgeDescription[] =
     "Shows a kite badge on the profile avatar for supervised users.";
 
 #endif  // #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_OHOS)
+const char kNetworkPreloadName[] = "Network Preload";
+const char kNetworkPreloadDescription[] = "Enable network preload";
+#endif  // BUILDFLAG(IS_OHOS)
 
 // ============================================================================
 // Don't just add flags to the end, put them in the right section in

@@ -2276,7 +2276,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::BOOLEAN },
 #endif
 
-#if !BUILDFLAG(IS_OHOS)
   { key::kCACertificates,
     prefs::kCACertificates,
     base::Value::Type::LIST },
@@ -2298,7 +2297,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kCAPlatformIntegrationEnabled,
     prefs::kCAPlatformIntegrationEnabled,
     base::Value::Type::BOOLEAN },
-#endif
 #endif
 
 #if BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)

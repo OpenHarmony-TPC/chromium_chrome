@@ -242,9 +242,6 @@ bool SiteGURLIsValid(const GURL& url) {
   // when this bug is fixed, so add it to the allowlist when that happens.
   return !site_origin.opaque() && (url.SchemeIsHTTPOrHTTPS() ||
                                    url.SchemeIs(extensions::kExtensionScheme) ||
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-       url.SchemeIs(extensions::kArkwebExtensionScheme) ||
-#endif
                                    url.SchemeIs(chrome::kIsolatedAppScheme));
 }
 
@@ -732,8 +729,7 @@ void ShowShortcutCustomizationApp(Profile* profile,
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 }
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
 void ShowWebAppSettingsImpl(Browser* browser,
                             Profile* profile,
                             const std::string& app_id,

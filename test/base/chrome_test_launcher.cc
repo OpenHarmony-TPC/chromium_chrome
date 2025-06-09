@@ -81,6 +81,10 @@
 #include "chrome/browser/chrome_browser_main_extra_parts.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/test/test_support_ohos.h"
+#endif
+
 // static
 int ChromeTestSuiteRunner::RunTestSuiteInternal(ChromeTestSuite* test_suite) {
   // Browser tests are expected not to tear-down various globals.
@@ -266,6 +270,10 @@ int LaunchChromeTests(size_t parallel_jobs,
                       content::TestLauncherDelegate* delegate,
                       int argc,
                       char** argv) {
+#if BUILDFLAG(IS_OHOS)
+  base::RegisterPathProviderForOhosTest();
+#endif
+                        
 #if BUILDFLAG(IS_MAC)
   // Set up the path to the framework so resources can be loaded. This is also
   // performed in ChromeTestSuite, but in browser tests that only affects the

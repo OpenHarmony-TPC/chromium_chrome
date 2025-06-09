@@ -803,7 +803,6 @@ ExtensionFunction::ResponseAction CookiesGetPartitionKeyFunction::Run() {
   return RespondNow(WithArguments(details.ToValue()));
 }
 
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction CookiesGetAllCookieStoresFunction::Run() {
   Profile* original_profile = Profile::FromBrowserContext(browser_context());
   DCHECK(original_profile);
@@ -840,7 +839,6 @@ ExtensionFunction::ResponseAction CookiesGetAllCookieStoresFunction::Run() {
   return RespondNow(ArgumentList(
       api::cookies::GetAllCookieStores::Results::Create(cookie_stores)));
 }
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 CookiesAPI::CookiesAPI(content::BrowserContext* context)
     : browser_context_(context) {

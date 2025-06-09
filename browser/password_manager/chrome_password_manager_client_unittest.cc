@@ -11,7 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "arkweb/build/features/features.h"
 #include "base/command_line.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
@@ -289,11 +288,6 @@ class FakePasswordAutofillAgent
       autofill::AutofillSuggestionTriggerSource suggestion_source) override {}
   void AnnotateFieldsWithParsingResult(
       const autofill::ParsingResult& parsing_result) override {}
-#if BUILDFLAG(ARKWEB_PASSWORD_AUTOFILL)
-  void SetParsedPasswordForm(
-      const autofill::PasswordFormFillData& form_data) override {}
-#endif
-
   void SetLoggingState(bool active) override {
     called_set_logging_state_ = true;
     logging_state_active_ = active;

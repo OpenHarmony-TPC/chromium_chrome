@@ -11,10 +11,6 @@
 #include "chrome/browser/extensions/api/side_panel/side_panel_service.h"
 #include "chrome/common/extensions/api/side_panel.h"
 
-#if BUILDFLAG(IS_ARKWEB)
-#include "arkweb/chromium_ext/chrome/browser/extensions/api/side_panel/side_panel_api_for_include.cc"
-#endif
-
 namespace extensions {
 
 SidePanelApiFunction::SidePanelApiFunction() = default;
@@ -28,7 +24,6 @@ ExtensionFunction::ResponseAction SidePanelApiFunction::Run() {
 }
 
 ExtensionFunction::ResponseAction SidePanelGetOptionsFunction::RunFunction() {
-  LOG(INFO) << "SidePanelGetOptionsFunction::RunFunction";
   std::optional<api::side_panel::GetOptions::Params> params =
       api::side_panel::GetOptions::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -44,9 +39,6 @@ ExtensionFunction::ResponseAction SidePanelSetOptionsFunction::RunFunction() {
   std::optional<api::side_panel::SetOptions::Params> params =
       api::side_panel::SetOptions::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  RunFunctionForInclude(this, params);
-#endif
   // TODO(crbug.com/40226489): Validate the relative extension path exists.
   GetService()->SetOptions(*extension(), std::move(params->options));
   return RespondNow(NoArguments());
@@ -54,17 +46,12 @@ ExtensionFunction::ResponseAction SidePanelSetOptionsFunction::RunFunction() {
 
 ExtensionFunction::ResponseAction
 SidePanelSetPanelBehaviorFunction::RunFunction() {
-  LOG(INFO) << "SidePanelSetPanelBehaviorFunction::RunFunction";
   std::optional<api::side_panel::SetPanelBehavior::Params> params =
       api::side_panel::SetPanelBehavior::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
   if (params->behavior.open_panel_on_action_click.has_value()) {
     GetService()->SetOpenSidePanelOnIconClick(
         extension()->id(), *params->behavior.open_panel_on_action_click);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-    OHOS::NWeb::NWebExtensionSidePanelCefDelegate::OnSetPanelBehavior(
-        extension()->id(), *params->behavior.open_panel_on_action_click);
-#endif
   }
 
   return RespondNow(NoArguments());
@@ -72,7 +59,6 @@ SidePanelSetPanelBehaviorFunction::RunFunction() {
 
 ExtensionFunction::ResponseAction
 SidePanelGetPanelBehaviorFunction::RunFunction() {
-  LOG(INFO) << "SidePanelGetPanelBehaviorFunction::RunFunction";
   api::side_panel::PanelBehavior behavior;
   behavior.open_panel_on_action_click =
       GetService()->OpenSidePanelOnIconClick(extension()->id());
@@ -100,12 +86,6 @@ ExtensionFunction::ResponseAction SidePanelOpenFunction::RunFunction() {
         Error("At least one of `tabId` and `windowId` must be provided"));
   }
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  OHOS::NWeb::NWebExtensionSidePanelCefDelegate::OnOpen(
-      extension()->id(),
-      params->options.tab_id.value_or(api::tabs::TAB_ID_NONE),
-      params->options.window_id.value_or(api::windows::WINDOW_ID_NONE));
-#else
   SidePanelService* service = GetService();
   base::expected<bool, std::string> open_panel_result;
   if (params->options.tab_id) {
@@ -124,7 +104,6 @@ ExtensionFunction::ResponseAction SidePanelOpenFunction::RunFunction() {
   }
 
   CHECK_EQ(true, open_panel_result.value());
-#endif
 
   // TODO(crbug.com/40064601): Should we wait for the side panel to be
   // created and load? That would probably be nice.

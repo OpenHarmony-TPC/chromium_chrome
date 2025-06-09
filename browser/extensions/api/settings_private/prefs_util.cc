@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "arkweb/build/features/features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "base/feature_list.h"
 #include "build/branding_buildflags.h"
@@ -101,6 +100,10 @@
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "ui/events/ash/pref_names.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/safe_browsing/generated_advanced_security_mode_pref.h"
 #endif
 
 namespace {
@@ -365,6 +368,12 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[::kGeneratedHttpsFirstModePref] =
       settings_api::PrefType::kNumber;
+#if BUILDFLAG(IS_OHOS)
+  (*s_allowlist)[::prefs::kAdvancedSecurityModeEnabled] =
+      settings_api::PrefType::kBoolean;
+  (*s_allowlist)[::kGeneratedAdvancedSecurityModePref] =
+      settings_api::PrefType::kBoolean;
+#endif
 
   // Tracking protection page
   (*s_allowlist)[::prefs::kCookieControlsMode] =
@@ -1189,12 +1198,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
   // Media Remoting settings.
-  // todo
-  // #if !(BUILDFLAG(IS_OHOS) && BUILDFLAG(ARKWEB_ASAN)) ||
-  // BUILDFLAG(OHOS_ENABLE_MEDIA_ROUTER)
-  //   (*s_allowlist)[media_router::prefs::kMediaRouterMediaRemotingEnabled] =
-  //       settings_api::PrefType::kBoolean;
-  // #endif
+  (*s_allowlist)[media_router::prefs::kMediaRouterMediaRemotingEnabled] =
+      settings_api::PrefType::kBoolean;
 
   // Performance settings.
   (*s_allowlist)

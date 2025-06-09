@@ -47,13 +47,14 @@ class TestSearchEngineDelegate
 #endif
 
 #if BUILDFLAG(IS_OHOS)
-class MockGeolocationPermissionContextOHOS
-    : public permissions::GeolocationPermissionContext {
+class MockGeolocationPermissionContextOHOS :
+    public permissions::GeolocationPermissionContext {
  public:
-  MockGeolocationPermissionContextOHOS(content::BrowserContext* browser_context,
-                                       std::unique_ptr<Delegate> delegate)
-      : permissions::GeolocationPermissionContext(browser_context,
-                                                  std::move(delegate)) {}
+  MockGeolocationPermissionContextOHOS(
+      content::BrowserContext* browser_context,
+      std::unique_ptr<Delegate> delegate)
+      : permissions::GeolocationPermissionContext(
+            browser_context, std::move(delegate)) {}
 
   MockGeolocationPermissionContextOHOS(
       const MockGeolocationPermissionContextOHOS&) = delete;
@@ -63,8 +64,7 @@ class MockGeolocationPermissionContextOHOS
   ~MockGeolocationPermissionContextOHOS() override = default;
 };
 
-permissions::PermissionManager::PermissionContextMap
-CreatePermissionContextsOHOS(Profile* profile) {
+permissions::PermissionManager::PermissionContextMap CreatePermissionContextsOHOS(Profile* profile) {
   permissions::PermissionManager::PermissionContextMap permission_contexts;
   permission_contexts[ContentSettingsType::GEOLOCATION] =
       std::make_unique<MockGeolocationPermissionContextOHOS>(
@@ -73,16 +73,16 @@ CreatePermissionContextsOHOS(Profile* profile) {
   return permission_contexts;
 }
 
-class MockPermissionMangerOHOS : public permissions::PermissionManager {
+class MockPermissionMangerOHOS :
+    public permissions::PermissionManager {
  public:
   explicit MockPermissionMangerOHOS(Profile* profile)
-      : permissions::PermissionManager(profile,
-                                       CreatePermissionContextsOHOS(profile)) {}
+      : permissions::PermissionManager(
+            profile, CreatePermissionContextsOHOS(profile)) {}
   ~MockPermissionMangerOHOS() override = default;
 };
 
-std::unique_ptr<KeyedService> CreateTestingPermissionManagerOHOS(
-    content::BrowserContext* context) {
+std::unique_ptr<KeyedService> CreateTestingPermissionManagerOHOS(content::BrowserContext* context) {
   Profile* profile = Profile::FromBrowserContext(context);
   return std::make_unique<MockPermissionMangerOHOS>(profile);
 }
@@ -117,7 +117,8 @@ class GeolocationPermissionContextDelegateTests
 
 #if BUILDFLAG(IS_OHOS)
     PermissionManagerFactory::GetInstance()->SetTestingFactory(
-        profile(), base::BindRepeating(&CreateTestingPermissionManagerOHOS));
+        profile(),
+        base::BindRepeating(&CreateTestingPermissionManagerOHOS));
 #endif
   }
 

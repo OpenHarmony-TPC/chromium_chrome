@@ -164,7 +164,7 @@ class BrowserRootView : public views::internal::RootView {
   base::WeakPtrFactory<BrowserRootView> weak_ptr_factory_{this};
 
 #if BUILDFLAG(IS_OHOS)
-  void RefreshDropUrls(const ui::DropTargetEvent& event,
+  void ProcessDropUrls(const ui::DropTargetEvent& event,
                        std::vector<GURL>& filtered_urls);
 #endif
 };

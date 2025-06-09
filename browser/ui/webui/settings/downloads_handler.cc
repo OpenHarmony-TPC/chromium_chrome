@@ -51,7 +51,7 @@ void DownloadsHandler::RegisterMessages() {
       "selectDownloadLocation",
       base::BindRepeating(&DownloadsHandler::HandleSelectDownloadLocation,
                           base::Unretained(this)));
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_CHROMEOS_ASH)
   web_ui()->RegisterMessageCallback(
       "getDownloadLocationText",
       base::BindRepeating(&DownloadsHandler::HandleGetDownloadLocationText,
@@ -140,26 +140,6 @@ void DownloadsHandler::HandleGetDownloadLocationText(
       base::Value(callback_id),
       base::Value(
           file_manager::util::GetPathDisplayTextForSettings(profile_, path)));
-}
-#endif
-
-#if BUILDFLAG(IS_OHOS)
-void DownloadsHandler::HandleGetDownloadLocationText(
-    const base::Value::List& args) {
-  AllowJavascript();
-  CHECK_EQ(2U, args.size());
-  base::FilePath current;
-  const std::string& callback_id = args[0].GetString();
-
-  PrefService* pref_service = profile_->GetPrefs();
-  if (pref_service->FindPreference(prefs::kDownloadDefaultDirectory)
-          ->IsUserControlled()) {
-    current = pref_service->GetFilePath(prefs::kDownloadDefaultDirectory);
-  } else {
-    current = pref_service->GetFilePath(prefs::kDownloadDefaultDirectoryOhos);
-  }
-  ResolveJavascriptCallback(base::Value(callback_id),
-                            base::Value(current.value()));
 }
 #endif
 

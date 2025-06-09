@@ -99,9 +99,13 @@ class SearchPreloadResponseController {
 
   SearchPreloadTestResponseDeferralType service_deferral_type_ =
       SearchPreloadTestResponseDeferralType::kNoDeferral;
-
+#if BUILDFLAG(IS_OHOS)
+  std::queue<std::unique_ptr<DelayedResponseTask>> delayed_response_tasks_
+      GUARDED_BY(response_queue_lock_);
+#else
   std::queue<DelayedResponseTask> delayed_response_tasks_
       GUARDED_BY(response_queue_lock_);
+#endif
   base::OnceClosure monitor_callback_ GUARDED_BY(response_queue_lock_);
   base::Lock response_queue_lock_;
 };

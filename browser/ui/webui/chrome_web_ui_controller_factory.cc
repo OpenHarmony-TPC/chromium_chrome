@@ -18,7 +18,6 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "cef/libcef/features/features.h"
 #include "chrome/browser/about_flags.h"
 #include "chrome/browser/buildflags.h"
 #include "chrome/browser/devtools/devtools_ui_bindings.h"
@@ -151,10 +150,6 @@
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 #include "chrome/browser/ui/webui/welcome/helpers.h"
 #include "chrome/browser/ui/webui/welcome/welcome_ui.h"
-#endif
-
-#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
-#include "cef/ohos_cef_ext/libcef//browser/net/ohos_net_export_ui.h"
 #endif
 
 using content::WebUI;
@@ -303,11 +298,7 @@ void ChromeWebUIControllerFactory::GetFaviconForURL(
   ExtensionWebUI::HandleChromeURLOverride(&url, profile);
 
   // All extensions get their favicon from the icons part of the manifest.
-  if (url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-  ) {
+  if (url.SchemeIs(extensions::kExtensionScheme)) {
     ExtensionWebUI::GetFaviconForURL(profile, url, std::move(callback));
     return;
   }
@@ -388,11 +379,7 @@ base::RefCountedMemory* ChromeWebUIControllerFactory::GetFaviconResourceBytes(
     ui::ResourceScaleFactor scale_factor) const {
 #if !BUILDFLAG(IS_ANDROID)
   // The extension scheme is handled in GetFaviconForURL.
-  if (page_url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || page_url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-  ) {
+  if (page_url.SchemeIs(extensions::kExtensionScheme)) {
     NOTREACHED();
   }
 #endif
@@ -498,9 +485,6 @@ ChromeWebUIControllerFactory::GetListOfAcceptableURLs() {
     GURL(chrome::kChromeUIGpuURL),
     GURL(chrome::kChromeUIHistogramsURL),
     GURL(chrome::kChromeUIInspectURL),
-#if BUILDFLAG(ENABLE_CEF)
-    GURL(chrome::kChromeUILicenseURL),
-#endif
     GURL(chrome::kChromeUIManagementURL),
     GURL(chrome::kChromeUINetExportURL),
     GURL(chrome::kChromeUIPrefsInternalsURL),

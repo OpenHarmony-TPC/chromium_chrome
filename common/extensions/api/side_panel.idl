@@ -66,28 +66,6 @@ namespace sidePanel {
     long? tabId;
   };
 
-  // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  // Options for opening the side panel.
-  // At least one of `tabId` or `windowId` must be specified.
-  dictionary OpenOptions {
-    // The window in which to open the side panel. This is only applicable if
-    // the extension has a global (non-tab-specific) side panel or
-    // <code>tabId</code> is also specified. This will override any
-    // currently-active global side panel the user has open in the given
-    // window. At least one of this or <code>tabId</code> must be provided.
-    long? windowId;
-
-    // The tab in which to open the side panel. If the corresponding tab has
-    // a tab-specific side panel, the panel will only be open for that tab.
-    // If there is not a tab-specific panel, the global panel will be open in
-    // the specified tab and any other tabs without a currently-open tab-
-    // specific panel. This will override any currently-active side panel
-    // (global or tab-specific) in the corresponding tab. At least one of this
-    // or <code>windowId</code> must be provided.
-    long? tabId;
-  };
-  // #endif ARKWEB_ARKWEB_EXTENSIONS
-
   callback VoidCallback = void();
   callback PanelOptionsCallback = void(PanelOptions options);
   callback PanelBehaviorCallback = void(PanelBehavior behavior);

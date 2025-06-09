@@ -95,4 +95,8 @@ source_set("themes") {
       "//ui/ozone",
     ]
   }
+  if (is_ohos) {
+    public += [ "theme_service_ohos.h" ]
+    sources += [ "theme_service_ohos.cc" ]
+  }
 }

@@ -21,17 +21,9 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
-
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/renderer/chromeos_delayed_callback_group.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-#include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
-#endif
 
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 class BoundSessionRequestThrottledInRendererManager;
@@ -107,10 +99,6 @@ class ChromeRenderThreadObserver
   // render process is running.
   chrome::mojom::DynamicParamsPtr GetDynamicParams() const;
 
-#if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-  const RendererContentSettingRules* content_setting_rules() const;
-#endif
-
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   std::unique_ptr<BoundSessionRequestThrottledHandler>
   CreateBoundSessionRequestThrottledHandler() const;
@@ -158,12 +146,6 @@ class ChromeRenderThreadObserver
   void OnIdentifiabilityStudyConfiguratorAssociatedRequest(
       mojo::PendingAssociatedReceiver<
           chrome::mojom::IdentifiabilityStudyConfigurator> receiver);
-
-#if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-  void SetContentSettingRules(
-      const RendererContentSettingRules& rules) override;
-  RendererContentSettingRules content_setting_rules_;
-#endif  // BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
 
   mojo::Remote<content_settings::mojom::ContentSettingsManager>
       content_settings_manager_;

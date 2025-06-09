@@ -2138,12 +2138,8 @@ inline constexpr char kTaskManagerEndProcessEnabled[] =
 inline constexpr char kAppWindowPlacement[] = "browser.app_window_placement";
 
 #if BUILDFLAG(IS_OHOS)
-inline const char kPromptForDownloadOhos[] =
-    "download.prompt_for_download_ohos";
-inline const char kDownloadDefaultDirectoryOhos[] =
-    "download.default_directory_ohos";
-inline const char kDownloadDefaultDirectoryOhosConfirmed[] =
-    "download.default_directory_ohos_confirmed";
+inline extern const char kAdvancedSecurityModeEnabled[] =
+    "advanced_security_mode_enabled";
 #endif
 
 // String which specifies where to download files to by default.

@@ -45,7 +45,6 @@ class RenderViewContextMenuViews : public RenderViewContextMenu {
 
   // RenderViewContextMenuBase implementation.
   void Show() override;
-  bool IsRunning() override;
 
  protected:
   RenderViewContextMenuViews(content::RenderFrameHost& render_frame_host,

@@ -1799,6 +1799,10 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SECURE_CONNECTIONS_SECTION_TITLE},
       {"secureConnectionsSectionDescription",
        IDS_SETTINGS_SECURE_CONNECTIONS_SECTION_DESCRIPTION},
+#if BUILDFLAG(IS_OHOS)
+      {"advancedSecurityModeTitle", IDS_ADVANCES_SECURITY_MODE},
+      {"advancedSecurityModeDescription", IDS_ADVANCES_SECURITY_MODE_DESCRIPTION},
+#endif
       {"httpsOnlyModeTitle", IDS_SETTINGS_HTTPS_ONLY_MODE},
       {"httpsOnlyModeDescription", IDS_SETTINGS_HTTPS_ONLY_MODE_DESCRIPTION},
       {"httpsOnlyModeDescriptionAdvancedProtection",
@@ -1985,6 +1989,12 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
 
   html_source->AddString("relatedWebsiteSetsLearnMoreURL",
                          chrome::kRelatedWebsiteSetsLearnMoreURL);
+
+#if BUILDFLAG(IS_OHOS)
+  html_source->AddBoolean(
+      "showAdvancedSecurityModeSetting",
+      base::FeatureList::IsEnabled(features::kAdvancedSecurityMode));
+#endif
 
   html_source->AddString("safeBrowsingHelpCenterURL",
                          chrome::kSafeBrowsingHelpCenterUpdatedURL);

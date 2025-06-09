@@ -235,6 +235,10 @@ class TabDragController : public views::WidgetObserver,
   TabStripScrollSession* GetTabStripScrollSessionForTesting() {
     return tab_strip_scroll_session_.get();
   }
+  
+#if BUILDFLAG(IS_OHOS)
+  void Drag(const gfx::Point& point_in_screen, const int32_t display_id);
+#endif
 
  private:
   friend class TabDragControllerTest;
@@ -845,6 +849,19 @@ class TabDragController : public views::WidgetObserver,
   std::unique_ptr<ui::PresentationTimeRecorder> presentation_time_recorder_;
 
   base::WeakPtrFactory<TabDragController> weak_factory_{this};
+#if BUILDFLAG(IS_OHOS)
+  gfx::Rect drag_window_bounds_;
+  raw_ptr<TabDragContext> dragging_tab_context_;
+  int32_t display_id_;
+  // When you drag a tab across a window, the tab is sucked into the corresponding tab bar
+  // and the mouse simulation lift to end the dragging.
+  void EndAcrossWindowTabDrag();
+  // When a window is created or destroyed during tab dragging,
+  // the mouse event or touch event needs to be transferred to the target window.
+  void ShiftWindowEvent(TabDragContext* target_tab_context);
+  gfx::AcceleratedWidget GetWidgetIdFromTabContext(TabDragContext* tab_context);
+  gfx::Vector2d CalculateWindowDragOffset(std::vector<gfx::Rect> drag_bounds);
+#endif
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_TAB_DRAG_CONTROLLER_H_

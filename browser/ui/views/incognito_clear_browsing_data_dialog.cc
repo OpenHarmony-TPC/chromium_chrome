@@ -32,9 +32,7 @@ IncognitoClearBrowsingDataDialog::IncognitoClearBrowsingDataDialog(
       dialog_type_(type),
       incognito_profile_(incognito_profile) {
   DCHECK(incognito_profile_);
-  DCHECK(incognito_profile_->IsIncognitoProfile() ||
-         (incognito_profile_->IsOffTheRecord() &&
-          incognito_profile_->GetOTRProfileID().IsUniqueForCEF()));
+  DCHECK(incognito_profile_->IsIncognitoProfile());
   SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
   SetShowCloseButton(true);
 

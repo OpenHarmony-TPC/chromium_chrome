@@ -12,7 +12,6 @@ import("//build/config/compiler/pgo/pgo.gni")
 import("//build/config/features.gni")
 import("//build/config/python.gni")
 import("//build/config/ui.gni")
-import("//cef/libcef/features/features.gni")
 import("//chrome/browser/buildflags.gni")
 import("//chrome/browser/downgrade/buildflags.gni")
 import("//chrome/browser/request_header_integrity/buildflags.gni")
@@ -48,11 +47,6 @@ import("//third_party/webrtc/webrtc.gni")
 import("//third_party/widevine/cdm/widevine.gni")
 import("//tools/grit/grit_rule.gni")
 import("//ui/base/ui_features.gni")
-import("//arkweb/build/features/features.gni")
-
-if (is_arkweb) {
-  import("//arkweb/chromium_ext/chromium_ext.gni")
-}
 
 assert(enable_supervised_users)
 
@@ -136,10 +130,6 @@ source_set("browser_process") {
     "//chrome/common:buildflags",
     "//media:media_buildflags",
   ]
-
-  if (arkweb_adblock) {
-    sources += arkweb_browser_process_sources
-  }
 }
 
 source_set("main_extra_parts") {
@@ -1701,12 +1691,19 @@ static_library("browser") {
     "webid/identity_provider_permission_request.h",
   ]
 
-  if (arkweb_password_autofill) {
-    sources += arkweb_chrome_browser_password_manager_sources
-  }
-
-  if (arkweb_adblock) {
-    sources += arkweb_browser_process_impl_sources
+  if (is_ohos) {
+    sources += [
+      "device_reauth/ohos/authenticator_ohos.cc",
+      "device_reauth/ohos/authenticator_ohos.h",
+      "device_reauth/ohos/device_authenticator_ohos.cc",
+      "device_reauth/ohos/device_authenticator_ohos.h",
+      "password_manager/password_manager_util_ohos.cc",
+      "password_manager/password_manager_util_ohos.h",
+      "performance_manager/policies/page_discarding_policy_ohos.cc",
+      "performance_manager/policies/page_discarding_policy_ohos.h",
+      "safe_browsing/generated_advanced_security_mode_pref.cc",
+      "safe_browsing/generated_advanced_security_mode_pref.h",
+    ]
   }
 
   configs += [
@@ -1853,7 +1850,6 @@ static_library("browser") {
     "//build/config/chromebox_for_meetings:buildflags",
     "//build/config/compiler:compiler_buildflags",
     "//cc",
-    "//cef/libcef/features",
     "//chrome:extra_resources",
     "//chrome:resources",
     "//chrome:strings",
@@ -2524,10 +2520,6 @@ static_library("browser") {
     sources += [ "net/net_error_diagnostics_dialog_win.cc" ]
   } else {
     sources += [ "net/net_error_diagnostics_dialog_stub.cc" ]
-  }
-
-  if (enable_cef) {
-    configs += [ "//cef/libcef/features:config" ]
   }
 
   if (is_android) {
@@ -4199,17 +4191,17 @@ static_library("browser") {
       "webauthn/webauthn_switches.h",
     ]
 
+    if (is_ohos) {
+      sources -= [
+        "headless/chrome_browser_main_extra_parts_headless.cc",
+        "headless/chrome_browser_main_extra_parts_headless.h",
+      ]
+    }
+
     #!is_android
     public_deps += [ "//ui/base/mojom:ui_base_types" ]
 
     #!is_android
-    if (is_arkweb && arkweb_enable_cdm) {
-      import("//arkweb/chromium_ext/chrome/browser/media/ohos/cdm/arkweb_chrome_browser_media_ohos_ext.gni")
-      sources += arkweb_chrome_browser_media_ohos_sources
-      deps += [
-        "//components/cdm/browser",
-      ]
-    }
     deps += [
       "//chrome/app:command_ids",
       "//chrome/app/theme:chrome_unscaled_resources_grit",
@@ -6695,7 +6687,7 @@ static_library("browser") {
     ]
   }
 
-  if (is_android || is_mac || is_win || is_chromeos) {
+  if (is_android || is_mac || is_win || is_chromeos || is_ohos) {
     sources += [
       "device_reauth/chrome_device_authenticator_factory.cc",
       "device_reauth/chrome_device_authenticator_factory.h",
@@ -6847,25 +6839,6 @@ static_library("browser") {
       "enterprise/connectors/reporting/realtime_reporting_client_factory.cc",
       "enterprise/connectors/reporting/realtime_reporting_client_factory.h",
     ]
-    if (is_ohos && safe_browsing_mode == 0) {
-      if (arkweb_asan) {
-        sources -= [
-          "enterprise/connectors/analysis/page_print_analysis_request.cc",
-          "enterprise/connectors/analysis/page_print_analysis_request.h",
-          "enterprise/connectors/analysis/files_request_handler.cc",
-          "enterprise/connectors/analysis/files_request_handler.h",
-          "enterprise/connectors/analysis/content_analysis_delegate.cc",
-          "enterprise/connectors/analysis/content_analysis_delegate.h",
-        ]
-        sources += [
-          arkweb_chrome_enterprise_connectors_analysis
-        ]
-      }
-      sources -= [
-        "safe_browsing/generated_safe_browsing_pref.cc",
-        "safe_browsing/generated_safe_browsing_pref.h",
-      ]
-    }
   }
 
   if (enterprise_local_content_analysis) {
@@ -7040,19 +7013,15 @@ static_library("browser") {
 
   if (is_ohos) {
     sources += [
-      "first_run/upgrade_util_linux.cc",
-      "first_run/upgrade_util_linux.h",
-      "//arkweb/chromium_ext/chrome/browser/shell_integration_ohos.cc",
-      "//arkweb/chromium_ext/chrome/browser/platform_util_ohos.cc",
-      "//arkweb/chromium_ext/chrome/browser/icon_loader_ohos.cc",
+      "first_run/upgrade_util_ohos.cc",
+      "shell_integration_ohos.cc",
+      "platform_util_ohos.cc",
+      "icon_loader_ohos.cc",
     ]
     deps += [
-      "//chrome/app/theme:chrome_unscaled_resources_grit"
+      "//chrome/app/theme:chrome_unscaled_resources_grit",
+      "//ohos/adapter:adapter",
     ]
-  }
-
-    if (arkweb_asan) {
-    sources -= []
   }
 
   if (is_linux || is_chromeos_lacros) {
@@ -7108,11 +7077,12 @@ static_library("browser") {
     }
   }
 
-  if (is_arkweb) {
+  if (is_ohos) {
     sources += [
       "media/webrtc/window_icon_util_ozone.cc",
+      "notifications/notification_platform_bridge_ohos.cc",
+      "notifications/notification_platform_bridge_ohos.h",
     ]
-    sources += arkweb_chrome_browser_notifications_sources
     deps += [
       "//ohos/adapter:adapter",
     ]
@@ -7409,6 +7379,9 @@ static_library("browser") {
     }
     if (is_linux) {
       sources += [ "printing/printer_manager_dialog_linux.cc" ]
+    }
+    if (is_ohos) {
+      sources += [ "printing/printer_manager_dialog_ohos.cc" ]
     }
     if (enable_oop_printing) {
       sources += [
@@ -8461,8 +8434,8 @@ static_library("browser") {
 
   if (is_ohos) {
     sources += [
-      #"//arkweb/chromium_ext/chrome/browser/certificate_manager_model_ohos.cc",
-      #"//arkweb/chromium_ext/chrome/browser/certificate_manager_model_ohos.h"
+      "certificate_manager_model_ohos.cc",
+      "certificate_manager_model_ohos.h"
     ]
   }
 
@@ -8571,14 +8544,6 @@ static_library("browser") {
 
   if (enable_reporting) {
     deps += [ "//components/tpcd/enterprise_reporting" ]
-  }
-
-  if (enable_arkweb) {
-    deps += [ "//arkweb/build/features" ]
-  }
-
-  if (enable_arkweb) {
-    public_deps += [ "//arkweb/build/features" ]
   }
 }
 
