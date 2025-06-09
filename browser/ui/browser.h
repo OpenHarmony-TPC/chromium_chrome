@@ -25,7 +25,6 @@
 #include "base/types/expected.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "cef/libcef/features/features.h"
 #include "chrome/browser/tab_contents/web_contents_collection.h"
 #include "chrome/browser/themes/theme_service_observer.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar.h"
@@ -56,8 +55,8 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
 
-#if BUILDFLAG(ENABLE_CEF)
-#include "cef/libcef/browser/chrome/browser_delegate.h"
+#if BUILDFLAG(IS_OHOS)
+#include "ui/gfx/native_widget_types.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -344,15 +343,6 @@ class Browser : public TabStripModelObserver,
     // Document Picture in Picture options, specific to TYPE_PICTURE_IN_PICTURE.
     std::optional<blink::mojom::PictureInPictureWindowOptions> pip_options;
 
-#if BUILDFLAG(ENABLE_CEF)
-    // Opaque CEF-specific configuration. Will be propagated to new Browsers.
-    scoped_refptr<cef::BrowserDelegate::CreateParams> cef_params;
-
-    // Specify the Browser that is opening this popup.
-    // Currently only used with TYPE_PICTURE_IN_PICTURE and TYPE_DEVTOOLS.
-    raw_ptr<Browser, DanglingUntriaged> opener = nullptr;
-#endif
-
    private:
     friend class Browser;
     friend class WindowSizerChromeOSTest;
@@ -401,8 +391,8 @@ class Browser : public TabStripModelObserver,
   ~Browser() override;
 
 #if BUILDFLAG(IS_OHOS)
-  void NewWindowTask(std::string url);
-  void NewWindow(std::string url);
+  void NewWindowTask(const std::string& url, bool force_open);
+  void NewWindow(const std::string& url, bool force_open);
 #endif
 
   // Set overrides for the initial window bounds and maximized state.
@@ -440,13 +430,6 @@ class Browser : public TabStripModelObserver,
   void set_update_ui_immediately_for_testing() {
     update_ui_immediately_for_testing_ = true;
   }
-
-  // Return true if CEF will expose the toolbar to the client. This value is
-  // used to selectively enable toolbar behaviors such as command processing
-  // and omnibox focus without also including the toolbar in BrowserView layout
-  // calculations.
-  void set_toolbar_overridden(bool val) { toolbar_overridden_ = val; }
-  bool toolbar_overridden() const { return toolbar_overridden_; }
 
   // Accessors ////////////////////////////////////////////////////////////////
 
@@ -548,12 +531,6 @@ class Browser : public TabStripModelObserver,
 
   base::WeakPtr<Browser> AsWeakPtr();
   base::WeakPtr<const Browser> AsWeakPtr() const;
-
-#if BUILDFLAG(ENABLE_CEF)
-  cef::BrowserDelegate* cef_delegate() const {
-    return cef_browser_delegate_.get();
-  }
-#endif
 
   // Get the FindBarController for this browser, creating it if it does not
   // yet exist.
@@ -678,6 +655,10 @@ class Browser : public TabStripModelObserver,
   bool IsAttemptingToCloseBrowser() const override;
   bool IsBrowserClosing() const;
   bool is_delete_scheduled() const { return is_delete_scheduled_; }
+
+#if BUILDFLAG(IS_OHOS)
+  gfx::AcceleratedWidget GetAcceleratedWidget();
+#endif
 
   // Invoked when the window containing us is closing. Performs the necessary
   // cleanup.
@@ -993,18 +974,10 @@ class Browser : public TabStripModelObserver,
   void SetContentsBounds(content::WebContents* source,
                          const gfx::Rect& bounds) override;
   void UpdateTargetURL(content::WebContents* source, const GURL& url) override;
-  bool DidAddMessageToConsole(content::WebContents* source,
-                              blink::mojom::ConsoleMessageLevel log_level,
-                              const std::u16string& message,
-                              int32_t line_no,
-                              const std::u16string& source_id) override;
   void ContentsMouseEvent(content::WebContents* source,
                           const ui::Event& event) override;
   void ContentsZoomChange(bool zoom_in) override;
   bool TakeFocus(content::WebContents* source, bool reverse) override;
-  void CanDownload(const GURL& url,
-                   const std::string& request_method,
-                   base::OnceCallback<void(bool)> callback) override;
   void BeforeUnloadFired(content::WebContents* source,
                          bool proceed,
                          bool* proceed_to_fire_unload) override;
@@ -1032,14 +1005,10 @@ class Browser : public TabStripModelObserver,
                           const std::string& frame_name,
                           const GURL& target_url,
                           content::WebContents* new_contents) override;
-  void RendererUnresponsive(content::WebContents* source,
-                            content::RenderWidgetHost* render_widget_host,
-                            base::RepeatingClosure hang_monitor_restarter
-#if BUILDFLAG(ARKWEB_RENDERER_ANR_DUMP)
-                            ,
-                            content::RendererIsUnresponsiveReason
-#endif
-                            ) override;
+  void RendererUnresponsive(
+      content::WebContents* source,
+      content::RenderWidgetHost* render_widget_host,
+      base::RepeatingClosure hang_monitor_restarter) override;
   void RendererResponsive(
       content::WebContents* source,
       content::RenderWidgetHost* render_widget_host) override;
@@ -1347,10 +1316,6 @@ class Browser : public TabStripModelObserver,
   // This Browser's window.
   raw_ptr<BrowserWindow, DanglingUntriaged> window_;
 
-#if BUILDFLAG(ENABLE_CEF)
-  std::unique_ptr<cef::BrowserDelegate> cef_browser_delegate_;
-#endif
-
   std::unique_ptr<TabStripModelDelegate> const tab_strip_model_delegate_;
   std::unique_ptr<TabStripModel> const tab_strip_model_;
 
@@ -1416,8 +1381,6 @@ class Browser : public TabStripModelObserver,
   ui::mojom::WindowShowState initial_show_state_;
   const std::string initial_workspace_;
   bool initial_visible_on_all_workspaces_state_;
-
-  bool toolbar_overridden_ = false;
 
   CreationSource creation_source_ = CreationSource::kUnknown;
 

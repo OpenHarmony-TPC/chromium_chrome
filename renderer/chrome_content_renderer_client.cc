@@ -10,7 +10,6 @@
 #include <string_view>
 #include <utility>
 
-#include "arkweb/build/features/features.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/debug/crash_logging.h"
@@ -118,8 +117,6 @@
 #include "components/spellcheck/spellcheck_buildflags.h"
 #include "components/subresource_filter/content/renderer/subresource_filter_agent.h"
 #include "components/subresource_filter/content/renderer/unverified_ruleset_dealer.h"
-#include "components/subresource_filter/content/renderer/user_subresource_filter_agent.h"
-#include "components/subresource_filter/content/renderer/user_unverified_ruleset_dealer.h"
 #include "components/subresource_filter/core/common/common_features.h"
 #include "components/variations/net/variations_http_headers.h"
 #include "components/variations/variations_switches.h"
@@ -184,10 +181,6 @@
 #include "ui/base/webui/jstemplate_builder.h"
 #include "url/origin.h"
 #include "v8/include/v8-isolate.h"
-
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/renderer/sandbox_status_extension_android.h"
@@ -259,10 +252,6 @@
 #include "printing/metafile_agent.h"  // nogncheck
 #endif
 
-#if BUILDFLAG(ARKWEB_PRINT)
-#include "cef/ohos_cef_ext/libcef/renderer/extensions/ohos_print_render_frame_helper_delegate.h"
-#endif  // BUIDFLAG(ARKWEB_PRINT)
-
 #if BUILDFLAG(ENABLE_PAINT_PREVIEW)
 #include "components/paint_preview/renderer/paint_preview_recorder_impl.h"  // nogncheck
 #endif
@@ -276,13 +265,8 @@
 #endif  // BUILDFLAG(HAS_SPELLCHECK_PANEL)
 #endif  // BUILDFLAG(ENABLE_SPELLCHECK)
 
-#if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || \
-    BUILDFLAG(IS_ANDROID) || BUILDFLAG(ARKWEB_ENABLE_CDM)
+#if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
 #include "chrome/renderer/media/chrome_key_systems.h"
-#endif
-
-#if BUILDFLAG(ARKWEB_JS_ON_DOCUMENT_END)
-#include "components/js_injection/renderer/js_communication.h"
 #endif
 
 using autofill::AutofillAgent;
@@ -318,10 +302,6 @@ using SecureContextRequired = autofill::AutofillAgent::SecureContextRequired;
 using UserGestureRequired = autofill::AutofillAgent::UserGestureRequired;
 using UsesKeyboardAccessoryForSuggestions =
     autofill::AutofillAgent::UsesKeyboardAccessoryForSuggestions;
-#if BUILDFLAG(ARKWEB_AUTOFILL)
-using autofill::AutofillAgentExt;
-using autofill::PasswordAutofillAgentExt;
-#endif
 
 namespace {
 
@@ -485,12 +465,6 @@ void ChromeContentRendererClient::RenderThreadStarted() {
       WebString::FromASCII(extensions::kExtensionScheme));
   WebSecurityPolicy::RegisterURLSchemeAsCodeCacheWithHashing(
       WebString::FromASCII(extensions::kExtensionScheme));
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  WebSecurityPolicy::RegisterURLSchemeAsExtension(
-      WebString::FromASCII(extensions::kArkwebExtensionScheme));
-  WebSecurityPolicy::RegisterURLSchemeAsCodeCacheWithHashing(
-      WebString::FromASCII(extensions::kArkwebExtensionScheme));
-#endif
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if BUILDFLAG(ENABLE_SPELLCHECK)
@@ -513,11 +487,6 @@ void ChromeContentRendererClient::RenderThreadStarted() {
 
   thread->AddObserver(chrome_observer_.get());
   thread->AddObserver(subresource_filter_ruleset_dealer_.get());
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  subresource_filter_user_ruleset_dealer_.reset(
-      new subresource_filter::UserUnverifiedRulesetDealer());
-  thread->AddObserver(subresource_filter_user_ruleset_dealer_.get());
-#endif
   thread->AddObserver(phishing_model_setter_.get());
 
   blink::WebScriptController::RegisterExtension(
@@ -641,9 +610,6 @@ void ChromeContentRendererClient::RenderFrameCreated(
   service_manager::BinderRegistry* registry = render_frame_observer->registry();
 
   new prerender::NoStatePrefetchRenderFrameObserver(render_frame);
-#if BUILDFLAG(IS_ARKWEB)
-  new js_injection::JsCommunication(render_frame);
-#endif
 
   auto content_settings_delegate =
       std::make_unique<ChromeContentSettingsAgentDelegate>(render_frame);
@@ -652,11 +618,7 @@ void ChromeContentRendererClient::RenderFrameCreated(
       extensions::ExtensionsRendererClient::Get()->dispatcher());
 #endif
   content_settings::ContentSettingsAgentImpl* content_settings =
-#if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-      new content_settings::ArkWebContentSettingsAgentImplExt(
-#else
       new content_settings::ContentSettingsAgentImpl(
-#endif
           render_frame, std::move(content_settings_delegate));
   if (chrome_observer_.get()) {
     if (chrome_observer_->content_settings_manager()) {
@@ -666,11 +628,6 @@ void ChromeContentRendererClient::RenderFrameCreated(
       content_settings->SetContentSettingsManager(std::move(manager));
     }
   }
-
-#if BUILDFLAG(ARKWEB_NETWORK_BASE) && BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-  AsArkWebChromeContentRendererClientExt()->RenderFrameCreatedContentSettings(
-      content_settings, this);
-#endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   extensions::ExtensionsRendererClient::Get()->RenderFrameCreated(render_frame,
@@ -689,15 +646,9 @@ void ChromeContentRendererClient::RenderFrameCreated(
   safe_browsing::ThreatDOMDetails::Create(render_frame, registry);
 #endif
 
-#if BUILDFLAG(ENABLE_PRINTING) && !BUILDFLAG(ARKWEB_PRINT)
+#if BUILDFLAG(ENABLE_PRINTING)
   new printing::PrintRenderFrameHelper(
       render_frame, std::make_unique<ChromePrintRenderFrameHelperDelegate>());
-#endif
-
-#if BUILDFLAG(ARKWEB_PRINT)
-  new printing::PrintRenderFrameHelper(
-      render_frame,
-      base::WrapUnique(new extensions::OhosPrintRenderFrameHelperDelegate()));
 #endif
 
 #if BUILDFLAG(ENABLE_PAINT_PREVIEW)
@@ -756,19 +707,11 @@ void ChromeContentRendererClient::RenderFrameCreated(
 
   if (!render_frame->IsInFencedFrameTree() ||
       base::FeatureList::IsEnabled(blink::features::kFencedFramesAPIChanges)) {
-#if BUILDFLAG(ARKWEB_PASSWORD_AUTOFILL)
-    auto password_autofill_agent = std::make_unique<PasswordAutofillAgentExt>(
-#else
     auto password_autofill_agent = std::make_unique<PasswordAutofillAgent>(
-#endif  // ARKWEB_PASSWORD_AUTOFILL
         render_frame, associated_interfaces);
     auto password_generation_agent = std::make_unique<PasswordGenerationAgent>(
         render_frame, password_autofill_agent.get(), associated_interfaces);
-#if BUILDFLAG(ARKWEB_AUTOFILL)
-    new AutofillAgentExt(
-#else
     new AutofillAgent(
-#endif
         render_frame,
         {ExtractAllDatalists(false), FocusRequiresScroll(true),
          QueryPasswordSuggestions(false), SecureContextRequired(false),
@@ -806,11 +749,7 @@ void ChromeContentRendererClient::RenderFrameCreated(
   // ChromeRenderViewTests.
   if (subresource_filter_ruleset_dealer_) {
     auto* subresource_filter_agent =
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-        new subresource_filter::ArkWebSubresourceFilterAgentExt(
-#else
         new subresource_filter::SubresourceFilterAgent(
-#endif
             render_frame, subresource_filter_ruleset_dealer_.get());
     subresource_filter_agent->Initialize();
   }
@@ -823,11 +762,6 @@ void ChromeContentRendererClient::RenderFrameCreated(
             render_frame, fingerprinting_protection_ruleset_dealer_.get());
     fingerprinting_protection_renderer_agent->Initialize();
   }
-
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  AsArkWebChromeContentRendererClientExt()
-      ->RenderFrameCreateSubresourceFilterAgent(render_frame, this);
-#endif
 
 #if !BUILDFLAG(IS_ANDROID)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -1331,12 +1265,7 @@ bool ChromeContentRendererClient::IsNativeNaClAllowed(
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   bool is_extension_from_webstore = extension && extension->from_webstore();
 
-  bool is_invoked_by_extension =
-      (app_url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-       || app_url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-      );
+  bool is_invoked_by_extension = app_url.SchemeIs(extensions::kExtensionScheme);
   bool is_invoked_by_hosted_app = extension && extension->is_hosted_app() &&
                                   extension->web_extent().MatchesURL(app_url);
 
@@ -1435,7 +1364,6 @@ void ChromeContentRendererClient::ReportNaClAppType(
 }
 #endif  // BUILDFLAG(ENABLE_NACL)
 
-#if !BUILDFLAG(ARKWEB_EXT_ERROR_PAGE)
 void ChromeContentRendererClient::PrepareErrorPage(
     content::RenderFrame* render_frame,
     const blink::WebURLError& web_error,
@@ -1471,8 +1399,6 @@ void ChromeContentRendererClient::PrepareErrorPageForHttpStatusError(
                          http_method == "POST",
                          std::move(alternative_error_page_info), error_html);
 }
-
-#endif  //
 
 void ChromeContentRendererClient::PostSandboxInitialized() {
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1709,8 +1635,7 @@ std::unique_ptr<media::KeySystemSupportRegistration>
 ChromeContentRendererClient::GetSupportedKeySystems(
     content::RenderFrame* render_frame,
     media::GetSupportedKeySystemsCB cb) {
-#if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || \
-    BUILDFLAG(IS_ANDROID) || BUILDFLAG(ARKWEB_ENABLE_CDM)
+#if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
   return GetChromeKeySystems(render_frame, std::move(cb));
 #else
   std::move(cb).Run({});
@@ -1759,10 +1684,6 @@ bool ChromeContentRendererClient::IsPluginAllowedToUseCameraDeviceAPI(
 
 void ChromeContentRendererClient::RunScriptsAtDocumentStart(
     content::RenderFrame* render_frame) {
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  AsArkWebChromeContentRendererClientExt()
-      ->RenderFrameCreateSubresourceFilterAgentTriggerHide(render_frame);
-#endif
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   extensions::ExtensionsRendererClient::Get()->RunScriptsAtDocumentStart(
       render_frame);
@@ -1821,11 +1742,7 @@ void ChromeContentRendererClient::
 bool ChromeContentRendererClient::AllowScriptExtensionForServiceWorker(
     const url::Origin& script_origin) {
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  return script_origin.scheme() == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-         || script_origin.scheme() == extensions::kArkwebExtensionScheme
-#endif
-      ;
+  return script_origin.scheme() == extensions::kExtensionScheme;
 #else
   return false;
 #endif
@@ -1928,11 +1845,7 @@ blink::WebFrame* ChromeContentRendererClient::FindFrame(
 bool ChromeContentRendererClient::IsSafeRedirectTarget(const GURL& upstream_url,
                                                        const GURL& target_url) {
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  if (target_url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || target_url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-  ) {
+  if (target_url.SchemeIs(extensions::kExtensionScheme)) {
     const extensions::Extension* extension =
         extensions::RendererExtensionRegistry::Get()->GetByID(
             target_url.host());

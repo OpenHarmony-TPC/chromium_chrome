@@ -173,7 +173,7 @@ void LensPermissionBubbleController::OnPermissionDialogAccept() {
   RecordPermissionUserAction(LensPermissionUserAction::kAcceptButtonPressed,
                              invocation_source_);
   base::WeakPtr<LensPermissionBubbleController>
-      lens_permission_bubble_controller = weak_ptr_factory_.GetWeakPtr();                             
+      lens_permission_bubble_controller = weak_ptr_factory_.GetWeakPtr();
   pref_service_->SetBoolean(prefs::kLensSharingPageScreenshotEnabled, true);
   // TODO(crbug.com/401029609): Rethink permission bubble lifetime.
   // Must check WeakPtr in case CloseUISync() is called in

@@ -176,11 +176,7 @@ const gfx::VectorIcon* ChromeLocationBarModelDelegate::GetVectorIconOverride()
     return &omnibox::kProductChromeRefreshIcon;
   }
 
-  if (url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-  ) {
+  if (url.SchemeIs(extensions::kExtensionScheme)) {
     return &vector_icons::kExtensionChromeRefreshIcon;
   }
 #endif

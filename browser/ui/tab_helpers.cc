@@ -645,9 +645,7 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
     SearchEngineChoiceTabHelper::CreateForWebContents(web_contents);
   }
 
-#if !BUILDFLAG(IS_OHOS)
   SadTabHelper::CreateForWebContents(web_contents);
-#endif // BUILDFLAG(IS_OHOS)
   SearchTabHelper::CreateForWebContents(web_contents);
   TabDialogs::CreateForWebContents(web_contents);
   MemorySaverChipTabHelper::CreateForWebContents(web_contents);

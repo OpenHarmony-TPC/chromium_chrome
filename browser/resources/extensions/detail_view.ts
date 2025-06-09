@@ -398,9 +398,8 @@ export class ExtensionsDetailViewElement extends
   }
 
   protected onSiteSettingsClick_() {
-    // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
     this.delegate.openUrl(
-        `chrome://settings/websiteSettings?site=arkweb-extension://${
+        `chrome://settings/content/siteDetails?site=chrome-extension://${
             this.data.id}`);
   }
 

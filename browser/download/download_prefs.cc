@@ -60,6 +60,10 @@
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/context_path/context_path_adapter.h"
+#endif
+
 using content::BrowserContext;
 using content::BrowserThread;
 using content::DownloadManager;
@@ -106,7 +110,10 @@ class DefaultDownloadDirectory {
   const base::FilePath& path() const { return path_; }
 
   void Initialize() {
-#if !BUILDFLAG(ARKWEB_EX_DOWNLOAD)
+#if BUILDFLAG(IS_OHOS)
+    path_ = base::FilePath(
+        ::ohos::adapter::ContextPathAdapter::GetAppDownloadDir());
+#else
     if (!base::PathService::Get(chrome::DIR_DEFAULT_DOWNLOADS, &path_)) {
       base::GetTempDir(&path_);
     }
@@ -285,8 +292,13 @@ void DownloadPrefs::RegisterProfilePrefs(
   registry->RegisterListPref(prefs::kDownloadExtensionsToOpenByPolicy, {});
   registry->RegisterListPref(prefs::kDownloadAllowedURLsForOpenByPolicy, {});
   registry->RegisterBooleanPref(prefs::kDownloadDirUpgraded, false);
+#if BUILDFLAG(IS_OHOS)
+  registry->RegisterIntegerPref(prefs::kSaveFileType,
+                                content::SAVE_PAGE_TYPE_AS_MHTML);
+#else
   registry->RegisterIntegerPref(prefs::kSaveFileType,
                                 content::SAVE_PAGE_TYPE_AS_COMPLETE_HTML);
+#endif
   registry->RegisterIntegerPref(policy::policy_prefs::kDownloadRestrictions, 0);
   // The following two prefs are ignored on ChromeOS Lacros if SysUI integration
   // is enabled.
@@ -535,7 +547,7 @@ bool DownloadPrefs::CanPlatformEnableAutoOpenForPdf() const {
 #if BUILDFLAG(IS_CHROMEOS)
   return false;  // There is no UI for auto-open on ChromeOS.
 #elif BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(IS_OHOS)
+      BUILDFLAG(IS_OHOS)
   return ShouldOpenPdfInSystemReader();
 #else
   return false;

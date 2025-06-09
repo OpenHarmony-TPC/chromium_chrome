@@ -309,13 +309,13 @@ TEST(KeyConverter, AllSpecialWebDriverKeysOnEnglishKeyboard) {
   ui::ScopedKeyboardLayout keyboard_layout(ui::KEYBOARD_LAYOUT_ENGLISH_US);
   const char kTextForKeys[] = {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
-      0,   0,   0,   0,   '\t', 0,   '\r', '\r', 0,   0,   0,   0,   0,
+      0, 0, 0, 0, '\t', 0, '\r', '\r', 0, 0, 0, 0, 0,
 #else
       0, 0, 0, 0, 0, 0, '\r', '\r', 0, 0, 0, 0, 0,
 #endif
-      ' ', 0,   0,   0,   0,    0,   0,    0,    0,   0,   0,   ';', '=',
-      '0', '1', '2', '3', '4',  '5', '6',  '7',  '8', '9', '*', '+', ',',
-      '-', '.', '/'};
+      ' ', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ';', '=',
+      '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+      '*', '+', ',', '-', '.', '/'};
   for (size_t i = 0; i <= 0x3D; ++i) {
     if (i > 0x29 && i < 0x31)
       continue;

@@ -509,9 +509,9 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
       {"biometricAuthenticationForFillingSubLabel",
        IDS_PASSWORD_MANAGER_UI_BIOMETRIC_AUTHENTICATION_FOR_FILLING_TOGGLE_SUBLABEL_CHROMEOS},
 #elif BUILDFLAG(IS_OHOS)
-      {"biometricAuthenticaionForFillingLabel",
+      {"biometricAuthenticationForFillingLabel",
        IDS_PASSWORD_MANAGER_UI_BIOMETRIC_AUTHENTICATION_FOR_FILLING_TOGGLE_LABEL_OHOS},
-      {"biometricAuthenticaionForFillingSublabel",
+      {"biometricAuthenticationForFillingSubLabel",
        IDS_PASSWORD_MANAGER_UI_BIOMETRIC_AUTHENTICATION_FOR_FILLING_TOGGLE_SUBLABEL_OHOS},
 #endif
   };

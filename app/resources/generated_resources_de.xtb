@@ -1136,7 +1136,7 @@ Berechtigungen, die du Apps bereits gewährt hast, gelten möglicherweise für d
 <translation id="177989070088644880">App (<ph name="ANDROID_PACKAGE_NAME" />)</translation>
 <translation id="1780152987505130652">Gruppe schließen</translation>
 <translation id="1780273119488802839">Lesezeichen werden importiert...</translation>
-<translation id="1780572199786401845">Als anstößig / nicht sicher melden</translation>
+<translation id="1780572199786401845">Als anstößig/bedenklich melden</translation>
 <translation id="178092663238929451">Nearby Share einrichten, um Dateien mit Personen in der Nähe auszutauschen</translation>
 <translation id="1781164264587898620">Geräuschunterdrückung und Audioverbesserungen anwenden.</translation>
 <translation id="1781291988450150470">Aktuelle PIN</translation>
@@ -5320,7 +5320,7 @@ Zum Herauszoomen drücke Strg + Alt + „Helligkeit verringern“.</translatio
 <translation id="4731306954230393087">Darf Informationen nutzen, die zu deiner Person gespeichert wurden</translation>
 <translation id="4732799736617504962">Das verbundene Mikrofon unterstützt nur die Geräuschunterdrückung</translation>
 <translation id="4733161265940833579"><ph name="BATTERY_PERCENTAGE" /> % (links)</translation>
-<translation id="4733793249294335256">Ort</translation>
+<translation id="4733793249294335256">Speicherort</translation>
 <translation id="473546211690256853">Dieses Konto wird von <ph name="DOMAIN" /> verwaltet.</translation>
 <translation id="4735506354605317060">Cursor einkreisen</translation>
 <translation id="4735793370946506039">Weitere Informationen zu „Erweitertes Safe Browsing“.</translation>
@@ -8156,7 +8156,7 @@ Du hast # weitere kompromittierte Passwörter. Der Google Passwortmanager empfi
 <translation id="6805647936811177813">Melde dich in <ph name="TOKEN_NAME" /> an, um das Clientzertifikat von <ph name="HOST_NAME" /> herunterzuladen.</translation>
 <translation id="680572642341004180">RLZ-Nachverfolgung für <ph name="SHORT_PRODUCT_OS_NAME" /> aktivieren</translation>
 <translation id="6806089545527108739">Nicht zulassen, später noch einmal fragen</translation>
-<translation id="680644983456221885">Proaktiver Schutz in Echtzeit vor gefährlichen Websites, Downloads und Erweiterungen auf der Grundlage deiner Browserdaten, die an Google gesendet werden.</translation>
+<translation id="680644983456221885">Proaktiver Schutz in Echtzeit vor gefährlichen Websites, Downloads und Erweiterungen auf Basis deiner Browserdaten, die an Google gesendet werden.</translation>
 <translation id="6806781719264274042">Nur meine Kontakte mit einem Google-Konto. <ph name="LINK_BEGIN" />Kontakte anzeigen<ph name="LINK_END" /></translation>
 <translation id="6808039367995747522">Stecke deinen Sicherheitsschlüssel ein und tippe darauf, um fortzufahren</translation>
 <translation id="6808166974213191158">Chrome OS Flex-Systemimage-Writer</translation>
@@ -9557,7 +9557,7 @@ Drücke zum Entfernen der Zuweisung einen bereits zugewiesenen Schalter oder ein
 <translation id="7799650166313181433">Nur Geräte, die im Konto <ph name="USER_EMAIL" /> angemeldet sind, können Inhalte mit diesem Gerät teilen. Du musst das Teilen von deinen Geräten nicht genehmigen.</translation>
 <translation id="7800485561443537737">Hierfür wird die mobile Datenverbindung deines Geräts (<ph name="DEVICE_TYPE" />) verwendet und dein Mobilfunkanbieter berechnet möglicherweise zusätzliche Gebühren. Kann auch den Akkuverbrauch erhöhen. <ph name="BEGIN_LINK_LEARN_MORE" />Weitere Informationen<ph name="END_LINK_LEARN_MORE" /></translation>
 <translation id="7800518121066352902">&amp;Gegen den Uhrzeigersinn drehen</translation>
-<translation id="780301667611848630">Nein danke</translation>
+<translation id="780301667611848630">Nein, danke</translation>
 <translation id="7803657407897251194">Wenn du die Einrichtung mit deinem Android-Gerät fortsetzen möchtest, verbinde dein <ph name="DEVICE_TYPE" /> mit einem Netzwerk</translation>
 <translation id="7804072833593604762">Tab geschlossen</translation>
 <translation id="7805371082115476536">Leicht</translation>

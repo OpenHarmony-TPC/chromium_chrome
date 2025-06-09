@@ -38,7 +38,7 @@ export function getHtml(this: DownloadsItemElement) {
         --></a><!--
         Before #name.
         --><span id="name"
-            title="${this.data?.fileName || ''}"
+        title="${this.data?.fileName || ''}"
             ?hidden="${this.shouldLinkFilename_}"><!-- No line break
           -->${this.data?.fileName || ''}</span>
         <span id="tag">${this.computeTag_()}</span>

@@ -52,11 +52,6 @@
 #include "ui/gfx/image/image_skia.h"
 #include "url/origin.h"
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "base/logging.h"
-#include "ohos_nweb/src/cef_delegate/nweb_extension_action_cef_delegate.h"
-#endif
-
 using content::WebContents;
 
 namespace extensions {
@@ -282,28 +277,12 @@ void ExtensionActionFunction::SetVisible(bool visible) {
 ExtensionFunction::ResponseAction
 ExtensionActionShowFunction::RunExtensionAction() {
   SetVisible(true);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  std::optional<int> tab_id;
-  if (tab_id_ != ExtensionAction::kDefaultTabId) {
-    tab_id = tab_id_;
-  }
-  LOG(INFO) << "ExtensionActionShowFunction::RunExtensionAction";
-  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnEnable(extension()->id(), tab_id);
-#endif // ARKWEB_ARKWEB_EXTENSIONS
   return RespondNow(NoArguments());
 }
 
 ExtensionFunction::ResponseAction
 ExtensionActionHideFunction::RunExtensionAction() {
   SetVisible(false);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  std::optional<int> tab_id;
-  if (tab_id_ != ExtensionAction::kDefaultTabId) {
-    tab_id = tab_id_;
-  }
-  LOG(INFO) << "ExtensionActionHideFunction::RunExtensionAction";
-  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnDisable(extension()->id(), tab_id);
-#endif // ARKWEB_ARKWEB_EXTENSIONS
   return RespondNow(NoArguments());
 }
 
@@ -344,12 +323,6 @@ ExtensionActionSetIconFunction::RunExtensionAction() {
       return RespondNow(Error("Icon not sufficiently visible."));
 
     extension_action_->SetIcon(tab_id_, icon_image);
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-    LOG(INFO) << "ExtensionActionSetIconFunction::RunExtensionAction";
-    OHOS::NWeb::NWebExtensionActionCefDelegate::OnSetIcon(extension()->id(),
-                                                          icon_image, tab_id_);
-#endif
   } else if (details_->FindInt("iconIndex")) {
     // Obsolete argument: ignore it.
     return RespondNow(NoArguments());

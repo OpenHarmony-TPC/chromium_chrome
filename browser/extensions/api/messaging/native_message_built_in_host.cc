@@ -26,17 +26,8 @@ namespace {
 bool MatchesSecurityOrigin(const NativeMessageBuiltInHost& host,
                            const ExtensionId& extension_id) {
   GURL origin(std::string(kExtensionScheme) + "://" + extension_id);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  GURL arkweb_origin(std::string(kArkwebExtensionScheme) + "://" +
-                     extension_id);
-#endif
   for (size_t i = 0; i < host.allowed_origins_count; i++) {
     URLPattern allowed_origin(URLPattern::SCHEME_ALL, host.allowed_origins[i]);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-    if (allowed_origin.MatchesSecurityOrigin(arkweb_origin)) {
-      return true;
-    }
-#endif
     if (allowed_origin.MatchesSecurityOrigin(origin)) {
       return true;
     }

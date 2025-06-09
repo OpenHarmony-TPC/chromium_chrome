@@ -183,11 +183,11 @@
 #include "chromeos/constants/chromeos_features.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(USE_NSS_CERTS)
+#if BUILDFLAG(USE_NSS_CERTS) || BUILDFLAG(IS_OHOS)
 #include "chrome/browser/ui/webui/certificates_handler.h"
 #elif BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #include "chrome/browser/ui/webui/settings/native_certificates_handler.h"
-#endif  // BUILDFLAG(USE_NSS_CERTS)
+#endif  // BUILDFLAG(USE_NSS_CERTS) || BUILDFLAG(IS_OHOS)
 
 #if BUILDFLAG(IS_MAC)
 #include "chrome/browser/ui/webui/settings/mac_system_settings_handler.h"
@@ -224,7 +224,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
 
   AddSettingsPageUIHandler(std::make_unique<AppearanceHandler>(web_ui));
 
-#if BUILDFLAG(USE_NSS_CERTS)
+#if BUILDFLAG(USE_NSS_CERTS) || BUILDFLAG(IS_OHOS)
   AddSettingsPageUIHandler(
       std::make_unique<certificate_manager::CertificatesHandler>());
 #elif BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)

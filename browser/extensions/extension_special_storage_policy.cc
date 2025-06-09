@@ -119,11 +119,7 @@ ExtensionSpecialStoragePolicy::~ExtensionSpecialStoragePolicy() {
 }
 
 bool ExtensionSpecialStoragePolicy::IsStorageProtected(const GURL& origin) {
-  if (origin.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || origin.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-  ) {
+  if (origin.SchemeIs(extensions::kExtensionScheme)) {
     return true;
   }
   base::AutoLock locker(lock_);

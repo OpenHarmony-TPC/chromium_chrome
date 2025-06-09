@@ -13,7 +13,6 @@
 #include <string>
 #include <utility>
 
-#include "arkweb/build/features/features.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/metrics/field_trial_params.h"
@@ -536,20 +535,6 @@ ExtensionsUI::ExtensionsUI(content::WebUI* web_ui)
   // plugin can be loaded within chrome://extensions.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ObjectSrc, "object-src 'self';");
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  // TODO: If chrome:// -> arkweb:// replaced completely, remove it
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::DefaultSrc,
-      "default-src 'self' 'unsafe-inline' arkweb://resources "
-      "arkweb://extensions  chrome://resources chrome://extensions "
-      "chrome://theme data:;");
-
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src 'self' 'unsafe-inline'  arkweb://resources "
-      "arkweb://extensions  chrome://resources chrome://extensions;");
-#endif
 
   content::URLDataSource::Add(
       profile, std::make_unique<FaviconSource>(

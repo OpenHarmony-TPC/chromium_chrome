@@ -105,6 +105,11 @@
 #include "ui/ozone/public/ozone_platform.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ui/aura/window_tree_host.h"
+#include "ui/ozone/platform/ohos/host/ohos_event_source.h"
+#endif
+
 using content::OpenURLParams;
 using content::WebContents;
 
@@ -118,6 +123,10 @@ namespace {
 // creation and makes it easier to drag tabs out of a restored window that had
 // maximized size.
 constexpr int kMaximizedWindowInset = 10;  // DIPs.
+
+#if BUILDFLAG(IS_OHOS)
+constexpr int kDivideTabWidth = 2;
+#endif
 
 // Some platforms, such and Desktop Linux with Wayland, disallow
 // client applications to manipulate absolute screen positions, by design.
@@ -548,6 +557,23 @@ TabDragController::Liveness TabDragController::Init(
     }
   }
 
+#if BUILDFLAG(IS_OHOS)
+  if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+    can_release_capture_ = false;
+    gfx::AcceleratedWidget source_context_widget_id =
+        GetWidgetIdFromTabContext(source_context);
+    auto* platform_event_source = ui::PlatformEventSource::GetInstance();
+    if (platform_event_source == nullptr) {
+      LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+                 << ", platform_event_source is null";
+      return Liveness::DELETED;
+    }
+    reinterpret_cast<ui::OhosEventSource*>(platform_event_source)
+        ->StartTabDragging(source_context_widget_id);
+    dragging_tab_context_ = source_context_;
+  }
+#endif
+
   CHECK(ref);
   return Liveness::ALIVE;
 }
@@ -712,6 +738,9 @@ void TabDragController::Drag(const gfx::Point& point_in_screen) {
         new_bounds.Offset(-widget->GetRestoredBounds().x() +
                               point_in_screen.x() - mouse_offset_.x(),
                           0);
+#if BUILDFLAG(IS_OHOS)
+        drag_window_bounds_ = new_bounds;
+#endif
         widget->SetVisibilityChangedAnimationsEnabled(false);
         widget->Restore();
         widget->SetBounds(new_bounds);
@@ -1010,6 +1039,16 @@ TabDragController::DragBrowserToNewTabStrip(TabDragContext* target_context,
     views::Widget* browser_widget = GetAttachedBrowserWidget();
     // Disable animations so that we don't see a close animation on aero.
     browser_widget->SetVisibilityChangedAnimationsEnabled(false);
+
+#if BUILDFLAG(IS_OHOS)
+    // After the tab window is dragged to the target window,
+    // the mouse event is transferred to the target window.
+    if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+      ShiftWindowEvent(target_context);
+      dragging_tab_context_ = target_context;
+    }
+#endif
+
     if (can_release_capture_)
       browser_widget->ReleaseCapture();
     else
@@ -1656,7 +1695,22 @@ void TabDragController::DetachIntoNewBrowserAndRunMoveLoop(
       return;
     }
   }
+
+#if BUILDFLAG(IS_OHOS)
+  // Move the mouse event to the new window after dragging the tab to a new window.
+  if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+    ShiftWindowEvent(attached_context_);
+    dragging_tab_context_ = attached_context_.get();
+    // Set capture for the new window
+    SetCapture(attached_context_);
+  }
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  RunMoveLoop(CalculateWindowDragOffset(drag_bounds));
+#else
   RunMoveLoop(drag_offset);
+#endif
 }
 
 void TabDragController::RunMoveLoop(const gfx::Vector2d& drag_offset) {
@@ -1727,6 +1781,14 @@ void TabDragController::RunMoveLoop(const gfx::Vector2d& drag_offset) {
     // Move the tabs into position.
     MoveAttached(point_in_screen, true);
     attached_context_->GetWidget()->Activate();
+  #if BUILDFLAG(IS_OHOS)
+    // When you drag a tab across a window to the
+    // other window, the dragging operation ends
+    if (source_context_ != attached_context_ &&
+        event_source_ == ui::mojom::DragEventSource::kTouch) {
+      EndAcrossWindowTabDrag();
+    }
+#endif
     // Activate may trigger a focus loss, destroying us.
     if (!ref)
       return;
@@ -2034,6 +2096,14 @@ void TabDragController::RevertDragAt(size_t drag_index) {
       source_context_->GetTabStripModel()->InsertDetachedTabAt(
           target_index, std::move(detached_tab),
           (data->pinned ? AddTabTypes::ADD_PINNED : 0), existing_group);
+#if BUILDFLAG(IS_OHOS)
+      // After the dragged tab window is restored to the original window,
+      // the event needs to be transferred.
+      if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+        ShiftWindowEvent(source_context_);
+        dragging_tab_context_ = source_context_;
+      }
+#endif
     } else {
       // The Tab was moved within the TabDragContext where the drag
       // was initiated. Move it back to the starting location.
@@ -2078,7 +2148,8 @@ void TabDragController::CompleteDrag() {
       }
 
       // If source window was maximized - maximize the new window as well.
-#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_MAC)
+#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_MAC) && \
+    !BUILDFLAG(IS_OHOS)
       // Keeping maximized state breaks snap to Grid on Windows when dragging
       // tabs from maximized windows. TODO:(crbug.com/727051) Explore doing this
       // for other desktop OS's. kMaximizedStateRetainedOnTabDrag in
@@ -2089,7 +2160,8 @@ void TabDragController::CompleteDrag() {
       // management actions.
       if (was_source_maximized_ || was_source_fullscreen_)
         MaximizeAttachedWindow();
-#endif  // !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_MAC)
+#endif  // !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_MAC) && \
+        // !BUILDFLAG(IS_OHOS)
     }
     attached_context_->StoppedDragging();
 
@@ -2354,6 +2426,11 @@ void TabDragController::AdjustBrowserAndTabBoundsForDrag(
     views::View::ConvertPointToWidget(attached_context_,
                                       &cursor_offset_in_widget);
     gfx::Rect bounds = GetAttachedBrowserWidget()->GetWindowBoundsInScreen();
+#if BUILDFLAG(IS_OHOS)
+    if (!drag_window_bounds_.IsEmpty()) {
+      bounds = drag_window_bounds_;
+    }
+#endif
     bounds.set_x(point_in_screen.x() - cursor_offset_in_widget.x());
 
     // This function is about horizontal alignment and assumes `drag_offset`'s Y
@@ -2538,7 +2615,17 @@ TabDragController::Liveness TabDragController::GetLocalProcessWindow(
   }
 #endif
   base::WeakPtr<TabDragController> ref(weak_factory_.GetWeakPtr());
+#if BUILDFLAG(IS_OHOS)
+  if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+    *window = window_finder_->GetLocalProcessWindowAtPoint(
+        screen_point, exclude, display_id_);
+  } else {
+    *window =
+        window_finder_->GetLocalProcessWindowAtPoint(screen_point, exclude);
+  }
+#else
   *window = window_finder_->GetLocalProcessWindowAtPoint(screen_point, exclude);
+#endif
   return ref ? Liveness::ALIVE : Liveness::DELETED;
 }
 
@@ -2858,3 +2945,85 @@ void TabDragController::OnDragDropClientDestroying() {
   drag_drop_client_observation_.Reset();
 }
 #endif  // defined(USE_AURA)
+
+#if BUILDFLAG(IS_OHOS)
+void TabDragController::EndAcrossWindowTabDrag() {
+  auto* event_source = ui::PlatformEventSource::GetInstance();
+  if (event_source == nullptr) {
+    LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+               << ", event_source is null";
+    return;
+  }
+  gfx::AcceleratedWidget widget_id = GetWidgetIdFromTabContext(attached_context_);
+  LOG(INFO) << "[OhosTabDrag] " << __FUNCTION__ << ", widget_id:" << widget_id;
+  reinterpret_cast<ui::OhosEventSource*>(event_source)->SimulateTouchUp(widget_id);
+}
+
+gfx::AcceleratedWidget TabDragController::GetWidgetIdFromTabContext(
+    TabDragContext* tab_context) {
+  gfx::AcceleratedWidget widget_id = gfx::kNullAcceleratedWidget;
+  if (tab_context == nullptr || tab_context->GetWidget() == nullptr) {
+    LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+               << ", tab_context or widget is null";
+    return widget_id;
+  }
+  views::Widget* widget = tab_context->GetWidget();
+  if (widget->GetNativeWindow() == nullptr ||
+      widget->GetNativeWindow()->GetHost() == nullptr) {
+    LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+               << ", GetNativeWindow or GetHost is null";
+    return widget_id;
+  }
+  aura::WindowTreeHost* window_tree_host = widget->GetNativeWindow()->GetHost();
+  return window_tree_host->GetAcceleratedWidget();
+}
+
+void TabDragController::ShiftWindowEvent(TabDragContext* target_tab_context) {
+  gfx::AcceleratedWidget source_widget_id =
+      GetWidgetIdFromTabContext(dragging_tab_context_);
+  gfx::AcceleratedWidget target_widget_id =
+      GetWidgetIdFromTabContext(target_tab_context);
+  auto* event_source = ui::PlatformEventSource::GetInstance();
+  if (event_source == nullptr) {
+    LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+               << ", event_source is null";
+    return;
+  }
+  LOG(INFO) << "[OhosTabDrag] " << __FUNCTION__
+            << ", source_widget_id:" << source_widget_id
+            << ", target_widget_id:" << target_widget_id;
+  if (source_widget_id == gfx::kNullAcceleratedWidget ||
+      target_widget_id == gfx::kNullAcceleratedWidget) {
+    LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+               << ", source_widget_id or target_widget_id is null";
+    return;
+  }
+  reinterpret_cast<ui::OhosEventSource*>(event_source)
+      ->ShiftWindowEvent(source_widget_id, target_widget_id);
+}
+
+void TabDragController::Drag(const gfx::Point& point_in_screen,
+                             const int32_t display_id) {
+  if (display_id != display_id_) {
+    LOG(INFO) << "[OhosTabDrag]" << __FUNCTION__
+              << ", display_id:" << display_id
+              << ", display_id_:" << display_id_;
+  }
+  display_id_ = display_id;
+  Drag(point_in_screen);
+}
+
+gfx::Vector2d TabDragController::CalculateWindowDragOffset(
+    std::vector<gfx::Rect> drag_bounds) {
+  const gfx::Rect source_tab_bounds = drag_bounds[source_view_index_];
+  const int cursor_offset_within_tab =
+      base::ClampRound(source_tab_bounds.width() * offset_to_width_ratio_);
+  gfx::Point desired_cursor_pos_in_widget(
+      attached_context_->GetMirroredXInView(source_tab_bounds.x() +
+                                            cursor_offset_within_tab),
+      source_tab_bounds.height() / kDivideTabWidth);
+  views::View::ConvertPointToWidget(attached_context_,
+                                    &desired_cursor_pos_in_widget);
+  return desired_cursor_pos_in_widget.OffsetFromOrigin();
+}
+#endif

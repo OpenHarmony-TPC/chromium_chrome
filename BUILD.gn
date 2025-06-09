@@ -1481,6 +1481,7 @@ if (is_ohos) {
     deps = [
       ":dependencies",
       "//components/crash/core/app:app",
+      "//components/crash/ohos:crash_features",
       "//content/public/app",
       "//ohos/adapter:adapter",
     ]

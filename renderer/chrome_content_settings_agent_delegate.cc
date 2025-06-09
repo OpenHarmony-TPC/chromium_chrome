@@ -95,11 +95,7 @@ bool ChromeContentSettingsAgentDelegate::IsFrameAllowlistedForStorageAccess(
 bool ChromeContentSettingsAgentDelegate::IsSchemeAllowlisted(
     const std::string& scheme) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  return scheme == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-         || scheme == extensions::kArkwebExtensionScheme
-#endif
-      ;
+  return scheme == extensions::kExtensionScheme;
 #else
   return false;
 #endif
@@ -187,11 +183,7 @@ bool ChromeContentSettingsAgentDelegate::IsAllowListedSystemWebApp() {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 const extensions::Extension* ChromeContentSettingsAgentDelegate::GetExtension(
     const blink::WebSecurityOrigin& origin) const {
-  if (origin.Protocol().Ascii() != extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      && origin.Protocol().Ascii() != extensions::kArkwebExtensionScheme
-#endif
-  )
+  if (origin.Protocol().Ascii() != extensions::kExtensionScheme)
     return nullptr;
 
   const std::string extension_id = origin.Host().Utf8().data();

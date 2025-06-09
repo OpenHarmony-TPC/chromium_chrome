@@ -39,8 +39,6 @@ import {SAVE_TO_DRIVE_CROS_DESTINATION_KEY} from '../data/destination.js';
 
 import {DestinationErrorType, DestinationStore, DestinationStoreEventType} from '../data/destination_store.js';
 import {Error, State} from '../data/state.js';
-// <if expr="is_ohos">
-import {NativeLayerImpl} from '../native_layer.js';
 
 // <if expr="not is_chromeos">
 import type {PrintPreviewDestinationDialogElement} from './destination_dialog.js';
@@ -56,7 +54,8 @@ import type {PrintPreviewDestinationSelectCrosElement} from './destination_selec
 // </if>
 import {getTemplate} from './destination_settings.html.js';
 import {SettingsMixin} from './settings_mixin.js';
-
+// <if expr="is_ohos">
+import {NativeLayerImpl} from '../native_layer.js';
 // </if>
 
 export enum DestinationState {
@@ -455,10 +454,10 @@ export class PrintPreviewDestinationSettingsElement extends
       this.destinationStore_!.startLoadAllDestinations();
       this.$.destinationDialog.get().show();
       this.isDialogOpen_ = true;
-      // <if expr="is_ohos">
+// <if expr="is_ohos">
     } else if (value === 'systemPrint') {
       NativeLayerImpl.getInstance().systemPrint();
-      // </if>
+// </if>
     } else {
       this.destinationStore_!.selectDestinationByKey(value);
     }

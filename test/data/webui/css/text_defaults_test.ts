@@ -13,26 +13,26 @@ function getExpectedFontFamily(expectingSystemFont: boolean): string {
   const fontFamily =
       // <if expr="is_ohos">
       '"HarmonyOS Sans"';
-  // </if>
-  // <if expr="is_linux">
-  '"DejaVu Sans"';
-  // </if>
-  // <if expr="is_macosx">
-  'system-ui';
-  // </if>
-  // <if expr="is_win">
-  '"Segoe UI"';
-  // </if>
-  // <if expr="chromeos_ash">
-  'Roboto';
-  // </if>
-  // <if expr="is_fuchsia">
-  // TODO(dpapad): WebUI tests are compiled on Fuchsia but don't seem to run
-  // on any bot, so the value below does not matter, it just makes the code
-  // syntactically valid. Figure out whether the tests should be run, or
-  // excluded from compilation on Fuchsia.
-  'unknown';
-  // </if>
+      // </if>
+      // <if expr="is_linux">
+      '"DejaVu Sans"';
+      // </if>
+      // <if expr="is_macosx">
+      'system-ui';
+      // </if>
+      // <if expr="is_win">
+      '"Segoe UI"';
+      // </if>
+      // <if expr="chromeos_ash">
+      'Roboto';
+      // </if>
+      // <if expr="is_fuchsia">
+      // TODO(dpapad): WebUI tests are compiled on Fuchsia but don't seem to run
+      // on any bot, so the value below does not matter, it just makes the code
+      // syntactically valid. Figure out whether the tests should be run, or
+      // excluded from compilation on Fuchsia.
+      'unknown';
+      // </if>
 
   return fontFamily;
 }

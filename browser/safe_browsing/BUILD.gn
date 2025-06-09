@@ -5,7 +5,6 @@
 import("//build/config/chromeos/ui_mode.gni")
 import("//components/safe_browsing/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
-import("//arkweb/build/features/features.gni")
 
 static_library("safe_browsing") {
   sources = [
@@ -17,8 +16,6 @@ static_library("safe_browsing") {
     "url_checker_delegate_impl.h",
   ]
 
-
- 
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   public_deps = [ "//chrome/browser:browser_public_dependencies" ]
@@ -42,7 +39,6 @@ static_library("safe_browsing") {
     "//components/enterprise/buildflags",
     "//components/enterprise/common:strings",
     "//components/enterprise/obfuscation/core:enterprise_obfuscation",
-    "//components/gcm_driver:gcm_buildflags",
     "//components/keyed_service/content",
     "//components/language/core/browser",
     "//components/no_state_prefetch/browser",

@@ -25,7 +25,6 @@
 #include <memory>
 #include <string>
 
-#include "arkweb/build/features/features.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
@@ -124,10 +123,6 @@ class ResourceCoordinatorParts;
 class TabManager;
 }
 
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-class BrowserProcessImplExt;
-#endif
-
 // NOT THREAD SAFE, call only from the main thread.
 // These functions shouldn't return NULL unless otherwise noted.
 class BrowserProcess {
@@ -138,10 +133,6 @@ class BrowserProcess {
   BrowserProcess& operator=(const BrowserProcess&) = delete;
 
   virtual ~BrowserProcess();
-
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  virtual BrowserProcessImplExt* AsBrowserProcessImplExt() { return nullptr; }
-#endif
 
   // Invoked when the user is logging out/shutting down. When logging off we may
   // not have enough time to do a normal shutdown. This method is invoked prior

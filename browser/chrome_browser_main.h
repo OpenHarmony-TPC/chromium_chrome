@@ -32,10 +32,6 @@ class StartupBrowserCreator;
 class ShutdownWatcherHelper;
 class WebUsbDetector;
 
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-class BrowserProcessImplExt;
-#endif
-
 namespace base {
 class CommandLine;
 class RunLoop;
@@ -183,11 +179,7 @@ class ChromeBrowserMainParts : public content::BrowserMainParts {
 
   // Members initialized after / released before main_message_loop_ ------------
 
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  std::unique_ptr<BrowserProcessImplExt> browser_process_;
-#else
   std::unique_ptr<BrowserProcessImpl> browser_process_;
-#endif
 
 #if !BUILDFLAG(IS_ANDROID)
   // Browser creation happens on the Java side in Android.

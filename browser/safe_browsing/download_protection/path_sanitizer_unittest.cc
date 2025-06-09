@@ -37,9 +37,13 @@ namespace safe_browsing {
 #if BUILDFLAG(IS_OHOS)
 class OverrideHomeDir {
  public:
-  OverrideHomeDir() { SetHomeDir(); }
+  OverrideHomeDir() {
+    SetHomeDir();
+  }
 
-  ~OverrideHomeDir() { DeleteHomeDir(); }
+  ~OverrideHomeDir() {
+    DeleteHomeDir();
+  }
 
  private:
   void SetHomeDir() {
@@ -47,10 +51,14 @@ class OverrideHomeDir {
         temp_dir_.CreateUniqueTempDirUnderPath(base::GetTempDirForTesting()));
     base::FilePath home_dir = temp_dir_.GetPath().AppendASCII("home");
     home_override_ = std::make_unique<base::ScopedPathOverride>(
-        base::DIR_HOME, home_dir, true, true);
+        base::DIR_HOME,
+        home_dir,
+        true, true);
   }
 
-  void DeleteHomeDir() { ASSERT_TRUE(temp_dir_.Delete()); }
+  void DeleteHomeDir() {
+    ASSERT_TRUE(temp_dir_.Delete());
+  }
 
   base::ScopedTempDir temp_dir_;
   std::unique_ptr<base::ScopedPathOverride> home_override_;

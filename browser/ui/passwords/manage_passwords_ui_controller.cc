@@ -1053,8 +1053,7 @@ void ManagePasswordsUIController::AuthenticateUserWithMessage(
     std::move(callback).Run(true);
     return;
   }
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_CHROMEOS) && \
-    !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_OHOS)
   std::move(callback).Run(true);
   return;
 #else

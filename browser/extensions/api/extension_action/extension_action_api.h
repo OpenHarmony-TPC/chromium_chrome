@@ -14,9 +14,6 @@
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/extension_host_registry.h"
 #include "extensions/common/extension_id.h"
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "ohos_nweb/src/capi/web_extension_tab_items.h"
-#endif
 
 namespace content {
 class BrowserContext;
@@ -56,6 +53,7 @@ class ExtensionActionFunction : public ExtensionFunction {
 
   // WebContents for |tab_id_| if one exists.
   raw_ptr<content::WebContents> contents_;
+
   // The extension action for the current extension.
   raw_ptr<ExtensionAction> extension_action_;
 };
@@ -429,12 +427,6 @@ class BrowserActionOpenPopupFunction : public ExtensionFunction,
   BrowserActionOpenPopupFunction& operator=(
       const BrowserActionOpenPopupFunction&) = delete;
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  void DispatchExtensionActionClickedWithCustomArgs(
-      content::WebContents* web_contents,
-      std::string extension_id,
-      const NWebExtensionTab* custom_tab);
-#endif
  private:
   ~BrowserActionOpenPopupFunction() override;
 

@@ -27,7 +27,6 @@
 #include "base/syslog_logging.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
-#include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/policy/core/common/policy_logger.h"
 
@@ -48,6 +47,11 @@ const CFStringRef kEnrollmentMandatoryOptionPolicyName =
 const char kEnrollmentOptionsFilePath[] = FILE_PATH_LITERAL(
     "/Library/Google/Chrome/CloudManagementEnrollmentOptions");
 const char kEnrollmentMandatoryOption[] = "Mandatory";
+
+// Explicitly access the "com.google.Chrome" bundle ID, no matter what this
+// app's bundle ID actually is. All channels of Chrome should obey the same
+// policies.
+const CFStringRef kBundleId = CFSTR("com.google.Chrome");
 
 constexpr char kEnrollmentTokenMetricsName[] =
     "Enterprise.CloudManagementEnrollmentTokenLocation.Mac";
@@ -105,23 +109,16 @@ bool DeleteDMTokenFromAppDataDir(const std::string& client_id) {
 // Get the enrollment token from policy file: /Library/com.google.Chrome.plist.
 // Return true if policy is set, otherwise false.
 bool GetEnrollmentTokenFromPolicy(std::string* enrollment_token) {
-  base::apple::ScopedCFTypeRef<CFStringRef> bundle_id_scoper(
-      ChromeBrowserPolicyConnector::GetBundleId());
-  CFStringRef bundle_id = bundle_id_scoper.get();
-  if (!bundle_id) {
-    return false;
-  }
-
   // Since the configuration management infrastructure is not initialized when
   // this code runs, read the policy preference directly.
   base::apple::ScopedCFTypeRef<CFPropertyListRef> value(
-      CFPreferencesCopyAppValue(kEnrollmentTokenPolicyName, bundle_id));
+      CFPreferencesCopyAppValue(kEnrollmentTokenPolicyName, kBundleId));
 
   // Read the enrollment token from the new location. If that fails, try the old
   // location (which will be deprecated soon). If that also fails, bail as there
   // is no token set.
   if (!value ||
-      !CFPreferencesAppValueIsForced(kEnrollmentTokenPolicyName, bundle_id)) {
+      !CFPreferencesAppValueIsForced(kEnrollmentTokenPolicyName, kBundleId)) {
     return false;
   }
   CFStringRef value_string = base::apple::CFCast<CFStringRef>(value.get());
@@ -146,19 +143,12 @@ bool GetEnrollmentTokenFromFile(std::string* enrollment_token) {
 }
 
 std::optional<bool> IsEnrollmentMandatoryByPolicy() {
-  base::apple::ScopedCFTypeRef<CFStringRef> bundle_id_scoper(
-      ChromeBrowserPolicyConnector::GetBundleId());
-  CFStringRef bundle_id = bundle_id_scoper.get();
-  if (!bundle_id) {
-    return std::optional<bool>();
-  }
-
   base::apple::ScopedCFTypeRef<CFPropertyListRef> value(
       CFPreferencesCopyAppValue(kEnrollmentMandatoryOptionPolicyName,
-                                bundle_id));
+                                kBundleId));
 
   if (!value || !CFPreferencesAppValueIsForced(
-                    kEnrollmentMandatoryOptionPolicyName, bundle_id)) {
+                    kEnrollmentMandatoryOptionPolicyName, kBundleId)) {
     return std::optional<bool>();
   }
 

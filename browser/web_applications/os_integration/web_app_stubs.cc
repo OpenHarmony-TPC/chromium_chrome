@@ -49,7 +49,9 @@ namespace internals {
 void RegisterRunOnOsLogin(const ShortcutInfo& shortcut_info,
                           CreateShortcutsCallback callback) {
   NOTIMPLEMENTED();
+#if !BUILDFLAG(IS_OHOS)
   return false;
+#endif
 }
 
 bool UnregisterRunOnOsLogin(const std::string& app_id,

@@ -79,6 +79,10 @@
 #include "components/safe_browsing/android/safe_browsing_api_handler_bridge.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/context_path/context_path_adapter.h"
+#endif
+
 using content::BrowserThread;
 using download::DownloadItem;
 using download::DownloadPathReservationTracker;
@@ -1124,8 +1128,15 @@ DownloadTargetDeterminer::Result
       l10n_util::GetStringUTF8(IDS_DOWNLOAD_UNCONFIRMED_PREFIX) +
       base::StringPrintf(kUnconfirmedFormatSuffix,
                          base::RandInt(0, kUnconfirmedUniquifierRange));
+#if BUILDFLAG(IS_OHOS)
+  intermediate_path_ =
+      base::FilePath(::ohos::adapter::ContextPathAdapter::GetTempDir())
+          .DirName()
+          .Append(base::FilePath::FromUTF8Unsafe(file_name));
+#else
   intermediate_path_ =
       local_path_.DirName().Append(base::FilePath::FromUTF8Unsafe(file_name));
+#endif
   return COMPLETE;
 }
 
@@ -1391,5 +1402,10 @@ void DownloadTargetDeterminer::Start(
 // static
 base::FilePath DownloadTargetDeterminer::GetCrDownloadPath(
     const base::FilePath& suggested_path) {
+#if BUILDFLAG(IS_OHOS)
+  return base::FilePath(::ohos::adapter::ContextPathAdapter::GetTempDir() +
+                        suggested_path.BaseName().value() + kCrdownloadSuffix);
+#else
   return base::FilePath(suggested_path.value() + kCrdownloadSuffix);
+#endif
 }

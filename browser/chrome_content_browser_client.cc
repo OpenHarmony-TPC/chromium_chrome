@@ -48,7 +48,6 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "build/config/chromebox_for_meetings/buildflags.h"  // PLATFORM_CFM
-#include "cef/libcef/features/features.h"
 #include "chrome/browser/after_startup_task_utils.h"
 #include "chrome/browser/ai/ai_manager_keyed_service_factory.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
@@ -537,6 +536,7 @@
 #endif
 
 #if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/views/chrome_browser_main_extra_parts_views_ohos.h"
 #endif
 
@@ -632,10 +632,6 @@
 #include "components/crash/content/browser/crash_handler_host_linux.h"
 #else
 #include "chrome/browser/apps/link_capturing/web_app_link_capturing_delegate.h"
-#endif
-
-#if BUILDFLAG(ARKWEB_CRASHPAD)
-#include "components/crash/content/browser/crash_handler_host_linux.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
@@ -1054,15 +1050,8 @@ int GetCrashSignalFD(const base::CommandLine& command_line) {
 }
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
 int GetCrashSignalFD(const base::CommandLine& command_line) {
-#if BUILDFLAG(ARKWEB_CRASHPAD)
-  // ohos don't use linux crash handler
-  int crash_signal_fd =
-      crashpad::CrashHandlerHost::Get()->GetDeathSignalSocket();
-  return crash_signal_fd;
-#else
   int fd;
   return crash_reporter::GetHandlerSocket(&fd, nullptr) ? fd : -1;
-#endif
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -1244,8 +1233,8 @@ void LaunchURL(
   }
 
 #if BUILDFLAG(IS_OHOS)
-  // If the OS is OH, we launch it without asking the user. Since the OS has not
-  // yet provided an interface for querying external applications.
+  // If the OS is OH, we launch it without asking the user. Since the OS has not yet
+  // provided an interface for querying external applications.
   ExternalProtocolHandler::LaunchUrlWithoutSecurityCheck(
       url, web_contents, std::move(initiator_document));
 #else
@@ -1533,7 +1522,6 @@ net::handles::NetworkHandle GetBoundNetworkFromRenderFrameHost(
 }
 
 }  // namespace
-#include "arkweb/chromium_ext/chrome/browser/chrome_content_browser_client_for_include.cc"
 
 // static
 ChromeContentBrowserClient::PopupNavigationDelegateFactory&
@@ -1542,8 +1530,6 @@ ChromeContentBrowserClient::GetPopupNavigationDelegateFactoryForTesting() {
 }
 
 ChromeContentBrowserClient::ChromeContentBrowserClient() {
-  keepalive_timer_.reset(new base::OneShotTimer());
-
 #if BUILDFLAG(ENABLE_PLUGINS)
   extra_parts_.push_back(
       std::make_unique<ChromeContentBrowserClientPluginsPart>());
@@ -1554,7 +1540,7 @@ ChromeContentBrowserClient::ChromeContentBrowserClient() {
       std::make_unique<ChromeContentBrowserClientTabletModePart>());
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_ARKWEB)
+#if !BUILDFLAG(IS_ANDROID)
   extra_parts_.push_back(
       std::make_unique<ChromeContentBrowserClientWebUiPart>());
 #endif
@@ -1579,11 +1565,6 @@ ChromeContentBrowserClient::~ChromeContentBrowserClient() {
   while (!extra_parts_.empty()) {
     extra_parts_.pop_back();
   }
-}
-
-void ChromeContentBrowserClient::CleanupOnUIThread() {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  keepalive_timer_.reset();
 }
 
 // static
@@ -1848,6 +1829,9 @@ ChromeContentBrowserClient::CreateBrowserMainParts(bool is_integration_test) {
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
   main_parts->AddParts(
       std::make_unique<ChromeBrowserMainExtraPartsViewsLinux>());
+#elif BUILDFLAG(IS_OHOS)
+  main_parts->AddParts(
+      std::make_unique<ChromeBrowserMainExtraPartsViewsOHOS>());
 #else
   main_parts->AddParts(std::make_unique<ChromeBrowserMainExtraPartsViews>());
 #endif
@@ -1954,11 +1938,7 @@ ChromeContentBrowserClient::GetStoragePartitionConfigForSite(
   // In general, those use cases aren't considered part of the user's normal
   // browsing activity.
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  if (site.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || site.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-  ) {
+  if (site.SchemeIs(extensions::kExtensionScheme)) {
     // The host in an extension site URL is the extension_id.
     CHECK(site.has_host());
     return extensions::util::GetStoragePartitionConfigForExtensionId(
@@ -2044,9 +2024,6 @@ void ChromeContentBrowserClient::RenderProcessWillLaunch(
   for (auto& part : extra_parts_) {
     part->RenderProcessWillLaunch(host);
   }
-#if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-  ChromeContentBrowserClientUtils::RenderProcessWillLaunch(host, this);
-#endif  // BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
 }
 
 GURL ChromeContentBrowserClient::GetEffectiveURL(
@@ -2253,11 +2230,7 @@ bool ChromeContentBrowserClient::ShouldTreatURLSchemeAsFirstPartyWhenTopLevel(
   if (is_embedded_origin_secure && scheme == content::kChromeUIScheme)
     return true;
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  return scheme == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-         || scheme == extensions::kArkwebExtensionScheme
-#endif
-      ;
+  return scheme == extensions::kExtensionScheme;
 #else
   return false;
 #endif
@@ -2281,11 +2254,7 @@ std::string ChromeContentBrowserClient::GetSiteDisplayNameForCdmProcess(
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // If |site_url| wraps a chrome extension ID, we can display the extension
   // name instead, which is more human-readable.
-  if (site_url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || site_url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-  ) {
+  if (site_url.SchemeIs(extensions::kExtensionScheme)) {
     const extensions::Extension* extension =
         extensions::ExtensionRegistry::Get(browser_context)
             ->enabled_extensions()
@@ -2326,9 +2295,6 @@ void ChromeContentBrowserClient::GetAdditionalWebUISchemes(
   additional_schemes->emplace_back(chrome::kChromeSearchScheme);
   additional_schemes->emplace_back(dom_distiller::kDomDistillerScheme);
   additional_schemes->emplace_back(content::kChromeDevToolsScheme);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  additional_schemes->emplace_back(content::kArkWebUIScheme);
-#endif
 }
 
 void ChromeContentBrowserClient::GetAdditionalViewSourceSchemes(
@@ -2337,12 +2303,6 @@ void ChromeContentBrowserClient::GetAdditionalViewSourceSchemes(
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   additional_schemes->push_back(extensions::kExtensionScheme);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  additional_schemes->push_back(extensions::kArkwebExtensionScheme);
-#endif
-#endif
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  additional_schemes->push_back(content::kArkWebUIScheme);
 #endif
 }
 
@@ -2353,11 +2313,7 @@ ChromeContentBrowserClient::DetermineAddressSpaceFromURL(const GURL& url) {
   if (url.SchemeIs(dom_distiller::kDomDistillerScheme))
     return network::mojom::IPAddressSpace::kPublic;
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  if (url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-  )
+  if (url.SchemeIs(extensions::kExtensionScheme))
     return network::mojom::IPAddressSpace::kLocal;
 #endif
 
@@ -2530,11 +2486,7 @@ ChromeContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
 #if !BUILDFLAG(IS_ANDROID)
   // Extensions are exempt from manifest policy enforcement and retain the
   // default frame permissions policy.
-  if (app_origin.scheme() == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || app_origin.scheme() == extensions::kArkwebExtensionScheme
-#endif
-  ) {
+  if (app_origin.scheme() == extensions::kExtensionScheme) {
     return std::nullopt;
   }
 
@@ -2620,7 +2572,7 @@ bool ChromeContentBrowserClient::ShouldSwapBrowsingInstancesForNavigation(
 bool ChromeContentBrowserClient::ShouldIsolateErrorPage(bool in_main_frame) {
   // TODO(nasko): Consider supporting error page isolation in subframes if
   // Site Isolation is enabled.
-  return false;
+  return in_main_frame;
 }
 
 std::vector<url::Origin>
@@ -3315,11 +3267,7 @@ bool ChromeContentBrowserClient::DoesSchemeAllowCrossOriginSharedWorker(
     const std::string& scheme) {
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   // Extensions are allowed to start cross-origin shared workers.
-  if (scheme == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || scheme == extensions::kArkwebExtensionScheme
-#endif
-  )
+  if (scheme == extensions::kExtensionScheme)
     return true;
 #endif
 
@@ -3951,10 +3899,6 @@ void ChromeContentBrowserClient::AllowCertificateError(
     const GURL& request_url,
     bool is_primary_main_frame_request,
     bool strict_enforcement,
-#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
-    const GURL& origin_url,
-    const std::string& referrer,
-#endif
     base::OnceCallback<void(content::CertificateRequestResultType)> callback) {
   DCHECK(web_contents);
   if (!is_primary_main_frame_request) {
@@ -4075,7 +4019,6 @@ bool UpdatePreferredColorScheme(WebPreferences* web_prefs,
                                 WebContents* web_contents,
                                 const ui::NativeTheme* native_theme) {
   auto old_preferred_color_scheme = web_prefs->preferred_color_scheme;
-#if !BUILDFLAG(IS_ARKWEB)
 
 #if BUILDFLAG(IS_ANDROID)
   auto* delegate = TabAndroid::FromWebContents(web_contents)
@@ -4091,25 +4034,28 @@ bool UpdatePreferredColorScheme(WebPreferences* web_prefs,
         web_prefs->preferred_color_scheme;
   }
 #else
-  auto preferred_color_scheme = native_theme->GetPreferredColorScheme();
-
-  auto* profile =
-      Profile::FromBrowserContext(web_contents->GetBrowserContext());
-  const auto* theme_service = ThemeServiceFactory::GetForProfile(profile);
-
-  const auto browser_color_scheme = theme_service->GetBrowserColorScheme();
-  if (browser_color_scheme != ThemeService::BrowserColorScheme::kSystem) {
-    // Override the native theme.
-    preferred_color_scheme =
-        browser_color_scheme == ThemeService::BrowserColorScheme::kLight
-            ? ui::NativeTheme::PreferredColorScheme::kLight
-            : ui::NativeTheme::PreferredColorScheme::kDark;
-  }
-
   // Update based on native theme scheme.
   web_prefs->preferred_color_scheme =
-      web_prefs->preferred_root_scrollbar_color_scheme =
-          ToBlinkPreferredColorScheme(preferred_color_scheme);
+      ToBlinkPreferredColorScheme(native_theme->GetPreferredColorScheme());
+
+  bool using_different_colored_frame = false;
+  if (Profile* profile =
+          Profile::FromBrowserContext(web_contents->GetBrowserContext())) {
+    if (ThemeService* theme_service =
+            ThemeServiceFactory::GetForProfile(profile)) {
+      using_different_colored_frame = !theme_service->UsingDefaultTheme() ||
+                                      theme_service->GetUserColor().has_value();
+    }
+  }
+
+  // Update based on the ColorProvider associated with `web_contents`. Depends
+  // on the browser color mode settings and whether the user profile has set a
+  // custom coloring for the browser ui.
+  web_prefs->preferred_root_scrollbar_color_scheme =
+      web_contents->GetColorMode() == ui::ColorProviderKey::ColorMode::kLight ||
+              using_different_colored_frame
+          ? blink::mojom::PreferredColorScheme::kLight
+          : blink::mojom::PreferredColorScheme::kDark;
 #endif  // BUILDFLAG(IS_ANDROID)
 
   // Reauth WebUI doesn't support dark mode yet because it shares the dialog
@@ -4131,7 +4077,6 @@ bool UpdatePreferredColorScheme(WebPreferences* web_prefs,
             : blink::mojom::PreferredColorScheme::kDark;
 #endif  // !BUILDFLAG(IS_ANDROID)
   }
-#endif
 
   return old_preferred_color_scheme != web_prefs->preferred_color_scheme;
 }
@@ -4346,6 +4291,7 @@ bool ChromeContentBrowserClient::CanCreateWindow(
     bool* no_javascript_access) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(opener);
+
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(opener);
   Profile* profile =
@@ -4376,6 +4322,7 @@ bool ChromeContentBrowserClient::CanCreateWindow(
     if (extension && !extensions::BackgroundInfo::AllowJSAccess(extension))
       *no_javascript_access = true;
 #endif
+
     return true;
   }
 
@@ -4387,22 +4334,13 @@ bool ChromeContentBrowserClient::CanCreateWindow(
 #endif
 
 #if BUILDFLAG(ENABLE_PLATFORM_APPS)
-  if (target_url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || target_url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-  ) {
+  if (target_url.SchemeIs(extensions::kExtensionScheme)) {
     // Intentionally duplicating |registry| code from above because we want to
     // reduce calls to retrieve them as this function is a SYNC IPC handler.
     auto* registry = extensions::ExtensionRegistry::Get(profile);
     const Extension* extension =
         registry->enabled_extensions().GetExtensionOrAppByURL(target_url);
     if (extension && extension->is_platform_app()) {
-      UMA_HISTOGRAM_ENUMERATION(
-          "Extensions.AppLoadedInTab",
-          ClassifyAppLoadedInTabSource(opener_url, extension),
-          APP_LOADED_IN_TAB_SOURCE_MAX);
-
       // window.open() may not be used to load v2 apps in a regular tab.
       return false;
     }
@@ -4470,12 +4408,6 @@ void ChromeContentBrowserClient::OverrideWebkitPrefs(
   Profile* profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
   PrefService* prefs = profile->GetPrefs();
-
-#if BUILDFLAG(ARKWEB_ZOOM)
-  CefRefPtr<CefBrowserHostBase> browser_host =
-      ChromeContentBrowserClientUtils::OverrideWebkitPrefsGetBrowserHost(
-          web_contents, this);
-#endif
 
 // Fill font preferences. These are not registered on Android
 // - http://crbug.com/308033, http://crbug.com/696364.
@@ -4704,13 +4636,7 @@ void ChromeContentBrowserClient::OverrideWebkitPrefs(
     }
   }
 
-#if BUILDFLAG(ARKWEB_MEDIA_POLICY)
-  ChromeContentBrowserClientUtils::SetAutoplayPolicyExt(
-      browser_host, web_contents, web_prefs);
-#else
   web_prefs->autoplay_policy = GetAutoplayPolicyForWebContents(web_contents);
-#endif
-
 #if !BUILDFLAG(IS_ANDROID)
   web_prefs->require_transient_activation_for_get_display_media =
       capture_policy::IsTransientActivationRequiredForGetDisplayMedia(
@@ -4801,10 +4727,7 @@ bool ChromeContentBrowserClient::OverrideWebPreferencesAfterNavigation(
 
   const auto autoplay_policy = GetAutoplayPolicyForWebContents(web_contents);
   prefs_changed |= (web_prefs->autoplay_policy != autoplay_policy);
-
-#if !BUILDFLAG(ARKWEB_MEDIA_POLICY)
   web_prefs->autoplay_policy = autoplay_policy;
-#endif
 
 #if !BUILDFLAG(IS_ANDROID)
   const bool require_transient_activation_for_get_display_media =
@@ -4888,11 +4811,9 @@ void ChromeContentBrowserClient::BrowserURLHandlerCreated(
                           &search::HandleNewTabURLReverseRewrite);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if !BUILDFLAG(ENABLE_CEF)
   // chrome: & friends.
   handler->AddHandlerPair(&ChromeContentBrowserClient::HandleWebUI,
                           &ChromeContentBrowserClient::HandleWebUIReverse);
-#endif
 }
 
 base::FilePath ChromeContentBrowserClient::GetDefaultDownloadDirectory() {
@@ -5019,9 +4940,6 @@ void ChromeContentBrowserClient::GetAdditionalAllowedSchemesForFileSystem(
   additional_allowed_schemes->push_back(content::kChromeUIScheme);
   additional_allowed_schemes->push_back(content::kChromeUIUntrustedScheme);
   additional_allowed_schemes->push_back(chrome::kIsolatedAppScheme);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  additional_allowed_schemes->push_back(content::kArkWebUIScheme);
-#endif
   for (auto& extra_part : extra_parts_) {
     extra_part->GetAdditionalAllowedSchemesForFileSystem(
         additional_allowed_schemes);
@@ -5106,7 +5024,6 @@ void ChromeContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
     BUILDFLAG(IS_OHOS)
-
   int crash_signal_fd = GetCrashSignalFD(command_line);
   if (crash_signal_fd >= 0) {
     mappings->Share(kCrashDumpSignal, crash_signal_fd);
@@ -5619,7 +5536,6 @@ ChromeContentBrowserClient::CreateThrottlesForNavigation(
   throttles.push_back(std::make_unique<PolicyBlocklistNavigationThrottle>(
       handle, handle->GetWebContents()->GetBrowserContext()));
 
-#if !BUILDFLAG(ARKWEB_NETWORK_LOAD)
   // Before setting up SSL error detection, configure SSLErrorHandler to invoke
   // the relevant extension API whenever an SSL interstitial is shown.
   SSLErrorHandler::SetClientCallbackOnInterstitialsShown(
@@ -5629,7 +5545,6 @@ ChromeContentBrowserClient::CreateThrottlesForNavigation(
       base::BindOnce(&HandleSSLErrorWrapper), base::BindOnce(&IsInHostedApp),
       base::BindOnce(
           &ShouldIgnoreSslInterstitialBecauseNavigationDefaultedToHttps)));
-#endif
 
   throttles.push_back(std::make_unique<LoginNavigationThrottle>(handle));
 
@@ -5725,7 +5640,6 @@ ChromeContentBrowserClient::CreateThrottlesForNavigation(
         &throttles);
   }
 
-#if !BUILDFLAG(ARKWEB_NETWORK_LOAD)
   if (profile && profile->GetPrefs()) {
     MaybeAddThrottle(
         security_interstitials::InsecureFormNavigationThrottle::
@@ -5734,7 +5648,6 @@ ChromeContentBrowserClient::CreateThrottlesForNavigation(
                 profile->GetPrefs()),
         &throttles);
   }
-#endif
 
   if (IsErrorPageAutoReloadEnabled()) {
     MaybeAddThrottle(
@@ -5784,7 +5697,6 @@ ChromeContentBrowserClient::CreateThrottlesForNavigation(
       &throttles);
 #endif
 
-#if !BUILDFLAG(ARKWEB_NETWORK_LOAD)
   if (profile) {
     MaybeAddThrottle(
         HttpsUpgradesNavigationThrottle::MaybeCreateThrottleFor(
@@ -5792,7 +5704,6 @@ ChromeContentBrowserClient::CreateThrottlesForNavigation(
             profile),
         &throttles);
   }
-#endif
 
   MaybeAddThrottle(MaybeCreateNavigationAblationThrottle(handle), &throttles);
 
@@ -5844,10 +5755,6 @@ ChromeContentBrowserClient::CreateThrottlesForNavigation(
       data_sharing::DataSharingNavigationThrottle::MaybeCreateThrottleFor(
           handle),
       &throttles);
-
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  ChromeContentBrowserClientUtils::TrigAdBlockEnabledExt(handle);
-#endif  // ARKWEB_ADBLOCK
 
   return throttles;
 }
@@ -6302,15 +6209,6 @@ ChromeContentBrowserClient::CreateURLLoaderThrottles(
       signin::URLLoaderThrottle::MaybeCreate(std::move(delegate), wc_getter);
   if (signin_throttle)
     result.push_back(std::move(signin_throttle));
-#if BUILDFLAG(ARKWEB_NO_STATE_PREFETCH)
-  ChromeContentBrowserClientUtils::NoStatePrefetchContentsExt(
-      browser_context, wc_getter, result);
-#endif  // ARKWEB_NO_STATE_PREFETCH
-
-#if BUILDFLAG(IS_ARKWEB)
-  ChromeContentBrowserClientUtils::AppLinkThrottleExt(request, result,
-                                                      frame_tree_node_id);
-#endif
 
   return result;
 }
@@ -6366,11 +6264,7 @@ ChromeContentBrowserClient::CreateNonNetworkNavigationURLLoaderFactory(
   content::BrowserContext* browser_context = web_contents->GetBrowserContext();
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  if (scheme == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || scheme == extensions::kArkwebExtensionScheme
-#endif
-) {
+  if (scheme == extensions::kExtensionScheme) {
     if (!ChromeContentBrowserClientExtensionsPart::
             AreExtensionsDisabledForProfile(browser_context)) {
       bool is_guest = false;
@@ -6442,12 +6336,6 @@ void ChromeContentBrowserClient::
       extensions::kExtensionScheme,
       extensions::CreateExtensionWorkerMainResourceURLLoaderFactory(
           browser_context));
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  factories->emplace(
-      extensions::kArkwebExtensionScheme,
-      extensions::CreateExtensionWorkerMainResourceURLLoaderFactory(
-          browser_context));
-#endif
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
 
@@ -6478,12 +6366,6 @@ void ChromeContentBrowserClient::
       extensions::kExtensionScheme,
       extensions::CreateExtensionServiceWorkerScriptURLLoaderFactory(
           browser_context));
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  factories->emplace(
-      extensions::kArkwebExtensionScheme,
-      extensions::CreateExtensionServiceWorkerScriptURLLoaderFactory(
-          browser_context));
-#endif
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
 
@@ -6731,19 +6613,6 @@ void ChromeContentBrowserClient::
     auto* rph = content::RenderProcessHost::FromID(render_process_id);
     content::BrowserContext* browser_context = rph->GetBrowserContext();
     DCHECK(browser_context);
-#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
-    factories->emplace(url::kFileScheme,
-                       content::CreateFileURLLoaderFactory(
-                           browser_context->GetPath(),
-                           browser_context->GetSharedCorsOriginAccessList()));
-#endif
-
-#if BUILDFLAG(ARKWEB_HAP_DECOMPRESSED)
-    factories->emplace(url::kResourcesScheme,
-                       content::CreateFileURLLoaderFactory(
-                           browser_context->GetPath(),
-                           browser_context->GetSharedCorsOriginAccessList()));
-#endif
     bool is_initiator_iwa =
         request_initiator_origin.has_value() &&
         request_initiator_origin->scheme() == chrome::kIsolatedAppScheme;
@@ -6776,12 +6645,6 @@ void ChromeContentBrowserClient::
   factories->emplace(extensions::kExtensionScheme,
                      extensions::CreateExtensionURLLoaderFactory(
                          render_process_id, render_frame_id));
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  factories->emplace(extensions::kArkwebExtensionScheme,
-                     extensions::CreateExtensionURLLoaderFactory(
-                         render_process_id, render_frame_id));
-#endif
 
   const extensions::Extension* extension = nullptr;
   if (request_initiator_origin != std::nullopt) {
@@ -6900,7 +6763,6 @@ ChromeContentBrowserClient::WillCreateURLLoaderRequestInterceptors(
   interceptors.push_back(std::make_unique<SearchPrefetchURLLoaderInterceptor>(
       frame_tree_node_id, navigation_id, navigation_response_task_runner));
 
-#if !BUILDFLAG(ARKWEB_NETWORK_LOAD)
   if (!force_no_https_upgrade) {
     auto https_upgrades_interceptor =
         HttpsUpgradesInterceptor::MaybeCreateInterceptor(frame_tree_node_id,
@@ -6909,7 +6771,6 @@ ChromeContentBrowserClient::WillCreateURLLoaderRequestInterceptors(
       interceptors.push_back(std::move(https_upgrades_interceptor));
     }
   }
-#endif
 
   return interceptors;
 }
@@ -7020,11 +6881,7 @@ bool ChromeContentBrowserClient::WillCreateRestrictedCookieManager(
     mojo::PendingReceiver<network::mojom::RestrictedCookieManager>* receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  if (origin.scheme() == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || origin.scheme() == extensions::kArkwebExtensionScheme
-#endif
-  ) {
+  if (origin.scheme() == extensions::kExtensionScheme) {
     DCHECK_EQ(network::mojom::RestrictedCookieManagerRole::SCRIPT, role);
     extensions::ChromeExtensionCookies::Get(browser_context)
         ->CreateRestrictedCookieManager(origin, isolation_info,
@@ -7037,11 +6894,6 @@ bool ChromeContentBrowserClient::WillCreateRestrictedCookieManager(
 
 void ChromeContentBrowserClient::OnNetworkServiceCreated(
     network::mojom::NetworkService* network_service) {
-#ifdef ARKWEB_EX_NETWORK_CONNECTION
-  network_service->BindDnsToNetwork(net_service::NetHelpers::network);
-  net::NetworkChangeNotifier::BindToNetwork(net_service::NetHelpers::network);
-#endif
-
   PrefService* local_state;
   if (g_browser_process) {
     DCHECK(g_browser_process->local_state());
@@ -7061,37 +6913,21 @@ void ChromeContentBrowserClient::OnNetworkServiceCreated(
   SystemNetworkContextManager::GetInstance()->OnNetworkServiceCreated(
       network_service);
 
-#if BUILDFLAG(ARKWEB_HTTP_DNS)
-  ChromeContentBrowserClientUtils::DnsOverHttpsConfigExt(network_service);
-#endif
-
 #if !BUILDFLAG(IS_ANDROID)
   if (task_manager::TaskManagerImpl::IsCreated() &&
       task_manager::TaskManagerImpl::GetInstance()->is_running()) {
     network_service->EnableDataUseUpdates(true);
   }
 #endif
-
-#if BUILDFLAG(ARKWEB_EX_NETWORK_CONNECTION)
-  network_service->SetConnectTimeout(
-      net_service::NetHelpers::connection_timeout);
-#endif
 }
 
-bool ChromeContentBrowserClient::ConfigureNetworkContextParams(
+void ChromeContentBrowserClient::ConfigureNetworkContextParams(
     content::BrowserContext* context,
     bool in_memory,
     const base::FilePath& relative_partition_path,
     network::mojom::NetworkContextParams* network_context_params,
     cert_verifier::mojom::CertVerifierCreationParams*
         cert_verifier_creation_params) {
-#if BUILDFLAG(ARKWEB_PRP_PRELOAD)
-  network::mojom::NetworkContext* network_context = GetSystemNetworkContext();
-  if (network_context != nullptr) {
-    network_context->InitPRParallelPreloadMgr();
-  }
-#endif
-
   ProfileNetworkContextService* service =
       ProfileNetworkContextServiceFactory::GetForContext(context);
   if (service) {
@@ -7103,14 +6939,6 @@ bool ChromeContentBrowserClient::ConfigureNetworkContextParams(
     network_context_params->user_agent = GetUserAgentBasedOnPolicy(context);
     network_context_params->accept_language = GetApplicationLocale();
   }
-
-#if BUILDFLAG(ARKWEB_SSL_AUTH_ALGO) || BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-  ChromeContentBrowserClientUtils::SSLConfigAndRegisterObserverExt(
-      context, network_context_params);
-#endif  // BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST) ||
-        // BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-
-  return true;
 }
 
 std::vector<base::FilePath>
@@ -7206,11 +7034,7 @@ bool ChromeContentBrowserClient::IsSecurityLevelAcceptableForWebAuthn(
     return true;
   }
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  if (caller_origin.scheme() == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || caller_origin.scheme() == extensions::kArkwebExtensionScheme
-#endif
-) {
+  if (caller_origin.scheme() == extensions::kExtensionScheme) {
     return true;
   }
 #endif
@@ -7414,11 +7238,7 @@ ChromeContentBrowserClient::CreateWindowForVideoPictureInPicture(
   // dependency constraints that disallow directly calling
   // chrome/browser/ui/views code either from here or from other code in
   // chrome/browser.
-#if BUILDFLAG(ARKWEB_PIP)
-  return nullptr;
-#else
   return content::VideoOverlayWindow::Create(controller);
-#endif
 }
 
 void ChromeContentBrowserClient::RegisterRendererPreferenceWatcher(
@@ -7539,8 +7359,6 @@ bool ChromeContentBrowserClient::ShowPaymentHandlerWindow(
     base::OnceCallback<void(bool, int, int)> callback) {
 #if BUILDFLAG(IS_ANDROID)
   return false;
-#elif BUILDFLAG(ARKWEB_ASAN)
-  LOG(INFO) << "PaymentRequestDisplayManagerFactory not supported on OHOS";
 #else
   payments::PaymentRequestDisplayManagerFactory::GetInstance()
       ->GetForBrowserContext(browser_context)
@@ -7732,13 +7550,9 @@ void ChromeContentBrowserClient::OnNetworkServiceDataUseUpdate(
 
 base::FilePath
 ChromeContentBrowserClient::GetSandboxedStorageServiceDataDirectory() {
-#if BUILDFLAG(IS_ARKWEB)
-  return base::FilePath();
-#else
   if (!g_browser_process || !g_browser_process->profile_manager())
     return base::FilePath();
   return g_browser_process->profile_manager()->user_data_dir();
-#endif
 }
 
 bool ChromeContentBrowserClient::ShouldSandboxAudioService() {
@@ -8055,11 +7869,7 @@ bool ChromeContentBrowserClient::IsClipboardPasteAllowed(
   const GURL& url =
       render_frame_host->GetMainFrame()->GetLastCommittedOrigin().GetURL();
   auto* registry = extensions::ExtensionRegistry::Get(profile);
-  if (url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-  ) {
+  if (url.SchemeIs(extensions::kExtensionScheme)) {
     return URLHasExtensionPermission(extensions::ProcessMap::Get(profile),
                                      registry, url,
                                      render_frame_host->GetProcess()->GetID(),
@@ -8152,11 +7962,7 @@ void ChromeContentBrowserClient::BindBrowserControlInterface(
 bool ChromeContentBrowserClient::
     ShouldInheritCrossOriginEmbedderPolicyImplicitly(const GURL& url) {
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  return url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-         || url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-      ;
+  return url.SchemeIs(extensions::kExtensionScheme);
 #else
   return false;
 #endif
@@ -8168,11 +7974,7 @@ bool ChromeContentBrowserClient::
     return true;
   }
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  return url.SchemeIs(extensions::kExtensionScheme)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-         || url.SchemeIs(extensions::kArkwebExtensionScheme)
-#endif
-      ;
+  return url.SchemeIs(extensions::kExtensionScheme);
 #else
   return false;
 #endif
@@ -8303,11 +8105,11 @@ void ChromeContentBrowserClient::OnKeepaliveRequestStarted(
   const auto now = base::TimeTicks::Now();
   const auto timeout = GetKeepaliveTimerTimeout(context);
   keepalive_deadline_ = std::max(keepalive_deadline_, now + timeout);
-  if (keepalive_deadline_ > now && !keepalive_timer_->IsRunning()) {
+  if (keepalive_deadline_ > now && !keepalive_timer_.IsRunning()) {
     if (!KeepAliveRegistry::GetInstance()->IsShuttingDown()) {
       DVLOG(1) << "Starting a keepalive timer(" << timeout.InSecondsF()
                << " seconds)";
-      keepalive_timer_->Start(
+      keepalive_timer_.Start(
           FROM_HERE, keepalive_deadline_ - now,
           base::BindOnce(
               &ChromeContentBrowserClient::OnKeepaliveTimerFired,
@@ -8329,9 +8131,7 @@ void ChromeContentBrowserClient::OnKeepaliveRequestFinished() {
   --num_keepalive_requests_;
   if (num_keepalive_requests_ == 0) {
     DVLOG(1) << "Stopping the keepalive timer";
-    if (keepalive_timer_) {
-      keepalive_timer_->Stop();
-    }
+    keepalive_timer_.Stop();
     // This deletes the keep alive handle attached to the timer function and
     // unblock the shutdown sequence.
   }
@@ -8481,16 +8281,6 @@ void ChromeContentBrowserClient::OnWebContentsCreated(
   // WebContentsObservers goes through the separate function, to ensure that the
   // (rare) additions of universal helpers are code reviewed by separate OWNERS.
   AttachUniversalWebContentsObservers(web_contents);
-
-#if BUILDFLAG(ARKWEB_FCP)
-  cef::InitializePageLoadMetricsForWebContents(web_contents);
-#endif
-
-#if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
-  content_settings::PageSpecificContentSettings::CreateForWebContents(
-      web_contents,
-      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents));
-#endif  // BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -8516,7 +8306,7 @@ void ChromeContentBrowserClient::OnKeepaliveTimerFired(
   const auto now = base::TimeTicks::Now();
   const auto then = keepalive_deadline_;
   if (now < then) {
-    keepalive_timer_->Start(
+    keepalive_timer_.Start(
         FROM_HERE, then - now,
         base::BindOnce(&ChromeContentBrowserClient::OnKeepaliveTimerFired,
                        weak_factory_.GetWeakPtr(),
@@ -8647,11 +8437,7 @@ bool ChromeContentBrowserClient::ShouldSendOutermostOriginToRenderer(
   // extensions though this is required for the way content injection API
   // works. We do not want one extension injecting content into the context
   // of another extension.
-  return outermost_origin.scheme() == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-         || outermost_origin.scheme() == extensions::kArkwebExtensionScheme
-#endif
-      ;
+  return outermost_origin.scheme() == extensions::kExtensionScheme;
 #else
   return false;
 #endif
@@ -8669,11 +8455,7 @@ bool ChromeContentBrowserClient::IsFileSystemURLNavigationAllowed(
   // scheme() is chrome-extension: (filesystem: is automatically discarded)
   // host() is the extension-id
   const url::Origin origin = url::Origin::Create(url);
-  if (origin.scheme() == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      || origin.scheme() == extensions::kArkwebExtensionScheme
-#endif
-  ) {
+  if (origin.scheme() == extensions::kExtensionScheme) {
     const Extension* extension =
         extensions::ExtensionRegistry::Get(browser_context)
             ->enabled_extensions()
@@ -8747,15 +8529,24 @@ std::string ChromeContentBrowserClient::GetChildProcessSuffix(int child_flags) {
 bool ChromeContentBrowserClient::ShouldUseFirstPartyStorageKey(
     const url::Origin& origin) {
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  return origin.scheme() == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-         || origin.scheme() == extensions::kArkwebExtensionScheme
-#endif
-      ;
+  return origin.scheme() == extensions::kExtensionScheme;
 #else
   return false;
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
+
+#if BUILDFLAG(IS_OHOS)
+bool ChromeContentBrowserClient::IsAdvancedSecurityMode() {
+  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  if (browser == nullptr || browser->profile() == nullptr) {
+    LOG(ERROR) << "AdvancedSecurityMode: get prefs value fail!";
+    return false;
+  }
+  Profile* profile = browser->profile();
+  auto* prefs = profile->GetPrefs();
+  return prefs->GetBoolean(prefs::kAdvancedSecurityModeEnabled);
+}
+#endif // BUILDFLAG(IS_OHOS)
 
 std::unique_ptr<content::ResponsivenessCalculatorDelegate>
 ChromeContentBrowserClient::CreateResponsivenessCalculatorDelegate() {

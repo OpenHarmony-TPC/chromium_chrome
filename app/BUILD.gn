@@ -99,12 +99,6 @@ grit("generated_resources") {
   source = "generated_resources.grd"
   defines = chrome_grit_defines + [ "is_cfm=${is_cfm}" ]
   output_dir = "$root_gen_dir/chrome"
-  #ifdef arkweb_i18n
-  if (arkweb_i18n) {
-    all_chrome_locales += extra_locales
-  }
-
-  #endif
   outputs =
       [ "grit/generated_resources.h" ] +
       process_file_template(all_chrome_locales,
@@ -130,12 +124,6 @@ if (is_android) {
 grit("branded_strings") {
   source = "${branding_path_product}_strings.grd"
   defines = chrome_grit_defines
-  #ifdef arkweb_i18n
-  if (arkweb_i18n) {
-    all_chrome_locales += extra_locales
-  }
-
-  #endif
   output_dir = "$root_gen_dir/chrome"
   outputs = [ "grit/branded_strings.h" ] +
             process_file_template(

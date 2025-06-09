@@ -585,7 +585,7 @@ void BrowserRootView::NavigateToDroppedUrls(
 
 #if BUILDFLAG(IS_OHOS)
   std::vector<GURL> filtered_urls;
-  RefreshDropUrls(event, filtered_urls);
+  ProcessDropUrls(event, filtered_urls);
   drop_info->urls = std::move(filtered_urls);
 #endif
 
@@ -637,7 +637,7 @@ void BrowserRootView::NavigateToDroppedUrls(
 }
 
 #if BUILDFLAG(IS_OHOS)
-void BrowserRootView::RefreshDropUrls(const ui::DropTargetEvent& event,
+void BrowserRootView::ProcessDropUrls(const ui::DropTargetEvent& event,
                                       std::vector<GURL>& filtered_urls) {
   std::vector<GURL> urls = GetURLsForDrop(event);
   if (urls.empty()) {
@@ -646,9 +646,18 @@ void BrowserRootView::RefreshDropUrls(const ui::DropTargetEvent& event,
       urls.push_back(paste_and_go_url.value());
     }
   }
-  for (size_t i = 0; i < urls.size(); ++i) {
-    const GURL& url = urls[i];
-    // Disallow javascript: URLs to prevent self-XSS.
+
+  // Filter all HTTP/HTTPS URLs.
+  std::vector<GURL> http_or_https_urls;
+  std::copy_if(urls.begin(), urls.end(), std::back_inserter(http_or_https_urls),
+               [](const GURL& url) { return url.SchemeIsHTTPOrHTTPS(); });
+
+  if (!http_or_https_urls.empty()) {
+    filtered_urls = std::move(http_or_https_urls);
+    return;
+  }
+
+  for (const GURL &url : urls) {
     if (!url.SchemeIs(url::kJavaScriptScheme)) {
       filtered_urls.push_back(url);
     }

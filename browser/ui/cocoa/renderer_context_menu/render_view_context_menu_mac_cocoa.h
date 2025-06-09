@@ -29,7 +29,6 @@ class RenderViewContextMenuMacCocoa : public RenderViewContextMenuMac {
 
   // RenderViewContextMenu:
   void Show() override;
-  bool IsRunning() override;
 
  private:
   // RenderViewContextMenuViewsMac:

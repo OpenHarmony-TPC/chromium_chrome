@@ -18,7 +18,6 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "cef/libcef/features/features.h"
 #include "chrome/common/buildflags.h"
 #include "components/lens/buildflags.h"
 #include "components/signin/public/base/signin_buildflags.h"
@@ -158,10 +157,6 @@ inline constexpr char kChromeUILauncherInternalsURL[] =
 inline constexpr char kChromeUILensSearchBubbleHost[] = "lens-search-bubble";
 inline constexpr char kChromeUILensSearchBubbleURL[] =
     "chrome://lens-search-bubble/";
-#if BUILDFLAG(ENABLE_CEF)
-inline constexpr char kChromeUILicenseHost[] = "license";
-inline constexpr char kChromeUILicenseURL[] = "chrome://license/";
-#endif
 inline constexpr char kChromeUILocalStateHost[] = "local-state";
 inline constexpr char kChromeUILocationInternalsHost[] = "location-internals";
 inline constexpr char kChromeUIManagementHost[] = "management";
@@ -619,9 +614,8 @@ inline constexpr char kChromeUISandboxHost[] = "sandbox";
 
 // TODO(crbug.com/40118868): Revisit the macro expression once build flag switch
 // of lacros-chrome is complete.
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) ||                 \
-    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)) || \
-    BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || \
+    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)) || BUILDFLAG(IS_OHOS)
 inline constexpr char kChromeUIBrowserSwitchHost[] = "browser-switch";
 inline constexpr char kChromeUIBrowserSwitchURL[] = "chrome://browser-switch/";
 inline constexpr char kChromeUIIntroDefaultBrowserSubPage[] = "default-browser";

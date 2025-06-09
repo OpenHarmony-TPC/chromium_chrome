@@ -354,6 +354,11 @@ gfx::NativeViewId ScreenCaptureNotificationUIImpl::OnStarted(
   params.z_order = ui::ZOrderLevel::kFloatingUIElement;
   params.name = "ScreenCaptureNotificationUIViews";
 
+#if BUILDFLAG(IS_OHOS)
+  params.caption_button_visible = false;
+  params.is_stateless = true;
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   // TODO(sergeyu): The notification bar must be shown on the monitor that's
   // being captured. Make sure it's always the case. Currently we always capture

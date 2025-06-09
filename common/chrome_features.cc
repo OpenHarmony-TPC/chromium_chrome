@@ -297,6 +297,13 @@ BASE_FEATURE(kDisruptiveNotificationPermissionRevocation,
              "DisruptiveNotificationPermissionRevocation",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_OHOS)
+// Sets whether the AdvancedSecurityMode setting is displayed in the settings UI.
+BASE_FEATURE(kAdvancedSecurityMode,
+             "AdvancedSecurityMode",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
 // Enable WebUSB on extension service workers.
 BASE_FEATURE(kEnableWebUsbOnExtensionServiceWorker,
              "EnableWebUsbOnExtensionServiceWorker",

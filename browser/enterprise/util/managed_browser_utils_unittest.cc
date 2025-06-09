@@ -130,8 +130,7 @@ class AutoSelectCertificateTest : public testing::Test {
 
   void SetPolicyValueInContentSettings(base::Value::List filters) {
 #if BUILDFLAG(IS_OHOS)
-    chrome::enterprise_util::SetTemplistForOhosTest(std::move(filters),
-                                                    GURL(kRequestingUrl));
+    chrome::enterprise_util::SetTemplistForOhosTest(std::move(filters), GURL(kRequestingUrl));
 #endif
     HostContentSettingsMap* m =
         HostContentSettingsMapFactory::GetForProfile(profile());

@@ -521,11 +521,7 @@ bool HidChooserContext::IsFidoAllowedForOrigin(const url::Origin& origin) {
           "gdmilihokhggmmlomocddffphkaikkke",  // gnubbyd-v3 flywheel
       });
 
-  if ((origin.scheme() == extensions::kExtensionScheme
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-       || origin.scheme() == extensions::kArkwebExtensionScheme
-#endif
-       ) &&
+  if (origin.scheme() == extensions::kExtensionScheme &&
       base::Contains(kPrivilegedExtensionIds, origin.host())) {
     return true;
   }

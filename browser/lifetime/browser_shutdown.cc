@@ -56,6 +56,10 @@
 #include "chrome/browser/lifetime/termination_notification.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/ime_adapter/input_method_ohos_adapter.h"
+#endif  // BUILDFLAG(IS_OHOS)
+
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
 #include "chrome/browser/background/background_mode_manager.h"
 #endif
@@ -139,6 +143,10 @@ void OnShutdownStarting(ShutdownType type) {
   content::AskAllChildrenToDumpProfilingData(nested_run_loop.QuitClosure());
   nested_run_loop.Run();
 #endif  // BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX) && BUILDFLAG(CLANG_PGO)
+#if BUILDFLAG(IS_OHOS)
+  auto& ime_instance = ohos::adapter::InputMethodOHOSAdapter::GetInstance();
+  ime_instance.OffListenIME();
+#endif // BUILDFLAG(IS_OHOS)
 
   // Call FastShutdown on all of the RenderProcessHosts.  This will be
   // a no-op in some cases, so we still need to go through the normal

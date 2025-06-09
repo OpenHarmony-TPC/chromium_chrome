@@ -66,15 +66,6 @@
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"  // nogncheck
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
-#include "components/subresource_filter/content/browser/ohos_adblock_config.h"
-#include "components/subresource_filter/core/browser/ruleset_version.h"
-#include "components/subresource_filter/core/browser/user_ruleset_version.h"
-#include "components/subresource_filter/core/common/constants.h"
-
-#if BUILDFLAG(ARKWEB_EDM_POLICY)
-#include "cef/ohos_cef_ext/libcef/browser/policy/browser_policy_handler.h"
-#endif
-
 namespace {
 
 // Returns a list of extra switch-dependent feature overrides to be applied
@@ -198,12 +189,6 @@ void ChromeFeatureListCreator::CreatePrefService() {
                             base::PathExists(local_state_file));
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(ARKWEB_EDM_POLICY)
-  base::FilePath policy_path;
-  base::PathService::Get(base::DIR_CACHE, &policy_path);
-  policy::BrowserPolicyHandler::GetInstance()->InitPolicyFromFile(policy_path);
-#endif
-
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
   RegisterLocalState(pref_registry.get());
 
@@ -236,11 +221,6 @@ void ChromeFeatureListCreator::CreatePrefService() {
       local_state_file, local_state_pref_store,
       browser_policy_connector_->GetPolicyService(), std::move(pref_registry),
       browser_policy_connector_.get());
-
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  OHOS::adblock::AdBlockConfig::GetInstance()->SetPrefService(
-      local_state_.get());
-#endif
 
   // Apply local test policies from the kLocalTestPoliciesForNextStartup pref if
   // there are any.

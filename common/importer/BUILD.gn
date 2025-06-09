@@ -104,7 +104,7 @@ source_set("importer") {
     ]
   } else if (is_ohos) {
     sources += [
-      "//arkweb/chromium_ext/chrome/common/importer/firefox_importer_utils_ohos.cc"
+      "firefox_importer_utils_ohos.cc"
     ]
   } else if (is_win) {
     sources += [

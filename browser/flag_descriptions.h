@@ -3275,7 +3275,7 @@ extern const char kUseSCContentSharingPickerDescription[];
 
 // Windows and Mac ------------------------------------------------------------
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
 
 extern const char kLocationProviderManagerName[];
 extern const char kLocationProviderManagerDescription[];
@@ -4879,6 +4879,11 @@ extern const char kSupervisedProfileShowKiteBadgeName[];
 extern const char kSupervisedProfileShowKiteBadgeDescription[];
 
 #endif  // #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_OHOS)
+extern const char kNetworkPreloadName[];
+extern const char kNetworkPreloadDescription[];
+#endif  // BUILDFLAG(IS_OHOS)
 
 // ============================================================================
 // Don't just add flags to the end, put them in the right section in

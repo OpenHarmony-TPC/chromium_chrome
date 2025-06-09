@@ -16,7 +16,6 @@
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
 #include "build/chromeos_buildflags.h"
-#include "cef/libcef/features/features.h"
 #include "chrome/browser/about_flags.h"
 #include "chrome/browser/accessibility/accessibility_labels_service.h"
 #include "chrome/browser/accessibility/invert_bubble_prefs.h"
@@ -199,10 +198,6 @@
 #include "printing/buildflags/buildflags.h"
 #include "rlz/buildflags/buildflags.h"
 
-#if BUILDFLAG(IS_ARKWEB_EXT)
-#include "arkweb/ohos_nweb_ex/build/features/features.h"
-#endif
-
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
 #include "chrome/browser/background/background_mode_manager.h"
 #endif
@@ -213,10 +208,6 @@
 #include "extensions/browser/permissions_manager.h"
 #include "extensions/browser/pref_names.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-
-#if BUILDFLAG(ENABLE_CEF)
-#include "cef/libcef/browser/prefs/browser_prefs.h"
-#endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/accessibility/animation_policy_prefs.h"
@@ -253,10 +244,6 @@
 #if BUILDFLAG(ENABLE_PDF)
 #include "chrome/browser/pdf/pdf_pref_names.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
-
-#if BUILDFLAG(IS_ARKWEB) && BUILDFLAG(ARKWEB_ENABLE_CDM)
-#include "components/cdm/browser/media_drm_storage_impl.h"
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/accessibility/accessibility_prefs/android/accessibility_prefs_controller.h"
@@ -558,16 +545,6 @@
 
 #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
 #include "components/enterprise/data_controls/core/browser/prefs.h"
-#endif
-
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-#include "components/subresource_filter/core/browser/user_ruleset_version.h"
-#endif
-
-#if BUILDFLAG(ARKWEB_EXT_UA)
-#include "base/command_line.h"
-#include "content/public/common/content_switches.h"
-#include "ohos_nweb_ex/overrides/cef/libcef/browser/alloy/alloy_browser_ua_config.h"
 #endif
 
 namespace {
@@ -1685,10 +1662,6 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
       registry,
       fingerprinting_protection_filter::kFingerprintingProtectionRulesetConfig
           .filter_tag);
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-  subresource_filter::UserIndexedRulesetVersion::RegisterPrefs(
-      registry, subresource_filter::kSafeBrowsingUserRulesetConfig.filter_tag);
-#endif  // TODO(HUAWEI):jiang   升级之后,兼容性
   SystemNetworkContextManager::RegisterPrefs(registry);
   tpcd::experiment::RegisterLocalStatePrefs(registry);
   tpcd::metadata::RegisterLocalStatePrefs(registry);
@@ -1878,8 +1851,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 #endif  // BUILDFLAG(IS_WIN)
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS) && \
-    BUILDFLAG(ENABLE_DOWNGRADE_PROCESSING)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
   downgrade::RegisterPrefs(registry);
 #endif
 
@@ -1932,15 +1904,6 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
 
   // This is intentionally last.
   RegisterLocalStatePrefsForMigration(registry);
-
-#if BUILDFLAG(ENABLE_CEF)
-  // Always call this last.
-  browser_prefs::RegisterLocalStatePrefs(registry);
-#endif
-
-#if BUILDFLAG(ARKWEB_EXT_PASSWORD)
-  browser_prefs::RegisterMigratePasswordsPrefs(registry);
-#endif
 }
 
 // Register prefs applicable to all profiles.
@@ -2045,13 +2008,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   translate::TranslatePrefs::RegisterProfilePrefs(registry);
   omnibox::RegisterProfilePrefs(registry);
   ZeroSuggestProvider::RegisterProfilePrefs(registry);
-#if BUILDFLAG(ARKWEB_EXT_UA)
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kEnableNwebExUa)) {
-    nweb_ex::AlloyBrowserUAConfig::RegisterProfilePrefs(registry);
-    registry->RegisterDictionaryPref(nweb_ex::kUACloudConfigInfo);
-  }
-#endif
 
 #if BUILDFLAG(ENABLE_SESSION_SERVICE)
   RegisterSessionServiceLogProfilePrefs(registry);
@@ -2093,11 +2049,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
 
 #if BUILDFLAG(ENABLE_RLZ)
   ChromeRLZTrackerDelegate::RegisterProfilePrefs(registry);
-#endif
-
-#if BUILDFLAG(IS_ARKWEB) && BUILDFLAG(ARKWEB_ENABLE_CDM)
-  LOG(INFO) << "[DRM]" << __func__;
-  cdm::MediaDrmStorageImpl::RegisterProfilePrefs(registry);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -2403,10 +2354,6 @@ void RegisterUserProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 void RegisterUserProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
                               const std::string& locale) {
   RegisterProfilePrefs(registry, locale);
-
-#if BUILDFLAG(ENABLE_CEF)
-  browser_prefs::RegisterProfilePrefs(registry);
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
   ::android::RegisterUserProfilePrefs(registry);

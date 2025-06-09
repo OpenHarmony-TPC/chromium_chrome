@@ -1102,8 +1102,4 @@ class DeveloperPrivateDismissMv2DeprecationNoticeForExtensionFunction
 
 }  // namespace extensions
 
-#if BUILDFLAG(IS_ARKWEB)
-#include "arkweb/chromium_ext/chrome/browser/extensions/api/developer_private_api_for_include.h"
-#endif
-
 #endif  // CHROME_BROWSER_EXTENSIONS_API_DEVELOPER_PRIVATE_DEVELOPER_PRIVATE_API_H_

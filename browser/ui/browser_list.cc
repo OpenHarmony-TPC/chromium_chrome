@@ -26,6 +26,7 @@
 #include "chrome/browser/ui/browser_window.h"
 
 #if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/browser/browser_adapter.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/gfx/native_widget_types.h"
@@ -396,9 +397,20 @@ bool BrowserList::IsOffTheRecordBrowserInUse(Profile* profile) {
 ////////////////////////////////////////////////////////////////////////////////
 // BrowserList, private:
 
-BrowserList::BrowserList() {}
+BrowserList::BrowserList() {
+#if BUILDFLAG(IS_OHOS)
+  auto& broser_adapter = ohos::adapter::BrowserAdapter::GetInstance();
+  broser_adapter.RegisterGetLastActiveCallback(std::bind(
+      &BrowserList::GetLastActiveAcceleratedWidget, this));
+#endif
+}
 
-BrowserList::~BrowserList() {}
+BrowserList::~BrowserList() {
+#if BUILDFLAG(IS_OHOS)
+  auto& broser_adapter = ohos::adapter::BrowserAdapter::GetInstance();
+  broser_adapter.UnRegisterGetLastActiveCallback();
+#endif
+}
 
 // static
 void BrowserList::RemoveBrowserFrom(Browser* browser,

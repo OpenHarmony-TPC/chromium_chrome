@@ -18,7 +18,7 @@
 
 #if BUILDFLAG(IS_OHOS)
 #include "base/values.h"
-#endif  // BUILDFLAG(IS_OHOS)
+#endif // BUILDFLAG(IS_OHOS)
 
 struct AccountInfo;
 class GURL;
