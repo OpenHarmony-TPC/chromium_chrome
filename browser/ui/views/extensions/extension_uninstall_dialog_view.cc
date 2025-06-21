@@ -18,6 +18,10 @@
 #include "ui/views/controls/button/checkbox.h"
 #include "ui/views/view.h"
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/chrome/browser/extensions/extension_uninstall_dialog_ohos.h"
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+
 namespace {
 
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kCheckboxId);
@@ -161,6 +165,13 @@ std::unique_ptr<extensions::ExtensionUninstallDialog>
 extensions::ExtensionUninstallDialog::Create(Profile* profile,
                                              gfx::NativeWindow parent,
                                              Delegate* delegate) {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  bool using_ohos_dialog = true;
+  if (using_ohos_dialog) {
+    return std::make_unique<ohos::ExtensionUninstallDialogOhos>(
+        profile, parent, delegate);
+  }
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   return std::make_unique<ExtensionUninstallDialogViews>(profile, parent,
                                                          delegate);
 }
