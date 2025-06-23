@@ -21,6 +21,10 @@
 #include "extensions/browser/extension_function.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "ohos_nweb/src/capi/browser_service/nweb_extension_bookmarks_types.h"
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
+
 class Profile;
 
 namespace base {
@@ -117,6 +121,9 @@ class BookmarksAPI : public BrowserContextKeyedAPI,
   std::unique_ptr<BookmarkEventRouter> bookmark_event_router_;
 };
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "cef/ohos_cef_ext/libcef/browser/extensions/api/bookmarks/bookmarks_api_for_include_file.cc"
+#else
 class BookmarksGetFunction : public BookmarksFunction {
  public:
   DECLARE_EXTENSION_FUNCTION("bookmarks.get", BOOKMARKS_GET)
@@ -256,6 +263,7 @@ class BookmarksUpdateFunction : public BookmarksFunction {
   // BookmarksFunction:
   ResponseValue RunOnReady() override;
 };
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 
 }  // namespace extensions
 
