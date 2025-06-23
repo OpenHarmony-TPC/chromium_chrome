@@ -542,7 +542,7 @@ void DownloadRequestLimiter::OnCanDownloadDecided(
     return;
   }
 
-#if defined(OHOS_EX_DOWNLOAD)
+#if BUILDFLAG(ARKWEB_EXT_DOWNLOAD)
   std::move(orig_callback).Run(allow);
 #else
   CanDownloadImpl(
