@@ -506,8 +506,17 @@ void ComponentLoader::AddDefaultComponentExtensions(
     }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(ENABLE_PDF)
-    Add(pdf_extension_util::GetManifest(),
-        base::FilePath(FILE_PATH_LITERAL("pdf")));
+#if BUILDFLAG(ARKWEB_PDF)
+    // If in advanced security mode, PDF preview is prohibited
+    bool isAdvancedSecurityMode = OHOS::Nweb::OhosAdapterHelper::GetInstance()
+                              .GetSystemPropertiesInstance().isAdvancedSecurityMode();
+    if (!isAdvancedSecurityMode) {
+#endif
+      Add(pdf_extension_util::GetManifest(),
+          base::FilePath(FILE_PATH_LITERAL("pdf")));
+#if BUILDFLAG(ARKWEB_PDF)
+    }
+#endif  // BUILDFLAG(ARKWEB_PDF)
 #endif  // BUILDFLAG(ENABLE_PDF)
   }
 
