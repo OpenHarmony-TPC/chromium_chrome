@@ -225,9 +225,7 @@ class ProfileNetworkContextService
 
   const raw_ptr<Profile> profile_;
 
-#if !BUILDFLAG(ARKWEB_NETWORK_BASE)
   ProxyConfigMonitor proxy_config_monitor_;
-#endif
 
   BooleanPrefMember quic_allowed_;
   StringPrefMember pref_accept_language_;
