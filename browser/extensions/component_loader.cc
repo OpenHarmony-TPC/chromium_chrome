@@ -509,7 +509,7 @@ void ComponentLoader::AddDefaultComponentExtensions(
 #if BUILDFLAG(ARKWEB_PDF)
     // If in advanced security mode, PDF preview is prohibited
     bool isAdvancedSecurityMode = OHOS::NWeb::OhosAdapterHelper::GetInstance()
-                              .GetSystemPropertiesInstance().isAdvancedSecurityMode();
+                              .GetSystemPropertiesInstance().IsAdvancedSecurityMode();
     if (!isAdvancedSecurityMode) {
 #endif
       Add(pdf_extension_util::GetManifest(),
