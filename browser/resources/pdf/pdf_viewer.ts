@@ -100,6 +100,17 @@ interface ZoomBounds {
   max: number;
 }
 
+/* arkweb_pdf extend Window api */
+declare global {
+  interface FileSystemHandle {
+    createWritable(): Promise<FileSystemWritableFileStream>;
+  }
+
+  interface Window {
+    showSaveFilePicker(opts: unknown): Promise<FileSystemHandle>;
+  }
+}
+
 /**
  * Return the filename component of a URL, percent decoded if possible.
  * Exported for tests.
@@ -1300,34 +1311,36 @@ export class PdfViewerElement extends PdfViewerBaseElement {
 
     // Create blob before callback to avoid race condition.
     const blob = new Blob([result.dataToSave], {type: 'application/pdf'});
-    chrome.fileSystem.chooseEntry(
-        {
-          type: 'saveFile',
-          accepts: [{description: '*.pdf', extensions: ['pdf']}],
-          suggestedName: fileName,
-        },
-        (entry?: FileSystemFileEntry) => {
-          if (chrome.runtime.lastError) {
-            if (chrome.runtime.lastError.message !== 'User cancelled') {
-              console.error(
-                  'chrome.fileSystem.chooseEntry failed: ' +
-                  chrome.runtime.lastError.message);
-            }
-            return;
-          }
-          entry!.createWriter((writer: FileWriter) => {
-            writer.write(blob);
-            // <if expr="enable_ink or enable_pdf_ink2">
-            // Unblock closing the window now that the user has saved
-            // successfully.
-            this.setShowBeforeUnloadDialog_(false);
-            // </if>
-            // <if expr="enable_pdf_ink2">
-            this.hasSavedEdits_ =
-                this.hasSavedEdits_ || requestType === SaveRequestType.EDITED;
-            // </if>
-          });
-        });
+    /* arkweb_pdf save modified files */
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: fileName,
+        types: [
+          {
+            description: '*.pdf',
+            accept: {
+              'application/pdf': ['.pdf'],
+            },
+          },
+        ],
+      });
+
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      // <if expr="enable_ink or enable_pdf_ink2">
+      // Unblock closing the window now that the user has saved
+      // successfully.
+      this.setShowBeforeUnloadDialog_(false);
+      // </if>
+      // <if expr="enable_pdf_ink2">
+      this.hasSavedEdits_ =
+          this.hasSavedEdits_ || requestType === SaveRequestType.EDITED;
+      // </if>
+      console.log('File saved successfully');
+    } catch (error) {
+      console.error('File saved failed', error);
+    }
 
     // <if expr="enable_pdf_ink2">
     // Ink2 doesn't need to exit annotation mode after save.
