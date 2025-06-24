@@ -133,6 +133,12 @@ CrxInstaller::CrxInstaller(base::WeakPtr<ExtensionService> service_weak,
       install_flags_(kInstallFlagNone) {
   profile_observation_.Observe(profile_);
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  if (client_) {
+    client_->install_ui()->SetSkipPostInstallUI(true);
+  }
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+
   if (!approval)
     return;
 
@@ -185,9 +191,16 @@ void CrxInstaller::InstallCrx(const base::FilePath& source_file) {
 }
 
 void CrxInstaller::InstallCrxFile(const CRXFileInfo& source_file) {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LOG(INFO) << "CrxInstaller::InstallCrxFile";
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   ExtensionService* service = service_weak_.get();
-  if (!service || service->browser_terminating())
+  if (!service || service->browser_terminating()) {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    LOG(INFO) << "exit CrxInstaller::InstallCrxFile, !service";
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
     return;
+  }
 
   NotifyCrxInstallBegin();
 

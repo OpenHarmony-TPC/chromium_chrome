@@ -20,6 +20,7 @@ import("//services/screen_ai/buildflags/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//arkweb/build/features/features.gni")
+import("//arkweb/chromium_ext/chrome/browser/extensions/arkweb_ui_views_extension.gni")
 
 assert(enable_extensions)
 assert(enable_supervised_users)
@@ -1492,6 +1493,10 @@ source_set("extensions") {
       "//components/enterprise/buildflags",
       "//components/enterprise/data_controls/core/browser",
     ]
+  }
+
+  if (arkweb_arkweb_extensions) {
+    sources += arkweb_ui_views_extension_sources
   }
 }
 

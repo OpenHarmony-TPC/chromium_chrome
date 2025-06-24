@@ -1467,12 +1467,34 @@ DeveloperPrivateInstallDroppedFileFunction::
 
 ExtensionFunction::ResponseAction
 DeveloperPrivateInstallDroppedFileFunction::Run() {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LOG(INFO) << "DeveloperPrivateInstallDroppedFileFunction::Run";
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   content::WebContents* web_contents = GetSenderWebContents();
   if (!web_contents)
     return RespondNow(Error(kCouldNotFindWebContentsError));
 
   DeveloperPrivateAPI* api = DeveloperPrivateAPI::Get(browser_context());
   base::FilePath path = api->GetDraggedPath(web_contents);
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LOG(INFO) << "path[" << path << "]";
+  if (path.empty()) {
+    auto* web_contents_delegate = web_contents->GetDelegate();
+    content::DropData* drop_data = nullptr;
+    if (web_contents_delegate) {
+      drop_data = web_contents_delegate->GetDropData();
+    }
+    if (drop_data && !drop_data->filenames.empty()) {
+      path = drop_data->filenames.front().path;
+      if (!path.IsAbsolute()
+            || !base::PathExists(path)
+            || !base::DirectoryExists(path.DirName())) {
+        return RespondNow(Error("Invalid path"));
+      }
+    }
+  }
+  LOG(INFO) << "fixed_path[" << path << "]";
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   if (path.empty())
     return RespondNow(Error("No dragged path"));
 
