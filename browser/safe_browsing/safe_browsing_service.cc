@@ -418,6 +418,10 @@ void SafeBrowsingServiceImpl::SetDatabaseManagerForTest(
 void SafeBrowsingServiceImpl::Start() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
+#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
+  return;
+#endif
+
   if (!enabled_) {
     enabled_ = true;
     services_delegate_->StartOnUIThread(
