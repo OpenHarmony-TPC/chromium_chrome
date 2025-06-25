@@ -6693,6 +6693,12 @@ void AddChromeSchemeFactories(
     allowed_webui_hosts.emplace_back(chrome::kChromeUIAppIconHost);
   }
   if (!allowed_webui_hosts.empty()) {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    factories->emplace(content::kArkWebUIScheme,
+                       content::CreateWebUIURLLoaderFactory(
+                           frame_host, content::kArkWebUIScheme,
+                           allowed_webui_hosts));
+#endif
     factories->emplace(content::kChromeUIScheme,
                        content::CreateWebUIURLLoaderFactory(
                            frame_host, content::kChromeUIScheme,
