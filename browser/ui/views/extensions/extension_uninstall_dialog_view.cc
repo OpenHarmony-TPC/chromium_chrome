@@ -166,12 +166,10 @@ extensions::ExtensionUninstallDialog::Create(Profile* profile,
                                              gfx::NativeWindow parent,
                                              Delegate* delegate) {
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  bool using_ohos_dialog = true;
-  if (using_ohos_dialog) {
-    return std::make_unique<ohos::ExtensionUninstallDialogOhos>(
-        profile, parent, delegate);
-  }
-#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  return std::make_unique<ohos::ExtensionUninstallDialogOhos>(
+      profile, parent, delegate);
+#else
   return std::make_unique<ExtensionUninstallDialogViews>(profile, parent,
                                                          delegate);
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 }
