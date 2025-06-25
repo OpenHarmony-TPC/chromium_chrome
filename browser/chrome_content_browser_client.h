@@ -1352,6 +1352,20 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
                                 ui::PageTransition transition,
                                 bool* ignore_navigation) override;
 #endif
+
+  std::string OverrideErrorPage(content::FrameTreeNodeId frame_tree_node_id,
+                                bool browser_initiated,
+                                const GURL& gurl,
+                                const std::string& request_method,
+                                bool has_user_gesture,
+                                bool is_redirect,
+                                bool is_outermost_main_frame,
+                                int error_code,
+                                const std::string& error_text,
+                                bool is_prerendering,
+                                ui::PageTransition transition,
+                                std::string* html) override;
+
   base::WeakPtrFactory<ChromeContentBrowserClient> weak_factory_{this};
 };
 
