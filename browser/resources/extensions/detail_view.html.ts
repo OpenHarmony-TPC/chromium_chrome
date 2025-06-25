@@ -64,7 +64,7 @@ this text can be found by Ctrl + F because it isn't hidden. -->
           <span class="section-title" aria-level="2">
             ${this.getMv2DeprecationMessageHeader_()}
           </span>
-          <div class="section-content"
+          <div hidden=true class="section-content"
               .innerHTML="${this.getMv2DeprecationMessageSubtitle_()}">
           </div>
         </div>
@@ -302,7 +302,7 @@ this text can be found by Ctrl + F because it isn't hidden. -->
                 class="hr" @change="${this.onShowAccessRequestsChange_}">
               <div id="access-toggle-and-link">
                 <span>$i18n{itemShowAccessRequestsInToolbar}</span>
-                <a class="link-icon-button"
+                <a hidden=true class="link-icon-button"
                     aria-label="$i18n{itemShowAccessRequestsLearnMore}"
                     href="$i18n{showAccessRequestsInToolbarLearnMoreLink}"
                     target="_blank">
@@ -329,13 +329,13 @@ this text can be found by Ctrl + F because it isn't hidden. -->
     ${this.shouldShowOptionsSection_() ? html`
       <div id="options-section">
         ${this.canPinToToolbar_() ? html`
-          <extensions-toggle-row id="pin-to-toolbar"
+          <extensions-toggle-row hidden=true id="pin-to-toolbar"
               ?checked="${this.data.pinnedToToolbar}" class="hr"
               @change="${this.onPinnedToToolbarChange_}">
             <span>$i18n{itemPinToToolbar}</span>
           </extensions-toggle-row>` : ''}
         ${this.shouldShowIncognitoOption_() ? html`
-          <extensions-toggle-row id="allow-incognito"
+          <extensions-toggle-row hidden=true id="allow-incognito"
               ?checked="${this.data.incognitoAccess.isActive}" class="hr"
               @change="${this.onAllowIncognitoChange_}">
             <div>
@@ -371,11 +371,11 @@ this text can be found by Ctrl + F because it isn't hidden. -->
         id="extensionWebsite" label="$i18n{extensionWebsite}"
         @click="${this.onExtensionWebSiteClick_}" external>
     </cr-link-row>
-    <cr-link-row class="hr" ?hidden="${!this.data.webStoreUrl.length}"
+    <cr-link-row class="hr" hidden=true
         id="viewInStore" label="$i18n{viewInStore}"
         @click="${this.onViewInStoreClick_}" external>
     </cr-link-row>
-    <div class="section hr">
+    <div hidden=true class="section hr">
       <div class="section-title" role="heading" aria-level="2">
         $i18n{itemSource}
       </div>
