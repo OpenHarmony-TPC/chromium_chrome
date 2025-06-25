@@ -36,10 +36,10 @@ ${this.showPackDialog_ ? html`
         @click="${this.onLoadUnpackedClick_}">
       $i18n{toolbarLoadUnpacked}
     </cr-button>
-    <cr-button id="packExtensions" @click="${this.onPackClick_}">
+    <cr-button id="packExtensions" hidden=true @click="${this.onPackClick_}">
       $i18n{toolbarPack}
     </cr-button>
-    <cr-button id="updateNow" @click="${this.onUpdateNowClick_}"
+    <cr-button id="updateNow" hidden=true @click="${this.onUpdateNowClick_}"
         title="$i18n{toolbarUpdateNowTooltip}">
       $i18n{toolbarUpdateNow}
     </cr-button>

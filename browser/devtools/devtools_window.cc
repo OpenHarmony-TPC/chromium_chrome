@@ -2021,6 +2021,7 @@ void DevToolsWindow::MaybeShowSharedProcessInfobar() {
   const GURL& site_url = site_instance->GetSiteURL();
   if (site_url.SchemeIs(extensions::kExtensionScheme) ||
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      site_url.SchemeIs(content::kArkWebUIScheme) ||
       site_url.SchemeIs(extensions::kArkwebExtensionScheme) ||
 #endif
       site_url.SchemeIs(content::kChromeDevToolsScheme) ||

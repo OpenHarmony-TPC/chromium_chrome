@@ -32,7 +32,7 @@ ${this.showDrawer_ ? html`
     </div>
   </cr-drawer>` : ''}
 <div id="container">
-  <div id="left" ?hidden="${this.narrow_}">
+  <div id="left" hidden=true>
     <extensions-sidebar @close-drawer="${this.onCloseDrawer_}"
         ?enable-enhanced-site-controls="${this.enableEnhancedSiteControls}">
     </extensions-sidebar>
@@ -83,7 +83,7 @@ ${this.showDrawer_ ? html`
         </extensions-error-page>`}">
     </cr-lazy-render-lit>
   </cr-view-manager>
-  <div id="right" ?hidden="${this.narrow_}"></div>
+  <div id="right" hidden=true></div>
 </div>
 ${this.showOptionsDialog_ ? html`
   <extensions-options-dialog id="options-dialog"

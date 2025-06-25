@@ -64,6 +64,10 @@
 #include "chrome/browser/ash/crosapi/browser_util.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "chrome/browser/ui/webui/extensions/extensions_ui_ext.h"
+#endif
+
 namespace extensions {
 
 namespace {
@@ -501,8 +505,13 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
 
 }  // namespace
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+ExtensionsUIConfig::ExtensionsUIConfig()
+    : WebUIConfig(content::kArkWebUIScheme, chrome::kChromeUIExtensionsHost) {}
+#else
 ExtensionsUIConfig::ExtensionsUIConfig()
     : WebUIConfig(content::kChromeUIScheme, chrome::kChromeUIExtensionsHost) {}
+#endif
 
 ExtensionsUIConfig::~ExtensionsUIConfig() = default;
 
@@ -539,16 +548,7 @@ ExtensionsUI::ExtensionsUI(content::WebUI* web_ui)
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   // TODO: If chrome:// -> arkweb:// replaced completely, remove it
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::DefaultSrc,
-      "default-src 'self' 'unsafe-inline' arkweb://resources "
-      "arkweb://extensions  chrome://resources chrome://extensions "
-      "chrome://theme data:;");
-
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src 'self' 'unsafe-inline'  arkweb://resources "
-      "arkweb://extensions  chrome://resources chrome://extensions;");
+  ArkWebExtensionsWebUIOverrideContentSecurityPolicies(source);
 #endif
 
   content::URLDataSource::Add(
