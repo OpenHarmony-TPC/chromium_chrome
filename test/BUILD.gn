@@ -8320,6 +8320,10 @@ test("unit_tests") {
       "../renderer/extensions/renderer_permissions_policy_delegate_unittest.cc",
     ]
 
+    if (use_aura) {
+      sources += [ "../browser/extensions/extension_install_prompt_show_params_unittest.cc" ]
+    }
+
     if (is_linux || is_mac || is_win) {
       sources += [
         "../browser/enterprise/connectors/analysis/content_analysis_sdk_manager_unittest.cc",
