@@ -41,7 +41,11 @@ void ChromeExtensionHostDelegate::OnMainFrameCreatedForBackgroundPage(
 
 content::JavaScriptDialogManager*
 ChromeExtensionHostDelegate::GetJavaScriptDialogManager() {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  return nullptr;
+#else
   return javascript_dialogs::AppModalDialogManager::GetInstance();
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 void ChromeExtensionHostDelegate::CreateTab(
