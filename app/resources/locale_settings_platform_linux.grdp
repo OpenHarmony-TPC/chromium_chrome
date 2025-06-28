@@ -9,5 +9,9 @@
     <file path="platform_locale_settings/locale_settings_linux_ka.xtb" lang="ka" />
     <file path="platform_locale_settings/locale_settings_linux_mk.xtb" lang="mk" />
     <file path="platform_locale_settings/locale_settings_linux_my.xtb" lang="my" />
+    <file path="platform_locale_settings/locale_settings_linux_be.xtb" lang="be" />
+    <file path="platform_locale_settings/locale_settings_linux_kk.xtb" lang="kk" />
+    <file path="platform_locale_settings/locale_settings_linux_km.xtb" lang="km" />
+    <file path="platform_locale_settings/locale_settings_linux_uz.xtb" lang="uz" />
   </if>
 </grit-part>
