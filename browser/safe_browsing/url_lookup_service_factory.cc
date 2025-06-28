@@ -85,12 +85,20 @@ KeyedService* RealTimeUrlLookupServiceFactory::BuildServiceInstanceFor(
                               AreSigninAndSyncSetUpForSafeBrowsingTokenFetches,
                           SyncServiceFactory::GetForProfile(profile),
                           IdentityManagerFactory::GetForProfile(profile)),
-      profile->IsOffTheRecord(), g_browser_process->variations_service(),
+      profile->IsOffTheRecord(),
+      base::BindRepeating(
+          &RealTimeUrlLookupServiceFactory::GetVariationsService),
       SafeBrowsingNavigationObserverManagerFactory::GetForBrowserContext(
           profile));
 #else
   return nullptr;
 #endif
+}
+
+// static
+variations::VariationsService*
+RealTimeUrlLookupServiceFactory::GetVariationsService() {
+  return g_browser_process->variations_service();
 }
 
 }  // namespace safe_browsing
