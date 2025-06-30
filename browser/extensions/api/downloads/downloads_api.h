@@ -24,10 +24,6 @@
 #include "extensions/browser/extension_registry_observer.h"
 #include "extensions/browser/warning_set.h"
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "cef/ohos_cef_ext/libcef/browser/extensions/api/downloads/downloads_api_for_include_file.cc"
-#endif
-
 class DownloadFileIconExtractor;
 class DownloadOpenPrompt;
 class Profile;
@@ -71,6 +67,10 @@ extern const char kUserGesture[];
 }  // namespace download_extension_errors
 
 namespace extensions {
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "cef/ohos_cef_ext/libcef/browser/extensions/api/downloads/downloads_api_for_include_file.cc"
+#endif
 
 class DownloadedByExtension : public base::SupportsUserData::Data {
  public:
