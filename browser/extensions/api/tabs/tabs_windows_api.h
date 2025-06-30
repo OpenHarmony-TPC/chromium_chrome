@@ -13,6 +13,8 @@
 #include "extensions/browser/event_router.h"
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "ohos_nweb/src/capi/web_extension_tab_items.h"
+
 struct NWebExtensionTabChangeInfo;
 #endif // ARKWEB_ARKWEB_EXTENSIONS
 
@@ -42,17 +44,7 @@ class TabsWindowsAPI : public BrowserContextKeyedAPI,
   void OnListenerAdded(const extensions::EventListenerInfo& details) override;
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  void TabUpdated(int tab_id,
-                  content::WebContents* contents,
-                  const std::vector<std::string>& changed_property_names,
-                  const std::string& url);
-
-  void TabUpdated(int tab_id,
-      content::WebContents* contents,
-      const std::vector<std::string>& changed_property_names,
-      std::unique_ptr<NWebExtensionTabChangeInfo> changeInfo);
-
-  void TabActived(int tab_id, int window_id, content::WebContents* contents);
+#include "cef/ohos_cef_ext/libcef/browser/extensions/api/tabs/tabs_windows_api_for_include_file.cc"
 #endif // ARKWEB_ARKWEB_EXTENSIONS
 
  private:

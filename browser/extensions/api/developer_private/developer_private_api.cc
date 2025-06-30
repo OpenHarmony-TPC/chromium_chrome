@@ -2246,8 +2246,10 @@ ExtensionFunction::ResponseAction DeveloperPrivateShowOptionsFunction::Run() {
   if (!web_contents)
     return RespondNow(Error(kCouldNotFindWebContentsError));
 
-  ExtensionTabUtil::OpenOptionsPage(extension,
-                                    chrome::FindBrowserWithTab(web_contents));
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+   ExtensionTabUtil::OpenOptionsPage(extension,
+                                     chrome::FindBrowserWithTab(web_contents));
+#endif
   return RespondNow(NoArguments());
 }
 
