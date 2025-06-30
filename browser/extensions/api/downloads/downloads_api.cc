@@ -1250,6 +1250,7 @@ ExtensionFunction::ResponseAction DownloadsSearchFunction::Run() {
   return RespondNow(WithArguments(std::move(json_results)));
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 DownloadsPauseFunction::DownloadsPauseFunction() {}
 
 DownloadsPauseFunction::~DownloadsPauseFunction() {}
@@ -1566,6 +1567,7 @@ void DownloadsOpenFunction::OpenPromptDone(int download_id, bool accept) {
   download_item->OpenDownload();
   Respond(NoArguments());
 }
+#endif
 
 DownloadsSetShelfEnabledFunction::DownloadsSetShelfEnabledFunction() {}
 
@@ -1621,6 +1623,7 @@ ExtensionFunction::ResponseAction DownloadsSetShelfEnabledFunction::Run() {
   return RespondNow(NoArguments());
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 DownloadsSetUiOptionsFunction::DownloadsSetUiOptionsFunction() = default;
 
 DownloadsSetUiOptionsFunction::~DownloadsSetUiOptionsFunction() = default;
@@ -1671,6 +1674,7 @@ ExtensionFunction::ResponseAction DownloadsSetUiOptionsFunction::Run() {
 
   return RespondNow(NoArguments());
 }
+#endif
 
 DownloadsGetFileIconFunction::DownloadsGetFileIconFunction()
     : icon_extractor_(new DownloadFileIconExtractorImpl()) {}
