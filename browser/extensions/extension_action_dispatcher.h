@@ -83,7 +83,7 @@ class ExtensionActionDispatcher : public BrowserContextKeyedAPI {
                                       const Extension* extension);
 
   void DispatchExtensionActionClickedWithCustomArgs(
-    content::WebContents* web_contents,
+    content::BrowserContext* context,
     std::string extension_id,
     const NWebExtensionTab* custom_tab);
   // Called when the action for the given extension is pinned or unpinned from

@@ -367,12 +367,12 @@ void ExtensionSystemImpl::InitForRegularProfile(bool extensions_enabled) {
     return;  // Already initialized.
   }
 
-  shared_->Init(extensions_enabled);
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   extension_registry_info_manager_ = std::make_unique<ExtensionRegistryInfoManager>(profile_.get());
   InitForRegularProfileForInclude(profile_.get(),
                                   extension_registry_info_manager_.get());
 #endif
+  shared_->Init(extensions_enabled);
 }
 
 ExtensionService* ExtensionSystemImpl::extension_service() {
