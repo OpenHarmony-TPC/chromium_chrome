@@ -2231,6 +2231,7 @@ void DeveloperPrivateRepairExtensionFunction::OnReinstallComplete(
 
 DeveloperPrivateShowOptionsFunction::~DeveloperPrivateShowOptionsFunction() {}
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction DeveloperPrivateShowOptionsFunction::Run() {
   std::optional<developer::ShowOptions::Params> params =
       developer::ShowOptions::Params::Create(args());
@@ -2250,6 +2251,7 @@ ExtensionFunction::ResponseAction DeveloperPrivateShowOptionsFunction::Run() {
                                     chrome::FindBrowserWithTab(web_contents));
   return RespondNow(NoArguments());
 }
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 DeveloperPrivateShowPathFunction::~DeveloperPrivateShowPathFunction() {}
 
