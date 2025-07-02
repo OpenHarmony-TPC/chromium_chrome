@@ -711,7 +711,7 @@ namespace developerPrivate {
 
     // ifdef ARKWEB_ARKWEB_EXTENSIONS
     // open a extension url.
-    static void openUrl(DOMString url);
+    static void openUrl(DOMString url, long type);
 
     // Modifies an extension's current configuration.
     // |update| : The parameters for updating the extension's configuration.

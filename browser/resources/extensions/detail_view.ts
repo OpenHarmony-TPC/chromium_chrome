@@ -394,14 +394,15 @@ export class ExtensionsDetailViewElement extends
   }
 
   protected onExtensionWebSiteClick_() {
-    this.delegate.openUrl(this.data.manifestHomePageUrl);
+    // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    this.delegate.openUrlEx(this.data.manifestHomePageUrl, 3);
   }
 
   protected onSiteSettingsClick_() {
     // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-    this.delegate.openUrl(
-        `chrome://settings/websiteSettings?site=arkweb-extension://${
-            this.data.id}`);
+    this.delegate.openUrlEx(
+      `chrome://settings/websiteSettings?site=arkweb-extension://${
+          this.data.id}`, 1);
   }
 
   protected onViewInStoreClick_() {
