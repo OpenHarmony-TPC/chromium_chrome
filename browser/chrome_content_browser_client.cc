@@ -819,6 +819,10 @@
 #include "chrome/browser/on_device_translation/pref_names.h"
 #endif  // BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
 
+#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
+#include "cef/ohos_cef_ext/libcef/browser/net_service/net_helpers.h"
+#endif
+
 using blink::mojom::EffectiveConnectionType;
 using blink::web_pref::WebPreferences;
 using content::BrowserThread;
@@ -8212,6 +8216,13 @@ ChromeContentBrowserClient::ShouldOverridePrivateNetworkRequestPolicy(
           PrivateNetworkRequestPolicyOverride::kForceAllow;
     }
   }
+
+#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
+  if (net_service::NetHelpers::SkipPreflightCheck()) {
+    return content::ContentBrowserClient::
+          PrivateNetworkRequestPolicyOverride::kForceAllow;
+  }
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
   if (base::android::BuildInfo::GetInstance()->is_automotive()) {
