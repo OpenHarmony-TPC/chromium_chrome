@@ -465,8 +465,14 @@ void DisplayMediaAccessHandler::ProcessQueuedPickerRequest(
         std::move(includable_web_contents_filter), web_contents);
   }
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+base::OnceCallback<void(uint64_t displayId)> callback = base::BindOnce([](uint64_t value) {});
+  auto source_lists = picker_factory_->CreateMediaList(
+      media_types, web_contents, includable_web_contents_filter, std::move(callback));
+#else
   auto source_lists = picker_factory_->CreateMediaList(
       media_types, web_contents, includable_web_contents_filter);
+#endif
 
   // base::Unretained(this) is safe because DisplayMediaAccessHandler is owned
   // by MediaCaptureDevicesDispatcher, which is a lazy singleton which is

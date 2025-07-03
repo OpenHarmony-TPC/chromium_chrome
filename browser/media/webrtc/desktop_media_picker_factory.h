@@ -30,7 +30,12 @@ class DesktopMediaPickerFactory {
   virtual std::vector<std::unique_ptr<DesktopMediaList>> CreateMediaList(
       const std::vector<DesktopMediaList::Type>& types,
       content::WebContents* web_contents,
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      DesktopMediaList::WebContentsFilter includable_web_contents_filter,
+      base::OnceCallback<void(uint64_t displayId)> callback) = 0;
+#else
       DesktopMediaList::WebContentsFilter includable_web_contents_filter) = 0;
+#endif
 
  protected:
   DesktopMediaPickerFactory();
