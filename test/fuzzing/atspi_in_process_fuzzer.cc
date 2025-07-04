@@ -375,7 +375,9 @@ std::vector<ScopedAtspiAccessible> AtspiInProcessFuzzer::GetChildren(
     }
   }
   g_clear_error(&error);
-  g_hash_table_unref(attributes);
+  if (attributes) {
+    g_hash_table_unref(attributes);
+  }
 
   // The following code is similar to ui::ChildrenOf, except that we
   // return a vector containing smart pointers which does appropriate reference
