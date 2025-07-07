@@ -102,21 +102,36 @@
   }
 }
 
+/* arkweb_pdf vertical screen only display viewer-page-selector without showing fit */
 @media(max-width: 500px) {
-  #start,
-  #fit {
+  #start {
     display: flex;
   }
 }
 
+/* arkweb_pdf vertical screen also display center to show viewer-page-selector */
 @media(max-width: 420px) {
-  #center {
-    display: none;
-  }
-
   #end {
     padding-inline-start: initial;
     text-align: center;
+  }
+}
+
+/* arkweb_pdf vertical screen only display viewer-page-selector without showing rotate or zoom options */
+@media(max-width: 500px) {
+  .vertical-separator,
+  #zoom-controls,
+  #rotate,
+  #fit {
+    display: none;
+  }
+}
+
+/* arkweb_pdf vertical screen also display viewer-page-selector */
+@media(max-width: 500px) {
+  viewer-page-selector {
+    position: absolute;
+    left: 220px;
   }
 }
 
