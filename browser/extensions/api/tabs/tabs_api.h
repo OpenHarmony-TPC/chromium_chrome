@@ -119,13 +119,14 @@ class TabsQueryFunction : public ExtensionFunction {
 class TabsCreateFunction : public ExtensionFunction {
   ~TabsCreateFunction() override {}
   ResponseAction Run() override;
+  DECLARE_EXTENSION_FUNCTION("tabs.create", TABS_CREATE)
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   static void OnTabCreated(const base::WeakPtr<TabsCreateFunction>& function,
                            const NWebExtensionTab* tab);
+  static void CreateTabForExtension(std::string& url);
   bool call_create_tab_ = false;
   base::WeakPtrFactory<TabsCreateFunction> weak_ptr_factory_{this};
 #endif // ARKWEB_ARKWEB_EXTENSIONS
-  DECLARE_EXTENSION_FUNCTION("tabs.create", TABS_CREATE)
 };
 class TabsDuplicateFunction : public ExtensionFunction {
   ~TabsDuplicateFunction() override {}
