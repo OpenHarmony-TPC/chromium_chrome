@@ -130,6 +130,63 @@ export function getFilenameFromURL(url: string): string {
   }
 }
 
+/* arkweb_pdf parse the parameters encoded in the fragment of a URL */
+export function parseUrlParams(url: string): URLSearchParams {
+  const urlObj = new URL(url);
+  const combinedParams = new URLSearchParams();
+
+  // parse (?query=string)
+  urlObj.searchParams.forEach((value, key) => {
+    combinedParams.append(key, value);
+  });
+
+  const fragment = urlObj.hash.substring(1);
+  const fragmentParams = new URLSearchParams(fragment);
+  if (Array.from(fragmentParams).length === 1) {
+    const key = Array.from(fragmentParams.keys())[0]!;
+    if (fragmentParams.get(key) === '') {
+      fragmentParams.append('nameddest', key);
+      fragmentParams.delete(key);
+    }
+  }
+
+  // parse fragment parameters (#section)
+  fragmentParams.forEach((value, key) => {
+    combinedParams.append(key, value);
+  });
+
+  return combinedParams;
+}
+
+/* arkweb_pdf parses URL to extract background color parameter */
+export function getBackgroundColorFromURL(url: string): number {
+  const params = parseUrlParams(url);
+  const colorValues = params.getAll('pdfbackgroundcolor');
+  const pdfBackgroundColor = colorValues.length > 0 ? colorValues[colorValues.length - 1] : null;
+
+  // return default color if parameter not found
+  if (!pdfBackgroundColor) {
+    return BACKGROUND_COLOR;
+  }
+
+  // validate 6-digit hex color format
+  if (/^[0-9a-f]{6}$/i.test(pdfBackgroundColor)) {
+    // add fully opaque alpha channel (0xff)
+    return parseInt('ff' + pdfBackgroundColor.toLowerCase(), 16);
+  }
+
+  // validate 3-digit shorthand hex format
+  if (/^[0-9a-f]{3}$/i.test(pdfBackgroundColor)) {
+    const fullColor = pdfBackgroundColor.toLowerCase().split('')
+                      .map(c => c + c)
+                      .join('');
+    return parseInt('ff' + fullColor, 16);
+  }
+
+  // return default color for invalid formats
+  return BACKGROUND_COLOR;
+}
+
 function eventToPromise(event: string, target: HTMLElement): Promise<void> {
   return new Promise(
       resolve => listenOnce(target, event, (_e: Event) => resolve()));
@@ -149,7 +206,6 @@ const LOCAL_STORAGE_SIDENAV_COLLAPSED_KEY: string = 'sidenavCollapsed';
  */
 // LINT.IfChange(PdfBackgroundColor)
 const BACKGROUND_COLOR: number = 0xff525659;
-const CR23_BACKGROUND_COLOR: number = 0xff282828;
 // LINT.ThenChange(//components/pdf/common/pdf_util.cc:PdfBackgroundColor)
 
 export interface PdfViewerElement {
@@ -341,7 +397,9 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   // </if>
 
   getBackgroundColor(): number {
-    return this.pdfCr23Enabled ? CR23_BACKGROUND_COLOR : BACKGROUND_COLOR;
+    /* arkweb_pdf parses URL to extract background color parameter */
+    const backgroundColor = getBackgroundColorFromURL(this.originalUrl);
+    return backgroundColor;
   }
 
   setPluginSrc(plugin: HTMLEmbedElement) {
