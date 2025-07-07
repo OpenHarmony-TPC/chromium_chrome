@@ -474,11 +474,16 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       "enableUserPermittedSites",
       base::FeatureList::IsEnabled(
           extensions_features::kExtensionsMenuAccessControlWithPermittedSites));
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  source->AddBoolean("safetyCheckShowReviewPanel", false);
+  source->AddBoolean("safetyHubShowReviewPanel", false);
+#else
   source->AddBoolean(
       "safetyCheckShowReviewPanel",
       base::FeatureList::IsEnabled(features::kSafetyCheckExtensions));
   source->AddBoolean("safetyHubShowReviewPanel",
                      base::FeatureList::IsEnabled(features::kSafetyHub));
+#endif
 
   // MV2 deprecation.
   auto* mv2_experiment_manager = ManifestV2ExperimentManager::Get(profile);
