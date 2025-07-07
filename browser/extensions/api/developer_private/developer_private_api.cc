@@ -134,6 +134,7 @@
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "arkweb/chromium_ext/chrome/browser/extensions/api/developer_private_api_ext.cc"
+#include "arkweb/chromium_ext/chrome/browser/extensions/extension_multiple_uninstall_dialog_ohos.h"
 #endif // ARKWEB_ARKWEB_EXTENSIONS
 
 namespace extensions {
@@ -2231,6 +2232,7 @@ void DeveloperPrivateRepairExtensionFunction::OnReinstallComplete(
 
 DeveloperPrivateShowOptionsFunction::~DeveloperPrivateShowOptionsFunction() {}
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction DeveloperPrivateShowOptionsFunction::Run() {
   std::optional<developer::ShowOptions::Params> params =
       developer::ShowOptions::Params::Create(args());
@@ -2252,6 +2254,7 @@ ExtensionFunction::ResponseAction DeveloperPrivateShowOptionsFunction::Run() {
 #endif
   return RespondNow(NoArguments());
 }
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 DeveloperPrivateShowPathFunction::~DeveloperPrivateShowPathFunction() {}
 
@@ -2779,6 +2782,16 @@ DeveloperPrivateRemoveMultipleExtensionsFunction::Run() {
     return AlreadyResponded();
   }
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  ohos::ShowExtensionMultipleUninstallDialog(
+      extension_ids_,
+      base::BindOnce(
+          &DeveloperPrivateRemoveMultipleExtensionsFunction::OnDialogAccepted,
+          this),
+      base::BindOnce(
+          &DeveloperPrivateRemoveMultipleExtensionsFunction::OnDialogCancelled,
+          this));
+#else
   gfx::NativeWindow parent;
   if (!GetSenderWebContents()) {
     CHECK_IS_TEST();
@@ -2797,15 +2810,22 @@ DeveloperPrivateRemoveMultipleExtensionsFunction::Run() {
       base::BindOnce(
           &DeveloperPrivateRemoveMultipleExtensionsFunction::OnDialogCancelled,
           this));
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   return RespondLater();
 }
 
 void DeveloperPrivateRemoveMultipleExtensionsFunction::OnDialogCancelled() {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LOG(INFO) << "DeveloperPrivateRemoveMultipleExtensionsFunction::OnDialogCancelled";
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   // Let the consumer end know that the Close button was clicked.
   Respond(Error(kUserCancelledError));
 }
 
 void DeveloperPrivateRemoveMultipleExtensionsFunction::OnDialogAccepted() {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LOG(INFO) << "DeveloperPrivateRemoveMultipleExtensionsFunction::OnDialogAccepted";
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   for (const auto& extension_id : extension_ids_) {
     if (!browser_context()) {
       return;

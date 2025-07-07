@@ -152,6 +152,7 @@ int GetTabIdForExtensions(const WebContents* web_contents) {
   return cef::GetTabIdForWebContents(web_contents);
 #else
   return sessions::SessionTabHelper::IdForTab(web_contents).id();
+#endif
 }
 
 bool IsFileUrl(const GURL& url) {

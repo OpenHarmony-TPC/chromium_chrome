@@ -68,6 +68,10 @@ extern const char kUserGesture[];
 
 namespace extensions {
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "cef/ohos_cef_ext/libcef/browser/extensions/api/downloads/downloads_api_for_include_file.cc"
+#endif
+
 class DownloadedByExtension : public base::SupportsUserData::Data {
  public:
   static DownloadedByExtension* Get(download::DownloadItem* item);
@@ -125,6 +129,7 @@ class DownloadsSearchFunction : public ExtensionFunction {
   ~DownloadsSearchFunction() override;
 };
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 class DownloadsPauseFunction : public ExtensionFunction {
  public:
   DECLARE_EXTENSION_FUNCTION("downloads.pause", DOWNLOADS_PAUSE)
@@ -283,6 +288,7 @@ class DownloadsOpenFunction : public ExtensionFunction {
 
   static OnPromptCreatedCallback* on_prompt_created_cb_;
 };
+#endif
 
 class DownloadsSetShelfEnabledFunction : public ExtensionFunction {
  public:
@@ -301,6 +307,7 @@ class DownloadsSetShelfEnabledFunction : public ExtensionFunction {
   ~DownloadsSetShelfEnabledFunction() override;
 };
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 class DownloadsSetUiOptionsFunction : public ExtensionFunction {
  public:
   DECLARE_EXTENSION_FUNCTION("downloads.setUiOptions", DOWNLOADS_SETUIOPTIONS)
@@ -315,6 +322,7 @@ class DownloadsSetUiOptionsFunction : public ExtensionFunction {
  protected:
   ~DownloadsSetUiOptionsFunction() override;
 };
+#endif
 
 class DownloadsGetFileIconFunction : public ExtensionFunction {
  public:

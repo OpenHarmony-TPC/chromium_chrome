@@ -563,9 +563,16 @@ void DesktopCaptureAccessHandler::ProcessQueuedAccessRequest(
       capture_policy::GetIncludableWebContentsFilter(request_origin,
                                                      capture_level);
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  base::OnceCallback<void(uint64_t displayId)> callback = base::BindOnce([](uint64_t value) {});
+  auto source_lists = picker_factory_->CreateMediaList(
+      {DesktopMediaList::Type::kWebContents}, web_contents,
+      std::move(includable_web_contents_filter), std::move(callback));
+#else
   auto source_lists = picker_factory_->CreateMediaList(
       {DesktopMediaList::Type::kWebContents}, web_contents,
       std::move(includable_web_contents_filter));
+#endif
 
   // base::Unretained(this) is safe because DesktopCaptureAccessHandler is owned
   // by MediaCaptureDevicesDispatcher, which is a lazy singleton which is
