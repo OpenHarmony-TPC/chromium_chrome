@@ -83,6 +83,7 @@ EnterpriseManaged g_is_enterprise_managed_for_testing =
 // connect button.
 void OpenLoginPage(content::WebContents* web_contents) {
 #if !BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
+#if !BUILDFLAG(IS_OHOS)
   // OpenLoginTabForWebContents() is not available on Android (the only
   // platform on which captive portal detection is not enabled). Simply open
   // the platform's portal detection URL in a new tab.
@@ -92,6 +93,9 @@ void OpenLoginPage(content::WebContents* web_contents) {
                                 WindowOpenDisposition::NEW_FOREGROUND_TAB,
                                 ui::PAGE_TRANSITION_LINK, false);
   web_contents->OpenURL(params, /*navigation_handle_callback=*/{});
+#else
+  LOG(ERROR) << "OpenLoginPage TODO for OS_OHOS";
+#endif
 #else
   ChromeSecurityBlockingPageFactory::OpenLoginTabForWebContents(web_contents,
                                                                 true);

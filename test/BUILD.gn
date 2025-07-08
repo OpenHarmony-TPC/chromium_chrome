@@ -7907,7 +7907,6 @@ test("unit_tests") {
       "//chrome/browser/webauthn:test_support",
       "//chrome/browser/webauthn/proto",
       "//chrome/common/read_anything:mojo_bindings",
-      "//chrome/services/speech:unit_tests",
       "//components/app_constants",
       "//components/color",
       "//components/commerce/core:account_checker_test_support",
@@ -7981,6 +7980,10 @@ test("unit_tests") {
       "//ui/webui/resources/cr_components/history_embeddings:mojo_bindings",
       "//ui/webui/resources/js/browser_command:mojo_bindings",
     ]
+
+    if (enable_speech_service) {
+      deps += [ "//chrome/services/speech:unit_tests" ]
+    }
 
     data += [ "//ash/components/arc/test/data/icons/" ]
 
