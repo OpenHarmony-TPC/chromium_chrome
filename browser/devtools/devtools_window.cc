@@ -1777,6 +1777,7 @@ void DevToolsWindow::RenderProcessGone(bool crashed) {
 }
 
 void DevToolsWindow::ShowCertificateViewer(const std::string& cert_chain) {
+#if BUILDFLAG(ENABLE_WEBUI_CERTIFICATE_VIEWER)
   std::optional<base::Value> value = base::JSONReader::Read(cert_chain);
   CHECK(value && value->is_list());
   std::vector<std::string> decoded;
@@ -1802,6 +1803,7 @@ void DevToolsWindow::ShowCertificateViewer(const std::string& cert_chain) {
     return;
   gfx::NativeWindow parent = browser->window()->GetNativeWindow();
   ::ShowCertificateViewer(inspected_contents, parent, cert.get());
+#endif
 }
 
 void DevToolsWindow::OnLoadCompleted() {
