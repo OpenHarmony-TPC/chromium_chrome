@@ -30,6 +30,7 @@ import("//services/screen_ai/buildflags/features.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//ui/base/ui_features.gni")
 import("//ui/views/features.gni")
+import("//components/services/on_device_translation/buildflags/features.gni")
 
 assert(enable_supervised_users)
 assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
@@ -3093,21 +3094,26 @@ static_library("ui") {
       "webui/app_settings/web_app_settings_ui.h",
       "webui/browser_switch/browser_switch_ui.cc",
       "webui/browser_switch/browser_switch_ui.h",
-      "webui/on_device_translation_internals/on_device_translation_internals_page_handler_impl.cc",
-      "webui/on_device_translation_internals/on_device_translation_internals_page_handler_impl.h",
-      "webui/on_device_translation_internals/on_device_translation_internals_ui.cc",
-      "webui/on_device_translation_internals/on_device_translation_internals_ui.h",
     ]
 
     deps += [
       "//chrome/app:generated_resources",
       "//chrome/browser/contextual_cueing:contextual_cueing",
-      "//chrome/browser/on_device_translation:language_pack_util",
       "//chrome/browser/shortcuts",
       "//components/capture_mode",
       "//services/audio/public/mojom",
       "//services/video_capture/public/mojom",
     ]
+
+    if (enable_on_device_translation) {
+      sources += [
+        "webui/on_device_translation_internals/on_device_translation_internals_page_handler_impl.cc",
+        "webui/on_device_translation_internals/on_device_translation_internals_page_handler_impl.h",
+        "webui/on_device_translation_internals/on_device_translation_internals_ui.cc",
+        "webui/on_device_translation_internals/on_device_translation_internals_ui.h",
+      ]
+      deps += [ "//chrome/browser/on_device_translation:language_pack_util" ]
+    }
   }
 
   if (is_win || is_mac || is_linux || is_chromeos || is_ohos) {
