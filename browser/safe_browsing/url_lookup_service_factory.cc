@@ -111,7 +111,7 @@ RealTimeUrlLookupServiceFactory::GetURLLoaderFactory(
 }
 
 // static
-variations::variationsService*
+variations::VariationsService*
 RealTimeUrlLookupServiceFactory::GetVariationsService() {
   return g_browser_process->variations_service();
 }
