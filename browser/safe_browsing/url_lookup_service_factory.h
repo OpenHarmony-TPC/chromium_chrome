@@ -19,10 +19,6 @@ namespace network {
 class SharedURLLoaderFactory;
 }  // namespace network
 
-namespace variations {
-class VariationsService;
-}
-
 namespace safe_browsing {
 
 class RealTimeUrlLookupService;
@@ -59,8 +55,6 @@ class RealTimeUrlLookupServiceFactory : public ProfileKeyedServiceFactory {
 
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory(
       content::BrowserContext* context) const;
-
-  static variations::VariationsService* GetVariationsService();
 
   scoped_refptr<network::SharedURLLoaderFactory> testing_url_loader_factory_;
 };
