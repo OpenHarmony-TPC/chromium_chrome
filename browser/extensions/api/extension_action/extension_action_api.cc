@@ -55,6 +55,7 @@
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "base/logging.h"
 #include "ohos_nweb/src/cef_delegate/nweb_extension_action_cef_delegate.h"
+#include "ohos_nweb/src/capi/nweb_extension_action_icon.h"
 #endif
 
 using content::WebContents;
@@ -347,8 +348,10 @@ ExtensionActionSetIconFunction::RunExtensionAction() {
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
     LOG(INFO) << "ExtensionActionSetIconFunction::RunExtensionAction";
-    OHOS::NWeb::NWebExtensionActionCefDelegate::OnSetIcon(extension()->id(),
-                                                          icon_image, tab_id_);
+    OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnSetIcon(
+        extension()->id(), icon_image, tab_id_);
+    OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnSetIcon(
+        extension()->id(), icon_image, tab_id_);
 #endif
   } else if (details_->FindInt("iconIndex")) {
     // Obsolete argument: ignore it.
@@ -368,6 +371,14 @@ ExtensionActionSetTitleFunction::RunExtensionAction() {
   EXTENSION_FUNCTION_VALIDATE(title);
   extension_action_->SetTitle(tab_id_, *title);
   NotifyChange();
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  NWebExtensionActionSetTitleDetails details;
+  if (tab_id_ != ExtensionAction::kDefaultTabId) {
+    details.tabId = tab_id_;
+  }
+  details.title = *title;
+  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnSetTitle(extension()->id(), details);
+#endif
   return RespondNow(NoArguments());
 }
 
@@ -394,6 +405,14 @@ ExtensionActionSetPopupFunction::RunExtensionAction() {
 
   extension_action_->SetPopupUrl(tab_id_, popup_url);
   NotifyChange();
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  NWebExtensionActionSetPopupDetails details;
+  if (tab_id_ != ExtensionAction::kDefaultTabId) {
+    details.tabId = tab_id_;
+  }
+  details.popup = *popup_string;
+  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnSetPopup(extension()->id(), details);
+#endif
   return RespondNow(NoArguments());
 }
 
@@ -408,6 +427,16 @@ ExtensionActionSetBadgeTextFunction::RunExtensionAction() {
     extension_action_->ClearBadgeText(tab_id_);
 
   NotifyChange();
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  NWebExtensionActionSetBadgeTextDetails details;
+  if (tab_id_ != ExtensionAction::kDefaultTabId) {
+    details.tabId = tab_id_;
+  }
+  if (badge_text) {
+    details.text = *badge_text;
+  }
+  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnSetBadgeText(extension()->id(), details);
+#endif
   return RespondNow(NoArguments());
 }
 
@@ -421,6 +450,15 @@ ExtensionActionSetBadgeBackgroundColorFunction::RunExtensionAction() {
     return RespondNow(Error(extension_misc::kInvalidColorError));
   extension_action_->SetBadgeBackgroundColor(tab_id_, color);
   NotifyChange();
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  NWebExtensionActionSetBadgeBackgroundColorDetails details;
+  if (tab_id_ != ExtensionAction::kDefaultTabId) {
+    details.tabId = tab_id_;
+  }
+  details.color = {SkColorGetR(color), SkColorGetG(color), SkColorGetB(color), SkColorGetA(color)};
+  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()
+      ->OnSetBadgeBackgroundColor(extension()->id(), details);
+#endif
   return RespondNow(NoArguments());
 }
 
@@ -437,6 +475,15 @@ ActionSetBadgeTextColorFunction::RunExtensionAction() {
     return RespondNow(Error(extension_misc::kInvalidColorError));
   extension_action_->SetBadgeTextColor(tab_id_, color);
   NotifyChange();
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  NWebExtensionActionSetBadgeTextColorDetails details;
+  if (tab_id_ != ExtensionAction::kDefaultTabId) {
+    details.tabId = tab_id_;
+  }
+  details.color = {SkColorGetR(color), SkColorGetG(color), SkColorGetB(color), SkColorGetA(color)};
+  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()
+      ->OnSetBadgeTextColor(extension()->id(), details);
+#endif
   return RespondNow(NoArguments());
 }
 
@@ -501,6 +548,14 @@ ActionGetUserSettingsFunction::~ActionGetUserSettingsFunction() = default;
 
 ExtensionFunction::ResponseAction ActionGetUserSettingsFunction::Run() {
   DCHECK(extension());
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  std::optional<NWebExtensionActionUserSettings> user_settings =
+      OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnGetUserSettings(extension()->id());
+  bool is_pinned = false;
+  if (user_settings) {
+    is_pinned = user_settings->isOnToolbar;
+  }
+#else
   ExtensionActionManager* const action_manager =
       ExtensionActionManager::Get(browser_context());
   ExtensionAction* const action =
@@ -518,6 +573,7 @@ ExtensionFunction::ResponseAction ActionGetUserSettingsFunction::Run() {
   // TODO(crbug.com/360916928): Today, no action APIs are compiled.
   // Unfortunately, this means we miss out on the compiled types, which would be
   // rather helpful here.
+#endif
   base::Value::Dict ui_settings;
   ui_settings.Set("isOnToolbar", is_pinned);
 
@@ -527,6 +583,7 @@ ExtensionFunction::ResponseAction ActionGetUserSettingsFunction::Run() {
 ActionOpenPopupFunction::ActionOpenPopupFunction() = default;
 ActionOpenPopupFunction::~ActionOpenPopupFunction() = default;
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction ActionOpenPopupFunction::Run() {
   // TODO(crbug.com/360916928): Unfortunately, the action API types aren't
   // compiled. However, the bindings should still valid the form of the
@@ -588,6 +645,7 @@ ExtensionFunction::ResponseAction ActionOpenPopupFunction::Run() {
   // kept alive by the ref-count owned by the ShowPopupCallback.
   return RespondLater();
 }
+#endif
 
 void ActionOpenPopupFunction::OnShowPopupComplete(ExtensionHost* popup_host) {
   DCHECK(!did_respond());

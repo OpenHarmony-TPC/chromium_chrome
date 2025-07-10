@@ -5,7 +5,10 @@
 #include "chrome/browser/extensions/api/side_panel/side_panel_api.h"
 
 #include <optional>
-
+#include "arkweb/build/features/features.h"
+#if BUILDFLAG(ARKWEB_NWEB_EX)
+#include "arkweb/ohos_nweb_ex/build/features/features.h"
+#endif
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "chrome/browser/extensions/api/side_panel/side_panel_service.h"
@@ -13,6 +16,7 @@
 
 #if BUILDFLAG(IS_ARKWEB)
 #include "arkweb/chromium_ext/chrome/browser/extensions/api/side_panel/side_panel_api_for_include.cc"
+#include "arkweb/ohos_nweb/src/nweb_common.h"
 #endif
 
 namespace extensions {
@@ -61,9 +65,14 @@ SidePanelSetPanelBehaviorFunction::RunFunction() {
   if (params->behavior.open_panel_on_action_click.has_value()) {
     GetService()->SetOpenSidePanelOnIconClick(
         extension()->id(), *params->behavior.open_panel_on_action_click);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-    OHOS::NWeb::NWebExtensionSidePanelCefDelegate::OnSetPanelBehavior(
-        extension()->id(), *params->behavior.open_panel_on_action_click);
+#if BUILDFLAG(ARKWEB_NWEB_EX) && BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    if (IsNativeApiEnable()) {
+      NWebExtensionSidePanelDispatcher::OnSetPanelBehaviorNative(
+          extension()->id(), *params->behavior.open_panel_on_action_click);
+    } else {
+      NWebExtensionSidePanelDispatcher::OnSetPanelBehavior(
+          extension()->id(), *params->behavior.open_panel_on_action_click);
+    }
 #endif
   }
 
@@ -101,10 +110,19 @@ ExtensionFunction::ResponseAction SidePanelOpenFunction::RunFunction() {
   }
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  OHOS::NWeb::NWebExtensionSidePanelCefDelegate::OnOpen(
-      extension()->id(),
-      params->options.tab_id.value_or(api::tabs::TAB_ID_NONE),
-      params->options.window_id.value_or(api::windows::WINDOW_ID_NONE));
+#if BUILDFLAG(ARKWEB_NWEB_EX)
+  if (IsNativeApiEnable()) {
+    NWebExtensionSidePanelDispatcher::OnOpenNative(
+        extension()->id(),
+        params->options.tab_id.value_or(api::tabs::TAB_ID_NONE),
+        params->options.window_id.value_or(api::windows::WINDOW_ID_NONE));
+  } else {
+    NWebExtensionSidePanelDispatcher::OnOpen(
+        extension()->id(),
+        params->options.tab_id.value_or(api::tabs::TAB_ID_NONE),
+        params->options.window_id.value_or(api::windows::WINDOW_ID_NONE));
+  }
+#endif
 #else
   SidePanelService* service = GetService();
   base::expected<bool, std::string> open_panel_result;

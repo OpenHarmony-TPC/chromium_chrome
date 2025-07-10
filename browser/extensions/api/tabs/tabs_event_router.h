@@ -98,22 +98,8 @@ class TabsEventRouter : public TabStripModelObserver,
                                        bool is_auto_discardable) override;
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  void DispatchTabUpdatedEvent(
-      int tab_id,
-      content::WebContents* contents,
-      const std::vector<std::string>& changed_property_names,
-      const std::string& url);
-
-  void DispatchTabUpdatedEvent(
-      int tab_id,
-      content::WebContents* contents,
-      const std::vector<std::string>& changed_property_names,
-      std::unique_ptr<NWebExtensionTabChangeInfo> changeInfo);
-
-  void DispatchTabActiveEvent(int tab_id,
-                              int window_id,
-                              content::WebContents* contents);
-#endif
+#include "cef/ohos_cef_ext/libcef/browser/extensions/api/tabs/tabs_event_router_for_include_file.cc"
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 
  private:
   // Methods called from OnTabStripModelChanged.

@@ -538,6 +538,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="813913629614996137">Initialising...</translation>
 <translation id="8166782796394721554">Turn on additional protection in Chromium’s JavaScript and WebAssembly engine</translation>
 <translation id="81770708095080097">This file is dangerous, so Chromium has blocked it.</translation>
+<translation id="8203309434113072810">Warning: Browser cannot prevent extensions from recording your browsing history. To disable this extension in Incognito mode, unselect this option.</translation>
 <translation id="8221491193165283816">You usually block notifications. To let this site notify you, click here.</translation>
 <translation id="8223363452568144035">To use your camera, give Chromium access in <ph name="BEGIN_LINK" />system settings<ph name="END_LINK" /></translation>
 <translation id="8232193495299001329">Chromium can't verify where this extension comes from, and it might be unsafe. Remove it from Chromium so that it can no longer see and change your data on sites that you visit, including personal info.</translation>
