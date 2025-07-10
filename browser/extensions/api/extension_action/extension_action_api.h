@@ -429,12 +429,6 @@ class BrowserActionOpenPopupFunction : public ExtensionFunction,
   BrowserActionOpenPopupFunction& operator=(
       const BrowserActionOpenPopupFunction&) = delete;
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  void DispatchExtensionActionClickedWithCustomArgs(
-      content::WebContents* web_contents,
-      std::string extension_id,
-      const NWebExtensionTab* custom_tab);
-#endif
  private:
   ~BrowserActionOpenPopupFunction() override;
 

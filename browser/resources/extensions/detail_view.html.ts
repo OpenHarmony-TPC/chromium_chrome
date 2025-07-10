@@ -335,7 +335,7 @@ this text can be found by Ctrl + F because it isn't hidden. -->
             <span>$i18n{itemPinToToolbar}</span>
           </extensions-toggle-row>` : ''}
         ${this.shouldShowIncognitoOption_() ? html`
-          <extensions-toggle-row hidden=true id="allow-incognito"
+        <extensions-toggle-row id="allow-incognito"
               ?checked="${this.data.incognitoAccess.isActive}" class="hr"
               @change="${this.onAllowIncognitoChange_}">
             <div>
