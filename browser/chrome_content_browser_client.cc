@@ -8206,6 +8206,13 @@ content::ContentBrowserClient::PrivateNetworkRequestPolicyOverride
 ChromeContentBrowserClient::ShouldOverridePrivateNetworkRequestPolicy(
     content::BrowserContext* browser_context,
     const url::Origin& origin) {
+#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
+  if (net_service::NetHelpers::ShouldAllowInsecurePrivateNetworkRequests()) {
+    return content::ContentBrowserClient::
+          PrivateNetworkRequestPolicyOverride::kForceAllow;
+  }
+#endif
+
   // The host content settings map might no be null for some irregular profiles,
   // e.g. the System Profile.
   if (HostContentSettingsMap* service =
@@ -8216,13 +8223,6 @@ ChromeContentBrowserClient::ShouldOverridePrivateNetworkRequestPolicy(
           PrivateNetworkRequestPolicyOverride::kForceAllow;
     }
   }
-
-#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
-  if (net_service::NetHelpers::SkipPreflightCheck()) {
-    return content::ContentBrowserClient::
-          PrivateNetworkRequestPolicyOverride::kForceAllow;
-  }
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
   if (base::android::BuildInfo::GetInstance()->is_automotive()) {
