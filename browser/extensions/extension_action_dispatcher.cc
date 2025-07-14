@@ -100,6 +100,7 @@ void ExtensionActionDispatcher::DispatchExtensionActionClicked(
   }
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 void ExtensionActionDispatcher::ClearAllValuesForTab(
     content::WebContents* web_contents) {
   DCHECK(web_contents);
@@ -119,6 +120,7 @@ void ExtensionActionDispatcher::ClearAllValuesForTab(
     }
   }
 }
+#endif
 
 ExtensionPrefs* ExtensionActionDispatcher::GetExtensionPrefs() {
   // This lazy initialization is more than just an optimization, because it

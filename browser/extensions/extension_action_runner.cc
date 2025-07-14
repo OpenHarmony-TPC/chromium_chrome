@@ -454,6 +454,11 @@ void ExtensionActionRunner::RunBlockedActions(const Extension* extension) {
 
 void ExtensionActionRunner::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  if (web_contents()->ExtensionGetTabId() < 0) {
+    return;
+  }
+#endif
   declarative_net_request::RulesMonitorService* rules_monitor_service =
       declarative_net_request::RulesMonitorService::Get(browser_context_);
 
@@ -497,6 +502,11 @@ void ExtensionActionRunner::DidFinishNavigation(
 }
 
 void ExtensionActionRunner::WebContentsDestroyed() {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  if (web_contents()->ExtensionGetTabId() < 0) {
+    return;
+  }
+#endif
   ExtensionActionDispatcher::Get(browser_context_)
       ->ClearAllValuesForTab(web_contents());
 
