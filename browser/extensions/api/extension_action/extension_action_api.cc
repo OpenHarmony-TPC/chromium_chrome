@@ -427,16 +427,6 @@ ExtensionActionSetBadgeTextFunction::RunExtensionAction() {
     extension_action_->ClearBadgeText(tab_id_);
 
   NotifyChange();
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  NWebExtensionActionSetBadgeTextDetails details;
-  if (tab_id_ != ExtensionAction::kDefaultTabId) {
-    details.tabId = tab_id_;
-  }
-  if (badge_text) {
-    details.text = *badge_text;
-  }
-  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnSetBadgeText(extension()->id(), details);
-#endif
   return RespondNow(NoArguments());
 }
 
