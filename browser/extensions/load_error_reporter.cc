@@ -72,10 +72,16 @@ void LoadErrorReporter::ReportError(const std::u16string& message,
   LOG(WARNING) << "Extension error: " << message;
 
   if (enable_noisy_errors_ && be_noisy) {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    LOG(WARNING) 
+        << "Extension error dialog disabled on OHOS platform. Error details:"
+        << message;
+#else
     chrome::ShowWarningMessageBox(
         nullptr,
         l10n_util::GetStringUTF16(IDS_EXTENSIONS_LOAD_ERROR_ALERT_HEADING),
         message);
+#endif
   }
 }
 
