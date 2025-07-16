@@ -715,7 +715,9 @@ void ExtensionInfoGenerator::CreateExtensionInfoHelper(
   // Location text.
   int location_text = -1;
   if (info->location == developer::Location::kUnknown) {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)    
     location_text = IDS_EXTENSIONS_INSTALL_LOCATION_UNKNOWN;
+#endif
   } else if (extension.location() ==
              mojom::ManifestLocation::kExternalRegistry) {
     location_text = IDS_EXTENSIONS_INSTALL_LOCATION_3RD_PARTY;
