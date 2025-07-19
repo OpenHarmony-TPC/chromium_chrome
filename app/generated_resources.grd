@@ -5753,6 +5753,12 @@ are declared in tools/grit/grit_rule.gni.
         <message name="IDS_EXTENSION_PROMPT_WARNING_ENTERPRISE_REMOTE_APPS" desc="Permission string for access to the Remote Apps Enterprise API.">
           Add remote apps to the ChromeOS launcher
         </message>
+        <message name="IDS_EXTENSION_PROMPT_WARNING_BROWSING_DATA" desc="Permission string for accessing and controling user browsing data, including browsing history, download history, cookies, form data, passwords, etc.">
+          Access and control your browsing data, including browsing history, download history, cookies, form data, passwords, etc.
+        </message>
+        <message name="IDS_EXTENSION_PROMPT_WARNING_COOKIES" desc="Permission string for accessing and managing cookies in user's browser.">
+          Access and manage cookies in your browser
+        </message>
         <if expr="reven">
           <message name="IDS_EXTENSION_PROMPT_WARNING_CHROMEOS_ATTACHED_DEVICE_INFO" desc="Permission string for accessing information of attached devices.">
             Read attached devices information and data
