@@ -51,6 +51,10 @@
 #include "extensions/common/permissions/permissions_data.h"
 #include "url/origin.h"
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "chrome/browser/extensions/extension_tab_util.h"
+#endif
+
 namespace {
 
 std::vector<extensions::ExtensionId> GetExtensionIds(
@@ -455,7 +459,7 @@ void ExtensionActionRunner::RunBlockedActions(const Extension* extension) {
 void ExtensionActionRunner::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  if (web_contents()->ExtensionGetTabId() < 0) {
+  if (!web_contents() || ExtensionTabUtil::GetTabId(web_contents()) < 0) {
     return;
   }
 #endif
@@ -503,7 +507,7 @@ void ExtensionActionRunner::DidFinishNavigation(
 
 void ExtensionActionRunner::WebContentsDestroyed() {
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  if (web_contents()->ExtensionGetTabId() < 0) {
+  if (!web_contents() || ExtensionTabUtil::GetTabId(web_contents()) < 0) {
     return;
   }
 #endif
