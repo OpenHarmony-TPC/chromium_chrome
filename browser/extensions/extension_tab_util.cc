@@ -81,6 +81,10 @@
 #include "cef/libcef/browser/chrome/extensions/chrome_extension_util.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/chrome/browser/extensions/extension_tab_util_for_include.cc"
+#endif
+
 using content::NavigationEntry;
 using content::WebContents;
 using extensions::mojom::APIPermissionID;
@@ -548,6 +552,10 @@ api::tabs::Tab ExtensionTabUtil::CreateTabObject(
       tab_object.opener_tab_id = GetTabIdForExtensions(opener->contents());
     }
   }
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  UpdateWithNWebExtensionTabInfo(tab_object);
+#endif
 
   ScrubTabForExtension(extension, contents, &tab_object, scrub_tab_behavior);
   return tab_object;
