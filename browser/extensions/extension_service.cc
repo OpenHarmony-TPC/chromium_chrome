@@ -909,6 +909,10 @@ bool ExtensionService::UninstallExtension(
   extension_prefs_->OnExtensionUninstalled(
       extension->id(), extension->location(), external_uninstall);
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  profile()->GetPrefs()->CommitPendingWrite();
+#endif // ARKWEB_ARKWEB_EXTENSIONS
+
   return true;
 }
 
@@ -2021,6 +2025,10 @@ void ExtensionService::FinishInstallation(const Extension* extension) {
   // was not available.
   if (SharedModuleInfo::IsSharedModule(extension))
     MaybeFinishDelayedInstallations();
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  profile()->GetPrefs()->CommitPendingWrite();
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 const Extension* ExtensionService::GetPendingExtensionUpdate(
