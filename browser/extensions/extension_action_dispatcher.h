@@ -16,9 +16,7 @@
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "ohos_nweb/src/capi/web_extension_tab_items.h"
-// #include "ohos_cef_ext/libcef/browser/extensions/tab_extensions_util.h"
-// #include "ohos_nweb/src/cef_delegate/nweb_extension_action_cef_delegate.h"
-#endif
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 namespace content {
 class BrowserContext;
@@ -82,10 +80,6 @@ class ExtensionActionDispatcher : public BrowserContextKeyedAPI {
                                       content::WebContents* web_contents,
                                       const Extension* extension);
 
-  void DispatchExtensionActionClickedWithCustomArgs(
-    content::BrowserContext* context,
-    std::string extension_id,
-    const NWebExtensionTab* custom_tab);
   // Called when the action for the given extension is pinned or unpinned from
   // the toolbar. Dispatches the onUserSettingsChanged event for extension that
   // owns the given action.
@@ -99,6 +93,10 @@ class ExtensionActionDispatcher : public BrowserContextKeyedAPI {
   void set_prefs_for_testing(ExtensionPrefs* prefs) {
     extension_prefs_ = prefs;
   }
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/chrome/browser/extensions/extension_action_dispatcher_for_include_file.cc"
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 
  private:
   friend class BrowserContextKeyedAPIFactory<ExtensionActionDispatcher>;
