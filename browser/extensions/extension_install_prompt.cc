@@ -46,7 +46,7 @@
 #include "ui/gfx/image/image_skia_rep.h"
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "ohos_nweb/src/cef_delegate/nweb_extension_prompt_cef_delegate.h"
+#include "arkweb/chromium_ext/chrome/browser/extensions/extension_install_prompt_ext.h"
 #endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
 using extensions::Extension;
@@ -72,122 +72,6 @@ SkBitmap GetDefaultIconBitmapForMaxScaleFactor(bool is_app) {
       .GetRepresentation(ui::GetScaleForMaxSupportedResourceScaleFactor())
       .GetBitmap();
 }
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-class PromptInfoHolder {
- public:
-  PromptInfoHolder(
-      std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt,
-      ExtensionInstallPrompt::DoneCallback done_callback)
-    : prompt_(std::move(prompt)),
-      done_callback_(std::move(done_callback)) {}
-  ~PromptInfoHolder() = default;
-
-  static void ShowExtensionPrompt(
-      std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt,
-      ExtensionInstallPrompt::DoneCallback done_callback) {
-    auto info_holder = std::make_unique<PromptInfoHolder>(
-        std::move(prompt), std::move(done_callback));
-    auto showPromptFunc =
-        base::BindRepeating(&PromptInfoHolder::OnGetPromptAction,
-                            info_holder->weak_factory_.GetWeakPtr());
-    auto getPromptDataFunc =
-        base::BindRepeating(&PromptInfoHolder::GetPromptData,
-                            info_holder->weak_factory_.GetWeakPtr());
-    if (!OHOS::NWeb::NWebExtensionPromptCefDelegate::GetInstance()
-            .ShowExtensionPrompt(PROMPT_INSTALLATION,
-                                 info_holder->prompt_->extension()->id(),
-                                 info_holder->prompt_->icon(),
-                                 showPromptFunc,
-                                 getPromptDataFunc)) {
-      LOG(INFO) << "ShowExtensionPrompt failed";
-      return;
-    }
-    std::ignore = info_holder.release(); // managed by info holder itself.
-  }
-
-  void GetPromptData(NWebExtensionPromptData* data) {
-    if (!data || !prompt_) {
-      return;
-    }
-
-    data->free_memory_func =
-        OHOS::NWeb::NWebExtensionPromptCefDelegate::FreePromptData;
-
-    std::string title = base::UTF16ToUTF8(prompt_->GetDialogTitle());
-    std::string abortButtonLabel =
-        base::UTF16ToUTF8(prompt_->GetAbortButtonLabel());
-    std::string acceptButtonLabel =
-        base::UTF16ToUTF8(prompt_->GetAcceptButtonLabel());
-    std::string permissionsHeading =
-      base::UTF16ToUTF8(prompt_->GetPermissionsHeading());
-    data->title = strdup(title.c_str());
-    data->abortButtonLabel = strdup(abortButtonLabel.c_str());
-    data->acceptButtonLabel = strdup(acceptButtonLabel.c_str());
-    data->permissionsHeading = strdup(permissionsHeading.c_str());
-
-    data->permissionCount = prompt_->GetPermissionCount();
-    if (0 < data->permissionCount) {
-      data->permissions = (NWebExtensionPermission*)calloc(
-          data->permissionCount, sizeof(NWebExtensionPermission));
-
-      const std::string show_details_label =
-          l10n_util::GetStringUTF8(IDS_EXTENSIONS_SHOW_DETAILS);
-      const std::string hide_details_label =
-          l10n_util::GetStringUTF8(IDS_EXTENSIONS_HIDE_DETAILS);
-      for (uint32_t i = 0; i < data->permissionCount; i++) {
-        std::string permission =
-            base::UTF16ToUTF8(prompt_->GetPermission(i));
-        std::string detail =
-            base::UTF16ToUTF8(prompt_->GetPermissionsDetails(i));
-        data->permissions[i].detail = strdup(detail.c_str());
-        data->permissions[i].permission = strdup(permission.c_str());
-        data->permissions[i].showDetailLabel = strdup(show_details_label.c_str());
-        data->permissions[i].hideDetailLabel = strdup(hide_details_label.c_str());
-      }
-    }
-  }
-
-  void OnGetPromptAction(int action, const std::string& error) {
-    std::unique_ptr<PromptInfoHolder> auto_release(this);
-    if (!done_callback_) {
-      return;
-    }
-    if (static_cast<DialogAction>(action) == DialogAction::kAutoConfirm) {
-        ExtensionInstallPrompt::DoneCallbackPayload payload(
-            ExtensionInstallPrompt::Result::ACCEPTED);
-        std::move(done_callback_).Run(payload);
-    } else {
-        ExtensionInstallPrompt::DoneCallbackPayload payload(
-            ExtensionInstallPrompt::Result::USER_CANCELED);
-        std::move(done_callback_).Run(payload);
-    }
-  }
-
- private:
-  enum class DialogAction {
-    kDefault,
-    kAutoConfirm,
-    kAutoReject,
-    kProgrammatic,
-  };
-
-  std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt_;
-  ExtensionInstallPrompt::DoneCallback done_callback_;
-
-  base::WeakPtrFactory<PromptInfoHolder> weak_factory_{this};
-};
-
-void ShowExtensionInstallDialogImpl(
-    std::unique_ptr<ExtensionInstallPromptShowParams> show_params,
-    ExtensionInstallPrompt::DoneCallback done_callback,
-    std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt) {
-  LOG(INFO) << "ShowExtensionInstallDialogImpl";
-  PromptInfoHolder::ShowExtensionPrompt(
-      std::move(prompt), std::move(done_callback));
-}
-#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-
 }  // namespace
 
 ExtensionInstallPrompt::PromptType
@@ -708,7 +592,7 @@ void ExtensionInstallPrompt::ShowConfirmation() {
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   if (show_dialog_callback_.is_null()) {
-    show_dialog_callback_ = BindRepeating(&ShowExtensionInstallDialogImpl);
+    show_dialog_callback_ = BindRepeating(&ohos::ShowExtensionInstallDialogImpl);
   }
 #endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
