@@ -655,7 +655,12 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       const base::RepeatingCallback<content::WebContents*()>& wc_getter,
       content::NavigationUIData* navigation_ui_data,
       content::FrameTreeNodeId frame_tree_node_id,
-      std::optional<int64_t> navigation_id) override;
+      std::optional<int64_t> navigation_id
+#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
+,
+      bool is_prerendering
+#endif
+      ) override;
   std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
   CreateURLLoaderThrottlesForKeepAlive(
       const network::ResourceRequest& request,
