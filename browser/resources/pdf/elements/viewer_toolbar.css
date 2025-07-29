@@ -95,10 +95,11 @@
   background-color: var(--viewer-text-input-selection-color);
 }
 
+/* arkweb_pdf this element repersents the ellipsis displayed when the title is obscured */
 @media(max-width: 600px) {
   #title,
   #zoom-controls input {
-    display: inline-table;
+    display: block;
   }
 }
 
