@@ -274,6 +274,7 @@ void HistoryGetVisitsFunction::QueryComplete(history::QueryURLResult result) {
   Release();  // Balanced in Run().
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction HistorySearchFunction::Run() {
   std::optional<Search::Params> params = Search::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -358,6 +359,7 @@ ExtensionFunction::ResponseAction HistoryDeleteUrlFunction::Run() {
 
   return RespondNow(NoArguments());
 }
+#endif
 
 ExtensionFunction::ResponseAction HistoryDeleteRangeFunction::Run() {
   std::optional<DeleteRange::Params> params =
@@ -398,6 +400,7 @@ void HistoryDeleteRangeFunction::DeleteComplete() {
   Release();  // Balanced in Run().
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction HistoryDeleteAllFunction::Run() {
   std::string error;
   if (!VerifyDeleteAllowed(&error))
@@ -432,5 +435,6 @@ void HistoryDeleteAllFunction::DeleteComplete() {
   Respond(NoArguments());
   Release();  // Balanced in Run().
 }
+#endif
 
 }  // namespace extensions
