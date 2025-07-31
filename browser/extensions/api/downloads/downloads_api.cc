@@ -1181,7 +1181,14 @@ void DownloadsDownloadFunction::OnStarted(
   VLOG(1) << __func__ << " " << item << " " << interrupt_reason;
   if (item) {
     DCHECK_EQ(download::DOWNLOAD_INTERRUPT_REASON_NONE, interrupt_reason);
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
     Respond(WithArguments(static_cast<int>(item->GetId())));
+#else
+    int downloadId = RespondDownlodId(item->GetGuid());
+    if (downloadId != -1) {
+      Respond(WithArguments(downloadId));
+    }
+#endif
     if (!creator_suggested_filename.empty() ||
         (creator_conflict_action !=
          downloads::FilenameConflictAction::kUniquify)) {
@@ -1201,6 +1208,7 @@ void DownloadsDownloadFunction::OnStarted(
   }
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 DownloadsSearchFunction::DownloadsSearchFunction() {}
 
 DownloadsSearchFunction::~DownloadsSearchFunction() {}
@@ -1250,7 +1258,6 @@ ExtensionFunction::ResponseAction DownloadsSearchFunction::Run() {
   return RespondNow(WithArguments(std::move(json_results)));
 }
 
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 DownloadsPauseFunction::DownloadsPauseFunction() {}
 
 DownloadsPauseFunction::~DownloadsPauseFunction() {}
@@ -1567,7 +1574,6 @@ void DownloadsOpenFunction::OpenPromptDone(int download_id, bool accept) {
   download_item->OpenDownload();
   Respond(NoArguments());
 }
-#endif
 
 DownloadsSetShelfEnabledFunction::DownloadsSetShelfEnabledFunction() {}
 
@@ -1623,7 +1629,6 @@ ExtensionFunction::ResponseAction DownloadsSetShelfEnabledFunction::Run() {
   return RespondNow(NoArguments());
 }
 
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 DownloadsSetUiOptionsFunction::DownloadsSetUiOptionsFunction() = default;
 
 DownloadsSetUiOptionsFunction::~DownloadsSetUiOptionsFunction() = default;
@@ -1674,7 +1679,6 @@ ExtensionFunction::ResponseAction DownloadsSetUiOptionsFunction::Run() {
 
   return RespondNow(NoArguments());
 }
-#endif
 
 DownloadsGetFileIconFunction::DownloadsGetFileIconFunction()
     : icon_extractor_(new DownloadFileIconExtractorImpl()) {}
@@ -1734,6 +1738,7 @@ void DownloadsGetFileIconFunction::OnIconURLExtracted(const std::string& url) {
   RecordApiFunctions(DOWNLOADS_FUNCTION_GET_FILE_ICON);
   Respond(WithArguments(url));
 }
+#endif
 
 ExtensionDownloadsEventRouter::ExtensionDownloadsEventRouter(
     Profile* profile,
