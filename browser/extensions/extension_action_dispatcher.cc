@@ -19,6 +19,10 @@
 #if BUILDFLAG(IS_ARKWEB)
 #include "arkweb/chromium_ext/chrome/browser/extensions/extension_action_dispatcher_ext.cc"
 #endif
+
+#if BUILDFLAG(ARKWEB_NWEB_EX)
+#include "ohos_nweb_ex/core/extension/nweb_extension_manager_dispatcher.h"
+#endif
 namespace extensions {
 
 static base::LazyInstance<
@@ -165,6 +169,10 @@ void ExtensionActionDispatcher::OnActionPinnedStateChanged(
   base::Value::List args;
   base::Value::Dict change;
   change.Set("isOnToolbar", is_pinned);
+
+#if BUILDFLAG(ARKWEB_NWEB_EX)
+  NWebExtensionManagerDispatcher::OnExtensionChangePinStatusCallBack(extension_id, is_pinned);
+#endif
   args.Append(std::move(change));
   DispatchEventToExtension(browser_context_, extension_id,
                            events::ACTION_ON_USER_SETTINGS_CHANGED,
