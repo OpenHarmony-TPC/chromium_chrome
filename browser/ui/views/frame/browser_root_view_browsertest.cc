@@ -75,7 +75,6 @@ class BrowserRootViewBrowserTest : public InProcessBrowserTest {
     // processing is complete before checking the drag operation or invoking the
     // drag callback.
     BrowserRootView* const root_view = browser_root_view();
-
     EXPECT_NE(ui::DragDropTypes::DRAG_NONE, root_view->OnDragUpdated(event));
 
     auto drop_cb = root_view->GetDropCallback(event);
