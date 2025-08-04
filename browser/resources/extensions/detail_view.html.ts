@@ -329,7 +329,7 @@ this text can be found by Ctrl + F because it isn't hidden. -->
     ${this.shouldShowOptionsSection_() ? html`
       <div id="options-section">
         ${this.canPinToToolbar_() ? html`
-          <extensions-toggle-row hidden=true id="pin-to-toolbar"
+          <extensions-toggle-row id="pin-to-toolbar"
               ?checked="${this.data.pinnedToToolbar}" class="hr"
               @change="${this.onPinnedToToolbarChange_}">
             <span>$i18n{itemPinToToolbar}</span>
