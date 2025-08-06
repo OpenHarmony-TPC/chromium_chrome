@@ -166,6 +166,17 @@ class BrowsingDataRemoverFunction
       observation_{this};
   std::unique_ptr<AccountReconcilor::ScopedSyncedDataDeletion>
       synced_data_deletion_;
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+ private:
+  static void OnRemovedDownload(const base::WeakPtr<BrowsingDataRemoverFunction>& function,
+                                const std::optional<std::string>& error);
+  static void OnRemovedHistory(const base::WeakPtr<BrowsingDataRemoverFunction>& function,
+                               const std::optional<std::string>& error);
+  base::Value::Dict options_;
+  bool call_remove_download_ = false;
+  bool call_remove_history_ = false;
+  base::WeakPtrFactory<BrowsingDataRemoverFunction> weak_ptr_factory_{this};
+#endif
 };
 
 class BrowsingDataRemoveAppcacheFunction : public BrowsingDataRemoverFunction {
