@@ -15,6 +15,10 @@
 #include "extensions/common/api/declarative/declarative_constants.h"
 #include "extensions/common/permissions/permissions_data.h"
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/chrome/browser/extensions/api/declarative_content/declarative_content_is_bookmarked_condition_tracker_for_include.cc"
+#endif
+
 namespace extensions {
 
 namespace {
@@ -152,10 +156,22 @@ DeclarativeContentIsBookmarkedConditionTracker::
   // Can be null during unit test execution.
   if (bookmark_model)
     scoped_bookmarks_observation_.Observe(bookmark_model);
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  DeclarativeContentIsBookmarkedConditionDelegate::GetInstance().AddObserver(
+      context, this);
+#endif
 }
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+DeclarativeContentIsBookmarkedConditionTracker::
+    ~DeclarativeContentIsBookmarkedConditionTracker() {
+  DeclarativeContentIsBookmarkedConditionDelegate::GetInstance().RemoveObserver(
+      this);
+}
+#else
 DeclarativeContentIsBookmarkedConditionTracker::
     ~DeclarativeContentIsBookmarkedConditionTracker() = default;
+#endif
 
 std::string DeclarativeContentIsBookmarkedConditionTracker::
 GetPredicateApiAttributeName() const {
