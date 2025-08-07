@@ -58,7 +58,11 @@ ProxyServiceFactory::CreateProxyConfigService(PrefProxyConfigTracker* tracker,
       base::SingleThreadTaskRunner::GetCurrentDefault());
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
 
-  return tracker->CreateTrackingProxyConfigService(std::move(base_service));
+  return tracker->CreateTrackingProxyConfigService(std::move(base_service)
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS) && !defined(COMPONENT_BUILD)
+                                                   , profile
+#endif
+                                                   );
 }
 
 // static
