@@ -18,6 +18,10 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "extensions/common/extension.h"
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/chrome/browser/extensions/api/declarative_content/declarative_content_is_bookmarked_condition_delegate.h"
+#endif
+
 namespace base {
 class Value;
 }
@@ -64,6 +68,9 @@ class DeclarativeContentIsBookmarkedPredicate : public ContentPredicate {
 // and querying for the matching condition sets.
 class DeclarativeContentIsBookmarkedConditionTracker
     : public ContentPredicateEvaluator,
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      public NWebExtensionBookmarksObserver,
+#endif
       public bookmarks::BaseBookmarkModelObserver {
  public:
   DeclarativeContentIsBookmarkedConditionTracker(
@@ -97,6 +104,13 @@ class DeclarativeContentIsBookmarkedConditionTracker
       const std::vector<std::string>& css_selectors) override;
   bool EvaluatePredicate(const ContentPredicate* predicate,
                          content::WebContents* tab) const override;
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  void OnBookmarksCreated(const GURL& url) override;
+  void OnBookmarksRemoved(const std::set<GURL>& urls) override;
+  void OnBookmarksImportBegin() override;
+  void OnBookmarksImportEnd() override;
+#endif
 
  private:
   class PerWebContentsTracker : public content::WebContentsObserver {

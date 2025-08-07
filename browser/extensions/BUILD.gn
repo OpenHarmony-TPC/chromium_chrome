@@ -1498,6 +1498,13 @@ source_set("extensions") {
   if (arkweb_arkweb_extensions) {
     sources += arkweb_ui_views_extension_sources
   }
+
+  if (arkweb_arkweb_extensions) {
+    import("//arkweb/chromium_ext/chrome/browser/extensions/api/declarative_content/arkweb_extension_declarative_content_ext.gni")
+    sources += arkweb_extensions_declarative_content_ext.sources
+    sources -= arkweb_extensions_declarative_content_ext.sources_del
+    deps += arkweb_extensions_declarative_content_ext.deps
+  }
 }
 
 # KeyedService factories initialization.
