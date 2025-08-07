@@ -148,6 +148,11 @@ CrxInstaller::CrxInstaller(base::WeakPtr<ExtensionService> service_weak,
         approval->use_app_installed_bubble);
     client_->install_ui()->SetSkipPostInstallUI(approval->skip_post_install_ui);
   }
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  if (client_) {
+    client_->install_ui()->SetSkipPostInstallUI(true);
+  }
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
   if (approval->skip_install_dialog) {
     // Mark the extension as approved, but save the expected manifest and ID

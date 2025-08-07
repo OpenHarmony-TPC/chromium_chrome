@@ -32,6 +32,11 @@ import("//ui/base/ui_features.gni")
 import("//ui/views/features.gni")
 import("//components/services/on_device_translation/buildflags/features.gni")
 
+if (is_arkweb) {
+  import("//arkweb/build/features/features.gni")
+  import("//arkweb/chromium_ext/chrome/browser/ui/extensions/infobar_delegate.gni")
+}
+
 assert(enable_supervised_users)
 assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
 
@@ -5569,6 +5574,10 @@ static_library("ui") {
         "views/javascript_app_modal_event_blocker_aura.h",
       ]
       deps += [ "//ui/wm/public" ]
+    }
+
+    if (arkweb_arkweb_extensions) {
+      sources += arkweb_chrome_browser_ui_extensions_info_bar
     }
   }
 
