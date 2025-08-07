@@ -570,6 +570,10 @@
 #include "ohos_nweb_ex/overrides/cef/libcef/browser/alloy/alloy_browser_ua_config.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_CLOUD_CONTROL) && BUILDFLAG(IS_ARKWEB_EXT)
+#include "ohos_nweb_ex/overrides/cef/libcef/browser/alloy/alloy_browser_engine_global_config.h"
+#endif
+
 namespace {
 
 // Please keep the list of deprecated prefs in chronological order. i.e. Add to
@@ -2051,6 +2055,11 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
     nweb_ex::AlloyBrowserUAConfig::RegisterProfilePrefs(registry);
     registry->RegisterDictionaryPref(nweb_ex::kUACloudConfigInfo);
   }
+#endif
+
+#if BUILDFLAG(ARKWEB_CLOUD_CONTROL) && BUILDFLAG(IS_ARKWEB_EXT)
+  nweb_ex::AlloyBrowserEngineGlobalConfig::RegisterProfilePrefs(registry);
+  registry->RegisterDictionaryPref(nweb_ex::kBrowserEngineGlobalConfigInfo);
 #endif
 
 #if BUILDFLAG(ENABLE_SESSION_SERVICE)
