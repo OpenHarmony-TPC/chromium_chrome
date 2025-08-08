@@ -416,6 +416,11 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       {"kioskDisableBailoutWarningTitle",
        IDS_EXTENSIONS_KIOSK_DISABLE_BAILOUT_SHORTCUT_WARNING_TITLE},
 #endif
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"toolbarDevModeConfirmation", IDS_EXTENSIONS_DEVELOPER_MODE_CONFIRMATION},
+      {"toolbarDevModeConfirm", IDS_EXTENSIONS_DEVELOPER_MODE_CONFIRM},
+      {"toolbarDevModeCancel", IDS_EXTENSIONS_DEVELOPER_MODE_CANCEL},
+#endif
   };
   source->AddLocalizedStrings(kLocalizedStrings);
 
