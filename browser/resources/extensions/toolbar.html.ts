@@ -45,6 +45,17 @@ ${this.showPackDialog_ ? html`
     </cr-button>
   </div>
 </div>
+<cr-dialog id="devModeConfirmationDialog" @cancel="${this.onDevModeDialogCancel_}">
+  <div slot="body">$i18n{toolbarDevModeConfirmation}</div>
+  <div slot="button-container">
+    <cr-button class="cancel-button" @click="${this.onDevModeDialogCancel_}">
+      $i18n{toolbarDevModeCancel}
+    </cr-button>
+    <cr-button class="action-button" @click="${this.onDevModeDialogConfirm_}">
+      $i18n{toolbarDevModeConfirm}
+    </cr-button>
+  </div>
+</cr-dialog>
 <!--_html_template_end_-->`;
   // clang-format on
 }
