@@ -3057,6 +3057,7 @@ You can manage this account’s settings by installing the Family Link app on yo
 <translation id="3094223846531205616">{COUNT,plural, =0{Expires today}=1{Expires tomorrow}other{Expires in # days}}</translation>
 <translation id="3094521107841754472">Price has changed from <ph name="PREVIOUS_PRICE" /> to <ph name="CURRENT_PRICE" />.</translation>
 <translation id="3095871294753148861">Bookmarks, passwords and other browser data are synced with the primary account.</translation>
+<translation id="3097016124663043290">Cancel</translation>
 <translation id="3099836255427453137">{NUM_EXTENSIONS,plural, =1{1 potentially harmful extension is off. You can also remove it.}other{{NUM_EXTENSIONS} potentially harmful extensions are off. You can also remove them.}}</translation>
 <translation id="3100071818310370858">Use location. Allow apps and services with location permission to use this device's location. Google may collect location data periodically and use this data in an anonymous way to improve location accuracy and location-based services. <ph name="BEGIN_LINK1" />Learn more about location<ph name="BEGIN_LINK1_END" />Learn more<ph name="END_LINK1" /></translation>
 <translation id="3101126716313987672">Dim light</translation>
@@ -4410,6 +4411,7 @@ This can include information about installed software, files, your browser and t
 <translation id="4042941173059740150">Continue to <ph name="SITE_ETLD_PLUS_ONE" /> with <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="4043267180218562935">Cursor size</translation>
 <translation id="4043620984511647481">Add printer manually</translation>
+<translation id="4044017060430402757">Confirm</translation>
 <translation id="4044612648082411741">Enter your certificate password</translation>
 <translation id="4044708573046946214">Screen lock password</translation>
 <translation id="4044883420905480380">You connected to Wi-Fi and signed in to <ph name="USER_EMAIL" /> using your Android phone</translation>
@@ -8990,6 +8992,7 @@ You have # more compromised passwords. Google Password Manager recommends checki
 <translation id="738903649531469042">Add tab to reading list</translation>
 <translation id="7392118418926456391">Virus scan failed</translation>
 <translation id="7392915005464253525">R&amp;eopen closed window</translation>
+<translation id="7393069163125850542">Enabling Developer Mode allows installation of third-party extensions that may pose security risks. Please confirm if you wish to proceed.</translation>
 <translation id="7393073300870882456">{COUNT,plural, =1{1 item copied}other{{COUNT} items copied}}</translation>
 <translation id="7393435859300249877">You'll get notified if you talk while your mic is muted when using certain apps, like video chat apps. Audio never leaves your device.</translation>
 <translation id="7395008140803590549">Unable to delete certificate</translation>
