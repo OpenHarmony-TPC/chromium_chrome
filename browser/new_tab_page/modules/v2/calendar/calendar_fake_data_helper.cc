@@ -11,12 +11,22 @@
 namespace {
 
 const char kGoogleCalendarDriveIconUrl[] =
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+    "https://xxx"
+    "xxx";
+#else
     "https://drive-thirdparty.googleusercontent.com/16/type/application/"
     "vnd.google-apps.document";
+#endif
 
 const char kOutlookCalendarDocIconUrl[] =
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+    "https://xxx"
+    "xxx";
+#else
     "https://res.cdn.office.net/files/fabric-cdn-prod_20240925.001/assets/"
     "item-types/16/docx.png";
+#endif
 
 }  // namespace
 
@@ -30,21 +40,33 @@ ntp::calendar::mojom::CalendarEventPtr GetFakeEvent(
   event->title = "Calendar Event " + base::NumberToString(index);
   event->start_time = base::Time::Now() + base::Minutes(index * 30);
   event->end_time = event->start_time + base::Minutes(30);
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+  event->url = GURL("https://xxx" + base::NumberToString(index));
+#else
   event->url = GURL("https://foo.com/" + base::NumberToString(index));
+#endif
   event->location = "Conference Room " + base::NumberToString(index);
   for (int i = 0; i < 3; ++i) {
     ntp::calendar::mojom::AttachmentPtr attachment =
         ntp::calendar::mojom::Attachment::New();
     attachment->title = "Attachment " + base::NumberToString(i);
     attachment->resource_url =
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+        GURL("https://xxx" + base::NumberToString(i));
+#else
         GURL("https://foo.com/attachment" + base::NumberToString(i));
+#endif
     attachment->icon_url = calendar_type == CalendarType::GOOGLE_CALENDAR
                                ? GURL(kGoogleCalendarDriveIconUrl)
                                : GURL(kOutlookCalendarDocIconUrl);
     event->attachments.push_back(std::move(attachment));
   }
   event->conference_url =
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+      GURL("https://xxx" + base::NumberToString(index));
+#else
       GURL("https://foo.com/conference" + base::NumberToString(index));
+#endif
   event->is_accepted = true;
   event->has_other_attendee = false;
   return event;
