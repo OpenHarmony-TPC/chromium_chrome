@@ -62,8 +62,13 @@ DataSharingUI::DataSharingUI(content::WebUI* web_ui)
       network::mojom::CSPDirectiveName::ImgSrc,
       "img-src "
       "https://lh3.google.com "
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+      "https://xxx "
+      "https://xxx "
+#else
       "https://lh3.googleusercontent.com "
       "https://www.gstatic.com "
+#endif
       "'self';");
 
   // Allow stylesheets to be loaded.
