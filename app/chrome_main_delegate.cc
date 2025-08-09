@@ -1078,7 +1078,9 @@ void ChromeMainDelegate::CommonEarlyInitialization(InvokedIn invoked_in) {
   // Enable Split cache by default here and not in content/ so as to not
   // impact non-Chrome embedders like WebView, Cronet etc. This only enables
   // it if not already overridden by command line, field trial etc.
+#if !BUILDFLAG(IS_ARKWEB)
   net::HttpCache::SplitCacheFeatureEnableByDefault();
+#endif
 
   // Similarly, enable network state partitioning by default.
   net::NetworkAnonymizationKey::PartitionByDefault();
