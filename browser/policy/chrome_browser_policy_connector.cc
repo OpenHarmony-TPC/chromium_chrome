@@ -415,7 +415,7 @@ ChromeBrowserPolicyConnector::CreatePlatformProvider() {
   std::unique_ptr<AsyncPolicyLoader> loader =
       std::make_unique<PolicyLoaderOhos>(
           base::ThreadPool::CreateSequencedTaskRunner(
-              {base::MayBlock(), base::TaskPriority::BEST_EFFORT}));
+              {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
   return std::make_unique<AsyncPolicyProvider>(GetSchemaRegistry(),
                                                std::move(loader));
 #elif BUILDFLAG(IS_MAC)
