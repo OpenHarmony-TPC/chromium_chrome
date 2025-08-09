@@ -47,6 +47,7 @@
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "arkweb/chromium_ext/chrome/browser/extensions/extension_install_prompt_ext.h"
+#include "arkweb/chromium_ext/chrome/browser/ui/extensions/installation_error_infobar_delegate_ohos.h"
 #endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
 using extensions::Extension;
@@ -507,6 +508,10 @@ void ExtensionInstallPrompt::OnInstallSuccess(
 void ExtensionInstallPrompt::OnInstallFailure(
     const extensions::CrxInstallError& error) {
   install_ui_->OnInstallFailure(error);
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  ohos::InstallationErrorInfoBarDelegate::ShowInfoBar(error);
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 }
 
 std::unique_ptr<ExtensionInstallPrompt::Prompt>
