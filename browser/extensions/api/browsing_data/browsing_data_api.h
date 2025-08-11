@@ -23,6 +23,10 @@
 #include "extensions/browser/extension_function.h"
 
 class PrefService;
+#ifdef BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+struct NWebExtensionBrowsingDataRemovalOptions;
+struct NWebExtensionBrowsingDataQueryOptions;
+#endif
 
 namespace extension_browsing_data_api_constants {
 
@@ -172,6 +176,10 @@ class BrowsingDataRemoverFunction
                                 const std::optional<std::string>& error);
   static void OnRemovedHistory(const base::WeakPtr<BrowsingDataRemoverFunction>& function,
                                const std::optional<std::string>& error);
+  void StartRemovingDownload(const NWebExtensionBrowsingDataRemovalOptions& removeOptions,
+                             const NWebExtensionBrowsingDataQueryOptions& queryOptions);
+  void StartRemovingHistory(const NWebExtensionBrowsingDataRemovalOptions& removeOptions,
+                            const NWebExtensionBrowsingDataQueryOptions& queryOptions);
   base::Value::Dict options_;
   bool call_remove_download_ = false;
   bool call_remove_history_ = false;
