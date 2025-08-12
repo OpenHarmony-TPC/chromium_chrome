@@ -481,7 +481,7 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
           extensions_features::kExtensionsMenuAccessControlWithPermittedSites));
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   source->AddBoolean("safetyCheckShowReviewPanel", false);
-  source->AddBoolean("safetyHubShowReviewPanel", false);
+  source->AddBoolean("safetyHubShowReviewPanel", true);
 #else
   source->AddBoolean(
       "safetyCheckShowReviewPanel",
