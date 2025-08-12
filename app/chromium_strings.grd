@@ -887,10 +887,10 @@ Permissions you've already given to websites and apps may apply to this account.
         Chromium can't verify where this extension comes from, and it might be unsafe. Remove it from Chromium so it can no longer see and change your data on sites you visit, including personal info.
       </message>
       <message name="IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_ON" desc="Alerts the user that the extension is not from the Chrome web store.">
-        On • Chromium can't verify where this extension comes from
+        On • The source of this extension could not be verified
       </message>
       <message name="IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_OFF" desc="Alerts the user that the extension is not from the Chrome web store.">
-        Off • Chromium can't verify where this extension comes from
+        Off • The source of this extension could not be verifiedm
       </message>
       <message name="IDS_EXTENSIONS_SAFETY_CHECK_NO_PRIVACY_PRACTICES" desc="Alerts the user that the extension has not disclosed its privacy practices.">
         This extension hasn't published privacy practices, such as how it collects and uses data. Chromium recommends that you remove it.
@@ -899,8 +899,8 @@ Permissions you've already given to websites and apps may apply to this account.
       <!-- chrome://extensions page -->
   <message name="IDS_EXTENSIONS_SC_DESCRIPTION" desc="Detailed message displayed in the Safety Check description section.">
     {NUM_EXTENSIONS, plural,
-     =1 {Chromium recommends that you remove it}
-     other {Chromium recommends that you remove them}}
+     =1 {Browser recommends that you remove it}
+     other {Browser recommends that you remove them}}
   </message>
       <message name="IDS_EXTENSIONS_ITEM_SHOW_ACCESS_REQUESTS_IN_TOOLBAR" desc="The label on the toggle to allow the extension to show site access requests in the toolbar.">
         Allow extension to show access requests in the Chromium toolbar
