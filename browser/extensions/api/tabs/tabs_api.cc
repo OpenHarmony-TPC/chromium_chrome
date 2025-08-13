@@ -1133,7 +1133,7 @@ ExtensionFunction::ResponseAction WindowsRemoveFunction::Run() {
   window_controller->window()->Close();
   return RespondNow(NoArguments());
 }
-#endif
+
 // Tabs ------------------------------------------------------------------------
 
 ExtensionFunction::ResponseAction TabsGetSelectedFunction::Run() {
@@ -1172,6 +1172,7 @@ ExtensionFunction::ResponseAction TabsGetSelectedFunction::Run() {
       CreateTabObjectHelper(contents, extension(), source_context_type(),
                             tab_strip, tab_strip->active_index()))));
 }
+#endif
 
 ExtensionFunction::ResponseAction TabsGetAllInWindowFunction::Run() {
   std::optional<tabs::GetAllInWindow::Params> params =
@@ -2737,7 +2738,11 @@ ScriptExecutor* ExecuteCodeInTabFunction::GetScriptExecutor(
   bool success = GetTabById(execute_tab_id_, browser_context(),
                             include_incognito_information(), &window, &contents,
                             nullptr, error) &&
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+                 contents;
+#else
                  contents && window;
+#endif
 
   if (!success) {
     return nullptr;
