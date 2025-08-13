@@ -1024,6 +1024,6 @@ ExtensionFunction::ResponseAction DebuggerGetTargetsFunction::Run() {
 
 }  // namespace extensions
 
-#if BUILDFLAG(IS_ARKWEB)
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "arkweb/chromium_ext/chrome/browser/extensions/api/debugger/debugger_api_for_include.cc"
-#endif // IS_ARKWEB
+#endif // ARKWEB_ARKWEB_EXTENSIONS
