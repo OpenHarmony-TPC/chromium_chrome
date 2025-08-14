@@ -43,10 +43,6 @@
 #include "extensions/common/utils/content_script_utils.h"
 #include "extensions/common/utils/extension_types_utils.h"
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "components/sessions/content/session_tab_helper.h"
-#endif // ARKWEB_ARKWEB_EXTENSIONS
-
 namespace extensions {
 
 namespace {
@@ -433,11 +429,7 @@ bool CanAccessTarget(const PermissionsData& permissions,
   // child frames), but consistent with the old tabs.executeScript() API.
   for (content::RenderFrameHost* frame : frames) {
     DCHECK_EQ(content::WebContents::FromRenderFrameHost(frame), tab);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-    if (!HasPermissionToInjectIntoFrame(permissions, sessions::SessionTabHelper::IdForTab(tab).id(), frame,
-#else
     if (!HasPermissionToInjectIntoFrame(permissions, target.tab_id, frame,
-#endif
                                         error_out)) {
       return false;
     }
