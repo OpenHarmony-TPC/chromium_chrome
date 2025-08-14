@@ -39,8 +39,6 @@ constexpr char kDefaultDiscoveryEndpoint[] =
     "https://castedumessaging-pa.googleapis.com";
 #endif // BUILDFLAG(IS_ARKWEB)
 
-
-
 constexpr char kDiscoveryServicePath[] = "/v1/receivers";
 constexpr char kDiscoveryOAuthConsumerName[] = "access_code_cast_discovery";
 constexpr char kEmptyPostData[] = "";
