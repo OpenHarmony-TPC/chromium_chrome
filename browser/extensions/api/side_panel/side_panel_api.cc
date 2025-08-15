@@ -12,7 +12,9 @@
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "chrome/browser/extensions/api/side_panel/side_panel_service.h"
+#if !BUILDFLAG(IS_ARKWEB)
 #include "chrome/common/extensions/api/side_panel.h"
+#endif
 
 #if BUILDFLAG(IS_ARKWEB)
 #include "arkweb/chromium_ext/chrome/browser/extensions/api/side_panel/side_panel_api_for_include.cc"
@@ -49,11 +51,12 @@ ExtensionFunction::ResponseAction SidePanelSetOptionsFunction::RunFunction() {
       api::side_panel::SetOptions::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  RunFunctionForInclude(this, params);
+  return RunFunctionForInclude(params);
 #endif
   // TODO(crbug.com/40226489): Validate the relative extension path exists.
   GetService()->SetOptions(*extension(), std::move(params->options));
   return RespondNow(NoArguments());
+#endif
 }
 
 ExtensionFunction::ResponseAction
@@ -111,17 +114,7 @@ ExtensionFunction::ResponseAction SidePanelOpenFunction::RunFunction() {
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #if BUILDFLAG(ARKWEB_NWEB_EX)
-  if (IsNativeApiEnable()) {
-    NWebExtensionSidePanelDispatcher::OnOpenNative(
-        extension()->id(),
-        params->options.tab_id.value_or(api::tabs::TAB_ID_NONE),
-        params->options.window_id.value_or(api::windows::WINDOW_ID_NONE));
-  } else {
-    NWebExtensionSidePanelDispatcher::OnOpen(
-        extension()->id(),
-        params->options.tab_id.value_or(api::tabs::TAB_ID_NONE),
-        params->options.window_id.value_or(api::windows::WINDOW_ID_NONE));
-  }
+  return RunOpenFunctionForInclude(params);
 #endif
 #else
   SidePanelService* service = GetService();
@@ -142,12 +135,12 @@ ExtensionFunction::ResponseAction SidePanelOpenFunction::RunFunction() {
   }
 
   CHECK_EQ(true, open_panel_result.value());
-#endif
 
   // TODO(crbug.com/40064601): Should we wait for the side panel to be
   // created and load? That would probably be nice.
 
   return RespondNow(NoArguments());
+#endif
 }
 
 }  // namespace extensions
