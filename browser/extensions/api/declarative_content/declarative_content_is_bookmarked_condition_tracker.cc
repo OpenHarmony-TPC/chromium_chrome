@@ -117,6 +117,7 @@ BookmarkRemovedForUrls(const std::set<GURL>& urls) {
   }
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 void DeclarativeContentIsBookmarkedConditionTracker::PerWebContentsTracker::
 UpdateState(bool request_evaluation_if_unchanged) {
   bool state_changed =
@@ -126,6 +127,7 @@ UpdateState(bool request_evaluation_if_unchanged) {
   if (state_changed || request_evaluation_if_unchanged)
     request_evaluation_.Run(web_contents());
 }
+#endif
 
 bool DeclarativeContentIsBookmarkedConditionTracker::PerWebContentsTracker::
 IsCurrentUrlBookmarked() {

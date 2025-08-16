@@ -20,6 +20,7 @@
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "arkweb/chromium_ext/chrome/browser/extensions/api/declarative_content/declarative_content_is_bookmarked_condition_delegate.h"
+#include "base/memory/weak_ptr.h"
 #endif
 
 namespace base {
@@ -137,6 +138,16 @@ class DeclarativeContentIsBookmarkedConditionTracker
       return is_url_bookmarked_;
     }
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    void IsBookmarkedCallback(uint32_t bookmarkCount,
+                              const NWebExtensionBookmarkTreeNode* bookmarks,
+                              const char* error);
+    void IsBookmarkedForceEvaluationCallback(
+        uint32_t bookmarkCount,
+        const NWebExtensionBookmarkTreeNode* bookmarks,
+        const char* error);
+#endif
+
    private:
     bool IsCurrentUrlBookmarked();
 
@@ -146,6 +157,9 @@ class DeclarativeContentIsBookmarkedConditionTracker
     bool is_url_bookmarked_;
     const RequestEvaluationCallback request_evaluation_;
     WebContentsDestroyedCallback web_contents_destroyed_;
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    base::WeakPtrFactory<PerWebContentsTracker> weak_factory_{this};
+#endif
   };
 
   // bookmarks::BookmarkModelObserver implementation.
