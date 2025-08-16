@@ -318,11 +318,16 @@ void FileSelectHelper::OnListDone(int error) {
   }
 
   if (dialog_type_ == ui::SelectFileDialog::SELECT_UPLOAD_FOLDER) {
+#if BUILDFLAG(ARKWEB_FILE_UPLOAD)
+    // Don't show the upload confirmation dialog.
+    PerformContentAnalysisIfNeeded(std::move(chooser_files));
+#else
     auto model = CreateConfirmationDialog(
         entry->display_name_, std::move(chooser_files),
         base::BindOnce(&FileSelectHelper::PerformContentAnalysisIfNeeded,
                        this));
     chrome::ShowTabModal(std::move(model), web_contents_);
+#endif
   } else {
     listener_->FileSelected(std::move(chooser_files), base_dir_,
                             FileChooserParams::Mode::kUploadFolder);
