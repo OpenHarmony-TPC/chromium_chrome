@@ -74,6 +74,9 @@
 #if BUILDFLAG(ARKWEB_EDM_POLICY)
 #include "cef/ohos_cef_ext/libcef/browser/policy/browser_policy_handler.h"
 #endif
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+#include "arkweb/chromium_ext/components/prefs/migration_filter.h"
+#endif // BUILDFLAG(ARKWEB_ADBLOCK)
 
 namespace {
 
@@ -220,8 +223,14 @@ void ChromeFeatureListCreator::CreatePrefService() {
   // ManagementService needs Local State but creating local state needs
   // ManagementService, instantiate the underlying PrefStore early and share it
   // between both.
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+  auto local_state_pref_store =
+      base::MakeRefCounted<JsonPrefStore>(local_state_file,
+          std::make_unique<MigrationFilter>());
+#else
   auto local_state_pref_store =
       base::MakeRefCounted<JsonPrefStore>(local_state_file);
+#endif // BUILDFLAG(ARKWEB_ADBLOCK)
 
   // Try and read the local state prefs, if it succeeds, use it as the
   // ManagementService's cache.
