@@ -9,8 +9,8 @@ assert(enable_extensions,
 
 source_set("networking_private") {
   sources = [
-    "networking_private_ui_delegate_factory_impl.cc",
-    "networking_private_ui_delegate_factory_impl.h",
+    #"networking_private_ui_delegate_factory_impl.cc",
+    #"networking_private_ui_delegate_factory_impl.h",
   ]
 
   public_deps = [ "//extensions/browser/api/networking_private" ]
