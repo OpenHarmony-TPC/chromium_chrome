@@ -4,6 +4,7 @@
 
 #include "chrome/browser/safe_browsing/chrome_enterprise_url_lookup_service.h"
 
+#include "arkweb/build/features/features.h"
 #include "base/command_line.h"
 #include "base/functional/callback.h"
 #include "base/task/sequenced_task_runner.h"
@@ -176,9 +177,14 @@ ChromeEnterpriseRealTimeUrlLookupService::GetDMTokenString() const {
 }
 
 GURL ChromeEnterpriseRealTimeUrlLookupService::GetRealTimeLookupUrl() const {
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+  return GetUrlOverride().value_or(
+      GURL("https://x.x.x"));
+#else
   return GetUrlOverride().value_or(
       GURL("https://enterprise-safebrowsing.googleapis.com/"
            "safebrowsing/clientreport/realtime"));
+#endif
 }
 
 net::NetworkTrafficAnnotationTag
