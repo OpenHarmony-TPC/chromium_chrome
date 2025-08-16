@@ -9,6 +9,7 @@
 
 #include "chrome/browser/ui/webui/hats/hats_ui.h"
 
+#include "arkweb/build/features/features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
@@ -35,6 +36,35 @@ HatsUI::HatsUI(content::WebUI* web_ui) : ui::UntrustedWebUIController(web_ui) {
   webui::SetupWebUIDataSource(
       source, base::make_span(kHatsResources, kHatsResourcesSize),
       IDR_HATS_HATS_HTML);
+
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ScriptSrc,
+      "script-src "
+
+      // only allow loading script from these trusted sources
+      "chrome-untrusted://hats/ "
+      "chrome-untrusted://resources/mojo/mojo/public/js/bindings.js "
+      ";");
+
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::StyleSrc,
+      "style-src "
+
+      // Unfortunately the HATS javascript does inject inline CSS:
+      "'unsafe-inline' "
+
+      // Origins of the CSS resources:
+      ";");
+
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::FontSrc,
+      ";");
+
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ImgSrc,
+      ";");
+#else
 
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
@@ -69,6 +99,7 @@ HatsUI::HatsUI(content::WebUI* web_ui) : ui::UntrustedWebUIController(web_ui) {
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ImgSrc,
       "img-src https://www.gstatic.com ;");
+#endif
 
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::FrameSrc,
