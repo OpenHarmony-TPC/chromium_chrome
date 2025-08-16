@@ -135,12 +135,7 @@ std::unique_ptr<NativeMessageHost> NativeMessageProcessHost::CreateWithLauncher(
 void NativeMessageProcessHost::LaunchHostProcess() {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  GURL origin(std::string(kArkwebExtensionScheme) + "://" +
-              source_extension_id_);
-#else
   GURL origin(std::string(kExtensionScheme) + "://" + source_extension_id_);
-#endif
   launcher_->Launch(
       origin, native_host_name_,
       base::BindOnce(&NativeMessageProcessHost::OnHostProcessLaunched,
