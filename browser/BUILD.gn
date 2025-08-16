@@ -6735,7 +6735,7 @@ static_library("browser") {
     ]
   }
 
-  if (is_linux || is_win || is_mac || is_chromeos_ash) {
+  if (is_linux || is_win || is_mac || is_chromeos_ash || is_ohos) {
     sources += [
       "enterprise/connectors/device_trust/device_trust_connector_service.cc",
       "enterprise/connectors/device_trust/device_trust_connector_service.h",
@@ -6993,6 +6993,18 @@ static_library("browser") {
       "supervised_user/supervised_user_verification_page.h",
       "supervised_user/supervised_user_verification_page_youtube.cc",
       "supervised_user/supervised_user_verification_page_youtube.h",
+      "enterprise/connectors/device_trust/attestation/browser/attestation_switches.cc",
+      "enterprise/connectors/device_trust/attestation/browser/attestation_switches.h",
+      "enterprise/connectors/device_trust/attestation/browser/browser_attestation_service.cc",
+      "enterprise/connectors/device_trust/attestation/browser/browser_attestation_service.h",
+      "enterprise/connectors/device_trust/attestation/browser/crypto_utility.cc",
+      "enterprise/connectors/device_trust/attestation/browser/crypto_utility.h",
+      "enterprise/connectors/device_trust/attestation/browser/google_keys.cc",
+      "enterprise/connectors/device_trust/attestation/browser/google_keys.h",
+      "enterprise/connectors/device_trust/attestation/browser/device_attester.cc",
+      "enterprise/connectors/device_trust/attestation/browser/device_attester.h",
+      "enterprise/connectors/device_trust/attestation/browser/profile_attester.cc",
+      "enterprise/connectors/device_trust/attestation/browser/profile_attester.h",
     ]
   }
 
@@ -7042,6 +7054,8 @@ static_library("browser") {
     sources += [
       "first_run/upgrade_util_linux.cc",
       "first_run/upgrade_util_linux.h",
+      "shell_integration_linux.cc",
+      "shell_integration_linux.h",
       "//arkweb/chromium_ext/chrome/browser/shell_integration_ohos.cc",
       "//arkweb/chromium_ext/chrome/browser/platform_util_ohos.cc",
       "//arkweb/chromium_ext/chrome/browser/icon_loader_ohos.cc",
@@ -7147,7 +7161,7 @@ static_library("browser") {
     ]
   }
 
-  if (is_win || is_mac || is_linux) {
+  if (is_win || is_mac || is_linux || is_ohos) {
     sources += [
       "browser_switcher/alternative_browser_driver.h",
       "browser_switcher/browser_switcher_navigation_throttle.cc",
@@ -7166,7 +7180,7 @@ static_library("browser") {
     if (is_win) {
       sources += [ "browser_switcher/alternative_browser_driver_win.cc" ]
     }
-    if (is_mac || is_linux) {
+    if (is_mac || is_linux || is_ohos) {
       sources += [ "browser_switcher/alternative_browser_driver_posix.cc" ]
     }
   }
@@ -7407,7 +7421,7 @@ static_library("browser") {
         "//chromeos/printing",
       ]
     }
-    if (is_linux) {
+    if (is_linux ||is_ohos) {
       sources += [ "printing/printer_manager_dialog_linux.cc" ]
     }
     if (enable_oop_printing) {
