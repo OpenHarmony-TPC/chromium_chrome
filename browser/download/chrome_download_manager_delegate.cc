@@ -1270,7 +1270,7 @@ void ChromeDownloadManagerDelegate::NotifyExtensions(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(!download->IsTransient());
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS) && (!BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS))
   extensions::ExtensionDownloadsEventRouter* router =
       DownloadCoreServiceFactory::GetForBrowserContext(profile_)
           ->GetExtensionEventRouter();
