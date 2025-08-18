@@ -1172,6 +1172,7 @@ ExtensionFunction::ResponseAction DownloadsDownloadFunction::Run() {
   return RespondLater();
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 void DownloadsDownloadFunction::OnStarted(
     const base::FilePath& creator_suggested_filename,
     downloads::FilenameConflictAction creator_conflict_action,
@@ -1181,14 +1182,7 @@ void DownloadsDownloadFunction::OnStarted(
   VLOG(1) << __func__ << " " << item << " " << interrupt_reason;
   if (item) {
     DCHECK_EQ(download::DOWNLOAD_INTERRUPT_REASON_NONE, interrupt_reason);
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
     Respond(WithArguments(static_cast<int>(item->GetId())));
-#else
-    int downloadId = RespondDownlodId(item->GetGuid());
-    if (downloadId != -1) {
-      Respond(WithArguments(downloadId));
-    }
-#endif
     if (!creator_suggested_filename.empty() ||
         (creator_conflict_action !=
          downloads::FilenameConflictAction::kUniquify)) {
@@ -1208,7 +1202,6 @@ void DownloadsDownloadFunction::OnStarted(
   }
 }
 
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 DownloadsSearchFunction::DownloadsSearchFunction() {}
 
 DownloadsSearchFunction::~DownloadsSearchFunction() {}
