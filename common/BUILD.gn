@@ -441,7 +441,7 @@ static_library("common_lib") {
     public_deps += [ "//chrome/common/safe_browsing" ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux || is_chromeos || is_ohos) {
     sources += [
       "auto_start_linux.cc",
       "auto_start_linux.h",
@@ -634,7 +634,7 @@ static_library("constants") {
       "//chromeos/startup",
     ]
     public_deps += [ "//chromeos/crosapi/mojom" ]
-  } else if (is_linux || is_chromeos) {
+  } else if (is_linux || is_chromeos || is_ohos) {
     sources += [ "chrome_paths_linux.cc" ]
     deps += [ ":channel_info" ]
   } else if (is_ohos) {

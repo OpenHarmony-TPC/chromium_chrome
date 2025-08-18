@@ -2301,11 +2301,13 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
 #endif
 #endif
 
+#if !BUILDFLAG(IS_OHOS)
 #if BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
   { key::kProvisionManagedClientCertificateForUser,
     client_certificates::prefs::kProvisionManagedClientCertificateForUserPrefs,
     base::Value::Type::INTEGER },
 #endif  // BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
+#endif // BUILDFLAG(IS_OHOS)
 
 #if !BUILDFLAG(IS_ANDROID)
   { key::kLensOverlaySettings,

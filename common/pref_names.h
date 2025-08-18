@@ -4094,7 +4094,7 @@ inline constexpr char kLensDesktopNTPSearchEnabled[] =
     "policy.lens_desktop_ntp_search_enabled";
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_OHOS)
 // A dict mapping the edition name with the major version it was shown.
 inline constexpr char kWhatsNewEditionUsed[] = "browser.whats_new.edition_used";
 // A list containing the features of each module in order of when they
