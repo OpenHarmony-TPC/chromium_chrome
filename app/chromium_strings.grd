@@ -890,7 +890,7 @@ Permissions you've already given to websites and apps may apply to this account.
         On • The source of this extension could not be verified
       </message>
       <message name="IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_OFF" desc="Alerts the user that the extension is not from the Chrome web store.">
-        Off • The source of this extension could not be verifiedm
+        Off • The source of this extension could not be verified
       </message>
       <message name="IDS_EXTENSIONS_SAFETY_CHECK_NO_PRIVACY_PRACTICES" desc="Alerts the user that the extension has not disclosed its privacy practices.">
         This extension hasn't published privacy practices, such as how it collects and uses data. Chromium recommends that you remove it.
