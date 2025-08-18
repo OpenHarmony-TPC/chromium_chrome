@@ -26,7 +26,7 @@
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "ohos_nweb/src/capi/browser_service/nweb_extension_downloads_types.h"
-#endif // ARKWEB_ARKWEB_EXTENSIONS
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 
 class DownloadFileIconExtractor;
 class DownloadOpenPrompt;
@@ -106,9 +106,22 @@ class DownloadsDownloadFunction : public ExtensionFunction {
       delete;
 
   ResponseAction Run() override;
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  static void GetDownloadIdCallback(
+          const base::WeakPtr<DownloadsDownloadFunction>& function,
+          download::DownloadItem* item,
+          const base::FilePath& creator_suggested_filename,
+          api::downloads::FilenameConflictAction creator_conflict_action,
+          std::optional<std::string> error,
+          int downloadId);
+  bool call_downloads_download_ = false;
+#endif
 
  protected:
   ~DownloadsDownloadFunction() override;
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  base::WeakPtrFactory<DownloadsDownloadFunction> weak_ptr_factory_{this};
+#endif
 
  private:
   void OnStarted(const base::FilePath& creator_suggested_filename,
@@ -116,9 +129,6 @@ class DownloadsDownloadFunction : public ExtensionFunction {
                      creator_conflict_action,
                  download::DownloadItem* item,
                  download::DownloadInterruptReason interrupt_reason);
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  int RespondDownlodId(const std::string& guid);
-#endif
 };
 
 #if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
@@ -214,8 +224,7 @@ class DownloadsAcceptDangerFunction : public ExtensionFunction {
  public:
   using OnPromptCreatedCallback =
       base::OnceCallback<void(DownloadDangerPrompt*)>;
-  static void OnPromptCreatedForTesting(
-      OnPromptCreatedCallback* callback) {
+  static void OnPromptCreatedForTesting(OnPromptCreatedCallback* callback) {
     on_prompt_created_ = callback;
   }
 
@@ -255,8 +264,8 @@ class DownloadsShowFunction : public ExtensionFunction {
 
 class DownloadsShowDefaultFolderFunction : public ExtensionFunction {
  public:
-  DECLARE_EXTENSION_FUNCTION(
-      "downloads.showDefaultFolder", DOWNLOADS_SHOWDEFAULTFOLDER)
+  DECLARE_EXTENSION_FUNCTION("downloads.showDefaultFolder",
+                             DOWNLOADS_SHOWDEFAULTFOLDER)
   DownloadsShowDefaultFolderFunction();
 
   DownloadsShowDefaultFolderFunction(
@@ -375,7 +384,7 @@ class ExtensionDownloadsEventRouter
       std::string* winner_extension_id,
       base::FilePath* determined_filename,
       extensions::api::downloads::FilenameConflictAction*
-        determined_conflict_action,
+          determined_conflict_action,
       extensions::WarningSet* warnings);
 
   // A downloads.onDeterminingFilename listener has returned. If the extension
@@ -393,8 +402,8 @@ class ExtensionDownloadsEventRouter
       extensions::api::downloads::FilenameConflictAction conflict_action,
       std::string* error);
 
-  explicit ExtensionDownloadsEventRouter(
-      Profile* profile, content::DownloadManager* manager);
+  explicit ExtensionDownloadsEventRouter(Profile* profile,
+                                         content::DownloadManager* manager);
 
   ExtensionDownloadsEventRouter(const ExtensionDownloadsEventRouter&) = delete;
   ExtensionDownloadsEventRouter& operator=(
