@@ -119,9 +119,6 @@ class DownloadsDownloadFunction : public ExtensionFunction {
 
  protected:
   ~DownloadsDownloadFunction() override;
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  base::WeakPtrFactory<DownloadsDownloadFunction> weak_ptr_factory_{this};
-#endif
 
  private:
   void OnStarted(const base::FilePath& creator_suggested_filename,
@@ -129,6 +126,9 @@ class DownloadsDownloadFunction : public ExtensionFunction {
                      creator_conflict_action,
                  download::DownloadItem* item,
                  download::DownloadInterruptReason interrupt_reason);
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  base::WeakPtrFactory<DownloadsDownloadFunction> weak_ptr_factory_{this};
+#endif
 };
 
 #if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
