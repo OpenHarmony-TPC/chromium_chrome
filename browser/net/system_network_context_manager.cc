@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "arkweb/build/features/features.h"
 #include "base/auto_reset.h"
 #include "base/build_time.h"
 #include "base/command_line.h"
@@ -790,8 +791,10 @@ void SystemNetworkContextManager::OnNetworkServiceCreated(
 #endif  // !BUILDFLAG(IS_WIN)
   }
 
+#if !BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
   // Configure SCT Auditing in the NetworkService.
   SCTReportingService::ReconfigureAfterNetworkRestart();
+#endif
 
   component_updater::PKIMetadataComponentInstallerService::GetInstance()
       ->ReconfigureAfterNetworkRestart();
