@@ -4,6 +4,7 @@
 
 #include "chrome/browser/cart/fetch_discount_worker.h"
 
+#include "arkweb/build/features/features.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/task/thread_pool.h"
@@ -26,7 +27,12 @@
 
 namespace {
 const char kOauthName[] = "rbd";
-const char kOauthScopes[] = "https://www.googleapis.com/auth/chromememex";
+const char kOauthScopes[] =
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+    "https://x.x.x";
+#else
+    "https://www.googleapis.com/auth/chromememex";
+#endif
 const char kEmptyToken[] = "";
 }  // namespace
 
