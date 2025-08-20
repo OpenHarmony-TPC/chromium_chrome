@@ -7,6 +7,7 @@ import("//chrome/browser/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//testing/test.gni")
+import("//arkweb/build/features/features.gni")
 
 assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
 
@@ -391,7 +392,11 @@ source_set("web_applications") {
     ]
   }
 
-  if (is_linux || is_ohos) {
+  if (is_ohos && !arkweb_asan) {
+    sources += [ "os_integration/web_app_stubs.cc" ]
+  }
+
+  if (is_linux || arkweb_asan) {
     # Desktop linux, doesn't count ChromeOS.
     sources += [
       "os_integration/web_app_file_handler_registration_linux.cc",

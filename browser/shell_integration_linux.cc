@@ -124,7 +124,7 @@ const int EXIT_XDG_SETTINGS_SYNTAX_ERROR = 1;
 
 // If |scheme| is empty this function sets Chrome as the default browser,
 // otherwise it sets Chrome as the default handler application for |scheme|.
-#if !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(ARKWEB_ASAN)
 bool SetDefaultWebClient(const std::string& scheme) {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   return true;
@@ -200,7 +200,7 @@ shell_integration::DefaultWebClientState GetIsDefaultWebClient(
              : shell_integration::NOT_DEFAULT;
 #endif
 }
-#endif // BUILDFLAG(IS_OHOS)
+#endif // BUILDFLAG(ARKWEB_ASAN)
 
 // https://wiki.gnome.org/Projects/GnomeShell/ApplicationBased
 // The WM_CLASS property should be set to the same as the *.desktop file without
@@ -306,7 +306,7 @@ void SetActionsForDesktopApplication(
 }
 #endif
 
-#if !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(ARKWEB_ASAN)
 base::FilePath GetDesktopFileForDefaultSchemeHandler(base::Environment* env,
                                                      const GURL& url) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
@@ -329,7 +329,7 @@ base::FilePath GetDesktopFileForDefaultSchemeHandler(base::Environment* env,
 
   return base::FilePath();
 }
-#endif // BUILDFLAG(IS_OHOS)
+#endif // BUILDFLAG(ARKWEB_ASAN)
 
 std::string GetDesktopEntryStringValueFromFromDesktopFile(
     const std::string& key,
@@ -866,7 +866,7 @@ std::string GetMimeTypesRegistrationFileContents(
 
 }  // namespace shell_integration_linux
 
-#if !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(ARKWEB_ASAN)
 namespace shell_integration {
 
 bool SetAsDefaultBrowser() {
@@ -926,4 +926,4 @@ DefaultWebClientSetPermission GetPlatformSpecificDefaultWebClientSetPermission(
 }  // namespace internal
 
 }  // namespace shell_integration
-#endif // BUILDFLAG(IS_OHOS)
+#endif // BUILDFLAG(ARKWEB_ASAN)

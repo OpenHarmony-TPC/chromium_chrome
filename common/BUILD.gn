@@ -21,6 +21,7 @@ import("//printing/buildflags/buildflags.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/widevine/cdm/widevine.gni")
 import("//tools/grit/grit_rule.gni")
+import("//arkweb/build/features/features.gni")
 
 assert(enable_supervised_users)
 assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
@@ -441,7 +442,7 @@ static_library("common_lib") {
     public_deps += [ "//chrome/common/safe_browsing" ]
   }
 
-  if (is_linux || is_chromeos || is_ohos) {
+  if (is_linux || is_chromeos || arkweb_asan) {
     sources += [
       "auto_start_linux.cc",
       "auto_start_linux.h",
@@ -634,7 +635,7 @@ static_library("constants") {
       "//chromeos/startup",
     ]
     public_deps += [ "//chromeos/crosapi/mojom" ]
-  } else if (is_linux || is_chromeos || is_ohos) {
+  } else if (is_linux || is_chromeos || arkweb_asan) {
     sources += [ "chrome_paths_linux.cc" ]
     deps += [ ":channel_info" ]
   } else if (is_ohos) {
