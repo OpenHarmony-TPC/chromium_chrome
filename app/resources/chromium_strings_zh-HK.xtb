@@ -97,6 +97,7 @@
 <translation id="2240214816234246077">由於最近沒有瀏覽記錄，Chromium 已移除<ph name="PERMISSION_1" />和<ph name="PERMISSION_2" />權限</translation>
 <translation id="2241627712206172106">如果您與親朋好友共用電腦，每個人均可享有獨立的瀏覽空間，依照自己的偏好設定 Chromium。</translation>
 <translation id="2313870531055795960">使用儲存在 Chromium 中的不安全網站清單來檢查網址。如果有網站試圖盜取您的密碼，或當您下載有害檔案時，Chromium 亦可能將網址 (包括部分網頁內容) 傳送至「安全瀏覽」功能。</translation>
+<translation id="2340553376566028509">已開啟 • 無法驗證此擴展程式的來源</translation>
 <translation id="2343156876103232566">如要將號碼從此處傳送至 Android 手機，請在這兩部裝置上登入 Chromium。</translation>
 <translation id="2359808026110333948">繼續</translation>
 <translation id="2361918034042471035">擴充程式「<ph name="EXTENSION_NAME" />」需要你登入 Chromium</translation>
@@ -184,6 +185,7 @@
 <translation id="3406848076815591792">要切換至現有 Chromium 設定檔嗎？</translation>
 <translation id="3412460710772753638">儲存在此裝置的「密碼管理工具」中</translation>
 <translation id="3430503420100763906">透過 Chromium 設定檔，您可將所有 Chromium 內容分門別類，例如建立親朋好友專屬的設定檔，或劃分工作和娛樂內容。</translation>
+<translation id="3467729044755133349">已關閉 • 無法驗證此擴展程式的來源</translation>
 <translation id="347328004046849135">如果您使用被盜用的密碼登入帳戶，Chromium 會通知您</translation>
 <translation id="3474745554856756813">這會刪除此裝置上的 <ph name="ITEMS_COUNT" /> 個項目。如果日後想擷取資料，請以 <ph name="USER_EMAIL" /> 的身分登入 Chromium。</translation>
 <translation id="3497319089134299931"><ph name="SHORTCUT" /> 可以切換唔同嘅 Chromium 設定檔</translation>

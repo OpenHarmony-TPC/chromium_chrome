@@ -5506,10 +5506,10 @@ are declared in tools/grit/grit_rule.gni.
           Read your browsing history
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_HISTORY_READ_ON_ALL_DEVICES" desc="Permission string for access to browsing history on all signed-in devices.">
-          Read your browsing history on all your signed-in devices
+          Read your browsing history on all your logged-in devices
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_HISTORY_WRITE_ON_ALL_DEVICES" desc="Permission string for access to modify browsing history on all signed-in devices.">
-          Read and change your browsing history on all your signed-in devices
+          Read and change your browsing history on all logged-in devices
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_HOME_PAGE_SETTING_OVERRIDE" desc="Permission string for home page override.">
           Change your home page to: <ph name="HOME_PAGE">$1<ex>home.page.com/home.html</ex></ph>
@@ -5533,7 +5533,7 @@ are declared in tools/grit/grit_rule.gni.
           Read your data on <ph name="WEBSITE_1">$1<ex>www.google.com</ex></ph>, <ph name="WEBSITE_2">$2<ex>www.reddit.com</ex></ph>, and <ph name="WEBSITE_3">$3<ex>news.ycombinator.com</ex></ph>
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_HOSTS_LIST" desc="Permission string for access to data for an arbitrary list of websites.">
-          Read and change your data on a number of websites
+          Read and change your data on certain websites
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_HOSTS_LIST_READ_ONLY" desc="Permission string for read-only access to data for an arbitrary list of websites.">
           Read your data on a number of websites
@@ -5560,7 +5560,7 @@ are declared in tools/grit/grit_rule.gni.
           Manage your apps, extensions, and themes
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_MDNS" desc="Permisson string for access to list of mDNS services on a network.">
-          Discover devices on your local network, like printers
+          Find devices on your local network, such as printers
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_NETWORK_STATE" desc="Permission string for network list access.">
           Access list of network connections
@@ -5642,7 +5642,7 @@ are declared in tools/grit/grit_rule.gni.
         </message>
 
         <message name="IDS_EXTENSION_PROMPT_WARNING_CONTENT_SETTINGS" desc="Permission string for access to content settings.">
-          Change your settings that control websites' access to features such as cookies, JavaScript, plugins, geolocation, microphone, camera, etc.
+          Change your settings that control websites' access to features including cookies, JavaScript, plugins, geolocation, microphone, camera, and more
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_PRIVACY" desc="Permission string for access to privacy settings.">
           Change your privacy-related settings
@@ -5654,7 +5654,7 @@ are declared in tools/grit/grit_rule.gni.
           Open downloaded files
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_IDENTITY_EMAIL" desc="Permission string for access to profile email address.">
-          Know your email address
+          Obtain your email address
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_WALLPAPER" desc="Permission string for access to wallpaper.">
           Change your wallpaper
@@ -5681,7 +5681,7 @@ are declared in tools/grit/grit_rule.gni.
           Store data in your Google Drive account
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_NATIVE_MESSAGING" desc="Permission string for Native Messaging API.">
-          Communicate with cooperating native applications
+          Communicate with cooperating native apps
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_SCREENLOCK_PRIVATE" desc="Permission string for locking an unlocking the screen.">
           Lock and unlock the screen
@@ -5690,7 +5690,7 @@ are declared in tools/grit/grit_rule.gni.
           Monitor the behavior of other extensions, including visited URLs
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_DESKTOP_CAPTURE" desc="Permission string for Desktop Capture API.">
-          Capture content of your screen
+          Capture the content of your screen
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_ACCESSIBILITY_FEATURES_MODIFY" desc="Permission string for modifying acccessibility settings via extension API shown when an extension utilizing the API is installed.">
           Change your accessibility settings
@@ -5723,7 +5723,7 @@ are declared in tools/grit/grit_rule.gni.
           Replace the page you see when opening a new tab
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_TRANSIENT_BACKGROUND" desc="Permission string for transient background permission.">
-          Run in the background when requested by a cooperating native application
+          Run in the background when requested by a cooperating native app
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_ENTERPRISE_DEVICE_ATTRIBUTES" desc="Permission string for enterprise device attributes permission.">
           See device information, such as its serial number or asset ID
@@ -5753,8 +5753,8 @@ are declared in tools/grit/grit_rule.gni.
         <message name="IDS_EXTENSION_PROMPT_WARNING_ENTERPRISE_REMOTE_APPS" desc="Permission string for access to the Remote Apps Enterprise API.">
           Add remote apps to the ChromeOS launcher
         </message>
-        <message name="IDS_EXTENSION_PROMPT_WARNING_BROWSING_DATA" desc="Permission string for accessing and controling user browsing data, including browsing history, download history, cookies, form data, passwords, etc.">
-          Access and control your browsing data, including browsing history, download history, cookies, form data, passwords, etc.
+        <message name="IDS_EXTENSION_PROMPT_WARNING_BROWSING_DATA" desc="Permission string for accessing and controlling user browsing data, including browsing history, download history, cookies, form data, passwords, etc.">
+          Access and manage your browsing data, including browsing history, download history, cookies, form data, passwords, and more
         </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_COOKIES" desc="Permission string for accessing and managing cookies in user's browser.">
           Access and manage cookies in your browser

@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "arkweb/build/features/features.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/page_info/about_this_site_side_panel_throttle.h"
 #include "chrome/browser/profiles/profile.h"
@@ -47,8 +48,12 @@ std::unique_ptr<views::WebView> CreateWebView(
 }
 }  // namespace
 
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
 constexpr char kStaticLoadingScreenURL[] =
     "https://www.gstatic.com/diner/chrome/atp_loading.html";
+#else
+constexpr char kStaticLoadingScreenURL[] = "https://x.x.x.x";
+#endif
 
 AboutThisSiteSidePanelView::AboutThisSiteSidePanelView(
     content::WebContents* parent_web_contents)

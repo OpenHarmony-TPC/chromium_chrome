@@ -4,6 +4,7 @@
 
 #include "chrome/browser/cart/cart_discount_fetcher.h"
 
+#include "arkweb/build/features/features.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
@@ -33,7 +34,11 @@ const char kAcceptLanguageKey[] = "Accept-Language";
 const char kClientDataHeader[] = "X-Client-Data";
 
 const char kFetchDiscountsEndpoint[] =
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+    "https://x.x.x";
+#else
     "https://memex-pa.googleapis.com/v1/shopping/cart/discounts";
+#endif
 constexpr base::TimeDelta kTimeout = base::Milliseconds(30000);
 
 const char kCartDiscountFetcherEndpointParam[] =
