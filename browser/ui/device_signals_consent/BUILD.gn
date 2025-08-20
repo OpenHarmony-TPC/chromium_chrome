@@ -1,8 +1,9 @@
 # Copyright 2024 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+import("//arkweb/build/features/features.gni")
 
-assert(is_win || is_mac || is_linux || is_chromeos || is_ohos)
+assert(is_win || is_mac || is_linux || is_chromeos || arkweb_asan)
 
 source_set("device_signals_consent") {
   sources = [ "consent_requester.h" ]
