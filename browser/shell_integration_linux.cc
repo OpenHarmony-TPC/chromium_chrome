@@ -83,6 +83,7 @@ const char kXdgSettingsDefaultSchemeHandler[] = "default-url-scheme-handler";
 // path to the Chrome version of the script, and the return value of the
 // function is true if the function is successful and the Chrome version is
 // not the script found on the PATH.
+#if !BUILDFLAG(IS_OHOS)
 bool GetChromeVersionOfScript(const std::string& script,
                               std::string* chrome_version) {
   // Get the path to the Chrome version.
@@ -106,6 +107,7 @@ bool GetChromeVersionOfScript(const std::string& script,
   }
   return false;
 }
+#endif
 
 // Value returned by xdg-settings if it can't understand our request.
 const int EXIT_XDG_SETTINGS_SYNTAX_ERROR = 1;
@@ -122,7 +124,7 @@ const int EXIT_XDG_SETTINGS_SYNTAX_ERROR = 1;
 
 // If |scheme| is empty this function sets Chrome as the default browser,
 // otherwise it sets Chrome as the default handler application for |scheme|.
-#if !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(ARKWEB_ASAN)
 bool SetDefaultWebClient(const std::string& scheme) {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   return true;
@@ -198,7 +200,7 @@ shell_integration::DefaultWebClientState GetIsDefaultWebClient(
              : shell_integration::NOT_DEFAULT;
 #endif
 }
-#endif // BUILDFLAG(IS_OHOS)
+#endif // BUILDFLAG(ARKWEB_ASAN)
 
 // https://wiki.gnome.org/Projects/GnomeShell/ApplicationBased
 // The WM_CLASS property should be set to the same as the *.desktop file without
@@ -304,7 +306,7 @@ void SetActionsForDesktopApplication(
 }
 #endif
 
-#if !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(ARKWEB_ASAN)
 base::FilePath GetDesktopFileForDefaultSchemeHandler(base::Environment* env,
                                                      const GURL& url) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
@@ -327,7 +329,7 @@ base::FilePath GetDesktopFileForDefaultSchemeHandler(base::Environment* env,
 
   return base::FilePath();
 }
-#endif // BUILDFLAG(IS_OHOS)
+#endif // BUILDFLAG(ARKWEB_ASAN)
 
 std::string GetDesktopEntryStringValueFromFromDesktopFile(
     const std::string& key,
@@ -370,6 +372,7 @@ std::string GetDesktopEntryStringValueFromFromDesktopFile(
 
 // Allows LaunchXdgUtility to join a process.
 // thread_restrictions.h assumes it to be in shell_integration_linux namespace.
+#if !BUILDFLAG(IS_OHOS)
 class [[maybe_unused, nodiscard]] LaunchXdgUtilityScopedAllowBaseSyncPrimitives
     : public base::ScopedAllowBaseSyncPrimitives{};
 
@@ -394,6 +397,7 @@ bool LaunchXdgUtility(const std::vector<std::string>& argv, int* exit_code) {
   LaunchXdgUtilityScopedAllowBaseSyncPrimitives allow_base_sync_primitives;
   return process.WaitForExit(exit_code);
 }
+#endif
 
 std::string GetWMClassFromAppName(std::string app_name) {
   base::i18n::ReplaceIllegalCharactersInPath(&app_name, '_');
@@ -496,6 +500,7 @@ std::string GetIconName() {
 #endif
 }
 
+#if !BUILDFLAG(IS_OHOS)
 bool GetExistingShortcutContents(base::Environment* env,
                                  const base::FilePath& desktop_filename,
                                  std::string* output) {
@@ -517,6 +522,7 @@ bool GetExistingShortcutContents(base::Environment* env,
 
   return false;
 }
+#endif
 
 std::optional<base::SafeBaseName> GetUniqueWebShortcutFilename(
     const std::string& name) {
@@ -860,7 +866,7 @@ std::string GetMimeTypesRegistrationFileContents(
 
 }  // namespace shell_integration_linux
 
-#if !BUILDFLAG(IS_OHOS)
+#if !BUILDFLAG(ARKWEB_ASAN)
 namespace shell_integration {
 
 bool SetAsDefaultBrowser() {
@@ -920,4 +926,4 @@ DefaultWebClientSetPermission GetPlatformSpecificDefaultWebClientSetPermission(
 }  // namespace internal
 
 }  // namespace shell_integration
-#endif // BUILDFLAG(IS_OHOS)
+#endif // BUILDFLAG(ARKWEB_ASAN)
