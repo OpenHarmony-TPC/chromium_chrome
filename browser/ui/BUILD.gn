@@ -3675,7 +3675,7 @@ static_library("ui") {
     deps += [ "//components/os_crypt/sync:os_crypt" ]
   }
 
-  if (is_ohos && !is_asan) {
+  if (is_ohos && !arkweb_asan) {
     sources -= [
       "passwords/bubble_controllers/relaunch_chrome_bubble_controller.cc",
       "passwords/bubble_controllers/relaunch_chrome_bubble_controller.h",
