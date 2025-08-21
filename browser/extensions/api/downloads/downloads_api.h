@@ -26,7 +26,7 @@
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "ohos_nweb/src/capi/browser_service/nweb_extension_downloads_types.h"
-#endif  // ARKWEB_ARKWEB_EXTENSIONS
+#endif // ARKWEB_ARKWEB_EXTENSIONS
 
 class DownloadFileIconExtractor;
 class DownloadOpenPrompt;
