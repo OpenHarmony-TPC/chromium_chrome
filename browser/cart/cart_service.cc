@@ -688,11 +688,11 @@ void CartService::AddCartsWithFakeData() {
       l10n_util::GetStringFUTF8(IDS_NTP_MODULES_CART_DISCOUNT_CHIP_AMOUNT,
                                 u"15%"));
   dummy_proto1.mutable_discount_info()->set_has_coupons(true);
-  #if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
   dummy_proto1.add_product_image_urls("https://x.x.x");
   dummy_proto1.add_product_image_urls("https://x.x.x");
   dummy_proto1.add_product_image_urls("https://x.x.x");
-  #else
+#else
   dummy_proto1.add_product_image_urls(
       "https://encrypted-tbn3.gstatic.com/"
       "shopping?q=tbn:ANd9GcQpn38jB2_BANnHUFa7kHJsf6SyubcgeU1lNYO_"
@@ -708,10 +708,10 @@ void CartService::AddCartsWithFakeData() {
       "shopping?q=tbn:ANd9GcT2ew6Aydzu5VzRV756ORGha6fyjKp_On7iTlr_"
       "tL9vODnlNtFo_xsxj6_lCop-3J0Vk44lHfk-AxoBJDABVHPVFN-"
       "EiWLcZvzkdpHFqcurm7fBVmWtYKo2rg&usqp=CAY");
+#endif
   cart_db_->AddCart(dummy_proto1.key(), dummy_proto1,
                     base::BindOnce(&CartService::OnOperationFinished,
                                    weak_ptr_factory_.GetWeakPtr()));
-  #endif
   // Add a fake code coupon associated with this dummy cart. If more fake coupon
   // data is added, please also delete them in DeleteCartsWithFakeData.
   base::flat_map<GURL,
