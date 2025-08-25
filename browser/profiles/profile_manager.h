@@ -589,7 +589,7 @@ class ProfileManager : public Profile::Delegate {
   bool do_final_services_init_ = true;
 
 #if BUILDFLAG(ARKWEB_COOKIE)
-  bool persist_session_cookies_;
+  bool persist_session_cookies_ = false;
 #endif
 
   // TODO(chrome/browser/profiles/OWNERS): Usage of this in profile_manager.cc
