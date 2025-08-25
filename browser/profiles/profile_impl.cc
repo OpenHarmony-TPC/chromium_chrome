@@ -1262,7 +1262,11 @@ bool ProfileImpl::ShouldRestoreOldSessionCookies() {
 }
 
 bool ProfileImpl::ShouldPersistSessionCookies() const {
+#if BUILDFLAG(ARKWEB_COOKIE)
+  return g_browser_process->profile_manager()->GetPersistSessionCookies();
+#else
   return true;
+#endif
 }
 
 PrefService* ProfileImpl::GetPrefs() {
