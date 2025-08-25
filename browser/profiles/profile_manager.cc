@@ -2176,6 +2176,16 @@ void ProfileManager::OnClosingAllBrowsersChanged(bool closing) {
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(ARKWEB_COOKIE)
+bool ProfileManager::GetPersistSessionCookies() {
+  return persist_session_cookies_;
+}
+
+void ProfileManager::SetPersistSessionCookies(bool persist_session_cookies) {
+  persist_session_cookies_ = persist_session_cookies;
+}
+#endif
+
 ProfileManagerWithoutInit::ProfileManagerWithoutInit(
     const base::FilePath& user_data_dir)
     : ProfileManager(user_data_dir) {
