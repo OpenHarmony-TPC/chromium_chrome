@@ -6327,6 +6327,10 @@ ChromeContentBrowserClient::CreateURLLoaderThrottles(
                                                       frame_tree_node_id);
 #endif
 
+#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
+  ChromeContentBrowserClientUtils::AddExtraHeadersThrottle(request, result);
+#endif
+
   return result;
 }
 
