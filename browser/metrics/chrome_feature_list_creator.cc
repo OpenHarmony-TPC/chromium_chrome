@@ -160,7 +160,7 @@ void ChromeFeatureListCreator::CreateFeatureList() {
   SetupInitialPrefs();
 #if BUILDFLAG(IS_ARKWEB_EXT)
 #if BUILDFLAG(ARKWEB_SAFEBROWSING)
-  DealGlobalConfigInThread(local_state_.get());
+  DealGlobalConfig(local_state_.get());
 #endif
 #endif
   SetUpFieldTrials(command_line_variation_ids);
