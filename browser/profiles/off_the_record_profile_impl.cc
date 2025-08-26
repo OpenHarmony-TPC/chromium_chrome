@@ -125,6 +125,10 @@
 #include "cef/ohos_cef_ext/libcef/browser/permission/alloy_permission_manager.h"
 #endif  // BUILDFLAG(ARKWEB_PERMISSION)
 
+#if BUILDFLAG(ARKWEB_WEBSTORAGE)
+#include "base/logging.h"
+#endif  // BUILDFLAG(ARKWEB_WEBSTORAGE)
+
 using content::BrowserThread;
 using content::DownloadManagerDelegate;
 using content::HostZoomMap;
@@ -182,6 +186,11 @@ OffTheRecordProfileImpl::OffTheRecordProfileImpl(
 
   // Register on BrowserContext.
   user_prefs::UserPrefs::Set(this, prefs_.get());
+#if BUILDFLAG(ARKWEB_WEBSTORAGE)
+  LOG(INFO) << "OffTheRecordProfileImpl SetBrowserProfileType, context : "
+      << reinterpret_cast<uintptr_t>(this) % 100000000 << " ComputeOffTheRecordProfileType : "
+      << static_cast<int>(ComputeOffTheRecordProfileType(otr_profile_id, profile_));
+#endif  // BUILDFLAG(ARKWEB_WEBSTORAGE)
   profile_metrics::SetBrowserProfileType(
       this, ComputeOffTheRecordProfileType(otr_profile_id, profile_));
 }
@@ -630,6 +639,10 @@ class GuestSessionProfile : public OffTheRecordProfileImpl {
       CHECK_EQ(profile_metrics::BrowserProfileType::kGuest,
                profile_metrics::GetBrowserProfileType(this));
     } else {
+#if BUILDFLAG(ARKWEB_WEBSTORAGE)
+      LOG(INFO) << "GuestSessionProfile SetBrowserProfileType, context : "
+          << reinterpret_cast<uintptr_t>(this) % 100000000;
+#endif  // BUILDFLAG(ARKWEB_WEBSTORAGE)
       profile_metrics::SetBrowserProfileType(
           this, profile_metrics::BrowserProfileType::kGuest);
     }
