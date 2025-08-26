@@ -144,6 +144,14 @@
 #include "arkweb/chromium_ext/components/subresource_filter/content/browser/arkweb_content_subresource_filter_throttle_manager_ext.h"
 #endif  // ARKWEB_ADBLOCK
 
+#if BUILDFLAG(ARKWEB_READER_MODE)
+#include "components/dom_distiller/content/browser/distillability_driver.h"
+#include "components/dom_distiller/content/common/mojom/distillability_service.mojom.h"
+#include "components/dom_distiller/core/dom_distiller_service.h"
+#include "components/security_state/content/security_state_tab_helper.h"
+#include "components/security_state/core/security_state.h"
+#endif // ARKWEB_READER_MODE
+
 namespace {
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
@@ -221,6 +229,31 @@ void BindBadgeServiceForServiceWorker(
       render_process_host, info, std::move(receiver));
 }
 #endif
+
+#if BUILDFLAG(ARKWEB_READER_MODE)
+void BindDistillabilityService(
+    content::RenderFrameHost* const frame_host,
+    mojo::PendingReceiver<dom_distiller::mojom::DistillabilityService> receiver) {
+  auto* web_contents = content::WebContents::FromRenderFrameHost(frame_host);
+  if (!web_contents) {
+    return;
+  }
+  dom_distiller::DistillabilityDriver* driver =
+      dom_distiller::DistillabilityDriver::FromWebContents(web_contents);
+  if (!driver) {
+    return;
+  }
+
+  driver->SetIsSecureCallback(
+      base::BindRepeating([](content::WebContents* contents) {
+        // SecurityStateTabHelper uses chrome-specific
+        // GetVisibleSecurityState to determine if a page is SECURE.
+        return SecurityStateTabHelper::FromWebContents(contents)
+          ->GetSecurityLevel() == security_state::SecurityLevel::SECURE;
+      }));
+  driver->CreateDistillabilityService(std::move(receiver));
+}
+#endif // ARKWEB_READER_MODE
 
 }  // namespace
 
@@ -353,6 +386,11 @@ void ChromeContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
                                          std::move(receiver));
       }));
 #endif  // BUILDFLAG(ENABLE_SPELLCHECK)
+
+#if BUILDFLAG(ARKWEB_READER_MODE)
+ map->Add<dom_distiller::mojom::DistillabilityService>(
+    base::BindRepeating(&BindDistillabilityService));
+#endif // ARKWEB_READER_MODE
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   const GURL& site = render_frame_host->GetSiteInstance()->GetSiteURL();

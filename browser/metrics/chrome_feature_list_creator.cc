@@ -78,6 +78,10 @@
 #include "arkweb/chromium_ext/components/prefs/migration_filter.h"
 #endif // BUILDFLAG(ARKWEB_ADBLOCK)
 
+#if BUILDFLAG(ARKWEB_READER_MODE)
+#include "arkweb/ohos_nweb_ex/overrides/cef/libcef/browser/alloy/global_reader_mode_data_manager.h"
+#endif // ARKWEB_READER_MODE
+
 #if BUILDFLAG(IS_ARKWEB_EXT)
 #if BUILDFLAG(ARKWEB_SAFEBROWSING)
 #include "arkweb/chromium_ext/chrome/browser/metrics/chrome_feature_list_creator_for_include.cpp"
@@ -261,6 +265,10 @@ void ChromeFeatureListCreator::CreatePrefService() {
   OHOS::adblock::AdBlockConfig::GetInstance()->SetPrefService(
       local_state_.get());
 #endif
+
+#if BUILDFLAG(ARKWEB_READER_MODE)
+ nweb_ex::GlobalReaderModeDataManager::GetInstance()->Init(local_state_.get());
+#endif // ARKWEB_READER_MODE
 
   // Apply local test policies from the kLocalTestPoliciesForNextStartup pref if
   // there are any.
