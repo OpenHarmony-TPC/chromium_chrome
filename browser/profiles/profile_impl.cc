@@ -473,14 +473,26 @@ ProfileImpl::ProfileImpl(
 #endif
 
   if (is_guest_session) {
+#if BUILDFLAG(ARKWEB_WEBSTORAGE)
+    LOG(INFO) << "ProfileImpl SetBrowserProfileType kGuest, context : "
+        << reinterpret_cast<uintptr_t>(this) % 100000000;
+#endif  // BUILDFLAG(ARKWEB_WEBSTORAGE)
     profile_metrics::SetBrowserProfileType(
         this, profile_metrics::BrowserProfileType::kGuest);
 #if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
   } else if (path == ProfileManager::GetSystemProfilePath()) {
+#if BUILDFLAG(ARKWEB_WEBSTORAGE)
+    LOG(INFO) << "ProfileImpl SetBrowserProfileType kSystem, context : "
+        << reinterpret_cast<uintptr_t>(this) % 100000000;
+#endif  // BUILDFLAG(ARKWEB_WEBSTORAGE)
     profile_metrics::SetBrowserProfileType(
         this, profile_metrics::BrowserProfileType::kSystem);
 #endif  // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
   } else {
+#if BUILDFLAG(ARKWEB_WEBSTORAGE)
+    LOG(INFO) << "ProfileImpl SetBrowserProfileType kRegular, context : "
+        << reinterpret_cast<uintptr_t>(this) % 100000000;
+#endif  // BUILDFLAG(ARKWEB_WEBSTORAGE)
     profile_metrics::SetBrowserProfileType(
         this, profile_metrics::BrowserProfileType::kRegular);
   }
