@@ -32,6 +32,7 @@ const char kInvalidURLScheme[] =
     "The auth url has an invalid scheme. Only http:// and https:// schemes are "
     "allowed.";
 const char kBrowserContextShutDown[] = "The browser context has been shut down";
+const char kFunctionNotSupported[] = "Identity API is not supported.";
 
 const int kCachedRemoteConsentTTLSeconds = 1;
 }  // namespace identity_constants
