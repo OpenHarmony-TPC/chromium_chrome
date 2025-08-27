@@ -357,7 +357,7 @@ bool ChromeRuntimeAPIDelegate::OpenOptionsPage(
   }
 
   std::string url = extensions::OptionsPageInfo::GetOptionsPage(extension).spec();
-  extensions::TabsCreateFunction::CreateTabForExtension(url);
+  extensions::TabsCreateFunction::CreateTabForExtension(url, browser_context);
   return true;
 #else
   return extensions::ExtensionTabUtil::OpenOptionsPageFromAPI(extension,
