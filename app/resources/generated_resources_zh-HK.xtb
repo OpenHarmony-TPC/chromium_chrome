@@ -300,6 +300,7 @@
 <translation id="1195210374336998651">前往應用程式設定</translation>
 <translation id="1195447618553298278">未知的錯誤。</translation>
 <translation id="1195558154361252544">系統已自動封鎖所有網站的通知，但您允許的網站除外</translation>
+<translation id="1195805062734778374">啟用開發者模式，可安裝和管理第三方擴展程式，這些擴展程式未經過安全性測試，可能存在風險。確定啟用？</translation>
 <translation id="1197088940767939838">橙色</translation>
 <translation id="11978075283960463">儲存在應用程式中的資料大小：<ph name="APP_SIZE" /></translation>
 <translation id="1198066799963193307">低視力語音工具</translation>
@@ -3059,6 +3060,7 @@
 <translation id="3094223846531205616">{COUNT,plural, =0{今天到期}=1{明天到期}other{# 天後到期}}</translation>
 <translation id="3094521107841754472">價格已經由 <ph name="PREVIOUS_PRICE" /> 變成 <ph name="CURRENT_PRICE" />。</translation>
 <translation id="3095871294753148861">書籤、密碼和其他瀏覽器資料已與主要帳戶同步。</translation>
+<translation id="3097016124663043290">取消</translation>
 <translation id="3099836255427453137">{NUM_EXTENSIONS,plural, =1{已停用 1 個可能有害的擴充程式，但您可將之移除。}other{已停用 {NUM_EXTENSIONS} 個可能有害的擴充程式，但您可將之移除。}}</translation>
 <translation id="3100071818310370858">使用位置資料。允許擁有位置資訊存取權的應用程式和服務使用此裝置位置。Google 可能會定期收集並以匿名方式使用位置資料，以提高定位精確度及改善適地性服務。<ph name="BEGIN_LINK1" />進一步瞭解位置<ph name="BEGIN_LINK1_END" />瞭解詳情<ph name="END_LINK1" /></translation>
 <translation id="3101126716313987672">光線昏暗</translation>
@@ -8397,7 +8399,7 @@
 <translation id="6963872466817251924">文字游標突顯工具</translation>
 <translation id="6964390816189577014">英雄</translation>
 <translation id="6964760285928603117">從群組中移除</translation>
-<translation id="6965382102122355670">確定</translation>
+<translation id="6965382102122355670">確認</translation>
 <translation id="6965607054907047032">根據分頁的閒置狀態釋出記憶體</translation>
 <translation id="6965648386495488594">連接埠</translation>
 <translation id="6965978654500191972">裝置</translation>
@@ -10366,7 +10368,7 @@
 <translation id="8352287103893778223">分頁群組標題</translation>
 <translation id="835238322900896202">解除安裝時發生錯誤，請透過終端機解除安裝。</translation>
 <translation id="8353420862507374944">投放、儲存和分享</translation>
-<translation id="8353683614194668312">它可以：</translation>
+<translation id="8353683614194668312">該程式可以：</translation>
 <translation id="8354034204605718473">已新增您子女的 PIN</translation>
 <translation id="8356197132883132838"><ph name="TITLE" /> - <ph name="COUNT" /> 個</translation>
 <translation id="8356409598322585307">您已註冊此裝置，因此無需再註冊。</translation>
