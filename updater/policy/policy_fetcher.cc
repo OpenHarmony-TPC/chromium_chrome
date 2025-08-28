@@ -108,7 +108,11 @@ InProcessPolicyFetcher::InProcessPolicyFetcher(
       override_is_managed_device_(std::move(override_is_managed_device)),
       sequenced_task_runner_(
           base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()})) {
+#if BUILDFLAG(ARKWEB_NETWORK_BASE)
+  VLOG(0) << "Policy server: ***"; 
+#else
   VLOG(0) << "Policy server: " << server_url_.possibly_invalid_spec();
+#endif
 }
 
 InProcessPolicyFetcher::~InProcessPolicyFetcher() = default;
