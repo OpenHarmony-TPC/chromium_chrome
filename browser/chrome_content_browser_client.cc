@@ -7268,9 +7268,13 @@ void ChromeContentBrowserClient::CreateManagedConfigurationService(
 }
 
 content::SerialDelegate* ChromeContentBrowserClient::GetSerialDelegate() {
+#if defined(IS_SERIAL_ENABLED_PLATFORM)
   if (!serial_delegate_)
     serial_delegate_ = std::make_unique<ChromeSerialDelegate>();
   return serial_delegate_.get();
+#else
+  return nullptr;
+#endif
 }
 
 content::HidDelegate* ChromeContentBrowserClient::GetHidDelegate() {
