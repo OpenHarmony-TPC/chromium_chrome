@@ -51,12 +51,11 @@ ExtensionFunction::ResponseAction SidePanelSetOptionsFunction::RunFunction() {
       api::side_panel::SetOptions::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  return RunFunctionForInclude(params);
-#else
+  RunFunctionForInclude(params);
+#endif
   // TODO(crbug.com/40226489): Validate the relative extension path exists.
   GetService()->SetOptions(*extension(), std::move(params->options));
   return RespondNow(NoArguments());
-#endif
 }
 
 ExtensionFunction::ResponseAction
