@@ -225,7 +225,7 @@ void BindBadgeServiceForServiceWorker(
 }  // namespace
 
 #if BUILDFLAG(ARKWEB_READER_MODE)
-#include "arkweb/chromium_ext/chrome/browser/chrome_content_browser_client_receiver_for_include.cc"
+#include "arkweb/chromium_ext/chrome/browser/chrome_content_browser_client_receiver_bindings_for_include.cc"
 #endif
 void ChromeContentBrowserClient::ExposeInterfacesToRenderer(
     service_manager::BinderRegistry* registry,
