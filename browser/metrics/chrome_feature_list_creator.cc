@@ -267,9 +267,8 @@ void ChromeFeatureListCreator::CreatePrefService() {
 #endif
 
 #if BUILDFLAG(ARKWEB_READER_MODE)
- nweb_ex::GlobalReaderModeDataManager::GetInstance()->Init(local_state_.get());
+  nweb_ex::GlobalReaderModeDataManager::GetInstance()->Init(local_state_.get());
 #endif
-
   // Apply local test policies from the kLocalTestPoliciesForNextStartup pref if
   // there are any.
   browser_policy_connector_->MaybeApplyLocalTestPolicies(local_state_.get());
