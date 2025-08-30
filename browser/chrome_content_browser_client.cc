@@ -856,9 +856,9 @@ using plugins::ChromeContentBrowserClientPluginsPart;
 using web_apps::ChromeContentBrowserClientIsolatedWebAppsPart;
 #endif
 
-#if BUILDFLAG(ARKWEB_READERMODE)
+#if BUILDFLAG(ARKWEB_READER_MODE)
 #include "components/dom_distiller/content/browser/distillability_driver.h"
-#endif // ARKWEB_READERMODE
+#endif
 
 namespace {
 
@@ -8526,7 +8526,7 @@ void ChromeContentBrowserClient::OnWebContentsCreated(
 
 #if BUILDFLAG(ARKWEB_READER_MODE)
   dom_distiller::DistillabilityDriver::CreateForWebContents(web_contents);
-#endif // ARKWEB_READER_MODE
+#endif
 }
 
 #if !BUILDFLAG(IS_ANDROID)

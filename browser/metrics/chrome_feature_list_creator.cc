@@ -80,7 +80,7 @@
 
 #if BUILDFLAG(ARKWEB_READER_MODE)
 #include "arkweb/ohos_nweb_ex/overrides/cef/libcef/browser/alloy/global_reader_mode_data_manager.h"
-#endif // ARKWEB_READER_MODE
+#endif
 
 #if BUILDFLAG(IS_ARKWEB_EXT)
 #if BUILDFLAG(ARKWEB_SAFEBROWSING)
@@ -268,7 +268,7 @@ void ChromeFeatureListCreator::CreatePrefService() {
 
 #if BUILDFLAG(ARKWEB_READER_MODE)
  nweb_ex::GlobalReaderModeDataManager::GetInstance()->Init(local_state_.get());
-#endif // ARKWEB_READER_MODE
+#endif
 
   // Apply local test policies from the kLocalTestPoliciesForNextStartup pref if
   // there are any.
