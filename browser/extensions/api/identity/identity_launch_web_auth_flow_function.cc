@@ -70,8 +70,6 @@ std::string ErrorToString(IdentityLaunchWebAuthFlowFunction::Error error) {
       return identity_constants::kInvalidURLScheme;
     case IdentityLaunchWebAuthFlowFunction::Error::kBrowserContextShutDown:
       return identity_constants::kBrowserContextShutDown;
-    case IdentityLaunchWebAuthFlowFunction::Error::kFunctionNotSupported:
-      return identity_constants::kFunctionNotSupported;
   }
 }
 
@@ -96,9 +94,10 @@ IdentityLaunchWebAuthFlowFunction::~IdentityLaunchWebAuthFlowFunction() {
 
 ExtensionFunction::ResponseAction IdentityLaunchWebAuthFlowFunction::Run() {
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  RecordHistogramFunctionResult(Error::kFunctionNotSupported);
-  return RespondNow(ExtensionFunction::Error(ErrorToString(Error::kFunctionNotSupported)));
+  base::Value empty_response("");
+  return RespondNow(WithArguments(std::move(empty_response)));
 #endif
+
   Profile* profile = Profile::FromBrowserContext(browser_context());
   if (profile->IsOffTheRecord()) {
     Error error = Error::kOffTheRecord;

@@ -26,7 +26,6 @@ extern const char kInvalidConsentResult[];
 extern const char kCannotCreateWindow[];
 extern const char kInvalidURLScheme[];
 extern const char kBrowserContextShutDown[];
-extern const char kFunctionNotSupported[];
 
 extern const int kCachedRemoteConsentTTLSeconds;
 }  // namespace identity_constants
