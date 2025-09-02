@@ -35,8 +35,7 @@ class IdentityLaunchWebAuthFlowFunction : public ExtensionFunction,
     kCannotCreateWindow = 7,
     kInvalidURLScheme = 8,
     kBrowserContextShutDown = 9,
-    kFunctionNotSupported = 10,
-    kMaxValue = kFunctionNotSupported,
+    kMaxValue = kBrowserContextShutDown,
   };
 
   IdentityLaunchWebAuthFlowFunction();
