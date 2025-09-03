@@ -856,6 +856,10 @@ using plugins::ChromeContentBrowserClientPluginsPart;
 using web_apps::ChromeContentBrowserClientIsolatedWebAppsPart;
 #endif
 
+#if BUILDFLAG(ARKWEB_READER_MODE)
+#include "components/dom_distiller/content/browser/distillability_driver.h"
+#endif
+
 namespace {
 
 BASE_FEATURE(kSkipPagehideInCommitForDSENavigation,
@@ -8527,6 +8531,10 @@ void ChromeContentBrowserClient::OnWebContentsCreated(
       web_contents,
       std::make_unique<PageSpecificContentSettingsDelegate>(web_contents));
 #endif  // BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
+
+#if BUILDFLAG(ARKWEB_READER_MODE)
+  dom_distiller::DistillabilityDriver::CreateForWebContents(web_contents);
+#endif
 }
 
 #if !BUILDFLAG(IS_ANDROID)
