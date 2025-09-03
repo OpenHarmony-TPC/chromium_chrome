@@ -224,6 +224,9 @@ void BindBadgeServiceForServiceWorker(
 
 }  // namespace
 
+#if BUILDFLAG(ARKWEB_READER_MODE)
+#include "arkweb/chromium_ext/chrome/browser/chrome_content_browser_client_receiver_bindings_for_include.cc"
+#endif
 void ChromeContentBrowserClient::ExposeInterfacesToRenderer(
     service_manager::BinderRegistry* registry,
     blink::AssociatedInterfaceRegistry* associated_registry,
@@ -353,6 +356,11 @@ void ChromeContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
                                          std::move(receiver));
       }));
 #endif  // BUILDFLAG(ENABLE_SPELLCHECK)
+
+#if BUILDFLAG(ARKWEB_READER_MODE)
+  map->Add<dom_distiller::mojom::DistillabilityService>(
+      base::BindRepeating(&BindDistillabilityService));
+#endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   const GURL& site = render_frame_host->GetSiteInstance()->GetSiteURL();
