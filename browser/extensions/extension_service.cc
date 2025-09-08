@@ -128,6 +128,10 @@
 #include "storage/browser/file_system/file_system_context.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_NWEB_EX)
+#include "ohos_nweb_ex/core/extension/nweb_extension_manager_dispatcher.h"
+#endif
+
 using content::BrowserContext;
 using content::BrowserThread;
 using extensions::mojom::ManifestLocation;
@@ -2463,6 +2467,10 @@ void ExtensionService::OnInstalledExtensionsLoaded() {
   for (const auto& extension : to_enable) {
     EnableExtension(extension->id());
   }
+
+#if BUILDFLAG(ARKWEB_NWEB_EX)
+  NWebExtensionManagerDispatcher::OnExtensionInitLoadEndCallBack();
+#endif
 
   // Check installed extensions against the blocklist if and only if the
   // database is ready; otherwise, the database is effectively empty and we'll
