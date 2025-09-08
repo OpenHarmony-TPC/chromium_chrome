@@ -823,6 +823,10 @@
 #include "cef/ohos_cef_ext/libcef/browser/net_service/net_helpers.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_DEVTOOLS)
+#include "arkweb/chromium_ext/chrome/browser/devtools/devtools_manager_delegate.h"
+#endif // BUILDFLAG(ARKWEB_DEVTOOLS)
+
 using blink::mojom::EffectiveConnectionType;
 using blink::web_pref::WebPreferences;
 using content::BrowserThread;
@@ -5901,6 +5905,8 @@ std::unique_ptr<content::DevToolsManagerDelegate>
 ChromeContentBrowserClient::CreateDevToolsManagerDelegate() {
 #if BUILDFLAG(IS_ANDROID)
   return std::make_unique<DevToolsManagerDelegateAndroid>();
+#elif BUILDFLAG(ARKWEB_DEVTOOLS)
+  return std::make_unique<ohos::DevToolsManagerDelegate>();
 #else
   return std::make_unique<ChromeDevToolsManagerDelegate>();
 #endif
