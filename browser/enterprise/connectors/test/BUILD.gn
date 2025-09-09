@@ -4,6 +4,7 @@
 
 import("//build/config/chromeos/ui_mode.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
+import("//arkweb/build/features/features.gni")
 
 source_set("test_support") {
   testonly = true
@@ -75,7 +76,7 @@ source_set("test_support") {
     ]
   }
 
-  if (is_win || is_linux || is_mac || is_chromeos_lacros) {
+  if (is_win || is_linux || is_mac || is_chromeos_lacros || arkweb_test) {
     public += [ "browser/management_context_mixin_browser.h" ]
     sources += [ "browser/management_context_mixin_browser.cc" ]
 
