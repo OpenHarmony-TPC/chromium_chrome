@@ -2468,7 +2468,7 @@ void ExtensionService::OnInstalledExtensionsLoaded() {
     EnableExtension(extension->id());
   }
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#if BUILDFLAG(ARKWEB_NWEB_EX)
   NotifyOnInstalledExtensionsLoaded();
 #endif
 
