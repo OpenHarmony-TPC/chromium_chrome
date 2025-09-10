@@ -128,8 +128,8 @@
 #include "storage/browser/file_system/file_system_context.h"
 #endif
 
-#if BUILDFLAG(ARKWEB_NWEB_EX)
-#include "ohos_nweb_ex/core/extension/nweb_extension_manager_dispatcher.h"
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/chrome/browser/extensions/extension_service_for_include.cc"
 #endif
 
 using content::BrowserContext;
@@ -2468,8 +2468,8 @@ void ExtensionService::OnInstalledExtensionsLoaded() {
     EnableExtension(extension->id());
   }
 
-#if BUILDFLAG(ARKWEB_NWEB_EX)
-  NWebExtensionManagerDispatcher::OnExtensionInitLoadEndCallBack();
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  NotifyOnInstalledExtensionsLoaded();
 #endif
 
   // Check installed extensions against the blocklist if and only if the
