@@ -2607,6 +2607,7 @@ ExecuteCodeInTabFunction::ExecuteCodeInTabFunction()
 
 ExecuteCodeInTabFunction::~ExecuteCodeInTabFunction() {}
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExecuteCodeFunction::InitResult ExecuteCodeInTabFunction::Init() {
   if (init_result_) {
     return init_result_.value();
@@ -2661,6 +2662,7 @@ ExecuteCodeFunction::InitResult ExecuteCodeInTabFunction::Init() {
       mojom::HostID(mojom::HostID::HostType::kExtensions, extension()->id()));
   return set_init_result(SUCCESS);
 }
+#endif
 
 bool ExecuteCodeInTabFunction::ShouldInsertCSS() const {
   return false;
