@@ -3007,7 +3007,6 @@ if (!is_android) {
       "../browser/spellchecker/spellcheck_service_browsertest.cc",
       "../browser/ssl/certificate_transparency_browsertest.cc",
       "../browser/ssl/connection_help_tab_helper_browsertest.cc",
-      "../browser/ssl/https_upgrades_browsertest.cc",
       "../browser/ssl/known_interception_disclosure_infobar_browsertest.cc",
       "../browser/ssl/known_interception_disclosure_ui_browsertest.cc",
       "../browser/ssl/ocsp_browsertest.cc",
@@ -3774,8 +3773,10 @@ if (!is_android) {
     }
 
     if (enable_captive_portal_detection) {
-      sources +=
-          [ "../browser/ssl/captive_portal_blocking_page_browsertest.cc" ]
+      sources += [
+        "../browser/ssl/captive_portal_blocking_page_browsertest.cc",
+        "../browser/ssl/https_upgrades_browsertest.cc",
+      ]
     }
 
     if (is_chromeos_ash) {
@@ -4206,6 +4207,9 @@ if (!is_android) {
         "//chrome/test/data/controlled_frame/resources/mangle.js",
       ]
 
+      if (arkweb_test) {
+        sources -= [ "../browser/extensions/api/downloads/downloads_api_browsertest.cc" ]
+      }
       if (is_win) {
         data_deps += [
           "//chrome/browser/extensions/api:native_messaging_test_echo_&_host",
