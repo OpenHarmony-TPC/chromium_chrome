@@ -107,9 +107,8 @@ export class MockItemDelegate extends ClickMock implements ItemDelegate {
   setItemPinnedToToolbar(_id: string, _pinnedToToolbar: boolean) {}
   inspectItemView(_id: string, _view: chrome.developerPrivate.ExtensionView) {}
   openUrl(_url: string) {}
-  // <if expr="arkweb_test">
-  openUrlEx(_url: string, _type: Number) {}
-  // </if>
+
+
   reloadItem(_id: string) {
     return Promise.resolve();
   }
