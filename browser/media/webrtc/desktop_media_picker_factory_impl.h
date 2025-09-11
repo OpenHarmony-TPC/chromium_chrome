@@ -36,14 +36,8 @@ class DesktopMediaPickerFactoryImpl : public DesktopMediaPickerFactory {
   std::vector<std::unique_ptr<DesktopMediaList>> CreateMediaList(
       const std::vector<DesktopMediaList::Type>& types,
       content::WebContents* web_contents,
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      DesktopMediaList::WebContentsFilter includable_web_contents_filter,
-      base::OnceCallback<void(uint64_t displayId)> callback = base::BindOnce([](uint64_t value) {}))
-      override;
-#else
       DesktopMediaList::WebContentsFilter includable_web_contents_filter)
       override;
-#endif
 };
 
 #endif  // CHROME_BROWSER_MEDIA_WEBRTC_DESKTOP_MEDIA_PICKER_FACTORY_IMPL_H_
