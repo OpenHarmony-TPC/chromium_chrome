@@ -97,7 +97,7 @@ class SearchPreloadResponseController {
   // A DelayedResponseTask instance is created on the thread that server is
   // running on, and be destroyed on the main thread. A lock is guarding the
   // access to created instances.
-  class SearchPreloadResponseController::DelayedResponseTask {
+  class DelayedResponseTask {
    public:
     DelayedResponseTask(
         const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
