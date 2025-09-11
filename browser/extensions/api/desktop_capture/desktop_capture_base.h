@@ -65,11 +65,6 @@ class DesktopCaptureChooseDesktopMediaFunctionBase : public ExtensionFunction {
       const GURL& origin,
       const std::u16string& target_name);
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  bool ExecuteOhos(api::desktop_capture::DesktopCaptureSourceType source_type,
-                   std::vector<DesktopMediaList::Type>& media_types,
-                   bool has_screen);
-#endif
   // Returns the calling application name to show in the picker.
   std::string GetCallerDisplayName() const;
 
