@@ -2217,10 +2217,7 @@ class SearchPreloadServingTestURLLoader
     remote_.reset();
     receiver_.reset();
   }
-#if BUILDFLAG(ARKWEB_TEST)
-  void OnTransferDataWithSharedMemory(base::ReadOnlySharedMemoryRegion region,
-                                      uint64_t buffer_size) override{}
-#endif
+
  private:
   // network::mojom::URLLoaderClient
   void OnReceiveEarlyHints(network::mojom::EarlyHintsPtr early_hints) override {
