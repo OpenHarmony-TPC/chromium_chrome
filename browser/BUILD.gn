@@ -6989,6 +6989,8 @@ static_library("browser") {
       "supervised_user/linux_mac_windows/supervised_user_web_content_handler_impl.h",
       "enterprise/profile_management/profile_management_features.cc",
       "enterprise/profile_management/profile_management_features.h",
+      "enterprise/signin/managed_profile_required_navigation_throttle.cc",
+      "enterprise/signin/managed_profile_required_navigation_throttle.h",
       "supervised_user/supervised_user_verification_page.cc",
       "supervised_user/supervised_user_verification_page.h",
       "supervised_user/supervised_user_verification_page_youtube.cc",

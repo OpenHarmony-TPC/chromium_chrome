@@ -306,7 +306,7 @@ TestingBrowserProcess::browser_policy_connector() {
     EXPECT_FALSE(created_browser_policy_connector_);
     created_browser_policy_connector_ = true;
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(ENABLE_CEF)
     // Make sure that the machine policy directory does not exist so that
     // machine-wide policies do not affect tests.
     // Note that passing false as last argument to OverrideAndCreateIfNeeded
