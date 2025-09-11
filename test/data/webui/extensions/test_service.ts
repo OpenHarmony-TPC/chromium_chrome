@@ -53,9 +53,6 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
       'loadUnpackedFromDrag',
       'notifyDragInstallInProgress',
       'openUrl',
-      // <if expr="arkweb_test">
-      'openUrlEx',
-      // </if>
       'packExtension',
       'recordUserAction',
       'reloadItem',
@@ -239,12 +236,6 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
     this.methodCalled('openUrl', url);
   }
 
-  // <if expr="arkweb_test">
-  openUrlEx(url: string, type: Number) {
-    this.methodCalled('openUrlEx', [url, type]);
-  }
-  // </if>
-  
   packExtension(rootPath: string, keyPath: string, flag?: number) {
     this.methodCalled('packExtension', [rootPath, keyPath, flag]);
     return Promise.resolve({
