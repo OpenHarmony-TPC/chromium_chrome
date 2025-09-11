@@ -83,11 +83,6 @@ class DesktopMediaPickerController : private content::WebContentsObserver {
   // content::WebContentsObserver overrides.
   void WebContentsDestroyed() override;
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  void OnDisplaySelected(uint64_t displayId);
-  void Stop();
-#endif
-
  private:
   void OnInitialMediaListFound();
   void ShowPickerDialog();
