@@ -34,10 +34,6 @@
 #include "media/base/media_switches.h"
 #include "ui/base/l10n/l10n_util.h"
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "arkweb/chromium_ext/chrome/browser/media/ohos/webrtc/desktop_media_picker_controller_for_include.cc"
-#endif
-
 DesktopMediaPickerController::DesktopMediaPickerController(
     DesktopMediaPickerFactory* picker_factory)
     : picker_factory_(picker_factory
@@ -51,7 +47,6 @@ void DesktopMediaPickerController::Show(
     const std::vector<DesktopMediaList::Type>& sources,
     DesktopMediaList::WebContentsFilter includable_web_contents_filter,
     DoneCallback done_callback) {
-  LOG(INFO) << __FUNCTION__ << " enter ";
   DCHECK(!base::Contains(sources, DesktopMediaList::Type::kNone));
   DCHECK(!done_callback_);
 
@@ -61,15 +56,8 @@ void DesktopMediaPickerController::Show(
   Observe(params.web_contents);
 
   // Keep same order as the input |sources| and avoid duplicates.
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  source_lists_ = picker_factory_->CreateMediaList(
-      sources, params.web_contents, std::move(includable_web_contents_filter),
-      base::BindOnce(&DesktopMediaPickerController::OnDisplaySelected,
-                     weak_factory_.GetWeakPtr()));
-#else
   source_lists_ = picker_factory_->CreateMediaList(
       sources, params.web_contents, std::move(includable_web_contents_filter));
-#endif
   if (source_lists_.empty()) {
     OnPickerDialogResults("At least one source type must be specified.", {});
     return;
@@ -84,10 +72,7 @@ void DesktopMediaPickerController::Show(
         base::BindOnce(&DesktopMediaPickerController::OnInitialMediaListFound,
                        base::Unretained(this)));
   } else {
-    // Because the native Chrome causes the browser to go blank
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
     ShowPickerDialog();
-#endif
   }
 }
 
@@ -132,10 +117,7 @@ void DesktopMediaPickerController::OnInitialMediaListFound() {
     return;
   }
 
-  // Because the native Chrome causes the browser to go blank
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   ShowPickerDialog();
-#endif
 }
 
 void DesktopMediaPickerController::ShowPickerDialog() {
@@ -160,7 +142,6 @@ void DesktopMediaPickerController::ShowPickerDialog() {
 void DesktopMediaPickerController::OnPickerDialogResults(
     const std::string& err,
     content::DesktopMediaID source) {
-  LOG(INFO) << __FUNCTION__ << " enter ";
   if (done_callback_)
     std::move(done_callback_).Run(err, source);
 }
