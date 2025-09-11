@@ -7105,6 +7105,11 @@ void ChromeContentBrowserClient::OnNetworkServiceCreated(
   network_service->SetConnectTimeout(
       net_service::NetHelpers::connection_timeout);
 #endif
+
+#if BUILDFLAG(ARKWEB_NETWORK_SERVICE)
+  ChromeContentBrowserClientUtils::SetSocketIdleTimeoutOnNetworkServiceCreated(
+    network_service);
+#endif
 }
 
 bool ChromeContentBrowserClient::ConfigureNetworkContextParams(
