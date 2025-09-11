@@ -61,7 +61,7 @@ class ChromeBrowserMainParts : public content::BrowserMainParts {
   static std::unique_ptr<base::RunLoop> TakeRunLoopForTest();
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(ENABLE_PROCESS_SINGLETON) || BUILDFLAG(ARKWEB_TEST)
+#if BUILDFLAG(ENABLE_PROCESS_SINGLETON)
   // Handles notifications from other processes. The function receives the
   // command line and directory with which the other Chrome process was
   // launched. Return true if the command line will be handled within the
@@ -70,7 +70,7 @@ class ChromeBrowserMainParts : public content::BrowserMainParts {
   static bool ProcessSingletonNotificationCallback(
       base::CommandLine command_line,
       const base::FilePath& current_directory);
-#endif  // BUILDFLAG(ENABLE_PROCESS_SINGLETON) || BUILDFLAG(ARKWEB_TEST)
+#endif  // BUILDFLAG(ENABLE_PROCESS_SINGLETON)
 
  protected:
   ChromeBrowserMainParts(bool is_integration_test, StartupData* startup_data);

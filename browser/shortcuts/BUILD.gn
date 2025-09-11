@@ -86,11 +86,6 @@ source_set("shortcuts") {
       "shortcut_creator_linux.h",
     ]
   }
-  if (arkweb_test) {
-    sources -= [
-      "create_shortcut_for_current_web_contents_task.cc"
-    ]
-  }
 }
 
 source_set("test_support") {
@@ -160,10 +155,6 @@ if (!is_chromeos) {
       "//ui/gfx:test_support",
       "//url",
     ]
-
-    if (arkweb_test) {
-      sources -= [ "shortcut_creation_browsertest.cc" ]
-    }
   }
 }
 

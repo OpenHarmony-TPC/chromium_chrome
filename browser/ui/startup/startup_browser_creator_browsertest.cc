@@ -123,7 +123,7 @@
 #include "chromeos/startup/browser_init_params.h"
 #endif
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #include "base/json/json_string_value_serializer.h"
 #include "chrome/browser/ui/views/web_apps/protocol_handler_launch_dialog_view.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
@@ -138,7 +138,7 @@
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || \
-    (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS_LACROS)) || BUILDFLAG(ARKWEB_TEST)
+    (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS_LACROS))
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #endif
 
@@ -565,7 +565,7 @@ namespace {
 
 enum class ChromeAppDeprecationFeatureValue {
   kDefault,
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   kEnabledWithNoLaunch,
   kDisabled,
 #endif
@@ -579,7 +579,7 @@ std::string ChromeAppDeprecationFeatureValueToString(
     case ChromeAppDeprecationFeatureValue::kDefault:
       result = "ChromeAppDeprecationFeatureDefault";
       break;
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
     case ChromeAppDeprecationFeatureValue::kEnabledWithNoLaunch:
       result = "ChromeAppDeprecationFeatureEnabledWithNoLaunch";
       break;
@@ -601,7 +601,7 @@ class StartupBrowserCreatorChromeAppShortcutTest
     switch (GetParam()) {
       case ChromeAppDeprecationFeatureValue::kDefault:
         break;
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
       case ChromeAppDeprecationFeatureValue::kEnabledWithNoLaunch:
         scoped_feature_list_.InitAndEnableFeature(
             features::kChromeAppsDeprecation);
@@ -620,7 +620,7 @@ class StartupBrowserCreatorChromeAppShortcutTest
 
   void ExpectBlockLaunch(const std::string& app_id, bool force_install_dialog) {
     ASSERT_EQ(2u, chrome::GetBrowserCount(browser()->profile()));
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
     auto waiter = views::NamedWidgetShownWaiter(
         views::test::AnyWidgetTestPasskey{},
         force_install_dialog ? "ForceInstalledDeprecatedAppsDialogView"
@@ -640,7 +640,7 @@ class StartupBrowserCreatorChromeAppShortcutTest
     EXPECT_EQ(1, other_tab_strip->count());
     EXPECT_FALSE(other_browser->is_type_app());
     EXPECT_TRUE(other_browser->is_type_normal());
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
     GURL expected_url =
         force_install_dialog
@@ -655,7 +655,7 @@ class StartupBrowserCreatorChromeAppShortcutTest
 #endif
   }
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
   enum class ExpectedLaunchBehavior{kLaunchAnywaysInTab, kLaunchAnywaysInWindow,
                                     kNoLaunch};
@@ -715,10 +715,10 @@ class StartupBrowserCreatorChromeAppShortcutTest
     Browser* app_browser = ui_test_utils::GetBrowserNotInSet(initial_browsers);
     EXPECT_EQ(app_browser, nullptr);
   }
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
   bool IsExpectedToAllowLaunch() {
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
     return false;
 #else
     return true;
@@ -913,7 +913,7 @@ INSTANTIATE_TEST_SUITE_P(
     StartupBrowserCreatorChromeAppShortcutTest,
     ::testing::Values(
         ChromeAppDeprecationFeatureValue::kDefault
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
         ,
         ChromeAppDeprecationFeatureValue::kEnabledWithNoLaunch,
         ChromeAppDeprecationFeatureValue::kDisabled
@@ -921,7 +921,7 @@ INSTANTIATE_TEST_SUITE_P(
         ),
     ChromeAppDeprecationFeatureValueToString);
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 using StartupBrowserCreatorChromeAppShortcutTestWithLaunch =
     StartupBrowserCreatorChromeAppShortcutTest;
@@ -1041,7 +1041,7 @@ INSTANTIATE_TEST_SUITE_P(
         ChromeAppDeprecationFeatureValue::kEnabledWithNoLaunch),
     ChromeAppDeprecationFeatureValueToString);
 
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
 
@@ -2325,10 +2325,8 @@ class StartupBrowserCreatorTestWithGuestParam
   void OpenTabAlreadyRunning() {
     base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
     command_line.AppendArg(GetTestURL().spec());
-#if BUILDFLAG(ENABLE_PROCESS_SINGLETON)
     ChromeBrowserMainParts::ProcessSingletonNotificationCallback(
         command_line, /*current_directory=*/{});
-#endif // BUILDFLAG(ENABLE_PROCESS_SINGLETON)
   }
 };
 
@@ -2578,7 +2576,7 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserWithRealWebAppTest,
 #endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 class StartupBrowserWebAppProtocolHandlingTest : public InProcessBrowserTest {
  protected:
@@ -3007,7 +3005,7 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserWebAppProtocolAndFileHandlingTest,
   ui_test_utils::WaitForBrowserToClose(app_browser);
 }
 
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(ARKWEB_TEST)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 // These tests are not applicable to Chrome OS as neither initial preferences
 // nor the onboarding promos exist there.
