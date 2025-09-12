@@ -152,11 +152,7 @@ int GetTabIdForExtensions(const WebContents* web_contents) {
   Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (browser && !ExtensionTabUtil::BrowserSupportsTabs(browser))
     return -1;
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  return cef::GetTabIdForWebContents(web_contents);
-#else
   return sessions::SessionTabHelper::IdForTab(web_contents).id();
-#endif
 }
 
 bool IsFileUrl(const GURL& url) {
