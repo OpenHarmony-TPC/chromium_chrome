@@ -105,12 +105,7 @@ std::vector<std::unique_ptr<DesktopMediaList>>
 FakeDesktopMediaPickerFactory::CreateMediaList(
     const std::vector<DesktopMediaList::Type>& types,
     content::WebContents* web_contents,
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      DesktopMediaList::WebContentsFilter includable_web_contents_filter,
-      base::OnceCallback<void(uint64_t displayId)> callback) {
-#else
       DesktopMediaList::WebContentsFilter includable_web_contents_filter) {
-#endif
   EXPECT_LE(current_test_, tests_count_);
   is_web_contents_excluded_ = !includable_web_contents_filter.Run(web_contents);
   std::vector<std::unique_ptr<DesktopMediaList>> media_lists;
