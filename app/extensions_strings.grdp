@@ -139,10 +139,10 @@
     Learn more about extension permissions
   </message>
   <message name="IDS_EXTENSIONS_DEVELOPER_MODE_CONFIRMATION" desc="The confirmation message displayed in the popup when enabling developer mode.">
-    Enabling Developer Mode allows installation of third-party extensions that may pose security risks. Please confirm if you wish to proceed.
+    Enabling Developer mode allows you to install and manage third-party extensions. These extensions have not been verified and may pose security risks. Enable Developer mode?
   </message>
   <message name="IDS_EXTENSIONS_DEVELOPER_MODE_CONFIRM" desc="The label for the 'Confirm' button in the developer mode confirmation popup.">
-    Confirm
+    OK
   </message>
   <message name="IDS_EXTENSIONS_DEVELOPER_MODE_CANCEL" desc="The label for the 'Cancel' button in the developer mode confirmation popup.">
     Cancel
