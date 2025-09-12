@@ -102,7 +102,6 @@ std::unique_ptr<DesktopMediaPicker> FakeDesktopMediaPickerFactory::CreatePicker(
 }
 
 std::vector<std::unique_ptr<DesktopMediaList>>
-std::vector<std::unique_ptr<DesktopMediaList>>
 FakeDesktopMediaPickerFactory::CreateMediaList(
     const std::vector<DesktopMediaList::Type>& types,
     content::WebContents* web_contents,
