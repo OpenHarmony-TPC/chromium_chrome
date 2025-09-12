@@ -50,10 +50,15 @@ class FakeDesktopMediaPickerFactory : public DesktopMediaPickerFactory {
   // DesktopMediaPickerFactory implementation
   std::unique_ptr<DesktopMediaPicker> CreatePicker(
       const content::MediaStreamRequest* request) override;
-  std::vector<std::unique_ptr<DesktopMediaList>> CreateMediaList(
+std::vector<std::unique_ptr<DesktopMediaList>> CreateMediaList(
       const std::vector<DesktopMediaList::Type>& types,
       content::WebContents* web_contents,
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      DesktopMediaList::WebContentsFilter includable_web_contents_filter,
+      base::OnceCallback<void(uint64_t displayId)> callback)
+#else
       DesktopMediaList::WebContentsFilter includable_web_contents_filter)
+#endif
       override;
 
  private:
