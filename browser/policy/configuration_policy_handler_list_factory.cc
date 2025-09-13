@@ -2301,13 +2301,13 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
 #endif
 #endif
 
-#if !BUILDFLAG(ARKWEB_ASAN)
+#if !BUILDFLAG(ARKWEB_ASAN) && !BUILDFLAG(ARKWEB_TEST)
 #if BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
   { key::kProvisionManagedClientCertificateForUser,
     client_certificates::prefs::kProvisionManagedClientCertificateForUserPrefs,
     base::Value::Type::INTEGER },
 #endif  // BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
-#endif // BUILDFLAG(ARKWEB_ASAN)
+#endif // !BUILDFLAG(ARKWEB_ASAN) && !BUILDFLAG(ARKWEB_TEST)
 
 #if !BUILDFLAG(IS_ANDROID)
   { key::kLensOverlaySettings,
