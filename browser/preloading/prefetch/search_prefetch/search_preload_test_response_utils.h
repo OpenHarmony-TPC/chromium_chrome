@@ -10,8 +10,11 @@
 #include "base/functional/callback_forward.h"
 #include "base/thread_annotations.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+
+#if BUILDFLAG(ARKWEB_TEST)
 #include "content/public/browser/browser_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#endif // BUILDFLAG(ARKWEB_TEST)
 
 // Used by SearchPreloadDeferrableResponse and related testing code, to indicate
 // whether and what to defer during testing.

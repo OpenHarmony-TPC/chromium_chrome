@@ -820,18 +820,20 @@ class SystemAccessProcessPrintBrowserTestBase
   void OnRegisterSystemPrintClient(bool succeeded) override {
     system_print_registration_succeeded_ = succeeded;
   }
-
-  void OnRenderFrameDeleted() override {
-    if (check_for_render_frame_deleted_) {
-      CheckForQuit();
-    }
-  }
 #endif
 
   void OnDidPrintDocument() override {
     ++did_print_document_count_;
     CheckForQuit();
   }
+
+#if !BUILDFLAG(ARKWEB_TEST)
+  void OnRenderFrameDeleted() override {
+    if (check_for_render_frame_deleted_) {
+      CheckForQuit();
+    }
+  }
+#endif
 
   // PrintJob::Observer:
   void OnDestruction() override {
