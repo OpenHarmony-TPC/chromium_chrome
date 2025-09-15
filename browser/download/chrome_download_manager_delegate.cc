@@ -943,13 +943,9 @@ bool ChromeDownloadManagerDelegate::ShouldCompleteDownload(
 bool ChromeDownloadManagerDelegate::ShouldOpenDownload(
     DownloadItem* item,
     content::DownloadOpenDelayedCallback callback) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ARKWEB)
   if (download_crx_util::IsExtensionDownload(*item) &&
       !extensions::WebstoreInstaller::GetAssociatedApproval(*item)) {
-#if BUILDFLAG(IS_ARKWEB)
-      return true;
-  }
-#else
     scoped_refptr<CrxInstaller> installer(
         download_crx_util::CreateCrxInstaller(profile_, *item));
 
@@ -978,7 +974,6 @@ bool ChromeDownloadManagerDelegate::ShouldOpenDownload(
     item->UpdateObservers();
     return false;
   }
-#endif //BUILDFLAG(IS_ARKWEB)
 #endif
 
   return true;
