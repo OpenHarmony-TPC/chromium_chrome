@@ -531,6 +531,9 @@ void ChromeBrowserMainExtraPartsAsh::PostMainMessageLoopRun() {
   app_access_notifier_.reset();
 
   // Initialized in PreProfileInit (which may not get called in some tests).
+  if (device::GeolocationSystemPermissionManager::GetInstance()) {
+    device::GeolocationSystemPermissionManager::GetInstance()->Shutdown();
+  }
   device::GeolocationSystemPermissionManager::SetInstance(nullptr);
   system_tray_client_.reset();
   session_controller_client_.reset();
