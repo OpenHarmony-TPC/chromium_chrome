@@ -975,8 +975,11 @@ bool ChromeDownloadManagerDelegate::ShouldOpenDownload(
     return false;
   }
 #endif
-
+#if BUILDFLAG(IS_ARKWEB)
+  return false;
+#else
   return true;
+#endif
 }
 
 bool ChromeDownloadManagerDelegate::ShouldObfuscateDownload(
