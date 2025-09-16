@@ -289,8 +289,11 @@ ExtensionActionShowFunction::RunExtensionAction() {
     tab_id = tab_id_;
   }
   LOG(INFO) << "ExtensionActionShowFunction::RunExtensionAction";
-  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnEnable(extension()->id(), tab_id);
-#endif // ARKWEB_ARKWEB_EXTENSIONS
+  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnEnable(
+      extension()->id(), tab_id,
+      OHOS::NWeb::GetExtensionContextType(browser_context()),
+      include_incognito_information());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
   return RespondNow(NoArguments());
 }
 
@@ -303,8 +306,11 @@ ExtensionActionHideFunction::RunExtensionAction() {
     tab_id = tab_id_;
   }
   LOG(INFO) << "ExtensionActionHideFunction::RunExtensionAction";
-  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnDisable(extension()->id(), tab_id);
-#endif // ARKWEB_ARKWEB_EXTENSIONS
+  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnDisable(
+      extension()->id(), tab_id,
+      OHOS::NWeb::GetExtensionContextType(browser_context()),
+      include_incognito_information());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
   return RespondNow(NoArguments());
 }
 
@@ -349,9 +355,9 @@ ExtensionActionSetIconFunction::RunExtensionAction() {
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
     LOG(INFO) << "ExtensionActionSetIconFunction::RunExtensionAction";
     OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnSetIcon(
-        extension()->id(), icon_image, tab_id_);
-    OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnSetIcon(
-        extension()->id(), icon_image, tab_id_);
+        extension()->id(), icon_image, tab_id_,
+        OHOS::NWeb::GetExtensionContextType(browser_context()),
+        include_incognito_information());
 #endif
   } else if (details_->FindInt("iconIndex")) {
     // Obsolete argument: ignore it.
@@ -377,7 +383,10 @@ ExtensionActionSetTitleFunction::RunExtensionAction() {
     details.tabId = tab_id_;
   }
   details.title = *title;
-  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnSetTitle(extension()->id(), details);
+  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnSetTitle(
+      extension()->id(), details,
+      OHOS::NWeb::GetExtensionContextType(browser_context()),
+      include_incognito_information());
 #endif
   return RespondNow(NoArguments());
 }
@@ -411,7 +420,10 @@ ExtensionActionSetPopupFunction::RunExtensionAction() {
     details.tabId = tab_id_;
   }
   details.popup = *popup_string;
-  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnSetPopup(extension()->id(), details);
+  OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()->OnSetPopup(
+      extension()->id(), details,
+      OHOS::NWeb::GetExtensionContextType(browser_context()),
+      include_incognito_information());
 #endif
   return RespondNow(NoArguments());
 }
@@ -445,9 +457,13 @@ ExtensionActionSetBadgeBackgroundColorFunction::RunExtensionAction() {
   if (tab_id_ != ExtensionAction::kDefaultTabId) {
     details.tabId = tab_id_;
   }
-  details.color = {SkColorGetR(color), SkColorGetG(color), SkColorGetB(color), SkColorGetA(color)};
+  details.color = {SkColorGetR(color), SkColorGetG(color), SkColorGetB(color),
+                   SkColorGetA(color)};
   OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()
-      ->OnSetBadgeBackgroundColor(extension()->id(), details);
+      ->OnSetBadgeBackgroundColor(
+          extension()->id(), details,
+          OHOS::NWeb::GetExtensionContextType(browser_context()),
+          include_incognito_information());
 #endif
   return RespondNow(NoArguments());
 }
@@ -470,9 +486,13 @@ ActionSetBadgeTextColorFunction::RunExtensionAction() {
   if (tab_id_ != ExtensionAction::kDefaultTabId) {
     details.tabId = tab_id_;
   }
-  details.color = {SkColorGetR(color), SkColorGetG(color), SkColorGetB(color), SkColorGetA(color)};
+  details.color = {SkColorGetR(color), SkColorGetG(color), SkColorGetB(color),
+                   SkColorGetA(color)};
   OHOS::NWeb::NWebExtensionActionCefDelegate::GetInstance()
-      ->OnSetBadgeTextColor(extension()->id(), details);
+      ->OnSetBadgeTextColor(
+          extension()->id(), details,
+          OHOS::NWeb::GetExtensionContextType(browser_context()),
+          include_incognito_information());
 #endif
   return RespondNow(NoArguments());
 }
