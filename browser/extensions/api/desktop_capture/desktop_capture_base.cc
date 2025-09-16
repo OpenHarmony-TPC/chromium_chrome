@@ -33,10 +33,6 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "url/origin.h"
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "arkweb/chromium_ext/chrome/browser/extensions/api/desktop_capture/desktop_capture_base_for_include.cc"
-#endif
-
 using content::DesktopMediaID;
 using extensions::api::desktop_capture::ChooseDesktopMedia::Results::Options;
 
@@ -76,9 +72,6 @@ void DesktopCaptureChooseDesktopMediaFunctionBase::Cancel() {
   scoped_refptr<DesktopCaptureChooseDesktopMediaFunctionBase> self(this);
 
   // If this picker dialog is open, this will close it.
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  picker_controller_->Stop();
-#endif
   picker_controller_.reset();
 
   Respond(ArgumentList(Create(std::string(), Options())));
@@ -93,7 +86,6 @@ DesktopCaptureChooseDesktopMediaFunctionBase::Execute(
     content::RenderFrameHost* render_frame_host,
     const GURL& origin,
     const std::u16string& target_name) {
-  LOG(INFO) << __FUNCTION__ << " start ";
   DCHECK(!picker_controller_);
 
   if (!render_frame_host->IsActive())
@@ -117,29 +109,14 @@ DesktopCaptureChooseDesktopMediaFunctionBase::Execute(
   }
 
   bool request_audio = false;
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  bool has_screen = false;
-#endif
   std::vector<DesktopMediaList::Type> media_types;
   for (auto source_type : sources) {
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-    if (ExecuteOhos(source_type, media_types, has_screen)) {
-      continue;
-    }
-#endif
     switch (source_type) {
       case api::desktop_capture::DesktopCaptureSourceType::kNone: {
         return RespondNow(Error(kInvalidSourceNameError));
       }
       case api::desktop_capture::DesktopCaptureSourceType::kScreen: {
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-        if (!has_screen) {
-          media_types.push_back(DesktopMediaList::Type::kScreen);
-          has_screen = true;
-        }
-#else
         media_types.push_back(DesktopMediaList::Type::kScreen);
-#endif
         break;
       }
       case api::desktop_capture::DesktopCaptureSourceType::kWindow: {
@@ -187,7 +164,6 @@ DesktopCaptureChooseDesktopMediaFunctionBase::Execute(
       std::make_unique<DesktopMediaPickerController>(g_picker_factory);
   picker_params.restricted_by_policy =
       (capture_level != AllowedScreenCaptureLevel::kUnrestricted);
-  LOG(INFO) << __FUNCTION__ << " picker_controller_->Show ";
   picker_controller_->Show(picker_params, std::move(media_types),
                            includable_web_contents_filter, std::move(callback));
   return RespondLater();
@@ -215,10 +191,6 @@ void DesktopCaptureChooseDesktopMediaFunctionBase::OnPickerDialogResults(
     return;
   }
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  source = content::DesktopMediaID(content::DesktopMediaID::TYPE_SCREEN,
-                                   GetNwebId(render_frame_host_id));
-#endif
   if (source.is_null()) {
     DLOG(ERROR) << "Sending empty results.";
     Respond(ArgumentList(Create(std::string(), Options())));
