@@ -69,6 +69,7 @@ WebAuthenticationProxyAttachFunction::~WebAuthenticationProxyAttachFunction() =
     default;
 
 ExtensionFunction::ResponseAction WebAuthenticationProxyAttachFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   DCHECK(extension());
 
   const bool success =
@@ -78,6 +79,9 @@ ExtensionFunction::ResponseAction WebAuthenticationProxyAttachFunction::Run() {
                             extension());
   return RespondNow(success ? NoArguments()
                             : Error("Another extension is already attached"));
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 WebAuthenticationProxyDetachFunction::WebAuthenticationProxyDetachFunction() =
@@ -86,6 +90,7 @@ WebAuthenticationProxyDetachFunction::~WebAuthenticationProxyDetachFunction() =
     default;
 
 ExtensionFunction::ResponseAction WebAuthenticationProxyDetachFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   DCHECK(extension());
 
   WebAuthenticationProxyService* proxy_service =
@@ -100,6 +105,9 @@ ExtensionFunction::ResponseAction WebAuthenticationProxyDetachFunction::Run() {
   proxy_registrar->ClearRequestProxy(
       Profile::FromBrowserContext(browser_context()));
   return RespondNow(NoArguments());
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 WebAuthenticationProxyCompleteCreateRequestFunction::
@@ -114,6 +122,7 @@ void WebAuthenticationProxyCompleteCreateRequestFunction::DoRespond(
 
 ExtensionFunction::ResponseAction
 WebAuthenticationProxyCompleteCreateRequestFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   DCHECK(extension());
   auto params =
       api::web_authentication_proxy::CompleteCreateRequest::Params::Create(
@@ -130,6 +139,9 @@ WebAuthenticationProxyCompleteCreateRequestFunction::Run() {
           &WebAuthenticationProxyCompleteCreateRequestFunction::DoRespond,
           this));
   return did_respond() ? AlreadyResponded() : RespondLater();
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 WebAuthenticationProxyCompleteGetRequestFunction::
@@ -144,6 +156,7 @@ void WebAuthenticationProxyCompleteGetRequestFunction::DoRespond(
 
 ExtensionFunction::ResponseAction
 WebAuthenticationProxyCompleteGetRequestFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   DCHECK(extension());
   auto params =
       api::web_authentication_proxy::CompleteGetRequest::Params::Create(args());
@@ -158,6 +171,9 @@ WebAuthenticationProxyCompleteGetRequestFunction::Run() {
       base::BindOnce(
           &WebAuthenticationProxyCompleteGetRequestFunction::DoRespond, this));
   return did_respond() ? AlreadyResponded() : RespondLater();
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 WebAuthenticationProxyCompleteIsUvpaaRequestFunction::
@@ -167,6 +183,7 @@ WebAuthenticationProxyCompleteIsUvpaaRequestFunction::
 
 ExtensionFunction::ResponseAction
 WebAuthenticationProxyCompleteIsUvpaaRequestFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   DCHECK(extension());
   auto params =
       api::web_authentication_proxy::CompleteIsUvpaaRequest::Params::Create(
@@ -181,6 +198,9 @@ WebAuthenticationProxyCompleteIsUvpaaRequestFunction::Run() {
     return RespondNow(Error("Invalid request id"));
   }
   return RespondNow(NoArguments());
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 }  // namespace extensions
