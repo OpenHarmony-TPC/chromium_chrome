@@ -210,6 +210,7 @@ api::sessions::Session SessionsGetRecentlyClosedFunction::CreateSessionModel(
 }
 
 ExtensionFunction::ResponseAction SessionsGetRecentlyClosedFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   std::optional<GetRecentlyClosed::Params> params =
       GetRecentlyClosed::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -255,6 +256,9 @@ ExtensionFunction::ResponseAction SessionsGetRecentlyClosedFunction::Run() {
   }
 
   return RespondNow(ArgumentList(GetRecentlyClosed::Results::Create(result)));
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 api::tabs::Tab SessionsGetDevicesFunction::CreateTabModel(
@@ -408,6 +412,7 @@ api::sessions::Device SessionsGetDevicesFunction::CreateDeviceModel(
 }
 
 ExtensionFunction::ResponseAction SessionsGetDevicesFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   sync_sessions::SessionSyncService* service =
       SessionSyncServiceFactory::GetInstance()->GetForProfile(
           Profile::FromBrowserContext(browser_context()));
@@ -438,6 +443,9 @@ ExtensionFunction::ResponseAction SessionsGetDevicesFunction::Run() {
   }
 
   return RespondNow(ArgumentList(GetDevices::Results::Create(result)));
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 ExtensionFunction::ResponseValue SessionsRestoreFunction::GetRestoredTabResult(
@@ -599,6 +607,7 @@ ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreForeignSession(
 }
 
 ExtensionFunction::ResponseAction SessionsRestoreFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   std::optional<Restore::Params> params = Restore::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -623,6 +632,9 @@ ExtensionFunction::ResponseAction SessionsRestoreFunction::Run() {
   return RespondNow(session_id->IsForeign()
                         ? RestoreForeignSession(*session_id, browser)
                         : RestoreLocalSession(*session_id, browser));
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 SessionsEventRouter::SessionsEventRouter(Profile* profile)
