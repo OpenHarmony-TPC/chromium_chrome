@@ -273,6 +273,11 @@ ExtensionFunction::ResponseAction GetPreferenceFunction::Run() {
   EXTENSION_FUNCTION_VALIDATE(args()[1].is_dict());
 
   const std::string& pref_key = args()[0].GetString();
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  if (pref_key == "animationPolicy") {
+    return RespondNow(NoArguments());
+  }
+#endif // ARKWEB_ARKWEB_EXTENSIONS
   const base::Value& details = args()[1];
 
   bool incognito = false;
@@ -359,6 +364,11 @@ ExtensionFunction::ResponseAction SetPreferenceFunction::Run() {
   EXTENSION_FUNCTION_VALIDATE(args()[1].is_dict());
 
   std::string pref_key = args()[0].GetString();
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  if (pref_key == "animationPolicy") {
+    return RespondNow(NoArguments());
+  }
+#endif // ARKWEB_ARKWEB_EXTENSIONS
   const base::Value::Dict& details = args()[1].GetDict();
 
   const base::Value* value = details.Find(kValue);
@@ -469,6 +479,11 @@ ExtensionFunction::ResponseAction ClearPreferenceFunction::Run() {
   EXTENSION_FUNCTION_VALIDATE(args()[1].is_dict());
 
   std::string pref_key = args()[0].GetString();
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  if (pref_key == "animationPolicy") {
+    return RespondNow(NoArguments());
+  }
+#endif // ARKWEB_ARKWEB_EXTENSIONS
   const base::Value::Dict& details = args()[1].GetDict();
 
   ChromeSettingScope scope = ChromeSettingScope::kRegular;
