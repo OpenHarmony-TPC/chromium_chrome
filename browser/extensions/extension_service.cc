@@ -547,8 +547,17 @@ void ExtensionService::Init() {
         switches::kLoadSigninProfileTestExtension));
   }
 #endif
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  ExtensionRegistryInfoManager::StartInitialLoad();
+#endif
+
   if (load_saved_extensions)
     InstalledLoader(this).LoadAllExtensions();
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  NotifyOnInstalledExtensionsLoaded();
+#endif
 
   CheckManagementPolicy();
   OnInstalledExtensionsLoaded();
@@ -2467,10 +2476,6 @@ void ExtensionService::OnInstalledExtensionsLoaded() {
   for (const auto& extension : to_enable) {
     EnableExtension(extension->id());
   }
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  NotifyOnInstalledExtensionsLoaded();
-#endif
 
   // Check installed extensions against the blocklist if and only if the
   // database is ready; otherwise, the database is effectively empty and we'll
