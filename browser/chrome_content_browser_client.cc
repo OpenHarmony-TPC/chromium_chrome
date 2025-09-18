@@ -8455,9 +8455,13 @@ void ChromeContentBrowserClient::GetHyphenationDictionary(
 }
 
 bool ChromeContentBrowserClient::HasErrorPage(int http_status_code) {
+#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
+  return false;
+#else
   // Use an internal error page, if we have one for the status code.
   return error_page::LocalizedError::HasStrings(
       error_page::Error::kHttpErrorDomain, http_status_code);
+#endif
 }
 
 std::unique_ptr<content::IdentityRequestDialogController>
