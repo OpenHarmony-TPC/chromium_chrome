@@ -25,13 +25,7 @@
 #if !BUILDFLAG(IS_ANDROID)
 namespace {
 #if !BUILDFLAG(IS_CHROMEOS_ASH)
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-std::unique_ptr<ThumbnailCapturer> MakeScreenCapturer(
-    base::OnceCallback<void(uint64_t displayId)> callback,
-    int nweb_id) {
-#else
 std::unique_ptr<ThumbnailCapturer> MakeScreenCapturer() {
-#endif
 #if BUILDFLAG(IS_MAC)
   if (ShouldUseThumbnailCapturerMac(DesktopMediaList::Type::kScreen)) {
     return CreateThumbnailCapturerMac(DesktopMediaList::Type::kScreen);
@@ -39,13 +33,7 @@ std::unique_ptr<ThumbnailCapturer> MakeScreenCapturer() {
 #endif  // BUILDFLAG(IS_MAC)
 
   std::unique_ptr<webrtc::DesktopCapturer> desktop_capturer =
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      content::desktop_capture::CreateScreenCapturer(false,
-                                                     nweb_id,
-                                                     std::move(callback));
-#else
       content::desktop_capture::CreateScreenCapturer();
-#endif
   return desktop_capturer ? std::make_unique<DesktopCapturerWrapper>(
                                 std::move(desktop_capturer))
                           : nullptr;
@@ -98,12 +86,7 @@ std::vector<std::unique_ptr<DesktopMediaList>>
 DesktopMediaPickerFactoryImpl::CreateMediaList(
     const std::vector<DesktopMediaList::Type>& types,
     content::WebContents* web_contents,
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-    DesktopMediaList::WebContentsFilter includable_web_contents_filter,
-    base::OnceCallback<void(uint64_t displayId)> callback) {
-#else
     DesktopMediaList::WebContentsFilter includable_web_contents_filter) {
-#endif
 #if BUILDFLAG(IS_ANDROID)
   // We do not use DesktopMediaList on Android.
   return {};
@@ -135,17 +118,7 @@ DesktopMediaPickerFactoryImpl::CreateMediaList(
         // If screen capture is not supported on the platform, then we should
         // not attempt to create an instance of NativeDesktopMediaList. Doing so
         // will hit a DCHECK.
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-        if (!web_contents) {
-          LOG(ERROR) << "web_contents is null";
-          continue;
-        }
-        int nweb_id = web_contents->GetNWebId();
-        std::unique_ptr<ThumbnailCapturer> capturer =
-            MakeScreenCapturer(std::move(callback), nweb_id);
-#else
         std::unique_ptr<ThumbnailCapturer> capturer = MakeScreenCapturer();
-#endif
         if (!capturer)
           continue;
 
