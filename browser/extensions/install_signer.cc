@@ -10,6 +10,7 @@
 #include <memory>
 #include <utility>
 
+#include "arkweb/build/features/features.h"
 #include "base/base64.h"
 #include "base/command_line.h"
 #include "base/containers/to_value_list.h"
@@ -64,7 +65,11 @@ const int kSignatureFormatVersion = 2;
 const size_t kSaltBytes = 32;
 
 const char kBackendUrl[] =
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+    "https://x.x.x";
+#else
     "https://www.googleapis.com/chromewebstore/v1.1/items/verify";
+#endif
 
 const char kPublicKeyPEM[] =
     "-----BEGIN PUBLIC KEY-----"
@@ -267,6 +272,11 @@ void InstallSigner::GetSignature(SignatureCallback callback) {
     ReportErrorViaCallback();
     return;
   }
+
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+  ReportErrorViaCallback();
+  return;
+#endif
 
   if (!url_loader_factory_) {
     ReportErrorViaCallback();
