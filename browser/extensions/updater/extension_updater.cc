@@ -669,7 +669,7 @@ void ExtensionUpdater::OnExtensionDownloadFinished(
       file.extension_id, InstallStageTracker::Stage::INSTALLING);
   UpdatePingData(file.extension_id, ping);
 
-  LOG(INFO) << download_url << " written to " << file.path.value();
+  VLOG(2) << download_url << " written to " << file.path.value();
 
   FetchedCRXFile fetched(file, file_ownership_passed, request_ids,
                          std::move(callback));
