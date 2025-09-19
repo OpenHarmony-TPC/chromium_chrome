@@ -451,12 +451,20 @@ std::optional<CrxInstallError> CrxInstaller::AllowInstall(
       ExtensionManagement* extension_management =
           ExtensionManagementFactory::GetForBrowserContext(profile_);
       if (extension_management->UpdatesFromWebstore(*extension)) {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+        return CrxInstallError(
+            CrxInstallErrorType::OTHER,
+            CrxInstallErrorDetail::NOT_INSTALLED_FROM_GALLERY,
+            l10n_util::GetStringUTF16(
+                IDS_EXTENSIONS_LOAD_ERROR_HEADING));
+#else
         return CrxInstallError(
             CrxInstallErrorType::OTHER,
             CrxInstallErrorDetail::NOT_INSTALLED_FROM_GALLERY,
             l10n_util::GetStringFUTF16(
                 IDS_EXTENSION_INSTALL_GALLERY_ONLY,
                 l10n_util::GetStringUTF16(IDS_EXTENSION_WEB_STORE_TITLE)));
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
       }
 
       // For self-hosted apps, verify that the entire extent is on the same
