@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//arkweb/build/features/features.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//extensions/buildflags/buildflags.gni")
 
@@ -53,6 +54,10 @@ source_set("platform_apps") {
     "//chrome/browser/profiles:profile_util",
     "//chrome/common/apps/platform_apps/api",
   ]
+
+  if (!defined(arkweb_arkweb_extensions) || !arkweb_arkweb_extensions) {
+    public_deps -= [ "//chrome/browser/apps/platform_apps/api:api_registration" ]
+  }
 
   deps = [
     "//build:chromeos_buildflags",
