@@ -380,11 +380,17 @@ void VolumeManager::Initialize() {
                           weak_ptr_factory_.GetWeakPtr()));
 
   // Subscribe to storage monitor for MTP notifications.
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   if (storage_monitor::StorageMonitor::GetInstance()) {
     storage_monitor::StorageMonitor::GetInstance()->EnsureInitialized(
         base::BindOnce(&VolumeManager::OnStorageMonitorInitialized,
                        weak_ptr_factory_.GetWeakPtr()));
   }
+#else
+    storage_monitor::StorageMonitor::GetInstance()->EnsureInitialized(
+        base::BindOnce(&VolumeManager::OnStorageMonitorInitialized,
+                       weak_ptr_factory_.GetWeakPtr()));
+#endif
 
   // Subscribe to clipboard events.
   ui::ClipboardMonitor::GetInstance()->AddObserver(this);
@@ -415,10 +421,19 @@ void VolumeManager::Shutdown() {
   documents_provider_root_manager_.reset();
   trash_auto_cleanup_.reset();
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  if (StorageMonitor::GetInstance()) {
+    if (storage_monitor::StorageMonitor* const p =
+            storage_monitor::StorageMonitor::GetInstance()) {
+      p->RemoveObserver(this);
+    }
+  }
+#else
   if (storage_monitor::StorageMonitor* const p =
           storage_monitor::StorageMonitor::GetInstance()) {
     p->RemoveObserver(this);
   }
+#endif
 
   drive::DriveIntegrationService::Observer::Reset();
 
@@ -1153,6 +1168,10 @@ void VolumeManager::OnRemovableStorageAttached(
   base::RemoveChars(info.location(), kRootPath, &storage_name);
   DCHECK(!storage_name.empty());
   if (get_mtp_storage_info_callback_.is_null()) {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    if (!storage_monitor::StorageMonitor::GetInstance()) 
+      return;
+#endif
     storage_monitor::StorageMonitor::GetInstance()
         ->media_transfer_protocol_manager()
         ->GetStorageInfo(storage_name,
@@ -1501,6 +1520,10 @@ void VolumeManager::OnDiskMountManagerRefreshed(bool success) {
 void VolumeManager::OnStorageMonitorInitialized() {
   VLOG(1) << *this << "::OnStorageMonitorInitialized";
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  if (!storage_monitor::StorageMonitor::GetInstance())
+    return;
+#endif
   const std::vector<storage_monitor::StorageInfo> storages =
       storage_monitor::StorageMonitor::GetInstance()->GetAllAvailableStorages();
   for (const storage_monitor::StorageInfo& storage : storages) {
