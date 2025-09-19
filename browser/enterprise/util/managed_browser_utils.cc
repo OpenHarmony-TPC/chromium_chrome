@@ -46,6 +46,7 @@
 
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/managed_ui.h"
 #include "components/enterprise/browser/reporting/common_pref_names.h"
@@ -59,8 +60,8 @@ namespace enterprise_util {
 namespace {
 
 #if BUILDFLAG(IS_OHOS)
-base::Value::List g_templist;
-GURL g_tempurl;
+base::NoDestructor<base::Value::List> g_templist;
+base::NoDestructor<GURL> g_tempurl;
 #endif  // BUILDFLAG(IS_OHOS)
 
 // Returns client certificate auto-selection filters configured for the given
@@ -133,8 +134,8 @@ void OnManagementIconReceived(
 
 #if BUILDFLAG(IS_OHOS)
 base::Value::List getList(GURL url) {
-  if (g_tempurl == url) {
-    return std::move(g_templist);
+  if (*g_tempurl == url) {
+    return std::move(*g_templist);
   }
   return base::Value::List();
 }
@@ -144,8 +145,8 @@ base::Value::List getList(GURL url) {
 
 #if BUILDFLAG(IS_OHOS)
 void SetTemplistForOhosTest(base::Value::List list, GURL url) {
-  g_tempurl = std::move(url);
-  g_templist = std::move(list);
+  *g_tempurl = std::move(url);
+  *g_templist = std::move(list);
 }
 #endif  // BUILDFLAG(IS_OHOS)
 
