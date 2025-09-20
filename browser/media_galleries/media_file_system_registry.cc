@@ -592,6 +592,8 @@ MediaFileSystemRegistry::MediaFileSystemRegistry()
   if (StorageMonitor::GetInstance()) {
     StorageMonitor::GetInstance()->AddObserver(this);
   }
+#else
+  StorageMonitor::GetInstance()->AddObserver(this);
 #endif
 }
 
