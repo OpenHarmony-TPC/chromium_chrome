@@ -78,6 +78,12 @@
 #include "arkweb/chromium_ext/components/prefs/migration_filter.h"
 #endif // BUILDFLAG(ARKWEB_ADBLOCK)
 
+#if BUILDFLAG(IS_ARKWEB_EXT)
+#if BUILDFLAG(ARKWEB_SAFEBROWSING)
+#include "arkweb/chromium_ext/chrome/browser/metrics/chrome_feature_list_creator_for_include.cpp"
+#endif
+#endif
+
 namespace {
 
 // Returns a list of extra switch-dependent feature overrides to be applied
@@ -152,6 +158,11 @@ void ChromeFeatureListCreator::CreateFeatureList() {
   ConvertFlagsToSwitches();
   CreateMetricsServices();
   SetupInitialPrefs();
+#if BUILDFLAG(IS_ARKWEB_EXT)
+#if BUILDFLAG(ARKWEB_SAFEBROWSING)
+  DealGlobalConfig(local_state_.get());
+#endif
+#endif
   SetUpFieldTrials(command_line_variation_ids);
 }
 
