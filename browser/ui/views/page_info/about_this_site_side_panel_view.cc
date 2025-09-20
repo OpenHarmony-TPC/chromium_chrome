@@ -49,10 +49,10 @@ std::unique_ptr<views::WebView> CreateWebView(
 }  // namespace
 
 #if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+constexpr char kStaticLoadingScreenURL[] = "https://x.x.x.x";
+#else
 constexpr char kStaticLoadingScreenURL[] =
     "https://www.gstatic.com/diner/chrome/atp_loading.html";
-#else
-constexpr char kStaticLoadingScreenURL[] = "https://x.x.x.x";
 #endif
 
 AboutThisSiteSidePanelView::AboutThisSiteSidePanelView(
