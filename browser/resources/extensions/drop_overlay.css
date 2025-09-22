@@ -88,3 +88,9 @@ cr-icon {
   }
 }
 
+/* ARKWEB_ARKWEB_EXTENSIONS start */
+#container {
+  pointer-events: none;
+}
+/* ARKWEB_ARKWEB_EXTENSIONS end */
+
