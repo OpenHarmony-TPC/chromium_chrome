@@ -4,6 +4,7 @@
 
 #include "chrome/browser/cart/cart_discount_link_fetcher.h"
 
+#include "arkweb/build/features/features.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/memory/scoped_refptr.h"
@@ -22,7 +23,11 @@ const char kPostMethod[] = "POST";
 const char kContentType[] = "application/json; charset=UTF-8";
 
 const char kFetchDiscountLinkEndpoint[] =
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+    "https://x.x.x";
+#else
     "https://memex-pa.googleapis.com/v1/shopping/cart/discounted";
+#endif
 constexpr base::TimeDelta kTimeout = base::Milliseconds(30000);
 
 static std::string GeneratePostData(

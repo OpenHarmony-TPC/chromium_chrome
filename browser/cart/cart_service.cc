@@ -7,6 +7,7 @@
 #include <optional>
 #include <vector>
 
+#include "arkweb/build/features/features.h"
 #include "base/containers/contains.h"
 #include "base/json/json_reader.h"
 #include "base/metrics/field_trial_params.h"
@@ -687,6 +688,11 @@ void CartService::AddCartsWithFakeData() {
       l10n_util::GetStringFUTF8(IDS_NTP_MODULES_CART_DISCOUNT_CHIP_AMOUNT,
                                 u"15%"));
   dummy_proto1.mutable_discount_info()->set_has_coupons(true);
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+  dummy_proto1.add_product_image_urls("https://x.x.x");
+  dummy_proto1.add_product_image_urls("https://x.x.x");
+  dummy_proto1.add_product_image_urls("https://x.x.x");
+#else
   dummy_proto1.add_product_image_urls(
       "https://encrypted-tbn3.gstatic.com/"
       "shopping?q=tbn:ANd9GcQpn38jB2_BANnHUFa7kHJsf6SyubcgeU1lNYO_"
@@ -702,6 +708,7 @@ void CartService::AddCartsWithFakeData() {
       "shopping?q=tbn:ANd9GcT2ew6Aydzu5VzRV756ORGha6fyjKp_On7iTlr_"
       "tL9vODnlNtFo_xsxj6_lCop-3J0Vk44lHfk-AxoBJDABVHPVFN-"
       "EiWLcZvzkdpHFqcurm7fBVmWtYKo2rg&usqp=CAY");
+#endif
   cart_db_->AddCart(dummy_proto1.key(), dummy_proto1,
                     base::BindOnce(&CartService::OnOperationFinished,
                                    weak_ptr_factory_.GetWeakPtr()));
@@ -727,7 +734,11 @@ void CartService::AddCartsWithFakeData() {
   coupon_service_->UpdateFreeListingCoupons(coupon_map);
 
   cart_db::ChromeCartContentProto dummy_proto2;
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+  GURL dummy_url2 = GURL("https://x.x.x");
+#else
   GURL dummy_url2 = GURL("https://www.amazon.com/");
+#endif
   dummy_proto2.set_key(std::string(kFakeDataPrefix) + eTLDPlusOne(dummy_url2));
   dummy_proto2.set_merchant("Cart Bar");
   dummy_proto2.set_merchant_cart_url(dummy_url2.spec());
@@ -750,7 +761,11 @@ void CartService::AddCartsWithFakeData() {
                                    weak_ptr_factory_.GetWeakPtr()));
 
   cart_db::ChromeCartContentProto dummy_proto3;
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+  GURL dummy_url3 = GURL("https://x.x.x");
+#else
   GURL dummy_url3 = GURL("https://www.ebay.com/");
+#endif
   dummy_proto3.set_key(std::string(kFakeDataPrefix) + eTLDPlusOne(dummy_url3));
   dummy_proto3.set_merchant("Cart Baz");
   dummy_proto3.set_merchant_cart_url(dummy_url3.spec());
@@ -768,7 +783,11 @@ void CartService::AddCartsWithFakeData() {
                                    weak_ptr_factory_.GetWeakPtr()));
 
   cart_db::ChromeCartContentProto dummy_proto4;
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+  GURL dummy_url4 = GURL("https://x.x.x");
+#else
   GURL dummy_url4 = GURL("https://www.walmart.com/");
+#endif
   dummy_proto4.set_key(std::string(kFakeDataPrefix) + eTLDPlusOne(dummy_url4));
   dummy_proto4.set_merchant("Cart Qux");
   dummy_proto4.set_merchant_cart_url(dummy_url4.spec());
@@ -788,7 +807,11 @@ void CartService::AddCartsWithFakeData() {
                                    weak_ptr_factory_.GetWeakPtr()));
 
   cart_db::ChromeCartContentProto dummy_proto5;
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+  GURL dummy_url5 = GURL("https://x.x.x");
+#else
   GURL dummy_url5 = GURL("https://www.bestbuy.com/");
+#endif
   dummy_proto5.set_key(std::string(kFakeDataPrefix) + eTLDPlusOne(dummy_url5));
   dummy_proto5.set_merchant("Cart Corge");
   dummy_proto5.set_merchant_cart_url(dummy_url5.spec());
@@ -803,7 +826,11 @@ void CartService::AddCartsWithFakeData() {
                                    weak_ptr_factory_.GetWeakPtr()));
 
   cart_db::ChromeCartContentProto dummy_proto6;
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+  GURL dummy_url6 = GURL("https://x.x.x");
+#else
   GURL dummy_url6 = GURL("https://www.nike.com/");
+#endif
   dummy_proto6.set_key(std::string(kFakeDataPrefix) + eTLDPlusOne(dummy_url6));
   dummy_proto6.set_merchant("Cart Flob");
   dummy_proto6.set_merchant_cart_url(dummy_url6.spec());
