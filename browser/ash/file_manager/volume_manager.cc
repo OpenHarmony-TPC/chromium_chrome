@@ -380,17 +380,11 @@ void VolumeManager::Initialize() {
                           weak_ptr_factory_.GetWeakPtr()));
 
   // Subscribe to storage monitor for MTP notifications.
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   if (storage_monitor::StorageMonitor::GetInstance()) {
     storage_monitor::StorageMonitor::GetInstance()->EnsureInitialized(
         base::BindOnce(&VolumeManager::OnStorageMonitorInitialized,
                        weak_ptr_factory_.GetWeakPtr()));
   }
-#else
-    storage_monitor::StorageMonitor::GetInstance()->EnsureInitialized(
-        base::BindOnce(&VolumeManager::OnStorageMonitorInitialized,
-                       weak_ptr_factory_.GetWeakPtr()));
-#endif
 
   // Subscribe to clipboard events.
   ui::ClipboardMonitor::GetInstance()->AddObserver(this);
@@ -421,19 +415,10 @@ void VolumeManager::Shutdown() {
   documents_provider_root_manager_.reset();
   trash_auto_cleanup_.reset();
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  if (StorageMonitor::GetInstance()) {
-    if (storage_monitor::StorageMonitor* const p =
-            storage_monitor::StorageMonitor::GetInstance()) {
-      p->RemoveObserver(this);
-    }
-  }
-#else
   if (storage_monitor::StorageMonitor* const p =
           storage_monitor::StorageMonitor::GetInstance()) {
     p->RemoveObserver(this);
   }
-#endif
 
   drive::DriveIntegrationService::Observer::Reset();
 
