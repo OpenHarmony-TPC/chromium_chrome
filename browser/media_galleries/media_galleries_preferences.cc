@@ -453,12 +453,8 @@ MediaGalleriesPreferences::MediaGalleriesPreferences(Profile* profile)
       extension_prefs_for_testing_(nullptr) {}
 
 MediaGalleriesPreferences::~MediaGalleriesPreferences() {
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   if (StorageMonitor::GetInstance())
     StorageMonitor::GetInstance()->RemoveObserver(this);
-#else
-    StorageMonitor::GetInstance()->RemoveObserver(this);
-#endif
 }
 
 void MediaGalleriesPreferences::EnsureInitialized(base::OnceClosure callback) {
