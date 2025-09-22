@@ -2,10 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "arkweb/build/features/features.h"
 #include "chrome/browser/push_messaging/push_messaging_constants.h"
 
 const char kPushMessagingGcmEndpoint[] =
+#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
+    "https://x.x.x";
+#else
     "https://fcm.googleapis.com/fcm/send/";
+#endif
 
 const char kPushMessagingStagingGcmEndpoint[] =
     "https://jmt17.google.com/fcm/send/";
