@@ -6929,23 +6929,23 @@ ChromeContentBrowserClient::WillCreateURLLoaderRequestInterceptors(
   interceptors.push_back(std::make_unique<SearchPrefetchURLLoaderInterceptor>(
       frame_tree_node_id, navigation_id, navigation_response_task_runner));
 
-#if !BUILDFLAG(ARKWEB_NETWORK_LOAD)	
-  if (!force_no_https_upgrade) {	
-    auto https_upgrades_interceptor =	
-        HttpsUpgradesInterceptor::MaybeCreateInterceptor(frame_tree_node_id,	
-                                                         navigation_ui_data);	
-    if (https_upgrades_interceptor) {	
-      interceptors.push_back(std::move(https_upgrades_interceptor));	
-    }	
+#if !BUILDFLAG(ARKWEB_NETWORK_LOAD)
+  if (!force_no_https_upgrade) {
+    auto https_upgrades_interceptor =
+        HttpsUpgradesInterceptor::MaybeCreateInterceptor(frame_tree_node_id,
+                                                         navigation_ui_data);
+    if (https_upgrades_interceptor) {
+      interceptors.push_back(std::move(https_upgrades_interceptor));
+    }
   }
 #elif BUILDFLAG(ARKWEB_EXT_HTTPS_UPGRADES)
-  if (!force_no_https_upgrade) {	
-    auto https_upgrades_interceptor =	
+  if (!force_no_https_upgrade) {
+    auto https_upgrades_interceptor =
         OhosHttpsUpgradesInterceptor::MaybeCreateInterceptor(frame_tree_node_id);
-    if (https_upgrades_interceptor) {	
+    if (https_upgrades_interceptor) {
       interceptors.push_back(std::move(https_upgrades_interceptor));	
-    }	
-  }	
+    }
+  }
 #endif
 
   return interceptors;
