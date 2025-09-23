@@ -128,6 +128,10 @@
 #include "storage/browser/file_system/file_system_context.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/chrome/browser/extensions/extension_service_for_include.cc"
+#endif
+
 using content::BrowserContext;
 using content::BrowserThread;
 using extensions::mojom::ManifestLocation;
@@ -543,8 +547,17 @@ void ExtensionService::Init() {
         switches::kLoadSigninProfileTestExtension));
   }
 #endif
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  ExtensionRegistryInfoManager::StartInitialLoad();
+#endif
+
   if (load_saved_extensions)
     InstalledLoader(this).LoadAllExtensions();
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  NotifyOnInstalledExtensionsLoaded();
+#endif
 
   CheckManagementPolicy();
   OnInstalledExtensionsLoaded();
