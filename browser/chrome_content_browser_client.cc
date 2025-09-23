@@ -827,6 +827,11 @@
 #include "arkweb/chromium_ext/chrome/browser/devtools/devtools_manager_delegate.h"
 #endif // BUILDFLAG(ARKWEB_DEVTOOLS)
 
+#if BUILDFLAG(ARKWEB_EXT_HTTPS_UPGRADES)
+#include "arkweb/chromium_ext/chrome/browser/ssl/ohos_https_upgrades_interceptor.h"
+#include "arkweb/chromium_ext/chrome/browser/ssl/ohos_https_upgrades_navigation_throttle.h"
+#endif
+
 using blink::mojom::EffectiveConnectionType;
 using blink::web_pref::WebPreferences;
 using content::BrowserThread;
@@ -5860,6 +5865,12 @@ ChromeContentBrowserClient::CreateThrottlesForNavigation(
 #if BUILDFLAG(ARKWEB_ADBLOCK)
   ChromeContentBrowserClientUtils::TrigAdBlockEnabledExt(handle);
 #endif  // ARKWEB_ADBLOCK
+
+#if BUILDFLAG(ARKWEB_EXT_HTTPS_UPGRADES)
+  MaybeAddThrottle(
+      OhosHttpsUpgradesNavigationThrottle::MaybeCreateThrottleFor(handle),
+      &throttles);
+#endif
 
   return throttles;
 }
