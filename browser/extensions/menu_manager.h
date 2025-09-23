@@ -197,19 +197,9 @@ class MenuItem {
   const URLPatternSet& document_url_patterns() const {
     return document_url_patterns_;
   }
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  const std::vector<std::string>& document_url_str_patterns() const {
-    return document_url_str_patterns_;
-  }
-#endif // ARKWEB_ARKWEB_EXTENSIONS
   const URLPatternSet& target_url_patterns() const {
     return target_url_patterns_;
   }
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  const std::vector<std::string>& target_url_str_patterns() const {
-    return target_url_str_patterns_;
-  }
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 
   // Simple mutator methods.
   void set_title(const std::string& new_title) { title_ = new_title; }
@@ -293,17 +283,9 @@ class MenuItem {
   // applies to the frame where the click took place.
   URLPatternSet document_url_patterns_;
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  std::vector<std::string> document_url_str_patterns_;
-#endif // ARKWEB_ARKWEB_EXTENSIONS
-
   // Patterns for restricting where items appear based on the src/href
   // attribute of IMAGE/AUDIO/VIDEO/LINK tags.
   URLPatternSet target_url_patterns_;
-
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  std::vector<std::string> target_url_str_patterns_;
-#endif // ARKWEB_ARKWEB_EXTENSIONS
 
   // Any children this item may have.
   OwnedList children_;
