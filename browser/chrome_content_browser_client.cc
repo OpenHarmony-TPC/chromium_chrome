@@ -827,11 +827,6 @@
 #include "arkweb/chromium_ext/chrome/browser/devtools/devtools_manager_delegate.h"
 #endif // BUILDFLAG(ARKWEB_DEVTOOLS)
 
-#if BUILDFLAG(ARKWEB_EXT_HTTPS_UPGRADES)
-#include "arkweb/chromium_ext/chrome/browser/ssl/ohos_https_upgrades_interceptor.h"
-#include "arkweb/chromium_ext/chrome/browser/ssl/ohos_https_upgrades_navigation_throttle.h"
-#endif
-
 using blink::mojom::EffectiveConnectionType;
 using blink::web_pref::WebPreferences;
 using content::BrowserThread;
@@ -5866,12 +5861,6 @@ ChromeContentBrowserClient::CreateThrottlesForNavigation(
   ChromeContentBrowserClientUtils::TrigAdBlockEnabledExt(handle);
 #endif  // ARKWEB_ADBLOCK
 
-#if BUILDFLAG(ARKWEB_EXT_HTTPS_UPGRADES)
-  MaybeAddThrottle(
-      OhosHttpsUpgradesNavigationThrottle::MaybeCreateThrottleFor(handle),
-      &throttles);
-#endif
-
   return throttles;
 }
 
@@ -6945,7 +6934,7 @@ ChromeContentBrowserClient::WillCreateURLLoaderRequestInterceptors(
 #if !BUILDFLAG(ARKWEB_NETWORK_LOAD)
         HttpsUpgradesInterceptor::MaybeCreateInterceptor(frame_tree_node_id,
                                                          navigation_ui_data);
-#else if BUILDFLAG(ARKWEB_EXT_HTTPS_UPGRADES)
+#elif BUILDFLAG(ARKWEB_EXT_HTTPS_UPGRADES)
         OhosHttpsUpgradesInterceptor::MaybeCreateInterceptor(frame_tree_node_id);
 #endif
     if (https_upgrades_interceptor) {
