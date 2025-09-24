@@ -1387,7 +1387,11 @@ bool IsErrorPageAutoReloadEnabled() {
     return true;
   if (command_line.HasSwitch(embedder_support::kDisableAutoReload))
     return false;
+#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
+  return false;
+#else
   return true;
+#endif
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
