@@ -5352,6 +5352,12 @@ if (!is_android) {
     }
 
     sources += metric_integration_sources
+    sources += [
+      "//arkweb/chromium_ext/chrome/browser/policy/policy_path_parser_ohos_unittest.cc",
+      "//arkweb/chromium_ext/chrome/browser/shell_integration_ohos_unittest.cc",
+      "//arkweb/chromium_ext/chrome/common/chrome_paths_ohos_unittest.cc",
+      "//arkweb/chromium_ext/content/browser/renderer_host/ark_web_back_forward_cache_impl_unittest.cc",
+    ]
 
     if (!is_chromeos) {
       sources += [ "../browser/webauthn/enclave_authenticator_browsertest.cc" ]
