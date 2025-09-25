@@ -141,6 +141,18 @@ LaunchContext::BackgroundLaunchResult LaunchContext::LaunchInBackground(
   }
 
   std::string error_message;
+#if BUILDFLAG(IS_OHOS)
+  std::string manifest_config =
+      FindManifestConfig(native_host_name, error_message);
+  if (manifest_config.empty()) {
+    LOG(WARNING) << "Can't find manifest for native messaging host "
+                 << native_host_name;
+    return BackgroundLaunchResult(NativeProcessLauncher::RESULT_NOT_FOUND);
+  }
+
+  std::unique_ptr<NativeMessagingHostManifest> manifest =
+      NativeMessagingHostManifest::LoadConfig(manifest_config, &error_message);
+#else
   base::FilePath manifest_path =
       FindManifest(native_host_name, allow_user_level_hosts, error_message);
 
@@ -152,6 +164,7 @@ LaunchContext::BackgroundLaunchResult LaunchContext::LaunchInBackground(
 
   std::unique_ptr<NativeMessagingHostManifest> manifest =
       NativeMessagingHostManifest::Load(manifest_path, &error_message);
+#endif
 
   if (!manifest) {
     LOG(WARNING) << "Failed to load manifest for native messaging host "
@@ -159,12 +172,14 @@ LaunchContext::BackgroundLaunchResult LaunchContext::LaunchInBackground(
     return BackgroundLaunchResult(NativeProcessLauncher::RESULT_NOT_FOUND);
   }
 
+#if !BUILDFLAG(IS_OHOS)
   if (manifest->name() != native_host_name) {
     LOG(WARNING) << "Failed to load manifest for native messaging host "
                  << native_host_name
                  << ": Invalid name specified in the manifest.";
     return BackgroundLaunchResult(NativeProcessLauncher::RESULT_NOT_FOUND);
   }
+#endif
 
   if (!manifest->allowed_origins().MatchesSecurityOrigin(origin)) {
     // Not an allowed origin.
@@ -176,6 +191,12 @@ LaunchContext::BackgroundLaunchResult LaunchContext::LaunchInBackground(
     return BackgroundLaunchResult(NativeProcessLauncher::RESULT_FORBIDDEN);
   }
 
+#if BUILDFLAG(IS_OHOS)
+  std::vector<std::string> argv;
+  argv.push_back(native_host_name);
+  argv.push_back(manifest->ability_name());
+  base::CommandLine command_line(argv);
+#elif
   base::FilePath host_path = manifest->path();
   if (!host_path.IsAbsolute()) {
     // On Windows host path is allowed to be relative to the location of the
@@ -200,6 +221,7 @@ LaunchContext::BackgroundLaunchResult LaunchContext::LaunchInBackground(
   }
 
   base::CommandLine command_line(host_path);
+#endif
   // Note: The origin must be the first argument, so do not use AppendSwitch*
   // hereafter because CommandLine inserts these switches before the other
   // arguments.
