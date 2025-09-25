@@ -37,6 +37,10 @@
 #include "net/base/net_errors.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/native_messaging/native_messaging_adapter.h"
+#endif
+
 namespace {
 
 // Maximum message size in bytes for messages received from Native Messaging
@@ -87,6 +91,12 @@ NativeMessageProcessHost::~NativeMessageProcessHost() {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   if (process_.IsValid()) {
+#if BUILDFLAG(IS_OHOS)
+    ohos::adapter::nativemessaging::NativeMessagingAdapter &native_messaging_adapter =
+        ohos::adapter::nativemessaging::NativeMessagingAdapter::GetInstance();
+    native_messaging_adapter.DisconnectNative(process_.Pid());
+#endif
+
 // Kill the host process if necessary to make sure we don't leave zombies.
 // TODO(crbug.com/41367359): On OSX EnsureProcessTerminated() may
 // block, so we have to post a task on the blocking pool.
