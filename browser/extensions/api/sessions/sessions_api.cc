@@ -149,12 +149,15 @@ api::sessions::Session CreateSessionModelHelper(
   return session_struct;
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 bool is_window_entry(const sessions::tab_restore::Entry& entry) {
   return entry.type == sessions::tab_restore::Type::WINDOW;
 }
+#endif
 
 }  // namespace
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 api::tabs::Tab SessionsGetRecentlyClosedFunction::CreateTabModel(
     const sessions::tab_restore::Tab& tab,
     bool active) {
@@ -210,7 +213,6 @@ api::sessions::Session SessionsGetRecentlyClosedFunction::CreateSessionModel(
 }
 
 ExtensionFunction::ResponseAction SessionsGetRecentlyClosedFunction::Run() {
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   std::optional<GetRecentlyClosed::Params> params =
       GetRecentlyClosed::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -256,10 +258,8 @@ ExtensionFunction::ResponseAction SessionsGetRecentlyClosedFunction::Run() {
   }
 
   return RespondNow(ArgumentList(GetRecentlyClosed::Results::Create(result)));
-#else
-  return RespondNow(NoArguments());
-#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
+#endif  // !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
 api::tabs::Tab SessionsGetDevicesFunction::CreateTabModel(
     const std::string& session_tag,
@@ -448,6 +448,7 @@ ExtensionFunction::ResponseAction SessionsGetDevicesFunction::Run() {
 #endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseValue SessionsRestoreFunction::GetRestoredTabResult(
     content::WebContents* contents) {
   ExtensionTabUtil::ScrubTabBehavior scrub_tab_behavior =
@@ -607,7 +608,6 @@ ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreForeignSession(
 }
 
 ExtensionFunction::ResponseAction SessionsRestoreFunction::Run() {
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   std::optional<Restore::Params> params = Restore::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -632,9 +632,6 @@ ExtensionFunction::ResponseAction SessionsRestoreFunction::Run() {
   return RespondNow(session_id->IsForeign()
                         ? RestoreForeignSession(*session_id, browser)
                         : RestoreLocalSession(*session_id, browser));
-#else
-  return RespondNow(NoArguments());
-#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 SessionsEventRouter::SessionsEventRouter(Profile* profile)
@@ -647,6 +644,7 @@ SessionsEventRouter::SessionsEventRouter(Profile* profile)
     tab_restore_service_->AddObserver(this);
   }
 }
+#endif  // !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
 SessionsEventRouter::~SessionsEventRouter() {
   if (tab_restore_service_)
