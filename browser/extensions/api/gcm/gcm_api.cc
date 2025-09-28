@@ -106,6 +106,7 @@ GcmRegisterFunction::GcmRegisterFunction() {}
 GcmRegisterFunction::~GcmRegisterFunction() {}
 
 ExtensionFunction::ResponseAction GcmRegisterFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   std::optional<api::gcm::Register::Params> params =
       api::gcm::Register::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -116,6 +117,9 @@ ExtensionFunction::ResponseAction GcmRegisterFunction::Run() {
 
   // Register() might have returned synchronously.
   return did_respond() ? AlreadyResponded() : RespondLater();
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 void GcmRegisterFunction::CompleteFunctionWithResult(
@@ -137,12 +141,16 @@ GcmUnregisterFunction::GcmUnregisterFunction() {}
 GcmUnregisterFunction::~GcmUnregisterFunction() {}
 
 ExtensionFunction::ResponseAction GcmUnregisterFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   GetGCMDriver()->Unregister(
       extension()->id(),
       base::BindOnce(&GcmUnregisterFunction::CompleteFunctionWithResult, this));
 
   // Unregister might have responded already (synchronously).
   return did_respond() ? AlreadyResponded() : RespondLater();
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 void GcmUnregisterFunction::CompleteFunctionWithResult(
@@ -156,6 +164,7 @@ GcmSendFunction::GcmSendFunction() {}
 GcmSendFunction::~GcmSendFunction() {}
 
 ExtensionFunction::ResponseAction GcmSendFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   std::optional<api::gcm::Send::Params> params =
       api::gcm::Send::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -174,6 +183,9 @@ ExtensionFunction::ResponseAction GcmSendFunction::Run() {
 
   // Send might have already responded synchronously.
   return did_respond() ? AlreadyResponded() : RespondLater();
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 void GcmSendFunction::CompleteFunctionWithResult(

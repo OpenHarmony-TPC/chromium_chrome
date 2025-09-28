@@ -27,6 +27,7 @@ ReadingListAddEntryFunction::ReadingListAddEntryFunction() = default;
 ReadingListAddEntryFunction::~ReadingListAddEntryFunction() = default;
 
 ExtensionFunction::ResponseAction ReadingListAddEntryFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   auto params = api::reading_list::AddEntry::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -49,6 +50,9 @@ ExtensionFunction::ResponseAction ReadingListAddEntryFunction::Run() {
 
   auto response = AddEntryToReadingList();
   return RespondNow(std::move(response));
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 void ReadingListAddEntryFunction::ReadingListModelLoaded(
@@ -85,6 +89,7 @@ ReadingListRemoveEntryFunction::ReadingListRemoveEntryFunction() = default;
 ReadingListRemoveEntryFunction::~ReadingListRemoveEntryFunction() = default;
 
 ExtensionFunction::ResponseAction ReadingListRemoveEntryFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   auto params = api::reading_list::RemoveEntry::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -104,6 +109,9 @@ ExtensionFunction::ResponseAction ReadingListRemoveEntryFunction::Run() {
 
   auto response = RemoveEntryFromReadingList();
   return RespondNow(std::move(response));
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 void ReadingListRemoveEntryFunction::ReadingListModelLoaded(
@@ -137,6 +145,7 @@ ReadingListUpdateEntryFunction::ReadingListUpdateEntryFunction() = default;
 ReadingListUpdateEntryFunction::~ReadingListUpdateEntryFunction() = default;
 
 ExtensionFunction::ResponseAction ReadingListUpdateEntryFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   auto params = api::reading_list::UpdateEntry::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -163,6 +172,9 @@ ExtensionFunction::ResponseAction ReadingListUpdateEntryFunction::Run() {
 
   auto response = UpdateEntriesInTheReadingList();
   return RespondNow(std::move(response));
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 void ReadingListUpdateEntryFunction::ReadingListModelLoaded(
@@ -202,6 +214,7 @@ ReadingListQueryFunction::ReadingListQueryFunction() = default;
 ReadingListQueryFunction::~ReadingListQueryFunction() = default;
 
 ExtensionFunction::ResponseAction ReadingListQueryFunction::Run() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   auto params = api::reading_list::Query::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -226,6 +239,9 @@ ExtensionFunction::ResponseAction ReadingListQueryFunction::Run() {
 
   auto response = MatchEntries();
   return RespondNow(std::move(response));
+#else
+  return RespondNow(NoArguments());
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 void ReadingListQueryFunction::ReadingListModelLoaded(
