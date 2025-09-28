@@ -284,8 +284,8 @@ void BrowserContextKeyedAPIFactory<OmniboxAPI>::DeclareFactoryDependencies() {
 OmniboxSendSuggestionsFunction::OmniboxSendSuggestionsFunction() = default;
 OmniboxSendSuggestionsFunction::~OmniboxSendSuggestionsFunction() = default;
 
-ExtensionFunction::ResponseAction OmniboxSendSuggestionsFunction::Run() {
 #if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+ExtensionFunction::ResponseAction OmniboxSendSuggestionsFunction::Run() {
   params_ = SendSuggestions::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params_);
 
@@ -305,10 +305,8 @@ ExtensionFunction::ResponseAction OmniboxSendSuggestionsFunction::Run() {
 
   NotifySuggestionsReady();
   return RespondNow(NoArguments());
-#else
-  return RespondNow(NoArguments());
-#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 
 void OmniboxSendSuggestionsFunction::OnParsedDescriptionsAndStyles(
     DescriptionAndStylesResult result) {
