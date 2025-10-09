@@ -6938,6 +6938,14 @@ ChromeContentBrowserClient::WillCreateURLLoaderRequestInterceptors(
       interceptors.push_back(std::move(https_upgrades_interceptor));
     }
   }
+#elif BUILDFLAG(ARKWEB_EXT_HTTPS_UPGRADES)
+  if (!force_no_https_upgrade) {
+    auto https_upgrades_interceptor =
+        OhosHttpsUpgradesInterceptor::MaybeCreateInterceptor(frame_tree_node_id);
+    if (https_upgrades_interceptor) {
+      interceptors.push_back(std::move(https_upgrades_interceptor));	
+    }
+  }
 #endif
 
   return interceptors;
