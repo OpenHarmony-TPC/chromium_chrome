@@ -596,6 +596,10 @@ void ExtensionService::Init() {
   // triggered before and is still running.
   if (corrupted_extension_reinstaller()->HasAnyReinstallForCorruption())
     CheckForUpdatesSoon();
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LoadForbidDisplayInSettingsExtensions();
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 void ExtensionService::EnabledReloadableExtensions() {
