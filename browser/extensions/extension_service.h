@@ -414,6 +414,10 @@ class ExtensionService : public ExtensionServiceInterface,
   bool UserCanDisableInstalledExtension(
       const std::string& extension_id) override;
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  void SetForbidDisplayInSettings(const ExtensionIdSet& extension_ids);
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
+
   //////////////////////////////////////////////////////////////////////////////
   // Simple Accessors
 
@@ -456,6 +460,12 @@ class ExtensionService : public ExtensionServiceInterface,
   }
 
   ExtensionAllowlist* allowlist() { return &allowlist_; }
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  ExtensionIdSet& forbid_display_in_settings() {
+    return forbid_display_in_settings_;
+  }
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 
   //////////////////////////////////////////////////////////////////////////////
   // For Testing
@@ -658,6 +668,10 @@ class ExtensionService : public ExtensionServiceInterface,
   // other disable reasons associated with them.
   void OnDeveloperModePrefChanged();
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  void LoadForbidDisplayInSettingsExtensions();
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
+
   raw_ptr<const base::CommandLine, DanglingUntriaged> command_line_ = nullptr;
 
   // The normal profile associated with this ExtensionService.
@@ -795,6 +809,10 @@ class ExtensionService : public ExtensionServiceInterface,
   InstallGateRegistry install_delayer_registry_;
 
   PrefChangeRegistrar pref_change_registrar_;
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  ExtensionIdSet forbid_display_in_settings_;
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 
   base::WeakPtrFactory<ExtensionService> weak_ptr_factory_{this};
 
