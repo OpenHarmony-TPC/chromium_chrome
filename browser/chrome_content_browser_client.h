@@ -1143,6 +1143,9 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   friend class DisableWebRtcEncryptionFlagTest;
   friend class InProcessBrowserTest;
   friend class ChromeContentBrowserClientUtils;
+#if BUILDFLAG(ARKWEB_TEST)
+  friend class ChromeContentBrowserClientForIncludeTest;
+#endif  // BUILDFLAG(ARKWEB_TEST)
 
   FRIEND_TEST_ALL_PREFIXES(ChromeSiteIsolationPolicyTest,
                            IsolatedOriginsContainChromeOrigins);
