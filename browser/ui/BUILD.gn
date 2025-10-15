@@ -41,6 +41,13 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
   allow_list_name = "WebUIName"
 }
 
+if (is_ohos) {
+  declare_args() {
+    # set true to allow cem publish to update dev_config.json
+    enable_cem_update_devconfig = false
+  }
+}
+
 # Use a static library here because many test binaries depend on this but don't
 # require many files from it. This makes linking more efficient.
 # TODO(https://crbug.com/353332589): Once //chrome/browser is properly
@@ -3649,6 +3656,13 @@ static_library("ui") {
     ]
   }
 
+  if (is_ohos && is_asan) {
+    sources += [
+      "passwords/bubble_controllers/relaunch_chrome_bubble_controller.cc",
+      "passwords/bubble_controllers/relaunch_chrome_bubble_controller.h",
+    ]
+  }
+
   if (is_linux) {
     sources += [
       "views/apps/chrome_app_window_client_views_aura.cc",
@@ -5233,7 +5247,15 @@ static_library("ui") {
       sources += [
         "views/chrome_browser_main_extra_parts_views_ohos.cc",
         "views/chrome_browser_main_extra_parts_views_ohos.h",
+        "ohos/browser_exit_monitor_ohos.cc",
+        "ohos/browser_exit_monitor_ohos.h",
+        "ohos/execute_command_singleton.cc",
+        "ohos/execute_command_singleton.h",
       ]
+
+      if (enable_cem_update_devconfig) {
+        defines += [ "ENABLE_CEM_UPDATE_DEVCONFIG" ]
+      }
     }
 
     if (use_aura && is_linux) {

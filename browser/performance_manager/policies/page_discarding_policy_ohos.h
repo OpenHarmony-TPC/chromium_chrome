@@ -84,8 +84,8 @@ class PageDiscardingPolicyOhos : public GraphOwned,
   void StartDiscardTimerIfNeeded();
   void PostAudibleTabDiscardTaskIfNeeded();
   void PostMemoryDiscardTask(DiscardReason reason);
-  void DiscardTabByReason(DiscardReason reson);
-  void DiscardTabImpl(DiscardReason reson,
+  void DiscardTabByReason(DiscardReason reason);
+  void DiscardTabImpl(DiscardReason reason,
                       PageNodeVector nodes,
                       int32_t total_count);
 

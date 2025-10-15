@@ -511,6 +511,7 @@ bool IsSelectionModifierDown(const ui::MouseEvent& event) {
 }  // namespace
 
 bool Tab::OnMousePressed(const ui::MouseEvent& event) {
+  LOG(INFO) << __FUNCTION__ << " " << GetMouseEventInfo(event);
   controller_->UpdateHoverCard(nullptr,
                                TabSlotController::HoverCardUpdateType::kEvent);
   controller_->OnMouseEventInTab(this, event);
@@ -556,6 +557,7 @@ bool Tab::OnMouseDragged(const ui::MouseEvent& event) {
 }
 
 void Tab::OnMouseReleased(const ui::MouseEvent& event) {
+  LOG(INFO) << __FUNCTION__ << " " << GetMouseEventInfo(event);
   controller_->OnMouseEventInTab(this, event);
 
   // Notify the drag helper that we're done with any potential drag operations.
@@ -626,7 +628,7 @@ void Tab::MaybeUpdateHoverStatus(const ui::MouseEvent& event) {
     return;
   }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
   // Move the hit test area for hovering up so that it is not overlapped by tab
   // hover cards when they are shown.
   // TODO(crbug.com/41467565): Once Linux/CrOS widget transparency is solved,
@@ -1185,6 +1187,22 @@ void Tab::CloseButtonPressed(const ui::Event& event) {
                           !(event.flags() & ui::EF_FROM_TOUCH);
   controller_->CloseTab(
       this, from_mouse ? CLOSE_TAB_FROM_MOUSE : CLOSE_TAB_FROM_TOUCH);
+}
+
+std::string Tab::GetMouseEventInfo(const ui::MouseEvent& event) {
+  views::View* root_view = GetWidget()->GetRootView();
+  gfx::Rect tab_bounds_in_root;
+  if (root_view) {
+    tab_bounds_in_root =
+        views::View::ConvertRectToTarget(this, root_view, bounds());
+  }
+
+  std::string info;
+  info += "mouse event:{" + event.ToString() + "}";
+  info += ", tab bounds:{" + bounds().ToString() + "}";
+  info += ", tab bounds in root view:{" + tab_bounds_in_root.ToString() + "}";
+  info += ", tab bounds in screen:{" + GetBoundsInScreen().ToString() + "}";
+  return info;
 }
 
 BEGIN_METADATA(Tab)

@@ -59,7 +59,10 @@ class DownloadTargetDeterminerDelegate {
   // dismissed.
   using IncognitoWarningConfirmationCallback =
       base::OnceCallback<void(bool /*accepted*/)>;
-
+#if BUILDFLAG(IS_OHOS)
+  virtual void CheckIsInstallationPackage(
+      std::function<void(bool)> callback) = 0;
+#endif
   // Callback to be invoked after CheckDownloadUrl() completes. The parameter to
   // the callback should indicate the danger type of the download based on the
   // results of the URL check.

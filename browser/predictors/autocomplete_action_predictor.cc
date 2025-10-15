@@ -41,6 +41,10 @@
 #include "third_party/blink/public/common/features.h"
 #include "ui/base/page_transition_types.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "net/base/features.h"
+#endif
+
 namespace {
 void SetIsNavigationInDomainCallback(content::PreloadingData* preloading_data) {
   preloading_data->SetIsNavigationInDomainCallback(
@@ -252,6 +256,12 @@ void AutocompleteActionPredictor::TryPrefetch(
 AutocompleteActionPredictor::Action
 AutocompleteActionPredictor::DecideActionByConfidence(double confidence) {
   Action action = ACTION_NONE;
+#if BUILDFLAG(IS_OHOS)
+  if (!base::FeatureList::IsEnabled(net::features::kEnableOmniboxPre)) {
+    LOG(INFO) << "Omnibox prerender-prefetch-preconnect is disable";
+    return action;
+  }
+#endif
   if (confidence >= kPrerenderDUIConfidenceCutoff.Get()) {
     action = ACTION_PRERENDER;
 #if BUILDFLAG(IS_OHOS)

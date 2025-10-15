@@ -448,6 +448,13 @@ source_set("web_applications") {
     ]
   }
 
+  if (is_ohos) {
+    sources += [
+      "os_integration/web_app_shortcut_ohos.cc",
+      "os_integration/web_app_shortcut_ohos.h",
+    ]
+  }
+
   if (!is_android) {
     sources += [
       "policy/web_app_settings_policy_handler.cc",

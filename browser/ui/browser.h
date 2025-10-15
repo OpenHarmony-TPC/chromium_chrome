@@ -390,10 +390,7 @@ class Browser : public TabStripModelObserver,
 
   ~Browser() override;
 
-#if BUILDFLAG(IS_OHOS)
-  void NewWindowTask(const std::string& url, bool force_open);
-  void NewWindow(const std::string& url, bool force_open);
-#endif
+  bool IsWebApp() override;
 
   // Set overrides for the initial window bounds and maximized state.
   void set_override_bounds(const gfx::Rect& bounds) {
@@ -658,6 +655,7 @@ class Browser : public TabStripModelObserver,
 
 #if BUILDFLAG(IS_OHOS)
   gfx::AcceleratedWidget GetAcceleratedWidget();
+  void NotifyShowBeforeUnloadConfirmDialog() override;
 #endif
 
   // Invoked when the window containing us is closing. Performs the necessary

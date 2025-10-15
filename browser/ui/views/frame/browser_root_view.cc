@@ -586,6 +586,10 @@ void BrowserRootView::NavigateToDroppedUrls(
 #if BUILDFLAG(IS_OHOS)
   std::vector<GURL> filtered_urls;
   ProcessDropUrls(event, filtered_urls);
+  if (filtered_urls.empty()) {
+    LOG(ERROR) << "[OhosDrag]" << __FUNCTION__ << ", filtered_urls is empty";
+    return;
+  }
   drop_info->urls = std::move(filtered_urls);
 #endif
 
@@ -650,7 +654,11 @@ void BrowserRootView::ProcessDropUrls(const ui::DropTargetEvent& event,
   // Filter all HTTP/HTTPS URLs.
   std::vector<GURL> http_or_https_urls;
   std::copy_if(urls.begin(), urls.end(), std::back_inserter(http_or_https_urls),
-               [](const GURL& url) { return url.SchemeIsHTTPOrHTTPS(); });
+               [](const GURL& url) {
+                 LOG(INFO) << "[OhosDrag] ProcessDropUrls, url scheme:"
+                           << url.scheme();
+                 return url.SchemeIsHTTPOrHTTPS();
+               });
 
   if (!http_or_https_urls.empty()) {
     filtered_urls = std::move(http_or_https_urls);

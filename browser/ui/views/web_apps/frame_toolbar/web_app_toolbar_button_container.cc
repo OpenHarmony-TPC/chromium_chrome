@@ -206,6 +206,16 @@ WebAppToolbarButtonContainer::WebAppToolbarButtonContainer(
                                       views::FlexSpecification());
   }
 
+#if BUILDFLAG(IS_OHOS)
+  // Add placeholder button icon only for Ohos, due to Ability UI as floating
+  // button as Maximize, Minimize, Close.
+  const int button_num = 5;
+  for (auto i = 0; i < button_num; i++) {
+    auto* placeholder = AddChildView(std::make_unique<ToolbarButton>());
+    placeholder->SetEnabled(false);
+  }
+#endif
+
   browser_view_->immersive_mode_controller()->AddObserver(this);
 }
 

@@ -402,6 +402,13 @@ std::optional<SkColor> WebAppBrowserController::GetThemeColor() const {
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(IS_OHOS)
+  // If it's a webapp, always use default theme.
+  if (browser()->is_type_app() || browser()->IsWebApp()) {
+    return std::nullopt;
+  }
+#endif  // BUILDFLAG(IS_OHOS)
+
   std::optional<SkColor> web_theme_color =
       AppBrowserController::GetThemeColor();
   if (web_theme_color) {

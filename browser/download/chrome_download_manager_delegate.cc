@@ -160,6 +160,7 @@
 #endif
 
 #if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/file_picker/file_select_picker.h"
 #include "ohos/adapter/permission_manager/permission_manager_adapter.h"
 namespace ohos_permission = ohos::adapter::permission;
 #endif
@@ -179,6 +180,10 @@ using safe_browsing::DownloadProtectionService;
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 using extensions::CrxInstaller;
 using extensions::CrxInstallError;
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+using namespace ohos::adapter::file_select_picker;
 #endif
 
 namespace {
@@ -1289,6 +1294,27 @@ void ChromeDownloadManagerDelegate::ReserveVirtualPath(
       download, virtual_path, download_prefs_->DownloadPath(), document_dir,
       create_directory, conflict_action, std::move(callback));
 }
+
+#if BUILDFLAG(IS_OHOS)
+void ChromeDownloadManagerDelegate::CheckIsInstallationPackage(
+    std::function<void(bool)> confirm_callback) {
+  LOG(INFO) << "CheckIsInstallationPackage in";
+  // The callback needs to be executed in the UI thread.
+  scoped_refptr<base::SingleThreadTaskRunner> target_task_runner =
+      base::SingleThreadTaskRunner::GetCurrentDefault();
+  std::function<void(bool)> callback =
+      [confirm_callback, target_task_runner](bool continue_download) {
+        target_task_runner->PostTask(
+            FROM_HERE, base::BindOnce(
+                           [](std::function<void(bool)> func,
+                              bool continue_download) {
+                               func(continue_download);
+                           },
+                           confirm_callback, continue_download));
+      };
+  FileSelectPicker::GetInstance().ShowInstallationPackageDialog(callback);
+}
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 void ChromeDownloadManagerDelegate::RequestIncognitoWarningConfirmation(
