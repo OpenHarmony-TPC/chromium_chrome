@@ -7,6 +7,16 @@
 #include <memory>
 #include <utility>
 
+#include "arkweb/build/features/features.h"
+#include "build/build_config.h"
+#if BUILDFLAG(IS_ARKWEB_EXT)
+#include "arkweb/ohos_nweb_ex/build/features/features.h"
+#endif
+#if BUILDFLAG(ARKWEB_EXT_HTTPS_UPGRADES)
+#include "arkweb/chromium_ext/chrome/browser/ssl/ohos_https_upgrades_helper.h"
+#include "arkweb/chromium_ext/components/captive_portal/content/captive_portal_tab_helper_ohos.h"
+#endif
+
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
@@ -735,11 +745,18 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
   // NOT for "if enabled"; put those in section 1.
 
 #if BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
+#if BUILDFLAG(ARKWEB_EXT_HTTPS_UPGRADES)
+  captive_portal::CaptivePortalTabHelperOhos::CreateForWebContents(
+      web_contents, CaptivePortalServiceFactory::GetForProfile(profile),
+      base::BindRepeating(&OhosHttpsUpgradesHelper::NullOpenLoginTabCallback,
+                          web_contents, false));
+#else
   captive_portal::CaptivePortalTabHelper::CreateForWebContents(
       web_contents, CaptivePortalServiceFactory::GetForProfile(profile),
       base::BindRepeating(
           &ChromeSecurityBlockingPageFactory::OpenLoginTabForWebContents,
           web_contents, false));
+#endif
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
