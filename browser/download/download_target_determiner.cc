@@ -80,6 +80,7 @@
 #endif
 
 #if BUILDFLAG(IS_OHOS)
+#include "base/strings/string_util.h"
 #include "ohos/adapter/context_path/context_path_adapter.h"
 #endif
 
@@ -192,6 +193,11 @@ void DownloadTargetDeterminer::DoLoop() {
       case STATE_DETERMINE_MIME_TYPE:
         result = DoDetermineMimeType();
         break;
+#if BUILDFLAG(IS_OHOS)
+      case STATE_DETERMINE_INSTALLATION_PACKAGE:
+        result = DoDetermineInstallationPackage();
+        break;
+#endif
       case STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER:
         result = DoDetermineIfHandledSafely();
         break;
@@ -728,8 +734,11 @@ DownloadTargetDeterminer::Result
   DCHECK(!virtual_path_.empty());
   DCHECK(!local_path_.empty());
   DCHECK(mime_type_.empty());
-
+#if BUILDFLAG(IS_OHOS)
+  next_state_ = STATE_DETERMINE_INSTALLATION_PACKAGE;
+#else
   next_state_ = STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER;
+#endif
   if (virtual_path_ == local_path_
 #if BUILDFLAG(IS_ANDROID)
       || local_path_.IsContentUri()
@@ -745,6 +754,50 @@ DownloadTargetDeterminer::Result
   return CONTINUE;
 }
 
+#if BUILDFLAG(IS_OHOS)
+const static std::vector<std::string> installation_package_extensions = {
+    ".exe", ".msi", ".msix", ".dmg", ".pkg", ".deb"};
+bool isInstallerFile(const std::string& filename) {
+  for (const auto& ext : installation_package_extensions) {
+    if (base::EndsWith(filename, ext)) {
+      return true;
+    }
+  }
+  return false;
+}
+ 
+DownloadTargetDeterminer::Result
+DownloadTargetDeterminer::DoDetermineInstallationPackage() {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  DCHECK(!local_path_.empty());
+  LOG(INFO) << "DoDetermineInstallationPackage in";
+  next_state_ = STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER;
+  if (isInstallerFile(local_path_.value())) {
+    delegate_->CheckIsInstallationPackage(
+        std::bind(&DownloadTargetDeterminer::DetermineInstallationPackageDone,
+                  weak_ptr_factory_.GetWeakPtr(), std::placeholders::_1));
+    return QUIT_DOLOOP;
+  }
+  return CONTINUE;
+}
+ 
+void DownloadTargetDeterminer::DetermineInstallationPackageDone(
+    bool continue_download) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+#if BUILDFLAG(IS_OHOS)
+  DCHECK_EQ(STATE_DETERMINE_INSTALLATION_PACKAGE, next_state_);
+#else
+  DCHECK_EQ(STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER, next_state_);
+#endif
+  LOG(INFO) << "DetermineInstallationPackageDone in";
+  if (!continue_download) {
+    ScheduleCallbackAndDeleteSelf(
+        download::DOWNLOAD_INTERRUPT_REASON_USER_CANCELED);
+    return;
+  }
+  DoLoop();
+}
+#endif
 void DownloadTargetDeterminer::DetermineMimeTypeDone(
     const std::string& mime_type) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);

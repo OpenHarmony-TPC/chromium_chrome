@@ -29,6 +29,7 @@
 
 #include "chrome/browser/shell_integration.h"
 
+#include "base/files/safe_base_name.h"
 #include "base/notreached.h"
 #include "base/logging.h"
 #include "ohos/adapter/default_application/default_application_adapter.h"
@@ -73,6 +74,21 @@ DefaultWebClientSetPermission GetPlatformSpecificDefaultWebClientSetPermission(
     WebClientSetMethod method) {
   NOTIMPLEMENTED_LOG_ONCE();
   return SET_DEFAULT_UNATTENDED;
+}
+
+std::optional<base::SafeBaseName> GetUniqueWebShortcutFilename(
+    const std::string& name) {
+  NOTIMPLEMENTED_LOG_ONCE();
+  return std::nullopt;
+}
+
+std::string GetDesktopFileContentsForUrlShortcut(
+    const std::string& title,
+    const GURL& url,
+    const base::FilePath& icon_path,
+    const base::FilePath& profile_path) {
+  NOTIMPLEMENTED_LOG_ONCE();
+  return "";
 }
 
 }  // namespace internal

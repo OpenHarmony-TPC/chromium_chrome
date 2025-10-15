@@ -45,6 +45,7 @@ import("//third_party/blink/public/public_features.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//third_party/webrtc/webrtc.gni")
 import("//third_party/widevine/cdm/widevine.gni")
+import("//third_party/wiseplay/cdm/wiseplay.gni")
 import("//tools/grit/grit_rule.gni")
 import("//ui/base/ui_features.gni")
 
@@ -2477,6 +2478,7 @@ static_library("browser") {
     "//third_party/webrtc_overrides:webrtc_component",
     "//third_party/widevine/cdm:buildflags",
     "//third_party/widevine/cdm:headers",
+    "//third_party/wiseplay/cdm:buildflags", 
     "//third_party/zlib",
     "//third_party/zlib:minizip",
     "//third_party/zlib/google:compression_utils",
@@ -4195,6 +4197,20 @@ static_library("browser") {
       sources -= [
         "headless/chrome_browser_main_extra_parts_headless.cc",
         "headless/chrome_browser_main_extra_parts_headless.h",
+      ]
+    }
+
+    if (enable_wiseplay) {
+      sources += [
+        "media/ohos/cdm/media_drm_origin_id_manager.cc",
+        "media/ohos/cdm/media_drm_origin_id_manager.h",
+        "media/ohos/cdm/media_drm_origin_id_manager_factory.cc",
+        "media/ohos/cdm/media_drm_origin_id_manager_factory.h",
+        "media/ohos/cdm/media_drm_storage_factory.cc",
+        "media/ohos/cdm/media_drm_storage_factory.h",
+      ]
+      deps += [
+        "//components/cdm/browser",
       ]
     }
 
@@ -7117,7 +7133,7 @@ static_library("browser") {
     ]
   }
 
-  if (is_win || is_mac || is_linux) {
+  if (is_win || is_mac || is_linux || (is_ohos && is_asan)) {
     sources += [
       "browser_switcher/alternative_browser_driver.h",
       "browser_switcher/browser_switcher_navigation_throttle.cc",
@@ -7136,7 +7152,7 @@ static_library("browser") {
     if (is_win) {
       sources += [ "browser_switcher/alternative_browser_driver_win.cc" ]
     }
-    if (is_mac || is_linux) {
+    if (is_mac || is_linux || (is_ohos && is_asan)) {
       sources += [ "browser_switcher/alternative_browser_driver_posix.cc" ]
     }
   }

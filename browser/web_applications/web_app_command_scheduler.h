@@ -113,6 +113,16 @@ class WebAppCommandScheduler {
                                FallbackBehavior behavior,
                                const base::Location& location = FROM_HERE);
 
+  // User initiated install that uses current `WebContents` to install builtin
+  // web app.
+  void FetchBuiltInWebAppInstall(webapps::WebappInstallSource install_surface,
+                                 base::WeakPtr<content::WebContents> contents,
+                                 WebAppInstallDialogCallback dialog_callback,
+                                 OnceInstallCallback callback,
+                                 FallbackBehavior behavior,
+                                 const webapps::AppId& app_id,
+                                 const base::Location& location = FROM_HERE);
+
   void FetchInstallInfoFromInstallUrl(
       webapps::ManifestId manifest_id,
       GURL install_url,

@@ -149,6 +149,10 @@ class BrowserRootView : public views::internal::RootView {
       ui::mojom::DragOperation& output_drag_op,
       std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner);
 
+#if BUILDFLAG(IS_OHOS)
+  void ProcessDropUrls(const ui::DropTargetEvent& event,
+                       std::vector<GURL>& filtered_urls);
+#endif
   // The BrowserView.
   raw_ptr<BrowserView, AcrossTasksDanglingUntriaged> browser_view_ = nullptr;
 
@@ -162,11 +166,6 @@ class BrowserRootView : public views::internal::RootView {
   base::OnceClosure on_filtering_complete_closure_;
 
   base::WeakPtrFactory<BrowserRootView> weak_ptr_factory_{this};
-
-#if BUILDFLAG(IS_OHOS)
-  void ProcessDropUrls(const ui::DropTargetEvent& event,
-                       std::vector<GURL>& filtered_urls);
-#endif
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_ROOT_VIEW_H_

@@ -703,6 +703,12 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
     return nullptr;
   }
 
+#if BUILDFLAG(IS_OHOS)
+  if (source_browser && source_browser->is_type_app()) {
+    params->disposition = WindowOpenDisposition::CURRENT_TAB;
+  }
+#endif
+
   // Picture-in-picture browser windows must have a source contents in order for
   // the window to function correctly. If we have no source contents to work
   // with (e.g. if an extension popup attempts to open a PiP window), we should

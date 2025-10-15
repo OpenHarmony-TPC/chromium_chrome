@@ -235,6 +235,10 @@ class Tab : public gfx::AnimationDelegate,
 
   void CloseButtonPressed(const ui::Event& event);
 
+#if BUILDFLAG(IS_OHOS)
+  std::string GetMouseEventInfo(const ui::MouseEvent& event);
+#endif
+
   // The controller, never nullptr.
   const raw_ptr<TabSlotController> controller_;
 

@@ -169,12 +169,12 @@
       Show a quick highlight on the focused object
     </message>
   </if>
-  <if expr="is_win or is_linux or is_macosx">
+  <if expr="is_win or is_linux or is_macosx or is_ohos">
     <message name="IDS_SETTINGS_OVERSCROLL_HISTORY_NAVIGATION_TITLE" desc="Title for the overscroll history navigation setting, which allows you to navigate back and forward by swiping left or right with a touch device.">
       Swipe between pages
     </message>
   </if>
-  <if expr="is_win or is_linux">
+  <if expr="is_win or is_linux or is_ohos">
     <message name="IDS_SETTINGS_OVERSCROLL_HISTORY_NAVIGATION_SUBTITLE" desc="Subtitle for the overscroll history navigation setting, which allows you to navigate back and forward by swiping left or right with a touch device.">
       Navigate back and forward with a swipe gesture
     </message>

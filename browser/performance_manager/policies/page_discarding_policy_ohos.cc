@@ -218,10 +218,10 @@ void PageDiscardingPolicyOhos::PostMemoryDiscardTask(DiscardReason reason) {
       base::Milliseconds(kFastDiscardTimeDelatMs));
 }
 
-void PageDiscardingPolicyOhos::DiscardTabByReason(DiscardReason reson) {
+void PageDiscardingPolicyOhos::DiscardTabByReason(DiscardReason reason) {
   PageNodeVector sorted_page_node;
   int32_t count_to_discard = 0;
-  switch (reson) {
+  switch (reason) {
     case DiscardReason::kTabCountOverflow:
       {
         base::AutoLock auto_lock(lock_);
@@ -256,15 +256,15 @@ void PageDiscardingPolicyOhos::DiscardTabByReason(DiscardReason reson) {
     default:
       return;
   }
-  DiscardTabImpl(reson, sorted_page_node, count_to_discard);
+  DiscardTabImpl(reason, sorted_page_node, count_to_discard);
 }
 
-void PageDiscardingPolicyOhos::DiscardTabImpl(DiscardReason reson,
+void PageDiscardingPolicyOhos::DiscardTabImpl(DiscardReason reason,
                                               PageNodeVector nodes,
                                               int32_t total_count) {
   int32_t discard_count = 0;
   // min of total count and discard count to be removed
-  PageNodeVector discard_vector{total_count};
+  PageNodeVector discard_vector;
   for (const PageNode* page_node : nodes) {
     discard_vector.push_back(page_node);
     if (++discard_count >= total_count) {
@@ -279,7 +279,7 @@ void PageDiscardingPolicyOhos::DiscardTabImpl(DiscardReason reson,
           LOG(WARNING) << "DiscardByTabNumberOverflow failed!";
         }
       }));
-  LOG(WARNING) << "DiscardTabImpl reason: " << reson << ", total candidate tab: "
+  LOG(WARNING) << "DiscardTabImpl reason: " << reason << ", total candidate tab: "
                << nodes.size() << ", discard count: " << discard_count;
 }
 

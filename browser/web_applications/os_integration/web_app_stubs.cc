@@ -61,6 +61,7 @@ bool UnregisterRunOnOsLogin(const std::string& app_id,
   return false;
 }
 
+#if !BUILDFLAG(IS_OHOS)
 void CreatePlatformShortcuts(const base::FilePath& web_app_path,
                              const ShortcutLocations& creation_locations,
                              ShortcutCreationReason creation_reason,
@@ -68,6 +69,7 @@ void CreatePlatformShortcuts(const base::FilePath& web_app_path,
                              CreateShortcutsCallback callback) {
   NOTIMPLEMENTED();
 }
+#endif
 
 void UpdatePlatformShortcuts(
     const base::FilePath& shortcut_data_path,
