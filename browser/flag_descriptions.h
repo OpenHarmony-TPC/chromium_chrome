@@ -4883,6 +4883,8 @@ extern const char kSupervisedProfileShowKiteBadgeDescription[];
 #if BUILDFLAG(IS_OHOS)
 extern const char kNetworkPreloadName[];
 extern const char kNetworkPreloadDescription[];
+extern const char kOmniboxPreName[];
+extern const char kOmniboxPreDescription[];
 #endif  // BUILDFLAG(IS_OHOS)
 
 // ============================================================================

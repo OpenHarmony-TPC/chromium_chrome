@@ -4267,7 +4267,13 @@ void BrowserView::OnWidgetMove() {
   if (status_bubble_.get())
     status_bubble_->Reposition();
 
+  // In the free multi-window mode of OHOS PAD, the system has the capability to
+  // pull up the virtual keyboard and actively avoid it. When active avoidance is
+  // triggered, a position change event is initiated, which may result in the
+  // Bookmark being closed here. Hence not close here.
+#if !BUILDFLAG(IS_OHOS)
   BookmarkBubbleView::Hide();
+#endif // !BUILDFLAG(IS_OHOS)
 
   // Close the omnibox popup, if any.
   LocationBarView* location_bar_view = GetLocationBarView();

@@ -78,6 +78,11 @@ struct ShortcutInfo {
   std::set<DesktopActionInfo> actions;
 #endif  // BUILDFLAG(IS_LINUX)
 
+#if BUILDFLAG(IS_OHOS)
+  // Check the webapp is open as window.
+  bool open_as_window = true;
+#endif  // BUILDFLAG(IS_OHOS)
+
   // An app is multi-profile if there is a single shortcut and single app shim
   // for all profiles. The app itself has a profile switcher that may be used
   // to open windows for the various profiles. This is relevant only on macOS.

@@ -25,13 +25,6 @@
 #include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/browser_window.h"
 
-#if BUILDFLAG(IS_OHOS)
-#include "ohos/adapter/browser/browser_adapter.h"
-#include "ui/aura/window.h"
-#include "ui/aura/window_tree_host.h"
-#include "ui/gfx/native_widget_types.h"
-#endif
-
 using base::UserMetricsAction;
 using content::WebContents;
 
@@ -397,20 +390,9 @@ bool BrowserList::IsOffTheRecordBrowserInUse(Profile* profile) {
 ////////////////////////////////////////////////////////////////////////////////
 // BrowserList, private:
 
-BrowserList::BrowserList() {
-#if BUILDFLAG(IS_OHOS)
-  auto& broser_adapter = ohos::adapter::BrowserAdapter::GetInstance();
-  broser_adapter.RegisterGetLastActiveCallback(std::bind(
-      &BrowserList::GetLastActiveAcceleratedWidget, this));
-#endif
-}
+BrowserList::BrowserList() {}
 
-BrowserList::~BrowserList() {
-#if BUILDFLAG(IS_OHOS)
-  auto& broser_adapter = ohos::adapter::BrowserAdapter::GetInstance();
-  broser_adapter.UnRegisterGetLastActiveCallback();
-#endif
-}
+BrowserList::~BrowserList() {}
 
 // static
 void BrowserList::RemoveBrowserFrom(Browser* browser,
@@ -419,16 +401,3 @@ void BrowserList::RemoveBrowserFrom(Browser* browser,
   if (remove_browser != browser_list->end())
     browser_list->erase(remove_browser);
 }
-
-#if BUILDFLAG(IS_OHOS)
-gfx::AcceleratedWidget BrowserList::GetLastActiveAcceleratedWidget() const {
-  Browser* browser = GetLastActive();
-  if (browser && browser->window()) {
-    aura::Window* native_window = browser->window()->GetNativeWindow();
-    if (native_window && native_window->GetHost()) {
-      return native_window->GetHost()->GetAcceleratedWidget();
-    }
-  }
-  return 0;
-}
-#endif

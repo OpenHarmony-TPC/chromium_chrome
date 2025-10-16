@@ -46,4 +46,8 @@ void ShowNetworkProxySettings(content::WebContents* web_contents) {
                                                            kPageProxySubUri);
 }
 
+void ShowManageSSLCertificates(content::WebContents* web_contents) {
+  NOTIMPLEMENTED_LOG_ONCE();
+}
+
 }  // namespace settings_utils

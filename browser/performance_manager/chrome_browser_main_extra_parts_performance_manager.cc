@@ -6,6 +6,8 @@
 
 #include <memory>
 
+#include "base/base_switches.h"
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -85,6 +87,10 @@
 #include "base/path_service.h"
 #include "components/performance_manager/graph/policies/prefetch_virtual_memory_policy.h"
 #endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/performance_manager/policies/page_discarding_policy_ohos.h"
+#endif  // BUILDFLAG(IS_OHOS)
 
 namespace {
 
@@ -250,6 +256,14 @@ void ChromeBrowserMainExtraPartsPerformanceManager::CreatePoliciesAndDecorators(
     }
   }
 #endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_OHOS)
+  const base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (!command_line->HasSwitch(switches::kDisablePagePolicy)) {
+    graph->PassToGraph(
+        std::make_unique<performance_manager::policies::PageDiscardingPolicyOhos>());
+  }
+#endif  // BUILDFLAG(IS_OHOS)
 }
 
 content::FeatureObserverClient*

@@ -99,10 +99,9 @@ bool GetUserVideosDirectory(base::FilePath* result) {
 }
 
 bool ProcessNeedsProfileDir(const std::string& process_type) {
-  // For now we have no reason to forbid this on Linux as we don't
-  // have the roaming profile troubles there. Moreover the Linux breakpad needs
-  // profile dir access in all process if enabled on Linux.
-  return true;
+  // SELinux prohibits accessing the data directory from isolated services. Only
+  // the browser (empty process type) should access the profile directory.
+  return process_type.empty();
 }
 
 }  // namespace chrome

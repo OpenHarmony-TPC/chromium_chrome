@@ -106,6 +106,7 @@
 #endif
 
 #if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/context/context_adapter.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/ozone/platform/ohos/host/ohos_event_source.h"
 #endif
@@ -719,6 +720,13 @@ void TabDragController::Drag(const gfx::Point& point_in_screen) {
         StartSystemDnDSessionIfNecessary(attached_context_, point_in_screen);
         return;
       }
+#if BUILDFLAG(IS_OHOS)
+      // In the normal mode of the pad,
+      // do not allow dragging tab to move window
+      if (ohos::adapter::ContextAdapter::GetInstance().IsNormalWindowMode()) {
+        return;
+      }
+#endif
 
       views::Widget* widget = GetAttachedBrowserWidget();
       gfx::Rect new_bounds;
@@ -1015,6 +1023,13 @@ TabDragController::DragBrowserToNewTabStrip(TabDragContext* target_context,
                "point_in_screen", point_in_screen.ToString());
 
   if (!target_context) {
+#if BUILDFLAG(IS_OHOS)
+    // In the normal mode of the pad,
+    // do not allow dragging a tab to form a new window
+    if (ohos::adapter::ContextAdapter::GetInstance().IsNormalWindowMode()) {
+      return DRAG_BROWSER_RESULT_STOP;
+    }
+#endif
     DetachIntoNewBrowserAndRunMoveLoop(point_in_screen);
     return DRAG_BROWSER_RESULT_STOP;
   }

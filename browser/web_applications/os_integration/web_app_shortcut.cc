@@ -77,6 +77,8 @@ const int kDesiredIconSizesForShortcut[] = {16, 32, 128, 256, 512};
 const int kDesiredIconSizesForShortcut[] = {16, 32, 48, 128, 256, 512};
 #elif BUILDFLAG(IS_WIN)
 const int* kDesiredIconSizesForShortcut = IconUtil::kIconDimensions;
+#elif BUILDFLAG(IS_OHOS)
+const int kDesiredIconSizesForShortcut[] = {128};
 #else
 const int kDesiredIconSizesForShortcut[] = {32};
 #endif

@@ -52,6 +52,7 @@
 #include "printing/buildflags/buildflags.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/widevine/cdm/buildflags.h"
+#include "third_party/wiseplay/cdm/buildflags.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/download/android/available_offline_content_provider.h"
@@ -91,6 +92,10 @@
 
 #if BUILDFLAG(ENABLE_MOJO_CDM) && BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/media/android/cdm/media_drm_storage_factory.h"
+#endif
+
+#if BUILDFLAG(ENABLE_MOJO_CDM) && BUILDFLAG(ENABLE_WISEPLAY)
+#include "chrome/browser/media/ohos/cdm/media_drm_storage_factory.h"
 #endif
 
 #if BUILDFLAG(ENABLE_SPELLCHECK)
@@ -315,7 +320,8 @@ void ChromeContentBrowserClient::BindMediaServiceReceiver(
   }
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(ENABLE_MOJO_CDM) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_MOJO_CDM) && (BUILDFLAG(IS_ANDROID)|| \
+    BUILDFLAG(ENABLE_WISEPLAY) && BUILDFLAG(ENABLE_OHOS_MEDIA_DRM_STORAGE))
   if (auto r = receiver.As<media::mojom::MediaDrmStorage>()) {
     CreateMediaDrmStorage(render_frame_host, std::move(r));
     return;

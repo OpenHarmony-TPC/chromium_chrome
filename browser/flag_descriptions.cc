@@ -8383,6 +8383,8 @@ const char kSupervisedProfileShowKiteBadgeDescription[] =
 #if BUILDFLAG(IS_OHOS)
 const char kNetworkPreloadName[] = "Network Preload";
 const char kNetworkPreloadDescription[] = "Enable network preload";
+const char kOmniboxPreName[] = "Omnibox Prerender-Prefetch-Preconnect";
+const char kOmniboxPreDescription[] = "Enable(Default) Omnibox Prerender-Prefetch-Preconnect";
 #endif  // BUILDFLAG(IS_OHOS)
 
 // ============================================================================

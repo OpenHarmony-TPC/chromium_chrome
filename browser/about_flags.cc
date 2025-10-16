@@ -11977,6 +11977,10 @@ const FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kNetworkPreloadName,
      flag_descriptions::kNetworkPreloadDescription, kOsOhOS,
      FEATURE_VALUE_TYPE(net::features::kEnableNetworkPreload)},
+    {"omnibox-prerender-prefetch-preconnect",
+     flag_descriptions::kOmniboxPreName,
+     flag_descriptions::kOmniboxPreDescription, kOsOhOS,
+     FEATURE_VALUE_TYPE(net::features::kEnableOmniboxPre)},
 #endif  // BUILDFLAG(IS_OHOS)
 
     // NOTE: Adding a new flag requires adding a corresponding entry to enum

@@ -31,6 +31,10 @@
 #include "chrome/browser/notifications/notification_ui_manager.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/ohos/browser_exit_monitor_ohos.h"
+#endif
+
 namespace {
 
 // Navigates a browser window for |profile|, creating one if necessary, to the
@@ -56,6 +60,12 @@ void BrowserCloseManager::StartClosingBrowsers() {
   if (browser_shutdown::ShouldIgnoreUnloadHandlers()) {
     // Tell everyone that we are shutting down.
     browser_shutdown::SetTryingToQuit(true);
+#if BUILDFLAG(IS_OHOS)
+    chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+        chrome::ExitTaskOhos::DOWNLOAD, chrome::ExitStateOhos::CLOSE, false);
+    chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+        chrome::ExitTaskOhos::BEFOREUNLOAD, chrome::ExitStateOhos::CLOSE);
+#endif
     CloseBrowsers();
     return;
   }
@@ -83,6 +93,10 @@ void BrowserCloseManager::TryToCloseBrowsers() {
       return;
     }
   }
+#if BUILDFLAG(IS_OHOS)
+  chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+      chrome::ExitTaskOhos::BEFOREUNLOAD, chrome::ExitStateOhos::CLOSE);
+#endif
   CheckForDownloadsInProgress();
 }
 
@@ -107,9 +121,17 @@ void BrowserCloseManager::CheckForDownloadsInProgress() {
 #else
   int download_count = DownloadCoreService::BlockingShutdownCountAllProfiles();
   if (download_count == 0) {
+#if BUILDFLAG(IS_OHOS)
+    chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+        chrome::ExitTaskOhos::DOWNLOAD, chrome::ExitStateOhos::CLOSE);
+#endif
     CloseBrowsers();
     return;
   }
+#if BUILDFLAG(IS_OHOS)
+  chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+      chrome::ExitTaskOhos::DOWNLOAD, chrome::ExitStateOhos::BLOCK);
+#endif
 
   ConfirmCloseWithPendingDownloads(
       download_count,
