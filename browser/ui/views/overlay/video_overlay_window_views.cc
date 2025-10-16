@@ -317,6 +317,9 @@ std::unique_ptr<VideoOverlayWindowViews> VideoOverlayWindowViews::Create(
 
 #if BUILDFLAG(IS_OHOS)
   params.using_system_floating_window = true;
+  params.pip_controller = controller;
+  params.pip_parent =
+      controller->GetWebContents()->GetTopLevelNativeWindow();
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)

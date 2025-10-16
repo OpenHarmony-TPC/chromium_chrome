@@ -634,6 +634,12 @@ std::unique_ptr<ShortcutInfo> OsIntegrationManager::BuildShortcutInfoForWebApp(
       profile_->GetPrefs()->GetString(prefs::kProfileName);
   shortcut_info->is_multi_profile = true;
 
+#if BUILDFLAG(IS_OHOS)
+  shortcut_info->open_as_window =
+      provider_->registrar_unsafe().GetAppEffectiveDisplayMode(
+          app->app_id()) != DisplayMode::kBrowser;
+#endif  // BUILDFLAG(IS_OHOS)
+
   if (const apps::FileHandlers* file_handlers =
           file_handler_manager_->GetEnabledFileHandlers(app->app_id())) {
     shortcut_info->file_handler_extensions =

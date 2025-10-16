@@ -33,6 +33,10 @@
 #include "extensions/common/constants.h"
 #endif  // (ENABLE_EXTENSIONS)
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/ohos/browser_exit_monitor_ohos.h"
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 // UnloadController, public:
 
@@ -368,6 +372,14 @@ void UnloadController::ProcessPendingTabs(bool skip_beforeunload) {
     if (tabs_needing_before_unload_fired_.empty()) {
       // We've finished all the unload events and can proceed to close the
       // browser.
+#if BUILDFLAG(IS_OHOS)
+      LOG(INFO) << "all tabs unload task done and call browser OnWindowClosing "
+                   "widget_id:"
+                << browser_->GetAcceleratedWidget();
+      chrome::BrowserExitMonitorOhos::GetInstance().UpdateBrowserExitState(
+          browser_->GetAcceleratedWidget(), chrome::ExitTaskOhos::BEFOREUNLOAD,
+          chrome::ExitStateOhos::CLOSE);
+#endif
       browser_->OnWindowClosing();
       return;
     }
@@ -398,6 +410,12 @@ void UnloadController::ProcessPendingTabs(bool skip_beforeunload) {
     }
     return;
   }
+#if BUILDFLAG(IS_OHOS)
+  LOG(INFO) << "all tabs beforeunload task done id:" << browser_->GetAcceleratedWidget();
+  chrome::BrowserExitMonitorOhos::GetInstance().UpdateBrowserExitState(
+      browser_->GetAcceleratedWidget(), chrome::ExitTaskOhos::BEFOREUNLOAD,
+      chrome::ExitStateOhos::CLOSE);
+#endif
   if (is_calling_before_unload_handlers()) {
     base::RepeatingCallback<void(bool)> on_close_confirmed =
         on_close_confirmed_;

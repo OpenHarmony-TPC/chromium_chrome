@@ -24,6 +24,7 @@
 #include "media/cdm/cdm_type.h"
 #include "media/cdm/clear_key_cdm_common.h"
 #include "third_party/widevine/cdm/buildflags.h"
+#include "third_party/wiseplay/cdm/buildflags.h"
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
 #include "media/base/video_codecs.h"
@@ -51,6 +52,11 @@
 #include "content/public/common/content_switches.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 #endif  // BUILDFLAG(ENABLE_WIDEVINE)
+
+#if BUILDFLAG(ENABLE_WISEPLAY)
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/wiseplay/cdm/wiseplay_cdm_common.h"
+#endif // BUILDFLAG(ENABLE_WISEPLAY)
 
 #if BUILDFLAG(IS_ANDROID)
 #include "components/cdm/common/android_cdm_registration.h"
@@ -403,6 +409,28 @@ void AddWidevine(std::vector<content::CdmInfo>* cdms) {
 }
 #endif  // BUILDFLAG(ENABLE_WIDEVINE)
 
+#if BUILDFLAG(ENABLE_WISEPLAY)
+void AddSoftwareSecureWisePlay(std::vector<content::CdmInfo>* cdms) {
+  DVLOG(1) << __func__;
+  cdms->emplace_back(
+      kWisePlayKeySystem, Robustness::kSoftwareSecure, absl::nullopt, false, kWisePlayCdmDisplayName,
+      kWisePlayCdmType, base::Version(), base::FilePath()); /*supports_sub_key_systems=false*/
+}
+
+void AddHardwareSecureWisePlay(std::vector<content::CdmInfo>* cdms) {
+  DVLOG(1) << __func__;
+  cdms->emplace_back(
+      kWisePlayKeySystem, Robustness::kHardwareSecure, absl::nullopt,
+      false, kWisePlayCdmDisplayName,
+      kWisePlayCdmType, base::Version(), base::FilePath()); /*supports_sub_key_systems=false*/
+}
+
+void AddWisePlay(std::vector<content::CdmInfo>* cdms) {
+  AddSoftwareSecureWisePlay(cdms);
+  AddHardwareSecureWisePlay(cdms);
+}
+#endif // BUILDFLAG(ENABLE_WISEPLAY)
+
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
 void AddExternalClearKey(std::vector<content::CdmInfo>* cdms) {
   // Register Clear Key CDM if specified in command line.
@@ -475,6 +503,10 @@ void RegisterCdmInfo(std::vector<content::CdmInfo>* cdms) {
 
 #if BUILDFLAG(ENABLE_WIDEVINE)
   AddWidevine(cdms);
+#endif
+
+#if BUILDFLAG(ENABLE_WISEPLAY)
+  AddWisePlay(cdms);
 #endif
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)

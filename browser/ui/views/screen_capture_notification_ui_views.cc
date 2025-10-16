@@ -49,13 +49,15 @@
 #include "ash/shell.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/window/window_common.h"
+#include "ohos/adapter/xcomponent/adapter/window_adapter.h"
+#endif
+
 namespace {
 
 const int kHorizontalMargin = 10;
 const float kWindowAlphaValue = 0.96f;
-#if BUILDFLAG(IS_OHOS)
-const gfx::Size kOhosMinimumWindowSize = gfx::Size(300, 90);
-#endif
 
 // A ClientView that overrides NonClientHitTest() so that the whole window area
 // acts as a window caption, except a rect specified using SetClientRect().
@@ -120,11 +122,6 @@ class ScreenCaptureNotificationUIViews : public views::WidgetDelegateView,
   views::ClientView* CreateClientView(views::Widget* widget) override;
   std::unique_ptr<views::NonClientFrameView> CreateNonClientFrameView(
       views::Widget* widget) override;
-
-#if BUILDFLAG(IS_OHOS)
-  gfx::Size CalculatePreferredSize(
-      const views::SizeBounds& available_size) const override;
-#endif
 
   // views::ViewObserver:
   void OnViewBoundsChanged(views::View* observed_view) override;
@@ -276,16 +273,6 @@ ScreenCaptureNotificationUIViews::CreateNonClientFrameView(
   return frame;
 }
 
-#if BUILDFLAG(IS_OHOS)
-gfx::Size ScreenCaptureNotificationUIViews::CalculatePreferredSize(
-    const views::SizeBounds& available_size) const {
-  auto preferred_size = View::CalculatePreferredSize(available_size);
-  return gfx::Size{
-      std::max(preferred_size.width(), kOhosMinimumWindowSize.width()),
-      std::max(preferred_size.height(), kOhosMinimumWindowSize.height())};
-}
-#endif
-
 void ScreenCaptureNotificationUIViews::OnViewBoundsChanged(
     views::View* observed_view) {
   if (observed_view == client_view_.get()) {
@@ -356,7 +343,6 @@ gfx::NativeViewId ScreenCaptureNotificationUIImpl::OnStarted(
 
 #if BUILDFLAG(IS_OHOS)
   params.caption_button_visible = false;
-  params.is_stateless = true;
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -376,6 +362,14 @@ gfx::NativeViewId ScreenCaptureNotificationUIImpl::OnStarted(
 
   // Place the bar in the center of the bottom of the display.
   gfx::Size size = widget_->non_client_view()->GetPreferredSize();
+#if BUILDFLAG(IS_OHOS)
+  ohos::adapter::window::WindowLimits window_limits =
+      ohos::adapter::xcomponent::WindowAdapter::GetInstance()
+          .GetSystemWindowLimits();
+  gfx::Size min_window_size =
+      gfx::Size(window_limits.min_width, window_limits.min_height);
+  size.SetToMax(min_window_size);
+#endif
   gfx::Rect bounds(work_area.x() + work_area.width() / 2 - size.width() / 2,
                    work_area.y() + work_area.height() - size.height(),
                    size.width(), size.height());

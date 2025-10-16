@@ -117,6 +117,21 @@ void WebAppCommandScheduler::FetchManifestAndInstall(
       location);
 }
 
+void WebAppCommandScheduler::FetchBuiltInWebAppInstall(
+    webapps::WebappInstallSource install_surface,
+    base::WeakPtr<content::WebContents> contents,
+    WebAppInstallDialogCallback dialog_callback,
+    OnceInstallCallback callback,
+    FallbackBehavior behavior,
+    const webapps::AppId& app_id,
+    const base::Location& location) {
+  provider_->command_manager().ScheduleCommand(
+      std::make_unique<FetchManifestAndInstallCommand>(
+          install_surface, std::move(contents), std::move(dialog_callback),
+          std::move(callback), behavior, provider_->ui_manager().GetWeakPtr(), app_id),
+      location);
+}
+
 void WebAppCommandScheduler::FetchInstallInfoFromInstallUrl(
     webapps::ManifestId manifest_id,
     GURL install_url,

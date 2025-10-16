@@ -13,6 +13,13 @@ source_set("networking_private") {
     "networking_private_ui_delegate_factory_impl.h",
   ]
 
+  if (is_ohos) {
+    sources -= [
+      "networking_private_ui_delegate_factory_impl.cc",
+      "networking_private_ui_delegate_factory_impl.h",
+    ]
+  }
+
   public_deps = [ "//extensions/browser/api/networking_private" ]
 
   deps = [

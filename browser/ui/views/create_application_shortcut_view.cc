@@ -86,6 +86,11 @@ CreateChromeApplicationShortcutView::CreateChromeApplicationShortcutView(
                                           std::move(close_callback)) {
   web_app::WebAppProvider* provider =
       web_app::WebAppProvider::GetForWebApps(profile);
+  
+  if (create_shortcuts_text_label_) {
+    create_shortcuts_text_label_->SetVisible(false);
+  }
+  
   provider->os_integration_manager().GetShortcutInfoForAppFromRegistrar(
       web_app_id,
       base::BindRepeating(&CreateChromeApplicationShortcutView::OnAppInfoLoaded,
@@ -155,7 +160,7 @@ void CreateChromeApplicationShortcutView::InitControls() {
   SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical, gfx::Insets(),
       provider->GetDistanceMetric(views::DISTANCE_RELATED_CONTROL_VERTICAL)));
-  AddChildView(std::move(create_shortcuts_label));
+  create_shortcuts_text_label_ = AddChildView(std::move(create_shortcuts_label));
   desktop_check_box_ = AddChildView(std::move(desktop_check_box));
   if (menu_check_box)
     menu_check_box_ = AddChildView(std::move(menu_check_box));
