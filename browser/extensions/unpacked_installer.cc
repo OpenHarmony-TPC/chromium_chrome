@@ -309,7 +309,7 @@ bool UnpackedInstaller::IsLoadingUnpackedAllowed() const {
 
 void UnpackedInstaller::GetAbsolutePath() {
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  FilePath temp = base::MakeAbsoluteFilePath(extension_path_);
+  base::FilePath temp = base::MakeAbsoluteFilePath(extension_path_);
   if (temp.empty()) {
     LOG(ERROR) << "GetAbsolutePath error";
   } else {
