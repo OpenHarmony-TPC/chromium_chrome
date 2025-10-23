@@ -1180,6 +1180,15 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   }
 
   /**
+   * arkweb_pdf: Transfer to controller to do click bookmark.
+   * @param e The event which contains the id of the clicked bookmark.
+   */
+  protected async onClickBookmark_(e: CustomEvent<string>) {
+    const bookmarkId = e.detail;
+    this.currentController?.onClickBookmark(bookmarkId);
+  }
+
+  /**
    * An event handler for when the browser tells the PDF Viewer to perform a
    * save.
    * @param streamUrl Unique identifier for a PDF Viewer instance.
