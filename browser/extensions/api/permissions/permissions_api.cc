@@ -299,12 +299,14 @@ void PermissionsRequestFunction::ResolvePendingDialogForTests(
   pending_function->Release();  // Balanced in Run().
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 // static
 void PermissionsRequestFunction::SetIgnoreUserGestureForTests(
     bool ignore) {
   CHECK_IS_TEST();
   ignore_user_gesture_for_tests = ignore;
 }
+#endif
 
 PermissionsRequestFunction::PermissionsRequestFunction() {}
 
