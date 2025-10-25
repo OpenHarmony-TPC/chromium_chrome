@@ -77,6 +77,10 @@
 #include "components/user_manager/user_manager.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "base/task/thread_pool.h"
+#endif
+
 using content::BrowserThread;
 
 namespace extensions {
@@ -183,6 +187,27 @@ CrxInstaller::~CrxInstaller() {
   // UI thread. The |client_| dialog has a weak reference as |this| is its
   // delegate, and |install_checker_| owns WeakPtrs, so must be destroyed on the
   // same thread that created it.
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  const base::FilePath temp = temp_dir_;
+  const base::FilePath src = (delete_source_ ? source_file_ : base::FilePath());
+
+  if (!temp.empty() || !src.empty()) {
+    base::ThreadPool::PostTask(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::TaskShutdownBehavior::BLOCK_SHUTDOWN},
+        base::BindOnce(
+            [](base::FilePath t, base::FilePath s) {
+              if (!t.empty()) {
+                base::DeletePathRecursively(t);
+              }
+              if (!s.empty()) {
+                base::DeleteFile(s);
+              }
+            },
+            temp, src));
+  }
+#endif  // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 }
 
 void CrxInstaller::InstallCrx(const base::FilePath& source_file) {
@@ -632,6 +657,9 @@ void CrxInstaller::OnStageChanged(InstallationStage stage) {
 
 void CrxInstaller::OnProfileWillBeDestroyed(Profile* profile) {
   DCHECK_EQ(profile, profile_);
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  CleanupTempFiles();
+#endif  // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   profile_keep_alive_.reset();
   profile_observation_.Reset();
 }
@@ -866,12 +894,18 @@ void CrxInstaller::OnInstallPromptDone(
       if (!update_from_settings_page_) {
         NotifyCrxInstallComplete(CrxInstallError(
             CrxInstallErrorType::OTHER, CrxInstallErrorDetail::USER_CANCELED));
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+        CleanupTempFiles();
+#endif  // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
       }
       break;
     case ExtensionInstallPrompt::Result::ABORTED:
       if (!update_from_settings_page_) {
         NotifyCrxInstallComplete(CrxInstallError(
             CrxInstallErrorType::OTHER, CrxInstallErrorDetail::USER_ABORTED));
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+        CleanupTempFiles();
+#endif  // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
       }
       break;
   }
