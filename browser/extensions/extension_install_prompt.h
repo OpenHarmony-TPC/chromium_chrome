@@ -250,6 +250,9 @@ class ExtensionInstallPrompt {
   // Callback to show the default extension install dialog.
   // The implementations of this function are platform-specific.
   static ShowDialogCallback GetDefaultShowDialogCallback();
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  static ShowDialogCallback GetOhosShowDialogCallback();
+#endif
 
   // Returns the appropriate prompt type for the given |extension|.
   // TODO(devlin): This method is yucky - callers probably only care about one
