@@ -387,6 +387,14 @@ ExtensionInstallPrompt::DoneCallbackPayload::DoneCallbackPayload(
     std::string justification)
     : result(result), justification(std::move(justification)) {}
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+// static
+ExtensionInstallPrompt::ShowDialogCallback
+ExtensionInstallPrompt::GetOhosShowDialogCallback() {
+  return base::BindRepeating(&ohos::ShowExtensionInstallDialogImpl);
+}
+#endif
+
 // static
 ExtensionInstallPrompt::PromptType
 ExtensionInstallPrompt::GetReEnablePromptTypeForExtension(
