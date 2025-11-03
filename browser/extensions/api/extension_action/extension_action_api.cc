@@ -679,6 +679,9 @@ BrowserActionOpenPopupFunction::BrowserActionOpenPopupFunction() = default;
 BrowserActionOpenPopupFunction::~BrowserActionOpenPopupFunction() = default;
 
 ExtensionFunction::ResponseAction BrowserActionOpenPopupFunction::Run() {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  return RespondNow(NoArguments());
+#else
   // We only allow the popup in the active window.
   Profile* profile = Profile::FromBrowserContext(browser_context());
   Browser* browser =
@@ -712,6 +715,7 @@ ExtensionFunction::ResponseAction BrowserActionOpenPopupFunction::Run() {
       base::BindOnce(&BrowserActionOpenPopupFunction::OpenPopupTimedOut, this),
       base::Seconds(10));
   return RespondLater();
+#endif
 }
 
 void BrowserActionOpenPopupFunction::OnBrowserContextShutdown() {
