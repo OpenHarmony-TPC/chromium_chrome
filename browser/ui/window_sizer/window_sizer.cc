@@ -36,7 +36,7 @@
 #include "ui/views/widget_util_ohos.h"
 
 using WindowAdapter = ohos::adapter::xcomponent::WindowAdapter;
-using WindowStatusType = ohos::adapter::xcomponent::WindowStatusType;
+using WindowStatusType = ohos::adapter::window::WindowStatusType;
 #endif
 
 namespace {
