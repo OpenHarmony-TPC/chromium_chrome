@@ -122,13 +122,6 @@ source_set("feedback_impl") {
     ]
   }
 
-  if (is_ohos) {
-    sources -= [
-      "system_logs/log_sources/chrome_root_store_log_source.cc",
-      "system_logs/log_sources/chrome_root_store_log_source.h",
-    ]
-  }
-
   if (is_chromeos) {
     deps += [
       "//ash",
