@@ -8419,13 +8419,6 @@ static_library("browser") {
     deps += [ "//components/server_certificate_database" ]
   }
 
-  if (is_ohos) {
-    sources += [
-      "certificate_manager_model_ohos.cc",
-      "certificate_manager_model_ohos.h"
-    ]
-  }
-
   if (use_udev) {
     deps += [ "//device/udev_linux" ]
   }
