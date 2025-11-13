@@ -58,6 +58,10 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/logging.h"
+#endif
+
 namespace web_app {
 
 namespace {
@@ -1177,6 +1181,11 @@ std::unique_ptr<WebApp> ParseWebAppProto(const proto::WebApp& proto) {
   if (proto.has_current_os_integration_states()) {
     web_app->SetCurrentOsIntegrationStates(
         proto.current_os_integration_states());
+#if BUILDFLAG(IS_OHOS)
+    LOG(INFO) << "[webapp] app_id is:" << app_id
+              << ", web_app.current_os_integration_states().has_shortcut()="
+              << web_app->current_os_integration_states().has_shortcut();
+#endif
   }
 
   if (proto.has_app_size_in_bytes()) {

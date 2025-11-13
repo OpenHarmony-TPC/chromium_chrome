@@ -76,6 +76,10 @@
 #include "chrome/browser/web_applications/os_integration/mac/app_shim_registry.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/logging.h"
+#endif
+
 namespace web_app {
 
 namespace {
@@ -502,6 +506,11 @@ void OsIntegrationManager::WriteStateToDB(
     WebApp* web_app = update->UpdateApp(app_id);
     CHECK(web_app);
     web_app->SetCurrentOsIntegrationStates(*desired_states.get());
+#if BUILDFLAG(IS_OHOS)
+    LOG(INFO) << "[webapp] app_id is:" << app_id
+              << ", web_app.current_os_integration_states().has_shortcut()="
+              << web_app->current_os_integration_states().has_shortcut();
+#endif
   }
 
   std::move(callback).Run();
