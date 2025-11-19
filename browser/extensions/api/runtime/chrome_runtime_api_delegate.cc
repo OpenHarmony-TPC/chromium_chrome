@@ -46,11 +46,6 @@
 #include "third_party/cros_system_api/dbus/service_constants.h"
 #endif
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "chrome/browser/extensions/api/tabs/tabs_api.h"
-#include "extensions/common/manifest_handlers/options_page_info.h"
-#endif
-
 using extensions::Extension;
 using extensions::ExtensionSystem;
 using extensions::ExtensionUpdater;
@@ -351,18 +346,8 @@ bool ChromeRuntimeAPIDelegate::RestartDevice(std::string* error_message) {
 bool ChromeRuntimeAPIDelegate::OpenOptionsPage(
     const Extension* extension,
     content::BrowserContext* browser_context) {
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  if (!extensions::OptionsPageInfo::HasOptionsPage(extension)) {
-    return false;
-  }
-
-  std::string url = extensions::OptionsPageInfo::GetOptionsPage(extension).spec();
-  extensions::TabsCreateFunction::CreateTabForExtension(url, browser_context);
-  return true;
-#else
   return extensions::ExtensionTabUtil::OpenOptionsPageFromAPI(extension,
                                                               browser_context);
-#endif
 }
 
 int ChromeRuntimeAPIDelegate::GetDeveloperToolsWindowId(
