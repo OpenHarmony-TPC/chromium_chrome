@@ -246,7 +246,7 @@ bool BrowserExtensionWindowController::OpenOptionsPage(
   // can override an existing page.
   // Note: ref behavior is to ignore.
 #if BUILDFLAG(ARKWEB_NWEB_EX)
-    NwebExtensionManagerDispatcher::OnExtensionOpenUrlCallBack(
+    NWebExtensionManagerDispatcher::OnExtensionOpenUrlCallBack(
       url_to_navigate.spec(), URL_TYPE_OPTIONS);
 #else
   ShowSingletonTabOverwritingNTP(browser_to_use, url_to_navigate,
