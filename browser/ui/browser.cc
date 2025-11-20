@@ -2126,11 +2126,19 @@ void Browser::UpdateTargetURL(WebContents* source, const GURL& url) {
 bool Browser::DidAddMessageToConsole(
     content::WebContents* source,
     blink::mojom::ConsoleMessageLevel log_level,
+#if BUILDFLAG(ARKWEB_CONSOLE_LOGGING)
+    blink::mojom::ConsoleMessageSource log_source,
+#endif
     const std::u16string& message,
     int32_t line_no,
     const std::u16string& source_id) {
+#if BUILDFLAG(ARKWEB_CONSOLE_LOGGING)
+  CALL_CEF_DELEGATE_RETURN(DidAddMessageToConsole, source, log_level, log_source, message,
+                           line_no, source_id);
+#else
   CALL_CEF_DELEGATE_RETURN(DidAddMessageToConsole, source, log_level, message,
                            line_no, source_id);
+#endif
   return false;
 }
 
