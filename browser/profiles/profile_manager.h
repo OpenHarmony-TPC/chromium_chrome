@@ -341,6 +341,10 @@ class ProfileManager : public Profile::Delegate {
   void SetPersistSessionCookies(bool persist_session_cookies);
 #endif
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  void OnOtrProfileAdded(Profile* profile);
+#endif // ARKWEB_ARKWEB_EXTENSIONS
+
  protected:
   // Creates a new profile by calling into the profile's profile creation
   // method. Virtual so that unittests can return a TestingProfile instead
