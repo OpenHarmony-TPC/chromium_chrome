@@ -13,7 +13,7 @@ export function getHtml(this: ToolbarElement) {
     search-prompt="$i18n{search}" clear-label="$i18n{clearSearch}" autofocus
     menu-label="$i18n{mainMenu}" ?narrow="${this.narrow}"
     @narrow-changed="${this.onNarrowChanged_}" narrow-threshold="1000"
-    ?show-menu="${this.narrow}">
+    ?show-menu=false>
   <div class="more-actions">
     <span id="devModeLabel">$i18n{toolbarDevMode}</span>
     <cr-tooltip-icon ?hidden="${!this.shouldDisableDevMode_()}"
