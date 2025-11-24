@@ -79,7 +79,6 @@ class WindowsGetAllFunction : public ExtensionFunction {
   ResponseAction Run() override;
   DECLARE_EXTENSION_FUNCTION("windows.getAll", WINDOWS_GETALL)
 };
-
 #if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 class WindowsCreateFunction : public ExtensionFunction {
   ~WindowsCreateFunction() override {}
