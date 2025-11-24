@@ -34,7 +34,7 @@ export function getHtml(this: ExtensionsSidebarElement) {
   </a>
 </cr-menu-selector>
 <div class="separator"></div>
-<div class="cr-nav-menu-item" hidden=true id="moreExtensions">
+<div class="cr-nav-menu-item" id="moreExtensions">
   <cr-icon id="web-store-icon" icon="extensions-icons:web_store">
   </cr-icon>
   <span id="discover-more-text" class="cr-secondary-text"
