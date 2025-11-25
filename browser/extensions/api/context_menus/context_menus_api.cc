@@ -114,12 +114,13 @@ ExtensionFunction::ResponseAction ContextMenusRemoveFunction::Run() {
   if (!manager->RemoveContextMenuItem(id))
     return RespondNow(Error("Cannot remove menu item."));
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  content::BrowserContext* ctx = browser_context();
   if (params->menu_item_id.as_string) {
-    CefWebExtensionMenuManager::OnContextMenusRemove(extension_id(),
-        *params->menu_item_id.as_string);
+    CefWebExtensionMenuManager::OnContextMenusRemove(
+        ctx, extension_id(), *params->menu_item_id.as_string);
   } else {
-    CefWebExtensionMenuManager::OnContextMenusRemove(extension_id(),
-        *params->menu_item_id.as_integer);
+    CefWebExtensionMenuManager::OnContextMenusRemove(
+        ctx, extension_id(), *params->menu_item_id.as_integer);
   }
 #endif // ARKWEB_ARKWEB_EXTENSIONS
   manager->WriteToStorage(extension(), id.extension_key);
