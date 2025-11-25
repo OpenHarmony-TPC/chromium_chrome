@@ -416,6 +416,7 @@ class ExtensionService : public ExtensionServiceInterface,
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   void SetForbidDisplayInSettings(const ExtensionIdSet& extension_ids);
+  void RemoveForbidDisplayInSettings(const ExtensionId& extension_id);
 #endif  // ARKWEB_ARKWEB_EXTENSIONS
 
   //////////////////////////////////////////////////////////////////////////////
