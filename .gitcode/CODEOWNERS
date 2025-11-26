@@ -1,0 +1,9 @@
+# Storage
+/test/base/profile_deletion_observer.cc/ @yuzhouhang1
+/browser/ui/views/content_setting* @yuzhouhang1
+/browser/ui/profile_* @yuzhouhang1
+/browser/ui/file_system_access* @yuzhouhang1
+/browser/profiles/ @yuzhouhang1
+/browser/profiles/keep_alive/ @yuzhouhang1
+/browser/profile_resetter/ @yuzhouhang1
+/browser/notifications/*notification_channels_provider_android* @yuzhouhang1
