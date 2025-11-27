@@ -5,6 +5,7 @@
 #include "chrome/browser/extensions/api/side_panel/side_panel_api.h"
 
 #include <optional>
+
 #include "arkweb/build/features/features.h"
 #if BUILDFLAG(ARKWEB_NWEB_EX)
 #include "arkweb/ohos_nweb_ex/build/features/features.h"
