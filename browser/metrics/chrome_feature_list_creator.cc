@@ -217,9 +217,16 @@ void ChromeFeatureListCreator::CreatePrefService() {
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ARKWEB_EDM_POLICY)
-  base::FilePath policy_path;
-  base::PathService::Get(base::DIR_CACHE, &policy_path);
-  policy::BrowserPolicyHandler::GetInstance()->InitPolicyFromFile(policy_path);
+  base::FilePath new_policy_path;
+  if (base::PathService::Get(chrome::DIR_USER_DATA, &new_policy_path)) {
+    policy::BrowserPolicyHandler::GetInstance()->InitPolicyFromFile(
+        new_policy_path);
+  } else {
+    base::FilePath policy_path;
+    base::PathService::Get(base::DIR_CACHE, &policy_path);
+    policy::BrowserPolicyHandler::GetInstance()->InitPolicyFromFile(
+        policy_path);
+  }
 #endif
 
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
