@@ -31,6 +31,10 @@
 #include "chrome/browser/notifications/notification_platform_bridge_win.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_NOTIFICATION)
+#include "arkweb/chromium_ext/chrome/browser/notifications/notification_platform_bridge_delegator_for_include.cc"
+#endif
+
 namespace {
 
 // Returns if the current platform has system notifications enabled.
@@ -117,7 +121,12 @@ void NotificationPlatformBridgeDelegator::Display(
     NotificationHandler::Type notification_type,
     const message_center::Notification& notification,
     std::unique_ptr<NotificationCommon::Metadata> metadata) {
+#if BUILDFLAG(ARKWEB_NOTIFICATION) && BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  NotificationPlatformBridge* bridge =
+      GetBridgeForType(notification_type, notification.id());
+#else
   NotificationPlatformBridge* bridge = GetBridgeForType(notification_type);
+#endif
   DCHECK(bridge);
   bridge->Display(notification_type, profile_, notification,
                   std::move(metadata));
@@ -126,7 +135,12 @@ void NotificationPlatformBridgeDelegator::Display(
 void NotificationPlatformBridgeDelegator::Close(
     NotificationHandler::Type notification_type,
     const std::string& notification_id) {
+#if BUILDFLAG(ARKWEB_NOTIFICATION) && BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  NotificationPlatformBridge* bridge =
+      GetBridgeForType(notification_type, notification_id);
+#else
   NotificationPlatformBridge* bridge = GetBridgeForType(notification_type);
+#endif
   DCHECK(bridge);
   bridge->Close(profile_, notification_id);
 }
