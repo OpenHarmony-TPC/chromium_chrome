@@ -201,11 +201,13 @@ void CreateShortcutForCurrentWebContentsTask::
                      : ShortcutCreationTaskResult::kShortcutCreationSuccess;
         }).Then(base::BindOnce(std::move(callback_)));
 
+#if !BUILDFLAG(IS_OHOS)
     GetShortcutsTaskRunner()->PostTask(
         FROM_HERE, base::BindOnce(&shortcuts::CreateShortcutOnUserDesktop,
                                   std::move(fetch_result.value()),
                                   base::BindPostTaskToCurrentDefault(
                                       std::move(result_callback))));
+#endif
   }
 
   // PrimaryPageChanged() already deletes the current page metadata, in which

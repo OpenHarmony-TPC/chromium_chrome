@@ -250,6 +250,12 @@ class ChromeDownloadManagerDelegate
   void RequestIncognitoWarningConfirmation(
       IncognitoWarningConfirmationCallback) override;
 #endif
+#if BUILDFLAG(IS_OHOS)
+  void CheckIsInstallationPackage(
+      const std::string& file_name_,
+      const std::string& file_size_,
+      std::function<void(bool)> confirm_callback) override;
+#endif
   void RequestConfirmation(download::DownloadItem* download,
                            const base::FilePath& suggested_virtual_path,
                            DownloadConfirmationReason reason,

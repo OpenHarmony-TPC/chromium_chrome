@@ -119,7 +119,7 @@ enum class WebAppInstallFlow {
   // TODO(crbug.com/40184819): This should be removed by adding all known flows
   // to this enum.
   kUnknown,
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
   // Perform the `Create Shortcut` flow on CrOS that creates a DIY app.
   kCreateShortcut,
 #endif

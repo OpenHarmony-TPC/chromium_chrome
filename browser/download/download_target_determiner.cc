@@ -49,6 +49,7 @@
 #include "ppapi/buildflags/buildflags.h"
 #include "third_party/blink/public/common/mime_util/mime_util.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/text/bytes_formatting.h"
 #include "url/origin.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -81,6 +82,11 @@
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "components/safe_browsing/content/browser/download/download_stats.h"
 #include "components/safe_browsing/content/common/file_type_policies.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "base/strings/string_util.h"
+#include "ohos/adapter/context_path/context_path_adapter.h"
 #endif
 
 using content::BrowserThread;
@@ -192,6 +198,11 @@ void DownloadTargetDeterminer::DoLoop() {
       case STATE_DETERMINE_MIME_TYPE:
         result = DoDetermineMimeType();
         break;
+#if BUILDFLAG(IS_OHOS)
+      case STATE_DETERMINE_INSTALLATION_PACKAGE:
+        result = DoDetermineInstallationPackage();
+        break;
+#endif
       case STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER:
         result = DoDetermineIfHandledSafely();
         break;
@@ -230,7 +241,6 @@ DownloadTargetDeterminer::Result
   bool is_forced_path = !download_->GetForcedFilePath().empty();
 
   next_state_ = STATE_SET_INSECURE_DOWNLOAD_STATUS;
-
   // Transient download should use the existing path.
   if (download_->IsTransient()) {
     if (is_forced_path) {
@@ -731,8 +741,11 @@ DownloadTargetDeterminer::Result
   DCHECK(!virtual_path_.empty());
   DCHECK(!local_path_.empty());
   DCHECK(mime_type_.empty());
-
+#if BUILDFLAG(IS_OHOS)
+  next_state_ = STATE_DETERMINE_INSTALLATION_PACKAGE;
+#else
   next_state_ = STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER;
+#endif
   if (virtual_path_ == local_path_
 #if BUILDFLAG(IS_ANDROID)
       || local_path_.IsContentUri()
@@ -748,6 +761,54 @@ DownloadTargetDeterminer::Result
   return CONTINUE;
 }
 
+#if BUILDFLAG(IS_OHOS)
+const static std::vector<std::string> installation_package_extensions = {
+    ".apk", ".exe", ".msi", ".msix", ".dmg", ".pkg", ".deb"};
+bool isInstallerFile(const std::string& filename) {
+  for (const auto& ext : installation_package_extensions) {
+    if (base::EndsWith(filename, ext)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+DownloadTargetDeterminer::Result
+DownloadTargetDeterminer::DoDetermineInstallationPackage() {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  DCHECK(!local_path_.empty());
+  LOG(INFO) << "DoDetermineInstallationPackage in";
+  next_state_ = STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER;
+  base::FilePath file_name_ = local_path_.BaseName();
+  std::u16string file_size_ =
+      ui::FormatBytes(download_->GetTotalBytes());
+  if (isInstallerFile(local_path_.value())) {
+    delegate_->CheckIsInstallationPackage(
+        file_name_.value(), base::UTF16ToUTF8(file_size_),
+        std::bind(&DownloadTargetDeterminer::DetermineInstallationPackageDone,
+                  weak_ptr_factory_.GetWeakPtr(), std::placeholders::_1));
+    return QUIT_DOLOOP;
+  }
+  return CONTINUE;
+}
+
+void DownloadTargetDeterminer::DetermineInstallationPackageDone(
+    bool continue_download) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+#if BUILDFLAG(IS_OHOS)
+  DCHECK_EQ(STATE_DETERMINE_INSTALLATION_PACKAGE, next_state_);
+#else
+  DCHECK_EQ(STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER, next_state_);
+#endif
+  LOG(INFO) << "DetermineInstallationPackageDone in";
+  if (!continue_download) {
+    ScheduleCallbackAndDeleteSelf(
+        download::DOWNLOAD_INTERRUPT_REASON_USER_CANCELED);
+    return;
+  }
+  DoLoop();
+}
+#endif
 void DownloadTargetDeterminer::DetermineMimeTypeDone(
     const std::string& mime_type) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -1131,8 +1192,15 @@ DownloadTargetDeterminer::Result
       l10n_util::GetStringUTF8(IDS_DOWNLOAD_UNCONFIRMED_PREFIX) +
       base::StringPrintf(kUnconfirmedFormatSuffix,
                          base::RandInt(0, kUnconfirmedUniquifierRange));
+#if BUILDFLAG(IS_OHOS)
+  intermediate_path_ =
+      base::FilePath(::ohos::adapter::ContextPathAdapter::GetTempDir())
+          .DirName()
+          .Append(base::FilePath::FromUTF8Unsafe(file_name));
+#else
   intermediate_path_ =
       local_path_.DirName().Append(base::FilePath::FromUTF8Unsafe(file_name));
+#endif
   return COMPLETE;
 }
 
@@ -1407,5 +1475,10 @@ void DownloadTargetDeterminer::Start(
 // static
 base::FilePath DownloadTargetDeterminer::GetCrDownloadPath(
     const base::FilePath& suggested_path) {
+#if BUILDFLAG(IS_OHOS)
+  return base::FilePath(::ohos::adapter::ContextPathAdapter::GetTempDir() +
+                        suggested_path.BaseName().value() + kCrdownloadSuffix);
+#else
   return base::FilePath(suggested_path.value() + kCrdownloadSuffix);
+#endif
 }

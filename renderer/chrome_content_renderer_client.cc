@@ -261,7 +261,7 @@
 #endif  // BUILDFLAG(HAS_SPELLCHECK_PANEL)
 #endif  // BUILDFLAG(ENABLE_SPELLCHECK)
 
-#if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_WISEPLAY)
 #include "chrome/renderer/media/chrome_key_systems.h"
 #endif
 
@@ -402,10 +402,13 @@ void ChromeContentRendererClient::RenderThreadStarted() {
   main_thread_profiler_->SetAuxUnwinderFactory(base::BindRepeating(
       &CreateV8Unwinder, base::Unretained(v8::Isolate::GetCurrent())));
 
+#if !BUILDFLAG(IS_OHOS)
+  // TODO:OHOS
   // In the case of single process mode, the v8 unwinding will not work.
   tracing::TracingSamplerProfiler::SetAuxUnwinderFactoryOnMainThread(
       base::BindRepeating(&CreateV8Unwinder,
                           base::Unretained(v8::Isolate::GetCurrent())));
+#endif
 
   const bool is_extension = IsStandaloneContentExtensionProcess();
 
@@ -1401,11 +1404,14 @@ void ChromeContentRendererClient::PostCompositorThreadCreated(
   // Enable stack sampling for tracing.
   // We pass in CreateCoreUnwindersFactory here since it lives in the chrome/
   // layer while TracingSamplerProfiler is outside of chrome/.
+#if !BUILDFLAG(IS_OHOS)
+  // TODO:OHOS
   compositor_thread_task_runner->PostTask(
       FROM_HERE,
       base::BindOnce(&tracing::TracingSamplerProfiler::
                          CreateOnChildThreadWithCustomUnwinders,
                      base::BindRepeating(&CreateCoreUnwindersFactory)));
+#endif
 }
 
 bool ChromeContentRendererClient::RunIdleHandlerWhenWidgetsHidden() {
@@ -1608,7 +1614,7 @@ std::unique_ptr<media::KeySystemSupportRegistration>
 ChromeContentRendererClient::GetSupportedKeySystems(
     content::RenderFrame* render_frame,
     media::GetSupportedKeySystemsCB cb) {
-#if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_WISEPLAY)
   return GetChromeKeySystems(render_frame, std::move(cb));
 #else
   std::move(cb).Run({});

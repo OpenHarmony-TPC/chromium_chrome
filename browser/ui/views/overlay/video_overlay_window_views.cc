@@ -389,6 +389,13 @@ std::unique_ptr<VideoOverlayWindowViews> VideoOverlayWindowViews::Create(
   params.layer_type = ui::LAYER_NOT_DRAWN;
   params.delegate = new OverlayWindowWidgetDelegate();
 
+#if BUILDFLAG(IS_OHOS)
+  params.using_system_floating_window = true;
+  params.pip_controller = controller;
+  params.pip_parent =
+      controller->GetWebContents()->GetTopLevelNativeWindow();
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS)
   params.init_properties_container.SetProperty(chromeos::kAppTypeKey,
                                                chromeos::AppType::BROWSER);

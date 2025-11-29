@@ -90,6 +90,18 @@ export class SettingsSecurityPageElement extends
 
   static get properties() {
     return {
+      // <if expr="is_ohos">
+      /**
+       * Whether the Advanced-Security-Mode setting should be displayed.
+       */
+      showAdvancedSecurityModeSetting_: {
+        type: Boolean,
+        readOnly: true,
+        value: function() {
+          return loadTimeData.getBoolean('showAdvancedSecurityModeSetting');
+        },
+      },
+      // </if>
       /**
        * Whether the secure DNS setting should be displayed.
        */
@@ -220,6 +232,10 @@ export class SettingsSecurityPageElement extends
     };
   }
   declare private showSecureDnsSetting_: boolean;
+
+  // <if expr="is_ohos">
+  declare private showAdvancedSecurityModeSetting_: boolean;
+  // </if>
 
   // <if expr="is_chromeos">
   declare private showSecureDnsSettingLink_: boolean;
@@ -452,6 +468,13 @@ export class SettingsSecurityPageElement extends
   private getName_(value: number): string {
     return value.toString();
   }
+
+  // <if expr="is_ohos">
+  private getAdvancedSecurityModeSubLabel_(): string {
+    const generatedPref = this.getPref('generated.advanced_security_mode_enabled');
+    return this.i18n('advancedSecurityModeDescription');
+  }
+// </if>
 
   private getHttpsFirstModeSubLabel_(): string {
     // If the backing HTTPS-Only Mode preference is enabled, but the

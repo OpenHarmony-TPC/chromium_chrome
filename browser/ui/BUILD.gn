@@ -42,6 +42,13 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
   allow_list_name = "WebUIName"
 }
 
+if (is_ohos) {
+  declare_args() {
+    # set true to allow cem publish to update dev_config.json
+    enable_cem_update_devconfig = false
+  }
+}
+
 # Use a static library here because many test binaries depend on this but don't
 # require many files from it. This makes linking more efficient.
 # TODO(https://crbug.com/353332589): Once //chrome/browser is properly
@@ -1587,6 +1594,13 @@ static_library("ui") {
       "webui/webui_util_desktop.h",
     ]
 
+    if (is_ohos) {
+      sources -= [
+        "webui/new_tab_footer/new_tab_footer_ui.cc",
+        "webui/new_tab_footer/new_tab_footer_ui.h",
+      ]
+    }
+
     if (is_chrome_branded) {
       sources += [
         "webui/media_router/cast_feedback_ui.cc",
@@ -2959,7 +2973,7 @@ static_library("ui") {
     }
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos) {
+  if (is_win || is_mac || is_linux || is_chromeos || is_ohos) {
     sources += [
       "frame/window_frame_util.cc",
       "frame/window_frame_util.h",
@@ -2998,6 +3012,24 @@ static_library("ui") {
       "webui/signin/sync_confirmation_ui.cc",
       "webui/signin/sync_confirmation_ui.h",
     ]
+
+    if (is_ohos) {
+      sources -= [
+        "frame/window_frame_util.cc",
+        "frame/window_frame_util.h",
+        "webui/signin/inline_login_handler.cc",
+        "webui/signin/inline_login_handler.h",
+        "webui/signin/signin_url_utils.cc",
+        "webui/signin/signin_url_utils.h",
+        "webui/signin/signin_web_dialog_ui.cc",
+        "webui/signin/signin_web_dialog_ui.h",
+        "webui/signin/sync_confirmation_handler.cc",
+        "webui/signin/sync_confirmation_handler.h",
+        "webui/signin/sync_confirmation_ui.cc",
+        "webui/signin/sync_confirmation_ui.h",
+      ]
+    }
+
     deps += [
       "//chrome/browser/lifetime:termination_notification",
       "//chrome/browser/search/background",
@@ -3012,7 +3044,7 @@ static_library("ui") {
     ]
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos || is_desktop_android) {
+  if (is_win || is_mac || is_linux || is_chromeos || is_desktop_android || is_ohos) {
     sources += [
       "webui/discards/discards_ui.cc",
       "webui/discards/discards_ui.h",
@@ -3023,7 +3055,7 @@ static_library("ui") {
     ]
   }
 
-  if (is_win || is_mac || is_linux) {
+  if (is_win || is_mac || is_linux || is_ohos) {
     sources += [
       "profiles/profile_customization_bubble_sync_controller.h",
       "profiles/profile_customization_synced_theme_waiter.cc",
@@ -3204,11 +3236,22 @@ static_library("ui") {
         "webui/signin/inline_login_handler_impl.h",
       ]
 
+      if (is_ohos) {
+        sources -= [
+          "webui/signin/dice_web_signin_intercept_handler.cc",
+          "webui/signin/dice_web_signin_intercept_handler.h",
+          "webui/signin/dice_web_signin_intercept_ui.cc",
+          "webui/signin/dice_web_signin_intercept_ui.h",
+          "webui/signin/inline_login_handler_impl.cc",
+          "webui/signin/inline_login_handler_impl.h",
+        ]
+      }
+
       deps += [ "webui/signin/batch_upload:mojo_bindings" ]
     }
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos) {
+  if (is_win || is_mac || is_linux || is_chromeos || is_ohos) {
     sources += [
       "passwords/password_cross_domain_confirmation_popup_view.h",
       "webui/connectors_internals/connectors_internals_page_handler.cc",
@@ -3231,14 +3274,14 @@ static_library("ui") {
     }
   }
 
-  if (enable_dice_support || is_chromeos) {
+  if ((enable_dice_support || is_chromeos) && !is_ohos) {
     sources += [
       "webui/signin/inline_login_ui.cc",
       "webui/signin/inline_login_ui.h",
     ]
   }
 
-  if (is_win || is_mac || is_chromeos) {
+  if (is_win || is_mac || is_chromeos || is_ohos) {
     sources += [
       "passwords/bubble_controllers/biometric_authentication_confirmation_bubble_controller.cc",
       "passwords/bubble_controllers/biometric_authentication_confirmation_bubble_controller.h",
@@ -3536,7 +3579,7 @@ static_library("ui") {
     }
   }
 
-  if (is_linux || is_mac) {
+  if (is_linux || is_mac || is_ohos) {
     sources += [
       "passwords/bubble_controllers/relaunch_chrome_bubble_controller.cc",
       "passwords/bubble_controllers/relaunch_chrome_bubble_controller.h",
@@ -3548,6 +3591,22 @@ static_library("ui") {
       "webui/password_manager/promo_cards/relaunch_chrome_promo.h",
     ]
     deps += [ "//components/os_crypt/sync" ]
+  }
+
+  if (is_ohos) {
+    sources -= [
+      "passwords/bubble_controllers/relaunch_chrome_bubble_controller.cc",
+      "passwords/bubble_controllers/relaunch_chrome_bubble_controller.h",
+      "webui/password_manager/promo_cards/relaunch_chrome_promo.cc",
+      "webui/password_manager/promo_cards/relaunch_chrome_promo.h",
+    ]
+  }
+
+  if (is_ohos && is_asan) {
+    sources += [
+      "passwords/bubble_controllers/relaunch_chrome_bubble_controller.cc",
+      "passwords/bubble_controllers/relaunch_chrome_bubble_controller.h",
+    ]
   }
 
   if (is_linux) {
@@ -5083,7 +5142,26 @@ static_library("ui") {
       ]
     }
 
-    if (is_win || is_linux || is_chromeos) {
+    if (is_ohos) {
+      sources += [
+        "views/chrome_views_delegate_ohos.cc",
+        "views/frame/desktop_browser_frame_aura_ohos.cc",
+        "views/frame/desktop_browser_frame_aura_ohos.h",
+        "views/frame/browser_desktop_window_tree_host_ohos.cc",
+        "views/frame/browser_desktop_window_tree_host_ohos.h",
+        "views/frame/browser_frame_view_ohos.cc",
+        "views/frame/browser_frame_view_ohos.h",
+        "webui/help/version_updater_basic.cc",
+        "webui/help/version_updater_basic.h",
+        "views/status_icons/status_tray_ohos.cc",
+        "webui/settings/settings_utils_ohos.cc",
+      ]
+      deps += [ 
+        "//ohos/adapter:adapter",
+      ]
+    }
+
+    if (is_win || is_linux || is_chromeos || is_ohos) {
       sources += [
         "views/bluetooth_device_credentials_view.cc",
         "views/bluetooth_device_credentials_view.h",
@@ -5130,6 +5208,21 @@ static_library("ui") {
         "views/accessibility/accessibility_util.cc",
         "views/chrome_views_delegate_win.cc",
       ]
+    }
+
+    if (is_ohos) {
+      sources += [
+        "views/chrome_browser_main_extra_parts_views_ohos.cc",
+        "views/chrome_browser_main_extra_parts_views_ohos.h",
+        "ohos/browser_exit_monitor_ohos.cc",
+        "ohos/browser_exit_monitor_ohos.h",
+        "ohos/execute_command_singleton.cc",
+        "ohos/execute_command_singleton.h",
+      ]
+
+      if (enable_cem_update_devconfig) {
+        defines += [ "ENABLE_CEM_UPDATE_DEVCONFIG" ]
+      }
     }
 
     if (use_aura && is_linux) {
@@ -5303,7 +5396,7 @@ static_library("ui") {
     deps += [ "//chrome/browser/extensions" ]
     allow_circular_includes_from += [ "//chrome/browser/extensions" ]
 
-    if (is_win || is_mac || is_linux || is_chromeos) {
+    if (is_win || is_mac || is_linux || is_chromeos || is_ohos) {
       sources += [
         "extensions/extension_install_ui_desktop.cc",
         "extensions/extension_install_ui_desktop.h",
@@ -5609,6 +5702,20 @@ static_library("ui") {
     }
   }
 
+  if (is_ohos) {
+    deps += [
+      "//ohos/adapter:adapter",
+      "//components/server_certificate_database",
+    ]
+
+    if (use_aura) {
+      sources += [
+        "views/crypto_module_password_dialog_view.cc",
+        "views/crypto_module_password_dialog_view.h",
+      ]
+    }
+  }
+
   if (chrome_root_store_cert_management_ui) {
     sources += [
       "webui/certificate_manager/certificate_manager_handler.cc",
@@ -5773,7 +5880,7 @@ static_library("ui_public_dependencies") {
       "//ui/views/controls/webview",
     ]
   }
-  if (chrome_root_store_cert_management_ui) {
+  if (chrome_root_store_cert_management_ui || is_ohos) {
     public_deps +=
         [ "//ui/webui/resources/cr_components/certificate_manager:mojom" ]
   }

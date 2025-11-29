@@ -61,6 +61,10 @@
 #include "chrome/browser/win/mica_titlebar.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/layout_constants.h"
+#endif
+
 namespace {
 
 // Helper to track whether a ThemeChange event has been received by the widget.
@@ -158,7 +162,11 @@ void BrowserFrame::InitBrowserFrame() {
 
   if (native_browser_frame_->ShouldRestorePreviousBrowserWidgetState()) {
     if (browser->is_type_normal() || browser->is_type_devtools() ||
-        browser->is_type_app()) {
+        browser->is_type_app()
+#if BUILDFLAG(IS_OHOS)
+        || browser->is_type_popup()
+#endif
+        ) {
       // Typed panel/popup can only return a size once the widget has been
       // created.
       // DevTools counts as a popup, but DevToolsWindow::CreateDevToolsBrowser
@@ -182,6 +190,15 @@ void BrowserFrame::InitBrowserFrame() {
       }
     }
   }
+#if BUILDFLAG(IS_OHOS)
+  if (browser->is_type_popup()) {
+    params.bounds.set_height(params.bounds.height() +
+        GetLayoutConstant(LOCATION_BAR_HEIGHT));
+  }
+  if (IsIncognitoBrowser()) {
+    params.use_dark_mode = true;
+  }
+#endif
 
   Init(std::move(params));
 

@@ -43,6 +43,11 @@
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/permission_manager/permission_manager_adapter.h"
+namespace ohos_permission = ohos::adapter::permission;
+#endif
+
 using bookmarks::BookmarkModel;
 using bookmarks::BookmarkNode;
 
@@ -173,6 +178,18 @@ OpenedWebContentsSet OpenAllHelper(
   }
 
   for (const auto& bookmark_url : bookmark_urls) {
+#if BUILDFLAG(IS_OHOS)
+    if (bookmark_url.url.is_valid() && bookmark_url.url.SchemeIsFile()) {
+      ohos_permission::PermissionActivationResult activate_result =
+          ohos_permission::PermissionManagerAdapter::ActivateFileAccessPersist(
+              bookmark_url.url.spec());
+      if (activate_result !=
+          ohos_permission::PermissionActivationResult::SUCCESS) {
+        LOG(ERROR) << "Failed to activate error code: "
+                   << static_cast<int32_t>(activate_result);
+      }
+    }
+#endif
     const bool url_allowed_in_incognito =
         IsURLAllowedInIncognito(bookmark_url.url);
 

@@ -54,6 +54,10 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "ui/gfx/native_widget_types.h"
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
 #error This file should only be included on desktop.
 #endif
@@ -397,6 +401,8 @@ class Browser : public TabStripModelObserver,
 
   ~Browser() override;
 
+  bool IsWebApp() override;
+
   // Set overrides for the initial window bounds and maximized state.
   void set_override_bounds(const gfx::Rect& bounds) {
     override_bounds_ = bounds;
@@ -650,6 +656,14 @@ class Browser : public TabStripModelObserver,
   bool IsAttemptingToCloseBrowser() const override;
   bool IsBrowserClosing() const;
   bool is_delete_scheduled() const { return is_delete_scheduled_; }
+
+#if BUILDFLAG(IS_OHOS)
+  gfx::AcceleratedWidget GetAcceleratedWidget();
+  void NotifyShowBeforeUnloadConfirmDialog() override;
+  void SetPrivacyMode(bool use_privacy_mode) override;
+  void CloseContentJavaScriptDialog(
+      content::WebContents* source, bool reset_state);
+#endif
 
   // Invoked when the window containing us is closing. Performs the necessary
   // cleanup.

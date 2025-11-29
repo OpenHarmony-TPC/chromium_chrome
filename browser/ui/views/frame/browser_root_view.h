@@ -150,7 +150,10 @@ class BrowserRootView : public views::internal::RootView {
       const ui::DropTargetEvent& event,
       ui::mojom::DragOperation& output_drag_op,
       std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner);
-
+#if BUILDFLAG(IS_OHOS)
+  void ProcessDropUrls(const ui::DropTargetEvent& event,
+                       std::vector<GURL>& filtered_urls);
+#endif
   // The BrowserView.
   raw_ptr<BrowserView, AcrossTasksDanglingUntriaged> browser_view_ = nullptr;
 

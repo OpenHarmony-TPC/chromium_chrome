@@ -24,6 +24,10 @@
 #include "extensions/browser/app_window/app_window_registry.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/drag_drop/drag_drop_ohos_adapter.h"
+#endif
+
 namespace extensions {
 
 namespace developer = api::developer_private;

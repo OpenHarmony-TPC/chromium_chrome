@@ -63,6 +63,11 @@
 #include "extensions/browser/extension_registry.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_OHOS)
+#include "net/base/filename_util.h"
+#include "ohos/adapter/file_manager/file_manager_adapter.h"
+#endif // BUILDFLAG(IS_OHOS)
+
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 #include "chrome/browser/headless/headless_mode_util.h"
 #endif
@@ -451,6 +456,18 @@ StartupTabProviderImpl::ParseTabFromCommandLineArg(
     // Otherwise, fall through to treating it as a URL.
     // This will create a file URL or a regular URL.
     GURL url(base::FilePath(arg).MaybeAsASCII());
+#if BUILDFLAG(IS_OHOS)
+    std::string file_path;
+    if (url.SchemeIsFile()) {
+      ohos::adapter::FileManagerAdapter::GetInstance().GetPathForUri(arg.data(),
+                                                                     file_path);
+      if (!file_path.empty()) {
+        arg = file_path;
+      } else {
+        LOG(ERROR) << "ParseTabFromCommandLineArg GetPathForUri failed!";
+      }
+    }
+#endif
 
     // This call can (in rare circumstances) block the UI thread.
     // FixupRelativeFile may access to current working directory, which is a

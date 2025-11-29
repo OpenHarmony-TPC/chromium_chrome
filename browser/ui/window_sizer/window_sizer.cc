@@ -29,6 +29,16 @@
 #include "chrome/browser/ui/window_sizer/window_sizer_chromeos.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/logging.h"
+#include "ohos/adapter/xcomponent/adapter/window_adapter.h"
+#include "ui/display/screen_ohos.h"
+#include "ui/views/widget_util_ohos.h"
+
+using WindowAdapter = ohos::adapter::xcomponent::WindowAdapter;
+using WindowStatusType = ohos::adapter::xcomponent::WindowStatusType;
+#endif
+
 namespace {
 
 // Minimum height of the visible part of a window.
@@ -200,6 +210,61 @@ class DefaultStateProvider : public WindowSizer::StateProvider {
   raw_ptr<const Browser> browser_;
 };
 
+#if BUILDFLAG(IS_OHOS)
+// Inherit DefaultStateProvider to implement window state initialisation logic
+// of OHOS platform.
+class OhosStateProvider : public DefaultStateProvider {
+ public:
+  explicit OhosStateProvider(const Browser* browser)
+      : DefaultStateProvider(browser) {}
+
+  OhosStateProvider(const OhosStateProvider&) = delete;
+  OhosStateProvider& operator=(const OhosStateProvider&) = delete;
+
+  bool GetPersistentState(
+      gfx::Rect* bounds,
+      gfx::Rect* work_area,
+      ui::mojom::WindowShowState* show_state) const override {
+    // Get window state from ArkUI when creating first window.
+    auto initialState = WindowAdapter::GetInstance().GetInitialState();
+    switch (initialState) {
+      case WindowStatusType::FLOATING: {
+        // If the window state is FLOATING, get the window bounds from ArkUI
+        // instead of GetPersistentState(...), because the bounds obtained by
+        // GetPersistentState(...) may be the bounds of the window when it is
+        // closed in SPLIT_SCREEN state.
+        *show_state = ui::mojom::WindowShowState::kNormal;
+        auto window_rect = WindowAdapter::GetInstance().GetInitialBounds();
+        gfx::Rect rect_in_pixels = {window_rect.left, window_rect.top,
+                                    window_rect.width, window_rect.height};
+        int64_t display_id = WindowAdapter::GetInstance().GetInitialDisplayId();
+        *bounds = display::ohos::ScreenOhos::ConvertPixelToDIP(display_id,
+                                                               rect_in_pixels);
+        return true;
+      }
+      case WindowStatusType::MAXIMIZE:
+      case WindowStatusType::FULL_SCREEN: {
+        *show_state = ui::mojom::WindowShowState::kMaximized;
+        // If window state is MAXIMIZE, the bounds obtained via
+        // GetPersistentState(...) is the bounds of the last FLOATING window
+        // before the last application closure, which is eventually converted to
+        // physical pixels and assigned to the restored_bounds_in_pixels_ in
+        // OhosWindow.
+        return DefaultStateProvider::GetPersistentState(bounds, work_area,
+                                                        show_state);
+      }
+      default: {
+        *show_state = ui::mojom::WindowShowState::kDefault;
+        LOG(ERROR) << "[OhosStateProvider::GetPersistentState] Initial state "
+                      "error, window status type:"
+                   << static_cast<int>(initialState);
+        return false;
+      }
+    }
+  }
+};
+#endif
+
 }  // namespace
 
 WindowSizer::WindowSizer(std::unique_ptr<StateProvider> state_provider,
@@ -214,9 +279,15 @@ void WindowSizer::GetBrowserWindowBoundsAndShowState(
     const Browser* browser,
     gfx::Rect* window_bounds,
     ui::mojom::WindowShowState* show_state) {
+#if BUILDFLAG(IS_OHOS)
+  return GetBrowserWindowBoundsAndShowState(
+      std::make_unique<OhosStateProvider>(browser), specified_bounds, browser,
+      window_bounds, show_state);
+#else
   return GetBrowserWindowBoundsAndShowState(
       std::make_unique<DefaultStateProvider>(browser), specified_bounds,
       browser, window_bounds, show_state);
+#endif
 }
 
 #if !BUILDFLAG(IS_LINUX)
@@ -289,9 +360,38 @@ bool WindowSizer::GetLastActiveWindowBounds(
     return false;
   }
   bounds->Offset(kWindowTilePixels, kWindowTilePixels);
+#if !BUILDFLAG(IS_OHOS)
   AdjustBoundsToBeVisibleOnDisplay(
       display::Screen::GetScreen()->GetDisplayMatching(*bounds), gfx::Rect(),
       bounds);
+#else
+  gfx::AcceleratedWidget last_active_widget_id = gfx::kNullAcceleratedWidget;
+  for (Browser* last_active :
+       BrowserList::GetInstance()->OrderedByActivation()) {
+    if (last_active && last_active->is_type_normal()) {
+      last_active_widget_id = last_active->GetAcceleratedWidget();
+      break;
+    }
+  }
+  display::Display display;
+  if (last_active_widget_id > 0) {
+    display = views::GetDisplayForWidget(last_active_widget_id);
+  }
+  if (!display.is_valid()) {
+    display = display::Screen::GetScreen()->GetDisplayMatching(*bounds);
+  }
+  AdjustBoundsToBeVisibleOnDisplay(display, gfx::Rect(), bounds);
+
+  // Make the window position within the work area.
+  // Remove WorkAreaXXXOffset when the correct work area can be obtained from the system.
+  gfx::Rect work_area = display.work_area();
+  if (bounds->y() + bounds->height() > work_area.y() + work_area.height()) {
+    bounds->set_y(work_area.y());
+  }
+  if (bounds->x() + bounds->width() > work_area.x() + work_area.width()) {
+    bounds->set_x(work_area.x());
+  }
+#endif
   return true;
 }
 

@@ -384,7 +384,8 @@ class ManagePasswordsUIController
   // Used to bypass user authentication in integration tests.
   bool bypass_user_auth_for_testing_ = false;
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || \
+    BUILDFLAG(IS_OHOS)
   bool was_biometric_authentication_for_filling_promo_shown_ = false;
 #endif
 

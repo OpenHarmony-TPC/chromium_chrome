@@ -12,7 +12,7 @@ namespace features {
 namespace {
 
 constexpr base::FeatureState kFeatureEnabledOnlyOnAndroid =
-    BUILDFLAG(IS_ANDROID) ? base::FEATURE_ENABLED_BY_DEFAULT
+    BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_OHOS) ? base::FEATURE_ENABLED_BY_DEFAULT
                           : base::FEATURE_DISABLED_BY_DEFAULT;
 
 }  // namespace

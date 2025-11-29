@@ -1,7 +1,15 @@
+<if expr="is_ohos"> 
+<div class="link" id="systemDialogLink"
+    ?actionable="[[!this.systemDialogLinkDisabled_]]"
+    ?hidden="[[this.shouldShowSystemDialogLink_]]"
+    @click="this.onSystemDialogClick_">
+</if>
+<if expr="not is_ohos">  
 <div class="link" id="systemDialogLink"
     ?actionable="${!this.systemDialogLinkDisabled_}"
     ?hidden="${!this.shouldShowSystemDialogLink_}"
     @click="${this.onSystemDialogClick_}">
+</if>
   <div class="label">$i18n{systemDialogOption}</div>
   <cr-icon-button class="icon-external"
       ?hidden="${this.openingSystemDialog_}"

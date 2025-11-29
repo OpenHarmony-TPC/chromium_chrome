@@ -203,6 +203,7 @@
 #include "ppapi/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "rlz/buildflags/buildflags.h"
+#include "third_party/wiseplay/cdm/buildflags.h"
 
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
 #include "chrome/browser/background/extensions/background_mode_manager.h"
@@ -251,6 +252,10 @@
 #if BUILDFLAG(ENABLE_PDF)
 #include "chrome/browser/pdf/pdf_pref_names.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
+
+#if BUILDFLAG(ENABLE_WISEPLAY)
+#include "components/cdm/browser/media_drm_storage_impl.h"
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/accessibility/accessibility_prefs/android/accessibility_prefs_controller.h"
@@ -2051,6 +2056,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   ChromeRLZTrackerDelegate::RegisterProfilePrefs(registry);
 #endif
 
+#if BUILDFLAG(ENABLE_WISEPLAY)
+  cdm::MediaDrmStorageImpl::RegisterProfilePrefs(registry);
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
   feed::prefs::RegisterFeedSharedProfilePrefs(registry);
   feed::RegisterProfilePrefs(registry);
@@ -2282,8 +2291,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   side_panel_prefs::RegisterProfilePrefs(registry);
 
   tabs::RegisterProfilePrefs(registry);
-
+#if !BUILDFLAG(IS_OHOS)
   CertificateManagerPageHandler::RegisterProfilePrefs(registry);
+#endif
 #endif  // !BUILDFLAG(IS_ANDROID)
 
   registry->RegisterBooleanPref(webauthn::pref_names::kAllowWithBrokenCerts,

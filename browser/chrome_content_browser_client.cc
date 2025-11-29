@@ -501,6 +501,11 @@
 #include "chrome/browser/chrome_browser_main_posix.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/views/chrome_browser_main_extra_parts_views_ohos.h"
+#endif
+
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/digital_credentials/digital_identity_provider_desktop.h"
 #include "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h"
@@ -563,7 +568,7 @@
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #endif  //  !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
 #include "components/crash/core/app/crash_switches.h"
 #include "components/crash/core/app/crashpad.h"
 #endif
@@ -936,7 +941,7 @@ blink::mojom::AutoplayPolicy GetAutoplayPolicyForWebContents(
 int GetCrashSignalFD(const base::CommandLine& command_line) {
   return crashpad::CrashHandlerHost::Get()->GetDeathSignalSocket();
 }
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
 int GetCrashSignalFD(const base::CommandLine& command_line) {
   int fd;
   return crash_reporter::GetHandlerSocket(&fd, nullptr) ? fd : -1;
@@ -996,6 +1001,7 @@ GetNoStatePrefetchCanceler(
   return canceler;
 }
 
+#if !BUILDFLAG(IS_OHOS)
 bool ShouldHonorPolicies() {
 #if BUILDFLAG(IS_WIN)
   return policy::ManagementServiceFactory::GetForPlatform()
@@ -1005,6 +1011,7 @@ bool ShouldHonorPolicies() {
   return true;
 #endif
 }
+#endif
 
 // Used by Enterprise policy. Disable blocking of navigations toward external
 // applications from a sandboxed iframe.
@@ -1120,6 +1127,12 @@ void LaunchURL(
     }
   }
 
+#if BUILDFLAG(IS_OHOS)
+  // If the OS is OH, we launch it without asking the user. Since the OS has not yet
+  // provided an interface for querying external applications.
+  ExternalProtocolHandler::LaunchUrlWithoutSecurityCheck(
+      url, web_contents, std::move(initiator_document));
+#else
   bool is_allowlisted = false;
   PolicyBlocklistService* service =
       PolicyBlocklistFactory::GetForBrowserContext(
@@ -1159,6 +1172,7 @@ void LaunchURL(
 #endif
     );
   }
+#endif
 }
 
 void MaybeAppendSecureOriginsAllowlistSwitch(base::CommandLine* cmdline) {
@@ -1651,6 +1665,9 @@ ChromeContentBrowserClient::CreateBrowserMainParts(bool is_integration_test) {
 #if BUILDFLAG(IS_LINUX)
   main_parts->AddParts(
       std::make_unique<ChromeBrowserMainExtraPartsViewsLinux>());
+#elif BUILDFLAG(IS_OHOS)
+  main_parts->AddParts(
+      std::make_unique<ChromeBrowserMainExtraPartsViewsOHOS>());
 #else
   main_parts->AddParts(std::make_unique<ChromeBrowserMainExtraPartsViews>());
 #endif
@@ -1690,7 +1707,7 @@ ChromeContentBrowserClient::CreateBrowserMainParts(bool is_integration_test) {
           enterprise_util::ChromeBrowserMainExtraPartsEnterprise>());
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_OHOS)
   main_parts->AddParts(
       std::make_unique<headless::ChromeBrowserMainExtraPartsHeadless>());
 #endif
@@ -4987,13 +5004,14 @@ void ChromeContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
   DCHECK(!app_data_path.empty());
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
+    BUILDFLAG(IS_OHOS)
   int crash_signal_fd = GetCrashSignalFD(command_line);
   if (crash_signal_fd >= 0) {
     mappings->Share(kCrashDumpSignal, crash_signal_fd);
   }
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
 }
 #endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
 
@@ -8134,6 +8152,19 @@ bool ChromeContentBrowserClient::ShouldUseFirstPartyStorageKey(
   return false;
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
+
+#if BUILDFLAG(IS_OHOS)
+bool ChromeContentBrowserClient::IsAdvancedSecurityMode() {
+  Browser* browser = BrowserList::GetInstance()->GetLastActive();
+  if (browser == nullptr || browser->profile() == nullptr) {
+    LOG(ERROR) << "AdvancedSecurityMode: get prefs value fail!";
+    return false;
+  }
+  Profile* profile = browser->profile();
+  auto* prefs = profile->GetPrefs();
+  return prefs->GetBoolean(prefs::kAdvancedSecurityModeEnabled);
+}
+#endif // BUILDFLAG(IS_OHOS)
 
 std::unique_ptr<content::ResponsivenessCalculatorDelegate>
 ChromeContentBrowserClient::CreateResponsivenessCalculatorDelegate() {

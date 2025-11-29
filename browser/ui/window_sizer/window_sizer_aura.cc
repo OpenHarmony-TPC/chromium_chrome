@@ -6,7 +6,11 @@
 
 // This doesn't matter for aura, which has different tiling.
 // static
+#if BUILDFLAG(IS_OHOS)
+const int WindowSizer::kWindowTilePixels = 50;
+#else
 const int WindowSizer::kWindowTilePixels = 10;
+#endif
 const int WindowSizer::kWindowMaxDefaultWidth = 1050;
 
 // static

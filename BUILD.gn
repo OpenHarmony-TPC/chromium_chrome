@@ -131,6 +131,24 @@ group("assert_no_deps") {
   assert_no_deps = [ "//chrome/installer/util:strings" ]
 }
 
+if (is_ohos) {
+  ohos_common_sources = [
+    "app/chrome_main.cc",
+    "app/chrome_main_delegate.cc",
+    "app/chrome_main_delegate.h",
+  ]
+
+  group("ohos_common_deps") {
+    public_deps = [
+      ":dependencies",
+      "//components/crash/core/app:app",
+      "//components/crash/ohos:crash_features",
+      "//content/public/app",
+      "//ohos/adapter:adapter",
+    ]
+  }
+}
+
 if (!is_android && !is_mac) {
   group("chrome") {
     public_deps = [ ":chrome_initial" ]
@@ -281,6 +299,14 @@ if (!is_android && !is_mac) {
     } else if (use_aura) {
       # Non-Windows aura entrypoint.
       sources += [ "app/chrome_exe_main_aura.cc" ]
+    }
+
+    if (is_ohos) {
+      sources += ohos_common_sources
+
+      deps += [
+        ":ohos_common_deps",
+      ]
     }
 
     if (is_linux || is_chromeos) {
@@ -1477,6 +1503,20 @@ group("dependencies") {
       "//chrome/browser/ash/schedqos",
       "//chromeos/ash/components/memory",
       "//chromeos/dbus/constants",
+    ]
+  }
+}
+
+if (is_ohos) {
+  shared_library("chrome_main_web") {
+    testonly = true
+
+    sources = ohos_common_sources
+
+    defines = []
+
+    deps = [
+      ":ohos_common_deps",
     ]
   }
 }

@@ -73,6 +73,11 @@
 #include "sandbox/policy/switches.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/device_info/device_info.h"
+namespace device_info = ohos::adapter::device_info;
+#endif
+
 namespace logging {
 namespace {
 
@@ -218,7 +223,11 @@ LoggingDestination LoggingDestFromCommandLine(
     }
 #endif
   }
+#if BUILDFLAG(IS_OHOS)
+  return kDefaultLoggingMode | LOG_TO_SYSTEM_DEBUG_LOG;
+#else
   return kDefaultLoggingMode;
+#endif
 }
 
 }  // anonymous namespace

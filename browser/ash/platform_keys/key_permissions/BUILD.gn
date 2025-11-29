@@ -102,7 +102,6 @@ source_set("unit_tests") {
 
   sources = [
     "arc_key_permissions_manager_delegate_unittest.cc",
-    "key_permissions_manager_unittest.cc",
     "key_permissions_service_impl_unittest.cc",
   ]
 

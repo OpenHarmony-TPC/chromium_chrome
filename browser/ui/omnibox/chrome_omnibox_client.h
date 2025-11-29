@@ -135,6 +135,11 @@ class ChromeOmniboxClient final : public OmniboxClient {
   // Performs prerendering for |match|.
   void DoPrerender(const AutocompleteMatch& match);
 
+#if BUILDFLAG(IS_OHOS)
+  // Performs prefetch for |match|.
+  void DoPrefetch(const AutocompleteMatch& match);
+#endif
+
   // Performs preconnection for |match|.
   void DoPreconnect(const AutocompleteMatch& match);
 

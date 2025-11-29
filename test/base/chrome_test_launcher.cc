@@ -86,6 +86,10 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/test/test_support_ohos.h"
+#endif
+
 // static
 int ChromeTestSuiteRunner::RunTestSuiteInternal(ChromeTestSuite* test_suite) {
   // Browser tests are expected not to tear-down various globals.
@@ -277,6 +281,9 @@ int LaunchChromeTests(size_t parallel_jobs,
                       content::TestLauncherDelegate* delegate,
                       int argc,
                       char** argv) {
+#if BUILDFLAG(IS_OHOS)
+  base::RegisterPathProviderForOhosTest();
+#endif
   base::test::AllowCheckIsTestForTesting();
 
 #if BUILDFLAG(IS_MAC)

@@ -110,6 +110,12 @@
 #include "ui/ozone/public/ozone_platform.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/context/context_adapter.h"
+#include "ui/aura/window_tree_host.h"
+#include "ui/ozone/platform/ohos/host/ohos_event_source.h"
+#endif
+
 using content::OpenURLParams;
 using content::WebContents;
 
@@ -123,6 +129,10 @@ namespace {
 // creation and makes it easier to drag tabs out of a restored window that had
 // maximized size.
 constexpr int kMaximizedWindowInset = 10;  // DIPs.
+
+#if BUILDFLAG(IS_OHOS)
+constexpr int kDivideTabWidth = 2;
+#endif
 
 constexpr char kTabDraggingPresentationTimeHistogram[] =
     "Browser.TabDragging.PresentationTime";
@@ -498,6 +508,23 @@ TabDragController::Liveness TabDragController::Init(
     }
   }
 
+#if BUILDFLAG(IS_OHOS)
+  if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+    can_release_capture_ = false;
+    gfx::AcceleratedWidget source_context_widget_id =
+        GetWidgetIdFromTabContext(source_context);
+    auto* platform_event_source = ui::PlatformEventSource::GetInstance();
+    if (platform_event_source == nullptr) {
+      LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+                 << ", platform_event_source is null";
+      return Liveness::DELETED;
+    }
+    reinterpret_cast<ui::OhosEventSourceBase*>(platform_event_source)
+        ->StartTabDragging(source_context_widget_id);
+    dragging_tab_context_ = source_context_;
+  }
+#endif
+
   CHECK(ref);
   return Liveness::ALIVE;
 }
@@ -646,6 +673,16 @@ TabDragController::Liveness TabDragController::Drag(
         return StartSystemDnDSessionIfNecessary(attached_context_,
                                                 point_in_screen);
       }
+
+#if BUILDFLAG(IS_OHOS)
+      // In the normal mode of the pad,
+      // do not allow dragging tab to move window
+      if (ohos::adapter::ContextAdapter::GetInstance().IsNormalWindowMode()) {
+        current_state_ = DragState::kDraggingTabs;
+        EndDrag(END_DRAG_CANCEL);
+        return Liveness::DELETED;
+      }
+#endif
 
       did_restore_window_ =
           was_source_maximized_ ||
@@ -835,6 +872,13 @@ TabDragController::Liveness TabDragController::ContinueDragging(
   }
 
   if (target_context != attached_context_) {
+#if BUILDFLAG(IS_OHOS)
+    // In the normal mode of the pad,
+    // do not allow dragging a tab to form a new window
+    if (ohos::adapter::ContextAdapter::GetInstance().IsNormalWindowMode()) {
+      return Liveness::DELETED;
+    }
+#endif
     is_dragging_new_browser_ = false;
     did_restore_window_ = false;
 
@@ -886,6 +930,14 @@ TabDragController::Liveness TabDragController::DragBrowserToNewTabStrip(
     views::Widget* browser_widget = GetAttachedBrowserWidget();
     // Disable animations so that we don't see a close animation on aero.
     browser_widget->SetVisibilityChangedAnimationsEnabled(false);
+#if BUILDFLAG(IS_OHOS)
+    // After the tab window is dragged to the target window,
+    // the mouse event is transferred to the target window.
+    if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+      ShiftWindowEvent(target_context);
+      dragging_tab_context_ = target_context;
+    }
+#endif
     if (can_release_capture_) {
       browser_widget->ReleaseCapture();
     } else {
@@ -1426,6 +1478,9 @@ TabDragController::DetachIntoNewBrowserAndRunMoveLoop(
       attached_context_->CalculateBoundsForDraggedViews(
           drag_data_.attached_views());
 
+#if BUILDFLAG(IS_OHOS)
+  CalculateNewBrowserWindowPosition(point_in_screen);
+#endif
   Browser* browser = CreateBrowserForDrag(attached_context_, new_size);
 
   BrowserView* const dragged_browser_view =
@@ -1508,6 +1563,19 @@ TabDragController::DetachIntoNewBrowserAndRunMoveLoop(
       return Liveness::DELETED;
     }
   }
+
+#if BUILDFLAG(IS_OHOS)
+  // Move the mouse event to the new window after dragging the tab to a new window.
+  if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+    ShiftWindowEvent(attached_context_);
+    dragging_tab_context_ = attached_context_.get();
+    // Set capture for the new window
+    if (SetCapture(attached_context_) == Liveness::DELETED) {
+      return Liveness::DELETED;
+    }
+  }
+#endif
+
   return RunMoveLoop(point_in_screen, drag_offset);
 }
 
@@ -1584,6 +1652,14 @@ TabDragController::Liveness TabDragController::RunMoveLoop(
     // Move the tabs into position.
     StartDraggingTabsSession(false, GetCursorScreenPoint());
     attached_context_->GetWidget()->Activate();
+#if BUILDFLAG(IS_OHOS)
+    // When you drag a tab across a window to the
+    // other window, the dragging operation ends
+    if (source_context_ != attached_context_ &&
+        event_source_ == ui::mojom::DragEventSource::kTouch) {
+      EndAcrossWindowTabDrag();
+    }
+#endif
     // Activate may trigger a focus loss, destroying us.
     if (!ref) {
       return Liveness::DELETED;
@@ -1991,6 +2067,14 @@ void TabDragController::RevertTabAt(size_t drag_index) {
     source_context_->GetTabStripModel()->InsertDetachedTabAt(
         target_index, std::move(detached_tab),
         (tab_data.pinned ? AddTabTypes::ADD_PINNED : 0), existing_group);
+#if BUILDFLAG(IS_OHOS)
+    // After the dragged tab window is restored to the original window,
+    // the event needs to be transferred.
+    if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+      ShiftWindowEvent(source_context_);
+      dragging_tab_context_ = source_context_;
+    }
+#endif
   } else {
     // The Tab was moved within the TabDragContext where the drag
     // was initiated. Move it back to the starting location.
@@ -2024,7 +2108,8 @@ void TabDragController::CompleteDrag() {
     }
 
     // If source window was maximized - maximize the new window as well.
-#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_MAC)
+#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_MAC) && \
+    !BUILDFLAG(IS_OHOS)
     // Keeping maximized state breaks snap to Grid on Windows when dragging
     // tabs from maximized windows. TODO:(crbug.com/727051) Explore doing this
     // for other desktop OS's. kMaximizedStateRetainedOnTabDrag in
@@ -2036,7 +2121,8 @@ void TabDragController::CompleteDrag() {
     if (was_source_maximized_ || was_source_fullscreen_) {
       MaximizeAttachedWindow();
     }
-#endif  // !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_MAC)
+#endif  // !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_MAC) &&
+        // !BUILDFLAG(IS_OHOS)
   }
   attached_context_->StoppedDragging();
 
@@ -2352,7 +2438,11 @@ Browser* TabDragController::CreateBrowserForDrag(TabDragContext* source,
   // Web app windows have their own initial size independent of the source
   // browser window.
   if (!open_as_web_app) {
+#if BUILDFLAG(IS_OHOS)
+    create_params.initial_bounds = gfx::Rect(new_browser_window_position_, initial_size);
+#else
     create_params.initial_bounds = gfx::Rect(initial_size);
+#endif
   }
   create_params.user_gesture = true;
   create_params.in_tab_dragging = true;
@@ -2389,7 +2479,7 @@ Browser* TabDragController::CreateBrowserForDrag(TabDragContext* source,
       ->GetWidget()
       ->SetCanAppearInExistingFullscreenSpaces(true);
 
-#if !BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_OHOS)
   // If the window is created maximized then the bounds we supplied are ignored.
   // We need to reset them again so they are honored. On ChromeOS, this is
   // handled in NativeWidgetAura.
@@ -2409,6 +2499,8 @@ gfx::Point TabDragController::GetCursorScreenPoint() {
   DCHECK(widget_window->GetRootWindow());
   return aura::Env::GetInstance()->GetLastPointerPoint(
       event_source_, widget_window, /*fallback=*/last_point_in_screen_);
+#elif BUILDFLAG(IS_OHOS)
+  return display::Screen::GetScreen()->GetCursorScreenPoint(display_id_);
 #else
   return display::Screen::GetScreen()->GetCursorScreenPoint();
 #endif
@@ -2454,7 +2546,17 @@ TabDragController::Liveness TabDragController::GetLocalProcessWindow(
   }
 #endif
   base::WeakPtr<TabDragController> ref(weak_factory_.GetWeakPtr());
+#if BUILDFLAG(IS_OHOS)
+  if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+    *window = window_finder_->GetLocalProcessWindowAtPoint(
+        screen_point, exclude, display_id_);
+  } else {
+    *window =
+        window_finder_->GetLocalProcessWindowAtPoint(screen_point, exclude);
+  }
+#else
   *window = window_finder_->GetLocalProcessWindowAtPoint(screen_point, exclude);
+#endif
   return ref ? Liveness::ALIVE : Liveness::DELETED;
 }
 
@@ -2675,3 +2777,79 @@ void TabDragController::OnDragDropClientDestroying() {
   drag_drop_client_observation_.Reset();
 }
 #endif  // defined(USE_AURA)
+
+#if BUILDFLAG(IS_OHOS)
+void TabDragController::EndAcrossWindowTabDrag() {
+  auto* event_source = ui::PlatformEventSource::GetInstance();
+  if (event_source == nullptr) {
+    LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__ << ", event_source is null";
+    return;
+  }
+  gfx::AcceleratedWidget widget_id =
+      GetWidgetIdFromTabContext(attached_context_);
+  LOG(INFO) << "[OhosTabDrag] " << __FUNCTION__ << ", widget_id:" << widget_id;
+  reinterpret_cast<ui::OhosEventSourceBase*>(event_source)
+      ->SimulateTouchUp(widget_id);
+}
+
+gfx::AcceleratedWidget TabDragController::GetWidgetIdFromTabContext(
+    TabDragContext* tab_context) {
+  gfx::AcceleratedWidget widget_id = gfx::kNullAcceleratedWidget;
+  if (tab_context == nullptr || tab_context->GetWidget() == nullptr) {
+    LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+               << ", tab_context or widget is null";
+    return widget_id;
+  }
+  views::Widget* widget = tab_context->GetWidget();
+  if (widget->GetNativeWindow() == nullptr ||
+      widget->GetNativeWindow()->GetHost() == nullptr) {
+    LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+               << ", GetNativeWindow or GetHost is null";
+    return widget_id;
+  }
+  aura::WindowTreeHost* window_tree_host = widget->GetNativeWindow()->GetHost();
+  return window_tree_host->GetAcceleratedWidget();
+}
+
+void TabDragController::ShiftWindowEvent(TabDragContext* target_tab_context) {
+  gfx::AcceleratedWidget source_widget_id =
+      GetWidgetIdFromTabContext(dragging_tab_context_);
+  gfx::AcceleratedWidget target_widget_id =
+      GetWidgetIdFromTabContext(target_tab_context);
+  auto* event_source = ui::PlatformEventSource::GetInstance();
+  if (event_source == nullptr) {
+    LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+               << ", event_source is null";
+    return;
+  }
+  LOG(INFO) << "[OhosTabDrag] " << __FUNCTION__
+            << ", source_widget_id:" << source_widget_id
+            << ", target_widget_id:" << target_widget_id;
+  if (source_widget_id == gfx::kNullAcceleratedWidget ||
+      target_widget_id == gfx::kNullAcceleratedWidget) {
+    LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+               << ", source_widget_id or target_widget_id is null";
+    return;
+  }
+  reinterpret_cast<ui::OhosEventSourceBase*>(event_source)
+      ->ShiftWindowEvent(source_widget_id, target_widget_id);
+}
+
+TabDragController::Liveness TabDragController::Drag(
+    const gfx::Point& point_in_screen,
+    const int32_t display_id) {
+  if (display_id != display_id_) {
+    LOG(INFO) << "[OhosTabDrag]" << __FUNCTION__
+              << ", display_id:" << display_id
+              << ", display_id_:" << display_id_;
+  }
+  display_id_ = display_id;
+  return Drag(point_in_screen);
+}
+
+void TabDragController::CalculateNewBrowserWindowPosition(
+    gfx::Point position_in_screen) {
+  gfx::Vector2d drag_offset = CalculateWindowDragOffset();
+  new_browser_window_position_ = position_in_screen - drag_offset;
+}
+#endif

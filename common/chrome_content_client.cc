@@ -100,6 +100,10 @@
 #include "chrome/common/media/chrome_media_drm_bridge_client.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/common/media/ohos_chrome_media_drm_bridge_client.h"
+#endif
+
 namespace {
 
 #if BUILDFLAG(ENABLE_NACL)
@@ -375,6 +379,12 @@ media::MediaDrmBridgeClient* ChromeContentClient::GetMediaDrmBridgeClient() {
   return new ChromeMediaDrmBridgeClient();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(ENABLE_WISEPLAY)
+media::OhosMediaDrmBridgeClient* ChromeContentClient::GetOhosMediaDrmBridgeClient() {
+  return new OhosChromeMediaDrmBridgeClient();
+}
+#endif  // BUILDFLAG(ENABLE_WISEPLAY)
 
 void ChromeContentClient::ExposeInterfacesToBrowser(
     scoped_refptr<base::SequencedTaskRunner> io_task_runner,

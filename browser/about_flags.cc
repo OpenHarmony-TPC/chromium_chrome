@@ -404,17 +404,18 @@ using flags_ui::kOsCrOS;
 using flags_ui::kOsCrOSOwnerOnly;
 using flags_ui::kOsLinux;
 using flags_ui::kOsMac;
+using flags_ui::kOsOhOS;
 using flags_ui::kOsWin;
 
 namespace about_flags {
 
 namespace {
 
-const unsigned kOsAll = kOsMac | kOsWin | kOsLinux | kOsCrOS | kOsAndroid;
-const unsigned kOsDesktop = kOsMac | kOsWin | kOsLinux | kOsCrOS;
+const unsigned kOsAll = kOsMac | kOsWin | kOsLinux | kOsCrOS | kOsAndroid | kOsOhOS;
+const unsigned kOsDesktop = kOsMac | kOsWin | kOsLinux | kOsCrOS | kOsOhOS;
 
 #if defined(USE_AURA)
-const unsigned kOsAura = kOsWin | kOsLinux | kOsCrOS;
+const unsigned kOsAura = kOsWin | kOsLinux | kOsCrOS | kOsOhOS;
 #endif  // USE_AURA
 
 #if defined(USE_AURA)
@@ -425,6 +426,19 @@ const FeatureEntry::Choice kPullToRefreshChoices[] = {
     {flag_descriptions::kPullToRefreshEnabledTouchscreen,
      switches::kPullToRefresh, "2"}};
 #endif  // USE_AURA
+
+#if BUILDFLAG(IS_OHOS)
+const FeatureEntry::FeatureParam kLocationProviderManagerModePlatformOnly[] = {
+    {"LocationProviderManagerMode", "PlatformOnly"}};
+const FeatureEntry::FeatureParam kLocationProviderManagerModeHybridPlatform[] =
+    {{"LocationProviderManagerMode", "HybridPlatform"}};
+
+const FeatureEntry::FeatureVariation kLocationProviderManagerVariations[] = {
+    {"PlatformOnly", kLocationProviderManagerModePlatformOnly,
+     std::size(kLocationProviderManagerModePlatformOnly), nullptr},
+    {"HybridPlatform", kLocationProviderManagerModeHybridPlatform,
+     std::size(kLocationProviderManagerModeHybridPlatform), nullptr}};
+#endif  // BUILDFLAG(IS_OHOS)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
     BUILDFLAG(IS_CHROMEOS)
@@ -6396,6 +6410,12 @@ const FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kArcVmmSwapKBShortcutDesc, kOsCrOS,
      FEATURE_VALUE_TYPE(arc::kVmmSwapKeyboardShortcut)},
 #endif  // BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_OHOS)
+    {"enable-generic-sensor-extra-classes",
+     flag_descriptions::kEnableGenericSensorExtraClassesName,
+     flag_descriptions::kEnableGenericSensorExtraClassesDescription, kOsAll,
+     FEATURE_VALUE_TYPE(features::kGenericSensorExtraClasses)},
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
     {ui_devtools::switches::kEnableUiDevTools,
@@ -8637,14 +8657,14 @@ const FeatureEntry kFeatureEntries[] = {
      FEATURE_VALUE_TYPE(ash::assistant::features::kAssistantAudioEraser)},
 #endif
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_OHOS)
     {"enable-location-provider-manager",
      flag_descriptions::kLocationProviderManagerName,
-     flag_descriptions::kLocationProviderManagerDescription, kOsMac | kOsWin,
+     flag_descriptions::kLocationProviderManagerDescription, kOsMac | kOsWin | kOsOhOS,
      FEATURE_WITH_PARAMS_VALUE_TYPE(features::kLocationProviderManager,
                                     kLocationProviderManagerVariations,
                                     "LocationProviderManager")},
-#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_OHOS)
 
 #if !BUILDFLAG(IS_ANDROID)
     {"mute-notification-snooze-action",
@@ -12682,6 +12702,20 @@ const FeatureEntry kFeatureEntries[] = {
                                     kPageActionsMigrationVariations,
                                     "PageActionsMigration")},
     // Add new entries above this line.
+
+#if BUILDFLAG(IS_OHOS)
+    {"network-preload",
+     flag_descriptions::kNetworkPreloadName,
+     flag_descriptions::kNetworkPreloadDescription, kOsOhOS,
+     FEATURE_VALUE_TYPE(net::features::kEnableNetworkPreload)},
+    {"omnibox-prerender-prefetch-preconnect",
+     flag_descriptions::kOmniboxPreName,
+     flag_descriptions::kOmniboxPreDescription, kOsOhOS,
+     FEATURE_VALUE_TYPE(net::features::kEnableOmniboxPre)},
+    {"parallel-before-unload", flag_descriptions::kParallelBeforeUnloadName,
+     flag_descriptions::kParallelBeforeUnloadDescription, kOsOhOS,
+     FEATURE_VALUE_TYPE(features::kParallelBeforeUnload)},
+#endif  // BUILDFLAG(IS_OHOS)
 
     // NOTE: Adding a new flag requires adding a corresponding entry to enum
     // "LoginCustomFlags" in tools/metrics/histograms/enums.xml. See "Flag

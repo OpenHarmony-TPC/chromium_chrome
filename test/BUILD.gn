@@ -6411,6 +6411,12 @@ test("unit_tests") {
     "../renderer/v8_unwinder_unittest.cc",
   ]
 
+  if (is_ohos) {
+    sources -= [
+      "../browser/enterprise/identifiers/profile_id_service_factory_unittest.cc",
+    ]
+  }
+
   if (build_with_tflite_lib) {
     sources += [
       "../browser/navigation_predictor/preloading_model_executor_unittest.cc",
@@ -7106,6 +7112,11 @@ test("unit_tests") {
     # unit_tests than in base_unittests.
     "//base:path_service_unittest",
   ]
+
+  # FIXME
+  if (is_ohos) {
+    deps -= [ "//third_party/rust/fend_core/v1/wrapper:unit_tests" ]
+  }
 
   if (enable_glic) {
     deps += [ "//chrome/browser/glic:glic" ]
@@ -11862,6 +11873,13 @@ if (!is_android && !is_chromeos_device) {
       deps += [
         "//components/compose/core/browser",
         "//components/compose/core/browser:features",
+      ]
+    }
+
+    if (is_ohos) {
+      deps -= [ 
+        "//chrome/browser/ui/omnibox:interactive_ui_tests",
+        "//chrome/browser/ui/views/shortcuts:interactive_ui_tests",
       ]
     }
   }

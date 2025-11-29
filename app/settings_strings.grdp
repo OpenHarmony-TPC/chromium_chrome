@@ -167,12 +167,12 @@
       Show a quick highlight on the focused object
     </message>
   </if>
-  <if expr="is_win or is_linux or is_macosx">
+  <if expr="is_win or is_linux or is_macosx or is_ohos">
     <message name="IDS_SETTINGS_OVERSCROLL_HISTORY_NAVIGATION_TITLE" desc="Title for the overscroll history navigation setting, which allows you to navigate back and forward by swiping left or right with a touch device.">
       Swipe between pages
     </message>
   </if>
-  <if expr="is_win or is_linux">
+  <if expr="is_win or is_linux or is_ohos">
     <message name="IDS_SETTINGS_OVERSCROLL_HISTORY_NAVIGATION_SUBTITLE" desc="Subtitle for the overscroll history navigation setting, which allows you to navigate back and forward by swiping left or right with a touch device.">
       Navigate back and forward with a swipe gesture
     </message>
@@ -671,7 +671,7 @@
     Fill at least one field before saving
   </message>
 
-  <if expr="is_win or is_macosx">
+  <if expr="is_win or is_macosx or is_ohos">
     <message name="IDS_AUTOFILL_MANAGE_PASSKEYS_LABEL" desc="The label on a button that a user can click in order to see and delete passkeys saved on their computer. For consistency, the word 'passkey' is in the glossary with translations already suggested.">
       Manage passkeys
     </message>
@@ -688,6 +688,11 @@
   </if>
   <if expr="is_macosx">
     <message name="IDS_AUTOFILL_MANAGE_PASSKEYS_SUB_TITLE_MAC" desc="A warning on a page where the user can see and delete passkeys saved on their computer. For consistency, the word 'passkey' is in the glossary with translations already suggested.">
+      These passkeys are only saved on this device. They aren't saved to your Google Account.
+    </message>
+  </if>
+  <if expr="is_ohos">
+    <message name="IDS_AUTOFILL_MANAGE_PASSKEYS_SUB_TITLE_OHOS" desc="A warning on a page where the user can see and delete passkeys saved on their computer. For consistency, the word 'passkey' is in the glossary with translations already suggested.">
       These passkeys are only saved on this device. They aren't saved to your Google Account.
     </message>
   </if>
@@ -717,6 +722,12 @@
   <message name="IDS_SETTINGS_PASSWORD_HIDE_PASSWORD_A11Y" desc="The ARIA (accessibility) message for the 'Hide Password' button, which sits in every row of the password list. For this row does not include a password, only information of the account. Hides password when clicked.">
     Hide password for <ph name="USERNAME">$1<ex>example@gmail.com</ex></ph> on <ph name="DOMAIN">$2<ex>www.google.com</ex></ph>
   </message>
+
+  <if expr="is_ohos">
+    <message name="IDS_SETTINGS_PASSWORDS_BIOMETRIC_AUTHENTICATION_FOR_FILLING_TOGGLE_LABEL_OHOS" desc="Label for a toggle that allows users to be authenticate using their TouchID or any other means of authentication when logging into webpages.">
+      Use your screen lock when filling passwords
+    </message>
+  </if>
 
   <!-- Default Browser Page -->
   <if expr="not is_chromeos">
@@ -1852,6 +1863,12 @@
   <!-- Secure Connections -->
   <message name="IDS_SETTINGS_SECURE_CONNECTIONS_SECTION_TITLE" desc="Title of the Secure Connections section in Security settings">
     Secure connections
+  </message>
+  <message name="IDS_ADVANCES_SECURITY_MODE" desc="On the privacy and security settings page, the tab of advanced security mode">
+    Secure shield mode
+  </message>
+  <message name="IDS_ADVANCES_SECURITY_MODE_DESCRIPTION" desc="On the privacy and security settings page, detailed description of advanced security mode">
+    Secure Shield mode protects your device and personal information against highly sophisticated cyberattacks. Only enable this if you believe you are being personally targeted by an attack.	
   </message>
   <message name="IDS_SETTINGS_HTTPS_ONLY_MODE" desc="Text for HTTPS-First Mode toggle in Security settings">
     Always use secure connections

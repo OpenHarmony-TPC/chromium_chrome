@@ -208,9 +208,14 @@ void AddInfoBarsIfNecessary(Browser* browser,
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 
   // The default browser prompt should only be shown after the first run.
+#if !BUILDFLAG(IS_OHOS)
   if (is_first_run == chrome::startup::IsFirstRun::kNo) {
     ShowDefaultBrowserPrompt(profile,
                              std::move(default_browser_prompt_shown_callback));
   }
+#else
+  ShowDefaultBrowserPrompt(profile,
+                           std::move(default_browser_prompt_shown_callback));
+#endif
 #endif
 }

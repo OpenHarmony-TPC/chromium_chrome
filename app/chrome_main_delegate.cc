@@ -197,7 +197,7 @@
 #endif
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
 #include "chrome/browser/policy/policy_path_parser.h"
 #include "components/crash/core/app/crashpad.h"
 #endif
@@ -224,6 +224,10 @@
 #if BUILDFLAG(IS_OZONE)
 #include "ui/ozone/public/ozone_platform.h"
 #endif  // BUILDFLAG(IS_OZONE)
+
+#if BUILDFLAG(IS_OHOS)
+#include "components/crash/ohos/features.h"
+#endif
 
 base::LazyInstance<ChromeContentGpuClient>::DestructorAtExit
     g_chrome_content_gpu_client = LAZY_INSTANCE_INITIALIZER;
@@ -410,7 +414,7 @@ void HandleHelpSwitches(const base::CommandLine& command_line) {
 }
 #endif  // BUILDFLAG(IS_LINUX)
 
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_OHOS)
 void SIGTERMProfilingShutdown(int signal) {
   content::Profiling::Stop();
   struct sigaction sigact;
@@ -427,7 +431,7 @@ void SetUpProfilingShutdownHandler() {
   sigemptyset(&sigact.sa_mask);
   CHECK_EQ(sigaction(SIGTERM, &sigact, nullptr), 0);
 }
-#endif  // !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_OHOS)
 
 #endif  // BUILDFLAG(IS_POSIX)
 
@@ -854,7 +858,10 @@ std::optional<int> ChromeMainDelegate::PostEarlyInitialization(
   std::string actual_locale = LoadLocalState(
       chrome_feature_list_creator, invoked_in_browser->is_running_test);
   chrome_feature_list_creator->SetApplicationLocale(actual_locale);
+#if !BUILDFLAG(IS_OHOS)
+  // TODO:OHOS
   chrome_feature_list_creator->OverrideCachedUIStrings();
+#endif
 
   // On Chrome OS, initialize D-Bus clients that depend on feature list.
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1115,8 +1122,11 @@ std::optional<int> ChromeMainDelegate::BasicStartupComplete() {
 
   content::Profiling::ProcessStarted();
 
+#if !BUILDFLAG(IS_OHOS)
+  // TODO:OHOS
   // Setup tracing sampler profiler as early as possible at startup if needed.
   SetupTracing();
+#endif
 
 #if BUILDFLAG(IS_WIN)
   v8_crashpad_support::SetUp();
@@ -1458,10 +1468,16 @@ void ChromeMainDelegate::PreSandboxStartup() {
     } else {
       base::android::InitJavaExceptionReporterForChildProcess();
     }
+#elif BUILDFLAG(IS_OHOS)
+    if (crashpad::ohos::features::IsCrashpadEnabled()) {
+      crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
+    }
 #else
     crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
+#if !defined(__MUSL__)
     crash_reporter::SetFirstChanceExceptionHandler(
         v8::TryHandleWebAssemblyTrapPosix);
+#endif
 #endif  // BUILDFLAG(IS_ANDROID)
   }
 #endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
@@ -1600,8 +1616,10 @@ void ChromeMainDelegate::ZygoteForked() {
   std::string process_type =
       command_line->GetSwitchValueASCII(switches::kProcessType);
   crash_reporter::InitializeCrashpad(false, process_type);
+#if !defined(__MUSL__)
   crash_reporter::SetFirstChanceExceptionHandler(
       v8::TryHandleWebAssemblyTrapPosix);
+#endif
 
   // Reset the command line for the newly spawned process.
   crash_keys::SetCrashKeysFromCommandLine(*command_line);

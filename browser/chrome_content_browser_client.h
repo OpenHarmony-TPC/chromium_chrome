@@ -1057,6 +1057,10 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   bool ShouldUseFirstPartyStorageKey(const url::Origin& origin) override;
 
+#if BUILDFLAG(IS_OHOS)
+  bool IsAdvancedSecurityMode() override;
+#endif
+
   std::unique_ptr<content::ResponsivenessCalculatorDelegate>
   CreateResponsivenessCalculatorDelegate() override;
 

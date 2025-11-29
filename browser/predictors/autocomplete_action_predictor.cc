@@ -41,6 +41,10 @@
 #include "third_party/blink/public/common/features.h"
 #include "ui/base/page_transition_types.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "net/base/features.h"
+#endif
+
 namespace {
 void SetIsNavigationInDomainCallback(content::PreloadingData* preloading_data) {
   preloading_data->SetIsNavigationInDomainCallback(
@@ -72,11 +76,23 @@ namespace {
 const base::FeatureParam<double> kPrerenderDUIConfidenceCutoff{
     &features::kAutocompleteActionPredictorConfidenceCutoff,
     "prerender_dui_confidence_cutoff", 0.5};
+
+#if BUILDFLAG(IS_OHOS)
+const base::FeatureParam<double> kPrefetchDUIConfidenceCutoff{
+    &features::kAutocompleteActionPredictorConfidenceCutoff,
+    "prefetch_dui_confidence_cutoff", 0.4};
+#endif
+
 const base::FeatureParam<double> kPreconnectConfidenceCutoff{
     &features::kAutocompleteActionPredictorConfidenceCutoff,
     "preconnect_dui_confidence_cutoff", 0.3};
 
 const int kMinimumNumberOfHits = 3;
+ 
+#if BUILDFLAG(IS_OHOS)
+const int kMinimumHitsOfPreFetch = 1;
+#endif
+ 
 const size_t kMaximumTransitionalMatchesSize = 1024 * 1024;  // 1 MB.
 
 // As of February 2019, 99% of users on Windows have less than 2000 entries in
@@ -224,11 +240,34 @@ void AutocompleteActionPredictor::StartPrerendering(
       prerender_manager->StartPrerenderDirectUrlInput(url, *preloading_attempt);
 }
 
+#if BUILDFLAG(IS_OHOS)
+void AutocompleteActionPredictor::TryPrefetch(
+    const GURL& url,
+    content::WebContents& web_contents,
+    const gfx::Size& size) {
+  PrerenderManager::CreateForWebContents(&web_contents);
+  auto* prerender_manager = PrerenderManager::FromWebContents(&web_contents);
+  direct_url_input_prerender_handle_ = prerender_manager->StartPrerenderNewTabPage(
+      url,
+      chrome_preloading_predictor::kMouseHoverOrMouseDownOnNewTabPage);
+}
+#endif
+ 
 AutocompleteActionPredictor::Action
 AutocompleteActionPredictor::DecideActionByConfidence(double confidence) {
   Action action = ACTION_NONE;
+#if BUILDFLAG(IS_OHOS)
+  if (!base::FeatureList::IsEnabled(net::features::kEnableOmniboxPre)) {
+    LOG(INFO) << "Omnibox prerender-prefetch-preconnect is disable";
+    return action;
+  }
+#endif
   if (confidence >= kPrerenderDUIConfidenceCutoff.Get()) {
     action = ACTION_PRERENDER;
+#if BUILDFLAG(IS_OHOS)
+  } else if (confidence >= kPrefetchDUIConfidenceCutoff.Get()) {
+    action = ACTION_PREFETCH;
+#endif
   } else if (confidence >= kPreconnectConfidenceCutoff.Get()) {
     action = ACTION_PRECONNECT;
   }
@@ -610,8 +649,12 @@ void AutocompleteActionPredictor::FinishInitialization() {
 double AutocompleteActionPredictor::CalculateConfidence(
     const std::u16string& user_text,
     const AutocompleteMatch& match) const {
+#if BUILDFLAG(IS_OHOS)
+  const std::u16string lower_user_text(base::i18n::ToLower(user_text));
+  const DBCacheKey key = { lower_user_text, match.destination_url };
+#else
   const DBCacheKey key = { user_text, match.destination_url };
-
+#endif
   if (user_text.length() < kMinimumUserTextLength) {
     return 0.0;
   }
@@ -627,9 +670,20 @@ double AutocompleteActionPredictor::CalculateConfidence(
 double AutocompleteActionPredictor::CalculateConfidenceForDbEntry(
     DBCacheMap::const_iterator iter) const {
   const DBCacheValue& value = iter->second;
+
+#if BUILDFLAG(IS_OHOS)
+  if (value.number_of_hits < kMinimumNumberOfHits) {
+    if (value.number_of_hits >= kMinimumHitsOfPreFetch) {
+      return kPrefetchDUIConfidenceCutoff.Get();
+    } else {
+      return 0.0;
+    }
+  }
+#else
   if (value.number_of_hits < kMinimumNumberOfHits) {
     return 0.0;
   }
+#endif
 
   const double number_of_hits = static_cast<double>(value.number_of_hits);
   return number_of_hits / (number_of_hits + value.number_of_misses);

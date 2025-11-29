@@ -1116,7 +1116,7 @@ const char kDevicePostureDescription[] =
     "Enables Device Posture API (foldable devices)";
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
 const char kDocumentPictureInPictureAnimateResizeName[] =
     "Document Picture-in-Picture Animate Resize";
 const char kDocumentPictureInPictureAnimateResizeDescription[] =
@@ -1128,7 +1128,7 @@ const char kAudioDuckingDescription[] =
     "Allows Chrome to duck (attenuate) "
     "audio from other tabs.";
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
 
 const char kViewportSegmentsName[] = "Viewport Segments API";
 const char kViewportSegmentsDescription[] =
@@ -1583,6 +1583,15 @@ const char kEnableGamepadMultitouchName[] = "Gamepad Multitouch";
 const char kEnableGamepadMultitouchDescription[] =
     "Enables the ability to receive input from multitouch surface "
     "on the gamepad object.";
+
+#if BUILDFLAG(IS_OHOS)
+const char kEnableGenericSensorExtraClassesName[] =
+    "Generic Sensor Extra Classes";
+const char kEnableGenericSensorExtraClassesDescription[] =
+    "Enables an extra set of sensor classes based on Generic Sensor API, which "
+    "expose previously unavailable platform features, i.e. AmbientLightSensor "
+    "and Magnetometer interfaces.";
+#endif
 
 const char kEnableGpuServiceLoggingName[] = "Enable gpu service logging";
 const char kEnableGpuServiceLoggingDescription[] =
@@ -4123,7 +4132,8 @@ const char kTranslateForceTriggerOnEnglishDescription[] =
     "Force the Translate Triggering on English pages experiment to be enabled "
     "with the selected language model active.";
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_OHOS)
 const char kEnableHistorySyncOptinName[] = "History Sync Opt-in";
 const char kEnableHistorySyncOptinDescription[] =
     "Enables the History Sync Opt-in screen on Desktop platforms. The screen "
@@ -4134,7 +4144,8 @@ const char kTranslationAPIName[] = "Experimental translation API";
 const char kTranslationAPIDescription[] =
     "Enables the on-device language translation API. "
     "See https://github.com/WICG/translation-api/blob/main/README.md";
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+        // BUILDFLAG(IS_OHOS)
 
 const char kTreatInsecureOriginAsSecureName[] =
     "Insecure origins treated as secure";
@@ -6106,7 +6117,7 @@ const char kBlockRootWindowAccessibleNameChangeEventDescription[] =
 
 // Windows and Mac -------------------------------------------------------------
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
 
 const char kEnforceSystemEchoCancellationName[] =
     "Enable System Audio Echo Cancellation (AEC)";
@@ -6125,7 +6136,7 @@ const char kLocationProviderManagerDescription[] =
 
 const char kUseAngleGL[] = "OpenGL";
 
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
 
 //  Android  --------------------------------------------------
 
@@ -8626,6 +8637,17 @@ const char kAllowUserInstalledChromeAppsDescription[] =
     "Enables users to override the Chrome Apps deprecation for apps installed "
     "by users.";
 #endif
+
+#if BUILDFLAG(IS_OHOS)
+const char kNetworkPreloadName[] = "Network Preload";
+const char kNetworkPreloadDescription[] = "Enable network preload";
+const char kOmniboxPreName[] = "Omnibox Prerender-Prefetch-Preconnect";
+const char kOmniboxPreDescription[] = "Enable(Default) Omnibox Prerender-Prefetch-Preconnect";
+const char kParallelBeforeUnloadName [] = "Parallel processing of beforeunload";
+const char kParallelBeforeUnloadDescription [] = "Controls whether to enable "
+    "parallel processing of the beforeunload event during rendering. "
+    "Enabled by default.";
+#endif  // BUILDFLAG(IS_OHOS)
 
 // ============================================================================
 // Don't just add flags to the end, put them in the right section in

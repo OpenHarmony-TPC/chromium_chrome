@@ -4830,7 +4830,13 @@ void BrowserView::OnWidgetMove() {
     static_cast<StatusBubbleViews*>(status_bubble)->Reposition();
   }
 
+  // In the free multi-window mode of OHOS PAD, the system has the capability to
+  // pull up the virtual keyboard and actively avoid it. When active avoidance is
+  // triggered, a position change event is initiated, which may result in the
+  // Bookmark being closed here. Hence not close here.
+#if !BUILDFLAG(IS_OHOS)
   BookmarkBubbleView::Hide();
+#endif // !BUILDFLAG(IS_OHOS)
 
   // Close the omnibox popup, if any.
   LocationBarView* location_bar_view = GetLocationBarView();
@@ -5763,13 +5769,23 @@ void BrowserView::ProcessFullscreen(bool fullscreen, const int64_t display_id) {
   // TODO(b/40276379): Move this out from ProcessFullscreen.
   RequestFullscreen(fullscreen, display_id);
 
-#if !BUILDFLAG(IS_MAC)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_OHOS)
   // On Mac platforms, FullscreenStateChanged() is invoked from
   // BrowserFrameMac::OnWindowFullscreenTransitionComplete when the asynchronous
   // fullscreen transition is complete.
+  // On Ohos,FullscreenStateChanged() is invoked from
+  // BrowserDesktopWindowTreeHostOhos::OnFullscreenModeChanged when the
+  // fullscreen state is updated after.
   // On other platforms, there is no asynchronous transition so we synchronously
   // invoke the function.
   FullscreenStateChanged();
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  // When you exit the fullscreen, the asynchronous mode is not affected.
+  if (!fullscreen) {
+    FullscreenStateChanged();
+  }
 #endif
 
   // Undo our anti-jankiness hacks and force a re-layout.
