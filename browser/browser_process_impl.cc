@@ -263,6 +263,7 @@
 #endif
 
 #if BUILDFLAG(ARKWEB_ADBLOCK)
+#include "chrome/common/chrome_paths.h"
 #include "ohos_cef_ext/libcef/browser/subresource_filter/adblock_ruleset_manager.h"
 #endif
 
@@ -1512,7 +1513,9 @@ void BrowserProcessImpl::CreateSubresourceFilterRulesetService() {
   }
 
   base::FilePath user_data_dir;
-  base::PathService::Get(base::DIR_CACHE, &user_data_dir);
+  if (!base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir)) {
+    base::PathService::Get(base::DIR_CACHE, &user_data_dir);
+  }
 
 #if BUILDFLAG(ARKWEB_ADBLOCK)
   subresource_filter_ruleset_service_ =
