@@ -6332,7 +6332,8 @@ ChromeContentBrowserClient::CreateURLLoaderThrottles(
 
 #if BUILDFLAG(IS_ARKWEB)
   ChromeContentBrowserClientUtils::AppLinkThrottleExt(request, result,
-                                                      frame_tree_node_id);
+                                                      frame_tree_node_id,
+                                                      is_prerendering);
 #endif
 
 #if BUILDFLAG(ARKWEB_NETWORK_LOAD)
