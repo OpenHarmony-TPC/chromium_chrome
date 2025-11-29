@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/feature_list.h"
+#include "base/time/time.h"
 #include "build/branding_buildflags.h"
 #include "components/compose/buildflags.h"
 
@@ -17,6 +18,7 @@
 // Trigger identifiers currently used; duplicates not allowed.
 extern const char kHatsSurveyTriggerAutofillAddress[];
 extern const char kHatsSurveyTriggerAutofillAddressUserPerception[];
+extern const char kHatsSurveyTriggerAutofillAddressUserDeclinedSuggestion[];
 extern const char kHatsSurveyTriggerAutofillCreditCardUserPerception[];
 extern const char kHatsSurveyTriggerAutofillPasswordUserPerception[];
 extern const char kHatsSurveyTriggerAutofillCard[];
@@ -29,16 +31,9 @@ extern const char kHatsSurveyTriggerDownloadWarningPageHeed[];
 extern const char kHatsSurveyTriggerDownloadWarningPageIgnore[];
 extern const char kHatsSurveyTriggerHistoryEmbeddings[];
 extern const char kHatsSurveyTriggerLensOverlayResults[];
-extern const char kHatsSurveyTriggerM1AdPrivacyPage[];
-extern const char kHatsSurveyTriggerM1TopicsSubpage[];
-extern const char kHatsSurveyTriggerM1FledgeSubpage[];
-extern const char kHatsSurveyTriggerM1AdMeasurementSubpage[];
 extern const char kHatsSurveyTriggerNtpModules[];
 extern const char kHatsSurveyTriggerNtpPhotosModuleOptOut[];
-extern const char kHatsSurveyTriggerPerformanceControlsPerformance[];
-extern const char kHatsSurveyTriggerPerformanceControlsBatteryPerformance[];
-extern const char kHatsSurveyTriggerPerformanceControlsMemorySaverOptOut[];
-extern const char kHatsSurveyTriggerPerformanceControlsBatterySaverOptOut[];
+extern const char kHatsSurveyTriggerPerformanceControlsPPM[];
 extern const char kHatsSurveyTriggerPrivacyGuide[];
 extern const char kHatsSurveyTriggerRedWarning[];
 extern const char kHatsSurveyTriggerSafetyHubOneOffExperimentControl[];
@@ -71,6 +66,7 @@ extern const char kHatsSurveyTriggerWhatsNew[];
 #else
 extern const char kHatsSurveyTriggerAndroidStartupSurvey[];
 extern const char kHatsSurveyTriggerQuickDelete[];
+extern const char kHatsSurveyTriggerClearBrowsingData[];
 extern const char kHatsSurveyTriggerSafetyHubAndroid[];
 extern const char kHatsSurveyOrganicTriggerSafetyHubAndroid[];
 #endif  // #if !BUILDFLAG(IS_ANDROID)
@@ -78,16 +74,41 @@ extern const char kHatsSurveyOrganicTriggerSafetyHubAndroid[];
 extern const char kHatsSurveyTriggerPermissionsPrompt[];
 extern const char kHatsSurveyTriggerPlusAddressAcceptedFirstTimeCreate[];
 extern const char kHatsSurveyTriggerPlusAddressCreatedMultiplePlusAddresses[];
+extern const char
+    kHatsSurveyTriggerPlusAddressCreatedPlusAddressViaManualFallback[];
 extern const char kHatsSurveyTriggerPlusAddressDeclinedFirstTimeCreate[];
+extern const char
+    kHatsSurveyTriggerPlusAddressDidChooseEmailOverPlusAddressSurvey[];
+extern const char
+    kHatsSurveyTriggerPlusAddressDidChoosePlusAddressOverEmailSurvey[];
+extern const char
+    kHatsSurveyTriggerPlusAddressFilledPlusAddressViaManualFallback[];
 extern const char kHatsSurveyTriggerPrivacySandboxSentimentSurvey[];
+extern const char kHatsSurveyTriggerPrivacySandboxActSurvey[];
+extern const char kHatsSurveyTriggerMerchantTrustEvaluationControlSurvey[];
+extern const char kHatsSurveyTriggerMerchantTrustEvaluationExperimentSurvey[];
+extern const char kHatsSurveyTriggerMerchantTrustLearnSurvey[];
+extern const char kHatsSurveyTriggerOnFocusZpsSuggestionsHappiness[];
+extern const char kHatsSurveyTriggerOnFocusZpsSuggestionsUtility[];
 
 extern const char kHatsSurveyTriggerTesting[];
 // The Trigger ID for a test HaTS Next survey which is available for testing
 // and demo purposes when the migration feature flag is enabled.
 extern const char kHatsNextSurveyTriggerIDTesting[];
 
+class Profile;
+
 namespace hats {
 struct SurveyConfig {
+  // LINT.IfChange(RequestedBrowserType)
+  enum RequestedBrowserType {
+    // A standard survey, shown only in regular mode.
+    kRegular = 0,
+    // An Incognito survey, shown only in incognito.
+    kIncognito = 1,
+  };
+  // LINT.ThenChange(//chrome/browser/ui/android/hats/java/src/org/chromium/chrome/browser/ui/hats/SurveyConfig.java:RequestedBrowserType)
+
   // Constructs a SurveyConfig by inspecting |feature|. This includes checking
   // if the feature is enabled, as well as inspecting the feature parameters
   // for the survey probability, and if |presupplied_trigger_id| is not
@@ -104,7 +125,9 @@ struct SurveyConfig {
       const std::vector<std::string>& product_specific_bits_data_fields = {},
       const std::vector<std::string>& product_specific_string_data_fields = {},
       bool log_responses_to_uma = false,
-      bool log_responses_to_ukm = false);
+      bool log_responses_to_ukm = false,
+      RequestedBrowserType requested_browser_type =
+          RequestedBrowserType::kRegular);
 
   SurveyConfig();
   SurveyConfig(const SurveyConfig&);
@@ -142,6 +165,14 @@ struct SurveyConfig {
   // response.
   std::vector<std::string> product_specific_string_data_fields;
 
+  // Requested browser type decides where the survey can be shown.
+  RequestedBrowserType requested_browser_type = RequestedBrowserType::kRegular;
+
+  // The feature associated with the HaTS survey. It is used to check if the
+  // survey is in the dogfood stage, meaning that it's launched only for a
+  // subset of users controlled by some Google group.
+  raw_ptr<const base::Feature> survey_feature;
+
   // Returns |hats_histogram_name| if |hats_histogram_name| is an non-empty
   // std::string that is prefixed with Feedback.HappinessTrackingSurvey.
   // Otherwise, returns std::nullopt.
@@ -152,6 +183,33 @@ struct SurveyConfig {
   // optional greater than 0. Otherwise, returns std::nullopt.
   static std::optional<uint64_t> ValidateHatsSurveyUkmId(
       const std::optional<uint64_t> hats_survey_ukm_id);
+
+  // Initializes the cooldown period override for this survey config if
+  // `cooldown_period_override` is not zero.
+  void SetCooldownPeriodOverride(
+      const base::TimeDelta& cooldown_period_override);
+
+  // Returns the cooldown override for this survey only if the survey feature
+  // is enabled for the current profile and the feature is in the dogfood stage,
+  // i.e. it's controlled by some Google group.
+  std::optional<base::TimeDelta> GetCooldownPeriodOverride(
+      Profile* profile) const;
+
+  // A convenience method to check if the survey config has an effective
+  // cooldown override period.
+  bool IsCooldownOverrideEnabled(Profile* profile) const;
+
+ private:
+  // Overrides the default time between a user seeing a survey and being able to
+  // see it again. When this value is non-zero, the date when other survey
+  // impressions happened is ignored. This value should not be used directly
+  // because the cooldown period override should be effective only if the survey
+  // feature is launched for a specific Google group, see
+  // `IsCooldownOverrideEnabled()`.
+  // TODO: crbug.com/348137782 - Either make this a global constant or add a
+  // verification logic that no 2 different cooldown period overrides are
+  // configured.
+  std::optional<base::TimeDelta> cooldown_period_override_;
 };
 
 using SurveyConfigs = base::flat_map<std::string, SurveyConfig>;

@@ -15,13 +15,14 @@ build_webui("build") {
     "certificate_viewer.html",
   ]
 
-  non_web_component_files = [
+  ts_files = [
+    "browser_proxy.ts",
     "certificate_viewer.ts",
-    "constraint_list.ts",
-    "constraint_list.html.ts",
+    "modifications_panel.html.ts",
+    "modifications_panel.ts",
   ]
 
-  css_files = [ "constraint_list.css" ]
+  css_files = [ "modifications_panel.css" ]
 
   ts_composite = true
   ts_definitions = [ "//tools/typescript/definitions/chrome_send.d.ts" ]

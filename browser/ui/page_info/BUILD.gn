@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-assert(is_win || is_mac || is_linux || is_chromeos || is_android || is_ohos)
+assert(is_win || is_mac || is_linux || is_chromeos || is_android)
 
 source_set("page_info") {
   sources = [
@@ -17,6 +17,7 @@ source_set("page_info") {
   } else {
     sources += [
       "about_this_site_side_panel.h",
+      "merchant_trust_side_panel.h",
       "page_info_dialog.h",
       "page_info_infobar_delegate.h",
     ]
@@ -38,7 +39,10 @@ source_set("impl") {
     "chrome_page_info_delegate.cc",
     "chrome_page_info_ui_delegate.cc",
   ]
-  deps = []
+  deps = [
+    "//chrome/browser/privacy_sandbox:headers",
+    "//chrome/browser/serial",
+  ]
 
   if (is_android) {
     sources += [ "chrome_page_info_client.cc" ]
@@ -50,6 +54,7 @@ source_set("impl") {
     deps += [
       "//chrome/browser/extensions",
       "//chrome/browser/hid",
+      "//chrome/browser/smart_card:smart_card",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/web_applications",
     ]
@@ -62,7 +67,6 @@ source_set("impl") {
   deps += [
     ":page_info",
     "//base",
-    "//build:chromeos_buildflags",
     "//chrome/app:branded_strings",
     "//chrome/browser:browser_process",
     "//chrome/browser/content_settings",

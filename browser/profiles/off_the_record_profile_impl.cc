@@ -52,7 +52,6 @@
 #include "chrome/browser/ssl/stateful_ssl_host_state_delegate_factory.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/transition_manager/full_browser_transition_manager.h"
-#include "chrome/browser/ui/webui/extensions/extension_icon_source.h"
 #include "chrome/browser/ui/zoom/chrome_zoom_level_otr_delegate.h"
 #include "chrome/browser/webid/federated_identity_api_permission_context.h"
 #include "chrome/browser/webid/federated_identity_api_permission_context_factory.h"
@@ -91,11 +90,11 @@
 #include "media/mojo/services/video_decode_perf_history.h"
 #include "net/http/transport_security_state.h"
 #include "ppapi/buildflags/buildflags.h"
-#include "storage/browser/database/database_tracker.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "components/prefs/scoped_user_pref_update.h"
 #else
+#include "chrome/browser/accessibility/tree_fixing/pref_names.h"
 #include "chrome/browser/profiles/guest_profile_creation_logger.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -106,9 +105,13 @@
 #include "chromeos/constants/pref_names.h"
 #endif
 
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "chrome/browser/extensions/extension_special_storage_policy.h"
+#include "chrome/browser/ui/webui/extensions/extension_icon_source.h"
+#endif
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/extension_service.h"
-#include "chrome/browser/extensions/extension_special_storage_policy.h"
 #include "components/guest_view/browser/guest_view_manager.h"
 #include "extensions/browser/api/web_request/extension_web_request_event_router.h"
 #include "extensions/browser/extension_pref_store.h"
@@ -169,9 +172,15 @@ OffTheRecordProfileImpl::OffTheRecordProfileImpl(
         profile_, ProfileKeepAliveOrigin::kOffTheRecordProfile);
   }
 
-  prefs_ = CreateIncognitoPrefServiceSyncable(
-      PrefServiceSyncableFromProfile(profile_),
-      CreateExtensionPrefStore(profile_, true));
+  if (otr_profile_id.IsDevTools()) {
+    prefs_ =
+        CreateAutomationPrefService(PrefServiceSyncableFromProfile(profile_),
+                                    CreateExtensionPrefStore(profile_, true));
+  } else {
+    prefs_ = CreateIncognitoPrefServiceSyncable(
+        PrefServiceSyncableFromProfile(profile_),
+        CreateExtensionPrefStore(profile_, true));
+  }
 
   key_->SetPrefs(prefs_.get());
   SimpleKeyMap::GetInstance()->Associate(this, key_.get());
@@ -199,11 +208,13 @@ void OffTheRecordProfileImpl::Init() {
   ChromePluginServiceFilter::GetInstance()->RegisterProfile(this);
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   // Make the chrome//extension-icon/ resource available.
   content::URLDataSource::Add(
       this, std::make_unique<extensions::ExtensionIconSource>(profile_));
+#endif
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   extensions::WebRequestEventRouter::OnOTRBrowserContextCreated(profile_, this);
 #endif
 
@@ -213,6 +224,12 @@ void OffTheRecordProfileImpl::Init() {
 
   // AccessibilityLabelsService has a default prefs behavior in incognito.
   AccessibilityLabelsService::InitOffTheRecordPrefs(this);
+
+#if !BUILDFLAG(IS_ANDROID)
+  // To avoid using any server-side tree fixing service, it is disabled in
+  // Incognito profiles.
+  tree_fixing::InitOffTheRecordPrefs(this);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   // The ad service might not be available for some irregular profiles, like the
   // System Profile.
@@ -251,11 +268,6 @@ OffTheRecordProfileImpl::~OffTheRecordProfileImpl() {
 #endif
 
   FullBrowserTransitionManager::Get()->OnProfileDestroyed(this);
-
-  // Records the number of active KeyedServices for SystemProfile right before
-  // shutting them down.
-  if (IsSystemProfile())
-    ProfileMetrics::LogSystemProfileKeyedServicesCount(this);
 
   // The SimpleDependencyManager should always be passed after the
   // BrowserContextDependencyManager. This is because the KeyedService instances
@@ -455,7 +467,7 @@ content::BrowserPluginGuestManager* OffTheRecordProfileImpl::GetGuestManager() {
 
 storage::SpecialStoragePolicy*
 OffTheRecordProfileImpl::GetSpecialStoragePolicy() {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   return GetExtensionSpecialStoragePolicy();
 #else
   return NULL;

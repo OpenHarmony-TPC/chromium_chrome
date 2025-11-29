@@ -49,7 +49,7 @@ export class DiceWebSigninInterceptAppElement extends
     };
   }
 
-  protected interceptionParameters_: InterceptionParameters = {
+  protected accessor interceptionParameters_: InterceptionParameters = {
     headerText: '',
     bodyTitle: '',
     bodyText: '',
@@ -59,12 +59,14 @@ export class DiceWebSigninInterceptAppElement extends
     headerTextColor: '',
     interceptedProfileColor: '',
     primaryProfileColor: '',
-    interceptedAccount: {pictureUrl: '', avatarBadge: ''},
-    primaryAccount: {pictureUrl: '', avatarBadge: ''},
+    interceptedAccount: {pictureUrl: '', avatarBadge: '', userBadgeAltText: ''},
+    primaryAccount: {pictureUrl: '', avatarBadge: '', userBadgeAltText: ''},
     useV2Design: false,
     showManagedDisclaimer: false,
+    interceptedProfileBadgeColor: '',
+    primaryProfileBadgeColor: '',
   };
-  protected acceptButtonClicked_: boolean = false;
+  protected accessor acceptButtonClicked_: boolean = false;
   private diceWebSigninInterceptBrowserProxy_:
       DiceWebSigninInterceptBrowserProxy =
           DiceWebSigninInterceptBrowserProxyImpl.getInstance();
@@ -103,6 +105,10 @@ export class DiceWebSigninInterceptAppElement extends
     this.style.setProperty(
         '--primary-profile-color', parameters.primaryProfileColor);
     this.style.setProperty('--header-text-color', parameters.headerTextColor);
+    this.style.setProperty(
+      '--intercepted-profile-avatar-badge-color', parameters.interceptedProfileBadgeColor);
+    this.style.setProperty(
+      '--primary-profile-avatar-badge-color', parameters.primaryProfileBadgeColor);
   }
 
   protected sanitizeInnerHtml_(text: string): TrustedHTML {

@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "ash/accelerators/keyboard_code_util.h"
-#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
 #include "ash/public/mojom/accelerator_info.mojom-shared.h"
 #include "ash/public/mojom/accelerator_info.mojom.h"
@@ -140,8 +139,12 @@ std::optional<int> GetStringIdForIconCode(IconCode icon_code) {
       return IDS_SHORTCUT_CUSTOMIZATION_ICON_LABEL_OPEN_SEARCH;
     case ash::SearchResultTextItem::kKeyboardShortcutAccessibility:
       return IDS_SHORTCUT_CUSTOMIZATION_ICON_LABEL_ACCESSIBILITY;
-    case ash::SearchResultTextItem::kKeyboardShortcutKeyboardRightAlt:
+    case ash::SearchResultTextItem::kKeyboardShortcutKeyboardQuickInsert:
       return IDS_KEYBOARD_QUICK_INSERT_LABEL;
+    case ash::SearchResultTextItem::kKeyboardShortcutDoNotDisturb:
+      return IDS_SHORTCUT_CUSTOMIZATION_ICON_LABEL_DO_NOT_DISTURB;
+    case ash::SearchResultTextItem::kKeyboardShortcutCameraAccessToggle:
+      return IDS_SHORTCUT_CUSTOMIZATION_ICON_LABEL_CAMERA_ACCESS_TOGGLE;
   }
 }
 
@@ -274,10 +277,14 @@ std::optional<IconCode> KeyboardShortcutResult::GetIconCodeFromKeyboardCode(
       return IconCode::kKeyboardShortcutMicrophone;
     case (KeyboardCode::VKEY_ACCESSIBILITY):
       return IconCode::kKeyboardShortcutAccessibility;
+    case KeyboardCode::VKEY_DO_NOT_DISTURB:
+      return IconCode::kKeyboardShortcutDoNotDisturb;
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-    case (KeyboardCode::VKEY_RIGHT_ALT):
-      return IconCode::kKeyboardShortcutKeyboardRightAlt;
+    case (KeyboardCode::VKEY_QUICK_INSERT):
+      return IconCode::kKeyboardShortcutKeyboardQuickInsert;
 #endif
+    case (KeyboardCode::VKEY_CAMERA_ACCESS_TOGGLE):
+      return IconCode::kKeyboardShortcutCameraAccessToggle;
     default:
       return std::nullopt;
   }
@@ -304,6 +311,8 @@ KeyboardShortcutResult::GetIconCodeByKeyString(std::u16string_view key_string) {
        {u"BrowserHome", IconCode::kKeyboardShortcutBrowserHome},
        {u"BrowserRefresh", IconCode::kKeyboardShortcutBrowserRefresh},
        {u"BrowserSearch", IconCode::kKeyboardShortcutBrowserSearch},
+       {u"CameraAccessToggle", IconCode::kKeyboardShortcutCameraAccessToggle},
+       {u"DoNotDisturb", IconCode::kKeyboardShortcutDoNotDisturb},
        {u"EmojiPicker", IconCode::kKeyboardShortcutEmojiPicker},
        {u"EnableOrToggleDictation", IconCode::kKeyboardShortcutDictationToggle},
        {u"KeyboardBacklightToggle",
@@ -328,12 +337,11 @@ KeyboardShortcutResult::GetIconCodeByKeyString(std::u16string_view key_string) {
        {u"Power", IconCode::kKeyboardShortcutPower},
        {u"PrintScreen", IconCode::kKeyboardShortcutSnapshot},
        {u"PrivacyScreenToggle", IconCode::kKeyboardShortcutPrivacyScreenToggle},
-       {u"RightAlt", IconCode::kKeyboardShortcutKeyboardRightAlt},
+       {u"QuickInsert", IconCode::kKeyboardShortcutKeyboardQuickInsert},
        {u"Settings", IconCode::kKeyboardShortcutSettings},
        {u"ViewAllApps", IconCode::kKeyboardShortcutAllApps},
        {u"ZoomToggle", IconCode::kKeyboardShortcutZoom}});
 
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   static constexpr auto kRefreshIconCodes =
       base::MakeFixedFlatMap<std::u16string_view, IconCode>(
           {{u"LaunchApplication1",
@@ -347,7 +355,6 @@ KeyboardShortcutResult::GetIconCodeByKeyString(std::u16string_view key_string) {
       it_refresh != kRefreshIconCodes.end()) {
     return it_refresh->second;
   }
-#endif
 
   auto it = kIconCodes.find(key_string);
   if (it == kIconCodes.end()) {
@@ -592,12 +599,8 @@ KeyboardShortcutResult::~KeyboardShortcutResult() = default;
 void KeyboardShortcutResult::Open(int event_flags) {
   // Pass the action and category of the selected shortcuts to the app so that
   // the same shortcuts will be displayed in the app.
-  if (ash::features::IsSearchCustomizableShortcutsInLauncherEnabled()) {
-    chrome::ShowShortcutCustomizationApp(profile_, accelerator_action_,
-                                         accelerator_category_);
-  } else {
-    chrome::ShowShortcutCustomizationApp(profile_);
-  }
+  chrome::ShowShortcutCustomizationApp(profile_, accelerator_action_,
+                                       accelerator_category_);
 }
 
 void KeyboardShortcutResult::UpdateIcon() {

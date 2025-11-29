@@ -9,6 +9,8 @@
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/system/toast_data.h"
 #include "ash/public/cpp/system/toast_manager.h"
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -29,6 +31,7 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/user_manager/user.h"
 #include "google_apis/gaia/gaia_auth_util.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -55,11 +58,13 @@ constexpr char kAccountRemovedToastId[] =
   const std::optional<int> account_type_value =
       dictionary.FindInt("accountType");
   DCHECK(account_type_value);
+
+  // Currently, we only support `kGaia` account type. Should a new type be added
+  // in the future, consider removing the `CHECK_EQ()` below and handling the
+  // new type accordingly.
   const int account_type_int = *account_type_value;
-  DCHECK((account_type_int >=
-          static_cast<int>(account_manager::AccountType::kGaia)) &&
-         (account_type_int <=
-          static_cast<int>(account_manager::AccountType::kActiveDirectory)));
+  CHECK_EQ(account_type_int,
+           static_cast<int>(account_manager::AccountType::kGaia));
   const account_manager::AccountType account_type =
       static_cast<account_manager::AccountType>(account_type_int);
 
@@ -68,14 +73,13 @@ constexpr char kAccountRemovedToastId[] =
 
 bool IsSameAccount(const ::account_manager::AccountKey& account_key,
                    const AccountId& account_id) {
-  switch (account_key.account_type()) {
-    case account_manager::AccountType::kGaia:
-      return (account_id.GetAccountType() == AccountType::GOOGLE) &&
-             (account_id.GetGaiaId() == account_key.id());
-    case account_manager::AccountType::kActiveDirectory:
-      return (account_id.GetAccountType() == AccountType::ACTIVE_DIRECTORY) &&
-             (account_id.GetObjGuid() == account_key.id());
-  }
+  // Currently, we only support `kGaia` account type. Should a new type be added
+  // in the future, consider removing the `CHECK_EQ()` below and handling the
+  // new type accordingly.
+  CHECK_EQ(account_key.account_type(), account_manager::AccountType::kGaia);
+
+  return (account_id.GetAccountType() == AccountType::GOOGLE) &&
+         (account_id.GetGaiaId() == GaiaId(account_key.id()));
 }
 
 void ShowToast(const std::string& id,
@@ -312,7 +316,8 @@ base::Value::List AccountManagerUIHandler::GetSecondaryGaiaAccounts(
     }
 
     AccountInfo maybe_account_info =
-        identity_manager_->FindExtendedAccountInfoByGaiaId(account_key.id());
+        identity_manager_->FindExtendedAccountInfoByGaiaId(
+            GaiaId(account_key.id()));
     if (maybe_account_info.IsEmpty()) {
       // This account hasn't propagated to IdentityManager yet. When this
       // happens, `IdentityManager` will call `OnRefreshTokenUpdatedForAccount`

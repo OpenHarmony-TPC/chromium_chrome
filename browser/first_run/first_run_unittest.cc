@@ -37,21 +37,14 @@ base::FilePath GetSentinelFilePath() {
 }  // namespace
 
 class FirstRunTest : public testing::Test {
- public:
-  FirstRunTest(const FirstRunTest&) = delete;
-  FirstRunTest& operator=(const FirstRunTest&) = delete;
-
  protected:
-  FirstRunTest() : user_data_dir_override_(chrome::DIR_USER_DATA) {}
-  ~FirstRunTest() override {}
-
   void TearDown() override {
     first_run::ResetCachedSentinelDataForTesting();
     Test::TearDown();
   }
 
  private:
-  base::ScopedPathOverride user_data_dir_override_;
+  base::ScopedPathOverride user_data_dir_override_{chrome::DIR_USER_DATA};
 };
 
 TEST_F(FirstRunTest, SetupInitialPrefsFromInstallPrefs_NoVariationsSeed) {
@@ -241,8 +234,7 @@ TEST_F(FirstRunTest, CreateSentinelIfNeeded_SkippedIfSuppressed) {
   EXPECT_FALSE(IsChromeFirstRun());
 }
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_OHOS)
-// This test relies on Posix file permissions.
+#if BUILDFLAG(IS_POSIX)  // This test relies on Posix file permissions.
 TEST_F(FirstRunTest, CreateSentinelIfNeeded_FileSystemError) {
   base::HistogramTester histogram_tester;
 

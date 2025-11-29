@@ -27,6 +27,7 @@ import androidx.fragment.app.FragmentTransaction;
 import androidx.lifecycle.Lifecycle.State;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
+import androidx.preference.TwoStatePreference;
 
 import org.chromium.base.CallbackController;
 import org.chromium.base.CallbackUtils;
@@ -43,7 +44,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.password_manager.GmsUpdateLauncher;
 import org.chromium.chrome.browser.password_manager.account_storage_toggle.AccountStorageToggleFragmentArgs;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
+import org.chromium.chrome.browser.regional_capabilities.RegionalCapabilitiesServiceFactory;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.ChromeManagedPreferenceDelegate;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
@@ -68,7 +69,7 @@ import org.chromium.components.browser_ui.settings.ChromeBaseCheckBoxPreference;
 import org.chromium.components.browser_ui.settings.ChromeBasePreference;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
-import org.chromium.components.search_engines.TemplateUrlService;
+import org.chromium.components.regional_capabilities.RegionalCapabilitiesService;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
@@ -87,9 +88,9 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.widget.ButtonCompat;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Settings fragment to customize Sync options (data types, encryption). Corresponds to
@@ -257,14 +258,10 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
 
         setHasOptionsMenu(true);
 
-        mShouldReplaceSyncSettingsWithAccountSettings =
-                ChromeFeatureList.isEnabled(
-                                ChromeFeatureList.REPLACE_SYNC_PROMOS_WITH_SIGN_IN_PROMOS)
-                        && !mSyncService.hasSyncConsent();
+        mShouldReplaceSyncSettingsWithAccountSettings = !mSyncService.hasSyncConsent();
 
         if (mShouldReplaceSyncSettingsWithAccountSettings) {
-            // Set title with an empty string to have no title on the top of the page.
-            mPageTitle.set("");
+            mPageTitle.set(getString(R.string.account_settings_title));
 
             SettingsUtils.addPreferencesFromResource(
                     this, R.xml.unified_account_settings_preferences);
@@ -283,16 +280,13 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
                             findPreference(PREF_IDENTITY_ERROR_CARD_PREFERENCE);
             identityErrorCardPreference.initialize(profile, this);
 
-            if (ChromeFeatureList.isEnabled(ChromeFeatureList.ENABLE_BATCH_UPLOAD_FROM_SETTINGS)) {
-                mBatchUploadCardPreference =
-                        (BatchUploadCardPreference)
-                                findPreference(PREF_BATCH_UPLOAD_CARD_PREFERENCE);
-                mBatchUploadCardPreference.initialize(
-                        getActivity(),
-                        profile,
-                        ((ModalDialogManagerHolder) getActivity()).getModalDialogManager());
-                mBatchUploadCardPreference.setSnackbarManagerSupplier(mSnackbarManagerSupplier);
-            }
+            mBatchUploadCardPreference =
+                    (BatchUploadCardPreference) findPreference(PREF_BATCH_UPLOAD_CARD_PREFERENCE);
+            mBatchUploadCardPreference.initialize(
+                    getActivity(),
+                    profile,
+                    ((ModalDialogManagerHolder) getActivity()).getModalDialogManager());
+            mBatchUploadCardPreference.setSnackbarManagerSupplier(mSnackbarManagerSupplier);
 
             if (mSyncService.isSyncDisabledByEnterprisePolicy()) {
                 ChromeBasePreference settingsSyncDisabledByAdministrator =
@@ -309,12 +303,14 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
             mSyncTypeSwitchPreferencesMap.put(
                     UserSelectableType.BOOKMARKS,
                     findPreference(PREF_ACCOUNT_SECTION_BOOKMARKS_TOGGLE));
+
             // HISTORY and TABS are bundled in the same switch in the new settings panel.
-            mSyncTypeSwitchPreferencesMap.put(
-                    UserSelectableType.HISTORY,
-                    findPreference(PREF_ACCOUNT_SECTION_HISTORY_TOGGLE));
-            mSyncTypeSwitchPreferencesMap.put(
-                    UserSelectableType.TABS, findPreference(PREF_ACCOUNT_SECTION_HISTORY_TOGGLE));
+            ChromeSwitchPreference historyAndTabsToggle =
+                    (ChromeSwitchPreference) findPreference(PREF_ACCOUNT_SECTION_HISTORY_TOGGLE);
+            mSyncTypeSwitchPreferencesMap.put(UserSelectableType.HISTORY, historyAndTabsToggle);
+            mSyncTypeSwitchPreferencesMap.put(UserSelectableType.TABS, historyAndTabsToggle);
+            historyAndTabsToggle.setViewId(R.id.history_and_tabs_toggle);
+
             ChromeSwitchPreference passwordsToggle =
                     (ChromeSwitchPreference) findPreference(PREF_ACCOUNT_SECTION_PASSWORDS_TOGGLE);
             mSyncTypeSwitchPreferencesMap.put(UserSelectableType.PASSWORDS, passwordsToggle);
@@ -559,6 +555,13 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
         super.onStart();
         mSyncService.addSyncStateChangedListener(this);
         IdentityServicesProvider.get().getIdentityManager(getProfile()).addObserver(this);
+
+        // This is necessary to refresh the batch upload card if the user leaves Chrome open on the
+        // settings screen, changes their screen lock settings, and then returns to Chrome.
+        if (mShouldReplaceSyncSettingsWithAccountSettings) {
+            mBatchUploadCardPreference.hideBatchUploadCardAndUpdate();
+        }
+        updateSyncPreferences();
     }
 
     @Override
@@ -566,19 +569,6 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
         super.onStop();
         mSyncService.removeSyncStateChangedListener(this);
         IdentityServicesProvider.get().getIdentityManager(getProfile()).removeObserver(this);
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        // This is necessary to refresh the batch upload card if the user leaves Chrome open on the
-        // settings screen, changes their screen lock settings, and then returns to Chrome.
-        if (mShouldReplaceSyncSettingsWithAccountSettings
-                && ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.ENABLE_BATCH_UPLOAD_FROM_SETTINGS)) {
-            mBatchUploadCardPreference.hideBatchUploadCardAndUpdate();
-        }
-        updateSyncPreferences();
     }
 
     @Override
@@ -745,13 +735,17 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
     }
 
     private Set<Integer> getUserSelectedTypes() {
-        return (mShouldReplaceSyncSettingsWithAccountSettings
+        Map<Integer, ? extends TwoStatePreference> map =
+                mShouldReplaceSyncSettingsWithAccountSettings
                         ? mSyncTypeSwitchPreferencesMap
-                        : mSyncTypeCheckBoxPreferencesMap)
-                .entrySet().stream()
-                        .filter(e -> e.getValue().isChecked())
-                        .map(Map.Entry::getKey)
-                        .collect(Collectors.toSet());
+                        : mSyncTypeCheckBoxPreferencesMap;
+        Set<Integer> ret = new HashSet<>();
+        for (var entry : map.entrySet()) {
+            if (entry.getValue().isChecked()) {
+                ret.add(entry.getKey());
+            }
+        }
+        return ret;
     }
 
     private void displayPassphraseTypeDialog() {
@@ -1150,7 +1144,6 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
                         REQUEST_CODE_TRUSTED_VAULT_RECOVERABILITY_DEGRADED);
                 return;
             case SyncError.SYNC_SETUP_INCOMPLETE:
-                mSyncService.setSyncRequested();
                 mSyncService.setInitialSyncFeatureSetupComplete(
                         SyncFirstSetupCompleteSource.ADVANCED_FLOW_INTERRUPTED_TURN_SYNC_ON);
                 return;
@@ -1192,9 +1185,9 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
     }
 
     private boolean isEeaChoiceCountry() {
-        TemplateUrlService templateUrlService =
-                TemplateUrlServiceFactory.getForProfile(getProfile());
-        return templateUrlService.isEeaChoiceCountry();
+        RegionalCapabilitiesService regionalCapabilities =
+                RegionalCapabilitiesServiceFactory.getForProfile(getProfile());
+        return regionalCapabilities.isInEeaCountry();
     }
 
     /**
@@ -1204,5 +1197,10 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
      */
     private void finishCurrentSettings() {
         SettingsNavigationFactory.createSettingsNavigation().finishCurrentSettings(this);
+    }
+
+    @Override
+    public @AnimationType int getAnimationType() {
+        return AnimationType.PROPERTY;
     }
 }

@@ -21,6 +21,7 @@
 #include "components/live_caption/translation_util.h"
 #include "components/soda/constants.h"
 #include "components/soda/soda_installer.h"
+#include "media/mojo/mojom/speech_recognition.mojom-shared.h"
 #include "media/mojo/mojom/speech_recognition.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 
@@ -108,19 +109,24 @@ class SystemLiveCaptionService
 
   void OnNonChromeOutputStopped() override;
 
+ protected:
+  virtual media::mojom::RecognizerClientType GetRecognizerClientType();
+
  private:
   void OnTranslationCallback(const std::string& cached_translation,
                              const std::string& original_transcription,
                              const std::string& source_language,
                              const std::string& target_language,
                              bool is_final,
-                             const std::string& result);
+                             const ::captions::TranslateEvent& result);
+
+  void AttemptDispatch(const std::string& text, bool is_final);
 
   // Binds to the correct observer list based on `source_`
   void BindToBrowserInterface();
   // Gets language code based on the preference this keyed_service
   // is listening to.
-  std::string GetPrimaryLanguageCode() const;
+  virtual std::string GetPrimaryLanguageCode() const;
   // The source language code of the audio stream.
   std::string source_language_;
   SpeechRecognizerStatus current_recognizer_status_ =
@@ -155,10 +161,6 @@ class SystemLiveCaptionService
 
   // The number of characters sent to the translation service.
   int characters_translated_ = 0;
-
-  // The number of characters omitted from the translation by the text
-  // stabilization policy. Used by metrics only.
-  int translation_characters_erased_ = 0;
 
   // If set during a test this number will be used to determine the
   // number of non chrome output streams.

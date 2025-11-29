@@ -8,9 +8,7 @@
 
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/certificate_manager/certificate_manager_utils.h"
-#include "chrome/browser/ui/webui/certificate_manager_localized_strings_provider.h"
 #include "chrome/browser/ui/webui/plural_string_handler.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
@@ -20,16 +18,13 @@
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
-
-#if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
+#include "ui/webui/webui_util.h"
 #include "chrome/browser/ui/webui/certificate_manager/client_cert_sources.h"
-#endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ui/webui/certificate_provisioning_ui_handler.h"
-#include "chrome/browser/ui/webui/certificates_handler.h"
 #include "components/user_manager/user_manager.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace {
 
@@ -37,26 +32,6 @@ const char kCRSLearnMoreLink[] =
     "https://chromium.googlesource.com/chromium/src/+/main/net/data/ssl/"
     "chrome_root_store/faq.md";
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-void AddCertificateManagerStrings(content::WebUIDataSource* html_source) {
-  struct {
-    const char* name;
-    int id;
-  } localized_strings[] = {
-      {"cancel", IDS_CANCEL},
-      {"close", IDS_CLOSE},
-      {"edit", IDS_SETTINGS_EDIT},
-      {"moreActions", IDS_SETTINGS_MORE_ACTIONS},
-      {"ok", IDS_OK},
-  };
-  for (const auto& entry : localized_strings) {
-    html_source->AddLocalizedString(entry.name, entry.id);
-  }
-  certificate_manager::AddLocalizedStrings(html_source);
-}
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
 void AddCertificateManagerV2Strings(content::WebUIDataSource* html_source) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"ok", IDS_OK},
@@ -127,6 +102,37 @@ void AddCertificateManagerV2Strings(content::WebUIDataSource* html_source) {
       {"certificateManagerV2PlatformCertsManageLinkAriaDescription",
        IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM_CERTS_MANAGE_LINK_ARIA_DESCRIPTION},
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_CHROMEOS)
+      {"certificateProvisioningProcessId",
+       IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_PROCESS_ID},
+      {"certificateProvisioningListHeader",
+       IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_LIST_HEADER},
+      {"certificateProvisioningRefresh",
+       IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_REFRESH},
+      {"certificateProvisioningReset",
+       IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_RESET},
+      {"certificateProvisioningDetails",
+       IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_DETAILS},
+      {"certificateProvisioningAdvancedSectionTitle",
+       IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_ADVANCED},
+      {"certificateProvisioningProfileName",
+       IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_CERTIFICATE_PROFILE_NAME},
+      {"certificateProvisioningProfileId",
+       IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_CERTIFICATE_PROFILE_ID},
+      {"certificateProvisioningStatus",
+       IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_STATUS},
+      {"certificateProvisioningStatusId",
+       IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_STATUS_ID},
+      {"certificateProvisioningLastUpdate",
+       IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_LAST_UPDATE},
+      {"certificateProvisioningLastUnsuccessfulStatus",
+       IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_LAST_UNSUCCESSFUL_STATUS},
+      {"certificateProvisioningPublicKey", IDS_CERT_DETAILS_SUBJECT_KEY},
+      // For ChromeOS provisioning UI
+      {"moreActions", IDS_SETTINGS_MORE_ACTIONS},
+      {"menu", IDS_MENU},
+      {"close", IDS_CLOSE},
+#endif  // BUILDFLAG(IS_CHROMEOS)
       {"certificateManagerV2PlatformCertsViewLink",
        IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM_CERTS_VIEW_LINK},
       {"certificateManagerV2Platform",
@@ -142,10 +148,12 @@ void AddCertificateManagerV2Strings(content::WebUIDataSource* html_source) {
       {"certificateManagerV2CertHashCopyAriaLabel",
        IDS_CERTIFICATE_MANAGER_V2_CERT_HASH_COPY_ARIA_LABEL},
       {"certificateManagerV2UserCertsTitle",
-       IDS_SETTINGS_CERTIFICATE_MANAGER_V2_USER_CERTS_TITLE}};
+       IDS_SETTINGS_CERTIFICATE_MANAGER_V2_USER_CERTS_TITLE},
+      {"certificateManagerV2ListExpandAriaLabel",
+       IDS_CERTIFICATE_MANAGER_V2_LIST_EXPAND_ARIA_LABEL},
+  };
   html_source->AddLocalizedStrings(kLocalizedStrings);
 }
-#endif  // BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
 
 }  // namespace
 
@@ -161,60 +169,32 @@ CertificateManagerUI::CertificateManagerUI(content::WebUI* web_ui)
   webui::EnableTrustedTypesCSP(source);
   webui::SetJSModuleDefaults(source);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  if (!base::FeatureList::IsEnabled(features::kEnableCertManagementUIV2)) {
-    // Serve the old certificate manager
-    AddCertificateManagerStrings(source);
-
-    source->UseStringsJs();
-    source->SetDefaultResource(IDR_CERT_MANAGER_DIALOG_HTML);
-
-    source->AddBoolean("isGuest",
-                       user_manager::UserManager::Get()->IsLoggedInAsGuest() ||
-                           user_manager::UserManager::Get()
-                               ->IsLoggedInAsManagedGuestSession());
-    source->AddBoolean(
-        "isKiosk", user_manager::UserManager::Get()->IsLoggedInAsAnyKioskApp());
-
-    web_ui->AddMessageHandler(
-        std::make_unique<certificate_manager::CertificatesHandler>());
-    web_ui->AddMessageHandler(
-        chromeos::cert_provisioning::CertificateProvisioningUiHandler::
-            CreateForProfile(profile));
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
-  if (base::FeatureList::IsEnabled(features::kEnableCertManagementUIV2)) {
-    source->AddResourcePath("", IDR_CERT_MANAGER_DIALOG_V2_HTML);
-    AddCertificateManagerV2Strings(source);
-    source->AddString("crsLearnMoreUrl", kCRSLearnMoreLink);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    ClientCertManagementAccessControls client_cert_policy(profile);
-    source->AddBoolean(
-        "clientCertImportAllowed",
-        client_cert_policy.IsManagementAllowed(
-            ClientCertManagementAccessControls::kSoftwareBacked));
-    source->AddBoolean(
-        "clientCertImportAndBindAllowed",
-        client_cert_policy.IsManagementAllowed(
-            ClientCertManagementAccessControls::kHardwareBacked));
+  source->AddResourcePath("", IDR_CERT_MANAGER_DIALOG_V2_HTML);
+  AddCertificateManagerV2Strings(source);
+  source->AddString("crsLearnMoreUrl", kCRSLearnMoreLink);
+#if BUILDFLAG(IS_CHROMEOS)
+  ClientCertManagementAccessControls client_cert_policy(profile);
+  source->AddBoolean("clientCertImportAllowed",
+                     client_cert_policy.IsManagementAllowed(
+                         ClientCertManagementAccessControls::kSoftwareBacked));
+  source->AddBoolean("clientCertImportAndBindAllowed",
+                     client_cert_policy.IsManagementAllowed(
+                         ClientCertManagementAccessControls::kHardwareBacked));
+  web_ui->AddMessageHandler(
+      chromeos::cert_provisioning::CertificateProvisioningUiHandler::
+          CreateForProfile(profile));
 #endif
 
-    auto plural_string_handler = std::make_unique<PluralStringHandler>();
-    plural_string_handler->AddLocalizedString(
-        "certificateManagerV2NumCerts",
-        IDS_SETTINGS_CERTIFICATE_MANAGER_V2_NUM_CERTS);
-    web_ui->AddMessageHandler(std::move(plural_string_handler));
-    PrefService* prefs = profile->GetPrefs();
-    source->AddBoolean("userCertsImportAllowed",
-                       IsCACertificateManagementAllowed(*prefs));
-  }
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)
+  auto plural_string_handler = std::make_unique<PluralStringHandler>();
+  plural_string_handler->AddLocalizedString(
+      "certificateManagerV2NumCerts",
+      IDS_SETTINGS_CERTIFICATE_MANAGER_V2_NUM_CERTS);
+  web_ui->AddMessageHandler(std::move(plural_string_handler));
+  PrefService* prefs = profile->GetPrefs();
+  source->AddBoolean("userCertsImportAllowed",
+                     IsCACertificateManagementAllowed(*prefs));
 }
 
-#if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
 void CertificateManagerUI::BindInterface(
     mojo::PendingReceiver<
         certificate_manager_v2::mojom::CertificateManagerPageHandlerFactory>
@@ -236,7 +216,6 @@ void CertificateManagerUI::CreateCertificateManagerPageHandler(
           std::move(client), std::move(handler), Profile::FromWebUI(web_ui()),
           web_ui()->GetWebContents());
 }
-#endif  // BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
 
 CertificateManagerUI::~CertificateManagerUI() = default;
 

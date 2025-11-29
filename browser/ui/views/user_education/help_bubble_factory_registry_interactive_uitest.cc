@@ -59,8 +59,16 @@ class HelpBubbleFactoryRegistryInteractiveUitest
   }
 };
 
+// TODO(crbug.com/419801487): Fix flaky test and re-enable.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_AnchorHelpBubbleToViewsMenuItem \
+  DISABLED_AnchorHelpBubbleToViewsMenuItem
+#else
+#define MAYBE_AnchorHelpBubbleToViewsMenuItem AnchorHelpBubbleToViewsMenuItem
+#endif
+
 IN_PROC_BROWSER_TEST_F(HelpBubbleFactoryRegistryInteractiveUitest,
-                       AnchorHelpBubbleToViewsMenuItem) {
+                       MAYBE_AnchorHelpBubbleToViewsMenuItem) {
   std::unique_ptr<user_education::HelpBubble> bubble;
 
   RunTestSequence(
@@ -117,7 +125,7 @@ IN_PROC_BROWSER_TEST_F(HelpBubbleFactoryRegistryInteractiveUitest,
       // Because context menus run inside of a system message pump that cannot
       // process Chrome tasks, the following steps must be executed immediately
       // on the platform.
-      WithoutDelay(Steps(
+      WithoutDelay(
 #endif
           // This step should still trigger even inside the Mac context menu
           // loop because it runs immediately on the callback from the menu item
@@ -143,7 +151,7 @@ IN_PROC_BROWSER_TEST_F(HelpBubbleFactoryRegistryInteractiveUitest,
                 ->CloseContextMenuForTesting();
           })
 #if BUILDFLAG(IS_MAC)
-              ))  // WithoutDelay(Steps(
+              )  // WithoutDelay(
 #endif
   );
 }

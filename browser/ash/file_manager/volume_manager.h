@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_ASH_FILE_MANAGER_VOLUME_MANAGER_H_
 #define CHROME_BROWSER_ASH_FILE_MANAGER_VOLUME_MANAGER_H_
 
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -30,6 +31,7 @@
 #include "chrome/browser/ash/guest_os/public/types.h"
 #include "chrome/browser/ash/policy/skyvault/local_files_migration_manager.h"
 #include "chrome/browser/ash/policy/skyvault/local_user_files_policy_observer.h"
+#include "chromeos/ash/components/policy/external_storage/device_id.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/storage_monitor/removable_storage_observer.h"
 #include "services/device/public/mojom/mtp_manager.mojom.h"
@@ -243,6 +245,9 @@ class VolumeManager
   // Called on change to kExternalStorageReadOnly pref.
   void OnExternalStorageReadOnlyChanged();
 
+  // Called on change to kExternalStorageAllowlist pref.
+  void OnExternalStorageAllowlistChanged();
+
   // RemovableStorageObserver overrides.
   void OnRemovableStorageAttached(
       const storage_monitor::StorageInfo& info) override;
@@ -386,6 +391,9 @@ class VolumeManager
   // thus removing all local volumes.
   void OnMigrationReset() override;
 
+  std::optional<policy::DeviceId> GetDeviceIdFromDevicePath(
+      std::string_view device_path);
+
   static int counter_;
   const int id_ = ++counter_;  // Only used in log traces
 
@@ -405,10 +413,8 @@ class VolumeManager
       documents_provider_root_manager_;
   io_task::IOTaskController io_task_controller_;
   std::unique_ptr<trash::TrashAutoCleanup> trash_auto_cleanup_;
-  // TODO(b/328006921): Replace with a check if the volumes are mounted.
   bool arc_volumes_mounted_ = false;
   bool ignore_clipboard_changed_ = false;
-  // TODO(b/328006921): Replace with a check if the volumes are mounted.
   bool local_user_files_allowed_ = true;
   // Whether a read only version of local folders (My Files) is needed.
   bool read_only_local_folders_ = true;

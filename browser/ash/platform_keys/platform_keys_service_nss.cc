@@ -33,8 +33,6 @@
 #include "base/task/thread_pool.h"
 #include "chrome/browser/ash/net/client_cert_store_ash.h"
 #include "chrome/browser/ash/platform_keys/platform_keys_service.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part_ash.h"
 #include "chrome/browser/chromeos/platform_keys/platform_keys.h"
 #include "chromeos/ash/components/chaps_util/chaps_util.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
@@ -1519,6 +1517,8 @@ void SignOnWorkerThread(std::unique_ptr<SignState> state) {
     case KeyType::kEcdsa:
       SignECOnWorkerThread(std::move(state));
       break;
+    case KeyType::kRsaOaep:
+      NOTREACHED();
   }
 }
 
@@ -1999,6 +1999,8 @@ CK_ATTRIBUTE_TYPE TranslateKeyAttributeTypeForSoftoken(KeyAttributeType type) {
       return CKA_START_DATE;
     case KeyAttributeType::kKeyPermissions:
       return CKA_END_DATE;
+    case KeyAttributeType::kPlatformKeysTag:
+      return CKA_OTP_TIME;
   }
 }
 
@@ -2015,6 +2017,8 @@ CK_ATTRIBUTE_TYPE TranslateKeyAttributeType(KeyAttributeType type,
       return pkcs11_custom_attributes::kCkaChromeOsBuiltinProvisioningProfileId;
     case KeyAttributeType::kKeyPermissions:
       return pkcs11_custom_attributes::kCkaChromeOsKeyPermissions;
+    case KeyAttributeType::kPlatformKeysTag:
+      return pkcs11_custom_attributes::kCkaChromeOsPlatformKeysTag;
   }
 }
 

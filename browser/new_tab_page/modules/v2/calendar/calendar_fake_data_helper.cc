@@ -24,7 +24,8 @@ namespace calendar::calendar_fake_data_helper {
 
 ntp::calendar::mojom::CalendarEventPtr GetFakeEvent(
     int index,
-    CalendarType calendar_type) {
+    CalendarType calendar_type,
+    bool has_attachments_enabled) {
   ntp::calendar::mojom::CalendarEventPtr event =
       ntp::calendar::mojom::CalendarEvent::New();
   event->title = "Calendar Event " + base::NumberToString(index);
@@ -36,8 +37,10 @@ ntp::calendar::mojom::CalendarEventPtr GetFakeEvent(
     ntp::calendar::mojom::AttachmentPtr attachment =
         ntp::calendar::mojom::Attachment::New();
     attachment->title = "Attachment " + base::NumberToString(i);
-    attachment->resource_url =
-        GURL("https://foo.com/attachment" + base::NumberToString(i));
+    if (has_attachments_enabled) {
+      attachment->resource_url =
+          GURL("https://foo.com/attachment" + base::NumberToString(i));
+    }
     attachment->icon_url = calendar_type == CalendarType::GOOGLE_CALENDAR
                                ? GURL(kGoogleCalendarDriveIconUrl)
                                : GURL(kOutlookCalendarDocIconUrl);
@@ -51,12 +54,110 @@ ntp::calendar::mojom::CalendarEventPtr GetFakeEvent(
 }
 
 std::vector<ntp::calendar::mojom::CalendarEventPtr> GetFakeEvents(
-    CalendarType calendar_type) {
+    CalendarType calendar_type,
+    bool has_attachments_enabled) {
   std::vector<ntp::calendar::mojom::CalendarEventPtr> events;
   for (int i = 0; i < 5; ++i) {
-    events.push_back(GetFakeEvent(i, calendar_type));
+    events.push_back(GetFakeEvent(i, calendar_type, has_attachments_enabled));
   }
   return events;
+}
+
+std::unique_ptr<std::string> GetFakeJsonResponse() {
+  std::unique_ptr<std::string> response = std::make_unique<std::string>();
+  // clang-format off
+  *response = R"(
+    {"data-context": "some-context",
+    "value": [
+      {
+        "id": "1",
+        "hasAttachments": true,
+        "subject": "Event 1",
+        "isCancelled": false,
+        "isOrganizer": true,
+        "webLink": "https://outlook.com",
+        "responseStatus": {
+            "response": "organizer",
+            "time": "0001-01-01T00:00:00Z"
+        },
+        "onlineMeeting": {"joinUrl": "https://outlook.com"},
+        "start": {"dateTime": "2024-11-11T18:00:00.0000000"},
+        "end": {"dateTime": "2024-11-11T18:30:00.0000000"},
+        "location": {"displayName": "Location Name"},
+        "attendees": [
+              {
+                  "type": "required",
+                  "status": {
+                        "response": "none",
+                        "time": "0001-01-01T00:00:00Z"
+                  },
+                  "emailAddress": {
+                        "name": "test1@outlook.com",
+                        "address": "test1@outlook.com"
+                  }
+              },
+              {
+                  "type": "required",
+                  "status": {
+                      "response": "accepted",
+                      "time": "0001-01-01T00:00:00Z"
+                  },
+                  "emailAddress": {
+                      "name": "test2@outlook.com",
+                      "address": "test2@outlook.com"
+                  }
+              }
+        ],
+        "attachments": [
+              {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "@odata.mediaContentType":
+                      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "contentType":
+                      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "id": "1-ABC",
+                    "name": "Some document.docx"
+              }
+        ]
+      },
+      {
+        "id": "2",
+        "hasAttachments": false,
+        "subject": "Event 2",
+        "isCancelled": false,
+        "isOrganizer": true,
+        "webLink": "https://outlook.com",
+        "responseStatus": {
+            "response": "organizer",
+            "time": "0001-01-01T00:00:00Z"
+        },
+        "onlineMeeting": {"joinUrl": "https://outlook.com"},
+        "start": {"dateTime": "2024-11-11T18:30:00.0000000"},
+        "end": {"dateTime": "2024-11-11T19:00:00.0000000"},
+        "location": {"displayName": "Location Name"},
+        "attendees": [],
+        "attachments": []
+      },
+      {
+        "id": "3",
+        "hasAttachments": false,
+        "subject": "Event 3",
+        "isCancelled": false,
+        "isOrganizer": true,
+        "webLink": "https://outlook.com",
+        "responseStatus": {
+            "response": "organizer",
+            "time": "0001-01-01T00:00:00Z"
+        },
+        "onlineMeeting": {"joinUrl": "https://outlook.com"},
+        "start": {"dateTime": "2024-11-11T20:00:00.0000000"},
+        "end": {"dateTime": "2024-11-11T21:00:00.0000000"},
+        "location": {"displayName": ""},
+        "attendees": [],
+        "attachments": []
+      }]})";
+  // clang-format on
+  return response;
 }
 
 }  // namespace calendar::calendar_fake_data_helper

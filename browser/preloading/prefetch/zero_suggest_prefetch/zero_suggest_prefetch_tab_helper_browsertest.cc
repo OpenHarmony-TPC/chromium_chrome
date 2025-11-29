@@ -9,7 +9,6 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engine_choice/search_engine_choice_service_factory.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -23,6 +22,7 @@
 #include "components/omnibox/browser/mock_autocomplete_provider_client.h"
 #include "components/omnibox/browser/omnibox_controller.h"
 #include "components/omnibox/browser/omnibox_view.h"
+#include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/search_engines/template_url_service_client.h"
@@ -60,6 +60,8 @@ class ZeroSuggestPrefetchTabHelperBrowserTest : public InProcessBrowserTest {
     auto client_ = std::make_unique<MockAutocompleteProviderClient>();
     client_->set_template_url_service(template_url_service);
 
+    most_visited_prefetch_scoped_config_.Get().enabled = false;
+
     auto controller =
         std::make_unique<testing::NiceMock<MockAutocompleteController>>(
             std::move(client_), 0);
@@ -73,6 +75,9 @@ class ZeroSuggestPrefetchTabHelperBrowserTest : public InProcessBrowserTest {
   }
 
   base::test::ScopedFeatureList feature_list_;
+  omnibox_feature_configs::ScopedConfigForTesting<
+      omnibox_feature_configs::OmniboxUrlSuggestionsOnFocus>
+      most_visited_prefetch_scoped_config_;
   raw_ptr<testing::NiceMock<MockAutocompleteController>,
           AcrossTasksDanglingUntriaged>
       controller_;
@@ -152,36 +157,12 @@ IN_PROC_BROWSER_TEST_F(ZeroSuggestPrefetchTabHelperBrowserTestOnNTP,
     testing::Mock::VerifyAndClearExpectations(controller_);
   }
   {
-    // Opening a foreground SRP does not trigger prefetching.
-    EXPECT_CALL(*controller_, StartPrefetch).Times(0);
-    EXPECT_CALL(*controller_, Start).Times(0);
-
-    EXPECT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-        browser(), GURL(srp_url), WindowOpenDisposition::NEW_FOREGROUND_TAB,
-        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-    ASSERT_EQ(3, browser()->tab_strip_model()->GetTabCount());
-
-    testing::Mock::VerifyAndClearExpectations(controller_);
-  }
-  {
-    // Opening a foreground Web page does not trigger prefetching.
-    EXPECT_CALL(*controller_, StartPrefetch).Times(0);
-    EXPECT_CALL(*controller_, Start).Times(0);
-
-    ui_test_utils::NavigateToURLWithDisposition(
-        browser(), GURL(web_url), WindowOpenDisposition::NEW_FOREGROUND_TAB,
-        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
-    ASSERT_EQ(4, browser()->tab_strip_model()->GetTabCount());
-
-    testing::Mock::VerifyAndClearExpectations(controller_);
-  }
-  {
     // Switching to an NTP triggers prefetching.
     EXPECT_CALL(*controller_, StartPrefetch(testing::Truly(input_is_correct)))
         .Times(1);
     EXPECT_CALL(*controller_, Start).Times(0);
 
-    browser()->tab_strip_model()->ActivateTabAt(1);
+    browser()->tab_strip_model()->ActivateTabAt(0);
 
     testing::Mock::VerifyAndClearExpectations(controller_);
   }
@@ -235,18 +216,6 @@ IN_PROC_BROWSER_TEST_F(ZeroSuggestPrefetchTabHelperBrowserTestOnSRP,
         browser(), GURL(srp_url), WindowOpenDisposition::NEW_FOREGROUND_TAB,
         ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
     ASSERT_EQ(3, browser()->tab_strip_model()->GetTabCount());
-
-    testing::Mock::VerifyAndClearExpectations(controller_);
-  }
-  {
-    // Opening a foreground Web page does not trigger prefetching.
-    EXPECT_CALL(*controller_, StartPrefetch).Times(0);
-    EXPECT_CALL(*controller_, Start).Times(0);
-
-    ui_test_utils::NavigateToURLWithDisposition(
-        browser(), GURL(web_url), WindowOpenDisposition::NEW_FOREGROUND_TAB,
-        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
-    ASSERT_EQ(4, browser()->tab_strip_model()->GetTabCount());
 
     testing::Mock::VerifyAndClearExpectations(controller_);
   }
@@ -309,18 +278,6 @@ IN_PROC_BROWSER_TEST_F(ZeroSuggestPrefetchTabHelperBrowserTestOnWeb,
         browser(), GURL(web_url), WindowOpenDisposition::NEW_FOREGROUND_TAB,
         ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
     ASSERT_EQ(3, browser()->tab_strip_model()->GetTabCount());
-
-    testing::Mock::VerifyAndClearExpectations(controller_);
-  }
-  {
-    // Opening a foreground SRP does not trigger prefetching.
-    EXPECT_CALL(*controller_, StartPrefetch).Times(0);
-    EXPECT_CALL(*controller_, Start).Times(0);
-
-    EXPECT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-        browser(), GURL(srp_url), WindowOpenDisposition::NEW_FOREGROUND_TAB,
-        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-    ASSERT_EQ(4, browser()->tab_strip_model()->GetTabCount());
 
     testing::Mock::VerifyAndClearExpectations(controller_);
   }

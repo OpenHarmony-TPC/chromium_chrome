@@ -6,12 +6,14 @@ package org.chromium.chrome.browser.omnibox.status;
 
 import android.view.View;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.omnibox.status.StatusProperties.StatusIconResource;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor.ViewBinder;
 
 /** StatusViewBinder observes StatusModel changes and triggers StatusView updates. */
+@NullMarked
 class StatusViewBinder implements ViewBinder<PropertyModel, StatusView, PropertyKey> {
     StatusViewBinder() {}
 
@@ -33,7 +35,7 @@ class StatusViewBinder implements ViewBinder<PropertyModel, StatusView, Property
             view.setVisibility(visibility);
         } else if (StatusProperties.STATUS_VIEW_TOOLTIP_TEXT.equals(propertyKey)) {
             applyStatusIconAndTooltipProperties(model, view);
-        } else if (StatusProperties.STATUS_VIEW_HOVER_HIGHLIGHT.equals(propertyKey)) {
+        } else if (StatusProperties.STATUS_VIEW_BACKGROUND.equals(propertyKey)) {
             applyStatusIconAndTooltipProperties(model, view);
         } else if (StatusProperties.SHOW_STATUS_ICON_BACKGROUND.equals(propertyKey)) {
             view.setStatusIconBackgroundVisibility(
@@ -82,6 +84,6 @@ class StatusViewBinder implements ViewBinder<PropertyModel, StatusView, Property
     static void applyStatusIconAndTooltipProperties(PropertyModel model, StatusView statusView) {
         statusView.setStatusIconShown(model.get(StatusProperties.SHOW_STATUS_ICON));
         statusView.setTooltipText(model.get(StatusProperties.STATUS_VIEW_TOOLTIP_TEXT));
-        statusView.setHoverHighlight(model.get(StatusProperties.STATUS_VIEW_HOVER_HIGHLIGHT));
+        statusView.maybeSetBackground(model.get(StatusProperties.STATUS_VIEW_BACKGROUND));
     }
 }

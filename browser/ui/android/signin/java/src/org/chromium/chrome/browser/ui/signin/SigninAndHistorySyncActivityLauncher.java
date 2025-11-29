@@ -9,24 +9,23 @@ import android.content.Intent;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.MainThread;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
-import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
-import org.chromium.components.signin.base.CoreAccountId;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /** Allows for launching {@link SigninAndHistorySyncActivity} in modularized code. */
+@NullMarked
 public interface SigninAndHistorySyncActivityLauncher {
     /** Sign-in access points that are eligible to the sign-in and history opt-in flow. */
     @IntDef({
         SigninAccessPoint.RECENT_TABS,
         SigninAccessPoint.BOOKMARK_MANAGER,
+        SigninAccessPoint.HISTORY_PAGE,
         SigninAccessPoint.NTP_FEED_TOP_PROMO,
         SigninAccessPoint.NTP_FEED_BOTTOM_PROMO,
         SigninAccessPoint.SAFETY_CHECK,
@@ -36,6 +35,10 @@ public interface SigninAndHistorySyncActivityLauncher {
         SigninAccessPoint.NTP_FEED_CARD_MENU_PROMO,
         SigninAccessPoint.SEND_TAB_TO_SELF_PROMO,
         SigninAccessPoint.CCT_ACCOUNT_MISMATCH_NOTIFICATION,
+        SigninAccessPoint.COLLABORATION_JOIN_TAB_GROUP,
+        SigninAccessPoint.COLLABORATION_SHARE_TAB_GROUP,
+        SigninAccessPoint.COLLABORATION_LEAVE_OR_DELETE_TAB_GROUP,
+        SigninAccessPoint.HISTORY_SYNC_EDUCATIONAL_TIP,
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface AccessPoint {}
@@ -45,29 +48,15 @@ public interface SigninAndHistorySyncActivityLauncher {
      * Show an error if the intent can't be created.
      *
      * @param profile the current profile.
-     * @param bottomSheetStrings the strings shown in the sign-in bottom sheet.
-     * @param noAccountSigninMode The type of UI that should be shown for the sign-in step if
-     *     there's no account on the device.
-     * @param withAccountSigninMode The type of UI that should be shown for the sign-in step if
-     *     there are 1+ accounts on the device.
-     * @param historyOptInMode Whether the history opt-in should be always, optionally or never
-     *     shown.
+     * @param config The object containing configurations for the sign-in & history sync views.
      * @param accessPoint The access point from which the sign-in was triggered.
-     * @param selectedCoreAccountId The account that should be displayed in the sign-in bottom
-     *     sheet. If null, the default account will be displayed.
      */
     @MainThread
-    @Nullable
-    Intent createBottomSheetSigninIntentOrShowError(
+    @Nullable Intent createBottomSheetSigninIntentOrShowError(
             Context context,
             Profile profile,
-            @NonNull AccountPickerBottomSheetStrings bottomSheetStrings,
-            @BottomSheetSigninAndHistorySyncCoordinator.NoAccountSigninMode int noAccountSigninMode,
-            @BottomSheetSigninAndHistorySyncCoordinator.WithAccountSigninMode
-                    int withAccountSigninMode,
-            @HistorySyncConfig.OptInMode int historyOptInMode,
-            @AccessPoint int accessPoint,
-            @Nullable CoreAccountId selectedCoreAccountId);
+            BottomSheetSigninAndHistorySyncConfig config,
+            @AccessPoint int accessPoint);
 
     /**
      * Create {@Intent} for the fullscreen flavor of the {@link SigninAndHistorySyncActivity} if

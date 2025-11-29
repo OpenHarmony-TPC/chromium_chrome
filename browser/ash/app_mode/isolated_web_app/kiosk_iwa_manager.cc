@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/app_mode/isolated_web_app/kiosk_iwa_manager.h"
 
+#include <algorithm>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -14,17 +15,22 @@
 #include "ash/constants/ash_features.h"
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
+#include "base/memory/raw_ref.h"
 #include "chrome/browser/ash/app_mode/isolated_web_app/kiosk_iwa_data.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_manager_base.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_types.h"
 #include "chrome/browser/ash/app_mode/kiosk_cryptohome_remover.h"
 #include "chrome/browser/ash/policy/core/device_local_account.h"
+#include "chrome/browser/chromeos/app_mode/kiosk_web_app_update_observer.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/web_applications/web_app_install_info.h"
+#include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "components/account_id/account_id.h"
-#include "components/policy/core/common/device_local_account_type.h"
 #include "components/prefs/pref_registry_simple.h"
+#include "components/prefs/pref_service.h"
 #include "url/origin.h"
 
 namespace ash {
@@ -55,9 +61,6 @@ const char KioskIwaManager::kIwaKioskDictionaryName[] = "iwa-kiosk";
 
 // static
 void KioskIwaManager::RegisterPrefs(PrefRegistrySimple* registry) {
-  if (!ash::features::IsIsolatedWebAppKioskEnabled()) {
-    return;
-  }
   registry->RegisterDictionaryPref(kIwaKioskDictionaryName);
 }
 
@@ -67,7 +70,8 @@ KioskIwaManager* KioskIwaManager::Get() {
   return g_kiosk_iwa_manager_instance;
 }
 
-KioskIwaManager::KioskIwaManager() {
+KioskIwaManager::KioskIwaManager(PrefService& local_state)
+    : local_state_(local_state) {
   CHECK(!g_kiosk_iwa_manager_instance);  // Only one instance is allowed.
   g_kiosk_iwa_manager_instance = this;
   UpdateAppsFromPolicy();
@@ -95,7 +99,7 @@ const KioskIwaData* KioskIwaManager::GetApp(const AccountId& account_id) const {
     return nullptr;
   }
 
-  const auto iter = base::ranges::find_if(
+  const auto iter = std::ranges::find_if(
       isolated_web_apps_,
       [&account_id](const std::unique_ptr<KioskIwaData>& app) {
         return app->account_id() == account_id;
@@ -107,6 +111,19 @@ const KioskIwaData* KioskIwaManager::GetApp(const AccountId& account_id) const {
   return iter->get();
 }
 
+void KioskIwaManager::UpdateApp(const AccountId& account_id,
+                                const std::string& title,
+                                const GURL& /*start_url*/,
+                                const web_app::IconBitmaps& icon_bitmaps) {
+  for (auto& iwa_data : isolated_web_apps_) {
+    if (iwa_data->account_id() == account_id) {
+      iwa_data->Update(title, icon_bitmaps);
+      return;
+    }
+  }
+  NOTREACHED();
+}
+
 const std::optional<AccountId>& KioskIwaManager::GetAutoLaunchAccountId()
     const {
   return auto_launch_id_;
@@ -115,6 +132,21 @@ const std::optional<AccountId>& KioskIwaManager::GetAutoLaunchAccountId()
 void KioskIwaManager::OnKioskSessionStarted(const KioskAppId& app_id) {
   CHECK_EQ(app_id.type, KioskAppType::kIsolatedWebApp);
   NotifySessionInitialized();
+}
+
+void KioskIwaManager::StartObservingAppUpdate(Profile* profile,
+                                              const AccountId& account_id) {
+  app_update_observer_ = std::make_unique<chromeos::KioskWebAppUpdateObserver>(
+      profile, account_id, KioskIwaData::kIconSize,
+      base::BindRepeating(&KioskIwaManager::UpdateApp,
+                          weak_ptr_factory_.GetWeakPtr()));
+}
+
+void KioskIwaManager::AddAppForTesting(
+    const policy::DeviceLocalAccount& account) {
+  KioskIwaDataMap dummy;
+  ProcessDeviceLocalAccount(account, dummy);
+  NotifyKioskAppsChanged();
 }
 
 void KioskIwaManager::UpdateAppsFromPolicy() {
@@ -164,9 +196,9 @@ void KioskIwaManager::CancelCryptohomeRemovalsForCurrentApps() {
 }
 
 void KioskIwaManager::RemoveApps(const KioskIwaDataMap& previous_apps) const {
-  std::vector<KioskAppDataBase*> apps_to_remove;
-  base::ranges::transform(previous_apps, std::back_inserter(apps_to_remove),
-                          [](const auto& kv) { return kv.second.get(); });
+  std::vector<const KioskAppDataBase*> apps_to_remove;
+  std::ranges::transform(previous_apps, std::back_inserter(apps_to_remove),
+                         [](const auto& kv) { return kv.second.get(); });
   ClearRemovedApps(apps_to_remove);
 }
 
@@ -185,11 +217,9 @@ void KioskIwaManager::ProcessDeviceLocalAccount(
   if (account.type != policy::DeviceLocalAccountType::kKioskIsolatedWebApp) {
     return;
   }
-  const std::string& web_bundle_id = account.kiosk_iwa_info.web_bundle_id();
-  const GURL update_manifest_url(account.kiosk_iwa_info.update_manifest_url());
 
-  auto new_iwa_data =
-      KioskIwaData::Create(account.user_id, web_bundle_id, update_manifest_url);
+  auto new_iwa_data = KioskIwaData::Create(
+      account.user_id, account.kiosk_iwa_info, *this, local_state_.get());
 
   if (!new_iwa_data) {
     LOG(WARNING) << "Cannot create Kiosk IWA data for account "
@@ -201,20 +231,22 @@ void KioskIwaManager::ProcessDeviceLocalAccount(
   // implementing icon and title.
   auto previous_match = previous_apps.find(new_iwa_data->app_id());
   if (previous_match != previous_apps.end()) {
-    // Reuse the already existing app data and keep this app from deletion.
+    // Keep this app from deletion.
     auto previous_iwa_data = std::move(previous_match->second);
     previous_apps.erase(previous_match);
 
-    // But still replace with a new IWA entry if manifest URL changed.
-    if (new_iwa_data->update_manifest_url() !=
-        previous_iwa_data->update_manifest_url()) {
+    // Replace with the new IWA entry if there are changes (e.g. different
+    // update manifest URL or version setting).
+    if (*new_iwa_data != *previous_iwa_data) {
       isolated_web_apps_.push_back(std::move(new_iwa_data));
+      isolated_web_apps_.back()->LoadFromCache();
     } else {
       isolated_web_apps_.push_back(std::move(previous_iwa_data));
     }
   } else {
-    // Add a new IWA entry (no existing matches).
+    // Add the new IWA entry (no previous matches).
     isolated_web_apps_.push_back(std::move(new_iwa_data));
+    isolated_web_apps_.back()->LoadFromCache();
   }
 
   MaybeSetAutoLaunchInfo(account.account_id,

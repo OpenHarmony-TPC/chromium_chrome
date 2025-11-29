@@ -20,7 +20,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/ui/webui/constrained_web_dialog_ui.h"
 #include "chrome/services/printing/public/mojom/pdf_nup_converter.mojom.h"
 #include "components/printing/common/print.mojom.h"
@@ -36,11 +35,6 @@
 
 #if BUILDFLAG(ENABLE_OOP_PRINTING)
 #include "chrome/browser/printing/print_backend_service_manager.h"
-#endif
-
-#if BUILDFLAG(IS_OHOS)
-#include "base/memory/ref_counted_memory.h"
-#include "base/memory/scoped_refptr.h"
 #endif
 
 class GURL;
@@ -220,10 +214,6 @@ class PrintPreviewUI : public ConstrainedWebDialogUI,
   // Clears the UI ID. Called by PrintPreviewHandler in
   // OnJavascriptDisallowed().
   void ClearPreviewUIId();
-
-#if BUILDFLAG(IS_OHOS)
-  void PrintPdf(scoped_refptr<base::RefCountedMemory> print_data);
-#endif
 
  protected:
   // Alternate constructor for tests

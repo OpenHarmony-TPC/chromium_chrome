@@ -8,6 +8,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
+#include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/simple_test_clock.h"
@@ -43,6 +44,7 @@
 #include "components/security_state/content/security_state_tab_helper.h"
 #include "components/site_engagement/content/site_engagement_service.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/ukm/test_ukm_recorder.h"
 #include "components/variations/active_field_trials.h"
 #include "components/variations/hashing.h"
 #include "content/public/browser/storage_partition.h"
@@ -59,6 +61,8 @@
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
 #include "net/test/test_data_directory.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
+#include "services/metrics/public/cpp/ukm_source.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -67,6 +71,7 @@
 #include "url/url_constants.h"
 
 using chrome_browser_interstitials::HFMInterstitialType;
+using security_interstitials::https_only_mode::BlockingResult;
 using security_interstitials::https_only_mode::Event;
 using security_interstitials::https_only_mode::InterstitialReason;
 using security_interstitials::https_only_mode::kEventHistogram;
@@ -85,6 +90,7 @@ using security_interstitials::https_only_mode::
     kSiteEngagementHeuristicStateHistogram;
 using security_interstitials::https_only_mode::NavigationRequestSecurityLevel;
 using security_interstitials::https_only_mode::SiteEngagementHeuristicState;
+using UkmEntry = ukm::builders::HttpsFirstMode_Event;
 
 // Many of the following tests have only minor variations for HTTPS-First Mode
 // vs. HTTPS-Upgrades. These get parameterized so the tests run under both
@@ -165,9 +171,9 @@ struct ExpectedInterstitialReasons {
 };
 
 // A very low site engagement score.
-constexpr int kLowSiteEngagementScore = 2;
+constexpr int kLowSiteEngagementScore = 1;
 // A very high site engagement score.
-constexpr int kHighSiteEnagementScore = 95;
+constexpr int kHighSiteEnagementScore = 99;
 
 // Tests for HTTPS-Upgrades and the v2 implementation of HTTPS-First Mode.
 class HttpsUpgradesBrowserTest
@@ -344,6 +350,8 @@ class HttpsUpgradesBrowserTest
     if (InBalancedMode()) {
       SetBalancedPref(true);
     }
+
+    test_ukm_recorder_ = std::make_unique<ukm::TestAutoSetUkmRecorder>();
   }
 
   void TearDownOnMainThread() override {
@@ -587,6 +595,24 @@ class HttpsUpgradesBrowserTest
     return HttpsFirstModeServiceFactory::GetForProfile(browser()->profile());
   }
 
+  // Checks that the interstitial UKM has an entry for `url` and `result`.
+  void ExpectUKMEntry(
+      const GURL& url,
+      security_interstitials::https_only_mode::BlockingResult result) {
+    auto entries = test_ukm_recorder_->GetEntriesByName(UkmEntry::kEntryName);
+    EXPECT_EQ(1u, entries.size());
+
+    test_ukm_recorder_->ExpectEntrySourceHasUrl(entries[0], url);
+    test_ukm_recorder_->ExpectEntryMetric(entries[0], "Result",
+                                          static_cast<int>(result));
+  }
+
+  // Checks that the interstitial UKM has no entry.
+  void ExpectEmptyUKM() {
+    auto entries = test_ukm_recorder_->GetEntriesByName(UkmEntry::kEntryName);
+    EXPECT_EQ(0u, entries.size());
+  }
+
   void EnableCaptivePortalDetection(Browser* browser);
 
  private:
@@ -596,6 +622,7 @@ class HttpsUpgradesBrowserTest
   content::ContentMockCertVerifier mock_cert_verifier_;
   base::HistogramTester histograms_;
   raw_ptr<Browser, AcrossTasksDanglingUntriaged> incognito_browser_ = nullptr;
+  std::unique_ptr<ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;
 };
 
 // HttpsUpgradesBrowserTest is NOT instantiated for unusual configurations like
@@ -667,6 +694,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
                                   NavigationRequestSecurityLevel::kSecure, 1);
   histograms()->ExpectBucketCount(kNavigationRequestSecurityLevelHistogram,
                                   NavigationRequestSecurityLevel::kUpgraded, 1);
+
+  ExpectEmptyUKM();
 }
 
 // If the user navigates to an HTTPS URL for a site that supports HTTPS, the
@@ -685,6 +714,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
   histograms()->ExpectTotalCount(kNavigationRequestSecurityLevelHistogram, 1);
   histograms()->ExpectBucketCount(kNavigationRequestSecurityLevelHistogram,
                                   NavigationRequestSecurityLevel::kSecure, 1);
+
+  ExpectEmptyUKM();
 }
 
 // If the user navigates to a localhost URL, the navigation should end up on
@@ -703,6 +734,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest, Localhost_ShouldNotUpgrade) {
   histograms()->ExpectBucketCount(kNavigationRequestSecurityLevelHistogram,
                                   NavigationRequestSecurityLevel::kLocalhost,
                                   1);
+
+  ExpectEmptyUKM();
 }
 
 // Test that HTTPS Upgrades are skipped for non-unique hostnames, such as
@@ -755,6 +788,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
         kNavigationRequestSecurityLevelHistogram,
         NavigationRequestSecurityLevel::kNonUniqueHostname, 1);
   }
+
+  ExpectEmptyUKM();
 }
 
 // Test that unique single-label hostnames (e.g. gTLDs) are only upgraded and
@@ -809,6 +844,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
     histograms()->ExpectBucketCount(kNavigationRequestSecurityLevelHistogram,
                                     NavigationRequestSecurityLevel::kSecure, 1);
   }
+
+  ExpectEmptyUKM();
 }
 
 // If the user navigates to a non-unique hostname, the navigation should be
@@ -839,6 +876,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest, NonUniqueHost_RecordsMetrics) {
         kNavigationRequestSecurityLevelHistogram,
         NavigationRequestSecurityLevel::kNonUniqueHostname, 2);
   }
+
+  ExpectEmptyUKM();
 }
 
 // Test that non-default ports (e.g. not HTTP80) are only upgraded and warned on
@@ -899,6 +938,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
     histograms()->ExpectBucketCount(kNavigationRequestSecurityLevelHistogram,
                                     NavigationRequestSecurityLevel::kSecure, 1);
   }
+
+  ExpectEmptyUKM();
 }
 
 // If the user navigates to an HTTPS URL, the navigation should end up on that
@@ -917,6 +958,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
   // Verify that navigation event metrics were not recorded as the navigation
   // was not upgraded.
   histograms()->ExpectTotalCount(kEventHistogram, 0);
+
+  ExpectEmptyUKM();
 }
 
 // If the user navigates to an HTTP URL for a site with broken HTTPS, the
@@ -942,6 +985,9 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
   histograms()->ExpectBucketCount(kEventHistogram, Event::kUpgradeAttempted, 1);
   histograms()->ExpectBucketCount(kEventHistogram, Event::kUpgradeFailed, 1);
   histograms()->ExpectBucketCount(kEventHistogram, Event::kUpgradeCertError, 1);
+
+  // The user hasn't taken action yet, so this should be empty.
+  ExpectEmptyUKM();
 }
 
 // HTTPS-First Mode in Incognito should customize the interstitial.
@@ -967,6 +1013,9 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
     EXPECT_EQ(HFMInterstitialType::kIncognito,
               chrome_browser_interstitials::GetHFMInterstitialType(contents));
   }
+
+  // The user hasn't taken action yet, so this should be empty.
+  ExpectEmptyUKM();
 }
 
 void MaybeEnableHttpsFirstModeForEngagedSitesAndWait(
@@ -1119,8 +1168,16 @@ IN_PROC_BROWSER_TEST_P(
     // enforcement list, no duration should be recorded yet.
     histograms()->ExpectTotalCount(
         kSiteEngagementHeuristicEnforcementDurationHistogram, 0);
+
+    histograms()->ExpectBucketCount(
+        kNavigationRequestSecurityLevelHistogram,
+        NavigationRequestSecurityLevel::kHttpsEnforcedOnHostname, 1);
   } else {
     histograms()->ExpectTotalCount(kEventHistogramWithEngagementHeuristic, 0);
+
+    histograms()->ExpectBucketCount(
+        kNavigationRequestSecurityLevelHistogram,
+        NavigationRequestSecurityLevel::kHttpsEnforcedOnHostname, 0);
   }
 
   // Lower HTTPS engagement score. This disables HFM on the site. Also advance
@@ -1161,7 +1218,7 @@ IN_PROC_BROWSER_TEST_P(
             contents));
     if (IsSiteEngagementHeuristicEnabled()) {
       // Verify that the interstitial metrics were correctly recorded. The
-      // interstitial was once and navigated away from.
+      // interstitial was shown once and navigated away from.
       histograms()->ExpectTotalCount("interstitial.https_first_mode.decision",
                                      2);
       histograms()->ExpectBucketCount(
@@ -1210,6 +1267,12 @@ IN_PROC_BROWSER_TEST_P(
     histograms()->ExpectTimeBucketCount(
         kSiteEngagementHeuristicEnforcementDurationHistogram, base::Hours(1),
         1);
+
+    // This bucket was recorded once previously, shouldn't be recorded again.
+    histograms()->ExpectBucketCount(
+        kNavigationRequestSecurityLevelHistogram,
+        NavigationRequestSecurityLevel::kHttpsEnforcedOnHostname, 1);
+
   } else {
     // Event histogram shouldn't change because Site Engagement heuristic didn't
     // kick in.
@@ -1223,6 +1286,10 @@ IN_PROC_BROWSER_TEST_P(
         kSiteEngagementHeuristicAccumulatedHostCountHistogram, 0);
     histograms()->ExpectTotalCount(
         kSiteEngagementHeuristicEnforcementDurationHistogram, 0);
+
+    histograms()->ExpectBucketCount(
+        kNavigationRequestSecurityLevelHistogram,
+        NavigationRequestSecurityLevel::kHttpsEnforcedOnHostname, 0);
   }
 }
 
@@ -1764,6 +1831,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
     histograms()->ExpectBucketCount(
         "interstitial.https_first_mode.decision",
         security_interstitials::MetricsHelper::Decision::PROCEED, 1);
+
+    ExpectUKMEntry(http_url, BlockingResult::kInterstitialProceed);
   }
 
   EXPECT_EQ(http_url, contents->GetLastCommittedURL());
@@ -1773,6 +1842,14 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
   histograms()->ExpectBucketCount(kEventHistogram, Event::kUpgradeAttempted, 1);
   histograms()->ExpectBucketCount(kEventHistogram, Event::kUpgradeFailed, 1);
   histograms()->ExpectBucketCount(kEventHistogram, Event::kUpgradeCertError, 1);
+
+  // Revisit the site. Should load without a warning, but also record another
+  // UKM.
+  // TODO(crbug.com/406530494): This should also record the allowlisted status.
+  NavigateAndWaitForFallback(contents, http_url);
+  if (IsHttpsFirstModeInterstitialEnabledAcrossSites()) {
+    ExpectUKMEntry(http_url, BlockingResult::kInterstitialProceed);
+  }
 }
 
 // If the upgraded HTTPS URL is not available due to a net error, it should
@@ -1951,6 +2028,8 @@ IN_PROC_BROWSER_TEST_P(
   content::SSLHostStateDelegate* state = profile->GetSSLHostStateDelegate();
   EXPECT_TRUE(state->IsHttpAllowedForHost(
       http_url.host(), contents->GetPrimaryMainFrame()->GetStoragePartition()));
+
+  ExpectUKMEntry(http_url, BlockingResult::kInterstitialProceed);
 }
 
 // If the upgraded HTTPS URL is not available due to an exempted net error but
@@ -1992,6 +2071,8 @@ IN_PROC_BROWSER_TEST_P(
   content::SSLHostStateDelegate* state = profile->GetSSLHostStateDelegate();
   EXPECT_TRUE(state->IsHttpAllowedForHost(
       http_url.host(), contents->GetPrimaryMainFrame()->GetStoragePartition()));
+
+  ExpectUKMEntry(http_url, BlockingResult::kInterstitialProceed);
 }
 
 // Navigations in subframes should not get upgraded by HTTPS-Only Mode. They
@@ -2669,6 +2750,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest, InterstitialGoBack) {
   histograms()->ExpectBucketCount(
       "interstitial.https_first_mode.decision",
       security_interstitials::MetricsHelper::Decision::DONT_PROCEED, 1);
+
+  ExpectUKMEntry(http_url, BlockingResult::kInterstitialDontProceed);
 }
 
 // Tests that closing the tab of the HTTPS-First Mode interstitial counts as
@@ -2699,6 +2782,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest, CloseInterstitialTab) {
   histograms()->ExpectBucketCount(
       "interstitial.https_first_mode.decision",
       security_interstitials::MetricsHelper::Decision::DONT_PROCEED, 1);
+
+  ExpectUKMEntry(http_url, BlockingResult::kInterstitialDontProceed);
 }
 
 // Tests that if a user allowlists a host and then does not visit it again for
@@ -3411,7 +3496,7 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
       http_url, nullptr, WindowOpenDisposition::CURRENT_TAB,
       ui::PAGE_TRANSITION_TYPED, AutocompleteMatchType::URL_WHAT_YOU_TYPED,
       base::TimeTicks(), false, true, std::u16string(), AutocompleteMatch(),
-      AutocompleteMatch(), IDNA2008DeviationCharacter::kNone);
+      AutocompleteMatch());
   nav_observer.Wait();
 
   if (IsHttpsFirstModePrefEnabled() || IsIncognito()) {
@@ -3446,7 +3531,7 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
       http_url, nullptr, WindowOpenDisposition::CURRENT_TAB,
       ui::PAGE_TRANSITION_TYPED, AutocompleteMatchType::NAVSUGGEST,
       base::TimeTicks(), false, false, std::u16string(), AutocompleteMatch(),
-      AutocompleteMatch(), IDNA2008DeviationCharacter::kNone);
+      AutocompleteMatch());
   nav_observer.Wait();
 
   EXPECT_EQ(https_url, contents->GetLastCommittedURL());
@@ -3482,7 +3567,7 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
       http_url, nullptr, WindowOpenDisposition::CURRENT_TAB,
       ui::PAGE_TRANSITION_TYPED, AutocompleteMatchType::URL_WHAT_YOU_TYPED,
       base::TimeTicks(), false, true, std::u16string(), AutocompleteMatch(),
-      AutocompleteMatch(), IDNA2008DeviationCharacter::kNone);
+      AutocompleteMatch());
   nav_observer.Wait();
 
   // URL should not have been upgraded, and site should now be in the allowlist.
@@ -3983,6 +4068,11 @@ IN_PROC_BROWSER_TEST_P(
 
   // Engagement heuristic shouldn't handle any navigation events.
   histograms()->ExpectTotalCount(kEventHistogramWithEngagementHeuristic, 0);
+
+  // Security level histogram should not record kHttpsEnforcedOnHostname.
+  histograms()->ExpectBucketCount(
+      kNavigationRequestSecurityLevelHistogram,
+      NavigationRequestSecurityLevel::kHttpsEnforcedOnHostname, 0);
 }
 
 // Minimal test fixture for testing the interaction between the

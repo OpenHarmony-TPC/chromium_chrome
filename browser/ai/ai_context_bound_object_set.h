@@ -8,42 +8,33 @@
 #include <variant>
 
 #include "base/containers/unique_ptr_adapters.h"
-#include "base/memory/weak_ptr.h"
-#include "base/supports_user_data.h"
 #include "chrome/browser/ai/ai_context_bound_object.h"
-#include "content/public/browser/document_user_data.h"
+#include "services/on_device_model/public/mojom/on_device_model.mojom.h"
 
 // The data structure that supports adding and removing `AIContextBoundObject`.
-class AIContextBoundObjectSet : public base::SupportsUserData::Data {
+class AIContextBoundObjectSet {
  public:
-  AIContextBoundObjectSet();
+  explicit AIContextBoundObjectSet(on_device_model::mojom::Priority priority);
   AIContextBoundObjectSet(const AIContextBoundObjectSet&) = delete;
   AIContextBoundObjectSet& operator=(const AIContextBoundObjectSet&) = delete;
-  ~AIContextBoundObjectSet() override;
+  ~AIContextBoundObjectSet();
 
   // Add an `AIContextBoundObject` into the set.
   void AddContextBoundObject(std::unique_ptr<AIContextBoundObject> object);
   // Returns the size of user data set for testing purpose.
   size_t GetSizeForTesting();
 
-  static AIContextBoundObjectSet* GetFromContext(
-      base::SupportsUserData& context_user_data);
+  // Remove the `AIContextBoundObject` from the set.
+  void RemoveContextBoundObject(AIContextBoundObject* object);
 
-  // Returns a weak pointer for testing purposes only.
-  base::WeakPtr<AIContextBoundObjectSet> GetWeakPtrForTesting() {
-    return weak_ptr_factory_.GetWeakPtr();
-  }
+  // Sets the priority for all objects owned by this.
+  void SetPriority(on_device_model::mojom::Priority priority);
 
  protected:
-  // Remove the `AIContextBoundObject` from the set.
-  virtual void RemoveContextBoundObject(AIContextBoundObject* object);
-
+  on_device_model::mojom::Priority priority_;
   base::flat_set<std::unique_ptr<AIContextBoundObject>,
                  base::UniquePtrComparator>
       context_bound_object_set_;
-
- private:
-  base::WeakPtrFactory<AIContextBoundObjectSet> weak_ptr_factory_{this};
 };
 
 #endif  // CHROME_BROWSER_AI_AI_CONTEXT_BOUND_OBJECT_SET_H_

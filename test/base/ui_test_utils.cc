@@ -246,8 +246,8 @@ void NavigateToURLWithPost(Browser* browser, const GURL& url) {
   NavigateParams params(browser, url, ui::PAGE_TRANSITION_FORM_SUBMIT);
 
   std::string post_data("test=body");
-  params.post_data = network::ResourceRequestBody::CreateFromBytes(
-      post_data.data(), post_data.size());
+  params.post_data = network::ResourceRequestBody::CreateFromCopyOfBytes(
+      base::as_byte_span(post_data));
 
   NavigateToURL(&params);
 }
@@ -265,18 +265,12 @@ NavigateToURLWithDispositionBlockUntilNavigationsComplete(
     int number_of_navigations,
     WindowOpenDisposition disposition,
     int browser_test_flags) {
-  TRACE_EVENT1("test",
-               "ui_test_utils::"
-               "NavigateToURLWithDispositionBlockUntilNavigationsComplete",
-               "params", [&](perfetto::TracedValue context) {
-                 // TODO(crbug.com/40751990): Replace this with passing more
-                 // parameters to TRACE_EVENT directly when available.
-                 auto dict = std::move(context).WriteDictionary();
-                 dict.Add("url", url);
-                 dict.Add("number_of_navigations", number_of_navigations);
-                 dict.Add("disposition", disposition);
-                 dict.Add("browser_test_flags", browser_test_flags);
-               });
+  TRACE_EVENT("test",
+              "ui_test_utils::"
+              "NavigateToURLWithDispositionBlockUntilNavigationsComplete",
+              "url", url, "number_of_navigations", number_of_navigations,
+              "disposition", disposition, "browser_test_flags",
+              browser_test_flags);
   TabStripModel* tab_strip = browser->tab_strip_model();
   if (disposition == WindowOpenDisposition::CURRENT_TAB &&
       tab_strip->GetActiveWebContents())
@@ -311,8 +305,9 @@ NavigateToURLWithDispositionBlockUntilNavigationsComplete(
     EXPECT_TRUE(web_contents)
         << " Unable to wait for navigation to \"" << url.spec()
         << "\" because the new tab is not available yet";
-    if (!web_contents)
+    if (!web_contents) {
       return nullptr;
+    }
   } else if ((disposition == WindowOpenDisposition::CURRENT_TAB) ||
              (disposition == WindowOpenDisposition::NEW_FOREGROUND_TAB) ||
              (disposition == WindowOpenDisposition::SINGLETON_TAB)) {
@@ -321,6 +316,7 @@ NavigateToURLWithDispositionBlockUntilNavigationsComplete(
   }
   if (disposition == WindowOpenDisposition::CURRENT_TAB) {
     same_tab_observer.Wait();
+    content::SimulateEndOfPaintHoldingOnPrimaryMainFrame(web_contents);
     return web_contents->GetPrimaryMainFrame();
   } else if (web_contents) {
     content::TestNavigationObserver observer(
@@ -330,6 +326,7 @@ NavigateToURLWithDispositionBlockUntilNavigationsComplete(
     if (!blink::IsRendererDebugURL(url))
       observer.set_expected_initial_url(url);
     observer.Wait();
+    content::SimulateEndOfPaintHoldingOnPrimaryMainFrame(web_contents);
     return web_contents->GetPrimaryMainFrame();
   }
   EXPECT_TRUE(web_contents)
@@ -543,12 +540,6 @@ void FullscreenWaiter::Wait() {
 }
 
 void FullscreenWaiter::OnFullscreenStateChanged() {
-  // Note: In Lacros, when full screen mode changes, FullscreenController
-  // triggers WindowFullscreenStateChanged twice for the same change
-  // asynchronously. If the test code toggles fullscreen mode on and off, there
-  // is a race between the second notification of fullscreen mode on and test
-  // code toggle fullscreen mode off. Wait until the fullscreen state changes to
-  // the expected mode. See details in crbug.com/1481727.
   if (!IsSatisfied()) {
     return;
   }
@@ -871,7 +862,7 @@ HistoryEnumerator::HistoryEnumerator(Profile* profile) {
   run_loop.Run();
 }
 
-HistoryEnumerator::~HistoryEnumerator() {}
+HistoryEnumerator::~HistoryEnumerator() = default;
 
 // Wait for HistoryService to load.
 class WaitHistoryLoadedObserver : public history::HistoryServiceObserver {
@@ -892,8 +883,7 @@ WaitHistoryLoadedObserver::WaitHistoryLoadedObserver(
     : runner_(runner) {
 }
 
-WaitHistoryLoadedObserver::~WaitHistoryLoadedObserver() {
-}
+WaitHistoryLoadedObserver::~WaitHistoryLoadedObserver() = default;
 
 void WaitHistoryLoadedObserver::OnHistoryServiceLoaded(
     history::HistoryService* service) {

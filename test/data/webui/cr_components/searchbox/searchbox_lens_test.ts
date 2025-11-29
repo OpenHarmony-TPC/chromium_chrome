@@ -23,6 +23,7 @@ function createAutocompleteMatch(): AutocompleteMatch {
     allowedToBeDefaultMatch: false,
     answer: null,
     isSearchType: false,
+    isEnterpriseSearchAggregatorPeopleType: false,
     isWeatherAnswerSuggestion: null,
     swapContentsAndDescription: false,
     supportsDeletion: false,
@@ -34,6 +35,7 @@ function createAutocompleteMatch(): AutocompleteMatch {
     destinationUrl: {url: ''},
     inlineAutocompletion: stringToMojoString16(''),
     fillIntoEdit: stringToMojoString16(''),
+    iconPath: '',
     iconUrl: '',
     imageDominantColor: '',
     imageUrl: '',
@@ -66,7 +68,7 @@ suite('Lens search', () => {
     });
   });
 
-  setup(async () => {
+  setup(() => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
 
     // Set up Realbox's browser proxy.

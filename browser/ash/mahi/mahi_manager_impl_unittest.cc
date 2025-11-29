@@ -17,6 +17,7 @@
 #include "ash/test/ash_test_base.h"
 #include "base/auto_reset.h"
 #include "base/command_line.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/gmock_callback_support.h"
@@ -26,6 +27,7 @@
 #include "chrome/browser/ash/magic_boost/magic_boost_state_ash.h"
 #include "chrome/browser/ash/mahi/mahi_cache_manager.h"
 #include "chrome/browser/ash/mahi/web_contents/test_support/fake_mahi_web_contents_manager.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chromeos/components/magic_boost/public/cpp/magic_boost_state.h"
 #include "chromeos/components/mahi/public/cpp/mahi_media_app_content_manager.h"
 #include "chromeos/components/mahi/public/cpp/mahi_web_contents_manager.h"
@@ -40,7 +42,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/image/image_skia.h"
-#include "ui/lottie/resource.h"
 #include "ui/views/widget/widget.h"
 
 namespace {
@@ -64,9 +65,11 @@ class FakeMahiProvider : public manta::MahiProvider {
 
   void Summarize(const std::string& input,
                  const std::string& title,
+                 const std::optional<std::string>& context,
                  const std::optional<std::string>& url,
                  manta::MantaGenericCallback callback) override {
     ++num_summarize_call_;
+    latest_summary_input_ = input;
     latest_title_ = title;
     latest_url_ = url;
     std::move(callback).Run(base::Value::Dict().Set("outputData", kFakeSummary),
@@ -94,10 +97,15 @@ class FakeMahiProvider : public manta::MahiProvider {
     return latest_elucidation_input_;
   }
 
+  const std::string& latest_summary_input() const {
+    return latest_summary_input_;
+  }
+
  private:
   int num_summarize_call_ = 0;
   std::string latest_title_;
   std::string latest_elucidation_input_;
+  std::string latest_summary_input_;
   std::optional<std::string> latest_url_;
 };
 
@@ -114,14 +122,7 @@ class MahiManagerImplTest : public NoSessionAshTestBase {
  public:
   MahiManagerImplTest()
       : NoSessionAshTestBase(
-            base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
-    // Sets the default functions for the test to create image with the lottie
-    // resource id. Otherwise there's no `g_parse_lottie_as_still_image_` set in
-    // the `ResourceBundle`.
-    ui::ResourceBundle::SetLottieParsingFunctions(
-        &lottie::ParseLottieAsStillImage,
-        &lottie::ParseLottieAsThemedStillImage);
-  }
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   MahiManagerImplTest(const MahiManagerImplTest&) = delete;
   MahiManagerImplTest& operator=(const MahiManagerImplTest&) = delete;
@@ -138,11 +139,12 @@ class MahiManagerImplTest : public NoSessionAshTestBase {
     base::CommandLine::ForCurrentProcess()->AppendSwitch(
         chromeos::switches::kMahiRestrictionsOverride);
 
-    magic_boost_state_ = std::make_unique<MagicBoostStateAsh>();
+    magic_boost_state_ = std::make_unique<MagicBoostStateAsh>(
+        base::BindRepeating([]() { return static_cast<Profile*>(nullptr); }));
     mahi_manager_impl_ = std::make_unique<MahiManagerImpl>();
     mahi_manager_impl_->mahi_provider_ = CreateMahiProvider();
 
-    CreateUserSessions(1);
+    SimulateUserLogin(kRegularUserLoginInfo);
   }
 
   void TearDown() override {
@@ -460,16 +462,16 @@ TEST_F(MahiManagerImplTest, SetMahiPrefOnLogin) {
         Shell::Get()->session_controller()->GetActiveAccountId();
 
     // Sets the pref for the second user.
-    SimulateUserLogin("other@user.test");
+    SimulateUserLogin({"other@user.test"});
     SetMahiEnabledByUserPref(!mahi_enabled);
     EXPECT_EQ(IsEnabled(), !mahi_enabled);
 
     // Switching back to the previous user will update to correct pref.
-    GetSessionControllerClient()->SwitchActiveUser(user1_account_id);
+    SwitchActiveUser(user1_account_id);
     EXPECT_EQ(IsEnabled(), mahi_enabled);
 
     // Clears all logins and re-logins the default user.
-    GetSessionControllerClient()->Reset();
+    ClearLogin();
     SimulateUserLogin(user1_account_id);
   }
 }
@@ -550,6 +552,34 @@ TEST_F(MahiManagerImplTest, GetElucidationForMediaApp) {
   // Checks the elucidation result.
   EXPECT_EQ(test_future.Get<std::u16string>(),
             base::UTF8ToUTF16(std::string(kFakeElucidation)));
+}
+
+// Tests that `GetSummary` uses `current_selected_text_` as content if it's not
+// nullopt.
+TEST_F(MahiManagerImplTest, GetSummaryForSelectedText) {
+  const std::u16string selected_text = u"test selected text";
+  chromeos::MahiWebContentsManager::Get()->SetSelectedText(selected_text);
+
+  base::test::TestFuture<std::u16string, chromeos::MahiResponseStatus>
+      test_future;
+
+  // Sets a valid URL so that the cache manager won't drop the content.
+  mahi_manager_impl_->SetCurrentFocusedPageInfo(
+      CreatePageInfo("http://url1.com/abc#random", /*title=*/u"Title of url1",
+                     /*is_incognito=*/false));
+  UpdateCurrentSelectedText();
+  mahi_manager_impl_->GetSummary(test_future.GetCallback());
+
+  // Checks the request to mahi provider uses the selected text as input.
+  EXPECT_EQ(GetMahiProvider()->latest_summary_input(),
+            base::UTF16ToUTF8(selected_text));
+  // Checks the summary result.
+  EXPECT_EQ(test_future.Get<std::u16string>(),
+            base::UTF8ToUTF16(std::string(kFakeSummary)));
+
+  // Checks the page content is request and cached even if the summary is for
+  // selected text.
+  EXPECT_EQ(GetCacheManager()->size(), 1);
 }
 
 }  // namespace ash

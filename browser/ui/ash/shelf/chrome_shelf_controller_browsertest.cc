@@ -110,7 +110,6 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/ash/components/file_manager/app_id.h"
-#include "chromeos/ash/components/standalone_browser/feature_refs.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/app_constants/constants.h"
 #include "components/crx_file/id_util.h"
@@ -174,8 +173,9 @@ Browser* FindBrowserForApp(const std::string& app_name) {
   for (Browser* browser : *BrowserList::GetInstance()) {
     std::string browser_app_name =
         web_app::GetAppIdFromApplicationName(browser->app_name());
-    if (browser_app_name == app_name)
+    if (browser_app_name == app_name) {
       return browser;
+    }
   }
   return nullptr;
 }
@@ -324,7 +324,7 @@ class ShelfAppBrowserTest : public extensions::ExtensionBrowserTest {
   ShelfAppBrowserTest() = default;
   ShelfAppBrowserTest(const ShelfAppBrowserTest&) = delete;
   ShelfAppBrowserTest& operator=(const ShelfAppBrowserTest&) = delete;
-  ~ShelfAppBrowserTest() override {}
+  ~ShelfAppBrowserTest() override = default;
 
   ash::ShelfModel* shelf_model() { return controller_->shelf_model(); }
 
@@ -438,12 +438,12 @@ class ShelfAppBrowserTest : public extensions::ExtensionBrowserTest {
 
 class ShelfAppBrowserTestNoDefaultBrowser : public ShelfAppBrowserTest {
  protected:
-  ShelfAppBrowserTestNoDefaultBrowser() {}
+  ShelfAppBrowserTestNoDefaultBrowser() = default;
   ShelfAppBrowserTestNoDefaultBrowser(
       const ShelfAppBrowserTestNoDefaultBrowser&) = delete;
   ShelfAppBrowserTestNoDefaultBrowser& operator=(
       const ShelfAppBrowserTestNoDefaultBrowser&) = delete;
-  ~ShelfAppBrowserTestNoDefaultBrowser() override {}
+  ~ShelfAppBrowserTestNoDefaultBrowser() override = default;
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     ShelfAppBrowserTest::SetUpCommandLine(command_line);
@@ -1248,12 +1248,12 @@ IN_PROC_BROWSER_TEST_F(ShelfWebAppBrowserTest, AppIDForPWA) {
   registration_waiter.AwaitRegistration();
 
   // Install PWA.
-  web_app::SetAutoAcceptPWAInstallConfirmationForTesting(true);
+  auto auto_accept_pwa_install_confirmation =
+      web_app::SetAutoAcceptPWAInstallConfirmationForTesting();
   web_app::WebAppTestInstallWithOsHooksObserver install_observer(profile());
   install_observer.BeginListening();
   chrome::ExecuteCommand(browser(), IDC_INSTALL_PWA);
   const webapps::AppId app_id = install_observer.Wait();
-  web_app::SetAutoAcceptPWAInstallConfirmationForTesting(false);
 
   // Find the native window for the app.
   gfx::NativeWindow native_window = gfx::NativeWindow();
@@ -2321,8 +2321,9 @@ IN_PROC_BROWSER_TEST_F(ShelfWebAppBrowserTest, SettingsAndTaskManagerWindows) {
   EXPECT_EQ(item_count + 2, shelf_model()->item_count());
 
   // Validates that all items have valid app id.
-  for (const auto& item : shelf_model()->items())
+  for (const auto& item : shelf_model()->items()) {
     EXPECT_TRUE(crx_file::id_util::IdIsValid(item.id.app_id));
+  }
 
   // TODO(stevenjb): Test multiprofile on Chrome OS when test support is addded.
   // crbug.com/230464.
@@ -2444,12 +2445,12 @@ IN_PROC_BROWSER_TEST_F(ShelfWebAppBrowserTest,
   ASSERT_TRUE(AddTabAtIndex(1, url, ui::PAGE_TRANSITION_LINK));
   registration_waiter.AwaitRegistration();
   // Install PWA.
-  web_app::SetAutoAcceptPWAInstallConfirmationForTesting(true);
+  auto auto_accept_pwa_install_confirmation =
+      web_app::SetAutoAcceptPWAInstallConfirmationForTesting();
   web_app::WebAppTestInstallWithOsHooksObserver install_observer(profile());
   install_observer.BeginListening();
   chrome::ExecuteCommand(browser(), IDC_INSTALL_PWA);
   const webapps::AppId app_id = install_observer.Wait();
-  web_app::SetAutoAcceptPWAInstallConfirmationForTesting(false);
 
   ash::ShelfID shelf_id(app_id);
   EXPECT_FALSE(ChromeShelfController::instance()->IsPinned(shelf_id));
@@ -2759,11 +2760,11 @@ IN_PROC_BROWSER_TEST_F(HotseatShelfAppBrowserTest, EnableChromeVox) {
   speech_monitor.Call([this]() {
     // Disable earcons (https://crbug.com/396507).
     const std::string script(R"JS(
-        let module = await import('/chromevox/background/chromevox.js');
+        let module = await import('/chromevox/mv2/background/chromevox.js');
         module.ChromeVox.earcons.playEarcon = function() {};
-        module = await import('/chromevox/background/chromevox_state.js');
+        module = await import('/chromevox/mv2/background/chromevox_state.js');
         let ChromeVoxState = module.ChromeVoxState;
-        module = await import('/chromevox/background/chromevox_range.js');
+        module = await import('/chromevox/mv2/background/chromevox_range.js');
         let ChromeVoxRange = module.ChromeVoxRange;
 
         await ChromeVoxState.ready();
@@ -2958,8 +2959,9 @@ class PerDeskShelfAppBrowserTest : public ShelfAppBrowserTest,
 
  private:
   void OnAppMenuShown() {
-    if (run_loop_)
+    if (run_loop_) {
       std::move(run_loop_)->Quit();
+    }
   }
 
   raw_ptr<ash::ShelfView, DanglingUntriaged> shelf_view_ = nullptr;

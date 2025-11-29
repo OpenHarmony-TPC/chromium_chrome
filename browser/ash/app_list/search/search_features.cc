@@ -11,17 +11,13 @@
 
 namespace search_features {
 
-BASE_FEATURE(kLauncherGameSearch,
-             "LauncherGameSearch",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kLauncherKeywordExtractionScoring,
              "LauncherKeywordExtractionScoring",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLauncherImageSearch,
              "LauncherImageSearch",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLauncherLocalImageSearchConfidence,
              "LauncherLocalImageSearchConfidence",
@@ -41,7 +37,7 @@ BASE_FEATURE(kICASupportedByHardware,
 
 BASE_FEATURE(kLauncherImageSearchOcr,
              "LauncherImageSearchOcr",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLauncherImageSearchIndexingLimit,
              "LauncherImageSearchIndexingLimit",
@@ -50,10 +46,6 @@ BASE_FEATURE(kLauncherImageSearchIndexingLimit,
 BASE_FEATURE(kLauncherImageSearchDebug,
              "kLauncherImageSearchDebug",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kLauncherSystemInfoAnswerCards,
-             "LauncherSystemInfoAnswerCards",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLauncherSearchFileScan,
              "kLauncherSearchFileScan",
@@ -66,8 +58,7 @@ BASE_FEATURE(kLauncherKeyShortcutInBestMatch,
 // TODO(b/330386392): kLauncherGameSearch can be removed because if there's no
 // payload, there will be no result.
 bool IsLauncherGameSearchEnabled() {
-  return base::FeatureList::IsEnabled(kLauncherGameSearch) ||
-         chromeos::features::IsCloudGamingDeviceEnabled() ||
+  return chromeos::features::IsCloudGamingDeviceEnabled() ||
          chromeos::features::IsAlmanacLauncherPayloadEnabled();
 }
 
@@ -76,10 +67,8 @@ bool IsLauncherKeywordExtractionScoringEnabled() {
 }
 
 bool IsLauncherImageSearchEnabled() {
-  return (base::FeatureList::IsEnabled(
-              ash::features::kFeatureManagementLocalImageSearch) ||
-          base::FeatureList::IsEnabled(
-              ash::features::kLocalImageSearchOnCore)) &&
+  return base::FeatureList::IsEnabled(
+             ash::features::kFeatureManagementLocalImageSearch) &&
          base::FeatureList::IsEnabled(kLauncherImageSearch);
 }
 
@@ -99,10 +88,6 @@ bool IsLauncherImageSearchIndexingLimitEnabled() {
 
 bool IsLauncherImageSearchDebugEnabled() {
   return base::FeatureList::IsEnabled(kLauncherImageSearchDebug);
-}
-
-bool IsLauncherSystemInfoAnswerCardsEnabled() {
-  return base::FeatureList::IsEnabled(kLauncherSystemInfoAnswerCards);
 }
 
 bool IsLauncherSearchFileScanEnabled() {

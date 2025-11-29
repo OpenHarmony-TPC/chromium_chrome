@@ -17,9 +17,6 @@
 #include "chrome/browser/device_reauth/mac/device_authenticator_mac.h"
 #elif BUILDFLAG(IS_WIN)
 #include "chrome/browser/device_reauth/win/device_authenticator_win.h"
-#elif BUILDFLAG(IS_OHOS)
-#include "chrome/browser/device_reauth/ohos/authenticator_ohos.h"
-#include "chrome/browser/device_reauth/ohos/device_authenticator_ohos.h"
 #elif BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/device_reauth/chromeos/device_authenticator_chromeos.h"
 #endif
@@ -67,9 +64,6 @@ ChromeDeviceAuthenticatorFactory::GetForProfile(
 #elif BUILDFLAG(IS_WIN)
   auto device_authenticator = std::make_unique<DeviceAuthenticatorWin>(
       std::make_unique<AuthenticatorWin>(), proxy, params);
-#elif BUILDFLAG(IS_OHOS)
-  auto device_authenticator = std::make_unique<DeviceAuthenticatorOhos>(
-      std::make_unique<AuthenticatorOhos>(), proxy, params);
 #elif BUILDFLAG(IS_CHROMEOS)
   auto device_authenticator = std::make_unique<DeviceAuthenticatorChromeOS>(
       std::make_unique<AuthenticatorChromeOS>(), proxy, params);

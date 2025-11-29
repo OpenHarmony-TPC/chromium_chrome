@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<grit latest_public_release="0" current_release="1" output_all_resource_defines="false">
+<grit latest_public_release="0" current_release="1">
   <outputs>
     <output filename="grit/preinstalled_web_apps_resources.h" type="rc_header">
       <emit emit_type='prepend'></emit>
@@ -22,6 +22,7 @@
       <if expr="is_chromeos">
         <include name="IDR_PREINSTALLED_WEB_APPS_GEMINI_ICON_192_PNG" file="internal/gemini_192.png" type="BINDATA" />
         <include name="IDR_PREINSTALLED_WEB_APPS_GOOGLE_CALENDAR_ICON_192_PNG" file="internal/google_calendar_192.png" type="BINDATA" />
+        <include name="IDR_PREINSTALLED_WEB_APPS_NOTEBOOK_LM_ICON_512_PNG" file="internal/notebook_lm_512.png" type="BINDATA" />
       </if>
     </includes>
   </release>

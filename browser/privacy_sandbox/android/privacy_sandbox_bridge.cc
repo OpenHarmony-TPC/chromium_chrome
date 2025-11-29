@@ -14,11 +14,10 @@
 #include "base/time/time.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_activity_types_factory.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_activity_types_service.h"
-#include "chrome/browser/privacy_sandbox/privacy_sandbox_countries.h"
-#include "chrome/browser/privacy_sandbox/privacy_sandbox_countries_impl.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service_factory.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_settings_factory.h"
+#include "chrome/browser/privacy_sandbox/privacy_sandbox_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/privacy_sandbox/canonical_topic.h"
 #include "components/privacy_sandbox/privacy_sandbox_settings.h"
@@ -262,4 +261,25 @@ JNI_PrivacySandboxBridge_PrivacySandboxPrivacyGuideShouldShowAdTopicsCard(
     const JavaParamRef<jobject>& j_profile) {
   return GetPrivacySandboxService(j_profile)
       ->PrivacySandboxPrivacyGuideShouldShowAdTopicsCard();
+}
+
+static jboolean JNI_PrivacySandboxBridge_ShouldUsePrivacyPolicyChinaDomain(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& j_profile) {
+  return GetPrivacySandboxService(j_profile)
+      ->ShouldUsePrivacyPolicyChinaDomain();
+}
+
+static ScopedJavaLocalRef<jstring>
+JNI_PrivacySandboxBridge_GetEmbeddedPrivacyPolicyURL(
+    JNIEnv* env,
+    jint domain_type,
+    jint color_scheme,
+    const JavaParamRef<jstring>& locale) {
+  return ConvertUTF8ToJavaString(
+      env,
+      privacy_sandbox::GetEmbeddedPrivacyPolicyURL(
+          static_cast<privacy_sandbox::PrivacyPolicyDomainType>(domain_type),
+          static_cast<privacy_sandbox::PrivacyPolicyColorScheme>(color_scheme),
+          base::android::ConvertJavaStringToUTF8(env, locale)));
 }

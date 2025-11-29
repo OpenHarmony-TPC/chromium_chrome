@@ -7,8 +7,7 @@
 #include "build/build_config.h"
 #include "components/enterprise/buildflags/buildflags.h"
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #include "base/base64url.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
@@ -19,8 +18,7 @@
 #include "crypto/signature_verifier.h"
 
 using BPKUR = enterprise_management::BrowserPublicKeyUploadRequest;
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || \
-        // BUILDFLAG(IS_OHOS)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_MAC)
 #include "chrome/common/channel_info.h"
@@ -34,14 +32,14 @@ using BPKUR = enterprise_management::BrowserPublicKeyUploadRequest;
 #include "components/enterprise/client_certificates/core/private_key.h"
 #include "components/enterprise/client_certificates/core/private_key_types.h"
 #include "net/cert/x509_certificate.h"
+#include "net/ssl/ssl_private_key.h"
 #endif  // BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
 
 namespace enterprise_connectors::utils {
 
 namespace {
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
 connectors_internals::mojom::KeyTrustLevel ParseTrustLevel(
     BPKUR::KeyTrustLevel trust_level) {
@@ -104,8 +102,7 @@ connectors_internals::mojom::Int32ValuePtr ToMojomValue(
                        : nullptr;
 }
 
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || \
-        // BUILDFLAG(IS_OHOS)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
 
@@ -120,6 +117,8 @@ connectors_internals::mojom::KeyTrustLevel ConvertPrivateKeySource(
       return connectors_internals::mojom::KeyTrustLevel::HW;
     case client_certificates::PrivateKeySource::kSoftwareKey:
       return connectors_internals::mojom::KeyTrustLevel::OS;
+    case client_certificates::PrivateKeySource::kOsSoftwareKey:
+      return connectors_internals::mojom::KeyTrustLevel::OS_SOFTWARE;
   }
 }
 
@@ -149,8 +148,8 @@ connectors_internals::mojom::LoadedKeyInfoPtr ConvertPrivateKey(
   return connectors_internals::mojom::LoadedKeyInfo::New(
       ConvertPrivateKeySource(private_key->GetSource()),
       AlgorithmToType(private_key->GetAlgorithm()),
-      HashAndEncodeString(BufferToString(spki_bytes)),
-      std::move(upload_status));
+      HashAndEncodeString(BufferToString(spki_bytes)), std::move(upload_status),
+      bool(private_key->GetSSLPrivateKey()));
 }
 
 connectors_internals::mojom::CertificateMetadataPtr ConvertCertificate(
@@ -163,7 +162,7 @@ connectors_internals::mojom::CertificateMetadataPtr ConvertCertificate(
       base::ToLowerASCII(base::HexEncode(certificate->serial_number().data(),
                                          certificate->serial_number().size())),
       base::ToLowerASCII(
-          base::HexEncode(certificate->CalculateChainFingerprint256().data)),
+          base::HexEncode(certificate->CalculateChainFingerprint256())),
       base::UnlocalizedTimeFormatWithPattern(certificate->valid_start(),
                                              "MMM d, yyyy"),
       base::UnlocalizedTimeFormatWithPattern(certificate->valid_expiry(),
@@ -194,7 +193,8 @@ connectors_internals::mojom::KeyInfoPtr GetKeyInfo() {
                 HashAndEncodeString(metadata->spki_bytes),
                 connectors_internals::mojom::KeyUploadStatus::
                     NewSyncKeyResponseCode(
-                        ToMojomValue(metadata->synchronization_response_code))),
+                        ToMojomValue(metadata->synchronization_response_code)),
+                /*has_ssl_key=*/false),
             ConvertPermanentFailure(metadata->permanent_failure));
       }
 

@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 
+#include "base/auto_reset.h"
 #include "base/clang_profiling_buildflags.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
@@ -19,7 +20,6 @@
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "build/config/compiler/compiler_buildflags.h"
 #include "chrome/browser/about_flags.h"
 #include "chrome/browser/browser_process.h"
@@ -46,29 +46,25 @@
 #include "chrome/browser/win/browser_util.h"
 #endif
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/first_run/upgrade_util.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/boot_times_recorder/boot_times_recorder.h"
 #include "chrome/browser/lifetime/application_lifetime_chromeos.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #endif
 
-#if BUILDFLAG(IS_OHOS)
-#include "ohos/adapter/ime_adapter/input_method_ohos_adapter.h"
-#endif  // BUILDFLAG(IS_OHOS)
-
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
-#include "chrome/browser/background/background_mode_manager.h"
+#include "chrome/browser/background/extensions/background_mode_manager.h"
 #endif
 
 #if BUILDFLAG(ENABLE_RLZ)
 #include "components/rlz/rlz_tracker.h"  // nogncheck crbug.com/1125897
 #endif
 
-#if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX) && BUILDFLAG(CLANG_PGO)
+#if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX) && BUILDFLAG(CLANG_PGO_PROFILING)
 #include "base/run_loop.h"
 #include "content/public/browser/profiling_utils.h"
 #endif
@@ -136,17 +132,13 @@ void OnShutdownStarting(ShutdownType type) {
 
   // TODO(crbug.com/40685224): Check if this should also be enabled for
   // coverage builds.
-#if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX) && BUILDFLAG(CLANG_PGO)
+#if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX) && BUILDFLAG(CLANG_PGO_PROFILING)
   // Wait for all the child processes to dump their profiling data without
   // blocking the main thread.
   base::RunLoop nested_run_loop(base::RunLoop::Type::kNestableTasksAllowed);
   content::AskAllChildrenToDumpProfilingData(nested_run_loop.QuitClosure());
   nested_run_loop.Run();
-#endif  // BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX) && BUILDFLAG(CLANG_PGO)
-#if BUILDFLAG(IS_OHOS)
-  auto& ime_instance = ohos::adapter::InputMethodOHOSAdapter::GetInstance();
-  ime_instance.OffListenIME();
-#endif // BUILDFLAG(IS_OHOS)
+#endif
 
   // Call FastShutdown on all of the RenderProcessHosts.  This will be
   // a no-op in some cases, so we still need to go through the normal
@@ -183,7 +175,7 @@ ShutdownType GetShutdownType() {
 
 #if !BUILDFLAG(IS_ANDROID)
 bool ShutdownPreThreadsStop() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   ash::BootTimesRecorder::Get()->AddLogoutTimeMarker("BrowserShutdownStarted",
                                                      false);
 #endif
@@ -273,7 +265,7 @@ void ShutdownPostThreadsStop(RestartMode restart_mode) {
   // goes away.
   NukeDeletedProfilesFromDisk();
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   ash::BootTimesRecorder::Get()->AddLogoutTimeMarker("BrowserDeleted",
                                                      /*send_to_uma=*/false);
 #endif
@@ -286,7 +278,7 @@ void ShutdownPostThreadsStop(RestartMode restart_mode) {
 #endif
 
   if (restart_mode != RestartMode::kNoRestart) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     NOTIMPLEMENTED();
 #else
     const base::CommandLine& old_cl(*base::CommandLine::ForCurrentProcess());
@@ -328,10 +320,10 @@ void ShutdownPostThreadsStop(RestartMode restart_mode) {
       new_cl.AppendSwitch(switches::kRestart);
     }
     upgrade_util::RelaunchChromeBrowser(new_cl);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   chrome::StopSession();
 #endif
 }

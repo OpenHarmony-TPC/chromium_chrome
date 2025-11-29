@@ -17,7 +17,7 @@ class Browser;
 namespace display {
 class Display;
 class Screen;
-}
+}  // namespace display
 
 ///////////////////////////////////////////////////////////////////////////////
 // WindowSizer
@@ -95,13 +95,6 @@ class WindowSizer {
   // How much horizontal and vertical offset there is between newly
   // opened windows.  This value may be different on each platform.
   static const int kWindowTilePixels;
-
-#if BUILDFLAG(IS_OHOS)
-  // Define workspace offset
-  static const int kWorkAreaTopOffset;
-  static const int kWorkAreaBottomOffset;
-  static const int kWorkAreaSideOffset;
-#endif
 
   // The maximum default window width. This value may differ between platforms.
   static const int kWindowMaxDefaultWidth;

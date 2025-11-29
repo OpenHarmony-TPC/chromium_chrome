@@ -13,7 +13,6 @@
 #include "ui/web_dialogs/web_dialog_ui.h"
 #include "ui/webui/mojo_web_ui_controller.h"
 #include "ui/webui/resources/cr_components/color_change_listener/color_change_listener.mojom.h"
-#include "url/gurl.h"
 
 namespace base {
 class RefCountedMemory;
@@ -57,7 +56,6 @@ class ProductSpecificationsUI
           receiver);
 
   void CreateShoppingServiceHandler(
-      mojo::PendingRemote<shopping_service::mojom::Page> page,
       mojo::PendingReceiver<shopping_service::mojom::ShoppingServiceHandler>
           receiver) override;
 
@@ -80,7 +78,7 @@ class ProductSpecificationsUI
 
   mojo::Receiver<
       product_specifications::mojom::ProductSpecificationsHandlerFactory>
-      product_specifications_handler_factory_receiver_{this};
+      product_specifications_factory_receiver_{this};
 
   std::unique_ptr<ProductSpecificationsHandler> product_specifications_handler_;
 

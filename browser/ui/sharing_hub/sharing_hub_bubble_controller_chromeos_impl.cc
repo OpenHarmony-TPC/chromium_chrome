@@ -10,6 +10,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/share/share_metrics.h"
+#include "chrome/browser/sharesheet/sharesheet_controller.h"
 #include "chrome/browser/sharesheet/sharesheet_metrics.h"
 #include "chrome/browser/sharesheet/sharesheet_service.h"
 #include "chrome/browser/sharesheet/sharesheet_service_factory.h"
@@ -59,8 +60,9 @@ void SharingHubBubbleControllerChromeOsImpl::ShowBubble(
   // Ignore subsequent calls to open the Sharesheet if it already is open. This
   // is especially for the Nearby Share dialog, where clicking outside of it
   // will not dismiss the dialog.
-  if (bubble_showing_)
+  if (bubble_showing_) {
     return;
+  }
   bubble_showing_ = true;
   ShowSharesheet(browser->window()->GetSharingHubIconButton());
 
@@ -119,16 +121,18 @@ sharesheet::SharesheetService*
 SharingHubBubbleControllerChromeOsImpl::GetSharesheetService() {
   Profile* const profile =
       Profile::FromBrowserContext(GetWebContents().GetBrowserContext());
-  if (!profile)
+  if (!profile) {
     return nullptr;
+  }
 
   return sharesheet::SharesheetServiceFactory::GetForProfile(profile);
 }
 
 void SharingHubBubbleControllerChromeOsImpl::ShowSharesheetAsh() {
   sharesheet::SharesheetService* sharesheet_service = GetSharesheetService();
-  if (!sharesheet_service)
+  if (!sharesheet_service) {
     return;
+  }
 
   apps::IntentPtr intent = apps_util::MakeShareIntent(
       GetWebContents().GetLastCommittedURL().spec(),
@@ -144,13 +148,15 @@ void SharingHubBubbleControllerChromeOsImpl::ShowSharesheetAsh() {
 
 void SharingHubBubbleControllerChromeOsImpl::CloseSharesheetAsh() {
   sharesheet::SharesheetService* sharesheet_service = GetSharesheetService();
-  if (!sharesheet_service)
+  if (!sharesheet_service) {
     return;
+  }
 
   sharesheet::SharesheetController* sharesheet_controller =
       sharesheet_service->GetSharesheetController(parent_window_);
-  if (!sharesheet_controller)
+  if (!sharesheet_controller) {
     return;
+  }
 
   sharesheet_controller->CloseBubble(sharesheet::SharesheetResult::kCancel);
 }
@@ -165,13 +171,15 @@ void SharingHubBubbleControllerChromeOsImpl::OnSharesheetClosed(
 }
 
 void SharingHubBubbleControllerChromeOsImpl::DeselectIcon() {
-  if (!highlighted_button_tracker_.view())
+  if (!highlighted_button_tracker_.view()) {
     return;
+  }
 
   views::Button* button =
       views::Button::AsButton(highlighted_button_tracker_.view());
-  if (button)
+  if (button) {
     button->SetHighlighted(false);
+  }
 }
 
 SharingHubBubbleControllerChromeOsImpl::SharingHubBubbleControllerChromeOsImpl(

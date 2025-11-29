@@ -5,6 +5,7 @@
 #include "chrome/browser/predictors/lcp_critical_path_predictor/lcp_critical_path_predictor_util.h"
 
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_simple_task_runner.h"
 #include "base/time/time.h"
@@ -22,7 +23,9 @@
 using testing::StrictMock;
 
 namespace predictors {
+
 namespace {
+
 class Updater {
  public:
   Updater(size_t sliding_window_size, size_t max_histogram_buckets)
@@ -149,6 +152,19 @@ void InitializeSubresourceUrlDestinationsBucket(
         ->mutable_fetched_subresource_url_destination()
         ->insert({url.first, url.second});
   }
+}
+
+LcpElementLocatorStat CreateLcpElementLocatorStat(
+    std::vector<std::pair<std::string, double>> lcp_element_locator_buckets,
+    double other_bucket_frequency) {
+  LcpElementLocatorStat lcp_element_locator_stat;
+  for (auto [lcp_element_locator, frequency] : lcp_element_locator_buckets) {
+    auto* bucket = lcp_element_locator_stat.add_lcp_element_locator_buckets();
+    bucket->set_lcp_element_locator(lcp_element_locator);
+    bucket->set_frequency(frequency);
+  }
+  lcp_element_locator_stat.set_other_bucket_frequency(other_bucket_frequency);
+  return lcp_element_locator_stat;
 }
 
 }  // namespace
@@ -735,6 +751,64 @@ TEST(IsValidLcppStatTest, MixedPattern) {
   EXPECT_TRUE(IsValidLcppStat(lcpp_stat));
 }
 
+TEST(PredictLcpElementLocatorsTest, Empty) {
+  LcpElementLocatorStat stat;
+  EXPECT_EQ(std::vector<std::string>(),
+            PredictLcpElementLocators(stat,
+                                      /*confidence_threshold=*/0.0,
+                                      /*total_frequency_threshold=*/0.0));
+}
+
+TEST(PredictLcpElementLocatorsTest, ConfidenceThreshold) {
+  const std::string kElementLocator1 = "#element_locator_1";
+  const std::string kElementLocator2 = "#element_locator_2";
+  const std::string kElementLocator3 = "#element_locator_3";
+  LcpElementLocatorStat stat;
+  {
+    auto* bucket1 = stat.add_lcp_element_locator_buckets();
+    bucket1->set_lcp_element_locator(kElementLocator1);
+    bucket1->set_frequency(1);  // 10%
+    auto* bucket2 = stat.add_lcp_element_locator_buckets();
+    bucket2->set_lcp_element_locator(kElementLocator2);
+    bucket2->set_frequency(2);  // 20%
+    auto* bucket3 = stat.add_lcp_element_locator_buckets();
+    bucket3->set_lcp_element_locator(kElementLocator3);
+    bucket3->set_frequency(3);           // 30%
+    stat.set_other_bucket_frequency(4);  // 40%
+  }
+  EXPECT_EQ(std::vector<std::string>(
+                {kElementLocator3, kElementLocator2, kElementLocator1}),
+            PredictLcpElementLocators(stat,
+                                      /*confidence_threshold=*/0.0,
+                                      /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<std::string>(
+                {kElementLocator3, kElementLocator2, kElementLocator1}),
+            PredictLcpElementLocators(stat,
+                                      /*confidence_threshold=*/0.1,
+                                      /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<std::string>({kElementLocator3, kElementLocator2}),
+            PredictLcpElementLocators(stat,
+                                      /*confidence_threshold=*/0.2,
+                                      /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<std::string>({kElementLocator3}),
+            PredictLcpElementLocators(stat,
+                                      /*confidence_threshold=*/0.3,
+                                      /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<std::string>(),
+            PredictLcpElementLocators(stat,
+                                      /*confidence_threshold=*/0.31,
+                                      /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<std::string>(
+                {kElementLocator3, kElementLocator2, kElementLocator1}),
+            PredictLcpElementLocators(stat,
+                                      /*confidence_threshold=*/0.0,
+                                      /*total_frequency_threshold=*/10.0));
+  EXPECT_EQ(std::vector<std::string>(),
+            PredictLcpElementLocators(stat,
+                                      /*confidence_threshold=*/0.0,
+                                      /*total_frequency_threshold=*/10.1));
+}
+
 TEST(PredictFetchedFontUrls, Empty) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeaturesAndParameters(
@@ -834,29 +908,87 @@ TEST(PredictFetchedFontUrls, MaxUrls) {
 }
 
 TEST(PredictFetchedSubresourceUrls, Empty) {
-  EXPECT_EQ(std::vector<GURL>(), PredictFetchedSubresourceUrls({}));
+  EXPECT_EQ(std::vector<GURL>(), PredictFetchedSubresourceUrlsForTesting(
+                                     {}, /*confidence_threshold=*/0.0,
+                                     /*total_frequency_threshold=*/0.0));
 }
 
 TEST(PredictFetchedSubresourceUrls, SingleEntry) {
   LcppStat lcpp_stat;
-  lcpp_stat.mutable_fetched_subresource_url_stat()
-      ->mutable_main_buckets()
-      ->insert({"https://example.com/a.jpeg", 0.9});
+  auto& stat = *lcpp_stat.mutable_fetched_subresource_url_stat();
+  stat.mutable_main_buckets()->insert({"https://example.com/a.jpeg", 3});
+  stat.set_other_bucket_frequency(7);
   EXPECT_EQ(std::vector<GURL>({GURL("https://example.com/a.jpeg")}),
-            PredictFetchedSubresourceUrls(lcpp_stat));
+            PredictFetchedSubresourceUrlsForTesting(
+                lcpp_stat, /*confidence_threshold=*/0.0,
+                /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<GURL>({GURL("https://example.com/a.jpeg")}),
+            PredictFetchedSubresourceUrlsForTesting(
+                lcpp_stat, /*confidence_threshold=*/0.3,
+                /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<GURL>(), PredictFetchedSubresourceUrlsForTesting(
+                                     lcpp_stat, /*confidence_threshold=*/0.31,
+                                     /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<GURL>({GURL("https://example.com/a.jpeg")}),
+            PredictFetchedSubresourceUrlsForTesting(
+                lcpp_stat, /*confidence_threshold=*/0.0,
+                /*total_frequency_threshold=*/10.0));
+  EXPECT_EQ(std::vector<GURL>(), PredictFetchedSubresourceUrlsForTesting(
+                                     lcpp_stat, /*confidence_threshold=*/0.0,
+                                     /*total_frequency_threshold=*/10.1));
 }
 
 TEST(PredictFetchedSubresourceUrls, SortedByFrequencyInDescendingOrder) {
   LcppStat lcpp_stat;
-  auto* buckets =
-      lcpp_stat.mutable_fetched_subresource_url_stat()->mutable_main_buckets();
-  buckets->insert({"https://example.com/c.jpeg", 0.1});
-  buckets->insert({"https://example.com/a.jpeg", 0.3});
-  buckets->insert({"https://example.com/b.jpeg", 0.2});
+  auto& stat = *lcpp_stat.mutable_fetched_subresource_url_stat();
+  auto& buckets = *stat.mutable_main_buckets();
+  buckets.insert({"https://example.com/c.jpeg", 1});
+  buckets.insert({"https://example.com/a.jpeg", 3});
+  buckets.insert({"https://example.com/b.jpeg", 2});
+  stat.set_other_bucket_frequency(4);
+
   EXPECT_EQ(std::vector<GURL>({GURL("https://example.com/a.jpeg"),
                                GURL("https://example.com/b.jpeg"),
                                GURL("https://example.com/c.jpeg")}),
-            PredictFetchedSubresourceUrls(lcpp_stat));
+            PredictFetchedSubresourceUrlsForTesting(
+                lcpp_stat, /*confidence_threshold=*/0.0,
+                /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<GURL>({GURL("https://example.com/a.jpeg"),
+                               GURL("https://example.com/b.jpeg"),
+                               GURL("https://example.com/c.jpeg")}),
+            PredictFetchedSubresourceUrlsForTesting(
+                lcpp_stat, /*confidence_threshold=*/0.1,
+                /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<GURL>({GURL("https://example.com/a.jpeg"),
+                               GURL("https://example.com/b.jpeg")}),
+            PredictFetchedSubresourceUrlsForTesting(
+                lcpp_stat, /*confidence_threshold=*/0.101,
+                /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<GURL>({GURL("https://example.com/a.jpeg"),
+                               GURL("https://example.com/b.jpeg")}),
+            PredictFetchedSubresourceUrlsForTesting(
+                lcpp_stat, /*confidence_threshold=*/0.2,
+                /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<GURL>({GURL("https://example.com/a.jpeg")}),
+            PredictFetchedSubresourceUrlsForTesting(
+                lcpp_stat, /*confidence_threshold=*/0.201,
+                /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<GURL>({GURL("https://example.com/a.jpeg")}),
+            PredictFetchedSubresourceUrlsForTesting(
+                lcpp_stat, /*confidence_threshold=*/0.3,
+                /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<GURL>(), PredictFetchedSubresourceUrlsForTesting(
+                                     lcpp_stat, /*confidence_threshold=*/0.301,
+                                     /*total_frequency_threshold=*/0.0));
+  EXPECT_EQ(std::vector<GURL>({GURL("https://example.com/a.jpeg"),
+                               GURL("https://example.com/b.jpeg"),
+                               GURL("https://example.com/c.jpeg")}),
+            PredictFetchedSubresourceUrlsForTesting(
+                lcpp_stat, /*confidence_threshold=*/0.0,
+                /*total_frequency_threshold=*/10.0));
+  EXPECT_EQ(std::vector<GURL>(), PredictFetchedSubresourceUrlsForTesting(
+                                     lcpp_stat, /*confidence_threshold=*/0.0,
+                                     /*total_frequency_threshold=*/10.1));
 }
 
 TEST(PredictFetchedSubresourceUrls, FilterUrls) {
@@ -872,7 +1004,13 @@ TEST(PredictFetchedSubresourceUrls, FilterUrls) {
   EXPECT_EQ(4U, buckets->size());
   EXPECT_EQ(std::vector<GURL>({GURL("https://example.com/b.jpeg"),
                                GURL("https://example.com/a.jpeg")}),
-            PredictFetchedSubresourceUrls(lcpp_stat));
+            PredictFetchedSubresourceUrlsForTesting(
+                lcpp_stat, /*confidence_threshold=*/0.0,
+                /*total_frequency_threshold=*/0.0));
+}
+
+url::Origin CreateOrigin(std::string url) {
+  return url::Origin::Create(GURL(url));
 }
 
 TEST(PredictPreconnectableOrigins, Empty) {
@@ -880,7 +1018,8 @@ TEST(PredictPreconnectableOrigins, Empty) {
   feature_list.InitWithFeaturesAndParameters(
       {{blink::features::kLCPPAutoPreconnectLcpOrigin, {}}}, {});
   LcppStat lcpp_stat;
-  EXPECT_EQ(std::vector<GURL>(), PredictPreconnectableOrigins(lcpp_stat));
+  EXPECT_EQ(std::vector<url::Origin>(),
+            PredictPreconnectableOrigins(lcpp_stat));
 }
 
 TEST(PredictPreconnectableOrigins, Simple) {
@@ -894,8 +1033,8 @@ TEST(PredictPreconnectableOrigins, Simple) {
   LcppStat lcpp_stat;
   lcpp_stat.mutable_preconnect_origin_stat()->mutable_main_buckets()->insert(
       {"https://example.com", 0.9});
-  std::vector<GURL> expected;
-  expected.emplace_back("https://example.com");
+  std::vector<url::Origin> expected;
+  expected.emplace_back(CreateOrigin("https://example.com"));
   EXPECT_EQ(expected, PredictPreconnectableOrigins(lcpp_stat));
 }
 
@@ -913,9 +1052,9 @@ TEST(PredictPreconnectableOrigins, SortedByFrequencyInDescendingOrder) {
   buckets->insert({"https://example.com", 0.1});
   buckets->insert({"https://example2.com", 0.3});
   buckets->insert({"https://example3.com", 0.2});
-  EXPECT_EQ(std::vector<GURL>({GURL("https://example2.com"),
-                               GURL("https://example3.com"),
-                               GURL("https://example.com")}),
+  EXPECT_EQ(std::vector<url::Origin>({CreateOrigin("https://example2.com"),
+                                      CreateOrigin("https://example3.com"),
+                                      CreateOrigin("https://example.com")}),
             PredictPreconnectableOrigins(lcpp_stat));
 }
 
@@ -932,8 +1071,8 @@ TEST(PredictPreconnectableOrigins, Threshold) {
       lcpp_stat.mutable_preconnect_origin_stat()->mutable_main_buckets();
   main_buckets->insert({"https://example1.com", 0.9});
   main_buckets->insert({"https://example2.com", 0.1});
-  std::vector<GURL> expected;
-  expected.emplace_back("https://example1.com");
+  std::vector<url::Origin> expected;
+  expected.emplace_back(CreateOrigin("https://example1.com"));
   EXPECT_EQ(expected, PredictPreconnectableOrigins(lcpp_stat));
 }
 
@@ -951,8 +1090,8 @@ TEST(PredictPreconnectableOrigins, MaxUrls) {
         lcpp_stat.mutable_preconnect_origin_stat()->mutable_main_buckets();
     main_buckets->insert({"https://example.com", 0.9});
     main_buckets->insert({"https://example1.com", 0.8});
-    std::vector<GURL> expected;
-    expected.emplace_back("https://example.com");
+    std::vector<url::Origin> expected;
+    expected.emplace_back(CreateOrigin("https://example.com"));
     EXPECT_EQ(expected, PredictPreconnectableOrigins(lcpp_stat));
   }
   {  // Use MaxUrls as a kill switch.
@@ -968,7 +1107,7 @@ TEST(PredictPreconnectableOrigins, MaxUrls) {
         lcpp_stat.mutable_preconnect_origin_stat()->mutable_main_buckets();
     main_buckets->insert({"https://example1.com", 0.9});
     main_buckets->insert({"https://example2.com", 0.8});
-    std::vector<GURL> expected;
+    std::vector<url::Origin> expected;
     EXPECT_EQ(expected, PredictPreconnectableOrigins(lcpp_stat));
   }
 }
@@ -991,8 +1130,8 @@ TEST(PredictPreconnectableOrigins, FilterUrls) {
   // Not an URL.
   buckets->insert({"d.jpeg", 0.8});
   EXPECT_EQ(4U, buckets->size());
-  EXPECT_EQ(std::vector<GURL>(
-                {GURL("https://example1.com"), GURL("https://example2.com")}),
+  EXPECT_EQ(std::vector<url::Origin>({CreateOrigin("https://example1.com"),
+                                      CreateOrigin("https://example2.com")}),
             PredictPreconnectableOrigins(lcpp_stat));
 }
 
@@ -1145,6 +1284,26 @@ TEST(LcppMultipleKeyTest, GetFirstLevelPath) {
   }
 }
 
+TEST(RecordLcpElementLocatorHistogramTest, ReduceSlidingWindowSize) {
+  LcppStat lcpp_stat;
+  *lcpp_stat.mutable_lcp_element_locator_stat() =
+      CreateLcpElementLocatorStat({{"#a", 3.0}, {"#b", 2.0}, {"#c", 1.0}}, 4.0);
+
+  // Reduce sliding_window_size from 10 to 5.
+  RecordLcpElementLocatorHistogramForTesting(
+      /*sliding_window_size=*/5, /*max_histogram_buckets=*/3, "#d", lcpp_stat);
+  EXPECT_EQ(lcpp_stat.lcp_element_locator_stat(),
+            CreateLcpElementLocatorStat({{"#a", 1.2}, {"#b", 0.8}, {"#d", 1.0}},
+                                        /*other_bucket_frequency=*/2.0));
+
+  // Reduce sliding_window_size from 5 to 1.
+  RecordLcpElementLocatorHistogramForTesting(
+      /*sliding_window_size=*/1, /*max_histogram_buckets=*/3, "#e", lcpp_stat);
+  EXPECT_EQ(lcpp_stat.lcp_element_locator_stat(),
+            CreateLcpElementLocatorStat({{"#e", 1.0}},
+                                        /*other_bucket_frequency=*/0.0));
+}
+
 class LcppDataMapTest : public testing::Test {
  public:
   void InitializeDB(const LoadingPredictorConfig& config) {
@@ -1219,6 +1378,7 @@ class LcppDataMapTest : public testing::Test {
       const std::vector<GURL>& lcp_influencer_scripts = {}) {
     predictors::LcppDataInputs inputs;
     inputs.lcp_element_locator = lcp_element_locator;
+    inputs.lcp_element_locator_image = lcp_element_locator;
     inputs.lcp_influencer_scripts = lcp_influencer_scripts;
     return LearnLcpp(initiator_origin, url, inputs);
   }
@@ -1272,7 +1432,10 @@ class LcppDataMapTest : public testing::Test {
       LcppData expected;
       InitializeLcpElementLocatorBucket(expected, "/#a", ++frequency[key]);
       EXPECT_EQ(expected.lcpp_stat(), *stat)
-          << location.ToString() << url << *stat;
+          << location.ToString() << "\n{url,key} = {\"" << url << "\", \""
+          << key << "\"}\nexpected LCPPData for that learning:\n"
+          << expected.lcpp_stat() << "\nbut we got:\n"
+          << *stat;
     }
   }
 
@@ -1284,6 +1447,12 @@ class LcppDataMapTest : public testing::Test {
                                            ->add_lcp_element_locator_buckets();
     bucket.set_lcp_element_locator(lcp_element_locator);
     bucket.set_frequency(frequency);
+
+    LcpElementLocatorBucket& bucket_all =
+        *stat.mutable_lcp_element_locator_stat_all()
+             ->add_lcp_element_locator_buckets();
+    bucket_all.set_lcp_element_locator(lcp_element_locator);
+    bucket_all.set_frequency(frequency);
     return stat;
   }
 
@@ -1309,10 +1478,61 @@ class LcppDataMapFeatures
   LcppDataMapFeatures() {
     scoped_feature_list_.InitWithFeatures(GetParam(),
                                           /*disabled_features=*/{});
+    constexpr char kSlidingWindowSize[] = "5";
+    constexpr char kMaxHistogramBuckets[] = "2";
+    scoped_feature_list_for_sliding_window_and_buckets_
+        .InitWithFeaturesAndParameters(
+            {
+                {blink::features::kLCPCriticalPathPredictor,
+                 {{blink::features::kLCPCriticalPathPredictorSlidingWindowSize
+                       .name,
+                   kSlidingWindowSize},
+                  {blink::features::kLCPCriticalPathPredictorMaxHistogramBuckets
+                       .name,
+                   kMaxHistogramBuckets}}},
+                {blink::features::kLCPTimingPredictorPrerender2,
+                 {{blink::features::kLCPTimingPredictorSlidingWindowSize.name,
+                   kSlidingWindowSize},
+                  {blink::features::kLCPTimingPredictorMaxHistogramBuckets.name,
+                   kMaxHistogramBuckets}}},
+                {blink::features::kLCPScriptObserver,
+                 {{blink::features::kLCPScriptObserverSlidingWindowSize.name,
+                   kSlidingWindowSize},
+                  {blink::features::kLCPScriptObserverMaxHistogramBuckets.name,
+                   kMaxHistogramBuckets}}},
+                {blink::features::kLCPPFontURLPredictor,
+                 {{blink::features::kLCPPFontURLPredictorSlidingWindowSize.name,
+                   kSlidingWindowSize},
+                  {blink::features::kLCPPFontURLPredictorMaxHistogramBuckets
+                       .name,
+                   kMaxHistogramBuckets}}},
+                {blink::features::kHttpDiskCachePrewarming,
+                 {{blink::features::kHttpDiskCachePrewarmingSlidingWindowSize
+                       .name,
+                   kSlidingWindowSize},
+                  {blink::features::kHttpDiskCachePrewarmingMaxHistogramBuckets
+                       .name,
+                   kMaxHistogramBuckets}}},
+                {blink::features::kLCPPAutoPreconnectLcpOrigin,
+                 {{blink::features::kLCPPAutoPreconnectSlidingWindowSize.name,
+                   kSlidingWindowSize},
+                  {blink::features::kLCPPAutoPreconnectMaxHistogramBuckets.name,
+                   kMaxHistogramBuckets}}},
+                {blink::features::kLCPPDeferUnusedPreload,
+                 {{blink::features::kLCPPDeferUnusedPreloadSlidingWindowSize
+                       .name,
+                   kSlidingWindowSize},
+                  {blink::features::kLCPPDeferUnusedPreloadMaxHistogramBuckets
+                       .name,
+                   kMaxHistogramBuckets}}},
+            },
+            {});
   }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
+  base::test::ScopedFeatureList
+      scoped_feature_list_for_sliding_window_and_buckets_;
 };
 
 auto& kLCPPInitiatorOrigin = blink::features::kLCPPInitiatorOrigin;
@@ -1354,6 +1574,7 @@ TEST_P(LcppDataMapFeatures, Base) {
 
   predictors::LcppDataInputs inputs;
   inputs.lcp_element_locator = "/#foo";
+  inputs.lcp_element_locator_image = "/#foo";
   GURL url = GURL("https://a.test");
   lcpp_data_map_->LearnLcpp(/*initiator_origin=*/std::nullopt, url, inputs);
 
@@ -1365,11 +1586,14 @@ TEST_P(LcppDataMapFeatures, Base) {
   EXPECT_EQ(expected.lcpp_stat(), *stat) << *stat;
 }
 
+#define EXPECT_DATA_EQ(expected, actual)                   \
+  EXPECT_EQ(expected, actual) << "expected:\n"             \
+                              << expected << "\nactual:\n" \
+                              << actual;
+
 TEST_P(LcppDataMapFeatures, LearnLcpp) {
   LoadingPredictorConfig config;
   PopulateTestConfig(&config);
-  EXPECT_EQ(5U, config.lcpp_histogram_sliding_window_size);
-  EXPECT_EQ(2U, config.max_lcpp_histogram_buckets);
   InitializeDB(config);
   EXPECT_TRUE(GetDataMap().empty());
 
@@ -1399,7 +1623,7 @@ TEST_P(LcppDataMapFeatures, LearnLcpp) {
   {
     LcppData data = CreateLcppData("a.test", 10);
     InitializeLcpElementLocatorBucket(data, "/#a", 3);
-    EXPECT_EQ(data, GetDataMap().at("a.test"));
+    EXPECT_DATA_EQ(data, GetDataMap().at("a.test"));
     EXPECT_DOUBLE_EQ(3, SumOfElementLocatorFrequency(data));
   }
 
@@ -1410,7 +1634,7 @@ TEST_P(LcppDataMapFeatures, LearnLcpp) {
     LcppData data = CreateLcppData("a.test", 10);
     InitializeLcpElementLocatorBucket(data, "/#a", 3);
     InitializeLcpElementLocatorBucket(data, "/#b", 2);
-    EXPECT_EQ(data, GetDataMap().at("a.test"));
+    EXPECT_DATA_EQ(data, GetDataMap().at("a.test"));
     EXPECT_DOUBLE_EQ(5, SumOfElementLocatorFrequency(data));
   }
 
@@ -1420,7 +1644,7 @@ TEST_P(LcppDataMapFeatures, LearnLcpp) {
     InitializeLcpElementLocatorBucket(data, "/#a", 2.4);
     InitializeLcpElementLocatorBucket(data, "/#b", 1.6);
     InitializeLcpElementLocatorOtherBucket(data, 1);
-    EXPECT_EQ(data, GetDataMap().at("a.test"));
+    EXPECT_DATA_EQ(data, GetDataMap().at("a.test"));
     EXPECT_DOUBLE_EQ(5, SumOfElementLocatorFrequency(data));
   }
 
@@ -1430,7 +1654,7 @@ TEST_P(LcppDataMapFeatures, LearnLcpp) {
     InitializeLcpElementLocatorBucket(data, "/#a", 1.92);
     InitializeLcpElementLocatorBucket(data, "/#b", 1.28);
     InitializeLcpElementLocatorOtherBucket(data, 1.8);
-    EXPECT_EQ(data, GetDataMap().at("a.test"));
+    EXPECT_DATA_EQ(data, GetDataMap().at("a.test"));
     EXPECT_DOUBLE_EQ(5, SumOfElementLocatorFrequency(data));
   }
 
@@ -1443,7 +1667,7 @@ TEST_P(LcppDataMapFeatures, LearnLcpp) {
     InitializeLcpElementLocatorBucket(data, "/#d", 1);
     InitializeLcpElementLocatorBucket(data, "/#c", 0.8);
     InitializeLcpElementLocatorOtherBucket(data, 3.2);
-    EXPECT_EQ(data, GetDataMap().at("a.test"));
+    EXPECT_DATA_EQ(data, GetDataMap().at("a.test"));
     EXPECT_DOUBLE_EQ(5, SumOfElementLocatorFrequency(data));
   }
 
@@ -1463,7 +1687,7 @@ TEST_P(LcppDataMapFeatures, LearnLcpp) {
         {GURL("https://a.test/script1.js"), GURL("https://a.test/script2.js")},
         2);
     InitializeLcpInfluencerScriptUrlsOtherBucket(data, 0);
-    EXPECT_EQ(data, GetDataMap().at("a.test"));
+    EXPECT_DATA_EQ(data, GetDataMap().at("a.test"));
     EXPECT_DOUBLE_EQ(5, SumOfElementLocatorFrequency(data));
     EXPECT_DOUBLE_EQ(4, SumOfInfluencerUrlFrequency(data));
   }
@@ -1483,7 +1707,7 @@ TEST_P(LcppDataMapFeatures, LearnLcpp) {
     InitializeLcpInfluencerScriptUrlsBucket(
         data, {GURL("https://a.test/script4.js")}, 1);
     InitializeLcpInfluencerScriptUrlsOtherBucket(data, 3.2);
-    EXPECT_EQ(data, GetDataMap().at("a.test"));
+    EXPECT_DATA_EQ(data, GetDataMap().at("a.test"));
     EXPECT_DOUBLE_EQ(5, SumOfInfluencerUrlFrequency(data));
   }
 }
@@ -1491,8 +1715,6 @@ TEST_P(LcppDataMapFeatures, LearnLcpp) {
 TEST_P(LcppDataMapFeatures, LearnFontUrls) {
   LoadingPredictorConfig config;
   PopulateTestConfig(&config);
-  EXPECT_EQ(5U, config.lcpp_histogram_sliding_window_size);
-  EXPECT_EQ(2U, config.max_lcpp_histogram_buckets);
   InitializeDB(config);
   EXPECT_TRUE(GetDataMap().empty());
 
@@ -1537,8 +1759,6 @@ TEST_P(LcppDataMapFeatures, LearnFontUrls) {
 TEST_P(LcppDataMapFeatures, LearnSubresourceUrls) {
   LoadingPredictorConfig config;
   PopulateTestConfig(&config);
-  EXPECT_EQ(5U, config.lcpp_histogram_sliding_window_size);
-  EXPECT_EQ(2U, config.max_lcpp_histogram_buckets);
   InitializeDB(config);
   EXPECT_TRUE(GetDataMap().empty());
   const network::mojom::RequestDestination kEmpty =
@@ -1690,9 +1910,9 @@ TEST_P(LcppDataMapFeatures2, LcppLearnURL) {
   const std::vector<std::pair<std::string, std::string>> url_keys = {
       {"http://a.test", "a.test"},
       {"http://a.test/", "a.test"},
-      {"http://a.test/foo", "a.test"},
-      {"http://a.test/bar?q=c", "a.test"},
-      {"http://user:pass@a.test:99/foo;bar?q=a#ref", "a.test"},
+      {"http://a.test/foo", "a.test/foo"},
+      {"http://a.test/bar?q=c", "a.test/bar?q=c"},
+      {"http://user:pass@a.test:99/foo;bar?q=a#ref", "a.test/foo;bar?q=a#ref"},
   };
 
   TestLearnLcppURL(url_keys);
@@ -1743,7 +1963,6 @@ class LcppMultipleKeyTest
     LoadingPredictorConfig config;
     PopulateTestConfig(&config);
     config.max_hosts_to_track_for_lcpp = 100u;
-    config.lcpp_histogram_sliding_window_size = 10u;
     config.lcpp_multiple_key_histogram_sliding_window_size = 100u;
     config.lcpp_multiple_key_max_histogram_buckets = 100u;
     InitializeDB(config);
@@ -2159,6 +2378,26 @@ TEST_F(LcppInitiatorOriginTest, Base) {
   // Non origin entry is still alive.
   EXPECT_EQ(*GetLcppStat(std::nullopt, url),
             MakeLcppStatWithLCPElementLocator("/#lcp0"));
+  // The opaque initiator origin wouldn't return any LCPP hints.
+  const url::Origin opaque_initiator_origin;
+  EXPECT_TRUE(opaque_initiator_origin.opaque());
+  EXPECT_FALSE(GetLcppStat(opaque_initiator_origin, url).has_value());
+}
+
+TEST_F(LcppInitiatorOriginTest, OpaqueInitiatorOrigin) {
+  LoadingPredictorConfig config;
+  PopulateTestConfig(&config);
+  InitializeDB(config);
+  EXPECT_TRUE(GetDataMap().empty());
+  EXPECT_TRUE(GetOriginMap().empty());
+
+  const url::Origin opaque_initiator_origin;
+  EXPECT_TRUE(opaque_initiator_origin.opaque());
+
+  predictors::LcppDataInputs inputs;
+  inputs.lcp_element_locator = "/#lcp0";
+  EXPECT_FALSE(
+      LearnLcpp(opaque_initiator_origin, GURL("http://a.test"), inputs));
 }
 
 TEST_F(LcppInitiatorOriginTest, AddNewEntryToFullBuckets) {
@@ -2348,6 +2587,7 @@ TEST_F(LCPPPrefetchSubresourceTest, BrokenDBShouldNotCrash) {
   InitializeDB(config);
   ASSERT_TRUE(GetDataMap().empty());
 
+  base::HistogramTester histogram_tester;
   const std::string kUrl = "example.test";
   const std::string kJpegA = "https://" + kUrl + "/a.jpeg";
   // Case #1:
@@ -2363,6 +2603,7 @@ TEST_F(LCPPPrefetchSubresourceTest, BrokenDBShouldNotCrash) {
   lcpp_data_map_->GetPreconnectAndPrefetchRequest(
       /*initiator_origin=*/std::nullopt, GURL("https://" + kUrl), prediction);
   EXPECT_TRUE(GetDataMap().empty());
+  EXPECT_TRUE(prediction.prefetch_requests.empty());
 
   // Case #2:
   // fetched_subresource_url_destination has minus value;
@@ -2377,6 +2618,7 @@ TEST_F(LCPPPrefetchSubresourceTest, BrokenDBShouldNotCrash) {
   lcpp_data_map_->GetPreconnectAndPrefetchRequest(
       /*initiator_origin=*/std::nullopt, GURL("https://" + kUrl), prediction);
   EXPECT_TRUE(GetDataMap().empty());
+  EXPECT_TRUE(prediction.prefetch_requests.empty());
 
   // Case #3:
   // fetched_subresource_url_destination has over-max value;
@@ -2393,6 +2635,29 @@ TEST_F(LCPPPrefetchSubresourceTest, BrokenDBShouldNotCrash) {
   lcpp_data_map_->GetPreconnectAndPrefetchRequest(
       /*initiator_origin=*/std::nullopt, GURL("https://" + kUrl), prediction);
   EXPECT_TRUE(GetDataMap().empty());
+  EXPECT_TRUE(prediction.prefetch_requests.empty());
+
+  // Case #4:
+  // Canonical DB should not be reset and query returns correctly.
+  {
+    LcppData lcpp_data = CreateLcppData(kUrl, 10);
+    InitializeSubresourceUrlsBucket(lcpp_data, {GURL(kJpegA)}, 2);
+    InitializeSubresourceUrlDestinationsBucket(
+        lcpp_data,
+        {std::make_pair(kJpegA,
+                        static_cast<int32_t>(
+                            network::mojom::RequestDestination::kScript))});
+    UpdateKeyValueDataDirectly(kUrl, lcpp_data);
+    ASSERT_FALSE(GetDataMap().empty());
+  }
+  lcpp_data_map_->GetPreconnectAndPrefetchRequest(
+      /*initiator_origin=*/std::nullopt, GURL("https://" + kUrl), prediction);
+  EXPECT_FALSE(GetDataMap().empty());
+  EXPECT_EQ(1u, prediction.prefetch_requests.size());
+
+  EXPECT_THAT(
+      histogram_tester.GetAllSamples("Blink.LCPP.PrefetchSubresource.DBBroken"),
+      base::BucketsAre(base::Bucket(true, 3), base::Bucket(false, 1)));
 }
 
 }  // namespace predictors

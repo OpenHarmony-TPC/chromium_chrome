@@ -17,12 +17,9 @@ import {assert} from 'chrome://resources/js/assert.js';
 import {afterNextRender, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
-import {HatsBrowserProxyImpl, TrustSafetyInteraction} from '../hats_browser_proxy.js';
+import {loadTimeData} from '../i18n_setup.js';
 import type {MetricsBrowserProxy} from '../metrics_browser_proxy.js';
 import {MetricsBrowserProxyImpl} from '../metrics_browser_proxy.js';
-import {routes} from '../route.js';
-import type {Route} from '../router.js';
-import {RouteObserverMixin} from '../router.js';
 
 import type {FledgeState, PrivacySandboxBrowserProxy, PrivacySandboxInterest} from './privacy_sandbox_browser_proxy.js';
 import {PrivacySandboxBrowserProxyImpl} from './privacy_sandbox_browser_proxy.js';
@@ -31,14 +28,13 @@ import {getTemplate} from './privacy_sandbox_fledge_subpage.html.js';
 export interface SettingsPrivacySandboxFledgeSubpageElement {
   $: {
     fledgeToggle: SettingsToggleButtonElement,
-    footer: HTMLElement,
   };
 }
 
 const maxFledgeSitesCount: number = 15;
 
 const SettingsPrivacySandboxFledgeSubpageElementBase =
-    RouteObserverMixin(I18nMixin(PrefsMixin(PolymerElement)));
+    I18nMixin(PrefsMixin(PolymerElement));
 
 export class SettingsPrivacySandboxFledgeSubpageElement extends
     SettingsPrivacySandboxFledgeSubpageElementBase {
@@ -52,14 +48,6 @@ export class SettingsPrivacySandboxFledgeSubpageElement extends
 
   static get properties() {
     return {
-      /**
-       * Preferences state.
-       */
-      prefs: {
-        type: Object,
-        notify: true,
-      },
-
       sitesList_: {
         type: Array,
         observer: 'onSitesListChanged_',
@@ -125,6 +113,17 @@ export class SettingsPrivacySandboxFledgeSubpageElement extends
         value: false,
         observer: 'onBlockedSitesExpanded_',
       },
+
+      /**
+       * If true, the Ads API UX Enhancement should be shown.
+       */
+      shouldShowV2_: {
+        type: Boolean,
+        value: () => {
+          return loadTimeData.getBoolean(
+              'isPrivacySandboxAdsApiUxEnhancementsEnabled');
+        },
+      },
     };
   }
 
@@ -132,14 +131,15 @@ export class SettingsPrivacySandboxFledgeSubpageElement extends
     return maxFledgeSitesCount;
   }
 
-  private sitesList_: PrivacySandboxInterest[];
-  private mainSitesList_: PrivacySandboxInterest[];
-  private remainingSitesList_: PrivacySandboxInterest[];
-  private blockedSitesList_: PrivacySandboxInterest[];
-  private isSitesListLoaded_: boolean;
-  private isLearnMoreDialogOpen_: boolean;
-  private seeAllSitesExpanded_: boolean;
-  private blockedSitesExpanded_: boolean;
+  declare private sitesList_: PrivacySandboxInterest[];
+  declare private mainSitesList_: PrivacySandboxInterest[];
+  declare private remainingSitesList_: PrivacySandboxInterest[];
+  declare private blockedSitesList_: PrivacySandboxInterest[];
+  declare private isSitesListLoaded_: boolean;
+  declare private isLearnMoreDialogOpen_: boolean;
+  declare private seeAllSitesExpanded_: boolean;
+  declare private blockedSitesExpanded_: boolean;
+  declare private shouldShowV2_: boolean;
   private privacySandboxBrowserProxy_: PrivacySandboxBrowserProxy =
       PrivacySandboxBrowserProxyImpl.getInstance();
   private metricsBrowserProxy_: MetricsBrowserProxy =
@@ -150,17 +150,6 @@ export class SettingsPrivacySandboxFledgeSubpageElement extends
 
     this.privacySandboxBrowserProxy_.getFledgeState().then(
         state => this.onFledgeStateChanged_(state));
-
-    this.$.footer.querySelectorAll('a').forEach(
-        link =>
-            link.setAttribute('aria-description', this.i18n('opensInNewTab')));
-  }
-
-  override currentRouteChanged(newRoute: Route) {
-    if (newRoute === routes.PRIVACY_SANDBOX_FLEDGE) {
-      HatsBrowserProxyImpl.getInstance().trustSafetyInteractionOccurred(
-          TrustSafetyInteraction.OPENED_FLEDGE_SUBPAGE);
-    }
   }
 
   private isFledgePrefManaged_(): boolean {
@@ -235,7 +224,7 @@ export class SettingsPrivacySandboxFledgeSubpageElement extends
 
   private onCloseDialog_() {
     this.isLearnMoreDialogOpen_ = false;
-    afterNextRender(this, async () => {
+    afterNextRender(this, () => {
       // `learnMoreLink` might be null if the toggle was disabled after the
       // dialog was opened.
       this.shadowRoot!.querySelector<HTMLElement>('#learnMoreLink')?.focus();
@@ -268,7 +257,7 @@ export class SettingsPrivacySandboxFledgeSubpageElement extends
 
     // After allowing or blocking the last item, the focus is lost after the
     // item is removed. Set the focus to the #blockedSitesRow element.
-    afterNextRender(this, async () => {
+    afterNextRender(this, () => {
       if (!this.shadowRoot!.activeElement) {
         this.shadowRoot!.querySelector<HTMLElement>('#blockedSitesRow')
             ?.focus();
@@ -288,6 +277,11 @@ export class SettingsPrivacySandboxFledgeSubpageElement extends
       this.metricsBrowserProxy_.recordAction(
           'Settings.PrivacySandbox.Fledge.BlockedSitesOpened');
     }
+  }
+
+  private onPrivacyPolicyLinkClicked_() {
+    this.metricsBrowserProxy_.recordAction(
+        'Settings.PrivacySandbox.SiteSuggestedAds.PrivacyPolicyLinkClicked');
   }
 }
 

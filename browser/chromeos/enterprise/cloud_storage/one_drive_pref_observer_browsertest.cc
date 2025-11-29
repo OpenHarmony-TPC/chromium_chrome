@@ -40,10 +40,6 @@
 #include "extensions/common/extension_builder.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/crosapi/browser_util.h"
-#endif
-
 using extensions::api::odfs_config_private::Mount;
 using testing::ElementsAreArray;
 
@@ -141,12 +137,12 @@ class OneDrivePrefObserverBrowserTest : public policy::PolicyTest {
 
   Profile* profile() { return browser()->profile(); }
 
-  const extensions::ExtensionRegistry* extension_registry() {
-    return extensions::ExtensionRegistry::Get(profile());
+  extensions::ExtensionRegistrar* extension_registrar() {
+    return extensions::ExtensionRegistrar::Get(profile());
   }
 
-  extensions::ExtensionService* extension_service() {
-    return extensions::ExtensionSystem::Get(profile())->extension_service();
+  const extensions::ExtensionRegistry* extension_registry() {
+    return extensions::ExtensionRegistry::Get(profile());
   }
 
   policy::ProfilePolicyConnector* profile_policy_connector() {
@@ -159,14 +155,7 @@ class OneDrivePrefObserverBrowserTest : public policy::PolicyTest {
 
 IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
                        KeyedServiceRegistered) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
   ASSERT_TRUE(OneDrivePrefObserverServiceExists());
-#elif BUILDFLAG(IS_CHROMEOS_ASH)
-  ASSERT_NE(crosapi::browser_util::IsLacrosEnabled(),
-            OneDrivePrefObserverServiceExists());
-#else
-  NOTREACHED();
-#endif
 }
 
 IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
@@ -242,7 +231,7 @@ IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
       extensions::ExtensionBuilder("Odfs extension")
           .SetID(extension_misc::kODFSExtensionId)
           .Build();
-  extension_service()->AddExtension(extension.get());
+  extension_registrar()->AddExtension(extension.get());
   ASSERT_TRUE(extension_registry()->enabled_extensions().Contains(
       extension_misc::kODFSExtensionId));
 
@@ -260,7 +249,7 @@ IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
       extensions::ExtensionBuilder("Odfs extension")
           .SetID(extension_misc::kODFSExtensionId)
           .Build();
-  extension_service()->AddExtension(extension.get());
+  extension_registrar()->AddExtension(extension.get());
   ASSERT_TRUE(extension_registry()->enabled_extensions().Contains(
       extension_misc::kODFSExtensionId));
 

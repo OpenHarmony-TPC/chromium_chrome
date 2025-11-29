@@ -77,7 +77,6 @@ class AnchorElementPreloaderBrowserTest
     ukm_entry_builder_ =
         std::make_unique<content::test::PreloadingAttemptUkmEntryBuilder>(
             chrome_preloading_predictor::kPointerDownOnAnchor);
-    test_timer_ = std::make_unique<base::ScopedMockElapsedTimersForTest>();
     ASSERT_TRUE(loading_predictor);
     loading_predictor->preconnect_manager()->SetObserverForTesting(this);
   }
@@ -119,6 +118,8 @@ class AnchorElementPreloaderBrowserTest
   void OnPreresolveFinished(
       const GURL& url,
       const net::NetworkAnonymizationKey& network_anonymization_key,
+      mojo::PendingRemote<network::mojom::ConnectionChangeObserverClient>&
+          observer,
       bool success) override {
     if (url != GURL(kOrigin1) && url != GURL(kOrigin2)) {
       return;
@@ -153,13 +154,13 @@ class AnchorElementPreloaderBrowserTest
   content::test::PreloadingConfigOverride preloading_config_override_;
 
  private:
+  base::ScopedMockElapsedTimersForTest test_timer_;
   std::unique_ptr<net::EmbeddedTestServer> https_server_;
   std::unique_ptr<base::RunLoop> run_loop_;
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;
   std::unique_ptr<base::HistogramTester> histogram_tester_;
   std::unique_ptr<content::test::PreloadingAttemptUkmEntryBuilder>
       ukm_entry_builder_;
-  std::unique_ptr<base::ScopedMockElapsedTimersForTest> test_timer_;
 };
 
 IN_PROC_BROWSER_TEST_F(AnchorElementPreloaderBrowserTest, OneAnchor) {

@@ -13,7 +13,6 @@ import 'chrome://resources/ash/common/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/ash/common/cr_elements/cr_shared_vars.css.js';
 import '../controls/controlled_button.js';
 import '../controls/settings_toggle_button.js';
-import '/shared/settings/prefs/prefs.js';
 import '/shared/settings/prefs/pref_util.js';
 import '../settings_shared.css.js';
 import '../settings_vars.css.js';
@@ -49,20 +48,6 @@ export class SettingsSearchSubpageElement extends
 
   static get properties() {
     return {
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kPreferredSearchEngine,
-          Setting.kQuickAnswersOnOff,
-          Setting.kQuickAnswersDefinition,
-          Setting.kQuickAnswersTranslation,
-          Setting.kQuickAnswersUnitConversion,
-        ]),
-      },
-
       quickAnswersTranslationDisabled_: {
         type: Boolean,
         value() {
@@ -86,6 +71,15 @@ export class SettingsSearchSubpageElement extends
       },
     };
   }
+
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kPreferredSearchEngine,
+    Setting.kQuickAnswersOnOff,
+    Setting.kQuickAnswersDefinition,
+    Setting.kQuickAnswersTranslation,
+    Setting.kQuickAnswersUnitConversion,
+  ]);
 
   private quickAnswersSubLabel_: string;
   private quickAnswersSubToggleEnabled_: boolean;

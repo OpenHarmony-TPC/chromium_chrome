@@ -4,59 +4,85 @@
 
 #include "chrome/browser/ash/boca/babelorca/babel_orca_speech_recognizer_impl.h"
 
-#include "chrome/browser/accessibility/live_caption/live_caption_controller_factory.h"
+#include <optional>
+
+#include "ash/constants/ash_features.h"
+#include "base/functional/callback_helpers.h"
 #include "chrome/browser/ash/accessibility/live_caption/system_live_caption_service.h"
-#include "chrome/browser/speech/speech_recognition_client_browser_interface.h"
-#include "chrome/browser/speech/speech_recognition_client_browser_interface_factory.h"
 #include "chromeos/ash/components/boca/babelorca/babel_orca_speech_recognizer.h"
-#include "components/live_caption/live_caption_controller.h"
+#include "chromeos/ash/components/boca/babelorca/soda_installer.h"
+#include "chromeos/ash/components/boca/babelorca/speech_recognition_event_handler.h"
 #include "components/live_caption/pref_names.h"
+#include "media/mojo/mojom/speech_recognition.mojom.h"
+#include "media/mojo/mojom/speech_recognition_result.h"
 
 namespace ash::babelorca {
 
-BabelOrcaSpeechRecognizerImpl::BabelOrcaSpeechRecognizerImpl(Profile* profile)
+BabelOrcaSpeechRecognizerImpl::BabelOrcaSpeechRecognizerImpl(
+    Profile* profile,
+    SodaInstaller* soda_installer,
+    const std::string& application_locale,
+    const std::string& caption_language)
     : ash::SystemLiveCaptionService(
           profile,
           ash::SystemLiveCaptionService::AudioSource::kUserMicrophone),
-      primary_profile_(profile) {}
+      soda_installer_(soda_installer),
+      speech_recognition_event_handler_(application_locale),
+      primary_profile_(profile),
+      caption_language_(caption_language) {}
 BabelOrcaSpeechRecognizerImpl::~BabelOrcaSpeechRecognizerImpl() = default;
 
 void BabelOrcaSpeechRecognizerImpl::OnSpeechResult(
     const std::u16string& text,
     bool is_final,
     const std::optional<media::SpeechRecognitionResult>& result) {
-  if (transcription_result_callback_ && result.has_value()) {
-    // TODO Change source language on language identification events.
-    transcription_result_callback_.Run(
-        result.value(),
-        prefs::GetUserMicrophoneCaptionLanguage(primary_profile_->GetPrefs()));
-  }
+  speech_recognition_event_handler_.OnSpeechResult(result);
+}
+
+void BabelOrcaSpeechRecognizerImpl::OnLanguageIdentificationEvent(
+    media::mojom::LanguageIdentificationEventPtr event) {
+  speech_recognition_event_handler_.OnLanguageIdentificationEvent(event);
 }
 
 void BabelOrcaSpeechRecognizerImpl::Start() {
-  SpeechRecognitionClientBrowserInterfaceFactory::GetForProfile(
-      primary_profile_)
-      ->ChangeBabelOrcaSpeechRecognitionAvailability(true);
-  ::captions::LiveCaptionControllerFactory::GetForProfile(primary_profile_)
-      ->ToggleLiveCaptionForBabelOrca(true);
+  // If already installed, will immediately begin recognizing.
+  started_ = true;
+  soda_installer_->InstallSoda(base::BindOnce(
+      &BabelOrcaSpeechRecognizerImpl::OnSpeechRecognitionAvailabilityChanged,
+      weak_ptr_factory_.GetWeakPtr()));
 }
 
 void BabelOrcaSpeechRecognizerImpl::Stop() {
-  SpeechRecognitionClientBrowserInterfaceFactory::GetForProfile(
-      primary_profile_)
-      ->ChangeBabelOrcaSpeechRecognitionAvailability(false);
-  ::captions::LiveCaptionControllerFactory::GetForProfile(primary_profile_)
-      ->ToggleLiveCaptionForBabelOrca(false);
+  started_ = false;
+  SpeechRecognitionAvailabilityChanged(false);
 }
 
-void BabelOrcaSpeechRecognizerImpl::ObserveTranscriptionResult(
-    BabelOrcaSpeechRecognizer::TranscriptionResultCallback
-        transcrcription_result_callback) {
-  transcription_result_callback_ = transcrcription_result_callback;
+void BabelOrcaSpeechRecognizerImpl::AddObserver(Observer* obs) {
+  speech_recognition_event_handler_.AddObserver(obs);
 }
 
-void BabelOrcaSpeechRecognizerImpl::RemoveTranscriptionResultObservation() {
-  transcription_result_callback_.Reset();
+void BabelOrcaSpeechRecognizerImpl::RemoveObserver(Observer* obs) {
+  speech_recognition_event_handler_.RemoveObserver(obs);
+}
+
+media::mojom::RecognizerClientType
+BabelOrcaSpeechRecognizerImpl::GetRecognizerClientType() {
+  return features::IsBocaClientTypeForSpeechRecognitionEnabled()
+             ? media::mojom::RecognizerClientType::kSchoolTools
+             : SystemLiveCaptionService::GetRecognizerClientType();
+}
+
+std::string BabelOrcaSpeechRecognizerImpl::GetPrimaryLanguageCode() const {
+  return caption_language_;
+}
+
+void BabelOrcaSpeechRecognizerImpl::OnSpeechRecognitionAvailabilityChanged(
+    SodaInstaller::InstallationStatus status) {
+  if (!started_) {
+    return;
+  }
+  SpeechRecognitionAvailabilityChanged(
+      status == SodaInstaller::InstallationStatus::kReady);
 }
 
 }  // namespace ash::babelorca

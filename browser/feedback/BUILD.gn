@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-assert(is_win || is_mac || is_linux || is_chromeos || is_android || is_ohos)
+assert(is_win || is_mac || is_linux || is_chromeos || is_android)
 
 import("//build/config/chromeos/ui_mode.gni")
 
@@ -29,6 +29,7 @@ source_set("feedback") {
       "//chrome/browser/feedback/android:jni_headers",
       "//chrome/browser/profiles:profile",
       "//content/public/browser",
+      "//google_apis",
       "//services/network/public/cpp",
     ]
   } else {
@@ -100,6 +101,7 @@ source_set("feedback_impl") {
       "//chrome/browser/crash_upload_list",
       "//chrome/browser/devtools",
       "//chrome/browser/extensions",
+      "//chrome/browser/first_party_sets",
       "//chrome/browser/google",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/sync",
@@ -117,12 +119,6 @@ source_set("feedback_impl") {
       "//extensions/browser/api/power",
       "//net",
       "//services/cert_verifier:lib",
-    ]
-  }
-  if (is_ohos) {
-    sources -= [
-      "system_logs/log_sources/chrome_root_store_log_source.cc",
-      "system_logs/log_sources/chrome_root_store_log_source.h",
     ]
   }
   if (is_chromeos) {
@@ -149,5 +145,15 @@ source_set("feedback_impl") {
       "//chromeos/components/kiosk",
       "//chromeos/version",
     ]
+  }
+  if (is_win || is_mac) {
+    deps += [ "//chrome/browser/updater:browser_updater_client" ]
+  }
+  if (is_linux) {
+    sources += [
+      "system_logs/log_sources/ozone_platform_state_dump_source.cc",
+      "system_logs/log_sources/ozone_platform_state_dump_source.h",
+    ]
+    deps += [ "//ui/ozone" ]
   }
 }

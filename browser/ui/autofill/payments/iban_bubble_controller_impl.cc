@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/autofill/payments/iban_bubble_controller_impl.h"
 
 #include <string>
+#include <string_view>
 
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -19,9 +20,9 @@
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/iban_metrics.h"
-#include "components/autofill/core/browser/personal_data_manager.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
@@ -231,7 +232,7 @@ IbanBubbleControllerImpl::GetOnBubbleClosedCallback() {
                         weak_ptr_factory_.GetWeakPtr());
 }
 
-void IbanBubbleControllerImpl::OnAcceptButton(const std::u16string& nickname) {
+void IbanBubbleControllerImpl::OnAcceptButton(std::u16string_view nickname) {
   switch (current_bubble_type_) {
     case IbanBubbleType::kLocalSave:
       CHECK(!save_iban_prompt_callback_.is_null());
@@ -240,7 +241,7 @@ void IbanBubbleControllerImpl::OnAcceptButton(const std::u16string& nickname) {
       should_show_iban_saved_label_animation_ = true;
       autofill_metrics::LogSaveIbanPromptResultSavedWithNicknameMetric(
           !nickname.empty(), /*is_upload_save=*/false);
-      iban_.set_nickname(nickname);
+      iban_.set_nickname(std::u16string(nickname));
       std::move(save_iban_prompt_callback_)
           .Run(payments::PaymentsAutofillClient::SaveIbanOfferUserDecision::
                    kAccepted,
@@ -250,11 +251,8 @@ void IbanBubbleControllerImpl::OnAcceptButton(const std::u16string& nickname) {
       CHECK(!save_iban_prompt_callback_.is_null());
       autofill_metrics::LogSaveIbanPromptResultSavedWithNicknameMetric(
           !nickname.empty(), /*is_upload_save=*/true);
-      iban_.set_nickname(nickname);
-      if (base::FeatureList::IsEnabled(
-              features::kAutofillEnableSaveCardLoadingAndConfirmation)) {
-        current_bubble_type_ = IbanBubbleType::kUploadInProgress;
-      }
+      iban_.set_nickname(std::u16string(nickname));
+      current_bubble_type_ = IbanBubbleType::kUploadInProgress;
       std::move(save_iban_prompt_callback_)
           .Run(payments::PaymentsAutofillClient::SaveIbanOfferUserDecision::
                    kAccepted,
@@ -305,7 +303,8 @@ void IbanBubbleControllerImpl::OnBubbleClosed(
 
   // Log save IBAN prompt result according to the closed reason.
   if (current_bubble_type_ == IbanBubbleType::kLocalSave ||
-      current_bubble_type_ == IbanBubbleType::kUploadSave) {
+      current_bubble_type_ == IbanBubbleType::kUploadSave ||
+      current_bubble_type_ == IbanBubbleType::kUploadInProgress) {
     autofill_metrics::SaveIbanPromptResult metric;
     switch (closed_reason) {
       case PaymentsUiClosedReason::kAccepted:
@@ -328,7 +327,9 @@ void IbanBubbleControllerImpl::OnBubbleClosed(
     }
     autofill_metrics::LogSaveIbanPromptResultMetric(
         metric, is_reshow_,
-        /*is_upload_save=*/current_bubble_type_ == IbanBubbleType::kUploadSave);
+        /*is_upload_save=*/
+        (current_bubble_type_ == IbanBubbleType::kUploadSave ||
+         current_bubble_type_ == IbanBubbleType::kUploadInProgress));
   }
 
   if (current_bubble_type_ == IbanBubbleType::kUploadCompleted) {
@@ -358,9 +359,7 @@ void IbanBubbleControllerImpl::OnBubbleClosed(
 IbanBubbleControllerImpl::IbanBubbleControllerImpl(
     content::WebContents* web_contents)
     : AutofillBubbleControllerBase(web_contents),
-      content::WebContentsUserData<IbanBubbleControllerImpl>(*web_contents),
-      personal_data_manager_(PersonalDataManagerFactory::GetForBrowserContext(
-          web_contents->GetBrowserContext())) {}
+      content::WebContentsUserData<IbanBubbleControllerImpl>(*web_contents) {}
 
 IbanBubbleType IbanBubbleControllerImpl::GetBubbleType() const {
   return current_bubble_type_;

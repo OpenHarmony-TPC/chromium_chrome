@@ -7,12 +7,13 @@
 #include <string>
 #include <string_view>
 
+#include "ash/style/typography.h"
 #include "base/check_is_test.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/ash/editor_menu/utils/focus_search.h"
 #include "chrome/browser/ui/ash/editor_menu/utils/pre_target_handler.h"
@@ -125,7 +126,7 @@ const gfx::Insets GetMainViewInsets(Design design) {
       return gfx::Insets::TLBR(12, 16, 16, 16);
   }
 
-  CHECK(false) << "Invalid design enum value provided";
+  NOTREACHED() << "Invalid design enum value provided";
 }
 
 const gfx::Insets GetIconInsets(Design design) {
@@ -138,7 +139,7 @@ const gfx::Insets GetIconInsets(Design design) {
       return gfx::Insets::TLBR(2, 0, 0, 0);
   }
 
-  CHECK(false) << "Invalid design enum value provided";
+  NOTREACHED() << "Invalid design enum value provided";
 }
 
 const gfx::Insets GetButtonsViewInsets(Design design) {
@@ -152,7 +153,7 @@ const gfx::Insets GetButtonsViewInsets(Design design) {
       return GetMainViewInsets(design);
   }
 
-  CHECK(false) << "Invalid design enum value provided";
+  NOTREACHED() << "Invalid design enum value provided";
 }
 
 const gfx::VectorIcon& GetVectorIcon(std::optional<Intent> intent) {
@@ -169,7 +170,7 @@ const gfx::VectorIcon& GetVectorIcon(std::optional<Intent> intent) {
       return omnibox::kAnswerCalculatorIcon;
   }
 
-  CHECK(false) << "Invalid intent enum value specified";
+  NOTREACHED() << "Invalid intent enum value specified";
 }
 
 ui::ImageModel GetIcon(Design design, std::optional<Intent> intent) {
@@ -186,7 +187,7 @@ ui::ImageModel GetIcon(Design design, std::optional<Intent> intent) {
                                             kIconSizeDip);
   }
 
-  CHECK(false) << "Invalid design enum value specified";
+  NOTREACHED() << "Invalid design enum value specified";
 }
 
 void SetResultTo(ResultView* result_view, DefinitionResult* definition_result) {
@@ -207,15 +208,16 @@ void SetResultTo(ResultView* result_view, DefinitionResult* definition_result) {
 
 void SetResultTo(ResultView* result_view,
                  TranslationResult* translation_result,
-                 Design design) {
+                 Design design,
+                 const std::string& application_locale) {
   result_view->SetFirstLineText(
       base::UTF8ToUTF16(translation_result->text_to_translate));
 
   if (design != Design::kCurrent) {
     std::u16string display_name_locale =
         l10n_util::GetDisplayNameForLocaleWithoutCountry(
-            translation_result->source_locale,
-            g_browser_process->GetApplicationLocale(), /*is_for_ui=*/true);
+            translation_result->source_locale, application_locale,
+            /*is_for_ui=*/true);
     if (!display_name_locale.empty()) {
       result_view->SetFirstLineSubText(display_name_locale);
     }
@@ -259,7 +261,7 @@ std::u16string GetIntentName(std::optional<Intent> intent) {
           IDS_QUICK_ANSWERS_RESULT_HEADER_INTENT_UNIT_CONVERSION);
   }
 
-  CHECK(false) << "Invalid intent enum value specified";
+  NOTREACHED() << "Invalid intent enum value specified";
 }
 
 // TODO(b/340629098): A temporary solution until buttons view is merged into
@@ -274,12 +276,15 @@ int GetButtonsViewOcclusion(Design design) {
 }
 
 views::Builder<views::Label> GetRefreshUiHeader() {
-  int line_height = GetCrosAnnotation1LineHeight();
+  int line_height = ash::TypographyProvider::Get()->ResolveLineHeight(
+      ash::TypographyToken::kCrosAnnotation1);
   int vertical_padding = std::max(0, (20 - line_height) / 2);
 
   return views::Builder<views::Label>()
-      .SetFontList(GetCrosAnnotation1FontList().DeriveWithWeight(
-          gfx::Font::Weight::MEDIUM))
+      .SetFontList(
+          ash::TypographyProvider::Get()
+              ->ResolveTypographyToken(ash::TypographyToken::kCrosAnnotation1)
+              .DeriveWithWeight(gfx::Font::Weight::MEDIUM))
       .SetLineHeight(line_height)
       .SetProperty(
           views::kMarginsKey,
@@ -297,7 +302,8 @@ views::Builder<views::Label> GetRefreshUiHeader() {
 }
 
 views::Builder<views::BoxLayoutView> GetMagicBoostHeader() {
-  int line_height = GetCrosAnnotation1LineHeight();
+  int line_height = ash::TypographyProvider::Get()->ResolveLineHeight(
+      ash::TypographyToken::kCrosAnnotation1);
   int vertical_padding = std::max(0, (20 - line_height) / 2);
 
   return views::Builder<views::BoxLayoutView>()
@@ -323,8 +329,10 @@ views::Builder<views::BoxLayoutView> GetMagicBoostHeader() {
               .SetProperty(views::kMarginsKey,
                            gfx::Insets::VH(vertical_padding, 0))
               .SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT)
-              .SetFontList(GetCrosAnnotation1FontList().DeriveWithWeight(
-                  gfx::Font::Weight::MEDIUM)))
+              .SetFontList(ash::TypographyProvider::Get()
+                               ->ResolveTypographyToken(
+                                   ash::TypographyToken::kCrosAnnotation1)
+                               .DeriveWithWeight(gfx::Font::Weight::MEDIUM)))
       .AddChild(views::Builder<chromeos::ExperimentBadge>());
 }
 
@@ -338,26 +346,30 @@ std::string GetResultA11yDescription(ResultView* result_view,
     if (include_second_line_text) {
       return l10n_util::GetStringFUTF8(
           IDS_QUICK_ANSWERS_VIEW_A11Y_INFO_DESCRIPTION_WITH_INTENT_AND_SUBTEXT_TEMPLATE,
-          GetIntentName(intent), result_view->GetFirstLineText(),
-          result_view->GetFirstLineSubText(), result_view->GetSecondLineText());
+          GetIntentName(intent),
+          std::u16string(result_view->GetFirstLineText()),
+          std::u16string(result_view->GetFirstLineSubText()),
+          std::u16string(result_view->GetSecondLineText()));
     }
 
     return l10n_util::GetStringFUTF8(
         IDS_QUICK_ANSWERS_VIEW_A11Y_INFO_DESCRIPTION_WITH_INTENT_TEMPLATE,
-        GetIntentName(intent), result_view->GetFirstLineText(),
-        result_view->GetSecondLineText());
+        GetIntentName(intent), std::u16string(result_view->GetFirstLineText()),
+        std::u16string(result_view->GetSecondLineText()));
   }
 
   if (include_second_line_text) {
     return l10n_util::GetStringFUTF8(
         IDS_QUICK_ANSWERS_VIEW_A11Y_INFO_DESCRIPTION_WITH_SUBTEXT_TEMPLATE,
-        result_view->GetFirstLineText(), result_view->GetFirstLineSubText(),
-        result_view->GetSecondLineText());
+        std::u16string(result_view->GetFirstLineText()),
+        std::u16string(result_view->GetFirstLineSubText()),
+        std::u16string(result_view->GetSecondLineText()));
   }
 
   return l10n_util::GetStringFUTF8(
       IDS_QUICK_ANSWERS_VIEW_A11Y_INFO_DESCRIPTION_TEMPLATE,
-      result_view->GetFirstLineText(), result_view->GetSecondLineText());
+      std::u16string(result_view->GetFirstLineText()),
+      std::u16string(result_view->GetSecondLineText()));
 }
 
 }  // namespace
@@ -376,8 +388,7 @@ QuickAnswersView::QuickAnswersView(
           this,
           base::BindRepeating(&QuickAnswersView::GetFocusableViews,
                               base::Unretained(this)))) {
-  SetBackground(
-      views::CreateThemedSolidBackground(ui::kColorPrimaryBackground));
+  SetBackground(views::CreateSolidBackground(ui::kColorPrimaryBackground));
   SetUseDefaultFillLayout(true);
 
   std::unique_ptr<views::FlexLayout> main_view_layout =
@@ -522,7 +533,7 @@ void QuickAnswersView::OnFocus() {
   if (wants_focus != this) {
     wants_focus->RequestFocus();
   } else {
-    NotifyAccessibilityEvent(ax::mojom::Event::kFocus, true);
+    NotifyAccessibilityEventDeprecated(ax::mojom::Event::kFocus, true);
   }
 }
 
@@ -657,7 +668,8 @@ std::optional<Intent> QuickAnswersView::GetIntent() const {
   return intent_;
 }
 
-void QuickAnswersView::SetResult(const StructuredResult& structured_result) {
+void QuickAnswersView::SetResult(const StructuredResult& structured_result,
+                                 const std::string& application_locale) {
   // Check if the view (or any of its children) had focus before resetting the
   // view, so it can be restored for the updated view.
   bool pane_already_had_focus = HasFocusInside();
@@ -672,7 +684,7 @@ void QuickAnswersView::SetResult(const StructuredResult& structured_result) {
     case ResultType::kTranslationResult:
       SetIntent(Intent::kTranslation);
       SetResultTo(result_view_, structured_result.translation_result.get(),
-                  design_);
+                  design_, application_locale);
       break;
     case ResultType::kUnitConversionResult:
       SetIntent(Intent::kUnitConversion);

@@ -18,6 +18,7 @@
 #include "chrome/browser/supervised_user/child_accounts/child_account_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
+#include "chrome/browser/supervised_user/supervised_user_test_util.h"
 #include "chrome/browser/supervised_user/supervised_user_verification_controller_client.h"
 #include "chrome/browser/supervised_user/supervised_user_verification_page.h"
 #include "chrome/browser/ui/browser.h"
@@ -64,61 +65,23 @@ static constexpr std::string_view
     kUmaReauthenticationYoutubeSubframeHistogramName =
         "FamilyLinkUser.SubframeYoutubeReauthenticationInterstitial";
 
-static constexpr std::string_view kUmaClosedSignInTabsHistogramName =
-    "FamilyLinkUser.BlockedSiteVerifyItsYouInterstitialSigninTab.ClosedCount";
-static constexpr std::string_view kUmaSkippedSignInTabsHistogramName =
-    "FamilyLinkUser.BlockedSiteVerifyItsYouInterstitialSigninTab."
-    "SkippedClosingCount";
+bool IsReauthenticationInterstitialBeingShown(content::WebContents* content) {
+  CHECK(content);
+  std::string command =
+      "document.querySelector('.supervised-user-verify') != null";
+  return content::EvalJs(content, command).ExtractBool();
+}
 
-class ThrottleTestParam {
- public:
-  enum class FeatureStatus : bool {
-    // ClassifyUrlOnProcessResponseEvent feature disabled: uses
-    // SupervisedUserNavigationThrottle
-    kDisabled = false,
-    // ClassifyUrlOnProcessResponseEvent feature enabled: uses
-    // supervised_user::ClassifyUrlNavigationThrottle
-    kEnabled = true,
-  };
-  static auto Values() {
-    return ::testing::Values(FeatureStatus::kDisabled, FeatureStatus::kEnabled);
-  }
-  static std::string ToString(FeatureStatus status) {
-    switch (status) {
-      case FeatureStatus::kDisabled:
-        return "SupervisedUserNavigationThrottle";
-      case FeatureStatus::kEnabled:
-        return "ClassifyUrlNavigationThrottle";
-      default:
-        NOTREACHED();
-    }
-  }
-};
+bool IsBlockedUrlInterstitialBeingShown(content::WebContents* content) {
+  CHECK(content);
+  std::string command =
+      "document.querySelector('.supervised-user-block') != null";
+  return content::EvalJs(content, command).ExtractBool();
+}
 
 class SupervisedUserPendingStateNavigationTest
-    : public MixinBasedInProcessBrowserTest,
-      public ::testing::WithParamInterface<ThrottleTestParam::FeatureStatus> {
+    : public MixinBasedInProcessBrowserTest {
  public:
-  SupervisedUserPendingStateNavigationTest() {
-    std::vector<base::test::FeatureRef> enabled_features = {
-        supervised_user::kForceSupervisedUserReauthenticationForBlockedSites,
-        supervised_user::kCloseSignTabsFromReauthenticationInterstitial,
-        supervised_user::kUncredentialedFilteringFallbackForSupervisedUsers,
-        supervised_user::kForceSupervisedUserReauthenticationForYouTube,
-        supervised_user::kAllowSupervisedUserReauthenticationForSubframes};
-    std::vector<base::test::FeatureRef> disabled_features;
-
-    if (GetParam() == ThrottleTestParam::FeatureStatus::kEnabled) {
-      enabled_features.push_back(
-          supervised_user::kClassifyUrlOnProcessResponseEvent);
-    } else {
-      disabled_features.push_back(
-          supervised_user::kClassifyUrlOnProcessResponseEvent);
-    }
-
-    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
-  }
-
  protected:
   void PreRunTestOnMainThread() override {
     InProcessBrowserTest::PreRunTestOnMainThread();
@@ -146,15 +109,22 @@ class SupervisedUserPendingStateNavigationTest
   }
 
   void SignInSupervisedUserAndWaitForInterstitialReload(
-      content::WebContents* content) {
+      content::WebContents* content,
+      const GURL& url) {
     Profile* profile =
         Profile::FromBrowserContext(contents()->GetBrowserContext());
     ASSERT_TRUE(ChildAccountServiceFactory::GetForProfile(profile)
                     ->GetGoogleAuthState() !=
                 supervised_user::ChildAccountService::AuthState::AUTHENTICATED);
 
-    content::TestNavigationObserver observer(content, 1);
+    // Before sign-in the user still sees the re-authentication interstitial.
+    ASSERT_TRUE(IsReauthenticationInterstitialBeingShown(content));
+    ASSERT_FALSE(IsBlockedUrlInterstitialBeingShown(content));
+
+    content::TestNavigationObserver observer(url);
+    observer.WatchWebContents(content);
     kids_management_api_mock().AllowSubsequentClassifyUrl();
+
     supervision_mixin_.SignIn(
         supervised_user::SupervisionMixin::SignInMode::kSupervised);
 
@@ -166,8 +136,12 @@ class SupervisedUserPendingStateNavigationTest
     ASSERT_TRUE(
         identity_manager()->GetAccountsInCookieJar().AreAccountsFresh());
 
-    // Wait for the re-auth page to be asynchronously reloaded.
     observer.WaitForNavigationFinished();
+
+    // Wait for the re-auth page to be asynchronously reloaded and replaced by
+    // the blocked url interstitial.
+    ASSERT_FALSE(IsReauthenticationInterstitialBeingShown(content));
+    ASSERT_TRUE(IsBlockedUrlInterstitialBeingShown(content));
   }
 
   // Start sign-in flow by clicking on the primary button.
@@ -197,7 +171,8 @@ class SupervisedUserPendingStateNavigationTest
             /*selection_rect=*/nullptr),
         1);
 
-    // The following string is found only on the the re-authentication interstitial.
+    // The following string is found only on the the re-authentication
+    // interstitial.
     EXPECT_EQ(
         ui_test_utils::FindInPage(
             contents(),
@@ -216,23 +191,15 @@ class SupervisedUserPendingStateNavigationTest
       mixin_host_,
       this,
       embedded_test_server(),
-      { // Syncing is a requirement for getting into pending mode pre-Uno.
-        // Once the Uno feature `ExplicitBrowserSigninUIOnDesktop` is fully released
-        // this can be set to Sign-in.
-       .consent_level = signin::ConsentLevel::kSync,
+      {.consent_level = signin::ConsentLevel::kSignin,
        .sign_in_mode =
            supervised_user::SupervisionMixin::SignInMode::kSupervised,
        .embedded_test_server_options = {.resolver_rules_map_host_list =
                                             "*.example.com"}}};
 
-  void SetManualHost(GURL url, bool allowlist) {
-    supervised_user::SupervisedUserService* supervised_user_service =
-        SupervisedUserServiceFactory::GetForProfile(browser()->profile());
-    supervised_user::SupervisedUserURLFilter* url_filter =
-        supervised_user_service->GetURLFilter();
-    std::map<std::string, bool> hosts;
-    hosts[url.host()] = allowlist;
-    url_filter->SetManualHosts(std::move(hosts));
+  void SetManualHost(const GURL& url, bool allowlist) {
+    supervised_user_test_util::SetManualFilterForHost(browser()->profile(),
+                                                      url.host(), allowlist);
   }
 
   content::RenderFrameHost* FindFrameByName(const std::string& name) {
@@ -267,27 +234,19 @@ class SupervisedUserPendingStateNavigationTest
 
  private:
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> ukm_recorder_;
-  base::test::ScopedFeatureList scoped_feature_list_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      supervised_user::kUncredentialedFilteringFallbackForSupervisedUsers};
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    ,
-    SupervisedUserPendingStateNavigationTest,
-    ThrottleTestParam::Values(),
-    [](const testing::TestParamInfo<ThrottleTestParam::FeatureStatus>& info) {
-      return base::StrCat(
-          {"WithThrottle", ThrottleTestParam::ToString(info.param)});
-    });
-
 // Tests the blocked site main frame re-authentication interstitial.
-IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
+IN_PROC_BROWSER_TEST_F(SupervisedUserPendingStateNavigationTest,
                        TestBlockedSiteMainFrameReauthInterstitial) {
   kids_management_api_mock().RestrictSubsequentClassifyUrl();
   supervision_mixin_.SetPendingStateForPrimaryAccount();
   // Navigate to the requested URL and wait for the interstitial.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(),
-      embedded_test_server()->GetURL("/supervised_user/simple.html")));
+  const auto url =
+      embedded_test_server()->GetURL("/supervised_user/simple.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   ASSERT_TRUE(WaitForRenderFrameReady(contents()->GetPrimaryMainFrame()));
 
   // Verify that the blocked site interstitial is displayed.
@@ -298,7 +257,7 @@ IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
   ASSERT_TRUE(StartSignInFlowFromContent(interstitial_contents));
 
   // Sign in a supervised user, which completes re-authentication.
-  SignInSupervisedUserAndWaitForInterstitialReload(interstitial_contents);
+  SignInSupervisedUserAndWaitForInterstitialReload(interstitial_contents, url);
 
   // UKM should not be recorded for the blocked site interstitial.
   EXPECT_EQ(GetReauthInterstitialUKMTotalCount(), 0);
@@ -306,16 +265,16 @@ IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
 
 // Tests that the sign-in tabs opened through the re-auth interstitial
 // are closed on re-authentication.
-IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
+IN_PROC_BROWSER_TEST_F(SupervisedUserPendingStateNavigationTest,
                        TestReauthInterstitialClosesSignInTabsAndReloads) {
   base::HistogramTester histogram_tester;
 
   kids_management_api_mock().RestrictSubsequentClassifyUrl();
   supervision_mixin_.SetPendingStateForPrimaryAccount();
   // Navigate to the requested URL and wait for the interstitial.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(),
-      embedded_test_server()->GetURL("/supervised_user/simple.html")));
+  auto original_tab_target_url =
+      embedded_test_server()->GetURL("/supervised_user/simple.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), original_tab_target_url));
   ASSERT_TRUE(WaitForRenderFrameReady(contents()->GetPrimaryMainFrame()));
 
   // Wait for the re-authentication interstitial. It should be the only tab.
@@ -355,31 +314,33 @@ IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
   }
 
   // Use one tab to navigate elsewhere.
+  // We use a manually allow-listed url to avoid creating more
+  // interstitials that would complicate the metrics checks.
   browser()->tab_strip_model()->ActivateTabAt(3);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL("https://other.google.com/")));
+  const GURL allowlisted_url = GURL("https://example.com/");
+  SetManualHost(allowlisted_url, /*allowlist=*/true);
+  // The `spawned_tab_url` is used to navigate away from the sign-in
+  // content in one of the sign-in spawned tabs.
+  // This url is not related to the `original_tab_target_url` that we visit
+  // on the first -original- tab.
+  const GURL spawned_tab_url = GURL(allowlisted_url.spec() + "/simple.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), spawned_tab_url));
 
   // Sign in a supervised user, which completes re-authentication.
   // This results in closing the sign-in tabs (2 tabs).
   // Two tabs, the interstitial and the tab where the user performed a
   // navigation, remain open.
-  SignInSupervisedUserAndWaitForInterstitialReload(interstitial_contents);
+  SignInSupervisedUserAndWaitForInterstitialReload(interstitial_contents,
+                                                   original_tab_target_url);
   histogram_tester.ExpectBucketCount(
       kUmaReauthenticationBlockedSitedHistogramName,
       static_cast<int>(
           SupervisedUserVerificationPage::Status::REAUTH_COMPLETED),
       1);
-  histogram_tester.ExpectBucketCount(kUmaClosedSignInTabsHistogramName,
-                                     /*sample=*/2, /*expected_count=*/1);
-  histogram_tester.ExpectBucketCount(kUmaSkippedSignInTabsHistogramName,
-                                     /*sample=*/1, /*expected_count=*/1);
   EXPECT_EQ(2, GetTabCount());
-
-  // TODO(b/370115099): Re-introduce a check that the blocked url interstitial
-  // is shown.
 }
 
-IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
+IN_PROC_BROWSER_TEST_F(SupervisedUserPendingStateNavigationTest,
                        TestManualBlockedSiteMainFrameReauthInterstitial) {
   supervision_mixin_.SetPendingStateForPrimaryAccount();
 
@@ -395,7 +356,7 @@ IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
 }
 
 // Tests the YouTube main frame re-authentication interstitial.
-IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
+IN_PROC_BROWSER_TEST_F(SupervisedUserPendingStateNavigationTest,
                        TestYouTubeMainFrameReauthInterstitial) {
   supervision_mixin_.SetPendingStateForPrimaryAccount();
   kids_management_api_mock().AllowSubsequentClassifyUrl();
@@ -435,7 +396,7 @@ IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
 }
 
 // Tests the blocked site subframe re-authentication interstitial.
-IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
+IN_PROC_BROWSER_TEST_F(SupervisedUserPendingStateNavigationTest,
                        TestBlockedSiteSubFrameReauthInterstitial) {
   supervision_mixin_.SetPendingStateForPrimaryAccount();
 
@@ -476,14 +437,15 @@ IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
       supervised_user::SupervisionMixin::SignInMode::kSupervised);
   ASSERT_TRUE(base::test::RunUntil([&]() { return GetTabCount() == 1; }));
 
-  // TODO(https://crbug.com/365531704): Wait until the blocked site interstitial is displayed.
+  // TODO(https://crbug.com/365531704): Wait until the blocked site interstitial
+  // is displayed.
 
   // UKM should not be recorded for the subframe interstitial.
   EXPECT_EQ(GetReauthInterstitialUKMTotalCount(), 0);
 }
 
 // Tests the YouTube subframe re-authentication interstitial.
-IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
+IN_PROC_BROWSER_TEST_F(SupervisedUserPendingStateNavigationTest,
                        TestYouTubeSubFrameReauthInterstitial) {
   base::HistogramTester histogram_tester;
   supervision_mixin_.SetPendingStateForPrimaryAccount();
@@ -533,8 +495,9 @@ IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
       supervised_user::SupervisionMixin::SignInMode::kSupervised);
   ASSERT_TRUE(base::test::RunUntil([&]() { return GetTabCount() == 1; }));
 
-  // TODO(https://crbug.com/365531704): Wait until the re-auth subframe interstitials are no
-  // longer displayed. Only then check for the re-authentication completion histograms.
+  // TODO(https://crbug.com/365531704): Wait until the re-auth subframe
+  // interstitials are no longer displayed. Only then check for the
+  // re-authentication completion histograms.
 
   // UKM should not be recorded for the subframe interstitial.
   EXPECT_EQ(GetReauthInterstitialUKMTotalCount(), 0);
@@ -548,8 +511,16 @@ MATCHER(ContainsGoogleApiKey, "") {
 
 // Tests that when the user doesn't have a valid access token the request is
 // sent with an api key and not an access token (i.e an anonymous request).
-IN_PROC_BROWSER_TEST_P(SupervisedUserPendingStateNavigationTest,
-                       TestPendingStateRequestHasGoogleApiInHeader) {
+// TODO(https://crbug.com/385450025): Flaky on Win ASAN.
+#if BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
+#define MAYBE_TestPendingStateRequestHasGoogleApiInHeader \
+  DISABLED_TestPendingStateRequestHasGoogleApiInHeader
+#else
+#define MAYBE_TestPendingStateRequestHasGoogleApiInHeader \
+  TestPendingStateRequestHasGoogleApiInHeader
+#endif
+IN_PROC_BROWSER_TEST_F(SupervisedUserPendingStateNavigationTest,
+                       MAYBE_TestPendingStateRequestHasGoogleApiInHeader) {
   // TODO(crbug.com/365529863): Move the methods SetAutomaticIssueOfAccessTokens
   // and WaitForAccessTokenRequestIfNecessaryAndRespondWithError to
   // supervisionMixin::SetPendingStateForPrimaryAccount.

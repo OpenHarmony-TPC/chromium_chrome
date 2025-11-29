@@ -52,11 +52,26 @@ LcpCriticalPathPredictorPageLoadMetricsObserver* LCPCriticalPathPredictorHost::
   return nullptr;
 }
 
-void LCPCriticalPathPredictorHost::SetLcpElementLocator(
-    const std::string& lcp_element_locator,
-    std::optional<uint32_t> predicted_lcp_index) {
+void LCPCriticalPathPredictorHost::OnLcpUpdated(
+    blink::mojom::LcpElementPtr lcp_element) {
+  if (lcp_element->locator &&
+      lcp_element->locator->size() >
+          blink::features::kLCPCriticalPathPredictorMaxElementLocatorLength
+              .Get()) {
+    ReportBadMessageAndDeleteThis(
+        std::string("element_locator_string must be less than ") +
+        blink::features::kLCPCriticalPathPredictorMaxElementLocatorLength.name);
+    return;
+  }
   if (auto* plmo = GetLcpCriticalPathPredictorPageLoadMetricsObserver()) {
-    plmo->SetLcpElementLocator(lcp_element_locator, predicted_lcp_index);
+    plmo->OnLcpUpdated(std::move(lcp_element));
+  }
+}
+
+void LCPCriticalPathPredictorHost::OnLcpTimingPredictedForTesting(
+    const std::optional<std::string>& element_locator) {
+  if (auto* plmo = GetLcpCriticalPathPredictorPageLoadMetricsObserver()) {
+    plmo->OnLcpTimingPredictedForTesting(element_locator);
   }
 }
 
@@ -70,14 +85,14 @@ void LCPCriticalPathPredictorHost::SetLcpInfluencerScriptUrls(
   }
 }
 
-void LCPCriticalPathPredictorHost::SetPreconnectOrigins(
-    const std::vector<GURL>& origins) {
+void LCPCriticalPathPredictorHost::AddPreconnectOrigin(
+    const url::Origin& origin) {
   if (!base::FeatureList::IsEnabled(
           blink::features::kLCPPAutoPreconnectLcpOrigin)) {
     return;
   }
   if (auto* plmo = GetLcpCriticalPathPredictorPageLoadMetricsObserver()) {
-    plmo->SetPreconnectOrigins(origins);
+    plmo->AddPreconnectOrigin(origin);
   }
 }
 

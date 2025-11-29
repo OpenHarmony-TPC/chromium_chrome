@@ -200,7 +200,7 @@ void RichAnswersView::SetUpBaseView() {
   views::ScrollView* scroll_view = AddChildView(
       views::Builder<views::ScrollView>()
           .ClipHeightTo(kMinimumRichCardHeight, kMaximumRichCardHeight)
-          .SetBackgroundThemeColorId(ui::kColorPrimaryBackground)
+          .SetBackgroundColor(ui::kColorPrimaryBackground)
           .SetHorizontalScrollBarMode(
               views::ScrollView::ScrollBarMode::kDisabled)
           .SetDrawOverflowIndicator(false)
@@ -239,7 +239,7 @@ void RichAnswersView::AddResultTypeIcon() {
   // a circle background behind the icon.
   auto* vector_icon_container =
       main_view_->AddChildView(std::make_unique<views::FlexLayoutView>());
-  vector_icon_container->SetBackground(views::CreateThemedRoundedRectBackground(
+  vector_icon_container->SetBackground(views::CreateRoundedRectBackground(
       ui::kColorSysPrimary, kRichAnswersIconContainerRadius));
   vector_icon_container->SetBorder(
       views::CreateEmptyBorder(kRichAnswersIconBorderDip));
@@ -306,7 +306,7 @@ void RichAnswersView::AddGoogleSearchLink() {
       &RichAnswersView::OnGoogleSearchLinkClicked, weak_factory_.GetWeakPtr()));
   search_link_label->SetFontList(GetFontList(TypographyToken::kCrosButton2));
   search_link_label->SetForceUnderline(false);
-  search_link_label->SetEnabledColorId(ui::kColorSysPrimary);
+  search_link_label->SetEnabledColor(ui::kColorSysPrimary);
 }
 
 void RichAnswersView::OnGoogleSearchLinkClicked() {

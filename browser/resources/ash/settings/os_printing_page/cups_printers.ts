@@ -19,13 +19,12 @@ import 'chrome://resources/ash/common/cr_elements/action_link.css.js';
 import 'chrome://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import 'chrome://resources/ash/common/cr_elements/localized_link/localized_link.js';
-import '../icons.html.js';
 import './cups_edit_printer_dialog.js';
 import './cups_enterprise_printers.js';
+import './cups_nearby_printers.js';
 import './cups_printer_shared.css.js';
 import './cups_printer_types.js';
 import './cups_printers_browser_proxy.js';
-import './cups_printers_entry.js';
 import './cups_printers_entry_manager.js';
 import './cups_saved_printers.js';
 import './cups_settings_add_printer_dialog.js';
@@ -49,7 +48,6 @@ import {afterNextRender, mixinBehaviors, PolymerElement} from 'chrome://resource
 
 import type {DeepLinkingMixinInterface} from '../common/deep_linking_mixin.js';
 import {DeepLinkingMixin} from '../common/deep_linking_mixin.js';
-import {isRevampWayfindingEnabled} from '../common/load_time_booleans.js';
 import type {RouteObserverMixinInterface} from '../common/route_observer_mixin.js';
 import {RouteObserverMixin} from '../common/route_observer_mixin.js';
 import type {Constructor} from '../common/types.js';
@@ -205,18 +203,6 @@ export class SettingsCupsPrintersElement extends
       },
 
       /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kAddPrinter,
-          Setting.kSavedPrinters,
-          Setting.kPrintJobs,
-        ]),
-      },
-
-      /**
        * Indicates whether the nearby printers section is expanded.
        * @private {boolean}
        */
@@ -234,13 +220,6 @@ export class SettingsCupsPrintersElement extends
         computed: 'computeNearbyPrintersEmpty_(nearbyPrinterCount_)',
         reflectToAttribute: true,
       },
-
-      isRevampWayfindingEnabled_: {
-        type: Boolean,
-        value: () => {
-          return isRevampWayfindingEnabled();
-        },
-      },
     };
   }
 
@@ -248,6 +227,13 @@ export class SettingsCupsPrintersElement extends
   prefs: Object;
   printers: CupsPrinterInfo[];
   searchTerm: string;
+
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kAddPrinter,
+    Setting.kSavedPrinters,
+    Setting.kPrintJobs,
+  ]);
 
   private addPrintServerResultText_: string;
   private addPrinterResultText_: string;
@@ -258,7 +244,6 @@ export class SettingsCupsPrintersElement extends
   private enterprisePrinters_: PrinterListEntry[];
   private entryManager_: CupsPrintersEntryManager;
   private hasActiveNetworkConnection: boolean;
-  private isRevampWayfindingEnabled_: boolean;
   private nearbyPrinterCount_: number;
   private nearbyPrintersAriaLabel_: string;
   private networkConfig_: CrosNetworkConfigInterface;

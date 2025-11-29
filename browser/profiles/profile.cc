@@ -58,7 +58,7 @@
 #include "chrome/browser/profiles/android/jni_headers/OtrProfileId_jni.h"
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "extensions/browser/extension_pref_store.h"              // nogncheck
 #include "extensions/browser/extension_pref_value_map_factory.h"  // nogncheck
 #include "extensions/browser/pref_names.h"                        // nogncheck
@@ -103,9 +103,7 @@ bool Profile::OTRProfileID::AllowsBrowserWindows() const {
   // Non-Primary OTR profiles are not supposed to create Browser windows.
   // DevTools::BrowserContext, MediaRouter::Presentation, and
   // CaptivePortal::Signin are exceptions to this ban.
-  if (*this == PrimaryID() ||
-      base::StartsWith(profile_id_, kDevToolsOTRProfileIDPrefix,
-                       base::CompareCase::SENSITIVE) ||
+  if (*this == PrimaryID() || IsDevTools() ||
       base::StartsWith(profile_id_, kMediaRouterOTRProfileIDPrefix,
                        base::CompareCase::SENSITIVE)) {
     return true;
@@ -117,6 +115,11 @@ bool Profile::OTRProfileID::AllowsBrowserWindows() const {
   }
 #endif
   return false;
+}
+
+bool Profile::OTRProfileID::IsDevTools() const {
+  return base::StartsWith(profile_id_, kDevToolsOTRProfileIDPrefix,
+                          base::CompareCase::SENSITIVE);
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -306,8 +309,7 @@ ChromeZoomLevelPrefs* Profile::GetZoomLevelPrefs() {
   return nullptr;
 }
 
-Profile::Delegate::~Delegate() {
-}
+Profile::Delegate::~Delegate() = default;
 
 // static
 const char Profile::kProfileKey[] = "__PROFILE__";
@@ -330,7 +332,7 @@ void Profile::RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 #endif  // BUILDFLAG(IS_ANDROID)
   registry->RegisterStringPref(prefs::kSessionExitType, std::string());
   registry->RegisterBooleanPref(prefs::kDisableExtensions, false);
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   registry->RegisterBooleanPref(extensions::pref_names::kAlertsInitialized,
                                 false);
 #endif
@@ -355,6 +357,7 @@ void Profile::RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterDictionaryPref(prefs::kPartitionPerHostZoomLevels);
   registry->RegisterStringPref(prefs::kPreinstalledApps, "install");
   registry->RegisterIntegerPref(prefs::kProfileIconVersion, 0);
+  registry->RegisterBooleanPref(prefs::kProfileIconWin11Format, false);
   registry->RegisterBooleanPref(prefs::kAllowDinosaurEasterEgg, true);
 #if BUILDFLAG(IS_CHROMEOS)
   registry->RegisterBooleanPref(chromeos::prefs::kCaptivePortalSignin, false);
@@ -430,6 +433,10 @@ bool Profile::IsPrimaryOTRProfile() const {
          otr_profile_id_.value() == OTRProfileID::PrimaryID();
 }
 
+bool Profile::IsDevToolsOTRProfile() const {
+  return otr_profile_id_.has_value() && otr_profile_id_->IsDevTools();
+}
+
 bool Profile::CanUseDiskWhenOffTheRecord() {
 #if BUILDFLAG(IS_CHROMEOS)
   // Guest mode on ChromeOS uses an in-memory file system to store the profile
@@ -471,7 +478,7 @@ void Profile::MaybeSendDestroyedNotification() {
 // static
 PrefStore* Profile::CreateExtensionPrefStore(Profile* profile,
                                              bool incognito_pref_store) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   if (ExtensionPrefValueMap* pref_value_map =
           ExtensionPrefValueMapFactory::GetForBrowserContext(profile)) {
     return new ExtensionPrefStore(pref_value_map, incognito_pref_store);

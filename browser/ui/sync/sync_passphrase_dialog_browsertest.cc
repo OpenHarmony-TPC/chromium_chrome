@@ -5,15 +5,14 @@
 #include "chrome/browser/ui/sync/sync_passphrase_dialog.h"
 
 #include <string>
+#include <string_view>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/string_util.h"
 #include "base/test/mock_callback.h"
-#include "base/test/scoped_feature_list.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
-#include "components/signin/public/base/signin_switches.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/interaction/element_identifier.h"
@@ -26,37 +25,31 @@
 
 namespace {
 DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(
-    ui::test::PollingStateObserver<std::u16string>,
+    ui::test::PollingStateObserver<std::u16string_view>,
     kPolledTextfieldContent);
 }
 
 class SyncPassphraseDialogBrowserTest : public InteractiveBrowserTest {
  public:
-  SyncPassphraseDialogBrowserTest() {
-    feature_list_.InitWithFeatures(
-        /*enabled_features=*/{switches::kExplicitBrowserSigninUIOnDesktop,
-                              switches::kImprovedSigninUIOnDesktop},
-        /*disabled_features=*/{});
-  }
+  SyncPassphraseDialogBrowserTest() = default;
 
   // Sets the password and waits for the state to be propagated.
   // `kPolledTextfieldContent` must be initialized with `PollState()` before
   // this can be used.
-  MultiStep SetPassordText(const std::u16string& text) {
-    return Steps(EnterText(kTextFieldName, text),
+  MultiStep SetPassordText(std::u16string_view text) {
+    return Steps(EnterText(kTextFieldName, std::u16string(text)),
                  WaitForState(kPolledTextfieldContent, text));
   }
 
  protected:
   const std::string kTextFieldName = "Texfield";
   const std::string kFooterLabelName = "FooterLabel";
-  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(SyncPassphraseDialogBrowserTest, PixelTest) {
-  const std::u16string kPassphrase = u"Passphrase";
+  const std::u16string_view kPassphrase = u"Passphrase";
 
-  base::MockRepeatingCallback<bool(const std::u16string&)> decrypt_callback;
+  base::MockRepeatingCallback<bool(std::u16string_view)> decrypt_callback;
   Browser* browser_ptr = browser();
   views::Textfield* textfield = nullptr;
 
@@ -111,7 +104,7 @@ IN_PROC_BROWSER_TEST_F(SyncPassphraseDialogBrowserTest, FooterLink) {
       Do([browser_ptr] {
         ShowSyncPassphraseDialog(
             *browser_ptr,
-            base::BindRepeating([](const std::u16string&) { return false; }));
+            base::BindRepeating([](std::u16string_view) { return false; }));
       }),
       WaitForShow(kSyncPassphraseOkButtonFieldId),
       // Find the footer link.

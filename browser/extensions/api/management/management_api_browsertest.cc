@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "extensions/browser/api/management/management_api.h"
+
 #include "base/auto_reset.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
@@ -12,7 +14,6 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/install_verifier.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -22,13 +23,13 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_utils.h"
-#include "extensions/browser/api/management/management_api.h"
 #include "extensions/browser/api/management/management_api_constants.h"
 #include "extensions/browser/api_test_utils.h"
 #include "extensions/browser/extension_dialog_auto_confirm.h"
 #include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_host_test_helper.h"
 #include "extensions/browser/extension_prefs.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_id.h"
@@ -77,7 +78,7 @@ class ExtensionManagementApiBrowserTest : public ExtensionBrowserTest {
   ScopedInstallVerifierBypassForTest install_verifier_bypass_;
 };
 
-using ContextType = ExtensionBrowserTest::ContextType;
+using ContextType = extensions::browser_test_util::ContextType;
 
 class ExtensionManagementApiTestWithBackgroundType
     : public ExtensionManagementApiBrowserTest,
@@ -338,7 +339,6 @@ class ExtensionManagementApiEscalationTest :
     scoped_refptr<ManagementSetEnabledFunction> function(
         new ManagementSetEnabledFunction);
     function->set_extension(extension);
-    const char* const enabled_string = enabled ? "true" : "false";
     if (user_gesture)
       function->set_user_gesture(true);
     function->SetRenderFrameHost(browser()
@@ -346,7 +346,8 @@ class ExtensionManagementApiEscalationTest :
                                      ->GetActiveWebContents()
                                      ->GetPrimaryMainFrame());
     bool response = test_utils::RunFunction(
-        function.get(), base::StringPrintf("[\"%s\", %s]", kId, enabled_string),
+        function.get(),
+        base::StringPrintf("[\"%s\", %s]", kId, base::ToString(enabled)),
         browser()->profile(), api_test_utils::FunctionMode::kNone);
     if (expected_error.empty()) {
       EXPECT_EQ(true, response);
@@ -413,7 +414,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionManagementApiEscalationTest,
     // Register the target extension with extension service.
     scoped_refptr<const Extension> target_extension =
         ExtensionBuilder("TargetExtension").SetID(kId).Build();
-    extension_service()->AddExtension(target_extension.get());
+    extension_registrar()->AddExtension(target_extension);
     SetEnabled(false, true, std::string(), source_extension);
     SetEnabled(true, true, std::string(), source_extension);
     EXPECT_TRUE(extension_registry()->enabled_extensions().GetByID(kId));

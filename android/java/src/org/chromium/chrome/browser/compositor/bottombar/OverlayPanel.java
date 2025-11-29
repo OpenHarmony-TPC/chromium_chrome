@@ -22,6 +22,7 @@ import org.chromium.base.ApplicationStatus.ActivityStateListener;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.cc.input.BrowserControlsState;
+import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.compositor.bottombar.OverlayPanelManager.PanelPriority;
 import org.chromium.chrome.browser.compositor.layouts.Layout;
@@ -217,6 +218,8 @@ public class OverlayPanel extends OverlayPanelAnimation
      * @param toolbarHeightDp The height of the toolbar in dp.
      * @param currentTabSupplier Supplies the current {@link Tab}.
      * @param desktopWindowStateManager Manager to get desktop window and app header state.
+     * @param bottomControlsStacker The {@link BottomControlsStacker} for observing and changing
+     *     browser controls heights.
      */
     public OverlayPanel(
             @NonNull Context context,
@@ -228,8 +231,15 @@ public class OverlayPanel extends OverlayPanelAnimation
             @NonNull ViewGroup compositorViewHolder,
             float toolbarHeightDp,
             @NonNull Supplier<Tab> currentTabSupplier,
-            DesktopWindowStateManager desktopWindowStateManager) {
-        super(context, layoutManager, toolbarHeightDp, desktopWindowStateManager);
+            DesktopWindowStateManager desktopWindowStateManager,
+            @NonNull BottomControlsStacker bottomControlsStacker) {
+        super(
+                context,
+                layoutManager,
+                toolbarHeightDp,
+                desktopWindowStateManager,
+                browserControlsStateProvider,
+                bottomControlsStacker);
         mLayoutManager = layoutManager;
         mContentFactory = this;
         mBrowserControlsStateProvider = browserControlsStateProvider;
@@ -864,7 +874,7 @@ public class OverlayPanel extends OverlayPanelAnimation
     // ============================================================================================
 
     @Override
-    public void onDown(float x, float y, boolean fromMouse, int buttons) {
+    public void onDown(float x, float y, int buttons) {
         mInitialPanelTouchY = y;
         handleSwipeStart();
     }
@@ -885,7 +895,7 @@ public class OverlayPanel extends OverlayPanelAnimation
     }
 
     @Override
-    public void click(float x, float y, boolean fromMouse, int buttons) {
+    public void click(float x, float y, int buttons) {
         handleClick(x, y);
     }
 
@@ -903,6 +913,9 @@ public class OverlayPanel extends OverlayPanelAnimation
 
     @Override
     public void onHoverExit() {}
+
+    @Override
+    public void onScroll(float horizontalAxisScroll, float verticalAxisScroll) {}
 
     // SwipeHandler implementation.
 
@@ -968,6 +981,9 @@ public class OverlayPanel extends OverlayPanelAnimation
             RectF viewport, RectF visibleViewport, ResourceManager resourceManager, float yOffset) {
         return null;
     }
+
+    @Override
+    public void removeFromParent() {}
 
     @Override
     public boolean isSceneOverlayTreeShowing() {

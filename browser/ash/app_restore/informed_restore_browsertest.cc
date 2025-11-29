@@ -86,9 +86,6 @@ class InformedRestoreTest : public InProcessBrowserTest {
  public:
   InformedRestoreTest() {
     set_launch_browser_for_testing(nullptr);
-
-    feature_list_.InitWithFeatures(
-        {features::kForestFeature, features::kSanitize}, {});
   }
   InformedRestoreTest(const InformedRestoreTest&) = delete;
   InformedRestoreTest& operator=(const InformedRestoreTest&) = delete;
@@ -109,11 +106,12 @@ class InformedRestoreTest : public InProcessBrowserTest {
   base::HistogramTester histogram_tester_;
 
  private:
-  base::test::ScopedFeatureList feature_list_;
+  base::test::ScopedFeatureList feature_list_{features::kSanitize};
 };
 
+// TODO(crbug.com/413281717): Test is flaky
 // Creates 2 browser windows that will be restored in the main test.
-IN_PROC_BROWSER_TEST_F(InformedRestoreTest, PRE_LaunchBrowsers) {
+IN_PROC_BROWSER_TEST_F(InformedRestoreTest, DISABLED_PRE_LaunchBrowsers) {
   EXPECT_TRUE(BrowserList::GetInstance()->empty());
 
   Profile* profile = ProfileManager::GetActiveUserProfile();
@@ -125,9 +123,10 @@ IN_PROC_BROWSER_TEST_F(InformedRestoreTest, PRE_LaunchBrowsers) {
   AppLaunchInfoSaveWaiter::Wait();
 }
 
+// TODO(crbug.com/413281717): Test is flaky
 // Verify that with two elements in the full restore file, we enter overview on
 // login. Then when we click the restore button, we restore two browsers.
-IN_PROC_BROWSER_TEST_F(InformedRestoreTest, LaunchBrowsers) {
+IN_PROC_BROWSER_TEST_F(InformedRestoreTest, DISABLED_LaunchBrowsers) {
   EXPECT_TRUE(BrowserList::GetInstance()->empty());
 
   // Verify we have entered overview. The restore button will be null if we
@@ -184,10 +183,10 @@ IN_PROC_BROWSER_TEST_F(InformedRestoreTest, LaunchSWA) {
   // settings SWAs.
   auto* browser_list = BrowserList::GetInstance();
   EXPECT_EQ(2u, browser_list->size());
-  EXPECT_TRUE(base::ranges::any_of(*browser_list, [](Browser* browser) {
+  EXPECT_TRUE(std::ranges::any_of(*browser_list, [](Browser* browser) {
     return IsBrowserForSystemWebApp(browser, SystemWebAppType::FILE_MANAGER);
   }));
-  EXPECT_TRUE(base::ranges::any_of(*browser_list, [](Browser* browser) {
+  EXPECT_TRUE(std::ranges::any_of(*browser_list, [](Browser* browser) {
     return IsBrowserForSystemWebApp(browser, SystemWebAppType::SETTINGS);
   }));
 }
@@ -319,27 +318,27 @@ IN_PROC_BROWSER_TEST_F(InformedRestoreTest, DISABLED_WindowStates) {
   EXPECT_EQ(5u, browser_list->size());
 
   // Test that there is a maximized, floated and snapped window.
-  EXPECT_TRUE(base::ranges::any_of(*browser_list, [](Browser* browser) {
+  EXPECT_TRUE(std::ranges::any_of(*browser_list, [](Browser* browser) {
     return WindowState::Get(browser->window()->GetNativeWindow())
         ->IsMaximized();
   }));
-  EXPECT_TRUE(base::ranges::any_of(*browser_list, [](Browser* browser) {
+  EXPECT_TRUE(std::ranges::any_of(*browser_list, [](Browser* browser) {
     return WindowState::Get(browser->window()->GetNativeWindow())->IsFloated();
   }));
-  EXPECT_TRUE(base::ranges::any_of(*browser_list, [](Browser* browser) {
+  EXPECT_TRUE(std::ranges::any_of(*browser_list, [](Browser* browser) {
     return WindowState::Get(browser->window()->GetNativeWindow())->IsSnapped();
   }));
 
   // Test that there is no fullscreen window as full restore does not restore
   // fullscreen state.
-  EXPECT_TRUE(base::ranges::none_of(*browser_list, [](Browser* browser) {
+  EXPECT_TRUE(std::ranges::none_of(*browser_list, [](Browser* browser) {
     return WindowState::Get(browser->window()->GetNativeWindow())
         ->IsFullscreen();
   }));
 
   // Test the pre-minimized state of the minimized browser window. When we
   // unminimize it, it should be maximized state.
-  auto it = base::ranges::find_if(*browser_list, [](Browser* browser) {
+  auto it = std::ranges::find_if(*browser_list, [](Browser* browser) {
     return WindowState::Get(browser->window()->GetNativeWindow())
         ->IsMinimized();
   });

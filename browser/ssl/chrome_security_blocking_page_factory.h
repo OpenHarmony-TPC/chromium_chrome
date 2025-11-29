@@ -59,11 +59,10 @@ class ChromeSecurityBlockingPageFactory : public SecurityBlockingPageFactory {
       const net::SSLInfo& ssl_info,
       const std::string& mitm_software_name) override;
   std::unique_ptr<BlockedInterceptionBlockingPage>
-  CreateBlockedInterceptionBlockingPage(
-      content::WebContents* web_contents,
-      int cert_error,
-      const GURL& request_url,
-      const net::SSLInfo& ssl_info) override;
+  CreateBlockedInterceptionBlockingPage(content::WebContents* web_contents,
+                                        int cert_error,
+                                        const GURL& request_url,
+                                        const net::SSLInfo& ssl_info) override;
   std::unique_ptr<security_interstitials::InsecureFormBlockingPage>
   CreateInsecureFormBlockingPage(content::WebContents* web_contents,
                                  const GURL& request_url) override;
@@ -72,7 +71,10 @@ class ChromeSecurityBlockingPageFactory : public SecurityBlockingPageFactory {
       content::WebContents* web_contents,
       const GURL& request_url,
       security_interstitials::https_only_mode::HttpInterstitialState
-          interstitial_state) override;
+          interstitial_state,
+      std::optional<std::string> url_type_param,
+      security_interstitials::HttpsOnlyModeBlockingPage::MetricsCallback
+          metrics_callback) override;
 
   // Returns true if the device or the profile is enterprise-managed.
   static bool IsEnterpriseManaged(Profile* profile);

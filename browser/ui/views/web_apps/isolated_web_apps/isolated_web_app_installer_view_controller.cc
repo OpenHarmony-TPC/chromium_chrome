@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <variant>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -14,11 +15,12 @@
 #include "base/time/time.h"
 #include "base/uuid.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/ash/shelf/isolated_web_app_installer_shelf_item_controller.h"
 #include "chrome/browser/ui/views/web_apps/isolated_web_apps/callback_delayer.h"
 #include "chrome/browser/ui/views/web_apps/isolated_web_apps/isolated_web_app_installer_model.h"
 #include "chrome/browser/ui/views/web_apps/isolated_web_apps/isolated_web_app_installer_view.h"
 #include "chrome/browser/ui/views/web_apps/isolated_web_apps/pref_observer.h"
-#include "chrome/browser/web_applications/isolated_web_apps/install_isolated_web_app_command.h"
+#include "chrome/browser/web_applications/isolated_web_apps/commands/install_isolated_web_app_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_install_source.h"
 #include "chrome/browser/web_applications/isolated_web_apps/signed_web_bundle_metadata.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
@@ -27,7 +29,6 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/webapps/common/web_app_id.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/ui_base_types.h"
@@ -226,9 +227,7 @@ void IsolatedWebAppInstallerViewController::AddOrUpdateWindowToShelf() {
     ash::ShelfModel::Get()->Set(index, item);
   }
 
-  // TODO(https://crbug.com/375937556): Revise this now that the Lacros support
-  // is removed.
-  static_cast<LacrosShelfItemController*>(
+  static_cast<IsolatedWebAppInstallerShelfItemController*>(
       shelf_model->GetShelfItemDelegate(shelf_id))
       ->AddWindow(window_);
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -268,8 +267,8 @@ void IsolatedWebAppInstallerViewController::Show() {
 
   widget_ =
       views::DialogDelegate::CreateDialogWidget(std::move(dialog_delegate),
-                                                /*context=*/nullptr,
-                                                /*parent=*/nullptr);
+                                                /*context=*/gfx::NativeWindow(),
+                                                /*parent=*/gfx::NativeView());
 
   CHECK(!window_);
   window_ = widget_->GetNativeWindow();
@@ -393,7 +392,7 @@ void IsolatedWebAppInstallerViewController::OnGetMetadataProgressUpdated(
 
 void IsolatedWebAppInstallerViewController::OnInstallabilityChecked(
     InstallabilityChecker::Result result) {
-  absl::visit(InstallabilityCheckedVisitor(*model_, *this), result);
+  std::visit(InstallabilityCheckedVisitor(*model_, *this), result);
 }
 
 void IsolatedWebAppInstallerViewController::OnInstallProgressUpdated(
@@ -525,17 +524,17 @@ void IsolatedWebAppInstallerViewController::OnChildDialogChanged() {
 std::unique_ptr<views::DialogDelegate>
 IsolatedWebAppInstallerViewController::CreateDialogDelegate(
     std::unique_ptr<views::View> contents_view) {
-  gfx::Size contents_max_size = contents_view->GetMaximumSize();
   auto delegate = std::make_unique<OnCompleteDialogDelegate>();
   delegate->set_internal_name(
       IsolatedWebAppInstallerView::kInstallerWidgetName);
-  delegate->SetOwnedByWidget(true);
+  delegate->SetOwnedByWidget(views::WidgetDelegate::OwnedByWidgetPassKey());
   delegate->SetContentsView(std::move(contents_view));
   delegate->SetModalType(ui::mojom::ModalType::kWindow);
   delegate->SetShowCloseButton(false);
   delegate->SetHasWindowSizeControls(false);
+  delegate->set_fixed_width(views::LayoutProvider::Get()->GetDistanceMetric(
+      views::DISTANCE_LARGE_MODAL_DIALOG_PREFERRED_WIDTH));
   delegate->SetCanResize(false);
-  delegate->set_fixed_width(contents_max_size.width());
   // TODO(crbug.com/40280769): Set the title of the dialog for Alt+Tab
   delegate->SetShowTitle(false);
 

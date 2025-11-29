@@ -15,7 +15,7 @@
 #include "base/files/file_path.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
@@ -32,7 +32,6 @@ class PrefService;
 
 #if BUILDFLAG(IS_CHROMEOS)
 namespace ash {
-class KioskBaseTest;
 class LocaleChangeGuard;
 class Preferences;
 }  // namespace ash
@@ -162,9 +161,6 @@ class ProfileImpl : public Profile {
   bool IsSignedIn() override;
 
  private:
-#if BUILDFLAG(IS_CHROMEOS)
-  friend class ash::KioskBaseTest;
-#endif
   friend class Profile;
   FRIEND_TEST_ALL_PREFIXES(StartupBrowserCreatorTest,
                            ProfilesLaunchedAfterCrash);
@@ -208,9 +204,6 @@ class ProfileImpl : public Profile {
   void UpdateNameInStorage();
   void UpdateAvatarInStorage();
   void UpdateIsEphemeralInStorage();
-
-  // Called to initialize Data Reduction Proxy.
-  void InitializeDataReductionProxy();
 
   // Called after a profile is initialized, to record 'one per profile creation'
   // metrics relating to user prefs.
@@ -264,7 +257,7 @@ class ProfileImpl : public Profile {
   std::unique_ptr<sync_preferences::PrefServiceSyncable> prefs_;
   std::unique_ptr<sync_preferences::PrefServiceSyncable> dummy_otr_prefs_;
   PrefChangeRegistrar pref_change_registrar_;
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   scoped_refptr<ExtensionSpecialStoragePolicy>
       extension_special_storage_policy_;
 #endif

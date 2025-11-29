@@ -29,11 +29,12 @@
 #include "components/compose/core/browser/compose_features.h"
 #include "components/compose/core/browser/compose_metrics.h"
 #include "components/compose/core/browser/config.h"
-#include "components/flags_ui/feature_entry.h"
-#include "components/flags_ui/flags_storage.h"
+#include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/service/variations_service.h"
 #include "components/variations/service/variations_service_utils.h"
+#include "components/webui/flags/feature_entry.h"
+#include "components/webui/flags/flags_storage.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/render_frame_host.h"
 #if BUILDFLAG(IS_CHROMEOS)
@@ -180,6 +181,21 @@ bool ComposeEnabling::IsEnabledForProfile(Profile* profile) {
   return CheckEnabling(opt_guide, identity_manager).has_value();
 }
 
+bool ComposeEnabling::IsSettingVisible(Profile* profile) {
+  OptimizationGuideKeyedService* opt_guide =
+      OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfileIfExists(profile);
+  auto enabled = CheckEnabling(opt_guide, identity_manager);
+  if (!enabled.has_value() &&
+      enabled.error() ==
+          compose::ComposeShowStatus::kUserNotAllowedByOptimizationGuide) {
+    return opt_guide->IsSettingVisible(
+        optimization_guide::UserVisibleFeatureKey::kCompose);
+  }
+  return enabled.has_value();
+}
+
 // Private static.
 base::expected<void, compose::ComposeShowStatus> ComposeEnabling::CheckEnabling(
     OptimizationGuideKeyedService* opt_guide,
@@ -233,8 +249,8 @@ base::expected<void, compose::ComposeShowStatus> ComposeEnabling::CheckEnabling(
 
   // TODO(b/314199871): Remove test bypass once this check becomes mock-able.
   if (!skip_user_check_for_testing_ &&
-      !opt_guide->ShouldFeatureBeCurrentlyEnabledForUser(
-          optimization_guide::UserVisibleFeatureKey::kCompose)) {
+      (!opt_guide->ShouldFeatureBeCurrentlyEnabledForUser(
+          optimization_guide::UserVisibleFeatureKey::kCompose))) {
     DVLOG(2) << "Feature not available for this user";
     return base::unexpected(
         compose::ComposeShowStatus::kUserNotAllowedByOptimizationGuide);

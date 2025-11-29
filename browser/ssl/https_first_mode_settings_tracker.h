@@ -10,6 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/task/task_traits.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager.h"
@@ -36,6 +37,8 @@ class StatefulSSLHostStateDelegate;
 // Must be kept in sync with the HttpsFirstModeSetting enums located in
 // chrome/browser/resources/settings/privacy_page/security_page.ts and enums.xml
 // LINT.IfChange
+// A Java counterpart will be generated for this enum.
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.ssl
 enum class HttpsFirstModeSetting {
   kDisabled = 0,
   // DEPRECATED: A separate Incognito setting never shipped.
@@ -92,6 +95,10 @@ class HttpsFirstModeService
       base::OnceClosure done_callback);
 
   HttpsFirstModeSetting GetCurrentSetting() const;
+
+  // Update the underlying HTTPS-First Mode prefs based on the UI setting
+  // selection.
+  bool UpdatePrefs(const HttpsFirstModeSetting& selection);
 
   // Increment recent navigation count and maybe save the counts to a pref.
   void IncrementRecentNavigationCount();

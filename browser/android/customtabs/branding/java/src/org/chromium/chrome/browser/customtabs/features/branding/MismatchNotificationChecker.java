@@ -4,17 +4,19 @@
 
 package org.chromium.chrome.browser.customtabs.features.branding;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.customtabs.features.branding.proto.AccountMismatchData.CloseType;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.util.HashUtil;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.signin.base.CoreAccountInfo;
+import org.chromium.components.signin.base.GaiaId;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 
@@ -22,14 +24,15 @@ import org.chromium.components.signin.identitymanager.IdentityManager;
  * Class that drives the account mismatch notification flow. Works in conjunction with {@link
  * BrandingController} for global branding rate-limiting policy.
  */
+@NullMarked
 public class MismatchNotificationChecker {
-    private @NonNull final Profile mProfile;
-    private @NonNull final Delegate mDelegate;
-    private @NonNull final IdentityManager mIdentityManager;
+    private final Profile mProfile;
+    private final Delegate mDelegate;
+    private final IdentityManager mIdentityManager;
     private final CallbackController mCallbackController = new CallbackController();
 
     /** Used to suppress IPH UIs while the mismatch notification UI is on the screen. */
-    private Tracker.DisplayLockHandle mFeatureEngagementLock;
+    private Tracker.@Nullable DisplayLockHandle mFeatureEngagementLock;
 
     /**
      * Whether the other prompt UIs should be suppressed. This var is set to {@code true} while the
@@ -51,7 +54,7 @@ public class MismatchNotificationChecker {
         boolean maybeShow(
                 String accountId,
                 long lastShownTime,
-                MismatchNotificationData mimData,
+                @Nullable MismatchNotificationData mimData,
                 Callback<Integer> onClose);
     }
 
@@ -63,9 +66,7 @@ public class MismatchNotificationChecker {
      * @param delegate Delegate providing the actual decision/UI logic.
      */
     public MismatchNotificationChecker(
-            @NonNull Profile profile,
-            @NonNull IdentityManager identityManager,
-            @NonNull Delegate delegate) {
+            Profile profile, IdentityManager identityManager, Delegate delegate) {
         mProfile = profile;
         mIdentityManager = identityManager;
         mDelegate = delegate;
@@ -75,7 +76,7 @@ public class MismatchNotificationChecker {
     public boolean maybeShow(
             String appId,
             long lastShowTime,
-            MismatchNotificationData data,
+            @Nullable MismatchNotificationData data,
             Callback<MismatchNotificationData> closeCallback) {
         String accountId = getAccountId();
         MismatchNotificationData mimData = data; // effective final
@@ -119,7 +120,10 @@ public class MismatchNotificationChecker {
     @VisibleForTesting
     String getAccountId() {
         CoreAccountInfo account = mIdentityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN);
-        var hash = HashUtil.getMd5Hash(new HashUtil.Params(CoreAccountInfo.getGaiaIdFrom(account)));
+        GaiaId gaiaId = CoreAccountInfo.getGaiaIdFrom(account);
+        if (gaiaId == null) return "";
+        var hash = HashUtil.getMd5Hash(new HashUtil.Params(gaiaId.toString()));
+        if (hash == null) return "";
         return hash.substring(0, 16);
     }
 

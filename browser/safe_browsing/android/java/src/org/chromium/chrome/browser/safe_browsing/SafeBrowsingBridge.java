@@ -12,11 +12,13 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.content_public.browser.WebContents;
 
 /** Bridge providing access to native-side Safe Browsing data. */
 @JNINamespace("safe_browsing")
+@NullMarked
 public final class SafeBrowsingBridge {
     private final Profile mProfile;
 
@@ -49,6 +51,11 @@ public final class SafeBrowsingBridge {
         SafeBrowsingBridgeJni.get().setSafeBrowsingExtendedReportingEnabled(mProfile, enabled);
     }
 
+    /** Set the Safe Browsing setting set locally pref as true. */
+    public void enableSafeBrowsingSettingSetLocallyPref() {
+        SafeBrowsingBridgeJni.get().enableSafeBrowsingSettingSetLocallyPref(mProfile);
+    }
+
     /**
      * @return Whether Safe Browsing Extended Reporting is managed
      */
@@ -78,13 +85,6 @@ public final class SafeBrowsingBridge {
      */
     public boolean isSafeBrowsingManaged() {
         return SafeBrowsingBridgeJni.get().isSafeBrowsingManaged(mProfile);
-    }
-
-    /**
-     * @return Whether the user is under Advanced Protection.
-     */
-    public boolean isUnderAdvancedProtection() {
-        return SafeBrowsingBridgeJni.get().isUnderAdvancedProtection(mProfile);
     }
 
     /**
@@ -135,9 +135,9 @@ public final class SafeBrowsingBridge {
 
         void setSafeBrowsingState(Profile profile, @SafeBrowsingState int state);
 
-        boolean isSafeBrowsingManaged(Profile profile);
+        void enableSafeBrowsingSettingSetLocallyPref(Profile profile);
 
-        boolean isUnderAdvancedProtection(Profile profile);
+        boolean isSafeBrowsingManaged(Profile profile);
 
         boolean isHashRealTimeLookupEligibleInSession();
 

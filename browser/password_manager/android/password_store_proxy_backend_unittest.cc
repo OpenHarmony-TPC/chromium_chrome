@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -76,11 +77,11 @@ bool FilterNoUrl(const GURL& gurl) {
 }
 
 MATCHER_P(PasswordChangesAre, expectations, "") {
-  if (absl::holds_alternative<PasswordStoreBackendError>(arg)) {
+  if (std::holds_alternative<PasswordStoreBackendError>(arg)) {
     return false;
   }
 
-  auto changes = absl::get<PasswordChanges>(arg);
+  auto changes = std::get<PasswordChanges>(arg);
   if (!changes.has_value()) {
     return false;
   }
@@ -523,35 +524,6 @@ TEST_P(PasswordStoreProxyBackendTest, UseBothBackendsToRemoveLoginAsyncIfUPM) {
   EXPECT_CALL(shadow_backend(), RemoveLoginAsync(_, Eq(form), _))
       .Times(GetParam().android_is_main_backend ? 1 : 0);
   proxy_backend().RemoveLoginAsync(FROM_HERE, form, mock_reply.Get());
-}
-
-TEST_P(PasswordStoreProxyBackendTest,
-       UseBothBackendsToRemoveLoginsByURLAndTimeAsyncIfUPM) {
-  base::Time kStart = base::Time::FromTimeT(111111);
-  base::Time kEnd = base::Time::FromTimeT(22222222);
-  base::MockCallback<PasswordChangesOrErrorReply> mock_reply;
-  PasswordForm form = CreateTestForm();
-  PasswordStoreChangeList change_list;
-  change_list.push_back(PasswordStoreChange(Type::REMOVE, form));
-  EXPECT_CALL(mock_reply,
-              Run(VariantWith<PasswordChanges>(Optional(change_list))));
-
-  EXPECT_CALL(main_backend(),
-              RemoveLoginsByURLAndTimeAsync(_, _, Eq(kStart), Eq(kEnd), _, _))
-      .WillOnce(WithArg<5>(
-          Invoke([&change_list](PasswordChangesOrErrorReply reply) -> void {
-            std::move(reply).Run(change_list);
-          })));
-
-  // The shadow backend should only be called to remove logins if the main
-  // backend is the android backend, to ensure the login db passwords are
-  // also removed.
-  EXPECT_CALL(shadow_backend(),
-              RemoveLoginsByURLAndTimeAsync(_, _, Eq(kStart), Eq(kEnd), _, _))
-      .Times(GetParam().android_is_main_backend ? 1 : 0);
-  proxy_backend().RemoveLoginsByURLAndTimeAsync(
-      FROM_HERE, base::BindRepeating(&FilterNoUrl), kStart, kEnd,
-      base::NullCallback(), mock_reply.Get());
 }
 
 TEST_P(PasswordStoreProxyBackendTest,

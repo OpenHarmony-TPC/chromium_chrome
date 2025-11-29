@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 
+#include <algorithm>
 #include <map>
 #include <optional>
 #include <string>
@@ -34,18 +35,19 @@
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/task/single_thread_task_executor.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/time/time.h"
+#include "base/types/expected.h"
 #include "chrome/updater/app/app.h"
 #include "chrome/updater/constants.h"
 #include "chrome/updater/ipc/ipc_support.h"
 #include "chrome/updater/mac/setup/ks_tickets.h"
 #include "chrome/updater/registration_data.h"
 #include "chrome/updater/service_proxy_factory.h"
+#include "chrome/updater/tag.h"
 #include "chrome/updater/update_service.h"
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/updater_version.h"
@@ -124,6 +126,7 @@ constexpr char kCommandVersion[] = "version";
 constexpr char kCommandVersionKey[] = "version-key";
 constexpr char kCommandVersionPath[] = "version-path";
 constexpr char kCommandXCPath[] = "xcpath";
+constexpr char kCommandXattrTagBrand[] = "print-xattr-tag-brand";
 
 bool HasSwitch(const std::string& arg,
                const std::map<std::string, std::string>& switches) {
@@ -257,6 +260,7 @@ class KSAdminApp : public App {
   void PrintUsage(const std::string& error_message);
   void PrintVersion();
   void PrintTickets();
+  void PrintXattrTagBrand();
 
   void DoUpdateApp(UpdaterScope scope);
   void DoListAppUpdate(UpdaterScope scope);
@@ -567,7 +571,7 @@ void KSAdminApp::DoUpdateApp(UpdaterScope scope) {
       app_id, GetInstallDataIndexFromAppArgs(app_id),
       HasSwitch(kCommandUserInitiated) ? UpdateService::Priority::kForeground
                                        : UpdateService::Priority::kBackground,
-      UpdateService::PolicySameVersionUpdate::kNotAllowed,
+      UpdateService::PolicySameVersionUpdate::kNotAllowed, /*language=*/{},
       base::BindRepeating([](const UpdateService::UpdateState& update_state) {
         if (update_state.state == UpdateService::UpdateState::State::kUpdated) {
           printf("Finished updating (errors=%d reboot=%s)\n", 0, "YES");
@@ -602,7 +606,7 @@ void KSAdminApp::DoListAppUpdate(UpdaterScope scope) {
       app_id,
       HasSwitch(kCommandUserInitiated) ? UpdateService::Priority::kForeground
                                        : UpdateService::Priority::kBackground,
-      UpdateService::PolicySameVersionUpdate::kNotAllowed,
+      UpdateService::PolicySameVersionUpdate::kNotAllowed, /*language=*/{},
       base::BindRepeating(
           [](scoped_refptr<UpdateCheckResult> update_check_result,
              const UpdateService::UpdateState& update_state) {
@@ -706,7 +710,7 @@ void KSAdminApp::DoPrintTag(UpdaterScope scope) {
         int exit_code = 0;
 
         std::vector<updater::UpdateService::AppState>::const_iterator it =
-            base::ranges::find_if(
+            std::ranges::find_if(
                 states,
                 [&app_id](const updater::UpdateService::AppState& state) {
                   return base::EqualsCaseInsensitiveASCII(state.app_id, app_id);
@@ -794,6 +798,27 @@ void KSAdminApp::DoPrintTickets(UpdaterScope scope) {
       base::BindOnce(&KSAdminApp::Shutdown, this)));
 }
 
+void KSAdminApp::PrintXattrTagBrand() {
+  const std::string path_str = SwitchValue(kCommandXattrTagBrand);
+  if (path_str.empty()) {
+    LOG(ERROR) << kCommandXattrTagBrand << " requires a path.";
+    Shutdown(1);
+    return;
+  }
+  const base::FilePath path = base::FilePath(path_str);
+  base::expected<tagging::TagArgs, tagging::ErrorCode> tag_result =
+      tagging::ReadTagFromApplicationInstanceXattr(path);
+  if (!tag_result.has_value()) {
+    LOG(ERROR) << "Can't read tag: " << tag_result.error();
+    Shutdown(1);
+    return;
+  }
+
+  // Empty brand code is not an error.
+  printf("%s\n", tag_result->brand_code.c_str());
+  Shutdown(0);
+}
+
 void KSAdminApp::FirstTaskRun() {
   if ((geteuid() == 0) && (getuid() != 0)) {
     if (setuid(0) || setgid(0)) {
@@ -810,6 +835,7 @@ void KSAdminApp::FirstTaskRun() {
       {kCommandPrintTag, &KSAdminApp::PrintTag},
       {kCommandPrintTickets, &KSAdminApp::PrintTickets},
       {kCommandRegister, &KSAdminApp::Register},
+      {kCommandXattrTagBrand, &KSAdminApp::PrintXattrTagBrand},
   };
   for (const auto& [command, method] : commands) {
     if (HasSwitch(command)) {

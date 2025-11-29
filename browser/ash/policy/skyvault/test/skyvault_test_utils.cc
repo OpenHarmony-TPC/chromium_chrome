@@ -22,7 +22,7 @@ MockMigrationNotificationManager::~MockMigrationNotificationManager() = default;
 MockMigrationCoordinator::MockMigrationCoordinator(Profile* profile)
     : MigrationCoordinator(profile) {
   ON_CALL(*this, Run)
-      .WillByDefault([this](CloudProvider cloud_provider,
+      .WillByDefault([this](MigrationDestination destination,
                             std::vector<base::FilePath> file_paths,
                             const std::string& upload_root,
                             MigrationDoneCallback callback) {
@@ -69,5 +69,16 @@ void MockMigrationCoordinator::SetRunCallback(base::RepeatingClosure run_cb) {
   CHECK(run_cb);
   run_cb_ = std::move(run_cb);
 }
+
+MockCleanupHandler::MockCleanupHandler() {
+  ON_CALL(*this, Cleanup)
+      .WillByDefault(
+          [](base::OnceCallback<void(
+                 const std::optional<std::string>& error_message)> callback) {
+            std::move(callback).Run(std::nullopt);
+          });
+}
+
+MockCleanupHandler::~MockCleanupHandler() = default;
 
 }  // namespace policy::local_user_files

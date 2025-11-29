@@ -13,9 +13,9 @@
 #include "chrome/browser/ui/tabs/organization/tab_data.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_request.h"
-#include "chrome/browser/ui/tabs/tab_group.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "components/tab_groups/tab_group_id.h"
+#include "components/tabs/public/tab_group.h"
 #include "content/public/browser/web_contents.h"
 
 namespace {
@@ -220,6 +220,12 @@ void TabOrganizationSession::StartRequest() {
       &TabOrganizationSession::OnRequestResponse, base::Unretained(this)));
   request_->StartRequest();
   NotifyObserversOfUpdate();
+}
+
+void TabOrganizationSession::SetUserInstruction(
+    const std::string& user_instruction) {
+  CHECK(request_);
+  request_->SetUserInstruction(user_instruction);
 }
 
 void TabOrganizationSession::NotifyObserversOfUpdate() {

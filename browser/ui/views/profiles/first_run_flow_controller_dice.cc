@@ -26,6 +26,7 @@
 #include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service.h"
 #include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller_impl.h"
@@ -45,12 +46,18 @@
 #include "google_apis/gaia/core_account_id.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_WIN)
+#include "chrome/browser/win/taskbar_manager.h"
+#include "chrome/installer/util/install_util.h"
+#include "chrome/installer/util/shell_util.h"
+#endif
+
 namespace {
 
 constexpr base::TimeDelta kDefaultBrowserCheckTimeout = base::Seconds(2);
 
 const signin_metrics::AccessPoint kAccessPoint =
-    signin_metrics::AccessPoint::ACCESS_POINT_FOR_YOU_FRE;
+    signin_metrics::AccessPoint::kForYouFre;
 
 enum class ShowDefaultBrowserStep {
   // The default browser step should be shown as appropriate.
@@ -96,6 +103,12 @@ bool IsPostIdentityStep(ProfileManagementFlowController::Step step) {
       return true;
   }
 }
+
+#if BUILDFLAG(IS_WIN)
+void PinToTaskbarResult(bool result) {
+  base::UmaHistogramBoolean("Windows.TaskbarPinFromFRESucceeded", result);
+}
+#endif  // BUILDFLAG(IS_WIN)
 
 class IntroStepController : public ProfileManagementStepController {
  public:
@@ -246,6 +259,21 @@ class DefaultBrowserStepController : public ProfileManagementStepController {
                        weak_ptr_factory_.GetWeakPtr())));
   }
 
+  void OnCanPinToTaskbarResult(bool can_pin) {
+    can_pin_ = can_pin;
+    if (can_pin) {
+      // Change subtitle if Chrome can be pinned to the taskbar.
+      auto* intro_ui = host()
+                           ->GetPickerContents()
+                           ->GetWebUI()
+                           ->GetController()
+                           ->GetAs<IntroUI>();
+      CHECK(intro_ui);
+      intro_ui->SetCanPinToTaskbar(can_pin);
+    }
+    std::move(show_default_browser_screen_callback_).Run();
+  }
+
   void OnStepCompleted(DefaultBrowserChoice choice) {
     if (choice == DefaultBrowserChoice::kClickSetAsDefault) {
       CHECK(!IsDefaultBrowserDisabledByPolicy());
@@ -254,6 +282,13 @@ class DefaultBrowserStepController : public ProfileManagementStepController {
       // freed once all its tasks have finished.
       base::MakeRefCounted<shell_integration::DefaultBrowserWorker>()
           ->StartSetAsDefault(base::BindOnce(&MaybeLogSetAsDefaultSuccess));
+#if BUILDFLAG(IS_WIN)
+      if (can_pin_) {
+        browser_util::PinAppToTaskbar(
+            ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()),
+            base::BindOnce(&PinToTaskbarResult));
+      }
+#endif  // BUILDFLAG(IS_WIN)
     }
     base::UmaHistogramEnumeration("ProfilePicker.FirstRun.DefaultBrowser",
                                   choice);
@@ -275,6 +310,20 @@ class DefaultBrowserStepController : public ProfileManagementStepController {
         state == shell_integration::OTHER_MODE_IS_DEFAULT;
 
     if (should_show_default_browser_step) {
+#if BUILDFLAG(IS_WIN)
+      // Check if Chrome can pin to the taskbar, which is an async call. When it
+      // finishes, the result will be recorded and
+      // `show_default_browser_screen_callback_` will be run.
+      if (base::FeatureList::IsEnabled(
+              features::kOfferPinToTaskbarInFirstRunExperience)) {
+        browser_util::ShouldOfferToPin(
+            ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()),
+            base::BindOnce(
+                &DefaultBrowserStepController::OnCanPinToTaskbarResult,
+                base::Unretained(this)));
+        return;
+      }
+#endif  // BUILDFLAG(IS_WIN)
       std::move(show_default_browser_screen_callback_).Run();
     } else {
       std::move(step_completed_callback_)
@@ -344,6 +393,9 @@ class DefaultBrowserStepController : public ProfileManagementStepController {
   // is completed. If this step is skipped, we should forward it to
   // `step_completed_callback_`.
   StepSwitchFinishedCallback switch_from_previous_step_finished_callback_;
+
+  // Whether or not Chrome be pinned to the taskbar.
+  bool can_pin_ = false;
 
   base::OnceClosure navigation_finished_closure_;
   base::CancelableOnceClosure default_browser_check_timeout_closure_;
@@ -468,8 +520,7 @@ FirstRunFlowControllerDice::~FirstRunFlowControllerDice() {
   }
 }
 
-void FirstRunFlowControllerDice::Init(
-    StepSwitchFinishedCallback step_switch_finished_callback) {
+void FirstRunFlowControllerDice::Init() {
   RegisterStep(
       Step::kIntro,
       CreateIntroStep(host(),
@@ -477,8 +528,7 @@ void FirstRunFlowControllerDice::Init(
                           &FirstRunFlowControllerDice::HandleIntroSigninChoice,
                           weak_ptr_factory_.GetWeakPtr()),
                       /*enable_animations=*/true));
-  SwitchToStep(Step::kIntro, /*reset_state=*/true,
-               std::move(step_switch_finished_callback));
+  SwitchToStep(Step::kIntro, /*reset_state=*/true);
 
   signin_metrics::LogSignInOffered(
       kAccessPoint, signin_metrics::PromoAction::
@@ -497,6 +547,12 @@ void FirstRunFlowControllerDice::CancelPostSignInFlow() {
   HandleIdentityStepsCompleted(profile_, PostHostClearedCallback(),
                                /*is_continue_callback=*/false,
                                StepSwitchFinishedCallback());
+}
+
+void FirstRunFlowControllerDice::PickProfile(
+    const base::FilePath& profile_path,
+    ProfilePicker::ProfilePickingArgs args) {
+  NOTREACHED() << "FRE is not expected to handle this flow";
 }
 
 bool FirstRunFlowControllerDice::PreFinishWithBrowser() {

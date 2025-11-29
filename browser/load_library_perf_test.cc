@@ -89,12 +89,10 @@ TEST(LoadCDMPerfTest, Widevine) {
 }
 #endif  // BUILDFLAG(ENABLE_WIDEVINE)
 
-#if !BUILDFLAG(IS_OHOS)
 TEST(LoadCDMPerfTest, ExternalClearKey) {
   MeasureSizeAndTimeToLoadCdm(
       media::kClearKeyCdmBaseDirectory,
       base::GetLoadableModuleName(media::kClearKeyCdmLibraryName));
 }
-#endif  // BUILDFLAG(IS_OHOS)
 
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)

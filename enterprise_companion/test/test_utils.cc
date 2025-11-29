@@ -28,6 +28,7 @@
 #include "base/time/time.h"
 #include "chrome/enterprise_companion/device_management_storage/dm_storage.h"
 #include "chrome/enterprise_companion/enterprise_companion.h"
+#include "chrome/enterprise_companion/flags.h"
 #include "chrome/enterprise_companion/installer_paths.h"
 
 namespace enterprise_companion {
@@ -52,7 +53,7 @@ int WaitForProcess(base::Process& process) {
 
 bool WaitFor(base::FunctionRef<bool()> predicate,
              base::FunctionRef<void()> still_waiting) {
-  constexpr base::TimeDelta kOutputInterval = base::Seconds(10);
+  static constexpr base::TimeDelta kOutputInterval = base::Seconds(10);
   auto notify_next = base::TimeTicks::Now() + kOutputInterval;
   const auto deadline = base::TimeTicks::Now() + TestTimeouts::action_timeout();
   while (base::TimeTicks::Now() < deadline) {

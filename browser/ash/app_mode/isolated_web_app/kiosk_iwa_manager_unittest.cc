@@ -9,6 +9,7 @@
 #include <string>
 
 #include "ash/constants/ash_features.h"
+#include "base/check_deref.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/values.h"
@@ -20,10 +21,10 @@
 #include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chromeos/ash/components/dbus/userdataauth/userdataauth_client.h"
+#include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "components/account_id/account_id.h"
-#include "components/policy/core/common/device_local_account_type.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -119,7 +120,8 @@ class KioskIwaManagerBaseTest : public testing::Test {
  public:
   KioskIwaManagerBaseTest()
       : local_state_(TestingBrowserProcess::GetGlobal()),
-        fake_user_manager_(std::make_unique<ash::FakeChromeUserManager>()) {
+        fake_user_manager_(std::make_unique<ash::FakeChromeUserManager>()),
+        iwa_manager_(CHECK_DEREF(local_state_.Get())) {
     UserDataAuthClient::InitializeFake();
     iwa_manager().AddObserver(&observer());
   }
@@ -197,10 +199,7 @@ TEST_F(KioskIwaManagerFeatureOffTest, ReturnsEmptyResults) {
 }
 
 class KioskIwaManagerTest : public KioskIwaManagerBaseTest {
-  void SetUp() override {
-    EnableFeatureSwitch();
-    KioskIwaManager::RegisterPrefs(registry());
-  }
+  void SetUp() override { EnableFeatureSwitch(); }
 };
 
 TEST_F(KioskIwaManagerTest, GetInstance) {

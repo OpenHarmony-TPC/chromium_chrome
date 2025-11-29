@@ -32,7 +32,7 @@ void JavaScriptTabModalDialogViewViews::CloseDialogWithoutCallback() {
 }
 
 std::u16string JavaScriptTabModalDialogViewViews::GetUserInput() {
-  return message_box_view_->GetInputText();
+  return std::u16string(message_box_view_->GetInputText());
 }
 
 std::u16string JavaScriptTabModalDialogViewViews::GetWindowTitle() const {
@@ -99,9 +99,11 @@ JavaScriptTabModalDialogViewViews::JavaScriptTabModalDialogViewViews(
         // Remove the force-close callback to indicate that we were closed as a
         // result of user action.
         dialog->dialog_force_closed_callback_ = base::OnceClosure();
-        if (dialog->dialog_callback_)
+        if (dialog->dialog_callback_) {
           std::move(dialog->dialog_callback_)
-              .Run(true, dialog->message_box_view_->GetInputText());
+              .Run(true,
+                   std::u16string(dialog->message_box_view_->GetInputText()));
+        }
       },
       base::Unretained(this)));
   SetCancelCallback(base::BindOnce(
@@ -109,29 +111,36 @@ JavaScriptTabModalDialogViewViews::JavaScriptTabModalDialogViewViews(
         // Remove the force-close callback to indicate that we were closed as a
         // result of user action.
         dialog->dialog_force_closed_callback_ = base::OnceClosure();
-        if (dialog->dialog_callback_)
+        if (dialog->dialog_callback_) {
           std::move(dialog->dialog_callback_).Run(false, std::u16string());
+        }
       },
       base::Unretained(this)));
-  RegisterWindowWillCloseCallback(base::BindOnce(
-      [](JavaScriptTabModalDialogViewViews* dialog) {
-        // Since the window is closing, reset the ScopedTabModalUI so it removes
-        // its reference to the TabModel prior to the TabModel being destroyed.
-        dialog->scoped_tab_modal_ui_.reset();
-        // If the force-close callback still exists at this point we're not
-        // closed due to a user action (would've been caught in Accept/Cancel).
-        if (dialog->dialog_force_closed_callback_)
-          std::move(dialog->dialog_force_closed_callback_).Run();
-      },
-      base::Unretained(this)));
+  RegisterWindowWillCloseCallback(
+      RegisterWillCloseCallbackPassKey(),
+      base::BindOnce(
+          [](JavaScriptTabModalDialogViewViews* dialog) {
+            // Since the window is closing, reset the ScopedTabModalUI so it
+            // removes its reference to the TabModel prior to the TabModel being
+            // destroyed.
+            dialog->scoped_tab_modal_ui_.reset();
+            // If the force-close callback still exists at this point we're not
+            // closed due to a user action (would've been caught in
+            // Accept/Cancel).
+            if (dialog->dialog_force_closed_callback_) {
+              std::move(dialog->dialog_force_closed_callback_).Run();
+            }
+          },
+          base::Unretained(this)));
 
   message_box_view_ = new views::MessageBoxView(
       message_text, /* detect_directionality = */ true);
-  if (dialog_type == content::JAVASCRIPT_DIALOG_TYPE_PROMPT)
+  if (dialog_type == content::JAVASCRIPT_DIALOG_TYPE_PROMPT) {
     message_box_view_->SetPromptField(default_prompt_text);
+  }
 
   SetLayoutManager(std::make_unique<views::FillLayout>());
-  AddChildView(message_box_view_.get());
+  AddChildViewRaw(message_box_view_.get());
 
   constrained_window::ShowWebModalDialogViews(this, parent_web_contents);
 }

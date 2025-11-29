@@ -82,10 +82,17 @@ class LocalFilesMigrationManager : public LocalUserFilesPolicyObserver,
   void SetCoordinatorForTesting(
       std::unique_ptr<MigrationCoordinator> coordinator);
 
-  // TODO(352539894): Remove when unit tests are adapted to use files.
-  void SetSkipEmptyCheckForTesting(bool skip);
+  // Injects a mock FilesCleanupHandler for tests.
+  void SetCleanupHandlerForTesting(
+      base::WeakPtr<chromeos::FilesCleanupHandler> cleanup_handler);
 
  private:
+  // Called after the preferences have been loaded.
+  void OnPrefsInitialized(bool success);
+
+  // Initializes this instance, after the preferences have been loaded.
+  void InitializeFromPrefs();
+
   // policy::local_user_files::Observer overrides:
   void OnLocalUserFilesPolicyChanged() override;
 
@@ -105,7 +112,7 @@ class LocalFilesMigrationManager : public LocalUserFilesPolicyObserver,
   // After initial delay, informs the user again and schedules the migration to
   // start automatically. From the dialog, the user can also choose to start the
   // migration immediately.
-  void ScheduleMigrationAndInformUser();
+  void ScheduleMigrationAndInformUser(const base::Time scheduled_start_time);
 
   // Bypasses the migration delay and initiates the upload process immediately.
   // Called when the user clicks the "Upload now" button in the info dialog.
@@ -149,12 +156,16 @@ class LocalFilesMigrationManager : public LocalUserFilesPolicyObserver,
       std::optional<user_data_auth::SetUserDataStorageWriteEnabledReply> reply);
 
   // Stops the migration if currently ongoing.
-  void MaybeStopMigration(CloudProvider previous_provider,
+  void MaybeStopMigration(MigrationDestination previous_destination,
                           bool close_dialog = true,
                           MigrationStoppedCallback = base::DoNothing());
 
   // Sets and stores the state on the device.
   void SetState(State new_state);
+
+  // Resets all stored prefs, like the state and start time, in case migration
+  // is stopped.
+  void ResetMigrationPrefs();
 
   // Notifies the observers that migration succeeded.
   void NotifySuccess();
@@ -174,18 +185,13 @@ class LocalFilesMigrationManager : public LocalUserFilesPolicyObserver,
   // Whether local user files are allowed by policy.
   bool local_user_files_allowed_ = true;
 
-  // TODO(352539894): Remove when unit tests are adapted to use files.
-  bool skip_empty_check_for_testing_ = false;
-
-  // Cloud provider to which files are uploaded. If not specified, no migration
-  // happens.
-  CloudProvider cloud_provider_ = CloudProvider::kNotSpecified;
+  // Indicates how local files should be handled (upload to the cloud or
+  // delete). If not specified, no migration happens.
+  MigrationDestination migration_destination_ =
+      MigrationDestination::kNotSpecified;
 
   // The name of the device-unique upload root folder on Drive
   std::string upload_root_;
-
-  // The time at which the migration will start automatically.
-  base::Time migration_start_time_;
 
   // Context for which this instance is created.
   raw_ptr<content::BrowserContext> context_;
@@ -201,6 +207,9 @@ class LocalFilesMigrationManager : public LocalUserFilesPolicyObserver,
 
   // Number of times the entire upload failed and was retried.
   int current_retry_count_;
+
+  base::WeakPtr<chromeos::FilesCleanupHandler> cleanup_handler_for_testing_ =
+      nullptr;
 
   base::WeakPtrFactory<LocalFilesMigrationManager> weak_factory_{this};
 };

@@ -18,7 +18,6 @@ import 'chrome://resources/ash/common/cr_elements/policy/cr_policy_indicator.js'
 import 'chrome://resources/ash/common/cr_elements/policy/cr_tooltip_icon.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import 'chrome://resources/polymer/v3_0/paper-tooltip/paper-tooltip.js';
-import '/shared/settings/prefs/prefs.js';
 import '../settings_shared.css.js';
 import '../os_settings_page/os_settings_animated_pages.js';
 import '../os_settings_page/os_settings_subpage.js';
@@ -50,7 +49,7 @@ import {MojoInterfaceProviderImpl} from 'chrome://resources/ash/common/network/m
 import type {NetworkListenerBehaviorInterface} from 'chrome://resources/ash/common/network/network_listener_behavior.js';
 import {NetworkListenerBehavior} from 'chrome://resources/ash/common/network/network_listener_behavior.js';
 import {OncMojo} from 'chrome://resources/ash/common/network/onc_mojo.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import type {CrosNetworkConfigInterface, GlobalPolicy, NetworkStateProperties, VpnProvider} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
 import {StartConnectResult} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
@@ -330,18 +329,6 @@ export class SettingsInternetPageElement extends
         value: '',
       },
 
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kWifiOnOff,
-          Setting.kMobileOnOff,
-          Setting.kCellularAddApn,
-        ]),
-      },
-
       errorToastMessage_: {
         type: String,
         value: '',
@@ -388,6 +375,14 @@ export class SettingsInternetPageElement extends
   deviceStates: Record<string, OncMojo.DeviceStateProperties>|undefined;
   hotspotInfo: HotspotInfo|undefined;
   managedNetworkAvailable: boolean;
+
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kWifiOnOff,
+    Setting.kMobileOnOff,
+    Setting.kCellularAddApn,
+  ]);
+
   private addConnectionExpanded_: boolean;
   private browserProxy_: InternetPageBrowserProxy;
   private cellularSetupDialogPageName_: CellularSetupPageName|null;
@@ -396,6 +391,7 @@ export class SettingsInternetPageElement extends
   private eSimNetworkState_: NetworkStateProperties;
   private globalPolicy_: GlobalPolicy|undefined;
   private hasActiveCellularNetwork_: boolean;
+  private readonly isApnRevampEnabled_: boolean;
   private isConnectedToNonCellularNetwork_: boolean;
   private isNumCustomApnsLimitReached_: boolean;
   private isInstantHotspotRebrandEnabled_: boolean;
@@ -535,7 +531,7 @@ export class SettingsInternetPageElement extends
     afterNextRender(this, () => {
       const networkRow =
           this.shadowRoot!.querySelector('network-summary')!.getNetworkRow(
-              networkType!);
+              networkType);
       if (networkRow) {
         const toggleEl = networkRow.getDeviceEnabledToggle();
         if (toggleEl) {
@@ -1049,7 +1045,6 @@ export class SettingsInternetPageElement extends
             ' Error: ' + response.message);
         return;
     }
-    assertNotReached();
   }
 
   /** Opens the three dots menu. */

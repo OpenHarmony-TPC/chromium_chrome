@@ -49,6 +49,7 @@
 #include "chrome/browser/upgrade_detector/upgrade_detector.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/commerce/core/commerce_feature_list.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -66,6 +67,12 @@ namespace {
 
 class AppMenuBrowserTest : public UiBrowserTest {
  public:
+  AppMenuBrowserTest() {
+    // Disable the comparison tables submenu.
+    scoped_feature_list_.InitAndDisableFeature(
+        commerce::kProductSpecifications);
+  }
+
   // UiBrowserTest:
   void ShowUi(const std::string& name) override;
   bool VerifyUi() override;
@@ -92,6 +99,7 @@ class AppMenuBrowserTest : public UiBrowserTest {
  private:
   raw_ptr<Browser> browser_ = nullptr;
   std::optional<int> command_id_;
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 void AppMenuBrowserTest::ShowUi(const std::string& name) {
@@ -106,6 +114,7 @@ void AppMenuBrowserTest::ShowUi(const std::string& name) {
       // Submenus present in all versions.
       {"history", IDC_RECENT_TABS_MENU},
       {"bookmarks", IDC_BOOKMARKS_MENU},
+      {"bookmarks_comparison_tables", IDC_BOOKMARKS_MENU},
       {"more_tools", IDC_MORE_TOOLS_MENU},
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
       {"help", IDC_HELP_MENU},
@@ -175,25 +184,6 @@ void AppMenuBrowserTest::WaitForUserDismissal() {
   run_loop.Run();
 }
 
-// Test case for menus that only appear after Chrome Refresh.
-class AppMenuBrowserTestRefreshOnly : public AppMenuBrowserTest {
- public:
-  AppMenuBrowserTestRefreshOnly() {
-    // TODO(pkasting): It would be better if the tests below merely
-    // GTEST_SKIP()ed if the appropriate features weren't set, but in local
-    // testing that seemed to result in them always being skipped when the
-    // default feature state wasn't correct, even when setting the correct state
-    // via command-line flags. Probably I was doing something wrong...
-    scoped_feature_list_.InitWithFeatures(
-        {// Needed for the "extensions" test
-         features::kExtensionsMenuInAppMenu},
-        {});
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
 // This test shows the app-menu with a closed window added to the
 // TabRestoreService. This is a regression test to ensure menu code handles this
 // properly (this was triggering a crash in AppMenu where it was trying to make
@@ -245,10 +235,6 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, InvokeUi_main) {
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly, InvokeUi_main) {
-  ShowAndVerifyUi();
-}
-
 // TODO(crbug.com/343368219): Flaky on Windows 10 x64 builds.
 #if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_X86_64)
 #define MAYBE_InvokeUi_main_upgrade_available \
@@ -256,7 +242,7 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly, InvokeUi_main) {
 #else
 #define MAYBE_InvokeUi_main_upgrade_available InvokeUi_main_upgrade_available
 #endif
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest,
                        MAYBE_InvokeUi_main_upgrade_available) {
   UpgradeDetector::GetInstance()->set_upgrade_notification_stage_for_testing(
       UpgradeDetector::UPGRADE_ANNOYANCE_CRITICAL);
@@ -264,7 +250,7 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly, InvokeUi_main_guest) {
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, InvokeUi_main_guest) {
 // TODO(crbug.com/40899974): ChromeOS specific profile logic still needs to be
 // updated, setup this test for a Guest user session with appropriate command
 // line switches afterwards.
@@ -274,7 +260,7 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly, InvokeUi_main_guest) {
 #endif
 }
 
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly, InvokeUi_main_incognito) {
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, InvokeUi_main_incognito) {
   auto browser_resetter = SetBrowser(CreateIncognitoBrowser());
   ShowAndVerifyUi();
 }
@@ -308,37 +294,33 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, InvokeUi_help) {
 #endif
 
 // TODO(crbug.com/375132024): Re-enable test.
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest,
                        DISABLED_InvokeUi_passwords_and_autofill) {
   ShowAndVerifyUi();
 }
 
 // TODO(crbug.com/375132024): Re-enable test.
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
-                       DISABLED_InvokeUi_reading_list) {
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, DISABLED_InvokeUi_reading_list) {
   ShowAndVerifyUi();
 }
 
 // TODO(crbug.com/375132024): Re-enable test.
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
-                       DISABLED_InvokeUi_extensions) {
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, DISABLED_InvokeUi_extensions) {
   ShowAndVerifyUi();
 }
 
 // TODO(crbug.com/375132024): Re-enable test.
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
-                       DISABLED_InvokeUi_find_and_edit) {
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, DISABLED_InvokeUi_find_and_edit) {
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly, InvokeUi_save_and_share) {
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, InvokeUi_save_and_share) {
   ShowAndVerifyUi();
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
 
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
-                       InvokeUi_main_profile_signed_in) {
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, InvokeUi_main_profile_signed_in) {
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(browser()->profile());
   signin::MakePrimaryAccountAvailable(identity_manager, "user@example.com",
@@ -347,7 +329,7 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
 }
 
 // TODO(crbug.com/375132024): Re-enable test.
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest,
                        DISABLED_InvokeUi_profile_menu_in_app_menu_signed_out) {
   ProfileManager* profile_manager = g_browser_process->profile_manager();
   base::FilePath new_path = profile_manager->GenerateNextProfileDirectoryPath();
@@ -355,7 +337,7 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest,
                        InvokeUi_profile_menu_in_app_menu_signed_in) {
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(browser()->profile());
@@ -364,7 +346,7 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest,
                        InvokeUi_profile_menu_in_app_menu_signin_not_allowed) {
   browser()->profile()->GetPrefs()->SetBoolean(prefs::kSigninAllowed, false);
   ShowAndVerifyUi();
@@ -372,19 +354,25 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestRefreshOnly,
 
 #endif
 
-// Test case for Safety Hub notification.
-class AppMenuBrowserTestSafetyHub : public AppMenuBrowserTest {
+// Test case for the comparison table submenu under bookmarks. Only appears when
+// the Compare feature is enabled.
+class AppMenuBrowserTestCompareOnly : public AppMenuBrowserTest {
  public:
-  AppMenuBrowserTestSafetyHub() {
-    scoped_feature_list_.InitAndEnableFeature(features::kSafetyHub);
+  AppMenuBrowserTestCompareOnly() {
+    scoped_feature_list_.InitAndEnableFeature(commerce::kProductSpecifications);
   }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestSafetyHub,
-                       Safety_Hub_shown_notification) {
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTestCompareOnly,
+                       InvokeUi_bookmarks_comparison_tables) {
+  ShowAndVerifyUi();
+}
+
+// Test case for Safety Hub notification.
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, Safety_Hub_shown_notification) {
   auto* mock_sentiment_service = static_cast<MockTrustSafetySentimentService*>(
       TrustSafetySentimentServiceFactory::GetInstance()
           ->SetTestingFactoryAndUse(

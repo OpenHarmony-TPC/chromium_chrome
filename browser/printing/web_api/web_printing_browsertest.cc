@@ -14,6 +14,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
+#include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
 #include "chromeos/printing/printer_configuration.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_types.h"
@@ -139,6 +140,8 @@ auto ValidatePrintSettings() {
                                       Pointee(Eq("tray-1")))))),
       // printColorMode:
       Property(&PrintSettings::color, Eq(mojom::ColorModel::kColorModeColor)),
+      // printQuality:
+      Property(&PrintSettings::quality, Eq(mojom::Quality::kUnknownQuality)),
       Property(&PrintSettings::title, Eq(u"Title")),
       // multipleDocumentHandling:
       Property(&PrintSettings::collate, Eq(true)),
@@ -154,10 +157,13 @@ class WebPrintingBrowserTestBase
  public:
   void SetUpOnMainThread() override {
     IsolatedWebAppBrowserTestHarness::SetUpOnMainThread();
-    iwa_dev_server_ =
-        CreateAndStartServer(FILE_PATH_LITERAL("web_apps/simple_isolated_app"));
-    web_app::IsolatedWebAppUrlInfo url_info =
-        InstallDevModeProxyIsolatedWebApp(iwa_dev_server_->GetOrigin());
+    std::unique_ptr<web_app::ScopedBundledIsolatedWebApp> app =
+        web_app::IsolatedWebAppBuilder(
+            web_app::ManifestBuilder().AddPermissionsPolicyWildcard(
+                network::mojom::PermissionsPolicyFeature::kWebPrinting))
+            .BuildBundle();
+    app->TrustSigningKey();
+    web_app::IsolatedWebAppUrlInfo url_info = app->InstallChecked(profile());
     app_frame_ = OpenApp(url_info.app_id());
 
     chromeos::CupsWrapper::SetCupsWrapperFactoryForTesting(
@@ -191,7 +197,6 @@ class WebPrintingBrowserTestBase
 
   void TearDownOnMainThread() override {
     app_frame_ = nullptr;
-    iwa_dev_server_.reset();
     chromeos::CupsWrapper::SetCupsWrapperFactoryForTesting(
         base::NullCallback());
   }
@@ -203,7 +208,6 @@ class WebPrintingBrowserTestBase
   base::test::ScopedFeatureList feature_list_{blink::features::kWebPrinting};
 
   raw_ptr<content::RenderFrameHost> app_frame_ = nullptr;
-  std::unique_ptr<net::EmbeddedTestServer> iwa_dev_server_;
 };
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -333,6 +337,8 @@ IN_PROC_BROWSER_TEST_F(WebPrintingBrowserTest, FetchAttributes) {
     }],
     "printColorModeDefault": "monochrome",
     "printColorModeSupported": [ "monochrome", "color" ],
+    "printQualityDefault": "normal",
+    "printQualitySupported": [ "draft", "normal", "high" ],
     "printerName": "name",
     "printerState": "idle",
     "printerStateMessage": "Ready to Print!",
@@ -351,9 +357,9 @@ IN_PROC_BROWSER_TEST_F(WebPrintingBrowserTest, FetchAttributes) {
   auto eval_result = EvalJs(app_frame(), kFetchAttributesScript);
   ASSERT_THAT(eval_result, content::EvalJsResult::IsOk());
 
-  const auto& attributes = eval_result.value.GetDict();
-  EXPECT_THAT(attributes, base::test::DictionaryHasValues(
-                              base::test::ParseJsonDict(kExpectedAttributes)));
+  EXPECT_THAT(eval_result.value,
+              base::test::DictionaryHasValues(
+                  base::test::ParseJsonDict(kExpectedAttributes)));
 }
 
 IN_PROC_BROWSER_TEST_F(WebPrintingBrowserTest, Print) {

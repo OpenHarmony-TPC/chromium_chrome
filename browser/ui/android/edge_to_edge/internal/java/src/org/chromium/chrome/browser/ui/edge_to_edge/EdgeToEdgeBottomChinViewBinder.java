@@ -6,15 +6,19 @@ package org.chromium.chrome.browser.ui.edge_to_edge;
 import static org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeBottomChinProperties.CAN_SHOW;
 import static org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeBottomChinProperties.COLOR;
 import static org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeBottomChinProperties.DIVIDER_COLOR;
+import static org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeBottomChinProperties.HAS_CONSTRAINT;
 import static org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeBottomChinProperties.HEIGHT;
+import static org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeBottomChinProperties.OFFSET_TAG;
 import static org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeBottomChinProperties.Y_OFFSET;
 
 import android.view.View;
 import android.view.ViewGroup;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
+@NullMarked
 class EdgeToEdgeBottomChinViewBinder {
     static class ViewHolder {
         /**
@@ -57,6 +61,10 @@ class EdgeToEdgeBottomChinViewBinder {
             viewHolder.mSceneLayer.setColor(model.get(COLOR));
         } else if (DIVIDER_COLOR == propertyKey) {
             viewHolder.mSceneLayer.setDividerColor(model.get(DIVIDER_COLOR));
+        } else if (OFFSET_TAG == propertyKey) {
+            viewHolder.mSceneLayer.setOffsetTag(model.get(OFFSET_TAG));
+        } else if (HAS_CONSTRAINT == propertyKey) {
+            viewHolder.mSceneLayer.setHasConstraint(model.get(HAS_CONSTRAINT));
         } else {
             assert false : "Unhandled property detected in EdgeToEdgeBottomChinViewBinder!";
         }

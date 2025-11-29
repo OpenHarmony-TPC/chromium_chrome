@@ -14,7 +14,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "chrome/browser/accessibility/accessibility_state_utils.h"
 #include "chrome/browser/accessibility/media_app/ax_media_app.h"
 #include "chrome/browser/accessibility/media_app/ax_media_app_service_factory.h"
 #include "chrome/browser/accessibility/media_app/test/fake_ax_media_app.h"
@@ -41,6 +40,7 @@
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_event_generator.h"
 #include "ui/accessibility/ax_node.h"
+#include "ui/accessibility/ax_node_id_forward.h"
 #include "ui/accessibility/ax_tree.h"
 #include "ui/accessibility/ax_tree_data.h"
 #include "ui/accessibility/ax_tree_id.h"
@@ -48,6 +48,7 @@
 #include "ui/accessibility/ax_tree_serializer.h"
 #include "ui/accessibility/platform/inspect/ax_inspect.h"
 #include "ui/display/display_switches.h"
+#include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
 
@@ -64,7 +65,6 @@ namespace {
 constexpr float kTestPageGap = 2.0f;
 constexpr float kTestPageWidth = 3.0f;
 constexpr float kTestPageHeight = 8.0f;
-// The test device pixel ratio.
 constexpr float kTestDisplayPixelRatio = 1.5f;
 
 // Use letters to generate fake IDs for fake page metadata. If more than
@@ -97,7 +97,7 @@ constexpr std::string_view kLoadingMessage =
 
 class AXMediaAppUntrustedServiceTest : public InProcessBrowserTest {
  public:
-  AXMediaAppUntrustedServiceTest() {}
+  AXMediaAppUntrustedServiceTest() = default;
   AXMediaAppUntrustedServiceTest(const AXMediaAppUntrustedServiceTest&) =
       delete;
   AXMediaAppUntrustedServiceTest& operator=(
@@ -147,6 +147,9 @@ class AXMediaAppUntrustedServiceTest : public InProcessBrowserTest {
 
   FakeAXMediaApp fake_media_app_;
   std::unique_ptr<TestAXMediaAppUntrustedService> service_;
+
+ private:
+  std::optional<content::ScopedAccessibilityModeOverride> mode_override_;
 };
 
 std::vector<PageMetadataPtr>
@@ -178,37 +181,23 @@ AXMediaAppUntrustedServiceTest::ClonePageMetadataPtrs(
 }
 
 void AXMediaAppUntrustedServiceTest::EnableScreenReaderForTesting() {
-  accessibility_state_utils::OverrideIsScreenReaderEnabledForTesting(true);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   AccessibilityManager::Get()->EnableSpokenFeedback(true);
-#else
-  content::ScopedAccessibilityModeOverride scoped_mode(ui::kAXModeComplete);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+  mode_override_.emplace(ui::kAXModeComplete);
 }
 
 void AXMediaAppUntrustedServiceTest::DisableScreenReaderForTesting() {
-  accessibility_state_utils::OverrideIsScreenReaderEnabledForTesting(false);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   AccessibilityManager::Get()->EnableSpokenFeedback(false);
-#else
-  content::ScopedAccessibilityModeOverride scoped_mode(ui::kNone);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+  mode_override_.reset();
 }
 
 void AXMediaAppUntrustedServiceTest::EnableSelectToSpeakForTesting() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   AccessibilityManager::Get()->SetSelectToSpeakEnabled(true);
-#else
-  content::ScopedAccessibilityModeOverride scoped_mode(ui::kAXModeComplete);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+  mode_override_.emplace(ui::kAXModeComplete);
 }
 
 void AXMediaAppUntrustedServiceTest::DisableSelectToSpeakForTesting() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   AccessibilityManager::Get()->SetSelectToSpeakEnabled(false);
-#else
-  content::ScopedAccessibilityModeOverride scoped_mode(ui::kAXModeComplete);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+  mode_override_.reset();
 }
 
 void AXMediaAppUntrustedServiceTest::WaitForOcringPages(
@@ -250,21 +239,22 @@ IN_PROC_BROWSER_TEST_F(AXMediaAppUntrustedServiceTest,
   EXPECT_TRUE(service_->IsAccessibilityEnabled());
   EXPECT_EQ(
       "AXTree has_parent_tree title=PDF document\n"
-      "id=10000 banner <div> child_ids=10001 offset_container_id=1 (-1, "
+      "id=1 pdfRoot child_ids=10000 (0, 0)-(0, 0)\n"
+      "  id=10000 banner <div> child_ids=10001 offset_container_id=1 (-1, "
       "-1)-(1, 1) text_align=left is_page_breaking_object=true "
       "is_line_breaking_object=true has_aria_attribute=true\n"
-      "  id=10001 status <div> child_ids=10002 offset_container_id=10000 (0, "
+      "    id=10001 status <div> child_ids=10002 offset_container_id=10000 (0, "
       "0)-(1, 1) text_align=left container_relevant=additions text "
       "container_live=polite relevant=additions text live=polite "
       "container_atomic=true container_busy=false atomic=true "
       "is_line_breaking_object=true has_aria_attribute=true\n"
-      "    id=10002 staticText name=This PDF is inaccessible. Couldn't "
+      "      id=10002 staticText name=This PDF is inaccessible. Couldn't "
       "download text extraction files. Please try again later. child_ids=10003 "
       "offset_container_id=10001 (0, 0)-(1, 1) text_align=left "
       "container_relevant=additions text container_live=polite "
       "relevant=additions text live=polite container_atomic=true "
       "container_busy=false atomic=true is_line_breaking_object=true\n"
-      "      id=10003 inlineTextBox name=This PDF is inaccessible. Couldn't "
+      "        id=10003 inlineTextBox name=This PDF is inaccessible. Couldn't "
       "download text extraction files. Please try again later. "
       "offset_container_id=10002 (0, 0)-(1, 1) text_align=left\n",
       service_->GetDocumentTreeToStringForTesting());
@@ -282,21 +272,22 @@ IN_PROC_BROWSER_TEST_F(AXMediaAppUntrustedServiceTest,
   EXPECT_TRUE(service_->IsAccessibilityEnabled());
   EXPECT_EQ(
       "AXTree has_parent_tree title=PDF document\n"
-      "id=10000 banner <div> child_ids=10001 offset_container_id=1 (-1, "
+      "id=1 pdfRoot child_ids=10000 (0, 0)-(0, 0)\n"
+      "  id=10000 banner <div> child_ids=10001 offset_container_id=1 (-1, "
       "-1)-(1, 1) text_align=left is_page_breaking_object=true "
       "is_line_breaking_object=true has_aria_attribute=true\n"
-      "  id=10001 status <div> child_ids=10002 offset_container_id=10000 (0, "
+      "    id=10001 status <div> child_ids=10002 offset_container_id=10000 (0, "
       "0)-(1, 1) text_align=left container_relevant=additions text "
       "container_live=polite relevant=additions text live=polite "
       "container_atomic=true container_busy=false atomic=true "
       "is_line_breaking_object=true has_aria_attribute=true\n"
-      "    id=10002 staticText name=This PDF is inaccessible. Couldn't "
+      "      id=10002 staticText name=This PDF is inaccessible. Couldn't "
       "download text extraction files. Please try again later. child_ids=10003 "
       "offset_container_id=10001 (0, 0)-(1, 1) text_align=left "
       "container_relevant=additions text container_live=polite "
       "relevant=additions text live=polite container_atomic=true "
       "container_busy=false atomic=true is_line_breaking_object=true\n"
-      "      id=10003 inlineTextBox name=This PDF is inaccessible. Couldn't "
+      "        id=10003 inlineTextBox name=This PDF is inaccessible. Couldn't "
       "download text extraction files. Please try again later. "
       "offset_container_id=10002 (0, 0)-(1, 1) text_align=left\n",
       service_->GetDocumentTreeToStringForTesting());
@@ -456,32 +447,6 @@ IN_PROC_BROWSER_TEST_F(AXMediaAppUntrustedServiceTest,
                                /*expected_count=*/1);
   histograms.ExpectTotalCount("Accessibility.PdfOcr.MediaApp.PdfLoaded",
                               /*expected_count=*/1);
-}
-
-IN_PROC_BROWSER_TEST_F(AXMediaAppUntrustedServiceTest,
-                       CheckUMAMetricsForMostDetectedLanguageInOcrData) {
-  EnableScreenReaderForTesting();
-  base::HistogramTester histograms;
-  constexpr size_t kTestNumPages = 3u;
-  std::vector<PageMetadataPtr> fake_metadata =
-      CreateFakePageMetadata(kTestNumPages);
-  service_->PageMetadataUpdated(ClonePageMetadataPtrs(fake_metadata));
-
-  histograms.ExpectTotalCount(
-      "Accessibility.PdfOcr.MediaApp.MostDetectedLanguageInOcrData",
-      /*expected_count=*/0);
-  WaitForOcringPages(1u);
-  histograms.ExpectTotalCount(
-      "Accessibility.PdfOcr.MediaApp.MostDetectedLanguageInOcrData",
-      /*expected_count=*/1);
-  WaitForOcringPages(1u);
-  histograms.ExpectTotalCount(
-      "Accessibility.PdfOcr.MediaApp.MostDetectedLanguageInOcrData",
-      /*expected_count=*/2);
-  WaitForOcringPages(1u);
-  histograms.ExpectTotalCount(
-      "Accessibility.PdfOcr.MediaApp.MostDetectedLanguageInOcrData",
-      /*expected_count=*/3);
 }
 
 IN_PROC_BROWSER_TEST_F(AXMediaAppUntrustedServiceTest,
@@ -1221,7 +1186,7 @@ IN_PROC_BROWSER_TEST_F(AXMediaAppUntrustedServiceTest, StitchDocumentTree) {
       )HTML";
 
   content::AccessibilityNotificationWaiter load_waiter(
-      browser()->tab_strip_model()->GetActiveWebContents(), ui::kAXModeComplete,
+      browser()->tab_strip_model()->GetActiveWebContents(),
       ax::mojom::Event::kLoadComplete);
   GURL html_data_url("data:text/html," +
                      base::EscapeQueryParamValue(html, /*use_plus=*/false));
@@ -1249,7 +1214,7 @@ IN_PROC_BROWSER_TEST_F(AXMediaAppUntrustedServiceTest, StitchDocumentTree) {
                   ui::AXPropertyFilter("name", ui::AXPropertyFilter::ALLOW)}));
 
   content::AccessibilityNotificationWaiter child_tree_added_waiter(
-      browser()->tab_strip_model()->GetActiveWebContents(), ui::kAXModeComplete,
+      browser()->tab_strip_model()->GetActiveWebContents(),
       ui::AXEventGenerator::Event::CHILDREN_CHANGED);
   const size_t kTestNumPages = 1u;
   std::vector<PageMetadataPtr> fake_metadata =
@@ -1945,6 +1910,50 @@ IN_PROC_BROWSER_TEST_F(AXMediaAppUntrustedServiceTest, SetSelection) {
   EXPECT_EQ(ax::mojom::TextAffinity::kDownstream, tree_data.sel_focus_affinity);
 }
 
+IN_PROC_BROWSER_TEST_F(AXMediaAppUntrustedServiceTest, HitTest) {
+  service_->DisableStatusNodesForTesting();
+  service_->DisablePostamblePageForTesting();
+  EnableSelectToSpeakForTesting();
+  // The static text node on the second page.
+  constexpr ui::AXNodeID kHitNodeID = -3;
+  constexpr int kRequestID = 2;
+  constexpr size_t kTestNumPages = 3u;
+  std::vector<PageMetadataPtr> fake_metadata =
+      CreateFakePageMetadata(kTestNumPages);
+  service_->PageMetadataUpdated(ClonePageMetadataPtrs(fake_metadata));
+  WaitForOcringPages(kTestNumPages);
+
+  ASSERT_TRUE(service_->GetPagesForTesting().contains("PageB"));
+  // View the second page by scrolling to it.
+  service_->ViewportUpdated(
+      gfx::RectF(/*x=*/0.0f, /*y=*/kTestPageHeight + kTestPageGap,
+                 kTestPageWidth, kTestPageHeight),
+      /*scale_factor=*/1.0f);
+
+  ui::AXActionData action_data;
+  action_data.action = ax::mojom::Action::kHitTest;
+  action_data.target_point = gfx::Point(3, 1);
+  action_data.hit_test_event_to_fire = ax::mojom::Event::kHover;
+  action_data.request_id = kRequestID;
+  service_->PerformAction(action_data);
+
+  ASSERT_NE(nullptr, service_->LastHitTestNodeForTesting());
+  ASSERT_NE(nullptr, service_->LastHitTestNodeForTesting()->tree());
+  EXPECT_EQ(service_->GetPagesForTesting().at("PageB")->GetTreeID(),
+            service_->LastHitTestNodeForTesting()->tree()->GetAXTreeID());
+  EXPECT_EQ(kHitNodeID, service_->LastHitTestNodeForTesting()->id());
+
+  EXPECT_EQ(ax::mojom::Event::kHover,
+            service_->LastHitTestEventForTesting().event_type);
+  EXPECT_EQ(ax::mojom::EventFrom::kAction,
+            service_->LastHitTestEventForTesting().event_from);
+  EXPECT_EQ(ax::mojom::Action::kHitTest,
+            service_->LastHitTestEventForTesting().event_from_action);
+  EXPECT_EQ(kRequestID,
+            service_->LastHitTestEventForTesting().action_request_id);
+  EXPECT_EQ(kHitNodeID, service_->LastHitTestEventForTesting().id);
+}
+
 IN_PROC_BROWSER_TEST_F(AXMediaAppUntrustedServiceTest, PageBatching) {
   service_->DisableStatusNodesForTesting();
   service_->DisablePostamblePageForTesting();
@@ -2187,7 +2196,9 @@ IN_PROC_BROWSER_TEST_F(AXMediaAppUntrustedServiceTest,
   constexpr size_t kTestNumPages = 1u;
   constexpr float kViewportWidth = 100.0f;
   constexpr float kViewportHeight = 200.0f;
-  // MediaApp sometimes also sends negative viewport origins.
+  // Note that MediaApp sends negative viewport origins if the document's origin
+  // is inside the viewport, i.e. there is some empty space between the
+  // viewport's origin and the document's origin.
   constexpr float kViewportXOffset = -10.0f;
   constexpr float kViewportYOffset = -5.0f;
   constexpr float kViewportScale = 1.2f;

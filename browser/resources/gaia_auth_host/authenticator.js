@@ -52,7 +52,6 @@ export let SyncTrustedRecoveryMethod;
  * Sync trusted vault encryption keys optionally passed with 'authCompleted'
  * message.
  * @typedef {{
- *   obfuscatedGaiaId: string,
  *   encryptionKeys: Array<SyncTrustedVaultKey>,
  *   trustedRecoveryMethods: Array<SyncTrustedRecoveryMethod>
  * }}
@@ -194,8 +193,7 @@ export const SUPPORTED_PARAMS = [
   'menuEnterpriseEnrollment',    // Enables "Enterprise enrollment" menu item.
   'lsbReleaseBoard',             // Chrome OS Release board name
   'isFirstUser',                 // True if this is non-enterprise device,
-                                 // and there are no users yet.
-  'obfuscatedOwnerId',           // Obfuscated device owner ID, if needed.
+  // and there are no users yet.
   'extractSamlPasswordAttributes',  // If enabled attempts to extract password
                                     // attributes from the SAML response.
   'ignoreCrOSIdpSetting',           // If set to true, causes Gaia to ignore 3P
@@ -615,6 +613,9 @@ export class Authenticator extends EventTarget {
     this.webviewEventManager_.addEventListener(
         this.samlHandler_, 'challengeMachineKeyRequired',
         e => this.onChallengeMachineKeyRequired_(e));
+    this.webviewEventManager_.addEventListener(
+        this.samlHandler_, 'isSamlFlowChange',
+        e => this.onIsSamlFlowChanged_(e));
 
     this.webviewEventManager_.addEventListener(
         this.webview_, 'droplink', e => this.onDropLink_(e));
@@ -849,9 +850,6 @@ export class Authenticator extends EventTarget {
     }
     if (data.isFirstUser) {
       url = appendParam(url, 'is_first_user', 'true');
-    }
-    if (data.obfuscatedOwnerId) {
-      url = appendParam(url, 'obfuscated_owner_id', data.obfuscatedOwnerId);
     }
     if (data.hl) {
       url = appendParam(url, 'hl', data.hl);
@@ -1163,7 +1161,10 @@ export class Authenticator extends EventTarget {
       // Fall through to finish the auth flow even if this.needPassword
       // is true. This is because the flag is used as an intention to get
       // password when it is available but not a mandatory requirement.
-      console.warn('Authenticator: No password scraped for SAML.');
+      const flowString = this.authFlow === AuthFlow.SAML ? 'SAML' : 'DEFAULT';
+      console.warn(
+        'Authenticator: No password when completing online auth. Auth flow is: '
+        + flowString);
     } else if (this.needPassword) {
       if (this.samlHandler_.scrapedPasswordCount === 1) {
         // If we scraped exactly one password, we complete the
@@ -1298,6 +1299,7 @@ export class Authenticator extends EventTarget {
     if (!e.detail.isSAMLPage) {
       return;
     }
+    this.dispatchEvent(new Event('samlPageLoaded'));
 
     this.authFlow = AuthFlow.SAML;
 
@@ -1350,6 +1352,17 @@ export class Authenticator extends EventTarget {
   onChallengeMachineKeyRequired_(e) {
     sendWithPromise('samlChallengeMachineKey', e.detail.url, e.detail.challenge)
         .then(e.detail.callback);
+  }
+
+  /**
+   * Invoked when |samlHandler_| fires 'isSamlFlowChange' event.
+   * @private
+   */
+  onIsSamlFlowChanged_(e) {
+    const isSamlFlow = e.detail.isSamlFlow;
+    if (isSamlFlow) {
+      this.authFlow = AuthFlow.SAML;
+    }
   }
 
   /**

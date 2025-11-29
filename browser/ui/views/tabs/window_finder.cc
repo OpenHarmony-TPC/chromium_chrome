@@ -12,13 +12,3 @@ gfx::NativeWindow WindowFinder::GetLocalProcessWindowAtPoint(
   return display::Screen::GetScreen()->GetLocalProcessWindowAtPoint(
       screen_point, ignore);
 }
-
-#if BUILDFLAG(IS_OHOS)
-gfx::NativeWindow WindowFinder::GetLocalProcessWindowAtPoint(
-    const gfx::Point& screen_point,
-    const std::set<gfx::NativeWindow>& ignore,
-    const int32_t display_id) {
-  return display::Screen::GetScreen()->GetLocalProcessWindowAtPoint(
-      screen_point, ignore, display_id);
-}
-#endif

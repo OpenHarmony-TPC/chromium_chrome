@@ -25,7 +25,6 @@
 #include "base/test/bind.h"
 #include "base/test/gtest_tags.h"
 #include "base/test/scoped_feature_list.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
 #include "chrome/browser/apps/app_service/app_launch_params.h"
@@ -43,6 +42,7 @@
 #include "chrome/browser/ash/file_manager/volume.h"
 #include "chrome/browser/ash/system_web_apps/test_support/system_web_app_browsertest_base.h"
 #include "chrome/browser/ash/system_web_apps/test_support/test_system_web_app_installation.h"
+#include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/file_system_access/file_system_access_permission_request_manager.h"
 #include "chrome/browser/policy/system_features_disable_list_policy_handler.h"
 #include "chrome/browser/profiles/profile.h"
@@ -53,6 +53,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
+#include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
@@ -135,9 +136,10 @@ IN_PROC_BROWSER_TEST_P(SystemWebAppManagerBrowserTestBasicInstall, Install) {
   EXPECT_EQ(SkColorSetRGB(0, 0xFF, 0), registrar.GetAppThemeColor(app_id));
   EXPECT_TRUE(registrar.HasExternalAppWithInstallSource(
       app_id, web_app::ExternalInstallSource::kSystemInstalled));
-  EXPECT_EQ(
-      registrar.FindAppWithUrlInScope(content::GetWebUIURL("test-system-app/")),
-      app_id);
+  EXPECT_EQ(registrar.FindBestAppWithUrlInScope(
+                content::GetWebUIURL("test-system-app/"),
+                web_app::WebAppFilter::InstalledInOperatingSystemForTesting()),
+            app_id);
 
   GetAppServiceProxy(browser()->profile())
       ->AppRegistryCache()
@@ -706,6 +708,9 @@ class SystemWebAppManagerLaunchDirectoryFileSystemProviderBrowserTest
 
  private:
   base::WeakPtr<file_manager::Volume> volume_;
+
+  // TODO(https://crbug.com/40804030): Remove this when updated to use MV3.
+  extensions::ScopedTestMV2Enabler mv2_enabler_;
 };
 
 IN_PROC_BROWSER_TEST_P(
@@ -1231,8 +1236,9 @@ IN_PROC_BROWSER_TEST_P(SystemWebAppManagerChromeUntrustedTest, Install) {
   EXPECT_EQ(SkColorSetRGB(0xFF, 0, 0), registrar.GetAppThemeColor(app_id));
   EXPECT_TRUE(registrar.HasExternalAppWithInstallSource(
       app_id, web_app::ExternalInstallSource::kSystemInstalled));
-  EXPECT_EQ(registrar.FindAppWithUrlInScope(
-                GURL("chrome-untrusted://test-system-app/")),
+  EXPECT_EQ(registrar.FindBestAppWithUrlInScope(
+                GURL("chrome-untrusted://test-system-app/"),
+                web_app::WebAppFilter::InstalledInOperatingSystemForTesting()),
             app_id);
 }
 
@@ -1795,7 +1801,7 @@ void SystemWebAppAccessibilityTest::EnableChromeVox() {
   speech_monitor_.Call([this]() {
     extensions::browsertest_util::ExecuteScriptInBackgroundPageDeprecated(
         browser()->profile(), extension_misc::kChromeVoxExtensionId, R"JS(
-        import('/chromevox/background/chromevox_state.js').then(
+        import('/chromevox/mv2/background/chromevox_state.js').then(
             module => module.ChromeVoxState.ready().then(() =>
                 window.domAutomationController.send('done')));
         )JS");

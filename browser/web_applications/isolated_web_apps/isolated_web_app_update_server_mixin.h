@@ -10,32 +10,17 @@
 #include <vector>
 
 #include "base/version.h"
-#include "chrome/browser/web_applications/isolated_web_apps/update_manifest/update_manifest.h"
+#include "chrome/browser/web_applications/isolated_web_apps/test/bundle_versions_storage.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
+#include "components/webapps/isolated_web_apps/update_channel.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "url/gurl.h"
 
-class InProcessBrowserTest;
-
 namespace web_app {
 
 class BundledIsolatedWebApp;
-
-struct BundleInfo {
-  BundleInfo();
-  ~BundleInfo();
-  BundleInfo(std::unique_ptr<BundledIsolatedWebApp> bundled_app,
-             std::optional<std::vector<UpdateChannel>> update_channels);
-  BundleInfo(const BundleInfo& other) = delete;
-  BundleInfo& operator=(const BundleInfo& other) = delete;
-  BundleInfo(BundleInfo&& other);
-  BundleInfo& operator=(BundleInfo&& other);
-
-  std::unique_ptr<BundledIsolatedWebApp> bundle;
-  std::optional<std::vector<UpdateChannel>> update_channels;
-};
 
 // This mixin starts a server that hosts update manifests and bundles.
 class IsolatedWebAppUpdateServerMixin : public InProcessBrowserTestMixin {
@@ -44,22 +29,23 @@ class IsolatedWebAppUpdateServerMixin : public InProcessBrowserTestMixin {
       InProcessBrowserTestMixinHost* mixin_host);
   ~IsolatedWebAppUpdateServerMixin() override;
 
-  // Sets up `iwa_server_`.
-  void SetUpOnMainThread() override;
-
   // The returned URL has the following structure:
   //   * /<web_bundle_id>/update_manifest.json
   GURL GetUpdateManifestUrl(
       const web_package::SignedWebBundleId& web_bundle_id) const;
 
-#if BUILDFLAG(IS_CHROMEOS)
   // Generates a policy entry that can be appended to
   // `prefs::kIsolatedWebAppInstallForceList` in order to force-install the IWA.
   base::Value::Dict CreateForceInstallPolicyEntry(
       const web_package::SignedWebBundleId& web_bundle_id,
       const std::optional<UpdateChannel>& update_channel = std::nullopt,
-      const std::optional<base::Version>& pinned_version = std::nullopt) const;
-#endif
+      const std::optional<base::Version>& pinned_version = std::nullopt,
+      const bool allow_downgrades = false) const;
+
+  // Returns the update manifest for `web_bundle_id`. Will CHECK if there are no
+  // bundles served for this `web_bundle_id`.
+  base::Value::Dict GetUpdateManifest(
+      const web_package::SignedWebBundleId& web_bundle_id) const;
 
   // Adds a bundle to the update server and starts tracking it in the
   // corresponding update manifest.
@@ -81,9 +67,7 @@ class IsolatedWebAppUpdateServerMixin : public InProcessBrowserTestMixin {
       const net::test_server::HttpRequest& request);
 
   net::EmbeddedTestServer iwa_server_;
-  base::flat_map<web_package::SignedWebBundleId,
-                 base::flat_map<base::Version, BundleInfo>>
-      bundle_versions_per_id_;
+  test::BundleVersionsStorage storage_;
 };
 
 }  // namespace web_app

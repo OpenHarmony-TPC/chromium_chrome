@@ -8,12 +8,14 @@
 #include <vector>
 
 #include "base/files/file_util.h"
+#include "base/strings/to_string.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/net/storage_test_utils.h"
+#include "chrome/browser/page_load_metrics/observers/third_party_cookie_deprecation_page_load_metrics_observer.h"
 #include "chrome/browser/privacy_sandbox/tracking_protection_onboarding_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/subresource_filter/subresource_filter_browser_test_harness.h"
@@ -40,6 +42,8 @@
 #include "components/subresource_filter/core/common/common_features.h"
 #include "components/subresource_filter/core/common/test_ruleset_utils.h"
 #include "components/tpcd/metadata/browser/parser.h"
+#include "components/ukm/content/source_url_recorder.h"
+#include "components/ukm/test_ukm_recorder.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -48,6 +52,8 @@
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_response.h"
+#include "services/metrics/public/cpp/ukm_source.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -76,6 +82,8 @@ const char kCookieReadStatusHistogram[] =
 using WebFeature = blink::mojom::WebFeature;
 using ThirdPartyCookieAllowMechanism =
     content_settings::CookieSettingsBase::ThirdPartyCookieAllowMechanism;
+using MetadataSourceType =
+    content_settings::CookieSettingsBase::MetadataSourceType;
 
 struct Allow3PCMechanismBrowserTestCase {
   bool allow_by_global_setting = false;
@@ -92,6 +100,8 @@ struct Allow3PCMechanismBrowserTestCase {
   bool allow_by_explicit_setting = false;
   ThirdPartyCookieAllowMechanism expected_allow_mechanism_histogram_sample;
   std::optional<WebFeature> expected_web_feature_histogram_sample;
+  content_settings::CookieSettingsBase::MetadataSourceType
+      expected_metadata_source_type;
 };
 
 const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
@@ -99,11 +109,15 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
         .allow_by_global_setting = true,
         .expected_allow_mechanism_histogram_sample =
             ThirdPartyCookieAllowMechanism::kAllowByGlobalSetting,
+        .expected_web_feature_histogram_sample =
+            WebFeature::kThirdPartyCookieDeprecation_AllowByGlobalSetting,
+        .expected_metadata_source_type = MetadataSourceType::None,
     },
     {
         .allow_by_3pcd_1p_trial_token = true,
         .expected_allow_mechanism_histogram_sample =
             ThirdPartyCookieAllowMechanism::kAllowByTopLevel3PCD,
+        .expected_metadata_source_type = MetadataSourceType::FirstPartyDt,
     },
     {
         .allow_by_3pcd_3p_trial_token = true,
@@ -111,6 +125,7 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
             ThirdPartyCookieAllowMechanism::kAllowBy3PCD,
         .expected_web_feature_histogram_sample =
             WebFeature::kThirdPartyCookieDeprecation_AllowBy3PCD,
+        .expected_metadata_source_type = MetadataSourceType::ThirdPartyDt,
     },
     {
         .tpcd_metadata_unspecified_allow_3p_cookie = true,
@@ -119,6 +134,7 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
                 kAllowBy3PCDMetadataSourceUnspecified,
         .expected_web_feature_histogram_sample =
             WebFeature::kThirdPartyCookieDeprecation_AllowBy3PCDMetadata,
+        .expected_metadata_source_type = MetadataSourceType::OtherMetadata,
     },
     {
         .tpcd_metadata_test_allow_3p_cookie = true,
@@ -126,6 +142,7 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
             ThirdPartyCookieAllowMechanism::kAllowBy3PCDMetadataSourceTest,
         .expected_web_feature_histogram_sample =
             WebFeature::kThirdPartyCookieDeprecation_AllowBy3PCDMetadata,
+        .expected_metadata_source_type = MetadataSourceType::OtherMetadata,
     },
     {
         .tpcd_metadata_1p_dt_allow_3p_cookie = true,
@@ -133,6 +150,7 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
             ThirdPartyCookieAllowMechanism::kAllowBy3PCDMetadataSource1pDt,
         .expected_web_feature_histogram_sample =
             WebFeature::kThirdPartyCookieDeprecation_AllowBy3PCDMetadata,
+        .expected_metadata_source_type = MetadataSourceType::FirstPartyDt,
     },
     {
         .tpcd_metadata_3p_dt_allow_3p_cookie = true,
@@ -140,6 +158,7 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
             ThirdPartyCookieAllowMechanism::kAllowBy3PCDMetadataSource3pDt,
         .expected_web_feature_histogram_sample =
             WebFeature::kThirdPartyCookieDeprecation_AllowBy3PCDMetadata,
+        .expected_metadata_source_type = MetadataSourceType::ThirdPartyDt,
     },
     {
         .tpcd_metadata_dogfood_allow_3p_cookie = true,
@@ -147,6 +166,7 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
             ThirdPartyCookieAllowMechanism::kAllowBy3PCDMetadataSourceDogFood,
         .expected_web_feature_histogram_sample =
             WebFeature::kThirdPartyCookieDeprecation_AllowBy3PCDMetadata,
+        .expected_metadata_source_type = MetadataSourceType::OtherMetadata,
     },
     {
         .tpcd_metadata_critical_sector_allow_3p_cookie = true,
@@ -155,6 +175,7 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
                 kAllowBy3PCDMetadataSourceCriticalSector,
         .expected_web_feature_histogram_sample =
             WebFeature::kThirdPartyCookieDeprecation_AllowBy3PCDMetadata,
+        .expected_metadata_source_type = MetadataSourceType::CriticalSector,
     },
     {
         .tpcd_metadata_cuj_allow_3p_cookie = true,
@@ -162,6 +183,7 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
             ThirdPartyCookieAllowMechanism::kAllowBy3PCDMetadataSourceCuj,
         .expected_web_feature_histogram_sample =
             WebFeature::kThirdPartyCookieDeprecation_AllowBy3PCDMetadata,
+        .expected_metadata_source_type = MetadataSourceType::Cuj,
     },
     {
         .tpcd_metadata_gov_edu_tld_allow_3p_cookie = true,
@@ -169,11 +191,15 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
             ThirdPartyCookieAllowMechanism::kAllowBy3PCDMetadataSourceGovEduTld,
         .expected_web_feature_histogram_sample =
             WebFeature::kThirdPartyCookieDeprecation_AllowBy3PCDMetadata,
+        .expected_metadata_source_type = MetadataSourceType::CriticalSectorTld,
     },
     {
         .allow_by_explicit_setting = true,
         .expected_allow_mechanism_histogram_sample =
             ThirdPartyCookieAllowMechanism::kAllowByExplicitSetting,
+        .expected_web_feature_histogram_sample =
+            WebFeature::kThirdPartyCookieDeprecation_AllowByExplicitSetting,
+        .expected_metadata_source_type = MetadataSourceType::None,
     },
     // Precedence testing test cases:
     {
@@ -181,12 +207,18 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
         .allow_by_3pcd_1p_trial_token = true,
         .expected_allow_mechanism_histogram_sample =
             ThirdPartyCookieAllowMechanism::kAllowByGlobalSetting,
+        .expected_web_feature_histogram_sample =
+            WebFeature::kThirdPartyCookieDeprecation_AllowByGlobalSetting,
+        // Note that this doesn't match the expected allow mechanism histogram,
+        // as the global setting is overridden by tracking protection.
+        .expected_metadata_source_type = MetadataSourceType::FirstPartyDt,
     },
     {
         .allow_by_3pcd_1p_trial_token = true,
         .allow_by_3pcd_3p_trial_token = true,
         .expected_allow_mechanism_histogram_sample =
             ThirdPartyCookieAllowMechanism::kAllowByTopLevel3PCD,
+        .expected_metadata_source_type = MetadataSourceType::FirstPartyDt,
     },
     {
         .allow_by_3pcd_3p_trial_token = true,
@@ -198,6 +230,7 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
                 kAllowBy3PCDMetadataSourceCriticalSector,
         .expected_web_feature_histogram_sample =
             WebFeature::kThirdPartyCookieDeprecation_AllowBy3PCDMetadata,
+        .expected_metadata_source_type = MetadataSourceType::CriticalSector,
     },
     {
         .tpcd_metadata_critical_sector_allow_3p_cookie = true,
@@ -207,10 +240,12 @@ const Allow3PCMechanismBrowserTestCase kAllowMechanismTestCases[] = {
                 kAllowBy3PCDMetadataSourceCriticalSector,
         .expected_web_feature_histogram_sample =
             WebFeature::kThirdPartyCookieDeprecation_AllowBy3PCDMetadata,
+        .expected_metadata_source_type = MetadataSourceType::CriticalSector,
     },
     {
         .expected_web_feature_histogram_sample =
             WebFeature::kThirdPartyCookieBlocked,
+        .expected_metadata_source_type = MetadataSourceType::None,
     }};
 
 }  // namespace
@@ -236,6 +271,7 @@ class ThirdPartyCookieDeprecationObserverBaseBrowserTest
     SetRulesetWithRules(
         {subresource_filter::testing::CreateSuffixRule("isad=1"),
          subresource_filter::testing::CreateSuffixRule("ad_script.js")});
+    ukm::InitializeSourceUrlRecorderForWebContents(web_contents());
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
@@ -335,12 +371,11 @@ class ThirdPartyCookieDeprecationObserverBaseBrowserTest
 
 class ThirdPartyCookieDeprecationObserverBrowserTest
     : public ThirdPartyCookieDeprecationObserverBaseBrowserTest,
-      public testing::WithParamInterface<std::tuple<bool, bool>> {
+      public testing::WithParamInterface<std::tuple<bool, bool, bool>> {
  public:
   ThirdPartyCookieDeprecationObserverBrowserTest()
       : is_experiment_cookies_disabled_(std::get<0>(GetParam())),
         is_client_eligible_(std::get<1>(GetParam())) {}
-
   ThirdPartyCookieDeprecationObserverBrowserTest(
       const ThirdPartyCookieDeprecationObserverBrowserTest&) = delete;
   ThirdPartyCookieDeprecationObserverBrowserTest& operator=(
@@ -353,14 +388,22 @@ class ThirdPartyCookieDeprecationObserverBrowserTest
     subresource_filter::SubresourceFilterBrowserTest::SetUp();
   }
 
-  void SetUpThirdPartyCookieExperiment() {
+  virtual void SetUpThirdPartyCookieExperiment() {
     // Experiment feature param requests 3PCs blocked.
-    scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{features::kCookieDeprecationFacilitatedTesting,
-          {{tpcd::experiment::kDisable3PCookiesName,
-            is_experiment_cookies_disabled_ ? "true" : "false"}}},
-         {subresource_filter::kTPCDAdHeuristicSubframeRequestTagging, {}}},
-        {content_settings::features::kTrackingProtection3pcd});
+    std::vector<base::test::FeatureRefAndParams> enabled_features = {
+        {features::kCookieDeprecationFacilitatedTesting,
+         {{tpcd::experiment::kDisable3PCookiesName,
+           base::ToString(is_experiment_cookies_disabled_)}}},
+        {subresource_filter::kTPCDAdHeuristicSubframeRequestTagging, {}}};
+    std::vector<base::test::FeatureRef> disabled_features = {
+        content_settings::features::kTrackingProtection3pcd};
+    if (std::get<2>(GetParam())) {
+      enabled_features.push_back({network::features::kGetCookiesOnSet, {}});
+    } else {
+      disabled_features.push_back(network::features::kGetCookiesOnSet);
+    }
+    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                       disabled_features);
   }
 
   void SetUpThirdPartyCookieExperimentWithClientState() {
@@ -398,7 +441,9 @@ class ThirdPartyCookieDeprecationObserverBrowserTest
 
 INSTANTIATE_TEST_SUITE_P(,
                          ThirdPartyCookieDeprecationObserverBrowserTest,
-                         testing::Combine(testing::Bool(), testing::Bool()));
+                         testing::Combine(testing::Bool(),
+                                          testing::Bool(),
+                                          testing::Bool()));
 
 IN_PROC_BROWSER_TEST_P(ThirdPartyCookieDeprecationObserverBrowserTest,
                        FirstPartyCookiesReadAndWrite) {
@@ -1082,6 +1127,29 @@ class ThirdPartyCookieDeprecationObserverMechanismBrowserTest
             !is_tracking_protection_onboarded_);
   }
 
+  void VerifyDtDeploymentUkm(ukm::TestUkmRecorder& ukm_recorder,
+                             const GURL& first_party_url) {
+    std::vector<ukm::TestAutoSetUkmRecorder::HumanReadableUkmEntry> entries =
+        ukm_recorder.GetEntries("Tpcd.Mitigations.Dt.FirstParty.Deployment2",
+                                {"Source"});
+    if (test_case_.expected_metadata_source_type == MetadataSourceType::None ||
+        !is_tracking_protection_onboarded_) {
+      EXPECT_EQ(entries.size(), 0u);
+      return;
+    }
+
+    // Two UKMs, for the cookie write and cookie read.
+    ASSERT_EQ(entries.size(), 2u);
+    for (ukm::TestAutoSetUkmRecorder::HumanReadableUkmEntry& entry : entries) {
+      EXPECT_EQ(ukm::GetSourceIdType(entry.source_id),
+                ukm::SourceIdType::NAVIGATION_ID);
+      EXPECT_EQ(ukm_recorder.GetSourceForSourceId(entry.source_id)->url(),
+                first_party_url);
+      EXPECT_EQ(entry.metrics["Source"],
+                static_cast<int32_t>(test_case_.expected_metadata_source_type));
+    }
+  }
+
  private:
   Allow3PCMechanismBrowserTestCase test_case_;
   bool is_tracking_protection_onboarded_;
@@ -1096,6 +1164,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 IN_PROC_BROWSER_TEST_P(ThirdPartyCookieDeprecationObserverMechanismBrowserTest,
                        ThirdPartyCookiesReadAndWrite) {
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   auto first_party_url = GetURL(kHostA);
   auto third_party_url = GetURL(kHostB);
   SetUpThirdPartyCookieAllowMechanism(first_party_url, third_party_url);
@@ -1103,6 +1172,7 @@ IN_PROC_BROWSER_TEST_P(ThirdPartyCookieDeprecationObserverMechanismBrowserTest,
   content::CookieChangeObserver observer(web_contents(), 2);
   base::HistogramTester histogram_tester;
   NavigateToPageWithFrame(kHostA);
+  GURL top_level_url = web_contents()->GetURL();
 
   // 3p cookie write
   NavigateFrameTo(kHostB, "/set-cookie?thirdparty=1;SameSite=None;Secure");
@@ -1116,10 +1186,12 @@ IN_PROC_BROWSER_TEST_P(ThirdPartyCookieDeprecationObserverMechanismBrowserTest,
   NavigateToUntrackedUrl();
 
   VerifyThirdPartyCookieAllowMechanism(histogram_tester);
+  VerifyDtDeploymentUkm(ukm_recorder, top_level_url);
 }
 
 IN_PROC_BROWSER_TEST_P(ThirdPartyCookieDeprecationObserverMechanismBrowserTest,
                        ThirdPartyJavaScriptCookieReadAndWrite) {
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   auto first_party_url = GetURL(kHostA);
   auto third_party_url = GetURL(kHostB);
   SetUpThirdPartyCookieAllowMechanism(first_party_url, third_party_url);
@@ -1127,6 +1199,7 @@ IN_PROC_BROWSER_TEST_P(ThirdPartyCookieDeprecationObserverMechanismBrowserTest,
   content::CookieChangeObserver observer(web_contents(), 2);
   base::HistogramTester histogram_tester;
   NavigateToPageWithFrame(kHostA);
+  GURL top_level_url = web_contents()->GetURL();
   NavigateFrameTo(kHostB, "/empty.html");
   content::RenderFrameHost* frame =
       ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0);
@@ -1142,6 +1215,7 @@ IN_PROC_BROWSER_TEST_P(ThirdPartyCookieDeprecationObserverMechanismBrowserTest,
   }
   NavigateToUntrackedUrl();
   VerifyThirdPartyCookieAllowMechanism(histogram_tester);
+  VerifyDtDeploymentUkm(ukm_recorder, top_level_url);
 }
 
 class ThirdPartyCookieDeprecationObserverSSABrowserTest
@@ -1198,8 +1272,9 @@ class ThirdPartyCookieDeprecationObserverSSABrowserTest
   void SetCrossSiteCookieOnHost(const std::string& host) {
     GURL host_url = GetURL(host);
     std::string cookie = base::StrCat({"cross-site=", host});
-    content::SetCookie(browser()->profile(), host_url,
-                       base::StrCat({cookie, ";SameSite=None;Secure"}));
+    ASSERT_TRUE(
+        content::SetCookie(browser()->profile(), host_url,
+                           base::StrCat({cookie, ";SameSite=None;Secure"})));
     ASSERT_THAT(content::GetCookies(browser()->profile(), host_url),
                 testing::HasSubstr(cookie));
   }
@@ -1278,9 +1353,11 @@ IN_PROC_BROWSER_TEST_P(ThirdPartyCookieDeprecationObserverSSABrowserTest,
 
   histogram_tester.ExpectUniqueSample(kThirdPartyCookieAllowMechanismHistogram,
                                       /*kAllowByStorageAccess*/ 6, 2);
+  // Only record blink usage when tracking protection is onboard.
   histogram_tester.ExpectBucketCount(
       kWebFeatureHistogram,
-      WebFeature::kThirdPartyCookieAccessBlockByExperiment, GetParam() ? 1 : 0);
+      WebFeature::kThirdPartyCookieDeprecation_AllowByStorageAccess,
+      GetParam() ? 1 : 0);
 }
 
 class ThirdPartyCookieDeprecationObserverCookieReadBrowserTest

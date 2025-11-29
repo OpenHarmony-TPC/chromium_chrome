@@ -24,12 +24,23 @@
 #include "content/public/browser/storage_partition.h"
 #endif
 
+#if BUILDFLAG(IS_MAC)
+#include "chrome/common/chrome_version.h"
+#endif
+
 namespace {
+
+#if BUILDFLAG(IS_MAC)
+constexpr char kICloudKeychainAccessGroupPrefix[] = MAC_TEAM_IDENTIFIER_STRING;
+#endif
 
 #if !BUILDFLAG(IS_ANDROID)
 std::unique_ptr<trusted_vault::TrustedVaultClient>
 CreateChromeSyncStandaloneTrustedVaultClient(Profile* profile) {
   return std::make_unique<trusted_vault::StandaloneTrustedVaultClient>(
+#if BUILDFLAG(IS_MAC)
+      kICloudKeychainAccessGroupPrefix,
+#endif
       trusted_vault::SecurityDomainId::kChromeSync,
       /*base_dir=*/profile->GetPath(),
       IdentityManagerFactory::GetForProfile(profile),
@@ -46,7 +57,7 @@ CreateChromeSyncTrustedVaultClient(Profile* profile) {
                                  base::BindRepeating(
                                      [](signin::IdentityManager*
                                             identity_manager,
-                                        const std::string& gaia_id)
+                                        const GaiaId& gaia_id)
                                          -> CoreAccountInfo {
                                        return identity_manager
                                            ->FindExtendedAccountInfoByGaiaId(

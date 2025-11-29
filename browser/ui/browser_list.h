@@ -11,6 +11,7 @@
 
 #include "base/containers/flat_set.h"
 #include "base/functional/callback_forward.h"
+#include "base/functional/function_ref.h"
 #include "base/lazy_instance.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
@@ -21,10 +22,6 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #error This file should only be included on desktop.
-#endif
-
-#if BUILDFLAG(IS_OHOS)
-#include "ui/gfx/native_widget_types.h"
 #endif
 
 enum class BrowserClosingStatus;
@@ -78,6 +75,13 @@ class BrowserList {
 
   Browser* get(size_t index) const { return browsers_[index]; }
 
+  // Enumerate the current browser and the new browser in-order.
+  void ForEachCurrentAndNewBrowser(
+      base::FunctionRef<void(Browser*)> on_browser);
+
+  // Enumerate the current browser in-order.
+  void ForEachCurrentBrowser(base::FunctionRef<void(Browser*)> on_browser);
+
   // Returns iterated access to list of open browsers ordered by activation. The
   // underlying data structure is a vector and we push_back on recent access so
   // a reverse iterator gives the latest accessed browser first.
@@ -88,7 +92,8 @@ class BrowserList {
     return browsers_ordered_by_activation_.rend();
   }
 
-  // Convenience method for iterating over browsers in activation order.
+  // Convenience method for iterating over browsers in activation order. I.e.
+  // the most recently used browser will be at the front of the list.
   // Example:
   // for (Browser* browser : BrowserList::GetInstance()->OrderedByActivation())
   BrowsersOrderedByActivationRange OrderedByActivation() const {
@@ -221,10 +226,6 @@ class BrowserList {
       const base::FilePath& profile_path,
       const bool skip_beforeunload,
       bool tab_close_confirmed);
-
-#if BUILDFLAG(IS_OHOS)
-  gfx::AcceleratedWidget GetLastActiveAcceleratedWidget() const;
-#endif
 
   // A vector of the browsers in this list, in the order they were added.
   BrowserVector browsers_;

@@ -11,7 +11,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/timer/elapsed_timer.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_constants.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -77,7 +76,6 @@ enum AppMenuAction {
   MENU_ACTION_UNINSTALL_APP = 51,
   MENU_ACTION_CHROME_TIPS = 53,
   MENU_ACTION_CHROME_WHATS_NEW = 54,
-  MENU_ACTION_LACROS_DATA_MIGRATION = 55,
   MENU_ACTION_MENU_OPENED = 56,
   MENU_ACTION_VISIT_CHROME_WEB_STORE = 57,
   MENU_ACTION_PASSWORD_MANAGER = 58,
@@ -115,9 +113,11 @@ enum AppMenuAction {
   MENU_ACTION_SAFETY_HUB_MANAGE_EXTENSIONS = 91,
   MENU_ACTION_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL = 92,
   MENU_ACTION_DECLUTTER_TABS = 93,
+  MENU_ACTION_OPEN_GLIC = 94,
+  MENU_ACTION_FIND_EXTENSIONS = 95,
   LIMIT_MENU_ACTION
 };
-// LINT.ThenChange(/tools/metrics/histograms/enums.xml:WrenchMenuAction)
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ui/enums.xml:WrenchMenuAction)
 
 enum class AlertMenuItem { kNone, kPasswordManager };
 
@@ -194,8 +194,9 @@ class AppMenuModel : public ui::SimpleMenuModel,
   // varies depending upon the underlying model. The command IDs for items in
   // these menus will be staggered and each increment by this value, so they
   // don't have conflicts. Currently, this accounts for the bookmarks, recent
-  // tabs menus, the profile submenu and tab groups submenu.
-  static constexpr int kNumUnboundedMenuTypes = 4;
+  // tabs menus, the profile submenu, tab groups submenu, and the comparison
+  // tables submenu.
+  static constexpr int kNumUnboundedMenuTypes = 5;
 
   // First command ID to use for each unbounded menu. These should be staggered,
   // and there should be kNumUnboundedMenuTypes of them.
@@ -203,6 +204,7 @@ class AppMenuModel : public ui::SimpleMenuModel,
   static constexpr int kMinRecentTabsCommandId = kMinBookmarksCommandId + 1;
   static constexpr int kMinOtherProfileCommandId = kMinRecentTabsCommandId + 1;
   static constexpr int kMinTabGroupsCommandId = kMinOtherProfileCommandId + 1;
+  static constexpr int kMinCompareCommandId = kMinTabGroupsCommandId + 1;
 
   // Creates an app menu model for the given browser. Init() must be called
   // before passing this to an AppMenu. |app_menu_icon_controller|, if provided,

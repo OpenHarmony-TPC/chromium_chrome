@@ -20,6 +20,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/permissions/permission_request_data.h"
 #include "content/public/browser/permission_controller.h"
+#include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/render_frame_host.h"
 #include "printing/backend/cups_ipp_constants.h"
 #include "printing/backend/print_backend.h"
@@ -64,7 +65,7 @@ bool ValidateMediaCol(
   }
   const auto& papers = printer_attributes.papers;
   // Validate that the requested paper is supported by the printer.
-  if (!base::ranges::any_of(papers, [&](const auto& paper) {
+  if (!std::ranges::any_of(papers, [&](const auto& paper) {
         return paper.IsSizeWithinBounds(media.size_microns);
       })) {
     return false;
@@ -164,9 +165,9 @@ blink::mojom::WebPrinterAttributesPtr MergePrinterAttributesAndStatus(
   for (const auto& reason : printer_status->reasons) {
     printer_state_reasons.push_back(reason.reason);
   }
-  base::ranges::sort(printer_state_reasons);
-  printer_state_reasons.erase(base::ranges::unique(printer_state_reasons),
-                              printer_state_reasons.end());
+  std::ranges::sort(printer_state_reasons);
+  auto repeated = std::ranges::unique(printer_state_reasons);
+  printer_state_reasons.erase(repeated.begin(), repeated.end());
   printer_attributes->printer_state_message = printer_status->message;
   return printer_attributes;
 }
@@ -175,8 +176,10 @@ bool HasPrintingPermission(content::RenderFrameHost& rfh) {
   return rfh.GetBrowserContext()
              ->GetPermissionController()
              ->GetPermissionStatusForCurrentDocument(
-                 blink::PermissionType::WEB_PRINTING, &rfh) ==
-         blink::mojom::PermissionStatus::GRANTED;
+                 content::PermissionDescriptorUtil::
+                     CreatePermissionDescriptorForPermissionType(
+                         blink::PermissionType::WEB_PRINTING),
+                 &rfh) == blink::mojom::PermissionStatus::GRANTED;
 }
 
 void InvokeFetchAttributesCallback(
@@ -214,7 +217,9 @@ void WebPrintingServiceChromeOS::GetPrinters(GetPrintersCallback callback) {
       ->RequestPermissionFromCurrentDocument(
           &render_frame_host(),
           content::PermissionRequestDescription(
-              blink::PermissionType::WEB_PRINTING),
+              content::PermissionDescriptorUtil::
+                  CreatePermissionDescriptorForPermissionType(
+                      blink::PermissionType::WEB_PRINTING)),
           base::BindOnce(
               &WebPrintingServiceChromeOS::OnPermissionDecidedForGetPrinters,
               weak_factory_.GetWeakPtr(), std::move(callback)));

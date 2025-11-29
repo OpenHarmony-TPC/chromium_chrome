@@ -28,6 +28,7 @@
 #include "base/win/scoped_com_initializer.h"
 #include "chrome/installer/util/install_service_work_item.h"
 #include "chrome/installer/util/registry_util.h"
+#include "chrome/updater/branded_constants.h"
 #include "chrome/updater/constants.h"
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/util.h"
@@ -148,7 +149,7 @@ int RunUninstallScript(UpdaterScope scope, bool uninstall_all) {
   cmd_exe_path = cmd_exe_path.Append(L"cmd.exe");
 
   const base::FilePath script_path =
-      versioned_dir->AppendASCII(kUninstallScript);
+      versioned_dir->AppendUTF8(kUninstallScript);
 
   const std::wstring cmdline = base::StrCat(
       {L"\"", cmd_exe_path.value(), L"\" /Q /C \"\"", script_path.value(),

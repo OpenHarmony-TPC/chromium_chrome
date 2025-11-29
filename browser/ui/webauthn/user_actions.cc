@@ -5,15 +5,18 @@
 #include "chrome/browser/ui/webauthn/user_actions.h"
 
 #include <optional>
+#include <string>
 #include <string_view>
+#include <tuple>
+#include <variant>
 #include <vector>
 
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "base/strings/strcat.h"
 #include "chrome/browser/webauthn/authenticator_request_dialog_model.h"
+#include "device/fido/fido_constants.h"
 #include "device/fido/fido_types.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "ui/gfx/vector_icon_types.h"
 
 namespace webauthn::user_actions {
@@ -46,8 +49,8 @@ enum class AuthenticatorCategory {
 };
 
 AuthenticatorCategory CategoryFromMechanism(const Mechanism& mechanism) {
-  if (absl::holds_alternative<Mechanism::Credential>(mechanism.type)) {
-    switch (absl::get<Mechanism::Credential>(mechanism.type)->source) {
+  if (std::holds_alternative<Mechanism::Credential>(mechanism.type)) {
+    switch (std::get<Mechanism::Credential>(mechanism.type)->source) {
       case AuthenticatorType::kEnclave:
         return AuthenticatorCategory::kGpm;
       case AuthenticatorType::kTouchID:
@@ -61,11 +64,11 @@ AuthenticatorCategory CategoryFromMechanism(const Mechanism& mechanism) {
       case AuthenticatorType::kOther:
         return AuthenticatorCategory::kOther;
     }
-  } else if (absl::holds_alternative<Mechanism::Enclave>(mechanism.type)) {
+  } else if (std::holds_alternative<Mechanism::Enclave>(mechanism.type)) {
     return AuthenticatorCategory::kGpm;
-  } else if (absl::holds_alternative<Mechanism::WindowsAPI>(mechanism.type)) {
+  } else if (std::holds_alternative<Mechanism::WindowsAPI>(mechanism.type)) {
     return AuthenticatorCategory::kWindows;
-  } else if (absl::holds_alternative<Mechanism::ICloudKeychain>(
+  } else if (std::holds_alternative<Mechanism::ICloudKeychain>(
                  mechanism.type)) {
     return AuthenticatorCategory::kICloud;
   }

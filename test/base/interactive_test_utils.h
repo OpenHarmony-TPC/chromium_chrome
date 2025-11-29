@@ -16,6 +16,7 @@
 #include "ui/display/display.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/vector2d.h"
+#include "ui/gfx/native_widget_types.h"
 #include "ui/views/widget/widget_observer.h"
 
 namespace display {
@@ -135,11 +136,11 @@ void HideNativeWindow(gfx::NativeWindow window);
 // see it for details.
 [[nodiscard]] bool SendMouseMoveSync(
     const gfx::Point& location,
-    gfx::NativeWindow window_hint = ui_controls::kNoWindowHint);
+    gfx::NativeWindow window_hint = gfx::NativeWindow());
 [[nodiscard]] bool SendMouseEventsSync(
     ui_controls::MouseButton type,
     int button_state,
-    gfx::NativeWindow window_hint = ui_controls::kNoWindowHint);
+    gfx::NativeWindow window_hint = gfx::NativeWindow());
 
 // A combination of SendMouseMove to the middle of the view followed by
 // SendMouseEvents. Only exposed for toolkit-views.
@@ -172,6 +173,11 @@ void WaitForViewFocus(Browser* browser, views::View* view, bool focused);
 #if BUILDFLAG(IS_MAC)
 // Clear pressed modifier keys and report true if any key modifiers were down.
 bool ClearKeyEventModifiers();
+
+// Ensures that if no key window is set (can happen in apps that are not
+// frontmost), we simulate the frontmost window becoming key, which triggers
+// any logic that would normally run in this case.
+void HandleMissingKeyWindow();
 #endif
 
 namespace internal {

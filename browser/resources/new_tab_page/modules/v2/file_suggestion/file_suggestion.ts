@@ -5,6 +5,7 @@
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {File} from '../../../file_suggestion.mojom-webui.js';
+import {RecommendationType} from '../../../file_suggestion.mojom-webui.js';
 
 import {getCss} from './file_suggestion.css.js';
 import {getHtml} from './file_suggestion.html.js';
@@ -35,18 +36,12 @@ export class FileSuggestionElement extends CrLitElement {
   static override get properties() {
     return {
       files: {type: Array},
-      imageSourceBaseUrl: {type: String},
       moduleName: {type: String},
     };
   }
 
-  files: File[] = [];
-  imageSourceBaseUrl: string;
-  moduleName: string;
-
-  protected getImageSrc_(file: File): string {
-    return this.imageSourceBaseUrl + file.mimeType;
-  }
+  accessor files: File[] = [];
+  accessor moduleName: string = '';
 
   protected onFileClick_(e: Event) {
     const clickFileEvent = new Event('usage', {composed: true, bubbles: true});
@@ -55,6 +50,12 @@ export class FileSuggestionElement extends CrLitElement {
     const index = Number(currentTarget.dataset['index']);
     chrome.metricsPrivate.recordSmallCount(
         `NewTabPage.${this.moduleName}.FileClick`, index);
+    const recommendationType = this.files[index].recommendationType;
+    if (recommendationType != null) {
+      chrome.metricsPrivate.recordEnumerationValue(
+          `NewTabPage.${this.moduleName}.RecommendationTypeClick`,
+          recommendationType, RecommendationType.MAX_VALUE + 1);
+    }
   }
 }
 

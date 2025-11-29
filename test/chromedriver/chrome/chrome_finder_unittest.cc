@@ -105,8 +105,6 @@ TEST(ChromeFinderTest, NoCrash) {
   FindBrowser("quick-brown-fox", exe);
 }
 
-#if !BUILDFLAG(IS_OHOS)
-// On OHOS we won't be able to find Chrome executable
 TEST(ChromeFinderTest, FindBrowserSearchesForChrome) {
   // Verify that FindBrowser searches for Chrome when requested to
   // find Chrome.
@@ -140,7 +138,6 @@ TEST(ChromeFinderTest, FindBrowserSearchesForHeadlessShell) {
   });
   EXPECT_TRUE(FindBrowser("chrome-headless-shell", exists_func, exe));
 }
-#endif
 
 TEST(ChromeFinderTest, FindBrowserDoesNotSearchForUnsupportedBrowser) {
   // Verify that FindBrowser returns false for unknown browsers.

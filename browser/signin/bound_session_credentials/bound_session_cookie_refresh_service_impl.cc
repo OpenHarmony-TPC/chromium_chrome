@@ -21,6 +21,7 @@
 #include "base/notreached.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/signin/bound_session_credentials/bound_session_cookie_controller.h"
 #include "chrome/browser/signin/bound_session_credentials/bound_session_cookie_controller_impl.h"
 #include "chrome/browser/signin/bound_session_credentials/bound_session_debug_info.h"
@@ -33,6 +34,7 @@
 #include "chrome/common/google_url_loader_throttle.h"
 #include "chrome/common/renderer_configuration.mojom.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/variations/synthetic_trials.h"
 #include "content/public/browser/storage_partition.h"
 #include "net/base/schemeful_site.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -98,14 +100,14 @@ GetRotationDebugTerminationReason(
         switch (refresh_error) {
           case Result::kServerPersistentError:
             return RotationDebugInfo::ROTATION_PERSISTENT_ERROR;
-          case Result::kServerUnexepectedResponse:
-            return RotationDebugInfo::ROTATION_UNEXPECTED_RESPONSE;
           case Result::kChallengeRequiredUnexpectedFormat:
             return RotationDebugInfo::ROTATION_CHALLENGE_UNEXPECTED_FORMAT;
           case Result::kChallengeRequiredLimitExceeded:
             return RotationDebugInfo::ROTATION_CHALLENGE_LIMIT_EXCEEDED;
           case Result::kSignChallengeFailed:
             return RotationDebugInfo::ROTATION_SIGN_CHALLENGE_FAILED;
+          case Result::kChallengeRequiredSessionIdMismatch:
+            return RotationDebugInfo::ROTATION_CHALLENGE_SESSION_ID_MISMATCH;
           default:
             return RotationDebugInfo::TERMINATION_REASON_OTHER;
         }
@@ -143,25 +145,58 @@ GetThrottlerParamsForRequestCoverage(
       controller->scope_url().host(), controller->scope_url().path(),
       base::Time());
 }
+
+bool IsNewSessionRegistrationEnabled(const PrefService* profile_prefs,
+                                     bool is_wsbeta) {
+  return switches::IsBoundSessionCredentialsEnabled(profile_prefs) ||
+         (is_wsbeta && base::FeatureList::IsEnabled(
+                           kEnableBoundSessionCredentialsWsbetaBypass));
+}
+
+bool IsSessionInitializationEnabled(const PrefService* profile_prefs,
+                                    bool is_wsbeta) {
+  // It should always be possible to initialize a session if the registration is
+  // enabled.
+  return IsNewSessionRegistrationEnabled(profile_prefs, is_wsbeta) ||
+         base::FeatureList::IsEnabled(kEnableBoundSessionCredentialsContinuity);
+}
+
 }  // namespace
 
-BASE_FEATURE(kMultipleBoundSessionsEnabled,
-             "MultipleBoundSessionsEnabled",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableBoundSessionCredentialsWsbetaBypass,
+             "EnableBoundSessionCredentialsWsbetaBypass",
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
+BASE_FEATURE(kEnableBoundSessionCredentialsContinuity,
+             "EnableBoundSessionCredentialsContinuity",
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 BoundSessionCookieRefreshServiceImpl::BoundSessionCookieRefreshServiceImpl(
     unexportable_keys::UnexportableKeyService& key_service,
     std::unique_ptr<BoundSessionParamsStorage> session_params_storage,
     content::StoragePartition* storage_partition,
     network::NetworkConnectionTracker* network_connection_tracker,
+    const PrefService* profile_prefs,
     bool is_off_the_record_profile)
     : key_service_(key_service),
       session_params_storage_(std::move(session_params_storage)),
       storage_partition_(storage_partition),
       network_connection_tracker_(network_connection_tracker),
+      profile_prefs_(profile_prefs),
       is_off_the_record_profile_(is_off_the_record_profile) {
   CHECK(session_params_storage_);
   CHECK(storage_partition_);
+  CHECK(profile_prefs_);
   data_removal_observation_.Observe(storage_partition_);
 }
 
@@ -182,57 +217,31 @@ void BoundSessionCookieRefreshServiceImpl::Initialize() {
     return;
   }
 
-  if (!base::FeatureList::IsEnabled(kMultipleBoundSessionsEnabled)) {
-    InitializeBoundSession(bound_session_params.front());
-    UpdateAllRenderers();
-    return;
-  }
-
   for (const auto& params : bound_session_params) {
-    InitializeBoundSession(params);
+    if (IsSessionInitializationEnabled(profile_prefs_, params.is_wsbeta())) {
+      InitializeBoundSession(params);
+    }
   }
   UpdateAllRenderers();
 }
 
 void BoundSessionCookieRefreshServiceImpl::RegisterNewBoundSession(
     const bound_session_credentials::BoundSessionParams& params) {
+  CHECK(IsNewSessionRegistrationEnabled(profile_prefs_, params.is_wsbeta()));
+
   if (!session_params_storage_->SaveParams(params)) {
     DVLOG(1) << "Invalid session params or failed to serialize session params.";
     return;
   }
 
-  if (base::FeatureList::IsEnabled(kMultipleBoundSessionsEnabled)) {
-    // In the multi-session mode, we need to stop the controller corresponding
-    // to the same session, if any.
-    auto it = cookie_controllers_.find(
-        bound_session_credentials::GetBoundSessionKey(params));
-    if (it != cookie_controllers_.end()) {
-      cookie_controllers_.erase(it);
-      RecordSessionTerminationTrigger(
-          SessionTerminationTrigger::kSessionOverride);
-      // Note: `NotifyBoundSessionTerminated()` is not called as new session is
-      // starting with the same scope.
-    }
-  } else {
-    // In the single-session mode, we need to do the following:
-    // - stop the current controller regardless of what session it controls, and
-    // - clear storage entry for the current session if it doesn't match the new
-    //   session.
-    if (BoundSessionCookieController* controller = cookie_controller();
-        controller) {
-      bool clear_params = controller->GetBoundSessionKey() !=
-                          bound_session_credentials::GetBoundSessionKey(params);
-      if (clear_params) {
-        session_params_storage_->ClearParams(controller->site(),
-                                             controller->session_id());
-      }
-      cookie_controllers_.clear();
-      // `controller` is no longer valid and must not be used.
-      RecordSessionTerminationTrigger(
-          SessionTerminationTrigger::kSessionOverride);
-      // Note: `NotifyBoundSessionTerminated()` is not called as new session is
-      // starting with the same scope.
-    }
+  auto it = cookie_controllers_.find(
+      bound_session_credentials::GetBoundSessionKey(params));
+  if (it != cookie_controllers_.end()) {
+    cookie_controllers_.erase(it);
+    RecordSessionTerminationTrigger(
+        SessionTerminationTrigger::kSessionOverride);
+    // Note: `NotifyBoundSessionTerminated()` is not called as new session is
+    // starting with the same scope.
   }
 
   InitializeBoundSession(params);
@@ -255,7 +264,7 @@ void BoundSessionCookieRefreshServiceImpl::MaybeTerminateSession(
   base::StringPairs items;
   base::SplitStringIntoKeyValuePairs(*termination_header_value, '=', ';',
                                      &items);
-  auto session_id_it = base::ranges::find_if(items, [](const auto& kv_pair) {
+  auto session_id_it = std::ranges::find_if(items, [](const auto& kv_pair) {
     return base::EqualsCaseInsensitiveASCII(
         kv_pair.first, kGoogleSessionTerminationSessionIdKey);
   });
@@ -322,32 +331,24 @@ void BoundSessionCookieRefreshServiceImpl::HandleRequestBlockedOnCookie(
 
   std::vector<BoundSessionCookieController*> blocking_controllers;
   bool request_covered_by_at_least_one_session = false;
-  if (!base::FeatureList::IsEnabled(kMultipleBoundSessionsEnabled)) {
-    blocking_controllers.push_back(cookie_controller());
-    // Assume by default that the only controller covers all incoming
-    // requests.
-    request_covered_by_at_least_one_session = true;
-  } else {
-    for (const auto& [key, controller] : cookie_controllers_) {
-      std::vector<chrome::mojom::BoundSessionThrottlerParamsPtr>
-          throttler_params;
-      throttler_params.push_back(
-          GetThrottlerParamsForRequestCoverage(controller.get()));
-      GoogleURLLoaderThrottle::RequestBoundSessionStatus status =
-          GoogleURLLoaderThrottle::GetRequestBoundSessionStatus(
-              untrusted_request_url, throttler_params);
-      switch (status) {
-        case GoogleURLLoaderThrottle::RequestBoundSessionStatus::
-            kCoveredWithMissingCookie:
-          blocking_controllers.push_back(controller.get());
-          [[fallthrough]];
-        case GoogleURLLoaderThrottle::RequestBoundSessionStatus::
-            kCoveredWithFreshCookie:
-          request_covered_by_at_least_one_session = true;
-          break;
-        case GoogleURLLoaderThrottle::RequestBoundSessionStatus::kNotCovered:
-          break;
-      }
+  for (const auto& [key, controller] : cookie_controllers_) {
+    std::vector<chrome::mojom::BoundSessionThrottlerParamsPtr> throttler_params;
+    throttler_params.push_back(
+        GetThrottlerParamsForRequestCoverage(controller.get()));
+    GoogleURLLoaderThrottle::RequestBoundSessionStatus status =
+        GoogleURLLoaderThrottle::GetRequestBoundSessionStatus(
+            untrusted_request_url, throttler_params);
+    switch (status) {
+      case GoogleURLLoaderThrottle::RequestBoundSessionStatus::
+          kCoveredWithMissingCookie:
+        blocking_controllers.push_back(controller.get());
+        [[fallthrough]];
+      case GoogleURLLoaderThrottle::RequestBoundSessionStatus::
+          kCoveredWithFreshCookie:
+        request_covered_by_at_least_one_session = true;
+        break;
+      case GoogleURLLoaderThrottle::RequestBoundSessionStatus::kNotCovered:
+        break;
     }
   }
 
@@ -374,6 +375,11 @@ void BoundSessionCookieRefreshServiceImpl::HandleRequestBlockedOnCookie(
 
 void BoundSessionCookieRefreshServiceImpl::CreateRegistrationRequest(
     BoundSessionRegistrationFetcherParam registration_params) {
+  if (!IsNewSessionRegistrationEnabled(profile_prefs_,
+                                       registration_params.is_wsbeta())) {
+    return;
+  }
+
   // Guardrail against registering non-SIDTS DBSC sessions while the client
   // lacks support for running multiple sessions at the same time. Can be
   // overridden with a Finch config parameter.
@@ -384,13 +390,6 @@ void BoundSessionCookieRefreshServiceImpl::CreateRegistrationRequest(
       !base::EqualsCaseInsensitiveASCII(
           registration_params.registration_endpoint().path_piece(),
           exclusive_registration_path)) {
-    return;
-  }
-
-  if (!registration_requests_.empty() &&
-      !base::FeatureList::IsEnabled(kMultipleBoundSessionsEnabled)) {
-    // If there are multiple racing registration requests, only one will be
-    // processed and it will contain the most up-to-date set of cookies.
     return;
   }
 
@@ -527,8 +526,15 @@ BoundSessionCookieRefreshServiceImpl::CreateBoundSessionCookieController(
 
 void BoundSessionCookieRefreshServiceImpl::InitializeBoundSession(
     const bound_session_credentials::BoundSessionParams& bound_session_params) {
-  if (!base::FeatureList::IsEnabled(kMultipleBoundSessionsEnabled)) {
-    CHECK(cookie_controllers_.empty());
+  CHECK(IsSessionInitializationEnabled(profile_prefs_,
+                                       bound_session_params.is_wsbeta()));
+  if (bound_session_params.is_wsbeta()) {
+    // It's unusual to register a synthetic trial with a single group. The
+    // purpose of this trial is to be able to filter out the users having
+    // "wsbeta" sessions (thus ignoring the main experiment).
+    ChromeMetricsServiceAccessor::RegisterSyntheticFieldTrial(
+        "BoundSessionCredentialsWsbetaSyntheticTrial", "Enabled",
+        variations::SyntheticTrialAnnotationMode::kCurrentLog);
   }
   std::unique_ptr<BoundSessionCookieController> controller =
       CreateBoundSessionCookieController(bound_session_params,

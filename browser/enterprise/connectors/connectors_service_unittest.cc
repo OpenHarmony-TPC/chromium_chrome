@@ -8,9 +8,10 @@
 
 #include "base/json/json_reader.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/enterprise/connectors/connectors_manager.h"
 #include "chrome/browser/enterprise/connectors/test/deep_scanning_test_utils.h"
@@ -30,11 +31,8 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chromeos/components/mgs/managed_guest_session_test_utils.h"
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "base/strings/strcat.h"
+#include "chromeos/components/mgs/managed_guest_session_test_utils.h"
 #include "extensions/common/constants.h"
 #endif
 
@@ -311,6 +309,9 @@ TEST_F(ConnectorsServiceTest, RealtimeURLCheck) {
 
   maybe_dm_token = ConnectorsServiceFactory::GetForBrowserContext(profile_)
                        ->GetDMTokenForRealTimeUrlCheck();
+  ASSERT_EQ(
+      maybe_dm_token.error(),
+      ConnectorsServiceBase::NoDMTokenForRealTimeUrlCheckReason::kNoDmToken);
   EXPECT_FALSE(maybe_dm_token.has_value());
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -410,7 +411,7 @@ TEST_P(ConnectorsServiceExemptURLsTest, BlobAndFilesystem) {
   }
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 TEST_P(ConnectorsServiceExemptURLsTest, FirstPartyExtensions) {
   auto* service = ConnectorsServiceFactory::GetForBrowserContext(profile_);
 
@@ -422,7 +423,7 @@ TEST_P(ConnectorsServiceExemptURLsTest, FirstPartyExtensions) {
     ASSERT_FALSE(settings.has_value());
   }
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 INSTANTIATE_TEST_SUITE_P(
     ,

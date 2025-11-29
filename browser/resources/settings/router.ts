@@ -20,10 +20,9 @@ export interface SettingsRoutes {
   AI_TAB_ORGANIZATION: Route;
   APPEARANCE: Route;
   AUTOFILL: Route;
-  AUTOFILL_PREDICTION_IMPROVEMENTS: Route;
+  AUTOFILL_AI: Route;
   BASIC: Route;
   CAPTIONS: Route;
-  CERTIFICATES: Route;
   CHROME_CLEANUP: Route;
   CLEAR_BROWSER_DATA: Route;
   COMPARE: Route;
@@ -32,13 +31,15 @@ export interface SettingsRoutes {
   DOWNLOADS: Route;
   EDIT_DICTIONARY: Route;
   FONTS: Route;
+  GEMINI: Route;
+  GLIC_SECTION: Route;
   HISTORY_SEARCH: Route;
+  INCOGNITO_TRACKING_PROTECTIONS: Route;
   INCOMPATIBLE_APPLICATIONS: Route;
   LANGUAGES: Route;
   MANAGE_PROFILE: Route;
   OFFER_WRITING_HELP: Route;
   ON_STARTUP: Route;
-  PAGE_CONTENT: Route;
   PASSKEYS: Route;
   PAYMENTS: Route;
   PEOPLE: Route;
@@ -53,7 +54,6 @@ export interface SettingsRoutes {
   PRIVACY_SANDBOX_MANAGE_TOPICS: Route;
   RESET: Route;
   RESET_DIALOG: Route;
-  SAFETY_CHECK: Route;
   SAFETY_HUB: Route;
   SEARCH: Route;
   SEARCH_ENGINES: Route;
@@ -83,6 +83,7 @@ export interface SettingsRoutes {
   SITE_SETTINGS_IMAGES: Route;
   SITE_SETTINGS_KEYBOARD_LOCK: Route;
   SITE_SETTINGS_LOCAL_FONTS: Route;
+  SITE_SETTINGS_LOCAL_NETWORK_ACCESS: Route;
   SITE_SETTINGS_MIXEDSCRIPT: Route;
   SITE_SETTINGS_JAVASCRIPT: Route;
   SITE_SETTINGS_JAVASCRIPT_OPTIMIZER: Route;
@@ -114,7 +115,6 @@ export interface SettingsRoutes {
   SYNC: Route;
   SYNC_ADVANCED: Route;
   SYSTEM: Route;
-  TRACKING_PROTECTION: Route;
   TRIGGERED_RESET_DIALOG: Route;
 
   // <if expr="not chromeos_ash">

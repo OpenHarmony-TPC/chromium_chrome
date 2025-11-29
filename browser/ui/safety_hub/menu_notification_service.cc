@@ -14,11 +14,11 @@
 #include "build/build_config.h"
 #include "chrome/browser/ui/safety_hub/menu_notification.h"
 #include "chrome/browser/ui/safety_hub/notification_permission_review_service.h"
+#include "chrome/browser/ui/safety_hub/revoked_permissions_service.h"
 #include "chrome/browser/ui/safety_hub/safe_browsing_result.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_constants.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_prefs.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_service.h"
-#include "chrome/browser/ui/safety_hub/unused_site_permissions_service.h"
 #include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
@@ -47,7 +47,7 @@ SafetyHubModuleInfoElement::SafetyHubModuleInfoElement(
 
 SafetyHubMenuNotificationService::SafetyHubMenuNotificationService(
     PrefService* pref_service,
-    UnusedSitePermissionsService* unused_site_permissions_service,
+    RevokedPermissionsService* revoked_permissions_service,
     NotificationPermissionsReviewService* notification_permissions_service,
 #if !BUILDFLAG(IS_ANDROID)
     PasswordStatusCheckService* password_check_service,
@@ -78,7 +78,7 @@ SafetyHubMenuNotificationService::SafetyHubMenuNotificationService(
       MenuNotificationPriority::LOW,
       features::kRevokedPermissionsNotificationInterval.Get(),
       base::BindRepeating(&SafetyHubService::GetCachedResult,
-                          base::Unretained(unused_site_permissions_service)),
+                          base::Unretained(revoked_permissions_service)),
       stored_notifications);
   SetInfoElement(
       safety_hub::SafetyHubModuleType::NOTIFICATION_PERMISSIONS,
@@ -100,11 +100,11 @@ SafetyHubMenuNotificationService::SafetyHubMenuNotificationService(
 #if !BUILDFLAG(IS_ANDROID)
   pref_dict_key_map_.emplace(safety_hub::SafetyHubModuleType::EXTENSIONS,
                              "extensions");
-  SetInfoElement(safety_hub::SafetyHubModuleType::EXTENSIONS,
-                 MenuNotificationPriority::LOW, base::Days(10),
-                 base::BindRepeating(&SafetyHubExtensionsResult::GetResult,
-                                     profile, true),
-                 stored_notifications);
+  SetInfoElement(
+      safety_hub::SafetyHubModuleType::EXTENSIONS,
+      MenuNotificationPriority::LOW, base::Days(10),
+      base::BindRepeating(&SafetyHubExtensionsResult::GetResult, profile, true),
+      stored_notifications);
 
   // PasswordStatusCheckService might be null for some profiles and testing. Add
   // the info item only if the service is available.

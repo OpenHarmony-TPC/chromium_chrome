@@ -9,21 +9,13 @@
 #include "chrome/common/chrome_paths.h"
 #include "components/version_info/version_info.h"
 
-#if BUILDFLAG(IS_OHOS)
-#include "base/test/test_support_ohos.h"
-#endif
-
 ChromeManifestTest::ChromeManifestTest()
     // CHANNEL_UNKNOWN == trunk.
     : current_channel_(version_info::Channel::UNKNOWN) {}
 
-ChromeManifestTest::~ChromeManifestTest() {
-}
+ChromeManifestTest::~ChromeManifestTest() = default;
 
 base::FilePath ChromeManifestTest::GetTestDataDir() {
-#if BUILDFLAG(IS_OHOS)
-  base::RegisterPathProviderForOhosTest();
-#endif
   base::FilePath path;
   base::PathService::Get(chrome::DIR_TEST_DATA, &path);
   return path.AppendASCII("extensions").AppendASCII("manifest_tests");

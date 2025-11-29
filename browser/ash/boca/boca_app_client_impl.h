@@ -29,6 +29,8 @@ class BocaAppClientImpl : public BocaAppClient {
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory() override;
   std::string GetDeviceId() override;
   void LaunchApp() override;
+  bool HasApp() override;
+  void OpenFeedbackDialog() override;
 };
 }  // namespace ash::boca
 

@@ -17,6 +17,7 @@ import type {MetricsBrowserProxy} from '../metrics_browser_proxy.js';
 import {AiPageHistorySearchInteractions, MetricsBrowserProxyImpl} from '../metrics_browser_proxy.js';
 
 import {getAiLearnMoreUrl} from './ai_learn_more_url_util.js';
+import {isFeatureDisabledByPolicy} from './ai_policy_indicator.js';
 import {AiEnterpriseFeaturePrefName, AiPageActions, FeatureOptInState} from './constants.js';
 import {getTemplate} from './history_search_page.html.js';
 
@@ -33,11 +34,6 @@ export class SettingsHistorySearchPageElement extends
 
   static get properties() {
     return {
-      enableAiSettingsPageRefresh_: {
-        type: Boolean,
-        value: () => loadTimeData.getBoolean('enableAiSettingsPageRefresh'),
-      },
-
       featureOptInStateEnum_: {
         type: Object,
         value: FeatureOptInState,
@@ -55,13 +51,19 @@ export class SettingsHistorySearchPageElement extends
             [FeatureOptInState.DISABLED, FeatureOptInState.NOT_INITIALIZED],
       },
 
-      toggleSubLabel_: {
+      // TODO(crbug.com/362225975): Remove V2 suffixes.
+      toggleSubLabelV2_: {
         type: String,
         value: () => {
-          return loadTimeData.getBoolean(
-                     'historyEmbeddingsAnswersFeatureEnabled') ?
-              loadTimeData.getString('historySearchAnswersSettingSublabel') :
-              loadTimeData.getString('historySearchSettingSublabel');
+          return (loadTimeData.getBoolean(
+                      'historyEmbeddingsAnswersFeatureEnabled') ?
+                      loadTimeData.getString(
+                          'historySearchWithAnswersSettingSublabelV2') :
+                      loadTimeData.getString(
+                          'historySearchSettingSublabelV2')) +
+              loadTimeData.getString('sentenceEnd') +
+              ' ';  // Whitespace is needed to separate the sub-label from the
+                    // following Learn More.
         },
       },
 
@@ -73,9 +75,10 @@ export class SettingsHistorySearchPageElement extends
     };
   }
 
-  private enableAiSettingsPageRefresh_: boolean;
-  private numericUncheckedValues_: FeatureOptInState[];
-  private enterprisePref_: chrome.settingsPrivate.PrefObject;
+  declare private isAnswersFeatureEnabled_: boolean;
+  declare private numericUncheckedValues_: FeatureOptInState[];
+  declare private toggleSubLabelV2_: string;
+  declare private enterprisePref_: chrome.settingsPrivate.PrefObject;
   private metricsBrowserProxy_: MetricsBrowserProxy =
       MetricsBrowserProxyImpl.getInstance();
 
@@ -123,6 +126,10 @@ export class SettingsHistorySearchPageElement extends
         this.enterprisePref_,
         loadTimeData.getString('historySearchLearnMoreUrl'),
         loadTimeData.getString('historySearchLearnMoreManagedUrl'));
+  }
+
+  private isDisabledByPolicy_(): boolean {
+    return isFeatureDisabledByPolicy(this.enterprisePref_);
   }
 }
 

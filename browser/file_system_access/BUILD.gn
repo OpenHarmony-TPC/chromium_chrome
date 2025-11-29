@@ -7,7 +7,7 @@ import("//components/guest_view/buildflags/buildflags.gni")
 import("//components/safe_browsing/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
 
-assert(is_win || is_mac || is_linux || is_chromeos || is_android || is_ohos)
+assert(is_win || is_mac || is_linux || is_chromeos || is_android)
 
 source_set("file_system_access") {
   sources = [
@@ -56,6 +56,11 @@ source_set("impl") {
     "//components/guest_view/buildflags",
     "//components/pdf/common:util",
   ]
+
+  if (is_android) {
+    deps += [ "//chrome/browser/ui/android/tab_model" ]
+  }
+
   if (safe_browsing_mode != 0) {
     deps += [ "//components/safe_browsing/content/common:file_type_policies" ]
   }

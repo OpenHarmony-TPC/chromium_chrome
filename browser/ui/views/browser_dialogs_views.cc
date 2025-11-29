@@ -7,6 +7,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/extensions/api/chrome_device_permissions_prompt.h"
 #include "chrome/browser/media/webrtc/select_audio_output_picker.h"
+#include "chrome/browser/task_manager/task_manager_metrics_recorder.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -47,8 +48,10 @@ std::unique_ptr<SelectAudioOutputPicker> SelectAudioOutputPicker::Create(
 namespace chrome {
 
 #if !BUILDFLAG(IS_MAC)
-task_manager::TaskManagerTableModel* ShowTaskManager(Browser* browser) {
-  return task_manager::TaskManagerView::Show(browser);
+task_manager::TaskManagerTableModel* ShowTaskManager(
+    Browser* browser,
+    task_manager::StartAction start_action) {
+  return task_manager::TaskManagerView::Show(browser, start_action);
 }
 
 void HideTaskManager() {
@@ -64,14 +67,12 @@ views::Widget* ShowBrowserModal(Browser* browser,
 
 // TODO(pbos): Move bubble showing out of this file (like ShowBrowserModal) so
 // that this code can be used for showing bubbles outside Browser too.
-void ShowBubble(Browser* browser,
+void ShowBubble(ui::ElementContext element_context,
                 ui::ElementIdentifier anchor_element_id,
                 std::unique_ptr<ui::DialogModel> dialog_model) {
   views::View* const anchor_view =
       views::ElementTrackerViews::GetInstance()->GetUniqueView(
-          anchor_element_id,
-          views::ElementTrackerViews::GetContextForView(
-              BrowserView::GetBrowserViewForBrowser(browser)));
+          anchor_element_id, element_context);
   DCHECK(anchor_view);
   // TODO(pbos): Add a version of BubbleBorder::Arrow that infers position
   // automatically based on the anchor's position relative to its widget.

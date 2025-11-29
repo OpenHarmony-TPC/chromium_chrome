@@ -50,7 +50,7 @@ suite('ExtensionItemListTest', function() {
     async function itemLengthEquals(num: number) {
       await microtasksFinished();
       assertEquals(
-          itemList.shadowRoot!.querySelectorAll('extensions-item').length, num);
+          itemList.shadowRoot.querySelectorAll('extensions-item').length, num);
     }
 
     // We should initially show all the items.
@@ -67,19 +67,19 @@ suite('ExtensionItemListTest', function() {
     await itemLengthEquals(1);
     assertEquals(
         'Bravo',
-        itemList.shadowRoot!.querySelector('extensions-item')!.data.name);
+        itemList.shadowRoot.querySelector('extensions-item')!.data.name);
     // Test inner substring (rather than prefix).
     itemList.filter = 'lph';
     await itemLengthEquals(1);
     assertEquals(
         'Alpha',
-        itemList.shadowRoot!.querySelector('extensions-item')!.data.name);
+        itemList.shadowRoot.querySelector('extensions-item')!.data.name);
     // Test trailing/leading spaces.
     itemList.filter = '   Alpha  ';
     await itemLengthEquals(1);
     assertEquals(
         'Alpha',
-        itemList.shadowRoot!.querySelector('extensions-item')!.data.name);
+        itemList.shadowRoot.querySelector('extensions-item')!.data.name);
     // Test string with no matching items.
     itemList.filter = 'z';
     await itemLengthEquals(0);
@@ -95,7 +95,7 @@ suite('ExtensionItemListTest', function() {
     await itemLengthEquals(1);
     assertEquals(
         'Charlie',
-        itemList.shadowRoot!.querySelector('extensions-item')!.data.name);
+        itemList.shadowRoot.querySelector('extensions-item')!.data.name);
   });
 
   test('NoItems', async () => {
@@ -159,25 +159,13 @@ suite('ExtensionItemListTest', function() {
     loadTimeData.getString('browserManagedByOrg');
   });
 
-  test('SafetyCheckPanel_Disabled', async () => {
-    // Panel is hidden if safetyCheckShowReviewPanel and
-    // safetyHubShowReviewPanel are disabled.
-    loadTimeData.overrideValues(
-        {safetyCheckShowReviewPanel: false, safetyHubShowReviewPanel: false});
-    setupElement();
-    boundTestVisible('extensions-review-panel', false);
-  });
-
   test('SafetyCheckPanel_EnabledSafetyCheck', async () => {
-    // Panel is hidden if safetyCheckShowReviewPanel is enabled, there are no
-    // unsafe extensions and panel wasn't previously shown.
-    loadTimeData.overrideValues(
-        {safetyCheckShowReviewPanel: true, safetyHubShowReviewPanel: true});
+    // Panel is hidden if there are no unsafe extensions and panel wasn't
+    // previously shown.
     setupElement();
     boundTestVisible('extensions-review-panel', false);
 
-    // Panel is visible if safetyCheckShowReviewPanel is enabled, and there are
-    // unsafe extensions.
+    // Panel is visible if there are unsafe extensions.
     itemList.extensions = [
       ...itemList.extensions.slice(),
       createExtensionInfo({
@@ -189,21 +177,18 @@ suite('ExtensionItemListTest', function() {
     await microtasksFinished();
     boundTestVisible('extensions-review-panel', true);
     const reviewPanel =
-        itemList.shadowRoot!.querySelector('extensions-review-panel');
+        itemList.shadowRoot.querySelector('extensions-review-panel');
     assertTrue(!!reviewPanel);
     assertEquals(1, reviewPanel.extensions.length);
   });
 
   test('SafetyCheckPanel_EnabledSafetyHub', async () => {
-    // Panel is hidden if safetyHubShowReviewPanel is enabled, there are no
-    // unsafe extensions and panel wasn't previously shown.
-    loadTimeData.overrideValues(
-        {safetyCheckShowReviewPanel: false, safetyHubShowReviewPanel: true});
+    // Panel is hidden if there are no unsafe extensions and panel
+    // wasn't previously shown.
     setupElement();
     boundTestVisible('extensions-review-panel', false);
 
-    // Panel is visible if safetyHubShowReviewPanel is enabled, and there are
-    // unsafe extensions.
+    // Panel is visible if there are unsafe extensions.
     itemList.extensions = [
       ...itemList.extensions,
       createExtensionInfo({
@@ -215,12 +200,12 @@ suite('ExtensionItemListTest', function() {
     await microtasksFinished();
     boundTestVisible('extensions-review-panel', true);
     const reviewPanel =
-        itemList.shadowRoot!.querySelector('extensions-review-panel');
+        itemList.shadowRoot.querySelector('extensions-review-panel');
     assertTrue(!!reviewPanel);
     assertEquals(1, reviewPanel.extensions.length);
   });
 
-  test('ManifestV2DeprecationPanel_None', async function() {
+  test('ManifestV2DeprecationPanel_None', function() {
     // Panel is hidden for experiment on stage 0 (none).
     loadTimeData.overrideValues({MV2ExperimentStage: 0});
     setupElement();
@@ -247,7 +232,7 @@ suite('ExtensionItemListTest', function() {
     await microtasksFinished();
     boundTestVisible('extensions-mv2-deprecation-panel', true);
     const mv2DeprecationPanel =
-        itemList.shadowRoot!.querySelector('extensions-mv2-deprecation-panel');
+        itemList.shadowRoot.querySelector('extensions-mv2-deprecation-panel');
     assertTrue(!!mv2DeprecationPanel);
     assertEquals(1, mv2DeprecationPanel.extensions.length);
 
@@ -316,7 +301,7 @@ suite('ExtensionItemListTest', function() {
     await microtasksFinished();
     boundTestVisible('extensions-mv2-deprecation-panel', true);
     const mv2DeprecationPanel =
-        itemList.shadowRoot!.querySelector('extensions-mv2-deprecation-panel');
+        itemList.shadowRoot.querySelector('extensions-mv2-deprecation-panel');
     assertTrue(!!mv2DeprecationPanel);
     assertEquals(1, mv2DeprecationPanel.extensions.length);
 
@@ -380,7 +365,7 @@ suite('ExtensionItemListTest', function() {
     await microtasksFinished();
     boundTestVisible('extensions-mv2-deprecation-panel', true);
     const mv2DeprecationPanel =
-        itemList.shadowRoot!.querySelector('extensions-mv2-deprecation-panel');
+        itemList.shadowRoot.querySelector('extensions-mv2-deprecation-panel');
     assertTrue(!!mv2DeprecationPanel);
     assertEquals(1, mv2DeprecationPanel.extensions.length);
 
@@ -406,10 +391,11 @@ suite('ExtensionItemListTest', function() {
   });
 
   test('ManifestV2DeprecationPanel_TitleVisibility', async () => {
-    // Enable feature for both panels (mv2 panel is enabled for stage 1). Their
-    // visibility will be determined whether they have extensions to show.
-    loadTimeData.overrideValues(
-        {MV2ExperimentStage: 1, safetyHubShowReviewPanel: true});
+    // Enable feature for mv2 panel (mv2 panel is enabled for stage 1). Its
+    // visibility will be determined by whether it has extensions to show.
+    loadTimeData.overrideValues({
+      MV2ExperimentStage: 1,
+    });
     setupElement();
 
     // Both panels should be hidden since they don't have extensions to show.
@@ -430,7 +416,7 @@ suite('ExtensionItemListTest', function() {
     boundTestVisible('extensions-mv2-deprecation-panel', true);
 
     // MV2 deprecation panel title is hidden when the review panel is hidden.
-    const mv2DeprecationPanel = itemList.shadowRoot!.querySelector<HTMLElement>(
+    const mv2DeprecationPanel = itemList.shadowRoot.querySelector<HTMLElement>(
         'extensions-mv2-deprecation-panel');
     assertTrue(!!mv2DeprecationPanel);
     testVisible(mv2DeprecationPanel, '.panel-title', false);

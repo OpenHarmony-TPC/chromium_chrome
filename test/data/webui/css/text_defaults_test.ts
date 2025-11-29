@@ -11,9 +11,6 @@ function getExpectedFontFamily(expectingSystemFont: boolean): string {
   }
 
   const fontFamily =
-      // <if expr="is_ohos">
-      '"HarmonyOS Sans"';
-      // </if>
       // <if expr="is_linux">
       '"DejaVu Sans"';
       // </if>
@@ -23,7 +20,7 @@ function getExpectedFontFamily(expectingSystemFont: boolean): string {
       // <if expr="is_win">
       '"Segoe UI"';
       // </if>
-      // <if expr="chromeos_ash">
+      // <if expr="is_chromeos">
       'Roboto';
       // </if>
       // <if expr="is_fuchsia">
@@ -43,8 +40,7 @@ function assertFontFamilyRule(
     link: HTMLLinkElement, expectingSystemFont: boolean) {
   assertTrue(!!link.sheet);
   const styleRules =
-      Array.from(link.sheet.cssRules).filter(r => r instanceof CSSStyleRule) as
-      CSSStyleRule[];
+      Array.from(link.sheet.cssRules).filter(r => r instanceof CSSStyleRule);
   assertTrue(styleRules.length > 0);
 
   const fontFamily = styleRules[0]!.style.getPropertyValue('font-family');

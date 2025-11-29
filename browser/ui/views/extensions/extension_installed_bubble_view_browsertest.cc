@@ -6,10 +6,10 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
-#include "chrome/browser/extensions/extension_service.h"
-#include "chrome/browser/ui/extensions/extension_install_ui.h"
+#include "chrome/browser/ui/extensions/extension_install_ui_desktop.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "content/public/test/browser_test.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/common/api/extension_action/action_info.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/manifest.h"
@@ -53,7 +53,7 @@ class ExtensionInstalledBubbleViewsBrowserTest
     }
 
     scoped_refptr<const extensions::Extension> extension = builder.Build();
-    extension_service()->AddExtension(extension.get());
+    extension_registrar()->AddExtension(extension);
     return extension;
   }
 
@@ -65,7 +65,7 @@ void ExtensionInstalledBubbleViewsBrowserTest::ShowUi(const std::string& name) {
       MakeExtensionOfType(name);
 
   views::Widget::Widgets old_widgets = views::test::WidgetTest::GetAllWidgets();
-  ExtensionInstallUI::ShowBubble(extension, browser(), SkBitmap());
+  ExtensionInstallUIDesktop::ShowBubble(extension, browser(), SkBitmap());
   views::Widget::Widgets new_widgets = views::test::WidgetTest::GetAllWidgets();
   views::Widget::Widgets added_widgets;
   std::set_difference(new_widgets.begin(), new_widgets.end(),

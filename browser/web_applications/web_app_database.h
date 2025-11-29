@@ -30,7 +30,9 @@ namespace web_app {
 
 class AbstractWebAppDatabaseFactory;
 class WebApp;
-class WebAppProto;
+namespace proto {
+class WebApp;
+}  // namespace proto
 struct RegistryUpdateData;
 
 // Exclusively used from the UI thread.
@@ -58,20 +60,17 @@ class WebAppDatabase {
              std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
              CompletionCallback callback);
 
-  // Exposed for testing.
-  static std::unique_ptr<WebAppProto> CreateWebAppProto(const WebApp& web_app);
-  // Exposed for testing.
-  static std::unique_ptr<WebApp> ParseWebApp(const webapps::AppId& app_id,
-                                             const std::string& value);
-  // Exposed for testing.
-  static std::unique_ptr<WebApp> CreateWebApp(const WebAppProto& local_data);
-
   bool is_opened() const { return opened_; }
 
   // Returns the version that the database will be migrated to when opened.
   // - No version/version 0 is the original version.
   // - Version 1 introduces the UserInstalled install source, migration between
   //   0 and 1 add or remove this source.
+  // - Version 2 migrates shortcut apps to DIY apps, ensures platform user
+  //   display mode is set, and fixes partial install state inconsistencies.
+  // - Version 3 migrates deprecated launch handler fields to client_mode,
+  //   removes query/ref from scope, and ensures relative_manifest_id exists
+  //   without fragments.
   static int GetCurrentDatabaseVersion();
 
  private:
@@ -82,7 +81,7 @@ class WebAppDatabase {
     ProtobufState& operator=(ProtobufState&&);
 
     proto::DatabaseMetadata metadata;
-    base::flat_map<webapps::AppId, WebAppProto> apps;
+    base::flat_map<webapps::AppId, proto::WebApp> apps;
   };
 
   ProtobufState ParseProtobufs(
@@ -92,7 +91,35 @@ class WebAppDatabase {
   void MigrateInstallSourceAddUserInstalled(
       ProtobufState& state,
       std::set<webapps::AppId>& changed_apps);
-  void MigrateInstallSourceRemoveUserInstalled(
+  // Migrates apps that were created as shortcuts (empty scope or installed via
+  // "Create shortcut") to be DIY apps with a valid scope derived from the start
+  // URL.
+  void MigrateShortcutAppsToDiyApps(ProtobufState& state,
+                                    std::set<webapps::AppId>& changed_apps);
+  // Ensures that the user display mode is set for the current platform in the
+  // sync proto. If it's missing, it derives it from the other platform's
+  // setting or defaults to STANDALONE.
+  void MigrateDefaultDisplayModeToPlatformDisplayMode(
+      ProtobufState& state,
+      std::set<webapps::AppId>& changed_apps);
+  // Corrects the install_state for apps that claim OS integration but lack the
+  // necessary OS integration state data.
+  void MigratePartiallyInstalledAppsToCorrectState(
+      ProtobufState& state,
+      std::set<webapps::AppId>& changed_apps);
+  // Migrates deprecated launch handler fields (`route_to`,
+  // `navigate_existing_client`) to the `client_mode` field. Also handles the
+  // `client_mode_valid_and_specified` field correctly.
+  void MigrateDeprecatedLaunchHandlerToClientMode(
+      ProtobufState& state,
+      std::set<webapps::AppId>& changed_apps);
+  // Migrates the `scope` field by removing any query or ref components.
+  void MigrateScopeToRemoveRefAndQuery(ProtobufState& state,
+                                       std::set<webapps::AppId>& changed_apps);
+  // Ensures the `relative_manifest_id` field exists and does not contain URL
+  // fragments. Populates it from the start_url if missing. Records a histogram
+  // if an existing fragment needed removal.
+  void MigrateToRelativeManifestIdNoFragment(
       ProtobufState& state,
       std::set<webapps::AppId>& changed_apps);
 
@@ -121,10 +148,6 @@ class WebAppDatabase {
 
   base::WeakPtrFactory<WebAppDatabase> weak_ptr_factory_{this};
 };
-
-DisplayMode ToMojomDisplayMode(WebAppProto::DisplayMode display_mode);
-
-WebAppProto::DisplayMode ToWebAppProtoDisplayMode(DisplayMode display_mode);
 
 }  // namespace web_app
 

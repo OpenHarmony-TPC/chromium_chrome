@@ -9,6 +9,7 @@
 #include "base/check.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
 #include "chrome/browser/browser_process.h"
@@ -52,6 +53,7 @@
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
+#include "google_apis/gaia/gaia_auth_util.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/mojom/themes.mojom.h"
 
@@ -73,7 +75,8 @@ namespace {
 constexpr char kUniqueIdentifierTemplate[] = "iss:%s,sub:%s";
 
 bool IsValidOidcToken(const ProfileManagementOidcTokens& oidc_tokens) {
-  return !oidc_tokens.auth_token.empty() && !oidc_tokens.id_token.empty();
+  return (!oidc_tokens.auth_token.empty() || oidc_tokens.is_token_encrypted) &&
+         !oidc_tokens.id_token.empty();
 }
 
 }  // namespace
@@ -94,6 +97,7 @@ void OidcAuthenticationSigninInterceptor::MaybeInterceptOidcAuthentication(
     const ProfileManagementOidcTokens& oidc_tokens,
     const std::string& issuer_id,
     const std::string& subject_id,
+    const std::string& email,
     OidcInterceptionCallback oidc_callback) {
   RecordOidcInterceptionFunnelStep(
       OidcInterceptionFunnelStep::kEnrollmentStarted);
@@ -134,8 +138,16 @@ void OidcAuthenticationSigninInterceptor::MaybeInterceptOidcAuthentication(
   for (const auto* entry : g_browser_process->profile_manager()
                                ->GetProfileAttributesStorage()
                                .GetAllProfilesAttributes()) {
-    if (!entry->GetProfileManagementOidcTokens().auth_token.empty() &&
+    // Check for duplicate OIDC profile
+    if (!entry->GetProfileManagementOidcTokens().id_token.empty() &&
         entry->GetProfileManagementId() == unique_user_identifier_) {
+      switch_to_entry_ = entry;
+      break;
+    }
+
+    // Check for existing GAIA profile that has the same email
+    if (!email.empty() &&
+        gaia::AreEmailsSame(email, base::UTF16ToUTF8(entry->GetUserName()))) {
       switch_to_entry_ = entry;
       break;
     }
@@ -239,12 +251,17 @@ void OidcAuthenticationSigninInterceptor::HandleError(
     std::variant<OidcInterceptionResult, OidcProfileCreationResult> result,
     std::optional<bool> is_dasher_based) {
   auto operation_result = signin::SigninChoiceOperationResult::SIGNIN_ERROR;
+  signin::SigninChoiceErrorType error_type =
+      signin::SigninChoiceErrorType::kUnknown;
   if (std::holds_alternative<OidcInterceptionResult>(result)) {
     CHECK(is_dasher_based == std::nullopt);
     auto interception_result = std::get<OidcInterceptionResult>(result);
     RecordOidcInterceptionResult(interception_result);
     if (interception_result == OidcInterceptionResult::kRegistrationTimeout) {
       operation_result = signin::SigninChoiceOperationResult::SIGNIN_TIMEOUT;
+    } else if (interception_result ==
+               OidcInterceptionResult::kBrowserSigninDisabled) {
+      error_type = signin::SigninChoiceErrorType::kSigninDisabled;
     }
   } else {
     CHECK(is_dasher_based != std::nullopt);
@@ -262,10 +279,12 @@ void OidcAuthenticationSigninInterceptor::HandleError(
       user_choice_handling_retry_callback_) {
     if (operation_result ==
         signin::SigninChoiceOperationResult::SIGNIN_TIMEOUT) {
-      user_choice_handling_retry_callback_.Run(operation_result);
+      user_choice_handling_retry_callback_.Run(operation_result, error_type);
       return;
     }
-    std::move(user_choice_handling_done_callback_).Run(operation_result);
+
+    std::move(user_choice_handling_done_callback_)
+        .Run(operation_result, error_type);
     return;
   }
 
@@ -337,7 +356,8 @@ void OidcAuthenticationSigninInterceptor::StartOidcRegistration() {
           : base::TimeDelta();
   registration_helper_for_temporary_client_->StartRegistrationWithOidcTokens(
       oidc_tokens_.auth_token, oidc_tokens_.id_token, std::string(),
-      oidc_tokens_.state, timeout_duration, std::move(registration_callback));
+      oidc_tokens_.state, timeout_duration, oidc_tokens_.is_token_encrypted,
+      std::move(registration_callback));
 }
 
 void OidcAuthenticationSigninInterceptor::OnClientRegistered(
@@ -345,7 +365,8 @@ void OidcAuthenticationSigninInterceptor::OnClientRegistered(
     std::string preset_profile_guid,
     base::TimeTicks registration_start_time,
     CloudPolicyClient::Result result) {
-  if (kOidcAuthForceErrorUi.Get()) {
+  if (kOidcAuthForceErrorUi.Get() ==
+      static_cast<int>(signin::SigninChoiceErrorType::kUnknown)) {
     LOG_POLICY(ERROR, OIDC_ENROLLMENT) << "OIDC client registration failure "
                                           "enforced by feature flag parameter.";
 
@@ -404,14 +425,23 @@ void OidcAuthenticationSigninInterceptor::OnClientRegistered(
   dasher_based_ = !kOidcAuthIsDasherBased.Get() ? kOidcAuthIsDasherBased.Get()
                                                 : !is_dasherless_client;
 
+  if (kOidcAuthForceErrorUi.Get() ==
+      static_cast<int>(signin::SigninChoiceErrorType::kSigninDisabled)) {
+    LOG_POLICY(ERROR, OIDC_ENROLLMENT)
+        << "OIDC enrollment disabled by sign in, which is enforced by feature "
+           "flag parameter.";
+
+    return HandleError(OidcInterceptionResult::kBrowserSigninDisabled);
+  }
+
   // TODO(b/355270189): The interaction between OIDC profiles and BrowserSignin
   // policy should be finalized, this check only prevents Chrome from crashing.
   if (dasher_based_ &&
       !profile_->GetPrefs()->GetBoolean(prefs::kSigninAllowedOnNextStartup)) {
     LOG_POLICY(ERROR, OIDC_ENROLLMENT)
-        << "Google-synced OIDC profile can't be created because browser sign "
+        << "Google-synced OIDC profile can't be created because browser sign"
            "in is disabled.";
-    return HandleError(OidcInterceptionResult::kInvalidProfile);
+    return HandleError(OidcInterceptionResult::kBrowserSigninDisabled);
   }
 
   RecordOidcEnrollmentRegistrationLatency(
@@ -444,7 +474,8 @@ void OidcAuthenticationSigninInterceptor::OnProfileCreationChoice(
       VLOG_POLICY(2, OIDC_ENROLLMENT) << "Profile creation refused by the user";
       if (user_choice_handling_done_callback_) {
         std::move(user_choice_handling_done_callback_)
-            .Run(signin::SigninChoiceOperationResult::SIGNIN_SILENT_SUCCESS);
+            .Run(signin::SigninChoiceOperationResult::SIGNIN_SILENT_SUCCESS,
+                 signin::SigninChoiceErrorType::kNoError);
       }
       return;
   }
@@ -468,7 +499,8 @@ void OidcAuthenticationSigninInterceptor::OnProfileSwitchChoice(
     VLOG_POLICY(2, OIDC_ENROLLMENT) << "Profile switch refused by the user";
     if (user_choice_handling_done_callback_) {
       std::move(user_choice_handling_done_callback_)
-          .Run(signin::SigninChoiceOperationResult::SIGNIN_SILENT_SUCCESS);
+          .Run(signin::SigninChoiceOperationResult::SIGNIN_SILENT_SUCCESS,
+               signin::SigninChoiceErrorType::kNoError);
     }
     return;
   }
@@ -577,7 +609,8 @@ void OidcAuthenticationSigninInterceptor::OnNewSignedInProfileCreated(
 
   if (user_choice_handling_done_callback_) {
     std::move(user_choice_handling_done_callback_)
-        .Run(signin::SigninChoiceOperationResult::SIGNIN_CONFIRM_SUCCESS);
+        .Run(signin::SigninChoiceOperationResult::SIGNIN_CONFIRM_SUCCESS,
+             signin::SigninChoiceErrorType::kNoError);
   } else {
     FinalizeSigninInterception();
   }

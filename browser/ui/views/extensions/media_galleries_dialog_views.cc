@@ -85,12 +85,13 @@ MediaGalleriesDialogViews::MediaGalleriesDialogViews(
   SetModalType(ui::mojom::ModalType::kChild);
   SetShowCloseButton(false);
   SetTitle(controller_->GetHeader());
-  SetOwnedByWidget(false);
-  RegisterDeleteDelegateCallback(base::BindOnce(
-      [](MediaGalleriesDialogViews* dialog) {
-        dialog->controller_->DialogFinished(dialog->accepted_);
-      },
-      this));
+  RegisterDeleteDelegateCallback(
+      RegisterDeleteCallbackPassKey(),
+      base::BindOnce(
+          [](MediaGalleriesDialogViews* dialog) {
+            dialog->controller_->DialogFinished(dialog->accepted_);
+          },
+          this));
 
   std::u16string label = controller_->GetAuxiliaryButtonText();
   if (!label.empty()) {
@@ -111,8 +112,9 @@ MediaGalleriesDialogViews::MediaGalleriesDialogViews(
 }
 
 MediaGalleriesDialogViews::~MediaGalleriesDialogViews() {
-  if (!ControllerHasWebContents())
+  if (!ControllerHasWebContents()) {
     delete contents_;
+  }
 }
 
 void MediaGalleriesDialogViews::AcceptDialogForTesting() {
@@ -199,8 +201,9 @@ void MediaGalleriesDialogViews::UpdateGalleries() {
   InitChildViews();
   contents_->DeprecatedLayoutImmediately();
 
-  if (ControllerHasWebContents())
+  if (ControllerHasWebContents()) {
     DialogModelChanged();
+  }
 }
 
 bool MediaGalleriesDialogViews::AddOrUpdateGallery(
@@ -287,8 +290,9 @@ bool MediaGalleriesDialogViews::ControllerHasWebContents() const {
 void MediaGalleriesDialogViews::ButtonPressed(base::RepeatingClosure closure) {
   confirm_available_ = true;
 
-  if (ControllerHasWebContents())
+  if (ControllerHasWebContents()) {
     DialogModelChanged();
+  }
 
   closure.Run();
 }

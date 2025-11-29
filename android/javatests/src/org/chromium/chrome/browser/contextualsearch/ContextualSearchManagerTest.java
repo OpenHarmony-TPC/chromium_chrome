@@ -37,6 +37,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 
+import org.chromium.base.RequiredCallback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.Batch;
@@ -91,6 +92,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 // TODO(donnd): Create class with limited API to encapsulate the internals of simulations.
 
@@ -237,6 +239,9 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
     @Test
     @SmallTest
     @Feature({"ContextualSearch"})
+    @DisableIf.Build(
+            sdk_is_greater_than = Build.VERSION_CODES.UPSIDE_DOWN_CAKE,
+            message = "crbug.com/383144566")
     public void testPromotesToTab() throws Exception {
         // -------- SET UP ---------
         // Track Tab creation with this helper.
@@ -250,7 +255,7 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
                     }
                 };
         ThreadUtils.runOnUiThreadBlocking(
-                () -> sActivityTestRule.getActivity().getTabModelSelector().addObserver(observer));
+                () -> mActivityTestRule.getActivity().getTabModelSelector().addObserver(observer));
         // Track User Actions
         mActionTester = new UserActionTester();
 
@@ -284,7 +289,7 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
         // -------- CLEAN UP ---------
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    sActivityTestRule.getActivity().getTabModelSelector().removeObserver(observer);
+                    mActivityTestRule.getActivity().getTabModelSelector().removeObserver(observer);
                 });
     }
 
@@ -306,6 +311,7 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
     @Test
     @SmallTest
     @Feature({"ContextualSearch"})
+    @DisabledTest(message = "crbug.com/383144566")
     public void testAcceptedPrivacy() throws Exception {
         mPolicy.overrideDecidedStateForTesting(true);
 
@@ -319,6 +325,7 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
     @Test
     @SmallTest
     @Feature({"ContextualSearch"})
+    @DisableIf.Device(DeviceFormFactor.TABLET) // crbug.com/41485867
     public void testRedirectedExternalNavigationWithUserGesture() throws Exception {
         ExternalNavigationHandler.sAllowIntentsToSelfForTesting = true;
         simulateResolveSearch("intelligence");
@@ -337,26 +344,41 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
                         new Runnable() {
                             @Override
                             public void run() {
-                                Assert.assertFalse(
-                                        mPanel.getOverlayPanelContent()
-                                                .getInterceptNavigationDelegateForTesting()
-                                                .shouldIgnoreNavigation(
-                                                        navigationHandle,
-                                                        initialUrl,
-                                                        false,
-                                                        false));
+                                AtomicBoolean result = new AtomicBoolean(false);
+                                RequiredCallback<Boolean> resultCallback =
+                                        new RequiredCallback<>(
+                                                (Boolean shouldIgnore) -> {
+                                                    result.set(shouldIgnore);
+                                                });
+                                mPanel.getOverlayPanelContent()
+                                        .getInterceptNavigationDelegateForTesting()
+                                        .shouldIgnoreNavigation(
+                                                navigationHandle,
+                                                initialUrl,
+                                                false,
+                                                false,
+                                                false,
+                                                resultCallback);
                                 Assert.assertEquals(0, mActivityMonitor.getHits());
+                                Assert.assertFalse(result.get());
 
+                                resultCallback =
+                                        new RequiredCallback<>(
+                                                (Boolean shouldIgnore) -> {
+                                                    result.set(shouldIgnore);
+                                                });
                                 navigationHandle.didRedirect(redirectUrl, true);
-                                Assert.assertTrue(
-                                        mPanel.getOverlayPanelContent()
-                                                .getInterceptNavigationDelegateForTesting()
-                                                .shouldIgnoreNavigation(
-                                                        navigationHandle,
-                                                        redirectUrl,
-                                                        false,
-                                                        false));
+                                mPanel.getOverlayPanelContent()
+                                        .getInterceptNavigationDelegateForTesting()
+                                        .shouldIgnoreNavigation(
+                                                navigationHandle,
+                                                redirectUrl,
+                                                false,
+                                                false,
+                                                false,
+                                                resultCallback);
                                 Assert.assertEquals(1, mActivityMonitor.getHits());
+                                Assert.assertTrue(result.get());
                             }
                         });
     }
@@ -397,13 +419,25 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
                         new Runnable() {
                             @Override
                             public void run() {
-                                Assert.assertTrue(
-                                        mPanel.getOverlayPanelContent()
-                                                .getInterceptNavigationDelegateForTesting()
-                                                .shouldIgnoreNavigation(
-                                                        navigationHandle, url, false, false));
+                                AtomicBoolean result = new AtomicBoolean(false);
+                                RequiredCallback<Boolean> resultCallback =
+                                        new RequiredCallback<>(
+                                                (Boolean shouldIgnore) -> {
+                                                    result.set(shouldIgnore);
+                                                });
+                                mPanel.getOverlayPanelContent()
+                                        .getInterceptNavigationDelegateForTesting()
+                                        .shouldIgnoreNavigation(
+                                                navigationHandle,
+                                                url,
+                                                false,
+                                                false,
+                                                false,
+                                                resultCallback);
+                                Assert.assertTrue(result.get());
                             }
                         });
+
         Assert.assertEquals(hasGesture ? 1 : 0, mActivityMonitor.getHits());
     }
 
@@ -455,9 +489,9 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
     public void testTapContentAndExpandPanelInFullscreen() throws Exception {
         // Toggle tab to fulllscreen.
         FullscreenTestUtils.togglePersistentFullscreenAndAssert(
-                sActivityTestRule.getActivity().getActivityTab(),
+                mActivityTestRule.getActivity().getActivityTab(),
                 true,
-                sActivityTestRule.getActivity());
+                mActivityTestRule.getActivity());
 
         // Simulate a resolving search and assert that the panel peeks.
         simulateResolveSearch("search");
@@ -483,9 +517,9 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
         simulateResolveSearch("search");
 
         // Toggle tab to fullscreen.
-        Tab tab = sActivityTestRule.getActivity().getActivityTab();
+        Tab tab = mActivityTestRule.getActivity().getActivityTab();
         FullscreenTestUtils.togglePersistentFullscreenAndAssert(
-                tab, true, sActivityTestRule.getActivity());
+                tab, true, mActivityTestRule.getActivity());
 
         // Assert that the panel is closed.
         waitForPanelToClose();
@@ -495,7 +529,7 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
 
         // Toggle tab to non-fullscreen.
         FullscreenTestUtils.togglePersistentFullscreenAndAssert(
-                tab, false, sActivityTestRule.getActivity());
+                tab, false, mActivityTestRule.getActivity());
 
         // Assert that the panel is closed.
         waitForPanelToClose();
@@ -523,7 +557,7 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
                 });
 
         Assert.assertTrue(imageControl.getThumbnailVisible());
-        Assert.assertEquals(imageControl.getThumbnailUrl(), "http://someimageurl.com/image.png");
+        Assert.assertEquals("http://someimageurl.com/image.png", imageControl.getThumbnailUrl());
 
         ThreadUtils.runOnUiThreadBlocking(() -> imageControl.hideCustomImage(false));
 
@@ -541,6 +575,9 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
     @Test
     @SmallTest
     @Feature({"ContextualSearch"})
+    @DisableIf.Build(
+            sdk_is_greater_than = Build.VERSION_CODES.S_V2,
+            message = "crbug.com/383144566")
     public void testQuickActionCaptionAndImage() throws Exception {
         CompositorAnimationHandler.setTestingMode(true);
 
@@ -628,7 +665,7 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
                                 CardTag.CT_LOCATION,
                                 /* relatedSearchesInBar= */ null));
 
-        sActivityTestRule.getActivity().onUserInteraction();
+        mActivityTestRule.getActivity().onUserInteraction();
         // Expand the panel to trigger the quick action intent to be fired.
         expandPanelAndAssert();
 
@@ -664,7 +701,7 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
                                 CardTag.CT_URL,
                                 /* relatedSearchesInBar= */ null));
 
-        sActivityTestRule.getActivity().onUserInteraction();
+        mActivityTestRule.getActivity().onUserInteraction();
         // Expand the bar which should trigger the quick action.
         expandPanel();
 
@@ -673,7 +710,7 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
                 () -> {
                     Criteria.checkThat(
                             ChromeTabUtils.getUrlStringOnUiThread(
-                                    sActivityTestRule.getActivity().getActivityTab()),
+                                    mActivityTestRule.getActivity().getActivityTab()),
                             Matchers.is(testUrl));
                 });
     }
@@ -873,14 +910,14 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
     public void testTriggeringContextualSearchHidesFindInPageOverlay() throws Exception {
         MenuUtils.invokeCustomMenuActionSync(
                 InstrumentationRegistry.getInstrumentation(),
-                sActivityTestRule.getActivity(),
+                mActivityTestRule.getActivity(),
                 R.id.find_in_page_id);
 
         CriteriaHelper.pollUiThread(
                 () -> {
                     FindToolbar findToolbar =
                             (FindToolbar)
-                                    sActivityTestRule.getActivity().findViewById(R.id.find_toolbar);
+                                    mActivityTestRule.getActivity().findViewById(R.id.find_toolbar);
                     Criteria.checkThat(findToolbar, Matchers.notNullValue());
                     Criteria.checkThat(findToolbar.isShown(), Matchers.is(true));
                     Criteria.checkThat(findToolbar.isAnimating(), Matchers.is(false));
@@ -889,7 +926,7 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
         // Don't type anything to Find because that may cause scrolling which makes clicking in the
         // page flaky.
 
-        View findToolbar = sActivityTestRule.getActivity().findViewById(R.id.find_toolbar);
+        View findToolbar = mActivityTestRule.getActivity().findViewById(R.id.find_toolbar);
         Assert.assertTrue(findToolbar.isShown());
 
         simulateResolveSearch("search");
@@ -912,7 +949,7 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
     @MaxAndroidSdkLevel(value = Build.VERSION_CODES.R, reason = "crbug.com/1301017")
     public void testTabReparenting() throws Exception {
         // Move our "tap_test" tab to another activity.
-        final ChromeActivity ca = sActivityTestRule.getActivity();
+        final ChromeActivity ca = mActivityTestRule.getActivity();
 
         // Create a new tab so |ca| isn't destroyed.
         ChromeTabUtils.newTabFromMenu(InstrumentationRegistry.getInstrumentation(), ca);
@@ -943,7 +980,10 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
                 () ->
                         activity2
                                 .getCurrentTabModel()
-                                .closeTabs(TabClosureParams.closeAllTabs().build()));
+                                .getTabRemover()
+                                .closeTabs(
+                                        TabClosureParams.closeAllTabs().build(),
+                                        /* allowDialog= */ false));
         ApplicationTestUtils.finishActivity(activity2);
     }
 
@@ -977,8 +1017,8 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
     /** Monitor user action UMA recording operations. */
     private static class UserActionMonitor extends UserActionTester {
         // TODO(donnd): merge into UserActionTester. See https://crbug.com/1103757.
-        private Set<String> mUserActionPrefixes;
-        private Map<String, Integer> mUserActionCounts;
+        private final Set<String> mUserActionPrefixes;
+        private final Map<String, Integer> mUserActionCounts;
 
         /**
          * @param userActionPrefixes A set of plain prefix strings for user actions to monitor.

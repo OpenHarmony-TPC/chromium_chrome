@@ -21,8 +21,8 @@
 namespace web_app {
 
 TabbedWebAppNavigationThrottle::TabbedWebAppNavigationThrottle(
-    content::NavigationHandle* navigation_handle)
-    : content::NavigationThrottle(navigation_handle) {}
+    content::NavigationThrottleRegistry& registry)
+    : content::NavigationThrottle(registry) {}
 
 TabbedWebAppNavigationThrottle::~TabbedWebAppNavigationThrottle() = default;
 
@@ -31,26 +31,29 @@ const char* TabbedWebAppNavigationThrottle::GetNameForLogging() {
 }
 
 // static
-std::unique_ptr<content::NavigationThrottle>
-TabbedWebAppNavigationThrottle::MaybeCreateThrottleFor(
-    content::NavigationHandle* handle) {
-  if (!handle->IsInPrimaryMainFrame())
-    return nullptr;
-
-  // Reloading the page should not cause the tab to change.
-  if (handle->GetReloadType() != content::ReloadType::NONE) {
-    return nullptr;
+void TabbedWebAppNavigationThrottle::MaybeCreateAndAdd(
+    content::NavigationThrottleRegistry& registry) {
+  content::NavigationHandle& handle = registry.GetNavigationHandle();
+  if (!handle.IsInPrimaryMainFrame()) {
+    return;
   }
 
-  content::WebContents* web_contents = handle->GetWebContents();
+  // Reloading the page should not cause the tab to change.
+  if (handle.GetReloadType() != content::ReloadType::NONE) {
+    return;
+  }
+
+  content::WebContents* web_contents = handle.GetWebContents();
 
   Browser* browser = chrome::FindBrowserWithTab(web_contents);
-  if (!browser || !browser->app_controller())
-    return nullptr;
+  if (!browser || !browser->app_controller()) {
+    return;
+  }
 
   WebAppProvider* provider = WebAppProvider::GetForWebContents(web_contents);
-  if (!provider)
-    return nullptr;
+  if (!provider) {
+    return;
+  }
 
   const webapps::AppId& app_id = browser->app_controller()->app_id();
 
@@ -61,10 +64,9 @@ TabbedWebAppNavigationThrottle::MaybeCreateThrottleFor(
   if (WebAppTabHelper::GetAppId(web_contents) &&
       provider->registrar_unsafe().IsTabbedWindowModeEnabled(app_id) &&
       home_tab_url.has_value()) {
-    return std::make_unique<TabbedWebAppNavigationThrottle>(handle);
+    registry.AddThrottle(
+        std::make_unique<TabbedWebAppNavigationThrottle>(registry));
   }
-
-  return nullptr;
 }
 
 content::NavigationThrottle::ThrottleCheckResult
@@ -112,7 +114,7 @@ TabbedWebAppNavigationThrottle::WillStartRequest() {
 
 content::NavigationThrottle::ThrottleCheckResult
 TabbedWebAppNavigationThrottle::WillRedirectRequest() {
-  // TODO(crbug.com/40598974): Figure out how redirects should be handled.
+  // TODO(crbug.com/400761084): Figure out how redirects should be handled.
   return content::NavigationThrottle::PROCEED;
 }
 
@@ -121,6 +123,9 @@ TabbedWebAppNavigationThrottle::OpenInNewTab() {
   content::OpenURLParams params =
       content::OpenURLParams::FromNavigationHandle(navigation_handle());
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  // Clear the FrameTreeNode id, as the new navigation will be in a new tab
+  // rather than the frame of the original navigation.
+  params.frame_tree_node_id = content::FrameTreeNodeId();
   navigation_handle()->GetWebContents()->OpenURL(
       std::move(params), /*navigation_handle_callback=*/{});
   return content::NavigationThrottle::CANCEL_AND_IGNORE;

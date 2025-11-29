@@ -12,6 +12,7 @@ import './language_toast.js';
 import './icons.html.js';
 
 import type {CrDialogElement} from '//resources/cr_elements/cr_dialog/cr_dialog.js';
+import type {CrInputElement} from '//resources/cr_elements/cr_input/cr_input.js';
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {WebUiListenerMixinLit} from '//resources/cr_elements/web_ui_listener_mixin_lit.js';
 import {assert} from '//resources/js/assert.js';
@@ -29,6 +30,7 @@ import {VoiceNotificationManager} from './voice_notification_manager.js';
 export interface LanguageMenuElement {
   $: {
     languageMenu: CrDialogElement,
+    searchField: CrInputElement,
   };
 }
 
@@ -100,27 +102,30 @@ export class LanguageMenuElement extends LanguageMenuElementBase implements
     }
   }
 
-  notify(language: string, type: NotificationType) {
+  notify(type: NotificationType, language?: string) {
+    if (!language) {
+      return;
+    }
     this.currentNotifications_ = {
       ...this.currentNotifications_,
       [language]: type,
     };
   }
 
-  selectedLang: string;
-  localeToDisplayName: {[lang: string]: string} = {};
-  enabledLangs: string[] = [];
-
-  availableVoices: SpeechSynthesisVoice[];
-  protected languageSearchValue_: string = '';
-  protected availableLanguages_: LanguageDropdownItem[] = [];
+  accessor selectedLang: string = '';
+  accessor localeToDisplayName: {[lang: string]: string} = {};
+  accessor enabledLangs: string[] = [];
+  accessor availableVoices: SpeechSynthesisVoice[] = [];
+  protected accessor languageSearchValue_: string = '';
+  protected accessor availableLanguages_: LanguageDropdownItem[] = [];
   // Use this variable instead of AVAILABLE_GOOGLE_TTS_LOCALES
   // directly to better aid in testing.
   localesOfLangPackVoices: Set<string> =
       this.getSupportedNaturalVoiceDownloadLocales();
 
   // The current notifications that should be used in the language menu.
-  private currentNotifications_: {[language: string]: NotificationType} = {};
+  private accessor currentNotifications_:
+      {[language: string]: NotificationType} = {};
   private notificationManager_: VoiceNotificationManager =
       VoiceNotificationManager.getInstance();
 
@@ -132,12 +137,13 @@ export class LanguageMenuElement extends LanguageMenuElementBase implements
 
   protected onClearSearchClick_() {
     this.languageSearchValue_ = '';
+    this.$.searchField.focus();
   }
 
   protected onToggleChange_(e: Event) {
     const index =
         Number.parseInt((e.currentTarget as HTMLElement).dataset['index']!);
-    const language = this.availableLanguages_[index].languageCode;
+    const language = this.availableLanguages_[index]!.languageCode;
 
     this.fire(ToolbarEvent.LANGUAGE_TOGGLE, {language});
   }
@@ -154,11 +160,13 @@ export class LanguageMenuElement extends LanguageMenuElementBase implements
     return this.localeToDisplayName[langLower] || langLower;
   }
 
+  private getNormalizedDisplayName(lang: string) {
+    const displayName = this.getDisplayName(lang);
+    return displayName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
   private getSupportedNaturalVoiceDownloadLocales(): Set<string> {
-    if (chrome.readingMode.isLanguagePackDownloadingEnabled) {
-      return AVAILABLE_GOOGLE_TTS_LOCALES;
-    }
-    return new Set([]);
+    return AVAILABLE_GOOGLE_TTS_LOCALES;
   }
 
   private computeAvailableLanguages_(): LanguageDropdownItem[] {
@@ -181,15 +189,7 @@ export class LanguageMenuElement extends LanguageMenuElementBase implements
 
     return availableLangs
         .filter(
-            // Check whether the search term matches the readable lang (e.g.
-            // 'ras' will match 'Portugues (Brasil)'), and also if it matches
-            // the language code (e.g. 'pt-br' matches 'Portugues (Brasil)')
-            lang => isSubstring(
-                        /* value= */ this.getDisplayName(lang),
-                        /* substring= */ this.languageSearchValue_) ||
-                isSubstring(
-                        /* value= */ lang,
-                        /* substring= */ this.languageSearchValue_))
+            lang => this.isLanguageSearchMatch(lang, this.languageSearchValue_))
         .map(lang => ({
                readableLanguage: this.getDisplayName(lang),
                checked: this.enabledLangs.includes(lang),
@@ -198,6 +198,29 @@ export class LanguageMenuElement extends LanguageMenuElementBase implements
                disabled: this.enabledLangs.includes(lang) &&
                    (lang.toLowerCase() === selectedLangLowerCase),
              }));
+  }
+
+  // Check whether the search term matches the readable lang (e.g.
+  // 'ras' will match 'Portugues (Brasil)'), if it matches
+  // the language code (e.g. 'pt-br' matches 'Portugues (Brasil)'), or if it
+  // matches without accents (e.g. 'portugues' matches 'portugués').
+  private isLanguageSearchMatch(lang: string, languageSearchValue: string):
+      boolean {
+    const isDisplayNameMatch = isSubstring(
+        /* value= */ this.getDisplayName(lang),
+        /* substring= */ languageSearchValue);
+    const isLanguageCodeMatch = isSubstring(
+        /* value= */ lang,
+        /* substring= */ languageSearchValue);
+
+    // Compare the search term to the language name without
+    // accents.
+    const isNormalizedDisplayNameMatch = isSubstring(
+        /* value= */ this.getNormalizedDisplayName(lang),
+        /* substring= */ languageSearchValue);
+
+    return isDisplayNameMatch || isLanguageCodeMatch ||
+        isNormalizedDisplayNameMatch;
   }
 
   private getNotificationFor(lang: string): Notification {
@@ -219,6 +242,8 @@ export class LanguageMenuElement extends LanguageMenuElementBase implements
       case NotificationType.NO_SPACE:
         return {isError: true, text: 'allocationError'};
       case NotificationType.DOWNLOADED:
+      case NotificationType.GOOGLE_VOICES_UNAVAILABLE:
+        // TODO (crbug.com/396436665) Show inline error message
       case NotificationType.NONE:
         return {isError: false};
       default:
@@ -226,14 +251,6 @@ export class LanguageMenuElement extends LanguageMenuElementBase implements
         return notification satisfies never;
     }
   }
-
-  // Runtime errors were thrown when this.i18n() was called in a Polymer
-  // computed bindining callback function, so instead we call this.i18n from the
-  // html via a wrapper.
-  protected i18nWraper(s: string|undefined): string {
-    return s ? this.i18n(s) : '';
-  }
-
 
   protected searchHasLanguages(): boolean {
     // We should only show the "No results" string when there are no available

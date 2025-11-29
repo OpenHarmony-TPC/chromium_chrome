@@ -13,8 +13,6 @@
 
 #include "ash/accelerators/rapid_key_sequence_recorder.h"
 #include "ash/accelerators/shortcut_input_handler.h"
-#include "ash/components/arc/arc_features.h"
-#include "ash/components/arc/arc_util.h"
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/keyboard/ui/resources/keyboard_resource_util.h"
@@ -27,6 +25,7 @@
 #include "ash/system/pcie_peripheral/pcie_peripheral_notification_controller.h"
 #include "ash/system/usb_peripheral/usb_peripheral_notification_controller.h"
 #include "ash/webui/camera_app_ui/document_scanner_installer.h"
+#include "ash/wm/coral/coral_controller.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
@@ -115,11 +114,12 @@
 #include "chrome/browser/ash/login/osauth/chrome_auth_parts.h"
 #include "chrome/browser/ash/login/session/chrome_session_manager.h"
 #include "chrome/browser/ash/login/session/user_session_manager.h"
+#include "chrome/browser/ash/login/signin/token_handle_store_factory.h"
 #include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/ash/login/users/avatar/user_image_manager_registry.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
+#include "chrome/browser/ash/magic_boost/magic_boost_controller_ash.h"
 #include "chrome/browser/ash/mahi/web_contents/mahi_web_contents_manager_impl.h"
-#include "chrome/browser/ash/mojo_service_manager/connection_helper.h"
 #include "chrome/browser/ash/net/apn_migrator.h"
 #include "chrome/browser/ash/net/bluetooth_pref_state_observer.h"
 #include "chrome/browser/ash/net/network_health/network_health_manager.h"
@@ -154,7 +154,6 @@
 #include "chrome/browser/ash/profiles/signin_profile_handler.h"
 #include "chrome/browser/ash/quick_pair/quick_pair_browser_delegate_impl.h"
 #include "chrome/browser/ash/report_controller_initializer/report_controller_initializer.h"
-#include "chrome/browser/ash/scheduler_config/scheduler_configuration_manager.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/ash/settings/shutdown_policy_forwarder.h"
 #include "chrome/browser/ash/smb_client/smb_service_factory.h"
@@ -222,6 +221,7 @@
 #include "chromeos/ash/components/login/auth/auth_events_recorder.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/ash/components/login/session/session_termination_manager.h"
+#include "chromeos/ash/components/mojo_service_manager/connection_helper.h"
 #include "chromeos/ash/components/network/fast_transition_observer.h"
 #include "chromeos/ash/components/network/network_cert_loader.h"
 #include "chromeos/ash/components/network/network_handler.h"
@@ -229,13 +229,19 @@
 #include "chromeos/ash/components/network/system_token_cert_db_storage.h"
 #include "chromeos/ash/components/network/traffic_counters_handler.h"
 #include "chromeos/ash/components/peripheral_notification/peripheral_notification_manager.h"
+#include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
 #include "chromeos/ash/components/power/dark_resume_controller.h"
 #include "chromeos/ash/components/report/device_metrics/use_case/real_psm_client_manager.h"
 #include "chromeos/ash/components/report/device_metrics/use_case/use_case.h"
+#include "chromeos/ash/components/scheduler_config/scheduler_configuration_manager.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
+#include "chromeos/ash/components/settings/user_login_permission_tracker.h"
 #include "chromeos/ash/components/system/statistics_provider.h"
 #include "chromeos/ash/components/tpm/tpm_token_loader.h"
 #include "chromeos/ash/components/wifi_p2p/wifi_p2p_controller.h"
+#include "chromeos/ash/experiences/arc/arc_features.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
 #include "chromeos/ash/services/cros_healthd/private/cpp/data_collector.h"
 #include "chromeos/ash/services/cros_healthd/public/cpp/service_connection.h"
 #include "chromeos/components/sensors/ash/sensor_hal_dispatcher.h"
@@ -251,7 +257,6 @@
 #include "components/metrics/metrics_service.h"
 #include "components/ownership/owner_key_util.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
-#include "components/policy/core/common/device_local_account_type.h"
 #include "components/prefs/pref_service.h"
 #include "components/quirks/quirks_manager.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
@@ -273,6 +278,7 @@
 #include "content/public/common/main_function_params.h"
 #include "dbus/object_path.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
+#include "extensions/common/switches.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_change_notifier_passive.h"
 #include "printing/backend/print_backend.h"
@@ -283,6 +289,7 @@
 #include "ui/base/ime/ash/ime_keyboard.h"
 #include "ui/base/ime/ash/input_method_manager.h"
 #include "ui/base/ime/ash/input_method_util.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/pointer/pointer_device.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/events/ash/pref_names.h"
@@ -534,9 +541,7 @@ class DBusServices {
 
     disks::DiskMountManager::Initialize();
 
-    if (ash::features::IsWifiDirectEnabled()) {
-      WifiP2PController::Initialize();
-    }
+    WifiP2PController::Initialize();
     NetworkHandler::Initialize();
 
     chromeos::sensors::SensorHalDispatcher::Initialize();
@@ -568,9 +573,7 @@ class DBusServices {
     rollback_network_config::Shutdown();
     chromeos::sensors::SensorHalDispatcher::Shutdown();
     NetworkHandler::Shutdown();
-    if (ash::features::IsWifiDirectEnabled()) {
-      WifiP2PController::Shutdown();
-    }
+    WifiP2PController::Shutdown();
     disks::DiskMountManager::Shutdown();
     LoginState::Shutdown();
     NetworkCertLoader::Shutdown();
@@ -667,7 +670,7 @@ int ChromeBrowserMainPartsAsh::PreEarlyInitialization() {
   if (command_line->HasSwitch(switches::kGuestSession)) {
     // Disable sync and extensions if we're in "browse without sign-in" mode.
     command_line->AppendSwitch(::syncer::kDisableSync);
-    command_line->AppendSwitch(::switches::kDisableExtensions);
+    command_line->AppendSwitch(extensions::switches::kDisableExtensions);
     browser_defaults::bookmarks_enabled = false;
   }
 
@@ -907,8 +910,8 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
   lock_to_single_user_manager_ =
       std::make_unique<policy::LockToSingleUserManager>();
 
-  shortcut_mapping_pref_service_ =
-      std::make_unique<ShortcutMappingPrefService>();
+  shortcut_mapping_pref_service_ = std::make_unique<ShortcutMappingPrefService>(
+      *g_browser_process->local_state());
 
   // AccessibilityManager and SystemKeyEventListener use InputMethodManager.
   input_method::Initialize();
@@ -977,8 +980,9 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
                      chromeos::version_loader::VERSION_FULL),
       base::BindOnce(&ChromeOSVersionCallback));
 
-  kiosk_controller_ =
-      std::make_unique<KioskControllerImpl>(user_manager::UserManager::Get());
+  kiosk_controller_ = std::make_unique<KioskControllerImpl>(
+      CHECK_DEREF(g_browser_process->local_state()),
+      user_manager::UserManager::Get());
 
   ambient_client_ = std::make_unique<AmbientClientImpl>();
 
@@ -1018,6 +1022,10 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
     g_browser_process->platform_part()->RegisterKeepAlive();
   }
 
+  user_login_permission_tracker_ =
+      std::make_unique<ash::UserLoginPermissionTracker>(
+          ash::CrosSettings::Get());
+
   // NOTE: Calls ChromeBrowserMainParts::PreProfileInit() which calls
   // ChromeBrowserMainExtraPartsAsh::PreProfileInit() which initializes
   // `Shell`.
@@ -1036,11 +1044,19 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
   // it can do cleanup work if needed. Initialized in PreProfileInit because the
   // profile-keyed service AppService can call into it.
   crosapi_manager_ = std::make_unique<crosapi::CrosapiManager>();
-  browser_manager_ = std::make_unique<crosapi::BrowserManager>(
-      g_browser_process->platform_part()->component_manager_ash());
-  browser_manager_->AddObserver(SessionControllerClientImpl::Get());
+  browser_manager_ = std::make_unique<crosapi::BrowserManager>();
+
+  magic_boost_controller_ash_ =
+      std::make_unique<ash::MagicBoostControllerAsh>();
 
   chromeos::machine_learning::ServiceConnection::GetInstance()->Initialize();
+
+  // CoralController depends on machine_learning::ServiceConnection, so needs to
+  // be initialized after it.
+  if (features::IsCoralFeatureEnabled()) {
+    Shell::Get()->coral_controller()->Initialize(
+        l10n_util::GetLanguage(g_browser_process->GetApplicationLocale()));
+  }
 
   // Needs to be initialized after crosapi_manager_.
   metrics::structured::ChromeStructuredMetricsDelegate::Get()->Initialize();
@@ -1077,13 +1093,27 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
       return;
     }
 
-    // In case of multi-profiles --login-profile will contain user_id_hash.
-    std::string user_id_hash =
+    auto& session_manager = CHECK_DEREF(session_manager::SessionManager::Get());
+    CHECK(session_manager.sessions().empty());
+
+    bool created = false;
+    if (!user_manager->FindUser(account_id)) {
+      // TODO(crbug.com/278643115): Because we know here's browser_restart,
+      // the user_type calculation can be much simplified.
+      user_manager::UserType user_type = user_manager->CalculateUserType(
+          account_id, /*user=*/nullptr, /*browser_restart=*/true,
+          /*is_child=*/false);
+      // If there's no User found, that means, in the previous Chrome process,
+      // the user was ephemeral (including Guest).
+      created = user_manager->EnsureUser(account_id, user_type,
+                                         /*is_ephemeral=*/true);
+    }
+
+    // In case of multi-profiles --login-profile will contain username_hash.
+    std::string username_hash =
         base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
             switches::kLoginProfile);
-
-    session_manager::SessionManager::Get()->CreateSessionForRestart(
-        account_id, user_id_hash);
+    session_manager.CreateSessionForRestart(account_id, username_hash, created);
 
     // If restarting demo session, mark demo session as started before primary
     // profile starts initialization so browser context keyed services created
@@ -1092,7 +1122,7 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
     DemoSession::StartIfInDemoMode();
 
     VLOG(1) << "Relaunching browser for user: " << account_id.Serialize()
-            << " with hash: " << user_id_hash;
+            << " with hash: " << username_hash;
   }
 }
 
@@ -1184,7 +1214,8 @@ void ChromeBrowserMainPartsAsh::PostProfileInit(Profile* profile,
 
     ui::SetShowEmojiKeyboardCallback(base::BindRepeating(&EmojiUI::Show));
 
-    BootTimesRecorder::Get()->OnChromeProcessStart();
+    BootTimesRecorder::Get()->OnChromeProcessStart(
+        CHECK_DEREF(g_browser_process->local_state()));
 
     // Initialize the network portal detector for Chrome OS. The network
     // portal detector starts to listen for notifications from
@@ -1194,12 +1225,14 @@ void ChromeBrowserMainPartsAsh::PostProfileInit(Profile* profile,
     InitializeNetworkPortalDetector();
 
     // Initialize an observer to update NetworkHandler's pref based services.
-    network_pref_state_observer_ = std::make_unique<NetworkPrefStateObserver>();
+    network_pref_state_observer_ = std::make_unique<NetworkPrefStateObserver>(
+        *g_browser_process->local_state());
 
     // Initialize an observer to update CrosBluetoothConfig's pref based
     // services.
     bluetooth_pref_state_observer_ =
-        std::make_unique<BluetoothPrefStateObserver>();
+        std::make_unique<BluetoothPrefStateObserver>(
+            *g_browser_process->local_state());
 
     if (base::FeatureList::IsEnabled(
             ::features::kHappinessTrackingSystemBluetoothRevamp)) {
@@ -1305,6 +1338,22 @@ void ChromeBrowserMainPartsAsh::PostProfileInit(Profile* profile,
                        shill::kUseLegacyDHCPCDProperty));
 
     ash::ShillManagerClient::Get()->SetProperty(
+        shill::kEnableSingleCACertVerificationPhase1Property,
+        base::Value(base::FeatureList::IsEnabled(
+            features::kSingleCaCertVerificationPhase1)),
+        base::DoNothing(),
+        base::BindOnce(ShillSetPropertyErrorCallback,
+                       shill::kEnableSingleCACertVerificationPhase1Property));
+
+    ash::ShillManagerClient::Get()->SetProperty(
+        shill::kEnableSingleCACertVerificationPhase2Property,
+        base::Value(base::FeatureList::IsEnabled(
+            features::kSingleCaCertVerificationPhase2)),
+        base::DoNothing(),
+        base::BindOnce(ShillSetPropertyErrorCallback,
+                       shill::kEnableSingleCACertVerificationPhase2Property));
+
+    ash::ShillManagerClient::Get()->SetProperty(
         shill::kDisconnectWiFiOnEthernetProperty,
         base::Value(base::FeatureList::IsEnabled(
                         features::kDisconnectWiFiOnEthernetConnected)
@@ -1379,10 +1428,7 @@ void ChromeBrowserMainPartsAsh::PostBrowserStart() {
       accessibility_event_rewriter_delegate_.get());
   // `ShortcutInputHandler` and `ModifierKeyComboRecorder` are dependent on
   // `EventRewriterController`'s initialization.
-  if (ash::features::IsPeripheralCustomizationEnabled() ||
-      ::features::IsShortcutCustomizationEnabled()) {
-    Shell::Get()->shortcut_input_handler()->Initialize();
-  }
+  Shell::Get()->shortcut_input_handler()->Initialize();
   Shell::Get()->modifier_key_combo_recorder()->Initialize();
   Shell::Get()->rapid_key_sequence_recorder()->Initialize();
 
@@ -1401,11 +1447,8 @@ void ChromeBrowserMainPartsAsh::PostBrowserStart() {
 
   smart_charging_manager_ = power::SmartChargingManager::CreateInstance();
 
-  if (base::FeatureList::IsEnabled(
-          ::features::kAdaptiveScreenBrightnessLogging)) {
-    adaptive_screen_brightness_manager_ =
-        power::ml::AdaptiveScreenBrightnessManager::CreateInstance();
-  }
+  adaptive_screen_brightness_manager_ =
+      power::ml::AdaptiveScreenBrightnessManager::CreateInstance();
 
   // MachineLearningDecisionServiceProvider needs to be created after
   // UserActivityController which depends on UserActivityDetector, not
@@ -1461,8 +1504,7 @@ void ChromeBrowserMainPartsAsh::PostBrowserStart() {
 
   // ARCVM defers to Android's LMK to kill apps in low memory situations because
   // memory can't be reclaimed directly to ChromeOS.
-  if (!arc::IsArcVmEnabled() &&
-      base::FeatureList::IsEnabled(arc::kContainerAppKiller)) {
+  if (!arc::IsArcVmEnabled()) {
     arc_container_app_killer_ = std::make_unique<arc::ContainerAppKiller>();
   }
 
@@ -1514,11 +1556,6 @@ void ChromeBrowserMainPartsAsh::PostMainMessageLoopRun() {
   if (base::FeatureList::IsEnabled(features::kEnableHostnameSetting)) {
     DeviceNameStore::Shutdown();
   }
-
-  // This needs to be called before the
-  // ChromeBrowserMainPartsLinux::PostMainMessageLoopRun, because the
-  // SessionControllerClientImpl is destroyed there.
-  browser_manager_->RemoveObserver(SessionControllerClientImpl::Get());
 
   // This must be shut down before |arc_service_launcher_|.
   if (pre_profile_init_called_) {
@@ -1699,6 +1736,14 @@ void ChromeBrowserMainPartsAsh::PostMainMessageLoopRun() {
   // NOTE: Closes ash and destroys `Shell`.
   ChromeBrowserMainPartsLinux::PostMainMessageLoopRun();
 
+  // TokenHandleStore needs to outlive the Profile, which
+  // is destroyed inside ChromeBrowserMainPartsLinux::PostMainMessageLoopRun().
+  if (ash::features::IsUseTokenHandleStoreEnabled()) {
+    TokenHandleStoreFactory::Get()->DestroyTokenHandleStore();
+  }
+
+  magic_boost_controller_ash_.reset();
+
   // BrowserManager and CrosapiManager need to outlive the Profile, which
   // is destroyed inside ChromeBrowserMainPartsLinux::PostMainMessageLoopRun().
   browser_manager_.reset();
@@ -1717,6 +1762,8 @@ void ChromeBrowserMainPartsAsh::PostMainMessageLoopRun() {
   arc_service_launcher_.reset();
   // |arc_service_launcher_| uses SchedulerConfigurationManager.
   g_browser_process->platform_part()->ShutdownSchedulerConfigurationManager();
+
+  user_login_permission_tracker_.reset();
 
   if (pre_profile_init_called_) {
     AccessibilityManager::Shutdown();

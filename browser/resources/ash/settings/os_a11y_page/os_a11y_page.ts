@@ -20,7 +20,6 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {DeepLinkingMixin} from '../common/deep_linking_mixin.js';
-import {isRevampWayfindingEnabled} from '../common/load_time_booleans.js';
 import {RouteOriginMixin} from '../common/route_origin_mixin.js';
 import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 import {Section} from '../mojom-webui/routes.mojom-webui.js';
@@ -102,47 +101,6 @@ export class OsSettingsA11yPageElement extends OsSettingsA11yPageElementBase {
       },
 
       languageHelper: Object,
-
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kA11yQuickSettings,
-          Setting.kGetImageDescriptionsFromGoogle,
-          Setting.kLiveCaption,
-        ]),
-      },
-
-      rowIcons_: {
-        type: Object,
-        value() {
-          if (isRevampWayfindingEnabled()) {
-            return {
-              imageDescription: 'os-settings:a11y-image-description',
-              showInQuickSettings: 'os-settings:accessibility-revamp',
-              textToSpeech: 'os-settings:text-to-speech',
-              displayAndMagnification: 'os-settings:zoom-in',
-              keyboardAndTextInput: 'os-settings:a11y-keyboard-and-text-input',
-              cursorAndTouchpad: 'os-settings:cursor-click',
-              audioAndCaptions: 'os-settings:a11y-hearing',
-              findMore: 'os-settings:a11y-find-more',
-            };
-          }
-
-          return {
-            imageDescription: '',
-            showInQuickSettings: '',
-            textToSpeech: '',
-            displayAndMagnification: '',
-            keyboardAndTextInput: '',
-            cursorAndTouchpad: '',
-            audioAndCaptions: '',
-            findMore: '',
-          };
-        },
-      },
     };
   }
 
@@ -150,11 +108,17 @@ export class OsSettingsA11yPageElement extends OsSettingsA11yPageElementBase {
   languages: LanguagesModel;
   languageHelper: LanguageHelper;
 
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kA11yQuickSettings,
+    Setting.kGetImageDescriptionsFromGoogle,
+    Setting.kLiveCaption,
+  ]);
+
   private browserProxy_: OsA11yPageBrowserProxy;
   private hasScreenReader_: boolean;
   private isGuest_: boolean;
   private isKioskOldA11ySettingsRedirectionEnabled_: boolean;
-  private rowIcons_: Record<string, string>;
   private section_: Section;
 
   constructor() {

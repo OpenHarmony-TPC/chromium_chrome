@@ -10,8 +10,8 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
-#include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
+#include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
@@ -33,9 +33,9 @@
 
 namespace {
 
-// TODO(tluk): Similar bespoke checks are used throughout the codebase, this
-// approach is taken from BookmarkTabHelper. This should be factored out as a
-// common util and other callsites converted to use this.
+// TODO(crbug.com/382494946): Similar bespoke checks are used throughout the
+// codebase, this approach is taken from BookmarkTabHelper. This should be
+// factored out as a common util and other callsites converted to use this.
 bool IsNewTabPage(content::WebContents* const web_contents) {
   // Use the committed entry (or the visible entry, if the committed entry is
   // the initial NavigationEntry) so the bookmarks bar disappears at the same
@@ -162,7 +162,7 @@ void LensOverlayPageActionIconView::UpdateImpl() {
   // (3) It is always hidden in the NTP.
   // The overlay is unavailable on the NTP as it is unlikely to be useful to
   // users on the page, it would also appear immediately when a new tab or
-  // window is created due to focus immediatey jumping into the location bar.
+  // window is created due to focus immediately jumping into the location bar.
   // `tab` is nullptr during construction of class Browser, during LocationBar
   // construction.
   auto* tab = browser_->GetActiveTabInterface();
@@ -173,7 +173,8 @@ void LensOverlayPageActionIconView::UpdateImpl() {
   // LocationBar construction.
   auto* controller =
       browser_->GetFeatures().lens_overlay_entry_point_controller();
-  const bool is_broader_feature_enabled = controller && controller->IsEnabled();
+  const bool is_broader_feature_enabled =
+      controller && controller->AreVisible();
 
   const bool should_show_lens_overlay = enabled_by_pref &&
                                         location_bar_has_focus && !is_ntp &&
@@ -203,20 +204,19 @@ void LensOverlayPageActionIconView::OnExecuting(
     }
     lens_region_search_controller_->Start(
         GetWebContents(), /*use_fullscreen_capture=*/true,
-        /*force_open_in_new_tab=*/true,
         /*is_google_default_search_provider=*/true,
         lens::AmbientSearchEntryPoint::
             LENS_OVERLAY_LOCATION_BAR_ACCESSIBILITY_FALLBACK);
     return;
   }
 
-  LensOverlayController* const controller =
-      LensOverlayController::GetController(GetWebContents());
+  LensSearchController* const controller =
+      LensSearchController::FromTabWebContents(GetWebContents());
   CHECK(controller);
 
   lens::RecordAmbientSearchQuery(
       lens::AmbientSearchEntryPoint::LENS_OVERLAY_LOCATION_BAR);
-  controller->ShowUI(lens::LensOverlayInvocationSource::kOmnibox);
+  controller->OpenLensOverlay(lens::LensOverlayInvocationSource::kOmnibox);
   UserEducationService::MaybeNotifyNewBadgeFeatureUsed(
       GetWebContents()->GetBrowserContext(), lens::features::kLensOverlay);
 }

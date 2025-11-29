@@ -39,8 +39,8 @@
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/regional_capabilities/regional_capabilities_switches.h"
 #include "components/search_engines/default_search_manager.h"
-#include "components/search_engines/prepopulated_engines.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
 #include "components/search_engines/search_engines_pref_names.h"
 #include "components/search_engines/search_engines_switches.h"
@@ -57,6 +57,7 @@
 #include "content/public/test/test_navigation_observer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/search_engines_data/resources/definitions/prepopulated_engines.h"
 #include "ui/base/window_open_disposition.h"
 
 using testing::_;
@@ -141,7 +142,7 @@ class SearchEngineChoiceDialogBrowserTest : public InProcessBrowserTest {
   SearchEngineChoiceDialogBrowserTest& operator=(
       const SearchEngineChoiceDialogBrowserTest&) = delete;
 
-  ~SearchEngineChoiceDialogBrowserTest() override {}
+  ~SearchEngineChoiceDialogBrowserTest() override = default;
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     InProcessBrowserTest::SetUpCommandLine(command_line);
@@ -279,8 +280,6 @@ class SearchEngineChoiceDialogBrowserTest : public InProcessBrowserTest {
       SearchEngineChoiceDialogServiceFactory::
           ScopedChromeBuildOverrideForTesting(
               /*force_chrome_build=*/true);
-  base::test::ScopedFeatureList feature_list_{
-      switches::kSearchEngineChoiceGuestExperience};
   bool use_spy_service_;
   base::CallbackListSubscription create_services_subscription_;
   base::HistogramTester histogram_tester_;
@@ -426,9 +425,9 @@ IN_PROC_BROWSER_TEST_F(SearchEngineChoiceDialogBrowserTest,
   EXPECT_EQ(first_profile_service->GetNumberOfBrowsersWithDialogsOpen(), 0u);
 }
 
-// We don't run this test on ChromeOS Ash because we can't create multiple
-// profiles on Ash.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+// We don't run this test on ChromeOS because we can't create multiple
+// profiles.
+#if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(SearchEngineChoiceDialogBrowserTest,
                        DialogGetsDisplayedForAllProfiles) {
   // Start a first profile that will later show the dialog.
@@ -520,7 +519,7 @@ IN_PROC_BROWSER_TEST_F(SearchEngineChoiceDialogBrowserTest,
   EXPECT_FALSE(service);
 }
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(SearchEngineChoiceDialogBrowserTest,
                        DialogDoesNotOverlapWithProfileCustomizationDialog) {
   Profile* profile = browser()->profile();
@@ -907,8 +906,11 @@ class SearchEngineRepromptBrowserTest
         {switches::kSearchEngineChoiceTriggerRepromptParams.name,
          reprompt_param}};
 
-    feature_list_.InitAndEnableFeatureWithParameters(
-        switches::kSearchEngineChoiceTrigger, std::move(field_trial_params));
+    feature_list_.InitWithFeaturesAndParameters(
+        /* enabled_features= */
+        {{switches::kSearchEngineChoiceTrigger, std::move(field_trial_params)},
+         {switches::kInvalidateSearchEngineChoiceOnDeviceRestoreDetection, {}}},
+        /* disabled_features= */ {});
   }
 
   bool select_google_in_pre() const { return GetParam().select_google_in_pre; }

@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.notifications;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.app.Activity;
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -15,13 +17,14 @@ import android.os.Bundle;
 import android.view.MotionEvent;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.notifications.NotificationMetadata;
 import org.chromium.components.browser_ui.notifications.PendingIntentProvider;
@@ -35,6 +38,7 @@ import java.lang.annotation.RetentionPolicy;
  * Notification#contentIntent}, {@link Notification.Action#actionIntent} and {@link
  * Notification#deleteIntent} with broadcast receivers.
  */
+@NullMarked
 public class NotificationIntentInterceptor {
     private static final String TAG = "IntentInterceptor";
     private static final String EXTRA_PENDING_INTENT =
@@ -83,8 +87,8 @@ public class NotificationIntentInterceptor {
 
     public static final class ServiceImpl extends NotificationIntentInterceptorService.Impl {
         @Override
-        protected void onHandleIntent(Intent intent) {
-            processIntent(intent);
+        protected void onHandleIntent(@Nullable Intent intent) {
+            processIntent(assertNonNull(intent));
         }
     }
 
@@ -223,7 +227,17 @@ public class NotificationIntentInterceptor {
                         || actionType
                                 == NotificationUmaTracker.ActionType.COMMIT_UNSUBSCRIBE_IMPLICIT
                         || actionType
-                                == NotificationUmaTracker.ActionType.COMMIT_UNSUBSCRIBE_EXPLICIT;
+                                == NotificationUmaTracker.ActionType.COMMIT_UNSUBSCRIBE_EXPLICIT
+                        || actionType
+                                == NotificationUmaTracker.ActionType.SHOW_ORIGINAL_NOTIFICATION
+                        || actionType == NotificationUmaTracker.ActionType.ALWAYS_ALLOW
+                        || actionType == NotificationUmaTracker.ActionType.REPORT_AS_SAFE
+                        || actionType
+                                == NotificationUmaTracker.ActionType
+                                        .REPORT_WARNED_NOTIFICATION_AS_SPAM
+                        || actionType
+                                == NotificationUmaTracker.ActionType
+                                        .REPORT_UNWARNED_NOTIFICATION_AS_SPAM;
 
         Context applicationContext = ContextUtils.getApplicationContext();
         Intent intent = null;
@@ -346,5 +360,10 @@ public class NotificationIntentInterceptor {
         hashcode = hashcode * 31 + metadata.id;
         hashcode = hashcode * 31 + requestCode;
         return hashcode;
+    }
+
+    /** Allows tests to read pending intent with the private extra name. */
+    public static @Nullable PendingIntent getPendingIntentForTesting(Intent trampolineIntent) {
+        return trampolineIntent.getParcelableExtra(EXTRA_PENDING_INTENT);
     }
 }

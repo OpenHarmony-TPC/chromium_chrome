@@ -29,7 +29,6 @@
 #include "components/webapps/browser/installable/installable_logging.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "components/webapps/browser/uninstall_result_code.h"
-#include "url/gurl.h"
 
 class Browser;
 class Profile;
@@ -56,9 +55,9 @@ struct WebAppInstallInfo;
 // command.
 class ExternalAppResolutionCommand
     : public WebAppCommand<SharedWebContentsLock,
-                           ExternallyManagedAppManager::InstallResult> {
+                           ExternallyManagedAppManagerInstallResult> {
  public:
-  using InstallResult = ExternallyManagedAppManager::InstallResult;
+  using InstallResult = ExternallyManagedAppManagerInstallResult;
   using InstalledCallback = base::OnceCallback<void(InstallResult)>;
 
   ExternalAppResolutionCommand(Profile& profile,

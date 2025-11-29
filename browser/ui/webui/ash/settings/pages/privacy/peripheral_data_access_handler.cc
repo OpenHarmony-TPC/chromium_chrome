@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "ash/constants/ash_pref_names.h"
+#include "base/check_deref.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -61,7 +62,8 @@ PeripheralDataAccessHandler::PeripheralDataAccessHandler(Profile* profile) {
   DCHECK(pref);
   // If the user has a managed policy or is a guest profile, prevent user
   // configuration of the setting.
-  auto* user = BrowserContextHelper::Get()->GetUserByBrowserContext(profile);
+  const auto& user = CHECK_DEREF(
+      BrowserContextHelper::Get()->GetUserByBrowserContext(profile));
   is_user_configurable_ = !pref->IsManaged() && !IsGuestModeActive(user);
 
   peripheral_data_access_subscription_ =
@@ -122,9 +124,10 @@ void PeripheralDataAccessHandler::HandleGetPolicyState(
 }
 
 void PeripheralDataAccessHandler::OnFilePathChecked(
-    const std::string& callback_id, bool is_thunderbolt_supported) {
+    const std::string& callback_id,
+    bool is_thunderbolt_supported) {
   ResolveJavascriptCallback(base::Value(callback_id),
-      base::Value(is_thunderbolt_supported));
+                            base::Value(is_thunderbolt_supported));
 }
 
 void PeripheralDataAccessHandler::OnPeripheralDataAccessProtectionChanged() {

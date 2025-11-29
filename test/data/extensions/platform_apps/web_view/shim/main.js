@@ -791,6 +791,9 @@ function testLoadProgressEvent() {
 
   webview.addEventListener('loadprogress', function(evt) {
     progress = evt.progress;
+    if (evt.url) {
+      embedder.test.assertEq(webview.src, evt.url);
+    }
   });
 
   webview.setAttribute('src', 'data:text/html,trigger navigation');
@@ -1899,20 +1902,28 @@ function testContentLoadEventWithDisplayNone() {
 // This test verifies that the WebRequest API onBeforeRequest event fires on
 // webview.
 function testWebRequestAPI() {
-  var webview = new WebView();
-  webview.request.onBeforeRequest.addListener(function(e) {
+  let webview = new WebView();
+  let gotOnBeforeRequest = false;
+  webview.request.onBeforeRequest.addListener(() => {
+    gotOnBeforeRequest = true;
+  }, { urls: ['<all_urls>']});
+  webview.addEventListener('loadstop', () => {
+    embedder.test.assertTrue(gotOnBeforeRequest);
     embedder.test.succeed();
-  }, { urls: ['<all_urls>']}) ;
+  });
+  webview.addEventListener('loadabort', () => {
+    embedder.test.fail();
+  });
   webview.src = embedder.windowOpenGuestURL;
   document.body.appendChild(webview);
 }
 
 // Like above, but ensures that a webview doesn't get events for other webviews.
 function testWebRequestAPIOnlyForInstance() {
-  var tempWebview = new WebView();
-  tempWebview.request.onBeforeRequest.addListener(function(e) {
+  let otherWebview = new WebView();
+  otherWebview.request.onBeforeRequest.addListener(() => {
     embedder.test.fail();
-  }, { urls: ['<all_urls>']}) ;
+  }, { urls: ['<all_urls>']});
   testWebRequestAPI();
 }
 
@@ -3404,11 +3415,8 @@ function runNewWindowCrossWindowAttachTest(noopener) {
   let webview = document.createElement('webview');
   webview.src = firstWebviewUrl;
 
-  async function checkOpenerRelationships(secondWebview) {
-    let hasOpenerResult =
-        await executeScriptP(secondWebview, {code: '!!window.opener;'});
-    embedder.test.assertEq(1, hasOpenerResult.length);
-    embedder.test.assertEq(!noopener, hasOpenerResult[0]);
+  async function checkOpenerRelationships(secondWebview, hasOpener) {
+    embedder.test.assertEq(!noopener, hasOpener);
 
     if (!noopener) {
       let openerUsageResult = await executeScriptP(
@@ -3443,9 +3451,21 @@ function runNewWindowCrossWindowAttachTest(noopener) {
       let new_window = app_new_window.contentWindow;
       new_window.onload = () => {
         let new_webview = new_window.document.createElement('webview');
-        new_webview.addEventListener('loadstop', () => {
-          if (new_webview.src == embedder.emptyGuestURL) {
-            checkOpenerRelationships(new_webview);
+        new_webview.addEventListener('loadstop', async () => {
+          let hasOpenerResult =
+            await executeScriptP(new_webview, { code: '!!window.opener;' });
+          embedder.test.assertEq(1, hasOpenerResult.length);
+          // Note: hasOpenerResult[0] can be null in a scenario where we end
+          // up dispatching a loadstop event for `new_webview` after the
+          // initial WebContents created (e.window) finishes loading; but this
+          // WebContents is destroyed when new_webview is attached and a new
+          // WebContents is loaded. In this short interval, where there is a
+          // new WebContents that hasn't finished its initial navigation;
+          // new_webview.executeScript() fails and returns null.
+          // TODO(crbug.com/40254126): We should be able to remove this check
+          // after we stop eagerly creating a WebContents.
+          if (hasOpenerResult[0] !== null) {
+            checkOpenerRelationships(new_webview, hasOpenerResult[0]);
           }
         });
         // Be sure to do the attach before appending to document.
@@ -3557,6 +3577,21 @@ function testAddFencedFrame() {
   let webview = new WebView();
   webview.src = fencedFrameHostURL;
   webview.addEventListener('loadstop', () => {
+    embedder.test.succeed();
+  });
+  document.body.appendChild(webview);
+}
+
+function testZoomFencedFrame() {
+  let fencedFrameHostURL = embedder.baseGuestURL +
+      '/extensions/platform_apps/web_view/shim/fenced_frame_host.html';
+
+  let webview = new WebView();
+  webview.src = fencedFrameHostURL;
+  webview.addEventListener('loadstop', async () => {
+    // Adjust zoom. Verify in native test that the RenderWidgetHost for the
+    // FencedFrame has the expected zoom.
+    await setZoomP(webview, 0.95);
     embedder.test.succeed();
   });
   document.body.appendChild(webview);
@@ -4082,6 +4117,7 @@ embedder.test.testList = {
   'testSelectPopupPositionInMac': testSelectPopupPositionInMac,
   'testWebRequestBlockedNavigation': testWebRequestBlockedNavigation,
   'testAddFencedFrame': testAddFencedFrame,
+  'testZoomFencedFrame': testZoomFencedFrame,
   'testInsertIntoIframe': testInsertIntoIframe,
   'testCreateAndInsertInIframe': testCreateAndInsertInIframe,
   'testInsertIntoMainFrameFromIframe': testInsertIntoMainFrameFromIframe,

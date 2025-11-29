@@ -6,11 +6,11 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <string>
 
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread.h"
@@ -22,10 +22,10 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/webdata_services/web_data_service_factory.h"
-#include "chrome/common/importer/imported_bookmark_entry.h"
 #include "chrome/common/pref_names.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/bookmarks/browser/bookmark_model.h"
+#include "components/bookmarks/browser/bookmark_node.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
 #include "components/favicon/core/favicon_service.h"
 #include "components/history/core/browser/history_service.h"
@@ -35,20 +35,21 @@
 #include "components/prefs/pref_service.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_service.h"
+#include "components/user_data_importer/common/imported_bookmark_entry.h"
 
 using bookmarks::BookmarkModel;
 using bookmarks::BookmarkNode;
 
 namespace {
 
-// Generates a unique folder name. If |folder_name| is not unique, then this
-// repeatedly tests for '|folder_name| + (i)' until a unique name is found.
-std::u16string GenerateUniqueFolderName(BookmarkModel* model,
+// Generates a unique folder name among children of |parent|. If |folder_name|
+// is not unique, then this repeatedly tests for '|folder_name| + (i)' until a
+// unique name is found.
+std::u16string GenerateUniqueFolderName(const BookmarkNode* parent,
                                         const std::u16string& folder_name) {
   // Build a set containing the bookmark bar folder names.
   std::set<std::u16string> existing_folder_names;
-  const BookmarkNode* bookmark_bar = model->bookmark_bar_node();
-  for (const auto& node : bookmark_bar->children()) {
+  for (const auto& node : parent->children()) {
     if (node->is_folder())
       existing_folder_names.insert(node->GetTitle());
   }
@@ -118,7 +119,7 @@ void ProfileWriter::AddHomepage(const GURL& home_page) {
 }
 
 void ProfileWriter::AddBookmarks(
-    const std::vector<ImportedBookmarkEntry>& bookmarks,
+    const std::vector<user_data_importer::ImportedBookmarkEntry>& bookmarks,
     const std::u16string& top_level_folder_name) {
   if (bookmarks.empty())
     return;
@@ -128,12 +129,14 @@ void ProfileWriter::AddBookmarks(
 
   // If the bookmark bar is currently empty, we should import directly to it.
   // Otherwise, we should import everything to a subfolder.
-  const BookmarkNode* bookmark_bar = model->bookmark_bar_node();
+  const BookmarkNode* bookmark_bar = model->account_bookmark_bar_node()
+                                         ? model->account_bookmark_bar_node()
+                                         : model->bookmark_bar_node();
   bool import_to_top_level = bookmark_bar->children().empty();
 
   // Reorder bookmarks so that the toolbar entries come first.
-  std::vector<ImportedBookmarkEntry> toolbar_bookmarks;
-  std::vector<ImportedBookmarkEntry> reordered_bookmarks;
+  std::vector<user_data_importer::ImportedBookmarkEntry> toolbar_bookmarks;
+  std::vector<user_data_importer::ImportedBookmarkEntry> reordered_bookmarks;
   for (auto it = bookmarks.begin(); it != bookmarks.end(); ++it) {
     if (it->in_toolbar)
       toolbar_bookmarks.push_back(*it);
@@ -154,8 +157,8 @@ void ProfileWriter::AddBookmarks(
 
   std::set<const BookmarkNode*> folders_added_to;
   const BookmarkNode* top_level_folder = nullptr;
-  for (std::vector<ImportedBookmarkEntry>::const_iterator bookmark =
-           reordered_bookmarks.begin();
+  for (std::vector<user_data_importer::ImportedBookmarkEntry>::const_iterator
+           bookmark = reordered_bookmarks.begin();
        bookmark != reordered_bookmarks.end(); ++bookmark) {
     // Disregard any bookmarks with invalid urls.
     if (!bookmark->is_folder && !bookmark->url.is_valid())
@@ -170,7 +173,7 @@ void ProfileWriter::AddBookmarks(
       // to the bar.  The first time we do so, create the folder.
       if (!top_level_folder) {
         std::u16string name =
-            GenerateUniqueFolderName(model, top_level_folder_name);
+            GenerateUniqueFolderName(bookmark_bar, top_level_folder_name);
         top_level_folder = model->AddFolder(
             bookmark_bar, bookmark_bar->children().size(), name);
       }
@@ -189,7 +192,7 @@ void ProfileWriter::AddBookmarks(
         continue;
       }
 
-      const auto it = base::ranges::find_if(
+      const auto it = std::ranges::find_if(
           parent->children(), [folder_name](const auto& node) {
             return node->is_folder() && node->GetTitle() == *folder_name;
           });
@@ -333,4 +336,4 @@ void ProfileWriter::AddAutocompleteFormDataEntries(
     web_data_service->UpdateAutocompleteEntries(autocomplete_entries);
 }
 
-ProfileWriter::~ProfileWriter() {}
+ProfileWriter::~ProfileWriter() = default;

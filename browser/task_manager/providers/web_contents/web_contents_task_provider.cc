@@ -12,18 +12,23 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/not_fatal_until.h"
 #include "base/notreached.h"
 #include "chrome/browser/task_manager/providers/web_contents/back_forward_cache_task.h"
 #include "chrome/browser/task_manager/providers/web_contents/fenced_frame_task.h"
+#include "chrome/browser/task_manager/providers/web_contents/guest_task_mparch.h"
 #include "chrome/browser/task_manager/providers/web_contents/prerender_task.h"
 #include "chrome/browser/task_manager/providers/web_contents/subframe_task.h"
 #include "chrome/browser/task_manager/providers/web_contents/web_contents_tags_manager.h"
+#if !BUILDFLAG(IS_ANDROID)
+#include "components/guest_view/browser/guest_view_base.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/content_features.h"
 
 using content::RenderFrameHost;
 using content::RenderProcessHost;
@@ -31,6 +36,24 @@ using content::SiteInstance;
 using content::WebContents;
 
 namespace task_manager {
+
+namespace {
+
+bool IsMPArchGuestMainFrame(RenderFrameHost* render_frame_host) {
+  if (!base::FeatureList::IsEnabled(features::kGuestViewMPArch)) {
+    return false;
+  }
+#if BUILDFLAG(IS_ANDROID)
+  // Guest view is not enabled on Android.
+  return false;
+#else   // BUILDFLAG(IS_ANDROID)
+  auto* guest =
+      guest_view::GuestViewBase::FromRenderFrameHost(render_frame_host);
+  return guest && guest->GetGuestMainFrame() == render_frame_host;
+#endif  // BUILDFLAG(IS_ANDROID)
+}
+
+}  // namespace
 
 // Defines an entry for each WebContents that will be tracked by the provider.
 // The entry is used to observe certain events in its corresponding WebContents
@@ -73,7 +96,8 @@ class WebContentsTaskProvider::WebContentsEntry
   void OnRendererUnresponsive(RenderProcessHost* render_process_host) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
-  void TitleWasSet(content::NavigationEntry* entry) override;
+  void TitleWasSetForMainFrame(
+      content::RenderFrameHost* render_frame_host) override;
 
   void RenderFrameReady(int process_routing_id, int frame_routing_id);
 
@@ -179,11 +203,11 @@ WebContentsTaskProvider::WebContentsEntry::GetTaskForFrame(
 
 RenderFrameHost* WebContentsTaskProvider::WebContentsEntry::FindLocalRoot(
     RenderFrameHost* render_frame_host) const {
-  SiteInstance* site_instance = render_frame_host->GetSiteInstance();
   RenderFrameHost* candidate = render_frame_host;
   while (RenderFrameHost* parent = candidate->GetParent()) {
-    if (parent->GetSiteInstance() != site_instance)
+    if (parent->GetProcess() != candidate->GetProcess()) {
       break;
+    }
     candidate = parent;
   }
   return candidate;
@@ -302,12 +326,15 @@ void WebContentsTaskProvider::WebContentsEntry::DidFinishNavigation(
 
   // Update.
   //
-  // We only need to update tasks for primary main frame navigations.
+  // We only need to update tasks for primary main frame navigations except for
+  // MPArch guest view.
+  //
   // FencedFrame task gets the title from |SiteInstance::GetSiteURL()| which
   // does not change for the same site instance, thus no need to update;
   // prerender does not support multiple navigations thus no need to update its
   // title.
-  if (!navigation_handle->IsInPrimaryMainFrame()) {
+  if (!navigation_handle->IsInPrimaryMainFrame() &&
+      !IsMPArchGuestMainFrame(navigation_handle->GetRenderFrameHost())) {
     return;
   }
 
@@ -320,9 +347,9 @@ void WebContentsTaskProvider::WebContentsEntry::DidFinishNavigation(
   for (auto& it : site_instance_infos_) {
     base::WeakPtr<RendererTask> task = it.second.renderer_task->AsWeakPtr();
 
-    // Listening to WebContentsObserver::TitleWasSet() only is not enough in
-    // some cases when the the web page doesn't have a title. That's why we
-    // update the title here as well.
+    // Listening to WebContentsObserver::TitleWasSetForMainFrame() only is
+    // not enough in some cases when the the web page doesn't have a title.
+    // That's why we update the title here as well.
     task->UpdateTitle();
 
     // Call RendererTask::UpdateFavicon() to set the current favicon to the
@@ -333,12 +360,13 @@ void WebContentsTaskProvider::WebContentsEntry::DidFinishNavigation(
   }
 }
 
-void WebContentsTaskProvider::WebContentsEntry::TitleWasSet(
-    content::NavigationEntry* entry) {
-  for (auto& it : site_instance_infos_) {
-    RendererTask* task = it.second.renderer_task.get();
-    task->UpdateTitle();
-    task->UpdateFavicon();
+void WebContentsTaskProvider::WebContentsEntry::TitleWasSetForMainFrame(
+    content::RenderFrameHost* render_frame_host) {
+  content::SiteInstance* site_instance = render_frame_host->GetSiteInstance();
+  if (auto it = site_instance_infos_.find(site_instance);
+      it != site_instance_infos_.end()) {
+    it->second.renderer_task->UpdateTitle();
+    it->second.renderer_task->UpdateFavicon();
   }
 }
 
@@ -414,6 +442,9 @@ void WebContentsTaskProvider::WebContentsEntry::CreateTaskForFrame(
     } else if (render_frame_host->IsFencedFrameRoot()) {
       new_task = std::make_unique<FencedFrameTask>(
           render_frame_host, std::move(primary_main_frame_task));
+    } else if (IsMPArchGuestMainFrame(render_frame_host)) {
+      new_task = std::make_unique<GuestTaskMPArch>(
+          render_frame_host, std::move(primary_main_frame_task));
     } else {
       new_task = std::make_unique<SubframeTask>(
           render_frame_host, std::move(primary_main_frame_task));
@@ -440,7 +471,7 @@ void WebContentsTaskProvider::WebContentsEntry::CreateTaskForFrame(
       render_frame_host->GetProcess()->PostTaskWhenProcessIsReady(
           base::BindOnce(&WebContentsEntry::RenderFrameReady,
                          weak_factory_.GetWeakPtr(),
-                         render_frame_host->GetProcess()->GetID(),
+                         render_frame_host->GetProcess()->GetDeprecatedID(),
                          render_frame_host->GetRoutingID()));
     }
   }
@@ -540,7 +571,7 @@ void WebContentsTaskProvider::OnWebContentsTagRemoved(
   DCHECK(web_contents);
 
   auto itr = entries_map_.find(web_contents);
-  CHECK(itr != entries_map_.end(), base::NotFatalUntil::M130);
+  CHECK(itr != entries_map_.end());
 
   // Must manually clear the tasks and notify the observer.
   itr->second->ClearAllTasks(true);

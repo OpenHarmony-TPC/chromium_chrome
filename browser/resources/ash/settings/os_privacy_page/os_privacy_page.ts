@@ -21,6 +21,7 @@ import './metrics_consent_toggle_button.js';
 import './peripheral_data_access_protection_dialog.js';
 import '../os_people_page/lock_screen_password_prompt_dialog.js';
 import '../os_people_page/os_sync_browser_proxy.js';
+import './secure_dns.js';
 
 import type {SyncBrowserProxy, SyncStatus} from '/shared/settings/people_page/sync_browser_proxy.js';
 import {SignedInState, SyncBrowserProxyImpl} from '/shared/settings/people_page/sync_browser_proxy.js';
@@ -32,7 +33,7 @@ import {InSessionAuth, Reason} from 'chrome://resources/mojo/chromeos/components
 import {afterNextRender, flush, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {DeepLinkingMixin} from '../common/deep_linking_mixin.js';
-import {isAccountManagerEnabled, isRevampWayfindingEnabled} from '../common/load_time_booleans.js';
+import {isAccountManagerEnabled} from '../common/load_time_booleans.js';
 import {RouteOriginMixin} from '../common/route_origin_mixin.js';
 import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 import {LockStateMixin} from '../lock_state_mixin.js';
@@ -101,16 +102,6 @@ export class OsSettingsPrivacyPageElement extends
        * The current sync status, supplied by SyncBrowserProxy.
        */
       syncStatus: Object,
-
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kVerifiedAccess,
-        ]),
-      },
 
       /**
        * True if fingerprint settings should be displayed on this machine.
@@ -208,69 +199,12 @@ export class OsSettingsPrivacyPageElement extends
         readOnly: true,
       },
 
-      isHatsSurveyEnabled_: {
-        type: Boolean,
-        value: function() {
-          return loadTimeData.getBoolean('isPrivacyHubHatsEnabled');
-        },
-        readOnly: true,
-      },
-
       isAccountManagerEnabled_: {
         type: Boolean,
         value() {
           return isAccountManagerEnabled();
         },
         readOnly: true,
-      },
-
-      isRevampWayfindingEnabled_: {
-        type: Boolean,
-        value: () => {
-          return isRevampWayfindingEnabled();
-        },
-        readOnly: true,
-      },
-
-      /**
-       * Whether to show the new UI for OS Sync Settings
-       * which include sublabel and Apps toggle
-       * shared between Ash and Lacros.
-       */
-      showSyncSettingsRevamp_: {
-        type: Boolean,
-        value: loadTimeData.getBoolean('showSyncSettingsRevamp'),
-        readOnly: true,
-      },
-
-      rowIcons_: {
-        type: Object,
-        value() {
-          if (isRevampWayfindingEnabled()) {
-            return {
-              privacyHub: 'os-settings:privacy-controls',
-              sync: 'os-settings:sync-revamp',
-              lockScreen: 'os-settings:lock-revamp',
-              manageOtherPeople: 'os-settings:privacy-manage-people',
-              smartPrivacy: 'os-settings:privacy-smart-privacy',
-              suggestedContent: 'os-settings:content-recommend',
-              verifiedAccess: 'os-settings:privacy-verified-access',
-              dataAccessProtection:
-                  'os-settings:privacy-data-access-protection',
-            };
-          }
-
-          return {
-            privacyHub: '',
-            sync: '',
-            lockScreen: '',
-            manageOtherPeople: '',
-            smartPrivacy: '',
-            suggestedContent: '',
-            verifiedAccess: '',
-            dataAccessProtection: '',
-          };
-        },
       },
 
       isAuthenticating_: {
@@ -285,9 +219,17 @@ export class OsSettingsPrivacyPageElement extends
   }
 
   syncStatus: SyncStatus;
+
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kVerifiedAccess,
+    Setting.kNonSplitSyncEncryptionOptions,
+    Setting.kImproveSearchSuggestions,
+    Setting.kMakeSearchesAndBrowsingBetter,
+  ]);
+
   private authTokenInfo_: chrome.quickUnlockPrivate.TokenInfo|undefined;
   private browserProxy_: PeripheralDataAccessBrowserProxy;
-  private rowIcons_: Record<string, string>;
   private authTokenReply_: RequestTokenReply|undefined|null;
 
   /**
@@ -301,7 +243,6 @@ export class OsSettingsPrivacyPageElement extends
   private isAccountManagerEnabled_: boolean;
   private isAuthPanelInSessionEnabled_: boolean;
   private isGuestMode_: boolean;
-  private isRevampWayfindingEnabled_: boolean;
   private isRevenBranding_: boolean;
   private isSmartPrivacyEnabled_: boolean;
   private isThunderboltSupported_: boolean;
@@ -311,7 +252,6 @@ export class OsSettingsPrivacyPageElement extends
   private showDisableProtectionDialog_: boolean;
   private showPasswordPromptDialog_: boolean;
   private showSecureDnsSetting_: boolean;
-  private showSyncSettingsRevamp_: boolean;
   private syncBrowserProxy_: SyncBrowserProxy;
   private isAuthenticating_: boolean;
 
@@ -324,14 +264,6 @@ export class OsSettingsPrivacyPageElement extends
     this.browserProxy_ = PeripheralDataAccessBrowserProxyImpl.getInstance();
     this.syncBrowserProxy_ = SyncBrowserProxyImpl.getInstance();
 
-    if (isRevampWayfindingEnabled()) {
-      // When revamp wayfinding is enabled, Sync settings is moved to the
-      // privacy page, hence add the Sync deep links here.
-      this.supportedSettingIds.add(Setting.kNonSplitSyncEncryptionOptions);
-      this.supportedSettingIds.add(Setting.kImproveSearchSuggestions);
-      this.supportedSettingIds.add(Setting.kMakeSearchesAndBrowsingBetter);
-    }
-
     this.browserProxy_.isThunderboltSupported().then(enabled => {
       this.isThunderboltSupported_ = enabled;
       if (this.isThunderboltSupported_) {
@@ -343,12 +275,10 @@ export class OsSettingsPrivacyPageElement extends
   override connectedCallback(): void {
     super.connectedCallback();
 
-    if (this.isRevampWayfindingEnabled_) {
-      this.syncBrowserProxy_.getSyncStatus().then(
-          this.handleSyncStatus_.bind(this));
-      this.addWebUiListener(
-          'sync-status-changed', this.handleSyncStatus_.bind(this));
-    }
+    this.syncBrowserProxy_.getSyncStatus().then(
+        this.handleSyncStatus_.bind(this));
+    this.addWebUiListener(
+        'sync-status-changed', this.handleSyncStatus_.bind(this));
   }
 
 
@@ -360,9 +290,7 @@ export class OsSettingsPrivacyPageElement extends
 
     this.addFocusConfig(routes.ACCOUNTS, '#manageOtherPeopleRow');
     this.addFocusConfig(routes.LOCK_SCREEN, '#lockScreenRow');
-    if (this.isRevampWayfindingEnabled_) {
-      this.addFocusConfig(routes.SYNC, '#syncSetupRow');
-    }
+    this.addFocusConfig(routes.OS_SYNC_SETUP, '#syncSetupRow');
   }
 
   private afterRenderShowDeepLink_(
@@ -424,7 +352,7 @@ export class OsSettingsPrivacyPageElement extends
 
     // Since the sync setup subpage is a shared subpage, so we handle deep links
     // for both this page and the sync setup subpage.
-    if (newRoute === routes.SYNC || newRoute === this.route) {
+    if (newRoute === routes.OS_SYNC_SETUP || newRoute === this.route) {
       this.attemptDeepLink();
     }
   }
@@ -448,13 +376,6 @@ export class OsSettingsPrivacyPageElement extends
       return this.i18n('lockScreenPinOrPassword');
     }
     return this.i18n('lockScreenPasswordOnly');
-  }
-
-  private getSyncAdvancedTitle_(): string {
-    if (this.showSyncSettingsRevamp_) {
-      return this.i18n('syncAdvancedDevicePageTitle');
-    }
-    return this.i18n('syncAdvancedPageTitle');
   }
 
   private getSyncAndGoogleServicesSubtext_(): string {
@@ -586,7 +507,7 @@ export class OsSettingsPrivacyPageElement extends
 
   // Users can go to sync setup subpage regardless of sync status.
   private onSyncClick_(): void {
-    Router.getInstance().navigateTo(routes.SYNC);
+    Router.getInstance().navigateTo(routes.OS_SYNC_SETUP);
   }
 
   private onPrivacyHubClick_(): void {

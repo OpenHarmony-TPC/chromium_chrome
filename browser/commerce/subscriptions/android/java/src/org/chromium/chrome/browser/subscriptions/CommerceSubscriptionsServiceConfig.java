@@ -7,11 +7,13 @@ package org.chromium.chrome.browser.subscriptions;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.FeatureList;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 
 import java.util.concurrent.TimeUnit;
 
 /** Flag configuration for Commerce Subscriptions Service. */
+@NullMarked
 public class CommerceSubscriptionsServiceConfig {
     @VisibleForTesting
     private static final String STALE_TAB_LOWER_BOUND_SECONDS_PARAM =
@@ -23,7 +25,7 @@ public class CommerceSubscriptionsServiceConfig {
         int defaultValue = (int) TimeUnit.DAYS.toSeconds(DEFAULT_STALE_TAB_LOWER_BOUND_DAYS);
         if (FeatureList.isInitialized()) {
             return ChromeFeatureList.getFieldTrialParamByFeatureAsInt(
-                    ChromeFeatureList.COMMERCE_PRICE_TRACKING,
+                    ChromeFeatureList.PRICE_ANNOTATIONS,
                     STALE_TAB_LOWER_BOUND_SECONDS_PARAM,
                     defaultValue);
         }

@@ -8,13 +8,11 @@ import static org.chromium.chrome.browser.safety_hub.SafetyHubMetricUtils.record
 
 import android.content.Context;
 
-import androidx.annotation.NonNull;
-
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
 import org.chromium.chrome.browser.preferences.Pref;
-import org.chromium.chrome.browser.preferences.PrefChangeRegistrar;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.safe_browsing.settings.SafeBrowsingSettingsFragment;
 import org.chromium.chrome.browser.safety_hub.SafetyHubMetricUtils.ExternalInteractions;
@@ -22,11 +20,13 @@ import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
+import org.chromium.components.prefs.PrefChangeRegistrar;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Mediator for the Safety Hub Magic Stack module. */
+@NullMarked
 class SafetyHubMagicStackMediator implements TabModelSelectorObserver, MagicStackBridge.Observer {
     private final Context mContext;
     private final Profile mProfile;
@@ -42,16 +42,16 @@ class SafetyHubMagicStackMediator implements TabModelSelectorObserver, MagicStac
     private boolean mHasBeenDismissed;
 
     SafetyHubMagicStackMediator(
-            @NonNull Context context,
-            @NonNull Profile profile,
-            @NonNull PrefService prefService,
-            @NonNull PropertyModel model,
-            @NonNull MagicStackBridge magicStackBridge,
-            @NonNull TabModelSelector tabModelSelector,
-            @NonNull ModuleDelegate moduleDelegate,
-            @NonNull PrefChangeRegistrar prefChangeRegistrar,
-            @NonNull Supplier<ModalDialogManager> modalDialogManagerSupplier,
-            @NonNull SafetyHubHatsHelper hatsHelper) {
+            Context context,
+            Profile profile,
+            PrefService prefService,
+            PropertyModel model,
+            MagicStackBridge magicStackBridge,
+            TabModelSelector tabModelSelector,
+            ModuleDelegate moduleDelegate,
+            PrefChangeRegistrar prefChangeRegistrar,
+            Supplier<ModalDialogManager> modalDialogManagerSupplier,
+            SafetyHubHatsHelper hatsHelper) {
         mContext = context;
         mProfile = profile;
         mPrefService = prefService;
@@ -160,7 +160,7 @@ class SafetyHubMagicStackMediator implements TabModelSelectorObserver, MagicStac
         mModuleDelegate.removeModule(ModuleType.SAFETY_HUB);
     }
 
-    private void bindRevokedPermissionsView(@NonNull String title) {
+    private void bindRevokedPermissionsView(String title) {
         mModel.set(
                 SafetyHubMagicStackViewProperties.HEADER,
                 mContext.getString(R.string.safety_hub_magic_stack_module_name));
@@ -168,6 +168,10 @@ class SafetyHubMagicStackMediator implements TabModelSelectorObserver, MagicStac
         mModel.set(
                 SafetyHubMagicStackViewProperties.BUTTON_TEXT,
                 mContext.getString(R.string.safety_hub_magic_stack_safe_state_button_text));
+        mModel.set(
+                SafetyHubMagicStackViewProperties.BUTTON_CONTENT_DESCRIPTION,
+                mContext.getString(
+                        R.string.safety_hub_magic_stack_safe_state_button_content_description));
         mModel.set(
                 SafetyHubMagicStackViewProperties.ICON_DRAWABLE,
                 SettingsUtils.getTintedIcon(
@@ -185,7 +189,7 @@ class SafetyHubMagicStackMediator implements TabModelSelectorObserver, MagicStac
                 });
     }
 
-    private void bindNotificationReviewView(@NonNull String summary) {
+    private void bindNotificationReviewView(String summary) {
         mModel.set(
                 SafetyHubMagicStackViewProperties.HEADER,
                 mContext.getString(R.string.safety_hub_magic_stack_module_name));
@@ -196,6 +200,10 @@ class SafetyHubMagicStackMediator implements TabModelSelectorObserver, MagicStac
         mModel.set(
                 SafetyHubMagicStackViewProperties.BUTTON_TEXT,
                 mContext.getString(R.string.safety_hub_magic_stack_safe_state_button_text));
+        mModel.set(
+                SafetyHubMagicStackViewProperties.BUTTON_CONTENT_DESCRIPTION,
+                mContext.getString(
+                        R.string.safety_hub_magic_stack_safe_state_button_content_description));
         mModel.set(
                 SafetyHubMagicStackViewProperties.ICON_DRAWABLE,
                 SettingsUtils.getTintedIcon(
@@ -213,7 +221,7 @@ class SafetyHubMagicStackMediator implements TabModelSelectorObserver, MagicStac
                 });
     }
 
-    private void bindSafeBrowsingView(@NonNull String summary) {
+    private void bindSafeBrowsingView(String summary) {
         mModel.set(
                 SafetyHubMagicStackViewProperties.HEADER,
                 mContext.getString(R.string.safety_hub_magic_stack_module_name));
@@ -225,10 +233,13 @@ class SafetyHubMagicStackMediator implements TabModelSelectorObserver, MagicStac
                 SafetyHubMagicStackViewProperties.BUTTON_TEXT,
                 mContext.getString(R.string.safety_hub_magic_stack_safe_browsing_button_text));
         mModel.set(
+                SafetyHubMagicStackViewProperties.BUTTON_CONTENT_DESCRIPTION,
+                mContext.getString(R.string.safety_hub_magic_stack_safe_browsing_button_text));
+        mModel.set(
                 SafetyHubMagicStackViewProperties.ICON_DRAWABLE,
                 SettingsUtils.getTintedIcon(
                         mContext,
-                        R.drawable.ic_gshield_24,
+                        R.drawable.secured_by_brand_shield_24,
                         R.color.default_icon_color_accent1_tint_list));
         mModel.set(
                 SafetyHubMagicStackViewProperties.BUTTON_ON_CLICK_LISTENER,
@@ -256,6 +267,9 @@ class SafetyHubMagicStackMediator implements TabModelSelectorObserver, MagicStac
                 SafetyHubMagicStackViewProperties.BUTTON_TEXT,
                 mContext.getString(R.string.safety_hub_magic_stack_compromised_passwords_title));
         mModel.set(
+                SafetyHubMagicStackViewProperties.BUTTON_CONTENT_DESCRIPTION,
+                mContext.getString(R.string.safety_hub_magic_stack_compromised_passwords_title));
+        mModel.set(
                 SafetyHubMagicStackViewProperties.ICON_DRAWABLE,
                 SettingsUtils.getTintedIcon(
                         mContext,
@@ -266,8 +280,15 @@ class SafetyHubMagicStackMediator implements TabModelSelectorObserver, MagicStac
                 (view) -> {
                     mHatsHelper.triggerProactiveHatsSurveyWhenCardTapped(
                             mTabModelSelector, MagicStackEntry.ModuleType.PASSWORDS);
+                    // The settingsCustomTabLauncher is only needed by dialogs shown when
+                    // password manager is not available. Since the SafetyHub magic stack
+                    // card is only shown if the password manager is accessible, it's fine
+                    // to pass null instead.
                     SafetyHubUtils.showPasswordCheckUi(
-                            mContext, mProfile, mModalDialogManagerSupplier);
+                            mContext,
+                            mProfile,
+                            mModalDialogManagerSupplier,
+                            /* settingsCustomTabLauncher= */ null);
                     recordExternalInteractions(ExternalInteractions.OPEN_GPM_FROM_MAGIC_STACK);
                     mMagicStackBridge.dismissCompromisedPasswordsModule();
                     dismissModule();

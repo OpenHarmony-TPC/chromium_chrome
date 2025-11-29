@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.facilitated_payments;
 
 import android.content.Context;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.autofill.payments.BankAccount;
 import org.chromium.components.autofill.payments.Ewallet;
@@ -18,17 +19,13 @@ import java.util.List;
  * This component allows to select a facilitated payments method. It acts as a 1-tap surface (bottom
  * sheet).
  */
+@NullMarked
 interface FacilitatedPaymentsPaymentMethodsComponent {
     /**
      * This delegate is called when the FacilitatedPaymentsPaymentMethods component is interacted
      * with.
      */
     interface Delegate {
-        // Deprecated: TODO: crbug.com/375089558 - Deprecate this method, onUiEvent replaces this
-        // method.
-        /** Called whenever the sheet is dismissed. */
-        void onDismissed();
-
         /**
          * Called whenever a UI event takes place.
          *
@@ -47,6 +44,12 @@ interface FacilitatedPaymentsPaymentMethodsComponent {
 
         /** Called whenever the manage payment methods footer is tapped on the bottom sheet. */
         boolean showManagePaymentMethodsSettings(Context context);
+
+        /** Called whenever the Pix account linking prompt is accepted. */
+        void onPixAccountLinkingPromptAccepted();
+
+        /** Called whenever the Pix account linking prompt is declined. */
+        void onPixAccountLinkingPromptDeclined();
     }
 
     /** Initializes the component. */
@@ -62,7 +65,7 @@ interface FacilitatedPaymentsPaymentMethodsComponent {
     boolean isInLandscapeMode();
 
     /** Displays a Pix FOP selector in a bottom sheet. */
-    void showSheet(List<BankAccount> bankAccounts);
+    void showSheetForPix(List<BankAccount> bankAccounts);
 
     /** Displays an eWallet FOP selector in a bottom sheet. */
     void showSheetForEwallet(List<Ewallet> eWallets);
@@ -75,4 +78,7 @@ interface FacilitatedPaymentsPaymentMethodsComponent {
 
     /** Close the bottom sheet. */
     void dismiss();
+
+    /** Show the Pix account linking prompt in a bottom sheet. */
+    void showPixAccountLinkingPrompt();
 }

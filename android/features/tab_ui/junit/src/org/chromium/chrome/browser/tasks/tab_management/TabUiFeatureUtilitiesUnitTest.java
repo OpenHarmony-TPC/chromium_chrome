@@ -7,14 +7,13 @@ package org.chromium.chrome.browser.tasks.tab_management;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import android.os.Build;
-
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.MockitoAnnotations;
-import org.robolectric.util.ReflectionHelpers;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.BaseSwitches;
 import org.chromium.base.ThreadUtils;
@@ -24,12 +23,14 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.device.DeviceClassManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
+import org.chromium.ui.util.XrUtils;
 
 /** Unit Tests for {@link TabUiFeatureUtilities}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@EnableFeatures(ChromeFeatureList.DRAG_DROP_TAB_TEARING_ENABLE_OEM)
 public class TabUiFeatureUtilitiesUnitTest {
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     private void setAccessibilityEnabledForTesting(Boolean value) {
         ThreadUtils.runOnUiThreadBlocking(
@@ -38,7 +39,6 @@ public class TabUiFeatureUtilitiesUnitTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         setAccessibilityEnabledForTesting(false);
     }
 
@@ -61,6 +61,7 @@ public class TabUiFeatureUtilitiesUnitTest {
 
     @Test
     @CommandLineFlags.Add({BaseSwitches.ENABLE_LOW_END_DEVICE_MODE})
+    @DisableFeatures(ChromeFeatureList.DISABLE_LIST_TAB_SWITCHER)
     public void testCacheGridTabSwitcher_LowEnd() {
         assertTrue(TabUiFeatureUtilities.shouldUseListMode());
 
@@ -71,29 +72,29 @@ public class TabUiFeatureUtilitiesUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.TAB_DRAG_DROP_ANDROID)
-    public void testIsTabDragAsWindowEnabled() {
-        assertTrue(TabUiFeatureUtilities.isTabDragAsWindowEnabled());
+    @CommandLineFlags.Add({BaseSwitches.ENABLE_LOW_END_DEVICE_MODE})
+    @EnableFeatures(ChromeFeatureList.DISABLE_LIST_TAB_SWITCHER)
+    public void testCacheGridTabSwitcher_LowEnd_ListDisabled() {
+        assertFalse(TabUiFeatureUtilities.shouldUseListMode());
+
+        setAccessibilityEnabledForTesting(true);
+        DeviceClassManager.resetForTesting();
+
+        assertFalse(TabUiFeatureUtilities.shouldUseListMode());
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.DRAG_DROP_TAB_TEARING)
-    public void testTabDragToCreateInstance_withAllowlistedOEM_FFDisabled() {
-        ReflectionHelpers.setStaticField(Build.class, "MANUFACTURER", "samsung");
-        assertTrue(TabUiFeatureUtilities.isTabDragToCreateInstanceSupported());
+    @CommandLineFlags.Add({ChromeSwitches.DISABLE_FULLSCREEN})
+    public void testDisableFullScreen_XrDeviceWithFlag_isTrue() {
+        XrUtils.setXrDeviceForTesting(true);
+
+        assertFalse(DeviceClassManager.enableFullscreen());
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.DRAG_DROP_TAB_TEARING)
-    public void testTabDragToCreateInstance_withNonAllowlistedOEM_FFEnabled() {
-        ReflectionHelpers.setStaticField(Build.class, "MANUFACTURER", "other");
-        assertTrue(TabUiFeatureUtilities.isTabDragToCreateInstanceSupported());
-    }
+    public void testDisableFullScreen_XrDeviceWithoutFlag_isTrue() {
+        XrUtils.setXrDeviceForTesting(true);
 
-    @Test
-    @DisableFeatures(ChromeFeatureList.DRAG_DROP_TAB_TEARING)
-    public void testTabDragToCreateInstance_withNonAllowlistedOEM_FFDisabled() {
-        ReflectionHelpers.setStaticField(Build.class, "MANUFACTURER", "other");
-        assertFalse(TabUiFeatureUtilities.isTabDragToCreateInstanceSupported());
+        assertFalse(DeviceClassManager.enableFullscreen());
     }
 }

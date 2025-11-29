@@ -8,12 +8,6 @@ import {isChromeOS} from 'chrome://resources/js/platform.js';
 import type {DestinationOptionalParams} from './destination.js';
 import {Destination, DestinationOrigin, PrinterType} from './destination.js';
 
-// <if expr="is_chromeos">
-import {DestinationProvisionalType} from './destination.js';
-import type {PrinterStatus} from './printer_status_cros.js';
-
-// </if>
-
 interface ObjectMap {
   [k: string]: any;
 }
@@ -24,9 +18,6 @@ export interface LocalDestinationInfo {
   printerDescription?: string;
   cupsEnterprisePrinter?: boolean;
   printerOptions?: ObjectMap;
-  // <if expr="is_chromeos">
-  printerStatus?: PrinterStatus;
-  // </if>
 }
 
 export interface ExtensionDestinationInfo {
@@ -78,6 +69,7 @@ function parseLocalDestination(destinationInfo: LocalDestinationInfo):
       }
     }
   }
+
   return new Destination(
       destinationInfo.deviceName,
       isChromeOS ? DestinationOrigin.CROS : DestinationOrigin.LOCAL,
@@ -90,19 +82,10 @@ function parseLocalDestination(destinationInfo: LocalDestinationInfo):
  */
 export function parseExtensionDestination(
     destinationInfo: ExtensionDestinationInfo): Destination {
-  // <if expr="is_chromeos">
-  const provisionalType = destinationInfo.provisional ?
-      DestinationProvisionalType.NEEDS_USB_PERMISSION :
-      DestinationProvisionalType.NONE;
-  // </if>
-
   return new Destination(
       destinationInfo.id, DestinationOrigin.EXTENSION, destinationInfo.name, {
         description: destinationInfo.description || '',
         extensionId: destinationInfo.extensionId,
         extensionName: destinationInfo.extensionName || '',
-        // <if expr="is_chromeos">
-        provisionalType: provisionalType,
-        // </if>
       });
 }

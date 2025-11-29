@@ -11,7 +11,6 @@ import 'chrome://resources/ash/common/cr_elements/md_select.css.js';
 import 'chrome://resources/ash/common/cr_elements/policy/cr_policy_pref_indicator.js';
 import '../controls/controlled_button.js';
 import '../controls/settings_toggle_button.js';
-import '/shared/settings/prefs/prefs.js';
 import '/shared/settings/prefs/pref_util.js';
 import '../settings_shared.css.js';
 
@@ -126,21 +125,6 @@ export class SettingsGoogleAssistantSubpageElement extends
       },
 
       dspHotwordState_: Number,
-
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kAssistantOnOff,
-          Setting.kAssistantRelatedInfo,
-          Setting.kAssistantOkGoogle,
-          Setting.kAssistantNotifications,
-          Setting.kAssistantVoiceInput,
-          Setting.kTrainAssistantVoiceModel,
-        ]),
-      },
     };
   }
 
@@ -155,8 +139,19 @@ export class SettingsGoogleAssistantSubpageElement extends
     ];
   }
 
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kAssistantOnOff,
+    Setting.kAssistantRelatedInfo,
+    Setting.kAssistantOkGoogle,
+    Setting.kAssistantNotifications,
+    Setting.kAssistantVoiceInput,
+    Setting.kTrainAssistantVoiceModel,
+  ]);
+
   private browserProxy_: GoogleAssistantBrowserProxy;
   private dspHotwordState_: DspHotwordState;
+  private hotwordDropdownList_: Array<{name: string, value: number}>;
   private hotwordDspAvailable_: boolean;
   private hotwordEnforced_: boolean;
   private hotwordEnforcedForChild_: boolean;

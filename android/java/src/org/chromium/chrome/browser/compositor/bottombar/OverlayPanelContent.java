@@ -18,6 +18,7 @@ import org.jni_zero.CalledByNative;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.base.RequiredCallback;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.chrome.browser.content.ContentUtils;
@@ -74,7 +75,7 @@ public class OverlayPanelContent {
     private long mNativeOverlayPanelContentPtr;
 
     /** The activity that this content is contained in. */
-    private Activity mActivity;
+    private final Activity mActivity;
 
     /** Observer used for tracking loading and navigation. */
     private WebContentsObserver mWebContentsObserver;
@@ -108,10 +109,10 @@ public class OverlayPanelContent {
     private boolean mIsContentViewShowing;
 
     /** The observer used by this object to inform implementers of different events. */
-    private OverlayPanelContentDelegate mContentDelegate;
+    private final OverlayPanelContentDelegate mContentDelegate;
 
     /** Used to observe progress bar events. */
-    private OverlayPanelContentProgressObserver mProgressObserver;
+    private final OverlayPanelContentProgressObserver mProgressObserver;
 
     /** If a URL is set to delayed load (load on user interaction), it will be stored here. */
     private String mPendingUrl;
@@ -173,24 +174,31 @@ public class OverlayPanelContent {
         }
 
         @Override
-        public boolean shouldIgnoreNavigation(
+        public void shouldIgnoreNavigation(
                 NavigationHandle navigationHandle,
                 GURL escapedUrl,
                 boolean hiddenCrossFrame,
-                boolean isSandboxedFrame) {
+                boolean isSandboxedFrame,
+                boolean shouldRunAsync,
+                RequiredCallback<Boolean> resultCallback) {
             // If either of the required params for the delegate are null, do not call the
             // delegate and ignore the navigation.
-            if (mExternalNavHandler == null || navigationHandle == null) return true;
-            return !mContentDelegate.shouldInterceptNavigation(
-                    mExternalNavHandler,
-                    escapedUrl,
-                    navigationHandle.pageTransition(),
-                    navigationHandle.isRedirect(),
-                    navigationHandle.hasUserGesture(),
-                    navigationHandle.isRendererInitiated(),
-                    navigationHandle.getReferrerUrl(),
-                    navigationHandle.isInPrimaryMainFrame(),
-                    navigationHandle.isExternalProtocol());
+            if (mExternalNavHandler == null || navigationHandle == null) {
+                resultCallback.onResult(true);
+                return;
+            }
+            boolean result =
+                    !mContentDelegate.shouldInterceptNavigation(
+                            mExternalNavHandler,
+                            escapedUrl,
+                            navigationHandle.pageTransition(),
+                            navigationHandle.isRedirect(),
+                            navigationHandle.hasUserGesture(),
+                            navigationHandle.isRendererInitiated(),
+                            navigationHandle.getReferrerUrl(),
+                            navigationHandle.isInPrimaryMainFrame(),
+                            navigationHandle.isExternalProtocol());
+            resultCallback.onResult(result);
         }
 
         @Override
@@ -475,7 +483,7 @@ public class OverlayPanelContent {
             OverlayPanelContentJni.get().destroyWebContents(mNativeOverlayPanelContentPtr);
             mWebContents = null;
             if (mWebContentsObserver != null) {
-                mWebContentsObserver.destroy();
+                mWebContentsObserver.observe(null);
                 mWebContentsObserver = null;
             }
 

@@ -4,15 +4,14 @@
 
 #include "chrome/browser/ash/guest_os/guest_os_share_path.h"
 
+#include <algorithm>
 #include <optional>
+#include <variant>
 
-#include "ash/components/arc/arc_features.h"
-#include "ash/components/arc/arc_util.h"
 #include "base/barrier_callback.h"
 #include "base/containers/contains.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/ash/crostini/crostini_manager.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
@@ -34,6 +33,8 @@
 #include "chromeos/ash/components/dbus/seneschal/seneschal_client.h"
 #include "chromeos/ash/components/dbus/vm_concierge/concierge_service.pb.h"
 #include "chromeos/ash/components/drivefs/mojom/drivefs.mojom.h"
+#include "chromeos/ash/experiences/arc/arc_features.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -125,7 +126,7 @@ void RemovePersistedPathFromPrefs(base::Value::Dict& shared_paths,
                  << " for VM " << vm_name;
     return;
   }
-  auto it = base::ranges::find(*found, base::Value(vm_name));
+  auto it = std::ranges::find(*found, base::Value(vm_name));
   if (it == found->end()) {
     LOG(WARNING) << "VM not in prefs to unshare path " << path.value()
                  << " for VM " << vm_name;
@@ -795,7 +796,7 @@ const base::flat_set<GuestId>& GuestOsSharePath::ListGuests() {
   return guests_;
 }
 
-absl::variant<GuestOsSharePath::PathsToShare, std::string>
+std::variant<GuestOsSharePath::PathsToShare, std::string>
 GuestOsSharePath::ConvertArgsToPathsToShare(
     const guest_os::GuestOsRegistryService::Registration& registration,
     const std::vector<guest_os::LaunchArg>& args,
@@ -807,11 +808,11 @@ GuestOsSharePath::ConvertArgsToPathsToShare(
   // Convert any paths not in the VM.
   out.launch_args.reserve(args.size());
   for (const auto& arg : args) {
-    if (absl::holds_alternative<std::string>(arg)) {
-      out.launch_args.push_back(absl::get<std::string>(arg));
+    if (std::holds_alternative<std::string>(arg)) {
+      out.launch_args.push_back(std::get<std::string>(arg));
       continue;
     }
-    const storage::FileSystemURL& url = absl::get<storage::FileSystemURL>(arg);
+    const storage::FileSystemURL& url = std::get<storage::FileSystemURL>(arg);
     base::FilePath path;
     if (!file_manager::util::ConvertFileSystemURLToPathInsideVM(
             profile_, url, vm_mount, map_crostini_home, &path)) {

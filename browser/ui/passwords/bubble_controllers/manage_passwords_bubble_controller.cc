@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/passwords/bubble_controllers/manage_passwords_bubble_controller.h"
 
+#include <string_view>
+
 #include "base/check_op.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
@@ -203,9 +205,9 @@ void ManagePasswordsBubbleController::OnMovePasswordLinkClicked() {
 base::span<std::unique_ptr<password_manager::PasswordForm> const>
 ManagePasswordsBubbleController::GetCredentials() const {
   if (!delegate_) {
-    return base::span<std::unique_ptr<password_manager::PasswordForm> const>();
+    return {};
   }
-  return base::make_span(delegate_->GetCurrentForms());
+  return base::span(delegate_->GetCurrentForms());
 }
 
 const password_manager::PasswordForm&
@@ -270,9 +272,6 @@ void ManagePasswordsBubbleController::AuthenticateUserAndDisplayDetailsOf(
       IDS_PASSWORDS_PAGE_AUTHENTICATION_PROMPT_BIOMETRIC_SUFFIX);
 #elif BUILDFLAG(IS_WIN)
   message = l10n_util::GetStringUTF16(IDS_PASSWORDS_PAGE_AUTHENTICATION_PROMPT);
-#elif BUILDFLAG(IS_OHOS)
-  message = l10n_util::GetStringUTF16(
-      IDS_PASSWORDS_PAGE_AUTHENTICATION_PROMPT_BIOMETRIC_SUFFIX);
 #endif
   // Bind OnUserAuthenticationCompleted() using a weak_ptr such that if the
   // bubble is closed (and controller is destructed) while the reauth flow is
@@ -289,22 +288,22 @@ void ManagePasswordsBubbleController::AuthenticateUserAndDisplayDetailsOf(
 }
 
 bool ManagePasswordsBubbleController::UsernameExists(
-    const std::u16string& username) {
+    std::u16string_view username) {
   if (!delegate_) {
     return false;
   }
-  return base::ranges::any_of(
+  return std::ranges::any_of(
       GetCredentials(),
-      [&username](const std::unique_ptr<password_manager::PasswordForm>& form) {
+      [username](const std::unique_ptr<password_manager::PasswordForm>& form) {
         return form->username_value == username;
       });
 }
 
-bool ManagePasswordsBubbleController::IsOptedInForAccountStorage() const {
+bool ManagePasswordsBubbleController::IsAccountStorageEnabled() const {
   if (!delegate_) {
     return false;
   }
-  return delegate_->GetPasswordFeatureManager()->IsOptedInForAccountStorage();
+  return delegate_->GetPasswordFeatureManager()->IsAccountStorageEnabled();
 }
 
 void ManagePasswordsBubbleController::OnFaviconReady(
