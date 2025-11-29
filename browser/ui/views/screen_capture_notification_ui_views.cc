@@ -48,6 +48,11 @@
 #include "ash/shell.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/window/window_common.h"
+#include "ohos/adapter/xcomponent/adapter/window_adapter.h"
+#endif
+
 namespace {
 
 const int kHorizontalMargin = 10;
@@ -233,8 +238,13 @@ ScreenCaptureNotificationUIViews::CreateNonClientFrameView(
   constexpr auto kPadding = gfx::Insets::VH(5, 10);
   auto frame =
       std::make_unique<views::BubbleFrameView>(gfx::Insets(), kPadding);
+#if BUILDFLAG(IS_OHOS)
+  frame->SetBubbleBorder(std::make_unique<views::BubbleBorder>(
+      views::BubbleBorder::NONE, views::BubbleBorder::NO_SHADOW));
+#else
   frame->SetBubbleBorder(std::make_unique<views::BubbleBorder>(
       views::BubbleBorder::NONE, views::BubbleBorder::STANDARD_SHADOW));
+#endif
   return frame;
 }
 
@@ -336,6 +346,10 @@ gfx::NativeViewId ScreenCaptureNotificationUIImpl::OnStarted(
   params.z_order = ui::ZOrderLevel::kFloatingUIElement;
   params.name = "ScreenCaptureNotificationUIViews";
 
+#if BUILDFLAG(IS_OHOS)
+  params.caption_button_visible = false;
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS)
   // TODO(sergeyu): The notification bar must be shown on the monitor that's
   // being captured. Make sure it's always the case. Currently we always capture
@@ -353,6 +367,19 @@ gfx::NativeViewId ScreenCaptureNotificationUIImpl::OnStarted(
 
   // Place the bar in the center of the bottom of the display.
   gfx::Size size = widget_->non_client_view()->GetPreferredSize();
+#if BUILDFLAG(IS_OHOS)
+  ohos::adapter::window::WindowLimits window_limits =
+      ohos::adapter::xcomponent::WindowAdapter::GetInstance()
+          .GetSystemWindowLimits();
+  gfx::Size min_window_size =
+      gfx::Size(window_limits.min_width, window_limits.min_height);
+  size.SetToMax(min_window_size);
+  if (widget_->GetNativeWindow()) {
+    display::Display current_display =
+        screen->GetDisplayNearestWindow(widget_->GetNativeWindow());
+    work_area = current_display.work_area();
+  }
+#endif
   gfx::Rect bounds(work_area.x() + work_area.width() / 2 - size.width() / 2,
                    work_area.y() + work_area.height() - size.height(),
                    size.width(), size.height());

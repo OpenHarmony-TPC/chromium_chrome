@@ -48,6 +48,18 @@
       </message>
     </if>
 
+    <if expr="is_ohos">
+      <message name="IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM" desc="Label for the OS platform.">
+        OhOS
+      </message>
+      <message name="IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM_CERTS_TITLE" desc="Label for the title of the platform certs subpage.">
+        Imported from OhOS
+      </message>
+      <message name="IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM_CERTS_VIEW_LINK" desc="Label for a link to view the imported platform certs.">
+        View imported certificates from OhOS
+      </message>
+    </if>
+
     <if expr="is_macosx">
       <message name="IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM" desc="Label for the OS platform.">
         MacOS

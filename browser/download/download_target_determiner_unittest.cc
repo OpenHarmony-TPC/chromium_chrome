@@ -202,6 +202,15 @@ struct DownloadTestCase {
 class MockDownloadTargetDeterminerDelegate
     : public DownloadTargetDeterminerDelegate {
  public:
+#if BUILDFLAG(IS_OHOS)
+  using CheckIsInstallationPackageCallback = std::function<void(bool)>;
+  void CheckIsInstallationPackage(
+      std::function<void(bool)> callback) override {
+    CheckIsInstallationPackage_(callback);
+  }
+  MOCK_METHOD1(CheckIsInstallationPackage_,
+               void(CheckIsInstallationPackageCallback&));
+#endif
   void GetInsecureDownloadStatus(
       download::DownloadItem* item,
       const base::FilePath& path,
@@ -499,6 +508,11 @@ void DownloadTargetDeterminerTest::EnableAutoOpenByUserBasedOnExtension(
 
 void DownloadTargetDeterminerTest::SetManagedDownloadPath(
     const base::FilePath& path) {
+#if BUILDFLAG(IS_OHOS)
+  profile()->GetTestingPrefService()->SetManagedPref(
+      prefs::kDownloadDefaultDirectoryOhos,
+      base::Value::ToUniquePtrValue(base::FilePathToValue(path)));
+#endif
   profile()->GetTestingPrefService()->SetManagedPref(
       prefs::kDownloadDefaultDirectory,
       base::Value::ToUniquePtrValue(base::FilePathToValue(path)));

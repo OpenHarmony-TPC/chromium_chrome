@@ -166,6 +166,12 @@
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 #endif  // BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/file_picker/file_select_picker.h"
+#include "ohos/adapter/permission_manager/permission_manager_adapter.h"
+namespace ohos_permission = ohos::adapter::permission;
+#endif
+
 using content::BrowserThread;
 using content::DownloadManager;
 using download::DownloadItem;
@@ -181,6 +187,10 @@ using safe_browsing::DownloadProtectionService;
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 using extensions::CrxInstaller;
 using extensions::CrxInstallError;
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+using namespace ohos::adapter::file_select_picker;
 #endif
 
 namespace {
@@ -548,6 +558,15 @@ ChromeDownloadManagerDelegate::ChromeDownloadManagerDelegate(Profile* profile)
 #if BUILDFLAG(IS_ANDROID)
   download_dialog_bridge_ = std::make_unique<DownloadDialogBridge>();
   download_message_bridge_ = std::make_unique<DownloadMessageBridge>();
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  // The default path obtained without kDownloadDefault Directory is'/'and does not have read and write permissions
+  if (download_prefs_->DownloadPath().value() == "/") {
+    base::FilePath path;
+    base::PathService::Get(chrome::DIR_DEFAULT_DOWNLOADS, &path);
+    download_prefs_->SetDownloadPath(path);
+  }
 #endif
 }
 
@@ -1184,6 +1203,20 @@ void ChromeDownloadManagerDelegate::OpenDownload(DownloadItem* download) {
   if (!download->CanOpenDownload())
     return;
 
+#if BUILDFLAG(IS_OHOS)
+  GURL file_url = net::FilePathToFileURL(download->GetTargetFilePath());
+  if (file_url.is_valid()) {
+    ohos_permission::PermissionActivationResult activate_result =
+      ohos_permission::PermissionManagerAdapter::ActivateFileAccessPersist(
+          file_url.spec());
+    if (activate_result !=
+        ohos_permission::PermissionActivationResult::SUCCESS) {
+      LOG(ERROR) << "The file exists, but activating file permissions failed, "
+                 << "error code: " << static_cast<int32_t>(activate_result);
+    }
+  }
+#endif
+
   if (!IsMostRecentDownloadItemAtFilePath(download))
     return;
   MaybeSendDangerousDownloadOpenedReport(download,
@@ -1335,6 +1368,30 @@ void ChromeDownloadManagerDelegate::ReserveVirtualPath(
       download, virtual_path, download_prefs_->DownloadPath(), document_dir,
       create_directory, conflict_action, std::move(callback));
 }
+
+#if BUILDFLAG(IS_OHOS)
+void ChromeDownloadManagerDelegate::CheckIsInstallationPackage(
+    const std::string& file_name_,
+    const std::string& file_size_,
+    std::function<void(bool)> confirm_callback) {
+  LOG(INFO) << "CheckIsInstallationPackage in";
+  // The callback needs to be executed in the UI thread.
+  scoped_refptr<base::SingleThreadTaskRunner> target_task_runner =
+      base::SingleThreadTaskRunner::GetCurrentDefault();
+  std::function<void(bool)> callback =
+      [confirm_callback, target_task_runner](bool continue_download) {
+        target_task_runner->PostTask(
+            FROM_HERE, base::BindOnce(
+                           [](std::function<void(bool)> func,
+                              bool continue_download) {
+                               func(continue_download);
+                           },
+                           confirm_callback, continue_download));
+      };
+  FileSelectPicker::GetInstance().ShowInstallationPackageDialog(
+      file_name_, file_size_, callback);
+}
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 void ChromeDownloadManagerDelegate::RequestIncognitoWarningConfirmation(
@@ -1948,6 +2005,13 @@ bool ChromeDownloadManagerDelegate::IsOpenInBrowserPreferredForFile(
     return true;
   }
 #endif
+
+#if BUILDFLAG(IS_OHOS)
+  if (path.MatchesExtension(FILE_PATH_LITERAL(".mhtml"))) {
+    return true;
+  }
+#endif
+
   return false;
 }
 

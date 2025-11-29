@@ -17,6 +17,10 @@
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/values.h"
+#endif // BUILDFLAG(IS_OHOS)
+
 struct AccountInfo;
 class GURL;
 class PrefRegistrySimple;
@@ -115,6 +119,9 @@ void GetManagementIcon(const GURL& url,
 // `truncated` indicates whether the label returned needs to be truncated.
 std::u16string GetEnterpriseLabel(Profile* profile, bool truncated = false);
 
+#if BUILDFLAG(IS_OHOS)
+void SetTemplistForOhosTest(base::Value::List list, GURL url);
+#endif  // BUILDFLAG(IS_OHOS)
 }  // namespace enterprise_util
 
 #endif  // CHROME_BROWSER_ENTERPRISE_UTIL_MANAGED_BROWSER_UTILS_H_

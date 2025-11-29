@@ -117,6 +117,15 @@ void PageInfoSecurityContentView::SetIdentityInfo(
     }
 
     // Add the Certificate Section.
+#if BUILDFLAG(IS_OHOS)
+    const ui::ImageModel icon =
+        valid_identity ? PageInfoViewFactory::GetImageModel(
+                             vector_icons::kCertificateIcon)
+                       : PageInfoViewFactory::GetImageModel(
+                             vector_icons::kCertificateOffIcon);
+    const int title_id = valid_identity ? IDS_PAGE_INFO_CERTIFICATE_IS_VALID
+                                        : IDS_PAGE_INFO_CERTIFICATE_DETAILS;
+#else
     const ui::ImageModel icon =
         base::FeatureList::IsEnabled(net::features::kVerifyQWACs)
             ? PageInfoViewFactory::GetImageModel(vector_icons::kStickyNote2Icon)
@@ -128,6 +137,7 @@ void PageInfoSecurityContentView::SetIdentityInfo(
                                                 net::features::kVerifyQWACs))
                              ? IDS_PAGE_INFO_CERTIFICATE_IS_VALID
                              : IDS_PAGE_INFO_CERTIFICATE_DETAILS;
+#endif
 
     std::u16string subtitle_text;
     // Only show the EV certificate details if there are no errors or mixed
@@ -146,6 +156,7 @@ void PageInfoSecurityContentView::SetIdentityInfo(
       }
     }
 
+#if !BUILDFLAG(IS_OHOS)
     if (base::FeatureList::IsEnabled(net::features::kVerifyQWACs)) {
       // If QWAC info line has been added previously, remove the old one before
       // recreating it. Re-adding it bumps it to the bottom of the
@@ -178,6 +189,7 @@ void PageInfoSecurityContentView::SetIdentityInfo(
         }
       }
     }
+#endif
 
     // If the certificate button has been added previously, remove the old one
     // before recreating it. Re-adding it bumps it to the bottom of the

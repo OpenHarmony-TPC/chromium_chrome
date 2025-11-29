@@ -166,6 +166,12 @@ static_library("test_support") {
     ]
   }
 
+  if (is_ohos) {
+    deps += [
+      "//components/crash/ohos:crash_features",
+    ]
+  }
+
   if (is_mac) {
     sources += [ "chrome_main_mac.mm" ]
 

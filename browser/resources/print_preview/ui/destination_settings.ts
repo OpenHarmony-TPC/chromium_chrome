@@ -26,6 +26,10 @@ import {getHtml} from './destination_settings.html.js';
 import {getCss as getPrintPreviewSharedCss} from './print_preview_shared.css.js';
 import {SettingsMixin} from './settings_mixin.js';
 
+// <if expr="is_ohos">
+import {NativeLayerImpl} from '../native_layer.js';
+// </if>
+
 export enum DestinationState {
   INIT = 0,
   SET = 1,
@@ -382,6 +386,10 @@ export class PrintPreviewDestinationSettingsElement extends
       this.destinationStore_!.startLoadAllDestinations();
       this.$.destinationDialog.get().show();
       this.isDialogOpen_ = true;
+// <if expr="is_ohos">
+    } else if (value === 'systemPrint') {
+      NativeLayerImpl.getInstance().systemPrint();
+// </if>
     } else {
       this.destinationStore_!.selectDestinationByKey(value);
     }

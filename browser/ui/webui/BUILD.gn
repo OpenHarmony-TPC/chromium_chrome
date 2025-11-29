@@ -70,7 +70,7 @@ source_set("configs") {
     deps += [ "//chrome/browser/ui/webui/safe_browsing" ]
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos) {
+  if (is_win || is_mac || is_linux || is_chromeos || is_ohos) {
     deps += [
       "//chrome/browser/ui/lens",
       "//chrome/browser/ui/views/side_panel",

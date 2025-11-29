@@ -170,7 +170,7 @@ export class SettingsA11yPageElement extends SettingsA11yPageElementBase {
         type: Boolean,
         value: function() {
           let showOverscroll = false;
-          // <if expr="is_win or is_linux or is_macosx">
+          // <if expr="is_win or is_linux or is_macosx or is_ohos">
           showOverscroll = true;
           // </if>
           return showOverscroll;
@@ -289,7 +289,7 @@ export class SettingsA11yPageElement extends SettingsA11yPageElementBase {
     }
   }
 
-  // <if expr="is_win or is_linux">
+  // <if expr="is_win or is_linux or is_ohos">
   private onOverscrollHistoryNavigationChange_(event: Event) {
     const enabled = (event.target as SettingsToggleButtonElement).checked;
     this.browserProxy_.recordOverscrollHistoryNavigationChanged(enabled);

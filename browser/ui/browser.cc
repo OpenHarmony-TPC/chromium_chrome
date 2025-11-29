@@ -17,6 +17,7 @@
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
+#include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -239,6 +240,7 @@
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest_handlers/background_info.h"
 #include "net/base/filename_util.h"
+#include "ohos/adapter/file_manager/file_manager_adapter.h"
 #include "ppapi/buildflags/buildflags.h"
 #include "third_party/blink/public/common/security/protocol_handler_security_level.h"
 #include "third_party/blink/public/mojom/frame/blocked_navigation_types.mojom.h"
@@ -310,6 +312,14 @@
 #include "chrome/browser/ai/ai_data_keyed_service_factory.h"  // nogncheck
 #include "chrome/browser/glic/glic_enabling.h"
 #include "chrome/browser/glic/glic_keyed_service.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/ohos/browser_exit_monitor_ohos.h"
+#include "ohos/adapter/browser/browser_adapter.h"
+#include "ohos/adapter/xcomponent/adapter/window_adapter.h"
+#include "ui/aura/window.h"
+#include "ui/aura/window_tree_host.h"
 #endif
 
 using base::UserMetricsAction;
@@ -866,6 +876,10 @@ Browser::~Browser() {
   }
 }
 
+bool Browser::IsWebApp() {
+  return web_app::AppBrowserController::IsWebApp(this);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Getters & Setters
 
@@ -1414,6 +1428,9 @@ void Browser::OnWindowClosing() {
     BrowserList::NotifyBrowserCloseCancelled(this, closing_status);
     return;
   }
+#if BUILDFLAG(IS_OHOS)
+  LOG(INFO) << "Browser OnWindowClosing it's ok to close widget_id:" << GetAcceleratedWidget();
+#endif
 
   // Application should shutdown on last window close if the user is explicitly
   // trying to quit, or if there is nothing keeping the browser alive (such as
@@ -1467,6 +1484,50 @@ void Browser::OnWindowClosing() {
 
 ////////////////////////////////////////////////////////////////////////////////
 // In-progress download termination handling:
+
+#if BUILDFLAG(IS_OHOS)
+gfx::AcceleratedWidget Browser::GetAcceleratedWidget() {
+  LOG(INFO) << "Browser::GetAcceleratedWidget begin";
+  if (this->window()) {
+    gfx::NativeWindow native_window = this->window()->GetNativeWindow();
+    if (native_window && native_window->GetHost()) {
+      auto widget_id = native_window->GetHost()->GetAcceleratedWidget();
+      LOG(INFO) << "Browser::GetAcceleratedWidget, return " << widget_id;
+      return widget_id;
+    }
+  }
+  LOG(INFO) << "Browser::GetAcceleratedWidget, return "
+            << gfx::kNullAcceleratedWidget;
+  return gfx::kNullAcceleratedWidget;
+}
+
+void Browser::NotifyShowBeforeUnloadConfirmDialog() {
+  LOG(INFO) << "Browser::NotifyShowBeforeUnloadConfirmDialog begin";
+  int32_t browser_id = GetAcceleratedWidget();
+  chrome::BrowserExitMonitorOhos::GetInstance().UpdateBrowserExitState(
+      browser_id, chrome::ExitTaskOhos::BEFOREUNLOAD,
+      chrome::ExitStateOhos::BLOCK);
+  chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+      chrome::ExitTaskOhos::DOWNLOAD,
+      chrome::ExitStateOhos::WAIT);
+  chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+      chrome::ExitTaskOhos::BEFOREUNLOAD,
+      chrome::ExitStateOhos::BLOCK);
+}
+
+void Browser::SetPrivacyMode(bool use_privacy_mode) {
+  gfx::AcceleratedWidget widget = GetAcceleratedWidget();
+  ohos::adapter::xcomponent::WindowAdapter::GetInstance().SetWindowPrivacyMode(widget, use_privacy_mode);
+}
+ 
+void Browser::CloseContentJavaScriptDialog(content::WebContents* source,
+                                           bool reset_state) {
+  content::JavaScriptDialogManager* mng = GetJavaScriptDialogManager(source);
+  if (mng != nullptr) {
+    mng->CancelDialogs(source, reset_state);
+  }
+}
+#endif // IS_OHOS
 
 Browser::DownloadCloseType Browser::OkToCloseWithInProgressDownloads(
     int* num_downloads_blocking) const {
@@ -3230,6 +3291,15 @@ void Browser::OnActiveTabChanged(WebContents* old_contents,
 
   SearchTabHelper::FromWebContents(new_contents)->OnTabActivated();
   did_active_tab_change_callback_list_.Notify(this);
+
+#if BUILDFLAG(IS_OHOS)
+  if (old_contents && new_contents->HaveEncryptedMedia() != old_contents->HaveEncryptedMedia()) {
+    LOG(INFO) << __func__
+              << " [WiseplayDRM] set current browser privacy mode due to active tab change. new privacy mode: "
+              << new_contents->HaveEncryptedMedia();
+    SetPrivacyMode(new_contents->HaveEncryptedMedia());
+  }
+#endif
 }
 
 void Browser::OnTabMoved(int from_index, int to_index) {

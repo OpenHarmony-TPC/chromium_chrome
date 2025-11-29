@@ -37,6 +37,11 @@
 #include "chrome/browser/printing/print_backend_service_manager.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/memory/ref_counted_memory.h"
+#include "base/memory/scoped_refptr.h"
+#endif
+
 class GURL;
 
 namespace base {
@@ -214,6 +219,10 @@ class PrintPreviewUI : public ConstrainedWebDialogUI,
   // Clears the UI ID. Called by PrintPreviewHandler in
   // OnJavascriptDisallowed().
   void ClearPreviewUIId();
+
+#if BUILDFLAG(IS_OHOS)
+  void PrintPdf(scoped_refptr<base::RefCountedMemory> print_data);
+#endif
 
  protected:
   // Alternate constructor for tests

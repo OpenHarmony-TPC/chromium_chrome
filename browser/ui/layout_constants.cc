@@ -40,7 +40,11 @@ int GetLayoutConstant(LayoutConstant constant) {
     case BOOKMARK_BAR_BUTTON_IMAGE_LABEL_PADDING:
       return 6;
     case WEB_APP_MENU_BUTTON_SIZE:
+#if BUILDFLAG(IS_OHOS)
+      return 34;
+#else
       return 24;
+#endif
     case WEB_APP_PAGE_ACTION_ICON_SIZE:
       // We must limit the size of icons in the title bar to avoid vertically
       // stretching the container view.

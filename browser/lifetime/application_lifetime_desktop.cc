@@ -51,6 +51,10 @@
 #include "chrome/browser/sessions/session_data_service_factory.h"
 #endif  // BUILDFLAG(ENABLE_SESSION_SERVICE)
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/ohos/browser_exit_monitor_ohos.h"
+#endif
+
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/background/glic/glic_background_mode_manager.h"
 #endif
@@ -159,6 +163,12 @@ void CloseAllBrowsers() {
       (browser_shutdown::IsTryingToQuit() ||
        !KeepAliveRegistry::GetInstance()->IsKeepingAlive())) {
     ShutdownIfNoBrowsers();
+#if BUILDFLAG(IS_OHOS)
+    chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+        chrome::ExitTaskOhos::DOWNLOAD, chrome::ExitStateOhos::CLOSE, false);
+    chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+        chrome::ExitTaskOhos::BEFOREUNLOAD, chrome::ExitStateOhos::CLOSE);
+#endif
     return;
   }
 

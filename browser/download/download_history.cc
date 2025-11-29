@@ -60,6 +60,12 @@
 #include "chrome/browser/download/download_item_web_app_data.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "net/base/filename_util.h"
+#include "ohos/adapter/permission_manager/permission_manager_adapter.h"
+namespace ohos_permission = ohos::adapter::permission;
+#endif
+
 using history::DownloadState;
 
 namespace {
@@ -546,6 +552,13 @@ void DownloadHistory::ItemAdded(uint32_t download_id,
   }
   data->SetState(DownloadHistoryData::PERSISTED);
 
+#if BUILDFLAG(IS_OHOS)
+  GURL file_url = net::FilePathToFileURL(item->GetTargetFilePath());
+  if (file_url.is_valid()) {
+    ohos_permission::PermissionManagerAdapter::FileAccessPersist(
+        file_url.spec());
+  }
+#endif
   // Notify the observer about the change in the persistence state.
   if (was_persisted != IsPersisted(item)) {
     for (Observer& observer : observers_)

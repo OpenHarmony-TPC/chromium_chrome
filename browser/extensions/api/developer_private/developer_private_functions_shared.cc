@@ -48,6 +48,10 @@
 #include "ui/base/clipboard/file_info.h"
 #include "ui/base/l10n/l10n_util.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/drag_drop/drag_drop_ohos_adapter.h"
+#endif
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/install_verifier.h"
 #include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
@@ -589,8 +593,15 @@ DeveloperPrivateInstallDroppedFileFunction::Run() {
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_OHOS)
+  std::string file_name = ohos::adapter::DragDropOhosAdapter::GetInstance()
+      .GetDraggedExtensionFileName();
+  base::FilePath path = base::FilePath(file_name);
+  ui::FileInfo file(path, base::FilePath(path.BaseName()));
+#else
   DeveloperPrivateAPI* api = DeveloperPrivateAPI::Get(browser_context());
   ui::FileInfo file = api->GetDraggedFile(web_contents);
+#endif
   if (file.path.empty()) {
     return RespondNow(Error("No dragged path"));
   }

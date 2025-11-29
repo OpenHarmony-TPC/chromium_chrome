@@ -3414,6 +3414,11 @@
     "expiry_milestone": 137
   },
   {
+    "name": "enable-generic-sensor-extra-classes",
+    "owners": [ "reillyg@chromium.org", "arnaud.mandy@intel.com" ],
+    "expiry_milestone": 139
+  },
+  {
     "name": "enable-get-all-screens-media",
     "owners": [
       "simonha@chromium.org"

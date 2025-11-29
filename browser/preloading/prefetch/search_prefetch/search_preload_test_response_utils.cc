@@ -134,7 +134,12 @@ void SearchPreloadResponseController::AddDelayedResponseTask(
   base::OnceClosure monitor_callback;
   {
     base::AutoLock auto_lock(response_queue_lock_);
-    delayed_response_tasks_.emplace(task_runner, std::move(response_closure));
+#if BUILDFLAG(IS_OHOS)
+  delayed_response_tasks_.emplace(std::make_unique<DelayedResponseTask>(
+      task_runner, std::move(response_closure)));
+#else
+  delayed_response_tasks_.emplace(task_runner, std::move(response_closure));
+#endif
     monitor_callback = std::move(monitor_callback_);
   }
   if (monitor_callback) {
@@ -144,6 +149,20 @@ void SearchPreloadResponseController::AddDelayedResponseTask(
 
 void SearchPreloadResponseController::DispatchDelayedResponseTask() {
   ASSERT_TRUE(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
+#if BUILDFLAG(IS_OHOS)
+  std::unique_ptr<DelayedResponseTask> delayed_task;
+  {
+    base::AutoLock auto_lock(response_queue_lock_);
+    if (!delayed_response_tasks_.empty()) {
+      delayed_task = std::exchange(delayed_response_tasks_.front(), nullptr);
+      delayed_response_tasks_.pop();
+    }
+  }
+  if (delayed_task) {
+    delayed_task->Run();
+    return;
+  }
+#else
   std::optional<DelayedResponseTask> delayed_task;
   {
     base::AutoLock auto_lock(response_queue_lock_);
@@ -156,6 +175,8 @@ void SearchPreloadResponseController::DispatchDelayedResponseTask() {
     delayed_task->Run();
     return;
   }
+#endif
+
   base::RunLoop run_loop;
   {
     base::AutoLock auto_lock(response_queue_lock_);

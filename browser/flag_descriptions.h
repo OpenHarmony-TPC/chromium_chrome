@@ -847,14 +847,14 @@ extern const char kDevicePostureName[];
 extern const char kDevicePostureDescription[];
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
 extern const char kDocumentPictureInPictureAnimateResizeName[];
 extern const char kDocumentPictureInPictureAnimateResizeDescription[];
 
 extern const char kAudioDuckingName[];
 extern const char kAudioDuckingDescription[];
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
 
 extern const char kEnableTLS13EarlyDataName[];
 extern const char kEnableTLS13EarlyDataDescription[];
@@ -906,6 +906,11 @@ extern const char kAccessibilityCaptionsOnBrailleDisplayDescription[];
 extern const char kBiometricAuthIdentityCheckName[];
 extern const char kBiometricAuthIdentityCheckDescription[];
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_OHOS)
+extern const char kEnableGenericSensorExtraClassesName[];
+extern const char kEnableGenericSensorExtraClassesDescription[];
+#endif
 
 extern const char kNewContentForCheckerboardedScrollsName[];
 extern const char kNewContentForCheckerboardedScrollsDescription[];
@@ -2386,13 +2391,15 @@ extern const char kTouchTextEditingRedesignDescription[];
 extern const char kTranslateForceTriggerOnEnglishName[];
 extern const char kTranslateForceTriggerOnEnglishDescription[];
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_OHOS)
 extern const char kEnableHistorySyncOptinName[];
 extern const char kEnableHistorySyncOptinDescription[];
 
 extern const char kTranslationAPIName[];
 extern const char kTranslationAPIDescription[];
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+        // BUILDFLAG(IS_OHOS)
 
 extern const char kTreatInsecureOriginAsSecureName[];
 extern const char kTreatInsecureOriginAsSecureDescription[];
@@ -3583,7 +3590,7 @@ extern const char kBlockRootWindowAccessibleNameChangeEventDescription[];
 
 // Windows and Mac ------------------------------------------------------------
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
 
 extern const char kEnforceSystemEchoCancellationName[];
 extern const char kEnforceSystemEchoCancellationDescription[];
@@ -3593,7 +3600,7 @@ extern const char kLocationProviderManagerDescription[];
 
 extern const char kUseAngleGL[];
 
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
 
 //  Android  --------------------------------------------------
 
@@ -5045,7 +5052,8 @@ extern const char kEnablePolicyPromotionBannerDescription[];
 extern const char kSupervisedUserBlockInterstitialV3Name[];
 extern const char kSupervisedUserBlockInterstitialV3Description[];
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_OHOS)
 extern const char kSupervisedProfileHideGuestName[];
 extern const char kSupervisedProfileHideGuestDescription[];
 
@@ -5073,7 +5081,8 @@ extern const char kSupervisedProfileShowKiteBadgeDescription[];
 extern const char kSupervisedUserLocalWebApprovalsName[];
 extern const char kSupervisedUserLocalWebApprovalsDescription[];
 
-#endif  // #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#endif  // #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
+        // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_OHOS)
 
 #if BUILDFLAG(IS_ANDROID)
 extern const char kHistoryPageHistorySyncPromoName[];
@@ -5090,6 +5099,16 @@ extern const char kWebSerialOverBluetoothDescription[];
 extern const char kEnterpriseFileObfuscationName[];
 extern const char kEnterpriseFileObfuscationDescription[];
 #endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+
+#if BUILDFLAG(IS_OHOS)
+extern const char kNetworkPreloadName[];
+extern const char kNetworkPreloadDescription[];
+extern const char kOmniboxPreName[];
+extern const char kOmniboxPreDescription[];
+ 
+extern const char kParallelBeforeUnloadName [];
+extern const char kParallelBeforeUnloadDescription [];
+#endif  // BUILDFLAG(IS_OHOS)
 
 // ============================================================================
 // Don't just add flags to the end, put them in the right section in

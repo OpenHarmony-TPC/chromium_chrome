@@ -38,10 +38,12 @@ const char* const kBuiltInFirstPartyExtensionIds[] = {
     kGoogleSpeechSynthesisExtensionId,
 #endif  // BUILDFLAG(IS_CHROMEOS)
     kReadingModeGDocsHelperExtensionId,
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
+    BUILDFLAG(IS_OHOS)
     kTTSEngineExtensionId,
     kComponentUpdaterTTSEngineExtensionId,
-#endif        // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+#endif        // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) ||
+              // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
     nullptr,  // Null-terminated array.
 };
 

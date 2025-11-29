@@ -65,6 +65,15 @@ class FetchManifestAndInstallCommand
                                  FallbackBehavior behavior,
                                  base::WeakPtr<WebAppUiManager> ui_manager);
 
+   // `use_fallback` allows getting fallback information for webapp built-in
+  FetchManifestAndInstallCommand(webapps::WebappInstallSource install_surface,
+                                 base::WeakPtr<content::WebContents> contents,
+                                 WebAppInstallDialogCallback dialog_callback,
+                                 OnceInstallCallback callback,
+                                 FallbackBehavior behavior,
+                                 base::WeakPtr<WebAppUiManager> ui_manager,
+                                 const webapps::AppId& app_id);
+
   ~FetchManifestAndInstallCommand() override;
 
   // WebAppCommand:
@@ -159,6 +168,9 @@ class FetchManifestAndInstallCommand
   bool valid_manifest_for_crafted_web_app_ = false;
   IconUrlSizeSet icons_from_manifest_;
   bool skip_page_favicons_on_initial_download_ = false;
+
+  // webapp built-in
+  webapps::AppId built_in_app_id_;
 
   std::vector<gfx::Size> screenshot_sizes_;
   base::flat_map<int, ScreenshotInfo> screenshots_downloaded_;

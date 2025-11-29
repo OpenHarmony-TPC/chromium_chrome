@@ -259,6 +259,9 @@ bool PageDiscardingHelper::ImmediatelyDiscardMultiplePages(
   DCHECK(eligiblity_policy);
   std::vector<base::WeakPtr<const PageNode>> eligible_nodes;
   for (const PageNode* node : page_nodes) {
+    if (node == nullptr) {
+      continue;
+    }
     if (eligiblity_policy->CanDiscard(node, discard_reason,
                                       minimum_time_in_background) ==
         CanDiscardResult::kEligible) {

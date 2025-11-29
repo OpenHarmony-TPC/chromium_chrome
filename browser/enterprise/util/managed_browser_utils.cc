@@ -70,6 +70,11 @@ constexpr int kMaximumEnterpriseCustomLabelLengthCutOff = 17;
 
 namespace {
 
+#if BUILDFLAG(IS_OHOS)
+base::Value::List g_templist;
+GURL g_tempurl;
+#endif // BUILDFLAG(IS_OHOS)
+
 // Returns client certificate auto-selection filters configured for the given
 // URL in |ContentSettingsType::AUTO_SELECT_CERTIFICATE| content setting. The
 // format of the returned filters corresponds to the "filter" property of the
@@ -155,7 +160,23 @@ bool IsManagementWork(Profile* profile) {
          enterprise_util::ManagementEnvironment::kWork;
 }
 
+#if BUILDFLAG(IS_OHOS)
+base::Value::List getList(GURL url) {
+  if (g_tempurl == url) {
+    return std::move(g_templist);
+  }
+  return base::Value::List();
+}
+#endif // BUILDFLAG(IS_OHOS)
+
 }  // namespace
+
+#if BUILDFLAG(IS_OHOS)
+void SetTemplistForOhosTest(base::Value::List list, GURL url) {
+  g_tempurl = std::move(url);
+  g_templist = std::move(list);
+}
+#endif // BUILDFLAG(IS_OHOS)
 
 bool IsBrowserManaged(Profile* profile) {
   DCHECK(profile);
@@ -185,8 +206,12 @@ void AutoSelectCertificates(
     net::ClientCertIdentityList* nonmatching_client_certs) {
   matching_client_certs->clear();
   nonmatching_client_certs->clear();
+#if BUILDFLAG(IS_OHOS)
+  const base::Value::List auto_selection_filters = getList(requesting_url);
+#else
   const base::Value::List auto_selection_filters =
       GetCertAutoSelectionFilters(profile, requesting_url);
+#endif
   for (auto& client_cert : client_certs) {
     if (CertMatchesSelectionFilters(*client_cert, auto_selection_filters))
       matching_client_certs->push_back(std::move(client_cert));

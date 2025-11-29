@@ -247,6 +247,7 @@ static_library("common_lib") {
     "//third_party/icu",
     "//third_party/re2",
     "//third_party/widevine/cdm:buildflags",
+    "//third_party/wiseplay/cdm:buildflags", 
     "//ui/accessibility",
     "//ui/base",
     "//ui/gfx/ipc",
@@ -274,7 +275,7 @@ static_library("common_lib") {
     "//components/pdf/common:util",
   ]
 
-  if (is_android || enable_library_cdms || enable_playready) {
+  if (is_android || enable_library_cdms || enable_playready || is_ohos) {
     public_deps += [ "//components/cdm/common" ]
   }
 
@@ -348,7 +349,12 @@ static_library("common_lib") {
       "//printing",
     ]
   }
-
+  if (is_ohos) {
+    sources += [
+      "media/ohos_chrome_media_drm_bridge_client.cc",
+      "media/ohos_chrome_media_drm_bridge_client.h"
+    ]
+  }
   if (is_android) {
     sources -= [ "media_galleries/metadata_types.h" ]
     sources += [
@@ -612,6 +618,8 @@ static_library("constants") {
   if (is_linux || is_chromeos) {
     sources += [ "chrome_paths_linux.cc" ]
     deps += [ ":channel_info" ]
+  } else if (is_ohos) {
+    sources += [ "chrome_paths_ohos.cc" ]
   }
   if (is_mac) {
     sources += [ "chrome_paths_mac.mm" ]

@@ -18,7 +18,10 @@ void EnsureBrowserContextKeyedServiceFactoriesBuilt() {
   ArcAppsPrivateAPI::GetFactoryInstance();
 #endif
   ExtensionSyncEventObserver::GetFactoryInstance();
+#if !BUILDFLAG(IS_OHOS)
+  // TODO:OHOS
   MediaGalleriesEventRouter::GetFactoryInstance();
+#endif
 }
 
 }  // namespace chrome_apps::api

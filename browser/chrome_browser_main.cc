@@ -399,6 +399,8 @@ StartupProfileInfo CreateInitialProfile(
   }
 
   if (profile_info.mode == StartupProfileMode::kError) {
+#if !BUILDFLAG(IS_OHOS)
+    // TODO:OHOS
     ProfileErrorType error_type =
         profile_dir_specified ? ProfileErrorType::CREATE_FAILURE_SPECIFIED
                               : ProfileErrorType::CREATE_FAILURE_ALL;
@@ -407,6 +409,7 @@ StartupProfileInfo CreateInitialProfile(
     // report when an error occurs?
     ShowProfileErrorDialog(error_type, IDS_COULDNT_STARTUP_PROFILE_ERROR,
                            "Error creating initial profile.");
+#endif
     return profile_info;
   }
 #endif
@@ -738,6 +741,13 @@ int ChromeBrowserMainParts::PreEarlyInitialization() {
       chrome_feature_list_creator->TakeMetricsServicesManager(),
       chrome_feature_list_creator->GetMetricsServicesManagerClient());
 
+#if BUILDFLAG(IS_OHOS)
+  // TODO:OHOS
+  if (browser_process_) {
+    return content::RESULT_CODE_NORMAL_EXIT;
+  }
+#endif
+
   if (load_local_state_result == CHROME_RESULT_CODE_MISSING_DATA &&
       failed_to_load_resource_bundle) {
     if (base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -789,7 +799,7 @@ void ChromeBrowserMainParts::PreCreateMainMessageLoop() {
 void ChromeBrowserMainParts::PostCreateMainMessageLoop() {
   TRACE_EVENT0("startup", "ChromeBrowserMainParts::PostCreateMainMessageLoop");
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_OHOS)
   // Initialize the upgrade detector here after `ChromeBrowserMainPartsAsh`
   // has had a chance to connect the DBus services.
   UpgradeDetector::GetInstance()->Init();
@@ -936,7 +946,10 @@ int ChromeBrowserMainParts::PreCreateThreadsImpl() {
   TRACE_EVENT0("startup", "ChromeBrowserMainParts::PreCreateThreadsImpl");
 
   if (startup_data_->chrome_feature_list_creator()->actual_locale().empty()) {
+#if !BUILDFLAG(IS_OHOS)
+    // TODO:OHOS
     ShowMissingLocaleMessageBox();
+#endif
     return CHROME_RESULT_CODE_MISSING_DATA;
   }
 
@@ -1118,7 +1131,7 @@ void ChromeBrowserMainParts::PostCreateThreads() {
                      sampling_profiler::ProfilerThreadType::kIo));
 // Sampling multiple threads might cause overhead on Android and we don't want
 // to enable it unless the data is needed.
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_OHOS)
   // We pass in CreateCoreUnwindersFactory here since it lives in the chrome/
   // layer while TracingSamplerProfiler is outside of chrome/.
   content::GetIOThreadTaskRunner({})->PostTask(
@@ -1167,8 +1180,11 @@ int ChromeBrowserMainParts::PreMainMessageLoopRun() {
 void ChromeBrowserMainParts::PreProfileInit() {
   TRACE_EVENT0("startup", "ChromeBrowserMainParts::PreProfileInit");
 
+#if !BUILDFLAG(IS_OHOS)
+  // TODO:OHOS
   media::AudioManager::SetGlobalAppName(
       l10n_util::GetStringUTF8(IDS_SHORT_PRODUCT_NAME));
+#endif
 
   for (auto& chrome_extra_part : chrome_extra_parts_)
     chrome_extra_part->PreProfileInit();
@@ -1470,7 +1486,7 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
           ->GetSharedURLLoaderFactory());
 #endif
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_OHOS)
   // Wait for the chrome browser cloud management enrollment to finish.
   // If enrollment is not mandatory, this function returns immediately.
   // Abort the launch process if required enrollment fails.
@@ -1508,6 +1524,11 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
       user_data_dir_, *base::CommandLine::ForCurrentProcess());
   base::UmaHistogramEnumeration(
       "ProfilePicker.StartupMode.CreateInitialProfile", profile_info.mode);
+#if !BUILDFLAG(IS_OHOS)
+  // TODO:OHOS
+  if (profile_info.mode == StartupProfileMode::kError)
+    return content::RESULT_CODE_NORMAL_EXIT;
+#endif
 
   if (profile_info.mode == StartupProfileMode::kError)
     return content::RESULT_CODE_NORMAL_EXIT;

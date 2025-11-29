@@ -99,12 +99,14 @@ void OnWebAppInstallShowInstallDialog(
             iph_state);
         return;
       }
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
     case WebAppInstallFlow::kCreateShortcut: {
+#if !BUILDFLAG(IS_OHOS)
       webapps::AppId app_id =
           web_app::GenerateAppIdFromManifestId(web_app_info->manifest_id());
       metrics::structured::StructuredMetricsClient::Record(
           cros_events::AppDiscovery_Browser_CreateShortcut().SetAppId(app_id));
+#endif
     }
 
       ShowCreateShortcutDialog(initiator_web_contents, std::move(web_app_info),

@@ -26,6 +26,7 @@ class Extension;
 
 namespace views {
 class Checkbox;
+class Label;
 }
 
 // A dialog allowing the user to create a desktop shortcut pointing to Chrome
@@ -86,6 +87,9 @@ class CreateChromeApplicationShortcutView : public views::DialogDelegateView {
   raw_ptr<views::Checkbox> desktop_check_box_ = nullptr;
   raw_ptr<views::Checkbox> menu_check_box_ = nullptr;
   raw_ptr<views::Checkbox> quick_launch_check_box_ = nullptr;
+
+  // ohos delete create shortcut label text
+  raw_ptr<views::Label> create_shortcuts_text_label_ = nullptr;
 
   // Target shortcut and file handler info.
   std::unique_ptr<web_app::ShortcutInfo> shortcut_info_;

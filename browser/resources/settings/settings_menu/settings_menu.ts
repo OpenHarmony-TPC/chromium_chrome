@@ -135,6 +135,12 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
     this.metricsBrowserProxy_.recordAction(
         'SettingsMenu_AiPageEntryPointClicked');
   }
+
+  // <if expr="is_ohos">
+  private systemPageVisibility_(): boolean {
+    return loadTimeData.getBoolean('systemPageVisibility');
+  }
+  // </if>
 }
 
 declare global {

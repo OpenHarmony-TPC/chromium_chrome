@@ -25,6 +25,10 @@
 #include "chrome/browser/extensions/api/settings_private/chromeos_resolve_time_zone_by_geolocation_on_off.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/safe_browsing/generated_advanced_security_mode_pref.h"
+#endif
+
 namespace extensions {
 namespace settings_private {
 
@@ -111,6 +115,10 @@ void GeneratedPrefs::CreatePrefs() {
       profile_, ContentSettingsType::GEOLOCATION);
   prefs_[kGeneratedHttpsFirstModePref] =
       std::make_unique<GeneratedHttpsFirstModePref>(profile_);
+#if BUILDFLAG(IS_OHOS)
+  prefs_[kGeneratedAdvancedSecurityModePref] =
+      std::make_unique<GeneratedAdvancedSecurityModePref>(profile_);
+#endif
 }
 
 }  // namespace settings_private
