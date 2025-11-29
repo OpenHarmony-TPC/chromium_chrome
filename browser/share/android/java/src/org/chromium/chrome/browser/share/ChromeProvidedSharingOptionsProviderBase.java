@@ -265,21 +265,29 @@ public abstract class ChromeProvidedSharingOptionsProviderBase {
      * classes before the provider can function
      */
     protected void initializeFirstPartyOptionsInOrder() {
-        maybeAddPageInfoFirstPartyOption();
         maybeAddCopyFirstPartyOption();
+
+        // TODO(386833405): Decide on priority for this option.
+        maybeAddCollaborateFirstPartyOption();
+
         // Only show a limited first party share selection for automotive and PDF pages.
-        if (!isAutomotive() && !isPdfTab()) {
-            maybeAddLongScreenshotFirstPartyOption();
+        if (!isAutomotive()) {
+            if (!isPdfTab()) {
+                maybeAddLongScreenshotFirstPartyOption();
+            }
             maybeAddPrintFirstPartyOption();
         }
         maybeAddSendTabToSelfFirstPartyOption();
         maybeAddQrCodeFirstPartyOption();
     }
 
-    private void maybeAddPageInfoFirstPartyOption() {
-        FirstPartyOption pageInfoOption = createPageInfoFirstPartyOption();
-        if (pageInfoOption != null) {
-            mOrderedFirstPartyOptions.add(pageInfoOption);
+    private void maybeAddCollaborateFirstPartyOption() {
+        if (BuildConfig.IS_DESKTOP_ANDROID) {
+            return;
+        }
+        FirstPartyOption option = createCollaborateFirstPartyOption();
+        if (option != null) {
+            mOrderedFirstPartyOptions.add(option);
         }
     }
 
@@ -337,7 +345,7 @@ public abstract class ChromeProvidedSharingOptionsProviderBase {
         return new FirstPartyOptionBuilder(
                         ContentType.LINK_PAGE_VISIBLE, ContentType.LINK_PAGE_NOT_VISIBLE)
                 .setContentTypesToDisableFor(ContentType.LINK_AND_TEXT, ContentType.IMAGE_AND_LINK)
-                .setIcon(R.drawable.ic_content_copy_black, R.string.sharing_copy_url)
+                .setIcon(R.drawable.ic_content_copy, R.string.sharing_copy_url)
                 .setShareActionType(ShareCustomAction.COPY_URL)
                 .setFeatureNameForMetrics(USER_ACTION_COPY_URL_SELECTED)
                 .setOnClickCallback(
@@ -356,7 +364,7 @@ public abstract class ChromeProvidedSharingOptionsProviderBase {
      */
     protected FirstPartyOption createCopyImageFirstPartyOption() {
         return new FirstPartyOptionBuilder(ContentType.IMAGE, ContentType.IMAGE_AND_LINK)
-                .setIcon(R.drawable.ic_content_copy_black, R.string.sharing_copy_image)
+                .setIcon(R.drawable.ic_content_copy, R.string.sharing_copy_image)
                 .setShareActionType(ShareCustomAction.COPY_IMAGE)
                 .setFeatureNameForMetrics(USER_ACTION_COPY_IMAGE_SELECTED)
                 .setOnClickCallback(
@@ -372,7 +380,7 @@ public abstract class ChromeProvidedSharingOptionsProviderBase {
 
     private FirstPartyOption createCopyFirstPartyOption() {
         return new FirstPartyOptionBuilder(ContentType.LINK_AND_TEXT)
-                .setIcon(R.drawable.ic_content_copy_black, R.string.sharing_copy)
+                .setIcon(R.drawable.ic_content_copy, R.string.sharing_copy)
                 .setShareActionType(ShareCustomAction.COPY)
                 .setFeatureNameForMetrics(USER_ACTION_COPY_SELECTED)
                 .setOnClickCallback(
@@ -389,7 +397,7 @@ public abstract class ChromeProvidedSharingOptionsProviderBase {
     private FirstPartyOption createCopyTextFirstPartyOption() {
         return new FirstPartyOptionBuilder(ContentType.TEXT, ContentType.HIGHLIGHTED_TEXT)
                 .setContentTypesToDisableFor(ContentType.LINK_AND_TEXT)
-                .setIcon(R.drawable.ic_content_copy_black, R.string.sharing_copy_text)
+                .setIcon(R.drawable.ic_content_copy, R.string.sharing_copy_text)
                 .setShareActionType(ShareCustomAction.COPY_TEXT)
                 .setFeatureNameForMetrics(USER_ACTION_COPY_TEXT_SELECTED)
                 .setOnClickCallback(
@@ -465,7 +473,8 @@ public abstract class ChromeProvidedSharingOptionsProviderBase {
     protected abstract @Nullable FirstPartyOption createLongScreenshotsFirstPartyOption();
 
     /**
-     * Create a {@link FirstPartyOption} used for page info sharing. Return null if not supported.
+     * Create a {@link FirstPartyOption} used for sharing as collaboration. Return null if not
+     * supported.
      */
-    protected abstract @Nullable FirstPartyOption createPageInfoFirstPartyOption();
+    protected abstract @Nullable FirstPartyOption createCollaborateFirstPartyOption();
 }

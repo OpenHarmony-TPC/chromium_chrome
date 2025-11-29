@@ -9,6 +9,7 @@
 #include "base/functional/callback.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/multiprocess_test.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_file_util.h"
@@ -28,6 +29,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
+namespace policy {
+enum class PolicyFetchReason;
+}  // namespace policy
+
 namespace enterprise_companion {
 namespace {
 
@@ -36,11 +41,11 @@ constexpr int32_t kIpcCallerNotAllowedExitCode = 42;
 
 class MockEnterpriseCompanionService final : public EnterpriseCompanionService {
  public:
-  MockEnterpriseCompanionService() = default;
-  ~MockEnterpriseCompanionService() override = default;
-
   MOCK_METHOD(void, Shutdown, (base::OnceClosure callback), (override));
-  MOCK_METHOD(void, FetchPolicies, (StatusCallback callback), (override));
+  MOCK_METHOD(void,
+              FetchPolicies,
+              (policy::PolicyFetchReason reason, StatusCallback callback),
+              (override));
 };
 
 }  // namespace
@@ -80,9 +85,9 @@ class AppShutdownTest : public ::testing::Test {
                          ".service"});
 #elif BUILDFLAG(IS_LINUX)
     return base::GetTempDirForTesting()
-        .AppendASCII(base::StrCat({"ChromeEnterpriseCompanionTest",
-                                   base::UnguessableToken::Create().ToString(),
-                                   ".service.sk"}))
+        .AppendUTF8(base::StrCat({"ChromeEnterpriseCompanionTest",
+                                  base::UnguessableToken::Create().ToString(),
+                                  ".service.sk"}))
         .AsUTF8Unsafe();
 #elif BUILDFLAG(IS_WIN)
     return base::UTF8ToWide(

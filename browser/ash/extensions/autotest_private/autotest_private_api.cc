@@ -9,6 +9,7 @@
 
 #include "chrome/browser/ash/extensions/autotest_private/autotest_private_api.h"
 
+#include <algorithm>
 #include <deque>
 #include <map>
 #include <memory>
@@ -20,13 +21,6 @@
 
 #include "ash/accessibility/accessibility_controller.h"
 #include "ash/app_list/app_list_public_test_util.h"
-#include "ash/components/arc/arc_prefs.h"
-#include "ash/components/arc/metrics/arc_metrics_constants.h"
-#include "ash/components/arc/mojom/power.mojom.h"
-#include "ash/components/arc/mojom/system_ui.mojom-shared.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
-#include "ash/components/arc/system_ui/arc_system_ui_bridge.h"
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
@@ -54,12 +48,14 @@
 #include "ash/public/cpp/window_properties.h"
 #include "ash/root_window_controller.h"
 #include "ash/rotator/screen_rotation_animator.h"
+#include "ash/scanner/scanner_controller.h"
 #include "ash/shell.h"
 #include "ash/style/dark_light_mode_controller_impl.h"
 #include "ash/wallpaper/views/wallpaper_widget_controller.h"
 #include "ash/wm/overview/overview_controller.h"
 #include "ash/wm/wm_event.h"
 #include "base/base64.h"
+#include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
@@ -73,12 +69,12 @@
 #include "base/metrics/field_trial.h"
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/ranges/algorithm.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/system/sys_info.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -101,14 +97,11 @@
 #include "chrome/browser/ash/borealis/borealis_service.h"
 #include "chrome/browser/ash/borealis/borealis_service_factory.h"
 #include "chrome/browser/ash/borealis/borealis_types.mojom.h"
+#include "chrome/browser/ash/browser_delegate/browser_delegate.h"
 #include "chrome/browser/ash/bruschetta/bruschetta_installer.h"
 #include "chrome/browser/ash/bruschetta/bruschetta_service.h"
 #include "chrome/browser/ash/bruschetta/bruschetta_service_factory.h"
 #include "chrome/browser/ash/bruschetta/bruschetta_util.h"
-#include "chrome/browser/ash/crosapi/automation_ash.h"
-#include "chrome/browser/ash/crosapi/browser_util.h"
-#include "chrome/browser/ash/crosapi/crosapi_ash.h"
-#include "chrome/browser/ash/crosapi/crosapi_manager.h"
 #include "chrome/browser/ash/crostini/crostini_export_import.h"
 #include "chrome/browser/ash/crostini/crostini_export_import_factory.h"
 #include "chrome/browser/ash/crostini/crostini_features.h"
@@ -122,6 +115,8 @@
 #include "chrome/browser/ash/guest_os/guest_os_registry_service.h"
 #include "chrome/browser/ash/guest_os/guest_os_registry_service_factory.h"
 #include "chrome/browser/ash/input_method/editor_mediator_factory.h"
+#include "chrome/browser/ash/lobster/lobster_service.h"
+#include "chrome/browser/ash/lobster/lobster_service_provider.h"
 #include "chrome/browser/ash/login/lock/screen_locker.h"
 #include "chrome/browser/ash/login/wizard_context.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_installer.h"
@@ -142,12 +137,10 @@
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/component_updater/smart_dim_component_installer.h"
 #include "chrome/browser/extensions/component_loader.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/policy/chrome_policy_conversions_client.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/ui/ash/default_pinned_apps/default_pinned_apps.h"
 #include "chrome/browser/ui/ash/holding_space/holding_space_keyed_service.h"
 #include "chrome/browser/ui/ash/holding_space/holding_space_keyed_service_factory.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
@@ -173,14 +166,20 @@
 #include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
+#include "chromeos/ash/components/default_pinned_apps/default_pinned_apps.h"
 #include "chromeos/ash/components/metrics/login_event_recorder.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
-#include "chromeos/ash/services/assistant/assistant_manager_service_impl.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/experiences/arc/metrics/arc_metrics_constants.h"
+#include "chromeos/ash/experiences/arc/mojom/power.mojom.h"
+#include "chromeos/ash/experiences/arc/mojom/system_ui.mojom-shared.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
+#include "chromeos/ash/experiences/arc/system_ui/arc_system_ui_bridge.h"
 #include "chromeos/ash/services/assistant/public/cpp/assistant_prefs.h"
 #include "chromeos/ash/services/assistant/public/cpp/assistant_service.h"
 #include "chromeos/components/quick_answers/public/cpp/quick_answers_prefs.h"
-#include "chromeos/constants/chromeos_features.h"
 #include "chromeos/printing/printer_configuration.h"
 #include "chromeos/services/machine_learning/public/cpp/service_connection.h"
 #include "chromeos/ui/base/app_types.h"
@@ -212,6 +211,7 @@
 #include "components/variations/pref_names.h"
 #include "components/viz/host/host_frame_sink_manager.h"
 #include "components/webapps/browser/banners/app_banner_manager.h"
+#include "components/webui/chrome_urls/pref_names.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
@@ -220,8 +220,8 @@
 #include "extensions/browser/extension_action_manager.h"
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/extension_function_registry.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
-#include "extensions/browser/extension_system.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/common/api/extension_action/action_info.h"
 #include "extensions/common/manifest_handlers/background_info.h"
@@ -245,10 +245,10 @@
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/compositor/compositor.h"
+#include "ui/compositor/compositor_metrics_tracker.h"
+#include "ui/compositor/compositor_metrics_tracker_host.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
-#include "ui/compositor/throughput_tracker.h"
-#include "ui/compositor/throughput_tracker_host.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/events/event_constants.h"
@@ -406,8 +406,6 @@ api::autotest_private::AppType GetAppType(apps::AppType type) {
   switch (type) {
     case apps::AppType::kArc:
       return api::autotest_private::AppType::kArc;
-    case apps::AppType::kBuiltIn:
-      return api::autotest_private::AppType::kBuiltIn;
     case apps::AppType::kCrostini:
       return api::autotest_private::AppType::kCrostini;
     case apps::AppType::kChromeApp:
@@ -420,18 +418,12 @@ api::autotest_private::AppType GetAppType(apps::AppType type) {
       return api::autotest_private::AppType::kWeb;
     case apps::AppType::kUnknown:
       return api::autotest_private::AppType::kNone;
-    case apps::AppType::kStandaloneBrowser:
-      return api::autotest_private::AppType::kStandaloneBrowser;
     case apps::AppType::kRemote:
       return api::autotest_private::AppType::kRemote;
     case apps::AppType::kBorealis:
       return api::autotest_private::AppType::kBorealis;
     case apps::AppType::kBruschetta:
       return api::autotest_private::AppType::kBruschetta;
-    case apps::AppType::kStandaloneBrowserExtension:
-      return api::autotest_private::AppType::kNone;
-    case apps::AppType::kStandaloneBrowserChromeApp:
-      return api::autotest_private::AppType::kExtension;
   }
   NOTREACHED();
 }
@@ -559,6 +551,11 @@ std::string SetAllowedPref(Profile* profile,
   if (pref_name == variations::prefs::kVariationsCompressedSeed ||
       pref_name == variations::prefs::kVariationsSeedSignature) {
     DCHECK(value.is_string());
+    g_browser_process->local_state()->Set(pref_name, value);
+    return std::string();
+  }
+  if (pref_name == chrome_urls::kInternalOnlyUisEnabled) {
+    DCHECK(value.is_bool());
     g_browser_process->local_state()->Set(pref_name, value);
     return std::string();
   }
@@ -814,7 +811,7 @@ arc::mojom::ThemeStyleType ToThemeStyleType(
 
 aura::Window* FindAppWindowById(const int64_t id) {
   auto list = ash::GetAppWindowList();
-  auto iter = base::ranges::find(list, id, &aura::Window::GetId);
+  auto iter = std::ranges::find(list, id, &aura::Window::GetId);
   if (iter == list.end()) {
     return nullptr;
   }
@@ -826,7 +823,7 @@ Browser* GetFirstRegularBrowser() {
   const BrowserList* list = BrowserList::GetInstance();
   const web_app::AppBrowserController* (Browser::*app_controller)() const =
       &Browser::app_controller;
-  auto iter = base::ranges::find(*list, nullptr, app_controller);
+  auto iter = std::ranges::find(*list, nullptr, app_controller);
   if (iter == list->end()) {
     return nullptr;
   }
@@ -955,7 +952,7 @@ class DisplaySmoothnessTracker {
   // Return true if tracking is started successfully.
   bool Start(int64_t display_id,
              base::TimeDelta throughput_interval,
-             ui::ThroughputTrackerHost::ReportCallback callback) {
+             ui::CompositorMetricsTrackerHost::ReportCallback callback) {
     auto* root_window = ash::Shell::GetRootWindowForDisplayId(display_id);
     if (!root_window) {
       return false;
@@ -966,19 +963,20 @@ class DisplaySmoothnessTracker {
     DCHECK(root_window_tracker_.windows().empty());
     root_window_tracker_.Add(root_window);
 
-    tracker_ =
-        root_window->layer()->GetCompositor()->RequestNewThroughputTracker();
+    tracker_ = root_window->layer()
+                   ->GetCompositor()
+                   ->RequestNewCompositorMetricsTracker();
     tracker_->Start(std::move(callback));
 
-    throughtput_timer_.Start(FROM_HERE, throughput_interval, this,
-                             &DisplaySmoothnessTracker::OnThroughputTimerFired);
+    throughput_timer_.Start(FROM_HERE, throughput_interval, this,
+                            &DisplaySmoothnessTracker::OnThroughputTimerFired);
 
     return true;
   }
 
   bool Stop(ReportCallback callback) {
     stopping_ = true;
-    throughtput_timer_.Stop();
+    throughput_timer_.Stop();
     callback_ = std::move(callback);
     return tracker_->Stop();
   }
@@ -1002,7 +1000,7 @@ class DisplaySmoothnessTracker {
       LOG(ERROR) << "Unable to collect throughput because underlying "
                     "RootWindow is gone.";
       has_error_ = true;
-      throughtput_timer_.Stop();
+      throughput_timer_.Stop();
       return;
     }
 
@@ -1019,7 +1017,7 @@ class DisplaySmoothnessTracker {
   bool has_error_ = false;
   base::TimeTicks start_time_;
 
-  base::RepeatingTimer throughtput_timer_;
+  base::RepeatingTimer throughput_timer_;
   std::vector<int> throughput_;
 };
 
@@ -1451,7 +1449,7 @@ ExtensionFunction::ResponseAction AutotestPrivateLoginStatusFunction::Run() {
     result.Set("isReadyForPassword",
                ash::LoginScreen::Get()->IsReadyForPassword());
 
-    const user_manager::UserList& users = user_manager->GetUsers();
+    const user_manager::UserList& users = user_manager->GetPersistedUsers();
     bool user_images_loaded = true;
     for (const user_manager::User* user : users) {
       if (user->image_is_loading()) {
@@ -1629,8 +1627,7 @@ ExtensionFunction::ResponseAction
 AutotestPrivateGetExtensionsInfoFunction::Run() {
   DVLOG(1) << "AutotestPrivateGetExtensionsInfoFunction";
 
-  ExtensionService* service =
-      ExtensionSystem::Get(browser_context())->extension_service();
+  ExtensionRegistrar* registrar = ExtensionRegistrar::Get(browser_context());
   ExtensionRegistry* registry = ExtensionRegistry::Get(browser_context());
   const ExtensionSet& extensions = registry->enabled_extensions();
   const ExtensionSet& disabled_extensions = registry->disabled_extensions();
@@ -1668,7 +1665,7 @@ AutotestPrivateGetExtensionsInfoFunction::Run() {
             .Set("isInternal", location == ManifestLocation::kInternal)
             .Set("isUserInstalled", location == ManifestLocation::kInternal ||
                                         Manifest::IsUnpackedLocation(location))
-            .Set("isEnabled", service->IsExtensionEnabled(id))
+            .Set("isEnabled", registrar->IsExtensionEnabled(id))
             .Set("allowedInIncognito",
                  util::IsIncognitoEnabled(id, browser_context()))
             .Set("hasPageAction",
@@ -2053,51 +2050,6 @@ AutotestPrivateIsArcProvisionedFunction::Run() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// AutotestPrivateGetLacrosInfoFunction
-///////////////////////////////////////////////////////////////////////////////
-
-AutotestPrivateGetLacrosInfoFunction::~AutotestPrivateGetLacrosInfoFunction() =
-    default;
-
-// static
-api::autotest_private::LacrosState
-AutotestPrivateGetLacrosInfoFunction::ToLacrosState(
-    crosapi::BrowserManager::State state) {
-  switch (state) {
-    case crosapi::BrowserManager::State::NOT_INITIALIZED:
-      return api::autotest_private::LacrosState::kNotInitialized;
-    case crosapi::BrowserManager::State::UNAVAILABLE:
-      return api::autotest_private::LacrosState::kUnavailable;
-  }
-}
-
-// static
-api::autotest_private::LacrosMode
-AutotestPrivateGetLacrosInfoFunction::ToLacrosMode(bool is_enabled) {
-  return is_enabled ? api::autotest_private::LacrosMode::kOnly
-                    : api::autotest_private::LacrosMode::kDisabled;
-}
-
-ExtensionFunction::ResponseAction AutotestPrivateGetLacrosInfoFunction::Run() {
-  DVLOG(1) << "AutotestPrivateGetLacrosInfoFunction";
-  auto* browser_manager = crosapi::BrowserManager::Get();
-  return RespondNow(WithArguments(
-      base::Value::Dict()
-          .Set("state", api::autotest_private::ToString(
-                            ToLacrosState(browser_manager->state_)))
-          .Set("isKeepAlive", browser_manager->IsKeepAliveEnabled())
-          // TODO(neis): Rename lacrosPath to avoid confusion, or make it be the
-          // binary path. Either requires changes in tast-tests.
-          .Set("lacrosPath",
-               browser_manager->lacros_path().empty()
-                   ? ""
-                   : browser_manager->lacros_path().DirName().MaybeAsASCII())
-          .Set("mode", api::autotest_private::ToString(ToLacrosMode(
-                           crosapi::browser_util::IsLacrosEnabled())))
-          .Set("isEnabled", crosapi::browser_util::IsLacrosEnabled())));
-}
-
-///////////////////////////////////////////////////////////////////////////////
 // AutotestPrivateGetArcAppFunction
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -2362,7 +2314,8 @@ void AutotestPrivateIsSystemWebAppOpenFunction::OnSystemWebAppsInstalled() {
     return;
   }
 
-  Respond(WithArguments(ash::FindSystemWebAppBrowser(profile, *app_type) !=
+  Respond(WithArguments(ash::FindSystemWebAppBrowser(profile, *app_type,
+                                                     ash::BrowserType::kApp) !=
                         nullptr));
 }
 
@@ -3300,15 +3253,6 @@ AutotestPrivateEnableAssistantAndWaitForReadyFunction::Run() {
       ash::assistant::AssistantStatus::READY) {
     return RespondNow(Error("Assistant is already enabled."));
   }
-
-  // We can set this callback only when assistant status is NOT_READY. We should
-  // call this before we try to enable Assistant to avoid causing some timing
-  // issue.
-  ash::assistant::AssistantManagerServiceImpl::
-      SetInitializedInternalCallbackForTesting(base::BindOnce(
-          &AutotestPrivateEnableAssistantAndWaitForReadyFunction::
-              OnInitializedInternal,
-          this));
 
   Profile* profile = Profile::FromBrowserContext(browser_context());
   const std::string& err_msg = SetAllowedPref(
@@ -4876,7 +4820,9 @@ class AutotestPrivateInstallPWAForCurrentURLFunction::PWAInstallManagerObserver
 };
 
 AutotestPrivateInstallPWAForCurrentURLFunction::
-    AutotestPrivateInstallPWAForCurrentURLFunction() = default;
+    AutotestPrivateInstallPWAForCurrentURLFunction()
+    : auto_accept_pwa_install_confirmation_(
+          web_app::SetAutoAcceptPWAInstallConfirmationForTesting()) {}
 AutotestPrivateInstallPWAForCurrentURLFunction::
     ~AutotestPrivateInstallPWAForCurrentURLFunction() = default;
 
@@ -4925,7 +4871,6 @@ void AutotestPrivateInstallPWAForCurrentURLFunction::PWALoaded() {
       base::BindOnce(
           &AutotestPrivateInstallPWAForCurrentURLFunction::PWAInstalled, this));
 
-  web_app::SetAutoAcceptPWAInstallConfirmationForTesting(true);
   if (!chrome::ExecuteCommand(browser, IDC_INSTALL_PWA)) {
     return Respond(Error("Failed to execute INSTALL_PWA command"));
   }
@@ -4933,13 +4878,11 @@ void AutotestPrivateInstallPWAForCurrentURLFunction::PWALoaded() {
 
 void AutotestPrivateInstallPWAForCurrentURLFunction::PWAInstalled(
     const webapps::AppId& app_id) {
-  web_app::SetAutoAcceptPWAInstallConfirmationForTesting(false);
   Respond(WithArguments(app_id));
   timeout_timer_.Stop();
 }
 
 void AutotestPrivateInstallPWAForCurrentURLFunction::PWATimeout() {
-  web_app::SetAutoAcceptPWAInstallConfirmationForTesting(false);
   Respond(Error("Install PWA timed out"));
 }
 
@@ -6034,12 +5977,6 @@ AutotestPrivateDisableAutomationFunction::Run() {
       ->UnregisterAllListenersWithDesktopPermission();
   AutomationEventRouter::GetInstance()->NotifyAllAutomationExtensionsGone();
 
-  // Finally, this disables accessibility in Lacros.
-  crosapi::CrosapiManager::Get()
-      ->crosapi_ash()
-      ->automation_ash()
-      ->AllAutomationExtensionsGone();
-
   return RespondNow(NoArguments());
 }
 
@@ -6398,6 +6335,32 @@ AutotestPrivateIsInputMethodReadyForTestingFunction::Run() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// AutotestPrivateOverrideLobsterResponseForTestingFunction
+//////////////////////////////////////////////////////////////////////////////
+
+AutotestPrivateOverrideLobsterResponseForTestingFunction::
+    AutotestPrivateOverrideLobsterResponseForTestingFunction() = default;
+
+AutotestPrivateOverrideLobsterResponseForTestingFunction::
+    ~AutotestPrivateOverrideLobsterResponseForTestingFunction() = default;
+
+ExtensionFunction::ResponseAction
+AutotestPrivateOverrideLobsterResponseForTestingFunction::Run() {
+  if (!ash::features::IsLobsterEnabled()) {
+    return RespondNow(WithArguments(false));
+  }
+
+  LobsterService* lobster_service = LobsterServiceProvider::GetForProfile(
+      ash::ProfileHelper::Get()->GetProfileByUser(
+          user_manager::UserManager::Get()->GetActiveUser()));
+
+  return RespondNow(WithArguments(
+      lobster_service != nullptr
+          ? lobster_service->OverrideLobsterImageProviderForTesting()
+          : false));  // IN-TEST
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // AutotestPrivateOverrideOrcaResponseForTestingFunction
 //////////////////////////////////////////////////////////////////////////////
 
@@ -6424,6 +6387,36 @@ AutotestPrivateOverrideOrcaResponseForTestingFunction::Run() {
   return RespondNow(
       WithArguments(editor_mediator->SetTextQueryProviderResponseForTesting(
           params->array.responses)));  // IN-TEST
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// AutotestPrivateOverrideScannerResponsesForTestingFunction
+//////////////////////////////////////////////////////////////////////////////
+
+AutotestPrivateOverrideScannerResponsesForTestingFunction::
+    AutotestPrivateOverrideScannerResponsesForTestingFunction() = default;
+
+AutotestPrivateOverrideScannerResponsesForTestingFunction::
+    ~AutotestPrivateOverrideScannerResponsesForTestingFunction() = default;
+
+ExtensionFunction::ResponseAction
+AutotestPrivateOverrideScannerResponsesForTestingFunction::Run() {
+  std::optional<
+      api::autotest_private::OverrideScannerResponsesForTesting::Params>
+      params = api::autotest_private::OverrideScannerResponsesForTesting::
+          Params::Create(args());
+
+  EXTENSION_FUNCTION_VALIDATE(params);
+
+  if (!ash::Shell::HasInstance() || !ash::Shell::Get()->scanner_controller()) {
+    return RespondNow(WithArguments(false));
+  }
+
+  ash::ScannerController* controller = ash::Shell::Get()->scanner_controller();
+  controller->SetScannerResponsesForTesting(  // IN-TEST
+      std::move(params->array.responses));
+
+  return RespondNow(WithArguments(true));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -6493,9 +6486,8 @@ AutotestPrivateRemoveComponentExtensionFunction::Run() {
           args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
-  extensions::ExtensionService* extension_service =
-      extensions::ExtensionSystem::Get(browser_context())->extension_service();
-  extension_service->component_loader()->Remove(params->extension_id);
+  extensions::ComponentLoader::Get(browser_context())
+      ->Remove(params->extension_id);
 
   return RespondNow(NoArguments());
 }
@@ -6640,7 +6632,7 @@ AutotestPrivateStartOverdrawTrackingFunction::Run() {
         Error(base::StrCat({"Invalid displayId: ", *params->display_id})));
   }
 
-  DVLOG(1) << "AutotestPrivateStopOverdrawTrackingFunction displayId:"
+  DVLOG(1) << "AutotestPrivateStartOverdrawTrackingFunction displayId:"
            << target_display_id;
 
   // Validate display id.
@@ -6780,6 +6772,7 @@ AutotestPrivateInstallBruschettaFunction::Run() {
   Profile* profile = Profile::FromBrowserContext(browser_context());
 
   BruschettaInstallerView::Show(profile,
+                                CHECK_DEREF(g_browser_process->local_state()),
                                 bruschetta::MakeBruschettaId(params->vm_name));
 
   auto* view = BruschettaInstallerView::GetActiveViewForTesting();
@@ -6878,14 +6871,13 @@ AutotestPrivateIsFeatureEnabledFunction::Run() {
   static const base::Feature* const kAllowList[] = {
       // clang-format off
       &ash::features::kFeatureManagementVideoConference,
-      &ash::features::kSavedDeskUiRevamp,
-      &chromeos::features::kJelly,
+      &ash::features::kForestFeature,
       &kDisabledFeatureForTest,
       &kEnabledFeatureForTest,
       // clang-format on
   };
-  auto* const* it = base::ranges::find(kAllowList, params->feature_name,
-                                       &base::Feature::name);
+  auto* const* it =
+      std::ranges::find(kAllowList, params->feature_name, &base::Feature::name);
   if (it == std::end(kAllowList)) {
     std::string error = base::StrCat(
         {"feature ", params->feature_name,
@@ -7098,15 +7090,6 @@ static base::LazyInstance<BrowserContextKeyedAPIFactory<AutotestPrivateAPI>>::
 BrowserContextKeyedAPIFactory<AutotestPrivateAPI>*
 AutotestPrivateAPI::GetFactoryInstance() {
   return g_autotest_private_api_factory.Pointer();
-}
-
-template <>
-KeyedService*
-BrowserContextKeyedAPIFactory<AutotestPrivateAPI>::BuildServiceInstanceFor(
-    content::BrowserContext* context) const {
-  // Stub to ensure the default implementation is not generated by the template.
-  NOTREACHED_IN_MIGRATION();
-  return nullptr;
 }
 
 template <>

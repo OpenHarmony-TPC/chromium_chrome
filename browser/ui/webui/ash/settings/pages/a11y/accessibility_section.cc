@@ -20,7 +20,6 @@
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
-#include "chrome/browser/accessibility/accessibility_state_utils.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/speech/extension_api/tts_engine_extension_observer_chromeos.h"
 #include "chrome/browser/speech/extension_api/tts_engine_extension_observer_chromeos_factory.h"
@@ -34,7 +33,6 @@
 #include "chrome/browser/ui/webui/settings/captions_handler.h"
 #include "chrome/browser/ui/webui/settings/font_handler.h"
 #include "chrome/browser/ui/webui/settings/shared_settings_localized_strings_provider.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/live_caption/caption_util.h"
@@ -45,10 +43,11 @@
 #include "extensions/browser/extension_system.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/accessibility_switches.h"
+#include "ui/accessibility/platform/ax_platform.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/webui/web_ui_util.h"
 #include "ui/events/ash/keyboard_layout_util.h"
-#include "ui/native_theme/native_theme_features.h"
+#include "ui/webui/webui_util.h"
 
 namespace ash::settings {
 
@@ -61,6 +60,7 @@ using ::chromeos::settings::mojom::kDisplayAndMagnificationSubpagePath;
 using ::chromeos::settings::mojom::kFaceGazeSettingsSubpagePath;
 using ::chromeos::settings::mojom::kKeyboardAndTextInputSubpagePath;
 using ::chromeos::settings::mojom::kManageAccessibilitySubpagePath;
+using ::chromeos::settings::mojom::kMouseKeysSettingsSubpagePath;
 using ::chromeos::settings::mojom::kSelectToSpeakSubpagePath;
 using ::chromeos::settings::mojom::kSwitchAccessOptionsSubpagePath;
 using ::chromeos::settings::mojom::kTextToSpeechPagePath;
@@ -327,6 +327,12 @@ base::span<const SearchConcept> GetA11ySearchConcepts() {
        {IDS_OS_SETTINGS_TAG_A11Y_REDUCED_ANIMATIONS_ALT1,
         IDS_OS_SETTINGS_TAG_A11Y_REDUCED_ANIMATIONS_ALT2,
         SearchConcept::kAltTagEnd}},
+      {IDS_OS_SETTINGS_TAG_A11Y_ALWAYS_SHOW_SCROLLBARS,
+       mojom::kDisplayAndMagnificationSubpagePath,
+       mojom::SearchResultIcon::kAlwaysShowScrollbars,
+       mojom::SearchResultDefaultRank::kMedium,
+       mojom::SearchResultType::kSetting,
+       {.setting = mojom::Setting::kAlwaysShowScrollbarsEnabled}},
   });
   return tags;
 }
@@ -531,6 +537,57 @@ base::span<const SearchConcept> GetA11yFaceGazeSearchConcepts() {
   return tags;
 }
 
+base::span<const SearchConcept> GetA11yMouseKeysSearchConcepts() {
+  static constexpr auto tags = std::to_array<SearchConcept>({
+      {IDS_OS_SETTINGS_TAG_A11Y_MOUSE_KEYS,
+       mojom::kMouseKeysSettingsSubpagePath,
+       mojom::SearchResultIcon::kA11y,
+       mojom::SearchResultDefaultRank::kMedium,
+       mojom::SearchResultType::kSetting,
+       {.setting = mojom::Setting::kMouseKeysEnabled}},
+  });
+  return tags;
+}
+
+base::span<const SearchConcept> GetA11yDisableTouchpadSearchConcepts() {
+  static constexpr auto tags = std::to_array<SearchConcept>(
+      {{IDS_OS_SETTINGS_TAG_A11Y_DISABLE_TOUCHPAD,
+        mojom::kCursorAndTouchpadSubpagePath,
+        mojom::SearchResultIcon::kTouchpad,
+        mojom::SearchResultDefaultRank::kMedium,
+        mojom::SearchResultType::kSetting,
+        {.setting = mojom::Setting::kDisableTouchpad},
+        {
+            IDS_OS_SETTINGS_TAG_A11Y_DISABLE_TOUCHPAD_ALT1,
+            SearchConcept::kAltTagEnd,
+        }}});
+  return tags;
+}
+
+base::span<const SearchConcept> GetA11yBounceKeysSearchConcepts() {
+  static constexpr auto tags = std::to_array<SearchConcept>({
+      {IDS_OS_SETTINGS_TAG_A11Y_BOUNCE_KEYS,
+       mojom::kKeyboardAndTextInputSubpagePath,
+       mojom::SearchResultIcon::kA11y,
+       mojom::SearchResultDefaultRank::kMedium,
+       mojom::SearchResultType::kSetting,
+       {.setting = mojom::Setting::kBounceKeys}},
+  });
+  return tags;
+}
+
+base::span<const SearchConcept> GetA11ySlowKeysSearchConcepts() {
+  static constexpr auto tags = std::to_array<SearchConcept>({
+      {IDS_OS_SETTINGS_TAG_A11Y_SLOW_KEYS,
+       mojom::kKeyboardAndTextInputSubpagePath,
+       mojom::SearchResultIcon::kA11y,
+       mojom::SearchResultDefaultRank::kMedium,
+       mojom::SearchResultType::kSetting,
+       {.setting = mojom::Setting::kSlowKeys}},
+  });
+  return tags;
+}
+
 bool IsLiveCaptionEnabled() {
   return captions::IsLiveCaptionFeatureSupported();
 }
@@ -553,10 +610,6 @@ bool IsAccessibilityReducedAnimationsEnabled() {
   return ::features::IsAccessibilityReducedAnimationsEnabled();
 }
 
-bool isAccessibilityOverlayScrollbarEnabled() {
-  return ::features::IsOverlayScrollbarOSSettingEnabled();
-}
-
 bool IsAccessibilityMagnifierFollowsChromeVoxEnabled() {
   return ::features::IsAccessibilityMagnifierFollowsChromeVoxEnabled();
 }
@@ -575,6 +628,14 @@ bool IsAccessibilityDisableTouchpadEnabled() {
 
 bool IsAccessibilityFlashNotificationFeatureEnabled() {
   return ::features::IsAccessibilityFlashScreenFeatureEnabled();
+}
+
+bool IsAccessibilityBounceKeysEnabled() {
+  return ::features::IsAccessibilityBounceKeysEnabled();
+}
+
+bool IsAccessibilitySlowKeysEnabled() {
+  return ::features::IsAccessibilitySlowKeysEnabled();
 }
 
 }  // namespace
@@ -631,9 +692,6 @@ AccessibilitySection::~AccessibilitySection() {
 
 void AccessibilitySection::AddLoadTimeData(
     content::WebUIDataSource* html_source) {
-  const bool kIsRevampEnabled =
-      ash::features::IsOsSettingsRevampWayfindingEnabled();
-
   webui::LocalizedString kLocalizedStrings[] = {
       {"a11yExplanation", IDS_SETTINGS_ACCESSIBILITY_EXPLANATION},
       {"a11yPageTitle", IDS_SETTINGS_ACCESSIBILITY},
@@ -691,6 +749,15 @@ void AccessibilitySection::AddLoadTimeData(
        IDS_SETTINGS_AUTOCLICK_REVERT_TO_LEFT_CLICK},
       {"autoclickStabilizeCursorPosition",
        IDS_SETTINGS_AUTOCLICK_STABILIZE_CURSOR_POSITION},
+      {"bounceKeysLabel", IDS_OS_SETTINGS_ACCESSIBILITY_BOUNCE_KEYS_LABEL},
+      {"bounceKeysDescription",
+       IDS_OS_SETTINGS_ACCESSIBILITY_BOUNCE_KEYS_DESCRIPTION},
+      {"bounceKeysDelayLabel",
+       IDS_OS_SETTINGS_ACCESSIBILITY_BOUNCE_KEYS_DELAY_LABEL},
+      {"bounceKeysDelaySliderShort",
+       IDS_OS_SETTINGS_ACCESSIBILITY_BOUNCE_KEYS_DELAY_SLIDER_SHORT},
+      {"bounceKeysDelaySliderLong",
+       IDS_OS_SETTINGS_ACCESSIBILITY_BOUNCE_KEYS_DELAY_SLIDER_LONG},
       {"mouseKeysLabel", IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_LABEL},
       {"mouseKeysDescription",
        IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_DESCRIPTION},
@@ -708,10 +775,54 @@ void AccessibilitySection::AddLoadTimeData(
       {"mouseKeysUsePrimaryKeys",
        IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_USE_PRIMARY_KEYS},
       {"mouseKeysDominantHand",
-       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_DOMINANT_HAND},
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_TO_USE},
       {"mouseKeysRightHand",
        IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_RIGHT_HAND},
       {"mouseKeysLeftHand", IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_LEFT_HAND},
+      {"primaryKeyTitle",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_PRIMARY_KEYBOARD_TITLE},
+      {"rightPrimaryKeyMoveCursor",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_RIGHT_KEYBOARD_PREVIEW_MOVE_CURSOR},
+      {"rightPrimaryKeyPressMouseButton",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_RIGHT_KEYBOARD_PREVIEW_PRESS_MOUSE_BUTTON},
+      {"rightPrimaryKeyChangeMouseButton",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_RIGHT_KEYBOARD_PREVIEW_CHANGE_MOUSE_SELECTION},
+      {"rightPrimaryKeyDoubleClick",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_RIGHT_KEYBOARD_PREVIEW_DOUBLE_CLICK},
+      {"rightPrimaryKeyHoldMouseButton",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_RIGHT_KEYBOARD_PREVIEW_HOLD_MOUSE_BUTTON},
+      {"rightPrimaryKeyReleaseMouseButton",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_RIGHT_KEYBOARD_PREVIEW_RELEASE_MOUSE_BUTTON},
+      {"leftPrimaryKeyMoveCursor",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_LEFT_KEYBOARD_PREVIEW_MOVE_CURSOR},
+      {"leftPrimaryKeyPressMouseButton",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_LEFT_KEYBOARD_PREVIEW_PRESS_MOUSE_BUTTON},
+      {"leftPrimaryKeyChangeMouseButton",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_LEFT_KEYBOARD_PREVIEW_CHANGE_MOUSE_SELECTION},
+      {"leftPrimaryKeyDoubleClick",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_LEFT_KEYBOARD_PREVIEW_DOUBLE_CLICK},
+      {"leftPrimaryKeyHoldMouseButton",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_LEFT_KEYBOARD_PREVIEW_HOLD_MOUSE_BUTTON},
+      {"leftPrimaryKeyReleaseMouseButton",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_LEFT_KEYBOARD_PREVIEW_RELEASE_MOUSE_BUTTON},
+      {"numKeypadTitle",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_NUM_KEYPAD_TITLE},
+      {"numPadKeyMoveCursor",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_NUM_KEYPAD_PREVIEW_MOVE_CURSOR},
+      {"numPadKeyPressMouseButton",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_NUM_KEYPAD_PREVIEW_PRESS_MOUSE_BUTTON},
+      {"numPadKeySelectMouseButton",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_NUM_KEYPAD_PREVIEW_SELECT_MOUSE_BUTTON},
+      {"numPadKeyDoubleClick",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_NUM_KEYPAD_PREVIEW_DOUBLE_CLICK},
+      {"numPadKeyHoldMouseButton",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_NUM_KEYPAD_PREVIEW_HOLD_MOUSE_BUTTON},
+      {"numPadKeyReleaseMouseButton",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_NUM_KEYPAD_PREVIEW_RELEASE_MOUSE_BUTTON},
+      {"mouseKeysShortcut",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_KEYBOARD_SHORTCUT},
+      {"mouseKeysShortcutTitle",
+       IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_KEYBOARD_SHORTCUT_TITLE},
       {"cancel", IDS_CANCEL},
       {"caretBrowsingLabel",
        IDS_SETTINGS_ACCESSIBILITY_CARET_BROWSING_DESCRIPTION},
@@ -937,7 +1048,7 @@ void AccessibilitySection::AddLoadTimeData(
        IDS_SETTINGS_ACCESSIBILITY_REDUCED_ANIMATIONS_LABEL},
       {"reducedAnimationsDescription",
        IDS_SETTINGS_ACCESSIBILITY_REDUCED_ANIMATIONS_DESCRIPTION},
-      {"overlayScrollbarLabel",
+      {"alwaysShowScrollbarsLabel",
        IDS_SETTINGS_ACCESSIBILITY_OVERLAY_SCROLLBAR_LABEL},
       {"caretBlinkIntervalLabel", IDS_SETTINGS_CARET_BLINK_INTERVAL_LABEL},
       {"caretBlinkIntervalOff", IDS_SETTINGS_CARET_BLINK_INTERVAL_OFF},
@@ -1128,6 +1239,12 @@ void AccessibilitySection::AddLoadTimeData(
        IDS_OS_SETTINGS_ACCESSIBILITY_FACEGAZE_WARNING_CONFLICTING_GESTURES_TRIPLE_LABEL},
       {"faceGazeWarningCombinedLabel",
        IDS_OS_SETTINGS_ACCESSIBILITY_FACEGAZE_WARNING_COMBINED_LABEL},
+      {"faceGazePrecisionClickLabel",
+       IDS_OS_SETTINGS_ACCESSIBILITY_FACEGAZE_PRECISION_CLICK_LABEL},
+      {"faceGazePrecisionClickDescription",
+       IDS_OS_SETTINGS_ACCESSIBILITY_FACEGAZE_PRECISION_CLICK_DESCRIPTION},
+      {"precisionClickSpeedFactorsLabel",
+       IDS_OS_SETTINGS_ACCESSIBILITY_FACEGAZE_PRECISION_CLICK_FACTORS_LABEL},
       {"flashNotificationsLabel", IDS_SETTINGS_FLASH_NOTIFICATIONS_LABEL},
       {"flashNotificationsDescription",
        IDS_SETTINGS_FLASH_NOTIFICATIONS_DESCRIPTION},
@@ -1275,6 +1392,15 @@ void AccessibilitySection::AddLoadTimeData(
        IDS_SETTINGS_SLIDER_MIN_MAX_ARIA_ROLE_DESCRIPTION},
       {"sliderLabel1", IDS_OS_SETTINGS_SLIDER_LABEL_1},
       {"sliderLabel100", IDS_OS_SETTINGS_SLIDER_LABEL_100},
+      {"slowKeysLabel", IDS_OS_SETTINGS_ACCESSIBILITY_SLOW_KEYS_LABEL},
+      {"slowKeysDescription",
+       IDS_OS_SETTINGS_ACCESSIBILITY_SLOW_KEYS_DESCRIPTION},
+      {"slowKeysDelayLabel",
+       IDS_OS_SETTINGS_ACCESSIBILITY_SLOW_KEYS_DELAY_LABEL},
+      {"slowKeysDelaySliderShort",
+       IDS_OS_SETTINGS_ACCESSIBILITY_SLOW_KEYS_DELAY_SLIDER_SHORT},
+      {"slowKeysDelaySliderLong",
+       IDS_OS_SETTINGS_ACCESSIBILITY_SLOW_KEYS_DELAY_SLIDER_LONG},
       {"startupSoundLabel", IDS_SETTINGS_STARTUP_SOUND_LABEL},
       {"stickyKeysDescription", IDS_SETTINGS_STICKY_KEYS_DESCRIPTION},
       {"stickyKeysLabel", IDS_SETTINGS_STICKY_KEYS_LABEL},
@@ -1399,11 +1525,8 @@ void AccessibilitySection::AddLoadTimeData(
        IDS_SETTINGS_A11Y_TABLET_MODE_SHELF_BUTTONS_DESCRIPTION},
       {"tabletModeShelfNavigationButtonsSettingLabel",
        IDS_SETTINGS_A11Y_TABLET_MODE_SHELF_BUTTONS_LABEL},
-      {"tapDraggingLabel", kIsRevampEnabled
-                               ? IDS_OS_SETTINGS_REVAMP_TAP_DRAGGING_LABEL
-                               : IDS_SETTINGS_TAP_DRAGGING_LABEL},
-      {"tapDraggingDescription",
-       IDS_OS_SETTINGS_REVAMP_TAP_DRAGGING_DESCRIPTION},
+      {"tapDraggingLabel", IDS_OS_SETTINGS_TAP_DRAGGING_LABEL},
+      {"tapDraggingDescription", IDS_OS_SETTINGS_TAP_DRAGGING_DESCRIPTION},
       {"textToSpeechEngines", IDS_SETTINGS_TEXT_TO_SPEECH_ENGINES},
       {"textToSpeechHeading",
        IDS_SETTINGS_ACCESSIBILITY_TEXT_TO_SPEECH_HEADING},
@@ -1463,6 +1586,8 @@ void AccessibilitySection::AddLoadTimeData(
                           ash::kDefaultFaceGazeCursorUseAcceleration);
   html_source->AddInteger("defaultFaceGazeVelocityThreshold",
                           ash::kDefaultFaceGazeVelocityThreshold);
+  html_source->AddInteger("defaultFaceGazePrecisionClickSpeedFactor",
+                          ash::kDefaultFaceGazePrecisionClickSpeedFactor);
 
   html_source->AddBoolean(
       "showExperimentalAccessibilitySwitchAccessImprovedTextInput",
@@ -1476,9 +1601,6 @@ void AccessibilitySection::AddLoadTimeData(
 
   html_source->AddBoolean("isAccessibilityReducedAnimationsEnabled",
                           IsAccessibilityReducedAnimationsEnabled());
-
-  html_source->AddBoolean("isAccessibilityOverlayScrollbarEnabled",
-                          isAccessibilityOverlayScrollbarEnabled());
 
   html_source->AddBoolean("isAccessibilityMagnifierFollowsChromeVoxEnabled",
                           IsAccessibilityMagnifierFollowsChromeVoxEnabled());
@@ -1496,6 +1618,17 @@ void AccessibilitySection::AddLoadTimeData(
 
   html_source->AddBoolean("isAccessibilityFlashNotificationFeatureEnabled",
                           IsAccessibilityFlashNotificationFeatureEnabled());
+
+  html_source->AddBoolean("isAccessibilityBounceKeysEnabled",
+                          IsAccessibilityBounceKeysEnabled());
+  html_source->AddInteger(
+      "defaultBounceKeysDelayMillis",
+      kDefaultAccessibilityBounceKeysDelay.InMilliseconds());
+
+  html_source->AddBoolean("isAccessibilitySlowKeysEnabled",
+                          IsAccessibilitySlowKeysEnabled());
+  html_source->AddInteger("defaultSlowKeysDelayMillis",
+                          kDefaultAccessibilitySlowKeysDelay.InMilliseconds());
 
   ::settings::AddAxAnnotationsSectionStrings(html_source);
   ::settings::AddCaptionSubpageStrings(html_source);
@@ -1675,9 +1808,9 @@ bool AccessibilitySection::LogMetric(mojom::Setting setting,
           "ChromeOS.Settings.Accessibility.ReducedAnimations.Enabled",
           value.GetBool());
       return true;
-    case mojom::Setting::kOverlayScrollbarEnabled:
+    case mojom::Setting::kAlwaysShowScrollbarsEnabled:
       base::UmaHistogramBoolean(
-          "ChromeOS.Settings.Accessibility.OverlayScrollbar.Enabled",
+          "ChromeOS.Settings.Accessibility.AlwaysShowScrollbars.Enabled",
           value.GetBool());
       return true;
     case mojom::Setting::kOverscrollEnabled:
@@ -1693,6 +1826,15 @@ bool AccessibilitySection::LogMetric(mojom::Setting setting,
     case mojom::Setting::kFaceGaze:
       base::UmaHistogramBoolean(
           "ChromeOS.Settings.Accessibility.FaceGaze.Enabled", value.GetBool());
+      return true;
+    case mojom::Setting::kBounceKeys:
+      base::UmaHistogramBoolean(
+          "ChromeOS.Settings.Accessibility.BounceKeys.Enabled",
+          value.GetBool());
+      return true;
+    case mojom::Setting::kSlowKeys:
+      base::UmaHistogramBoolean(
+          "ChromeOS.Settings.Accessibility.SlowKeys.Enabled", value.GetBool());
       return true;
     default:
       return false;
@@ -1797,10 +1939,13 @@ void AccessibilitySection::RegisterHierarchy(
       mojom::Setting::kColorCorrectionFilterAmount,
       mojom::Setting::kCaretBlinkInterval,
       mojom::Setting::kReducedAnimationsEnabled,
-      mojom::Setting::kOverlayScrollbarEnabled,
+      mojom::Setting::kAlwaysShowScrollbarsEnabled,
       mojom::Setting::kOverscrollEnabled,
       mojom::Setting::kFlashNotifications,
       mojom::Setting::kFaceGaze,
+      mojom::Setting::kBounceKeys,
+      mojom::Setting::kSlowKeys,
+      mojom::Setting::kDisableTouchpad,
   };
   RegisterNestedSettingBulk(mojom::Subpage::kManageAccessibility,
                             kManageAccessibilitySettings, generator);
@@ -1839,6 +1984,13 @@ void AccessibilitySection::RegisterHierarchy(
       mojom::Subpage::kFaceGazeSettings, mojom::SearchResultIcon::kA11y,
       mojom::SearchResultDefaultRank::kMedium,
       mojom::kFaceGazeSettingsSubpagePath);
+
+  // Mouse keys settings.
+  generator->RegisterTopLevelSubpage(
+      IDS_OS_SETTINGS_ACCESSIBILITY_MOUSE_KEYS_LABEL,
+      mojom::Subpage::kMouseKeysSettings, mojom::SearchResultIcon::kA11y,
+      mojom::SearchResultDefaultRank::kMedium,
+      mojom::kMouseKeysSettingsSubpagePath);
 }
 
 void AccessibilitySection::OnVoicesChanged() {
@@ -1888,7 +2040,7 @@ void AccessibilitySection::UpdateTextToSpeechEnginesSearchTags() {
 void AccessibilitySection::UpdateSearchTags() {
   SearchTagRegistry::ScopedTagUpdater updater = registry()->StartUpdate();
 
-  if (accessibility_state_utils::IsScreenReaderEnabled()) {
+  if (ui::AXPlatform::GetInstance().IsScreenReaderActive()) {
     updater.AddSearchTags(GetA11yLabelsSearchConcepts());
   } else {
     updater.RemoveSearchTags(GetA11yLabelsSearchConcepts());
@@ -1930,6 +2082,22 @@ void AccessibilitySection::UpdateSearchTags() {
 
   if (IsAccessibilityFaceGazeEnabled()) {
     updater.AddSearchTags(GetA11yFaceGazeSearchConcepts());
+  }
+
+  if (IsAccessibilityBounceKeysEnabled()) {
+    updater.AddSearchTags(GetA11yBounceKeysSearchConcepts());
+  }
+
+  if (IsAccessibilitySlowKeysEnabled()) {
+    updater.AddSearchTags(GetA11ySlowKeysSearchConcepts());
+  }
+
+  if (IsAccessibilityMouseKeysEnabled()) {
+    updater.AddSearchTags(GetA11yMouseKeysSearchConcepts());
+  }
+
+  if (IsAccessibilityDisableTouchpadEnabled()) {
+    updater.AddSearchTags(GetA11yDisableTouchpadSearchConcepts());
   }
 
   if (!pref_service_->GetBoolean(prefs::kAccessibilitySwitchAccessEnabled)) {

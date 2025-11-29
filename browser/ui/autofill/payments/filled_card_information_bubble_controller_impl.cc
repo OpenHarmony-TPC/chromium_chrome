@@ -10,12 +10,18 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
+#include "components/autofill/core/browser/payments/bnpl_manager.h"
+#include "components/autofill/core/browser/payments/constants.h"
+#include "components/autofill/core/browser/payments/payments_service_url.h"
 #include "components/autofill/core/common/credit_card_number_validation.h"
+#include "components/grit/components_scaled_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/resource/resource_bundle.h"
 
 namespace autofill {
 
@@ -96,35 +102,65 @@ FilledCardInformationBubbleControllerImpl::GetBubbleOptions() const {
 }
 
 std::u16string
-FilledCardInformationBubbleControllerImpl::GetVirtualCardIndicatorLabel()
-    const {
-  return l10n_util::GetStringUTF16(
-      IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_VIRTUAL_CARD_LABEL);
+FilledCardInformationBubbleControllerImpl::GetCardIndicatorLabel() const {
+  return options_.filled_card.record_type() ==
+                 CreditCard::RecordType::kVirtualCard
+             ? l10n_util::GetStringUTF16(
+                   IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_VIRTUAL_CARD_LABEL)
+             : options_.filled_card.AbbreviatedExpirationDateForDisplay(
+                   /*with_prefix=*/false);
 }
 
 std::u16string FilledCardInformationBubbleControllerImpl::GetBubbleTitleText()
     const {
-  return l10n_util::GetStringUTF16(
-      IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_TITLE_VIRTUAL_CARD);
+  if (IsBnplFlow()) {
+    return l10n_util::GetStringFUTF16(
+        IDS_AUTOFILL_BNPL_FILLED_CARD_INFORMATION_BUBBLE_TITLE,
+        options_.filled_card.CardNameForAutofillDisplay());
+  }
+  return options_.filled_card.record_type() ==
+                 CreditCard::RecordType::kVirtualCard
+             ? l10n_util::GetStringUTF16(
+                   IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_TITLE_VIRTUAL_CARD)
+             : l10n_util::GetStringUTF16(
+                   IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_TITLE);
 }
 
 std::u16string FilledCardInformationBubbleControllerImpl::GetLearnMoreLinkText()
     const {
-  return l10n_util::GetStringUTF16(
-      IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_LEARN_MORE_LINK_LABEL_VIRTUAL_CARD);
+  CHECK(!IsBnplFlow());
+  return options_.filled_card.record_type() ==
+                 CreditCard::RecordType::kVirtualCard
+             ? l10n_util::GetStringUTF16(
+                   IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_LEARN_MORE_LINK_LABEL_VIRTUAL_CARD)
+             : l10n_util::GetStringUTF16(
+                   IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_LEARN_MORE_LINK_LABEL);
 }
 
 std::u16string
 FilledCardInformationBubbleControllerImpl::GetEducationalBodyLabel() const {
-  return l10n_util::GetStringFUTF16(
-      IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_EDUCATIONAL_BODY_LABEL_VIRTUAL_CARD,
-      GetLearnMoreLinkText());
+  if (IsBnplFlow()) {
+    return l10n_util::GetStringUTF16(
+        IDS_AUTOFILL_BNPL_FILLED_CARD_INFORMATION_BUBBLE_EDUCATIONAL_BODY_LABEL);
+  }
+  return options_.filled_card.record_type() ==
+                 CreditCard::RecordType::kVirtualCard
+             ? l10n_util::GetStringFUTF16(
+                   IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_EDUCATIONAL_BODY_LABEL_VIRTUAL_CARD,
+                   GetLearnMoreLinkText())
+             : l10n_util::GetStringFUTF16(
+                   IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_EDUCATIONAL_BODY_LABEL,
+                   GetLearnMoreLinkText());
 }
 
 std::u16string
 FilledCardInformationBubbleControllerImpl::GetCardNumberFieldLabel() const {
-  return l10n_util::GetStringUTF16(
-      IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_CARD_NUMBER_LABEL_VIRTUAL_CARD);
+  return options_.filled_card.record_type() ==
+                 CreditCard::RecordType::kVirtualCard
+             ? l10n_util::GetStringUTF16(
+                   IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_CARD_NUMBER_LABEL_VIRTUAL_CARD)
+             : l10n_util::GetStringUTF16(
+                   IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_CARD_NUMBER_LABEL);
 }
 
 std::u16string
@@ -173,9 +209,9 @@ bool FilledCardInformationBubbleControllerImpl::ShouldIconBeVisible() const {
   return should_icon_be_visible_;
 }
 
-void FilledCardInformationBubbleControllerImpl::OnLinkClicked(const GURL& url) {
+void FilledCardInformationBubbleControllerImpl::OnLinkClicked() {
   web_contents()->OpenURL(
-      content::OpenURLParams(url, content::Referrer(),
+      content::OpenURLParams(GetLearnMoreUrl(), content::Referrer(),
                              WindowOpenDisposition::NEW_FOREGROUND_TAB,
                              ui::PAGE_TRANSITION_LINK, false),
       /*navigation_handle_callback=*/{});
@@ -213,6 +249,48 @@ void FilledCardInformationBubbleControllerImpl::OnFieldClicked(
   UpdateClipboard(field == FilledCardInformationBubbleField::kCardNumber
                       ? StripCardNumberSeparators(GetValueForField(field))
                       : GetValueForField(field));
+}
+
+bool FilledCardInformationBubbleControllerImpl::ShouldShowGooglePayIconInTitle()
+    const {
+  return !IsBnplFlow();
+}
+
+std::u16string
+FilledCardInformationBubbleControllerImpl::GetMaskedCardNameForDescriptionView()
+    const {
+  if (IsBnplFlow()) {
+    return BnplIssuerIdToDisplayName(
+        ConvertToBnplIssuerIdEnum(options_.filled_card.issuer_id()));
+  }
+
+  return options_.masked_card_name;
+}
+
+std::pair<ui::ImageModel, std::optional<ui::ImageModel>>
+FilledCardInformationBubbleControllerImpl::GetCardImageForDescriptionView()
+    const {
+  if (!IsBnplFlow()) {
+    return {ui::ImageModel::FromImage(options_.card_image), std::nullopt};
+  }
+  switch (ConvertToBnplIssuerIdEnum(options_.filled_card.issuer_id())) {
+    case BnplIssuer::IssuerId::kBnplAffirm:
+      return {ui::ImageModel::FromResourceId(IDR_AUTOFILL_AFFIRM_LINKED),
+              ui::ImageModel::FromResourceId(IDR_AUTOFILL_AFFIRM_LINKED_DARK)};
+    case BnplIssuer::IssuerId::kBnplZip:
+      return {ui::ImageModel::FromResourceId(IDR_AUTOFILL_ZIP_LINKED),
+              ui::ImageModel::FromResourceId(IDR_AUTOFILL_ZIP_LINKED_DARK)};
+    // TODO(crbug.com/408268581): Handle Afterpay issuer enum value when adding
+    // Afterpay to the BNPL flow.
+    case BnplIssuer::IssuerId::kBnplAfterpay:
+      return {ui::ImageModel::FromImage(options_.card_image), std::nullopt};
+  }
+  NOTREACHED();
+}
+
+bool FilledCardInformationBubbleControllerImpl::
+    EducationalBodyHasLearnMoreLink() const {
+  return !IsBnplFlow();
 }
 
 void FilledCardInformationBubbleControllerImpl::UpdateClipboard(
@@ -320,6 +398,17 @@ bool FilledCardInformationBubbleControllerImpl::IsWebContentsActive() {
 void FilledCardInformationBubbleControllerImpl::SetEventObserverForTesting(
     ObserverForTest* observer_for_test) {
   observer_for_test_ = observer_for_test;
+}
+
+GURL FilledCardInformationBubbleControllerImpl::GetLearnMoreUrl() const {
+  return IsBnplFlow()
+             ? autofill::payments::GetBnplTermsUrl(
+                   ConvertToBnplIssuerIdEnum(options_.filled_card.issuer_id()))
+             : autofill::payments::GetVirtualCardEnrollmentSupportUrl();
+}
+
+bool FilledCardInformationBubbleControllerImpl::IsBnplFlow() const {
+  return options_.filled_card.is_bnpl_card();
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(FilledCardInformationBubbleControllerImpl);

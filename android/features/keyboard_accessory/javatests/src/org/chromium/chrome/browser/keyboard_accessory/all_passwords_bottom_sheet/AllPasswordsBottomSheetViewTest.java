@@ -129,13 +129,11 @@ public class AllPasswordsBottomSheetViewTest {
                                     .getBottomSheetController();
                     mAllPasswordsBottomSheetView =
                             new AllPasswordsBottomSheetView(getActivity(), mBottomSheetController);
-                    AllPasswordsBottomSheetViewBinder.UiConfiguration uiConfiguration =
-                            new AllPasswordsBottomSheetViewBinder.UiConfiguration();
-                    uiConfiguration.faviconHelper =
+                    FaviconHelper faviconHelper =
                             FaviconHelper.create(
                                     getActivity(), mActivityTestRule.getProfile(false));
                     AllPasswordsBottomSheetCoordinator.setUpView(
-                            mModel, mListModel, mAllPasswordsBottomSheetView, uiConfiguration);
+                            mModel, mListModel, mAllPasswordsBottomSheetView, faviconHelper);
                 });
     }
 
@@ -351,11 +349,6 @@ public class AllPasswordsBottomSheetViewTest {
 
     private @SheetState int getBottomSheetState() {
         return mBottomSheetController.getSheetState();
-    }
-
-    private RecyclerView getCredentials() {
-        return (RecyclerView)
-                mAllPasswordsBottomSheetView.getContentView().findViewById(R.id.sheet_item_list);
     }
 
     private TextView getCredentialOrigin(View parent) {

@@ -10,7 +10,6 @@ import '../settings_shared.css.js';
 
 import {I18nMixin} from 'chrome://resources/ash/common/cr_elements/i18n_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/ash/common/cr_elements/web_ui_listener_mixin.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {assertExists} from '../assert_extras.js';
@@ -86,30 +85,16 @@ export class OsSyncControlsSubpageElement extends
         value: true,
         computed: `computeDataTypeTogglesDisabled_(osSyncPrefs.syncAllOsTypes)`,
       },
-
-      /**
-       * Whether to show the new UI for OS Sync Settings and
-       * Browser Sync Settings  which include sublabel and
-       * Apps toggle shared between Ash and Lacros.
-       */
-      showSyncSettingsRevamp_: {
-        type: Boolean,
-        value: loadTimeData.getBoolean('appsToggleSharingEnabled'),
-        readOnly: true,
-      },
-
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([Setting.kSplitSyncOnOff]),
-      },
     };
   }
 
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kSplitSyncOnOff,
+  ]);
+
+  override hidden: boolean;
   private areDataTypeTogglesDisabled_: boolean;
-  private showSyncSettingsRevamp_: boolean;
   private supportedSettingsIds: Set<Setting>;
   private browserProxy_: OsSyncBrowserProxy;
   private osSyncPrefs: OsSyncPrefs|undefined;
@@ -137,11 +122,11 @@ export class OsSyncControlsSubpageElement extends
    * RouteObserverMixin override
    */
   override currentRouteChanged(newRoute: Route, oldRoute: Route): void {
-    if (newRoute === routes.OS_SYNC) {
+    if (newRoute === routes.OS_SYNC_CONTROLS) {
       this.browserProxy_.didNavigateToOsSyncPage();
       this.attemptDeepLink();
     }
-    if (oldRoute === routes.OS_SYNC) {
+    if (oldRoute === routes.OS_SYNC_CONTROLS) {
       this.browserProxy_.didNavigateAwayFromOsSyncPage();
     }
   }
@@ -237,7 +222,7 @@ export class OsSyncControlsSubpageElement extends
    * Whether the sync data type toggles should be disabled.
    */
   private computeDataTypeTogglesDisabled_(): boolean {
-    return this.osSyncPrefs !== undefined && this.osSyncPrefs!.syncAllOsTypes;
+    return this.osSyncPrefs !== undefined && this.osSyncPrefs.syncAllOsTypes;
   }
 
   /**

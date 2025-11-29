@@ -7,9 +7,21 @@
 
 namespace IOSPromoConstants {
 
+// iOS promo QR code URLs.
+inline constexpr char kIOSPromoPasswordBubbleQRCodeURL[] =
+    "https://www.google.com/chrome/go-mobile/"
+    "?ios-campaign=desktop-chr-passwords&android-campaign=desktop-chr-"
+    "passwords";
+inline constexpr char kIOSPromoAddressBubbleQRCodeURL[] =
+    "https://www.google.com/chrome/go-mobile/"
+    "?ios-campaign=desktop-chr-address&android-campaign=desktop-chr-address";
+inline constexpr char kIOSPromoPaymentBubbleQRCodeURL[] =
+    "https://www.google.com/chrome/go-mobile/"
+    "?ios-campaign=desktop-chr-payment&android-campaign=desktop-chr-payment";
+
 // Size of the QR code image view including the quiet zone margin added by the
 // QR code generator.
-const int kQrCodeImageSize = 90;
+inline constexpr int kQrCodeImageSize = 90;
 
 struct IOSPromoTypeConfigs {
   int bubble_title_id = -1;

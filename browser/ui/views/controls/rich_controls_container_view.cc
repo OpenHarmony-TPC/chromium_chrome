@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/views/controls/rich_controls_container_view.h"
 
+#include <string_view>
+
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -95,13 +97,20 @@ int RichControlsContainerView::GetFirstLineHeight() {
   return title_->GetLineHeight();
 }
 
+void RichControlsContainerView::SetIconImageSizeAndMargins(
+    gfx::Size image_size,
+    gfx::Insets margin_insets) {
+  icon_->SetProperty(views::kMarginsKey, margin_insets);
+  icon_->SetImageSize(image_size);
+}
+
 views::Label* RichControlsContainerView::AddSecondaryLabel(
     std::u16string text) {
   auto secondary_label = std::make_unique<views::Label>(
       text, views::style::CONTEXT_LABEL, views::style::STYLE_BODY_4);
   secondary_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   secondary_label->SetMultiLine(true);
-  secondary_label->SetEnabledColorId(kColorPageInfoSubtitleForeground);
+  secondary_label->SetEnabledColor(kColorPageInfoSubtitleForeground);
 
   return labels_wrapper_->AddChildView(std::move(secondary_label));
 }
@@ -144,7 +153,14 @@ gfx::Size RichControlsContainerView::CalculatePreferredSize(
                    GetLayoutManager()->GetPreferredHeightForWidth(this, width));
 }
 
-const std::u16string& RichControlsContainerView::GetTitleForTesting() {
+void RichControlsContainerView::SetTitleTextStyleAndColor(
+    int style,
+    ui::ColorId color_id) {
+  title_->SetTextStyle(style);
+  title_->SetEnabledColor(color_id);
+}
+
+std::u16string_view RichControlsContainerView::GetTitleForTesting() const {
   return title_->GetText();
 }
 

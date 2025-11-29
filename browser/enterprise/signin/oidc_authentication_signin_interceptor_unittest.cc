@@ -4,9 +4,12 @@
 
 #include "chrome/browser/enterprise/signin/oidc_authentication_signin_interceptor.h"
 
+#include <variant>
+
 #include "base/files/file_util.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -78,7 +81,7 @@ constexpr char kExampleSubjectIdentifier[] = "example_subject_id";
 constexpr char kExampleIssuerIdentifier[] = "example_issuer_id";
 constexpr char kExampleUserDisplayName[] = "Test User";
 constexpr char kExampleUserEmail[] = "user@test.com";
-constexpr char kExampleGaiaId[] = "123";
+constexpr GaiaId::Literal kExampleGaiaId("123");
 constexpr char kExampleDmToken[] = "example_dm_token";
 constexpr char kExampleClientId[] = "random_client_id";
 
@@ -112,14 +115,16 @@ class FakeBubbleHandle : public ScopedWebSigninInterceptionBubbleHandle {
         base::BindOnce(
             [](base::OnceClosure done,
                signin::SigninChoiceOperationResult expected_result,
-               signin::SigninChoiceOperationResult result) {
+               signin::SigninChoiceOperationResult result,
+               signin::SigninChoiceErrorType error_type) {
               CHECK_EQ(result, expected_result);
               std::move(done).Run();
             },
             std::move(done_callback_), expected_operation_result_),
         base::BindRepeating(
             [](signin::SigninChoiceOperationResult expected_result,
-               signin::SigninChoiceOperationResult result) {
+               signin::SigninChoiceOperationResult result,
+               signin::SigninChoiceErrorType error_type) {
               CHECK_EQ(result, expected_result);
               // Retry callback should only be used in case of registration
               // timeout.
@@ -164,7 +169,7 @@ class FakeUserPolicyOidcSigninService
 
   FakeUserPolicyOidcSigninService(
       Profile* profile,
-      absl::variant<UserCloudPolicyManager*, ProfileCloudPolicyManager*>
+      std::variant<UserCloudPolicyManager*, ProfileCloudPolicyManager*>
           policy_manager,
       bool will_policy_fetch_succeed)
       : policy::MockUserPolicyOidcSigninService(profile,
@@ -189,7 +194,7 @@ class FakeUserPolicyOidcSigninService
       return;
     }
     auto policy_data = std::make_unique<enterprise_management::PolicyData>();
-    policy_data->set_gaia_id(kExampleGaiaId);
+    policy_data->set_gaia_id(kExampleGaiaId.ToString());
     if (test_profile_->GetProfileCloudPolicyManager()) {
       static_cast<MockProfileCloudPolicyStore*>(
           test_profile_->GetProfileCloudPolicyManager()->core()->store())
@@ -251,13 +256,13 @@ class UnittestProfileManager : public FakeProfileManager {
     builder.SetDelegate(delegate);
     builder.SetCreateMode(create_mode);
 
-    if (absl::holds_alternative<std::unique_ptr<UserCloudPolicyManager>>(
+    if (std::holds_alternative<std::unique_ptr<UserCloudPolicyManager>>(
             policy_manager_)) {
       builder.SetUserCloudPolicyManager(std::move(
-          absl::get<std::unique_ptr<UserCloudPolicyManager>>(policy_manager_)));
+          std::get<std::unique_ptr<UserCloudPolicyManager>>(policy_manager_)));
     } else {
       builder.SetProfileCloudPolicyManager(
-          std::move(absl::get<std::unique_ptr<ProfileCloudPolicyManager>>(
+          std::move(std::get<std::unique_ptr<ProfileCloudPolicyManager>>(
               policy_manager_)));
     }
 
@@ -285,9 +290,8 @@ class UnittestProfileManager : public FakeProfileManager {
   }
 
   void SetPolicyManagerForNextProfile(
-      absl::variant<std::unique_ptr<UserCloudPolicyManager>,
-                    std::unique_ptr<ProfileCloudPolicyManager>>
-          policy_manager) {
+      std::variant<std::unique_ptr<UserCloudPolicyManager>,
+                   std::unique_ptr<ProfileCloudPolicyManager>> policy_manager) {
     policy_manager_ = std::move(policy_manager);
   }
 
@@ -296,8 +300,8 @@ class UnittestProfileManager : public FakeProfileManager {
   }
 
  private:
-  absl::variant<std::unique_ptr<UserCloudPolicyManager>,
-                std::unique_ptr<ProfileCloudPolicyManager>>
+  std::variant<std::unique_ptr<UserCloudPolicyManager>,
+               std::unique_ptr<ProfileCloudPolicyManager>>
       policy_manager_;
   bool will_policy_fetch_succeed_on_new_profile_;
   bool will_id_service_succeed_on_new_profile_;
@@ -461,12 +465,13 @@ class OidcAuthenticationSigninInterceptorTest
     auto* mock_client_ptr = mock_client.get();
 
     if (expect_registration_attempt == RegistrationResult::kFailure) {
-      EXPECT_CALL(*mock_client_ptr, RegisterWithOidcResponse(
-                                        _, kExampleOidcTokens.auth_token,
-                                        kExampleOidcTokens.id_token, _, _, _))
+      EXPECT_CALL(
+          *mock_client_ptr,
+          RegisterWithOidcResponse(_, kExampleOidcTokens.auth_token,
+                                   kExampleOidcTokens.id_token, _, _, _, _))
           .WillOnce(Invoke([&](const RegistrationParameters&,
                                const std::string&, const std::string&,
-                               const std::string&, const base::TimeDelta&,
+                               const std::string&, const base::TimeDelta&, bool,
                                CloudPolicyClient::ResultCallback callback) {
             mock_client_ptr->SetStatus(policy::DM_STATUS_TEMPORARY_UNAVAILABLE);
             mock_client_ptr->NotifyClientError();
@@ -475,12 +480,13 @@ class OidcAuthenticationSigninInterceptorTest
             register_run_loop.Quit();
           }));
     } else if (expect_registration_attempt == RegistrationResult::kTimeout) {
-      EXPECT_CALL(*mock_client_ptr, RegisterWithOidcResponse(
-                                        _, kExampleOidcTokens.auth_token,
-                                        kExampleOidcTokens.id_token, _, _, _))
+      EXPECT_CALL(
+          *mock_client_ptr,
+          RegisterWithOidcResponse(_, kExampleOidcTokens.auth_token,
+                                   kExampleOidcTokens.id_token, _, _, _, _))
           .WillOnce(Invoke([&](const RegistrationParameters&,
                                const std::string&, const std::string&,
-                               const std::string&, const base::TimeDelta&,
+                               const std::string&, const base::TimeDelta&, bool,
                                CloudPolicyClient::ResultCallback callback) {
             mock_client_ptr->SetStatus(policy::DM_STATUS_TEMPORARY_UNAVAILABLE);
             mock_client_ptr->NotifyClientError();
@@ -490,12 +496,13 @@ class OidcAuthenticationSigninInterceptorTest
             register_run_loop.Quit();
           }));
     } else if (expect_registration_attempt == RegistrationResult::kSuccess) {
-      EXPECT_CALL(*mock_client_ptr, RegisterWithOidcResponse(
-                                        _, kExampleOidcTokens.auth_token,
-                                        kExampleOidcTokens.id_token, _, _, _))
+      EXPECT_CALL(
+          *mock_client_ptr,
+          RegisterWithOidcResponse(_, kExampleOidcTokens.auth_token,
+                                   kExampleOidcTokens.id_token, _, _, _, _))
           .WillOnce(Invoke([&](const RegistrationParameters&,
                                const std::string&, const std::string&,
-                               const std::string&, const base::TimeDelta&,
+                               const std::string&, const base::TimeDelta&, bool,
                                CloudPolicyClient::ResultCallback callback) {
             mock_client_ptr->SetDMToken(kExampleDmToken);
             mock_client_ptr->SetStatus(policy::DM_STATUS_SUCCESS);
@@ -569,9 +576,9 @@ class OidcAuthenticationSigninInterceptorTest
     }
 
     base::RunLoop run_loop;
-    interceptor_->MaybeInterceptOidcAuthentication(web_contents(), oidc_tokens,
-                                                   issuer_id, subject_id,
-                                                   run_loop.QuitClosure());
+    interceptor_->MaybeInterceptOidcAuthentication(
+        web_contents(), oidc_tokens, issuer_id, subject_id, std::string(),
+        run_loop.QuitClosure());
 
     if (fake_bubble_handle_) {
       fake_bubble_handle_->SimulateClick();
@@ -627,7 +634,7 @@ class OidcAuthenticationSigninInterceptorTest
         EXPECT_EQ(account_id.empty(), !is_3p_identity_synced());
         if (is_3p_identity_synced()) {
           ASSERT_TRUE(!account_id.IsEmail());
-          EXPECT_EQ(account_id.ToString(), kExampleGaiaId);
+          EXPECT_EQ(account_id, CoreAccountId::FromGaiaId(kExampleGaiaId));
         }
       }
     }

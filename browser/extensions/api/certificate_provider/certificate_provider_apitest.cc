@@ -35,7 +35,6 @@
 #include "chrome/browser/certificate_provider/test_certificate_provider_extension.h"
 #include "chrome/browser/extensions/api/certificate_provider/certificate_provider_api.h"
 #include "chrome/browser/extensions/extension_apitest.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -60,6 +59,7 @@
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_host_test_helper.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/process_manager.h"
@@ -191,7 +191,7 @@ class JsFailureObserver : public extensions::TestApiObserver {
 
 class CertificateProviderApiTest : public extensions::ExtensionApiTest {
  public:
-  CertificateProviderApiTest() {}
+  CertificateProviderApiTest() = default;
 
   void SetUpInProcessBrowserTestFixture() override {
     provider_.SetDefaultReturns(
@@ -363,7 +363,7 @@ class CertificateProviderApiMockedExtensionTest
   scoped_refptr<net::X509Certificate> GetCertificate() const {
     std::string raw_certificate = GetCertificateData();
     return net::X509Certificate::CreateFromBytes(
-        base::as_bytes(base::make_span(raw_certificate)));
+        base::as_byte_span(raw_certificate));
   }
 
   // Tests the api by navigating to a webpage that requests to perform a
@@ -416,7 +416,7 @@ class CertificateProviderApiMockedExtensionTest
     std::string key_pk8 = GetKeyPk8();
     std::unique_ptr<crypto::RSAPrivateKey> key(
         crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(
-            base::as_bytes(base::make_span(key_pk8))));
+            base::as_byte_span(key_pk8)));
     ASSERT_TRUE(key);
 
     // Sign using the private key.
@@ -1237,10 +1237,9 @@ IN_PROC_BROWSER_TEST_F(CertificateProviderRequestPinTest, ExtensionDisable) {
   extensions::TestExtensionRegistryObserver registry_observer(
       extensions::ExtensionRegistry::Get(profile()),
       pin_request_extension_id());
-  extensions::ExtensionSystem::Get(profile())
-      ->extension_service()
-      ->DisableExtension(pin_request_extension_id(),
-                         extensions::disable_reason::DISABLE_USER_ACTION);
+  extensions::ExtensionRegistrar::Get(profile())->DisableExtension(
+      pin_request_extension_id(),
+      {extensions::disable_reason::DISABLE_USER_ACTION});
   registry_observer.WaitForExtensionUnloaded();
   // Let the events from the extensions subsystem propagate to the code that
   // manages the PIN dialog.

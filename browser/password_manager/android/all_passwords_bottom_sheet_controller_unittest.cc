@@ -168,7 +168,6 @@ class AllPasswordsBottomSheetControllerTest
             dissmissal_callback_.Get(), focused_field_type,
             mock_pwd_manager_client_.get(),
             mock_pwd_reuse_detection_manager_client_.get(),
-            show_migration_warning_callback_.Get(),
             std::move(access_loss_bridge));
   }
 
@@ -209,12 +208,6 @@ class AllPasswordsBottomSheetControllerTest
     return *mock_pwd_reuse_detection_manager_client_.get();
   }
 
-  base::MockCallback<
-      AllPasswordsBottomSheetController::ShowMigrationWarningCallback>&
-  show_migration_warning_callback() {
-    return show_migration_warning_callback_;
-  }
-
   MockPasswordAccessLossWarningBridge* mock_access_loss_warning_bridge() {
     return mock_access_loss_warning_bridge_;
   }
@@ -232,9 +225,6 @@ class AllPasswordsBottomSheetControllerTest
   std::unique_ptr<MockPasswordReuseDetectionManagerClient>
       mock_pwd_reuse_detection_manager_client_ =
           std::make_unique<MockPasswordReuseDetectionManagerClient>();
-  base::MockCallback<
-      AllPasswordsBottomSheetController::ShowMigrationWarningCallback>
-      show_migration_warning_callback_;
   base::test::ScopedFeatureList scoped_feature_list_;
   raw_ptr<MockPasswordAccessLossWarningBridge> mock_access_loss_warning_bridge_;
 };
@@ -426,47 +416,7 @@ TEST_F(AllPasswordsBottomSheetControllerTest,
 }
 
 TEST_F(AllPasswordsBottomSheetControllerTest,
-       ShowMigrationWarningOnUsernameFillIfEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list(
-      password_manager::features::
-          kUnifiedPasswordManagerLocalPasswordsMigrationWarning);
-  createAllPasswordsController(FocusedFieldType::kFillableUsernameField);
-  EXPECT_CALL(show_migration_warning_callback(), Run);
-  all_passwords_controller()->OnCredentialSelected(
-      kUsername1, kPassword, RequestsToFillPassword(false));
-}
-
-TEST_F(AllPasswordsBottomSheetControllerTest,
-       ShowMigrationWarningOnPasswordFillIfEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list(
-      password_manager::features::
-          kUnifiedPasswordManagerLocalPasswordsMigrationWarning);
-  createAllPasswordsController(FocusedFieldType::kFillablePasswordField);
-  EXPECT_CALL(show_migration_warning_callback(),
-              Run(_, _,
-                  password_manager::metrics_util::
-                      PasswordMigrationWarningTriggers::kAllPasswords));
-  all_passwords_controller()->OnCredentialSelected(
-      kUsername1, kPassword, RequestsToFillPassword(true));
-}
-
-TEST_F(AllPasswordsBottomSheetControllerTest,
-       DoesntTriggersMigrationWarningIfDisabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature(
-      password_manager::features::
-          kUnifiedPasswordManagerLocalPasswordsMigrationWarning);
-  createAllPasswordsController(FocusedFieldType::kFillableUsernameField);
-  EXPECT_CALL(show_migration_warning_callback(), Run).Times(0);
-  all_passwords_controller()->OnCredentialSelected(
-      kUsername1, kPassword, RequestsToFillPassword(false));
-}
-
-TEST_F(AllPasswordsBottomSheetControllerTest,
-       ShowAccessLossWarningOnUsernameFillIfEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list(
-      password_manager::features::
-          kUnifiedPasswordManagerLocalPasswordsAndroidAccessLossWarning);
+       ShowAccessLossWarningOnUsernameFill) {
   createAllPasswordsController(FocusedFieldType::kFillableUsernameField);
   EXPECT_CALL(*mock_access_loss_warning_bridge(),
               ShouldShowAccessLossNoticeSheet(profile()->GetPrefs(),
@@ -483,7 +433,7 @@ TEST_F(AllPasswordsBottomSheetControllerTest,
 }
 
 TEST_F(AllPasswordsBottomSheetControllerTest,
-       ShowAccessLossWarningAfterReauthOnPasswordFillIfEnabled) {
+       ShowAccessLossWarningAfterReauthOnPasswordFill) {
   auto mock_authenticator =
       std::make_unique<device_reauth::MockDeviceAuthenticator>();
   EXPECT_CALL(*mock_authenticator, AuthenticateWithMessage)
@@ -494,9 +444,6 @@ TEST_F(AllPasswordsBottomSheetControllerTest,
       .WillOnce(Return(testing::ByMove(std::move(mock_authenticator))));
   EXPECT_CALL(client(), IsReauthBeforeFillingRequired).WillOnce(Return(true));
 
-  base::test::ScopedFeatureList scoped_feature_list(
-      password_manager::features::
-          kUnifiedPasswordManagerLocalPasswordsAndroidAccessLossWarning);
   createAllPasswordsController(FocusedFieldType::kFillablePasswordField);
   EXPECT_CALL(*mock_access_loss_warning_bridge(),
               ShouldShowAccessLossNoticeSheet(profile()->GetPrefs(),
@@ -513,15 +460,12 @@ TEST_F(AllPasswordsBottomSheetControllerTest,
 }
 
 TEST_F(AllPasswordsBottomSheetControllerTest,
-       ShowAccessLossWarningWithoutReauthOnPasswordFillIfEnabled) {
+       ShowAccessLossWarningWithoutReauthOnPasswordFill) {
   // Skipped for automotive because reauthentication is always needed there.
   if (base::android::BuildInfo::GetInstance()->is_automotive()) {
     GTEST_SKIP();
   }
 
-  base::test::ScopedFeatureList scoped_feature_list(
-      password_manager::features::
-          kUnifiedPasswordManagerLocalPasswordsAndroidAccessLossWarning);
   createAllPasswordsController(FocusedFieldType::kFillablePasswordField);
   EXPECT_CALL(*mock_access_loss_warning_bridge(),
               ShouldShowAccessLossNoticeSheet(profile()->GetPrefs(),
@@ -535,24 +479,6 @@ TEST_F(AllPasswordsBottomSheetControllerTest,
                       PasswordAccessLossWarningTriggers::kAllPasswords));
   all_passwords_controller()->OnCredentialSelected(
       kUsername1, kPassword, RequestsToFillPassword(true));
-}
-
-TEST_F(AllPasswordsBottomSheetControllerTest,
-       DoesntTriggersAccessLossWarningIfDisabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature(
-      password_manager::features::
-          kUnifiedPasswordManagerLocalPasswordsAndroidAccessLossWarning);
-  createAllPasswordsController(FocusedFieldType::kFillableUsernameField);
-  EXPECT_CALL(*mock_access_loss_warning_bridge(),
-              ShouldShowAccessLossNoticeSheet(profile()->GetPrefs(),
-                                              /*called_at_startup=*/false))
-      .WillRepeatedly(testing::Return(true));
-  EXPECT_CALL(*mock_access_loss_warning_bridge(),
-              MaybeShowAccessLossNoticeSheet)
-      .Times(0);
-  all_passwords_controller()->OnCredentialSelected(
-      kUsername1, kPassword, RequestsToFillPassword(false));
 }
 
 TEST_F(AllPasswordsBottomSheetControllerTest, IsPlusAddress) {

@@ -59,8 +59,7 @@ class CommerceUiTabHelper : public content::WebContentsObserver {
                       SidePanelRegistry* side_panel_registry);
   ~CommerceUiTabHelper() override;
   CommerceUiTabHelper(const CommerceUiTabHelper& other) = delete;
-  CommerceUiTabHelper& operator=(const CommerceUiTabHelper& other) =
-      delete;
+  CommerceUiTabHelper& operator=(const CommerceUiTabHelper& other) = delete;
 
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
 
@@ -204,8 +203,6 @@ class CommerceUiTabHelper : public content::WebContentsObserver {
   void MaybeComputePageActionToExpand();
 
   void ComputePageActionToExpand();
-
-  bool IsShowingDiscountsIcon();
 
   void RecordIconMetrics(PageActionIconType page_action, bool from_icon_use);
 

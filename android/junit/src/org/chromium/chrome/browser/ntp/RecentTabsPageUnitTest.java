@@ -35,7 +35,6 @@ import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgePadAdjuster;
 import org.chromium.ui.base.TestActivity;
 
 @RunWith(BaseRobolectricTestRunner.class)
-@EnableFeatures(ChromeFeatureList.REPLACE_SYNC_PROMOS_WITH_SIGN_IN_PROMOS)
 public class RecentTabsPageUnitTest {
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -52,7 +51,7 @@ public class RecentTabsPageUnitTest {
     @Captor ArgumentCaptor<EdgeToEdgePadAdjuster> mPadAdjusterCaptor;
 
     private RecentTabsPage mRecentTabsPage;
-    private ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeSupplier =
+    private final ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeSupplier =
             new ObservableSupplierImpl<>();
 
     @Before

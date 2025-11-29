@@ -4,15 +4,16 @@
 
 #include "chrome/browser/metrics/perf/perf_events_collector.h"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/rand_util.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -108,8 +109,8 @@ void ExtractVersionNumbers(const std::string& version,
                            int32_t* bugfix_version) {
   *major_version = *minor_version = *bugfix_version = 0;
   // Parse out the version numbers from the string.
-  sscanf(version.c_str(), "%d.%d.%d", major_version, minor_version,
-         bugfix_version);
+  UNSAFE_TODO(sscanf(version.c_str(), "%d.%d.%d", major_version, minor_version,
+                     bugfix_version));
 }
 
 // Returns if a micro-architecture supports the cycles:ppp event.
@@ -594,9 +595,9 @@ void PerfCollector::ParseOutputProtoIfValid(
   }
   if (has_cycles) {
     // Store CPU max frequencies in the sampled profile.
-    base::ranges::copy(max_frequencies_mhz_,
-                       google::protobuf::RepeatedFieldBackInserter(
-                           sampled_profile->mutable_cpu_max_frequency_mhz()));
+    std::ranges::copy(max_frequencies_mhz_,
+                      google::protobuf::RepeatedFieldBackInserter(
+                          sampled_profile->mutable_cpu_max_frequency_mhz()));
   }
 
   bool posted = base::ThreadPool::PostTaskAndReply(

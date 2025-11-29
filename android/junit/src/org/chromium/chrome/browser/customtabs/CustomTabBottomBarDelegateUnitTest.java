@@ -33,7 +33,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -53,6 +54,8 @@ import org.chromium.ui.base.WindowAndroid;
 @Batch(Batch.UNIT_TESTS)
 @Config(manifest = Config.NONE)
 public class CustomTabBottomBarDelegateUnitTest {
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+
     @Rule
     public ActivityScenarioRule<TestActivity> mActivityScenarioRule =
             new ActivityScenarioRule<>(TestActivity.class);
@@ -70,7 +73,6 @@ public class CustomTabBottomBarDelegateUnitTest {
     @Mock private ApplicationViewportInsetSupplier mViewportInsetSupplier;
     @Mock private PendingIntent mSwipeUpPendingIntent;
     @Mock private ImageButton mButtonView;
-    @Mock private BaseCustomTabActivity mCustomTabActivity;
 
     private Activity mActivity;
     private BrowserServicesIntentDataProvider mIntentDataProvider;
@@ -78,7 +80,6 @@ public class CustomTabBottomBarDelegateUnitTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         mActivityScenarioRule.getScenario().onActivity(activity -> mActivity = activity);
         when(mIntent.getParcelableExtra(CustomTabsIntent.EXTRA_REMOTEVIEWS))
                 .thenReturn(mRemoteViews);
@@ -90,20 +91,17 @@ public class CustomTabBottomBarDelegateUnitTest {
                         CustomTabIntentDataProvider.EXTRA_SECONDARY_TOOLBAR_SWIPE_UP_ACTION))
                 .thenReturn(mSwipeUpPendingIntent);
         when(mWindowAndroid.getApplicationBottomInsetSupplier()).thenReturn(mViewportInsetSupplier);
-        when(mCustomTabActivity.getCustomTabActivityTabProvider()).thenReturn(mTabProvider);
-        when(mCustomTabActivity.getCustomTabNightModeStateController())
-                .thenReturn(mNightModeStateController);
-        when(mCustomTabActivity.getTheme()).thenAnswer(input -> mActivity.getTheme());
-        when(mCustomTabActivity.getResources()).thenAnswer(input -> mActivity.getResources());
         mIntentDataProvider =
                 new CustomTabIntentDataProvider(
                         mIntent, mActivity, CustomTabsIntent.COLOR_SCHEME_LIGHT);
         mBottomBarDelegate =
                 new CustomTabBottomBarDelegate(
-                        mCustomTabActivity,
+                        mActivity,
                         mWindowAndroid,
                         mIntentDataProvider,
                         mBrowserControlsSizer,
+                        mNightModeStateController,
+                        mTabProvider,
                         mCompositorContentInitializer);
         when(mBottomBarView.findViewById(eq(R.id.bottombar_shadow))).thenReturn(mShadowView);
         mBottomBarDelegate.setBottomBarViewForTesting(mBottomBarView);
@@ -131,7 +129,7 @@ public class CustomTabBottomBarDelegateUnitTest {
                 ScrollDirection.UP, MotionEvent.obtain(0, 10, MotionEvent.ACTION_MOVE, 0f, 10f, 0));
         // Verify the intent is sent.
         verify(mSwipeUpPendingIntent)
-                .send(eq(mCustomTabActivity), anyInt(), any(), any(), any(), any(), any());
+                .send(eq(mActivity), anyInt(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -143,8 +141,7 @@ public class CustomTabBottomBarDelegateUnitTest {
         mBottomBarDelegate.onSwipeStarted(
                 ScrollDirection.UP, MotionEvent.obtain(0, 10, MotionEvent.ACTION_MOVE, 0f, 10f, 0));
         // Verify the intent is sent.
-        verify(pendingIntent)
-                .send(eq(mCustomTabActivity), anyInt(), any(), any(), any(), any(), any());
+        verify(pendingIntent).send(eq(mActivity), anyInt(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -200,9 +197,11 @@ public class CustomTabBottomBarDelegateUnitTest {
         mBottomBarDelegate.onControlsOffsetChanged(
                 /* topOffset= */ 0,
                 /* topControlsMinHeightOffset= */ 0,
+                /* topControlsMinHeightChanged= */ false,
                 /* bottomOffset= */ 0,
                 /* bottomControlsMinHeightOffset= */ 0,
-                /* needsAnimate= */ false,
+                /* bottomControlsMinHeightChanged= */ false,
+                /* requestNewFrame= */ false,
                 /* isVisibilityForced= */ false);
         verify(mBottomBarView).setTranslationY(-100);
     }

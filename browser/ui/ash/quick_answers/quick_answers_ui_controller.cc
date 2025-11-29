@@ -9,9 +9,12 @@
 #include "ash/public/cpp/new_window_delegate.h"
 #include "ash/webui/settings/public/constants/routes.mojom-forward.h"
 #include "ash/webui/settings/public/constants/setting.mojom-shared.h"
+#include "base/check_deref.h"
 #include "base/check_is_test.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ref.h"
+#include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/quick_answers/quick_answers_controller_impl.h"
@@ -30,6 +33,7 @@
 #include "chromeos/components/quick_answers/quick_answers_model.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
+#include "components/application_locale_storage/application_locale_storage.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -44,28 +48,6 @@ using quick_answers::QuickAnswer;
 using quick_answers::QuickAnswersExitPoint;
 
 constexpr char kFeedbackDescriptionTemplate[] = "#QuickAnswers\nQuery:%s\n";
-
-// TODO(b/365588558, crbug.com/374253370): `OSSettingsType` and `ShowOSSettings`
-// are to avoid having ash dependency from lacros build. Delete those code once
-// we can delete lacros code.
-enum class OSSettingsType { QuickAnswers, Mahi };
-
-void ShowOSSettings(Profile* profile, OSSettingsType type) {
-  switch (type) {
-    case OSSettingsType::QuickAnswers:
-      chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
-          profile, chromeos::settings::mojom::kSearchSubpagePath,
-          chromeos::settings::mojom::Setting::kQuickAnswersOnOff);
-      return;
-    case OSSettingsType::Mahi:
-      chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
-          profile, chromeos::settings::mojom::kSystemPreferencesSectionPath,
-          chromeos::settings::mojom::Setting::kMahiOnOff);
-      return;
-  }
-
-  CHECK(false) << "Invalid os settings type provided";
-}
 
 // Open the specified URL in a new tab with the specified profile
 void OpenUrl(Profile* profile, const GURL& url) {
@@ -84,7 +66,7 @@ quick_answers::Design GetDesign(QuickAnswersState::FeatureType feature_type) {
       return quick_answers::Design::kMagicBoost;
   }
 
-  CHECK(false) << "Invalid feature type enum value provided";
+  NOTREACHED() << "Invalid feature type enum value provided";
 }
 
 }  // namespace
@@ -92,8 +74,10 @@ quick_answers::Design GetDesign(QuickAnswersState::FeatureType feature_type) {
 using chromeos::ReadWriteCardsUiController;
 
 QuickAnswersUiController::QuickAnswersUiController(
+    ApplicationLocaleStorage* application_locale_storage,
     QuickAnswersControllerImpl* controller)
-    : controller_(controller) {}
+    : application_locale_storage_(CHECK_DEREF(application_locale_storage)),
+      controller_(controller) {}
 
 QuickAnswersUiController::~QuickAnswersUiController() {
   // Created Quick Answers UIs (e.g., `UserConsentView`) can have dependency to
@@ -250,7 +234,8 @@ void QuickAnswersUiController::RenderQuickAnswersViewWithResult(
 
   // QuickAnswersView was initiated with a loading page and will be updated
   // when quick answers result from server side is ready.
-  quick_answers_view()->SetResult(structured_result);
+  quick_answers_view()->SetResult(structured_result,
+                                  application_locale_storage_->Get());
 }
 
 void QuickAnswersUiController::SetActiveQuery(Profile* profile,
@@ -332,14 +317,18 @@ void QuickAnswersUiController::OnSettingsButtonPressed() {
 
   switch (QuickAnswersState::GetFeatureType()) {
     case QuickAnswersState::FeatureType::kQuickAnswers:
-      ShowOSSettings(profile_, OSSettingsType::QuickAnswers);
+      chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
+          profile_, chromeos::settings::mojom::kSearchSubpagePath,
+          chromeos::settings::mojom::Setting::kQuickAnswersOnOff);
       return;
     case QuickAnswersState::FeatureType::kHmr:
-      ShowOSSettings(profile_, OSSettingsType::Mahi);
+      chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
+          profile_, chromeos::settings::mojom::kSystemPreferencesSectionPath,
+          chromeos::settings::mojom::Setting::kMahiOnOff);
       return;
   }
 
-  CHECK(false) << "Invalid feature type enum value specified";
+  NOTREACHED() << "Invalid feature type enum value specified";
 }
 
 void QuickAnswersUiController::OnReportQueryButtonPressed() {

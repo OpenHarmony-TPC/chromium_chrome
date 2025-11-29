@@ -4,43 +4,43 @@
 
 package org.chromium.chrome.browser.data_sharing;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.view.ViewGroup;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import org.jni_zero.CalledByNative;
 
-import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.ServiceLoaderUtil;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.data_sharing.DataSharingUIDelegate;
-import org.chromium.components.data_sharing.configs.AvatarConfig;
 import org.chromium.components.data_sharing.configs.DataSharingAvatarBitmapConfig;
 import org.chromium.components.data_sharing.configs.DataSharingCreateUiConfig;
 import org.chromium.components.data_sharing.configs.DataSharingJoinUiConfig;
 import org.chromium.components.data_sharing.configs.DataSharingManageUiConfig;
-import org.chromium.components.data_sharing.configs.MemberPickerConfig;
+import org.chromium.components.data_sharing.configs.DataSharingRuntimeDataConfig;
 import org.chromium.url.GURL;
-
-import java.util.List;
 
 /**
  * Implementation of {@link DataSharingUIDelegate} that implements some methods while delegating
  * some to the internal delegate.
  */
-class DataSharingUiDelegateAndroid implements DataSharingUIDelegate {
+@NullMarked
+public class DataSharingUiDelegateAndroid implements DataSharingUIDelegate {
 
     private final @Nullable DataSharingUIDelegate mInternalDelegate;
+
+    private static @Nullable DataSharingUIDelegate sDelegateForTesting;
 
     DataSharingUiDelegateAndroid(Profile profile) {
         DataSharingImplFactory factory =
                 ServiceLoaderUtil.maybeCreate(DataSharingImplFactory.class);
+        if (sDelegateForTesting != null) {
+            mInternalDelegate = sDelegateForTesting;
+            return;
+        }
         if (factory != null) {
             mInternalDelegate = factory.createUiDelegate(profile);
         } else {
@@ -54,41 +54,7 @@ class DataSharingUiDelegateAndroid implements DataSharingUIDelegate {
     }
 
     @Override
-    public void showMemberPicker(
-            @NonNull Activity activity,
-            @NonNull ViewGroup view,
-            MemberPickerListener memberResult,
-            MemberPickerConfig config) {
-        if (mInternalDelegate != null) {
-            mInternalDelegate.showMemberPicker(activity, view, memberResult, config);
-        }
-    }
-
-    @Override
-    public void showFullPicker(
-            @NonNull Activity activity,
-            @NonNull ViewGroup view,
-            MemberPickerListener memberResult,
-            MemberPickerConfig config) {
-        if (mInternalDelegate != null) {
-            mInternalDelegate.showFullPicker(activity, view, memberResult, config);
-        }
-    }
-
-    @Override
-    public void showAvatars(
-            @NonNull Context context,
-            List<ViewGroup> views,
-            List<String> emails,
-            Callback<Boolean> success,
-            AvatarConfig config) {
-        if (mInternalDelegate != null) {
-            mInternalDelegate.showAvatars(context, views, emails, success, config);
-        }
-    }
-
-    @Override
-    public String showCreateFlow(DataSharingCreateUiConfig createUiConfig) {
+    public @Nullable String showCreateFlow(DataSharingCreateUiConfig createUiConfig) {
         if (mInternalDelegate != null) {
             return mInternalDelegate.showCreateFlow(createUiConfig);
         }
@@ -96,7 +62,7 @@ class DataSharingUiDelegateAndroid implements DataSharingUIDelegate {
     }
 
     @Override
-    public String showJoinFlow(DataSharingJoinUiConfig joinUiConfig) {
+    public @Nullable String showJoinFlow(DataSharingJoinUiConfig joinUiConfig) {
         if (mInternalDelegate != null) {
             return mInternalDelegate.showJoinFlow(joinUiConfig);
         }
@@ -104,7 +70,7 @@ class DataSharingUiDelegateAndroid implements DataSharingUIDelegate {
     }
 
     @Override
-    public String showManageFlow(DataSharingManageUiConfig manageUiConfig) {
+    public @Nullable String showManageFlow(DataSharingManageUiConfig manageUiConfig) {
         if (mInternalDelegate != null) {
             return mInternalDelegate.showManageFlow(manageUiConfig);
         }
@@ -112,9 +78,10 @@ class DataSharingUiDelegateAndroid implements DataSharingUIDelegate {
     }
 
     @Override
-    public void showAvatarsInTile(AvatarConfig avatarConfig) {
+    public void updateRuntimeData(
+            @Nullable String sessionId, DataSharingRuntimeDataConfig runtimeData) {
         if (mInternalDelegate != null) {
-            mInternalDelegate.showAvatarsInTile(avatarConfig);
+            mInternalDelegate.updateRuntimeData(sessionId, runtimeData);
         }
     }
 
@@ -136,8 +103,12 @@ class DataSharingUiDelegateAndroid implements DataSharingUIDelegate {
     @CalledByNative
     public void handleShareURLIntercepted(GURL url) {
         Context context = ContextUtils.getApplicationContext();
-        Intent invitation_intent =
-                DataSharingNotificationManager.createInvitationIntent(context, url);
+        Intent invitation_intent = DataSharingIntentUtils.createInvitationIntent(context, url);
         IntentUtils.safeStartActivity(context, invitation_intent);
+    }
+
+    /* Sets UI delegate for testing, to be used when native needs a new delegate. */
+    public static void setForTesting(DataSharingUIDelegate delegate) {
+        sDelegateForTesting = delegate;
     }
 }

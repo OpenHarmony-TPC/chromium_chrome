@@ -4,14 +4,14 @@
 
 import("//ui/webui/resources/tools/build_webui.gni")
 
-assert(is_win || is_mac || is_linux || is_ohos)
+assert(is_win || is_mac || is_linux)
 
 build_webui("build") {
   grd_prefix = "app_home"
 
   static_files = [ "app_home.html" ]
 
-  non_web_component_files = [
+  ts_files = [
     "app_home_empty_page.html.ts",
     "app_home_empty_page.ts",
     "app_home_utils.ts",
@@ -37,8 +37,8 @@ build_webui("build") {
   ]
 
   mojo_files = [
-    "$root_gen_dir/chrome/browser/web_applications/mojom/user_display_mode.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui/app_home/app_home.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/web_applications/mojom/user_display_mode.mojom-webui.ts",
   ]
 
   ts_composite = true

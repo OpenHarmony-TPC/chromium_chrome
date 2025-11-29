@@ -8,8 +8,10 @@
 #include <memory>
 #include <utility>
 
+#include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/check_deref.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/permissions/system/platform_handle.h"
@@ -20,10 +22,12 @@ namespace {
 
 PlatformHandle* instance_for_testing_ = nullptr;
 bool g_mock_system_prompt_for_testing_ = false;
+bool g_mock_system_permission_denied_for_testing_ = false;
 
 std::map<ContentSettingsType, bool>& GlobalTestingBlockOverrides() {
-  static std::map<ContentSettingsType, bool> g_testing_block_overrides;
-  return g_testing_block_overrides;
+  static base::NoDestructor<std::map<ContentSettingsType, bool>>
+      g_testing_block_overrides;
+  return *g_testing_block_overrides;
 }
 
 PlatformHandle* GetPlatformHandle() {
@@ -51,9 +55,18 @@ bool CanPrompt(ContentSettingsType type) {
 base::AutoReset<bool> MockSystemPromptForTesting() {
   return base::AutoReset<bool>(&g_mock_system_prompt_for_testing_, true);
 }
+// static
+base::AutoReset<bool> MockShowSystemSettingsForTesting() {
+  return base::AutoReset<bool>(&g_mock_system_permission_denied_for_testing_,
+                               true);
+}
 
 // static
 bool IsDenied(ContentSettingsType type) {
+  if (g_mock_system_permission_denied_for_testing_) {
+    return true;
+  }
+
   if (GlobalTestingBlockOverrides().find(type) !=
       GlobalTestingBlockOverrides().end()) {
     return GlobalTestingBlockOverrides().at(type);
@@ -63,6 +76,10 @@ bool IsDenied(ContentSettingsType type) {
 
 // static
 bool IsAllowed(ContentSettingsType type) {
+  if (g_mock_system_permission_denied_for_testing_) {
+    return false;
+  }
+
   if (GlobalTestingBlockOverrides().find(type) !=
       GlobalTestingBlockOverrides().end()) {
     return !GlobalTestingBlockOverrides().at(type);

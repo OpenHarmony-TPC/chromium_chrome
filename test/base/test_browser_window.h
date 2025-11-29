@@ -12,7 +12,6 @@
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/download/test_download_shelf.h"
 #include "chrome/browser/ui/autofill/test/test_autofill_bubble_handler.h"
 #include "chrome/browser/ui/browser.h"
@@ -51,6 +50,12 @@ namespace user_education {
 class FeaturePromoController;
 }  // namespace user_education
 
+// WARNING WARNING WARNING WARNING
+// Do not use this class. See docs/chrome_browser_design_principles.md for
+// details.  Either write a browser test which provides both a "class Browser"
+// and a "class BrowserView" (a subclass of "class BrowserWindow") or a unit
+// test which should require neither.
+//
 // An implementation of BrowserWindow used for testing. TestBrowserWindow only
 // contains a valid LocationBar, all other getters return NULL.
 // However, some of them can be preset to a specific value.
@@ -77,6 +82,7 @@ class TestBrowserWindow : public BrowserWindow {
   void SetZOrderLevel(ui::ZOrderLevel order) override {}
   gfx::NativeWindow GetNativeWindow() const override;
   bool IsOnCurrentWorkspace() const override;
+  bool IsVisibleOnScreen() const override;
   void SetTopControlsShownRatio(content::WebContents* web_contents,
                                 float ratio) override;
   bool DoBrowserControlsShrinkRendererSize(
@@ -87,7 +93,7 @@ class TestBrowserWindow : public BrowserWindow {
   ui::ElementContext GetElementContext() override;
   int GetTopControlsHeight() const override;
   void SetTopControlsGestureScrollInProgress(bool in_progress) override;
-  StatusBubble* GetStatusBubble() override;
+  std::vector<StatusBubble*> GetStatusBubbles() override;
   void UpdateTitleBar() override {}
   void BookmarkBarStateChanged(
       BookmarkBar::AnimateChangeType change_type) override {}
@@ -112,7 +118,7 @@ class TestBrowserWindow : public BrowserWindow {
   void Maximize() override {}
   void Minimize() override {}
   void Restore() override {}
-  void OnCanResizeFromWebAPIChanged() override {}
+  void OnWebApiWindowResizableChanged() override {}
   bool GetCanResize() override;
   ui::mojom::WindowShowState GetWindowShowState() const override;
   bool ShouldHideUIForFullscreen() const override;
@@ -129,6 +135,8 @@ class TestBrowserWindow : public BrowserWindow {
   void UpdateToolbar(content::WebContents* contents) override {}
   bool UpdateToolbarSecurityState() override;
   void UpdateCustomTabBarVisibility(bool visible, bool animate) override {}
+  void SetContentScrimVisibility(bool visible) override {}
+  void SetDevToolsScrimVisibility(bool visible) override {}
   void ResetToolbarTabState(content::WebContents* contents) override {}
   void FocusToolbar() override {}
   ExtensionsContainer* GetExtensionsContainer() override;
@@ -141,12 +149,18 @@ class TestBrowserWindow : public BrowserWindow {
   void RotatePaneFocus(bool forwards) override {}
   void FocusWebContentsPane() override {}
   void ShowAppMenu() override {}
+  bool PreHandleMouseEvent(const blink::WebMouseEvent& event) override;
+  void PreHandleDragUpdate(const content::DropData& drop_data,
+                           const gfx::PointF& point) override {}
+
+  void PreHandleDragExit() override {}
   content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
       const input::NativeWebKeyboardEvent& event) override;
   bool HandleKeyboardEvent(const input::NativeWebKeyboardEvent& event) override;
   bool IsBookmarkBarVisible() const override;
   bool IsBookmarkBarAnimating() const override;
   bool IsTabStripEditable() const override;
+  void SetTabStripNotEditableForTesting() override;
   void SetIsTabStripEditable(bool is_editable);
   bool IsToolbarVisible() const override;
   bool IsLocationBarVisible() const override;
@@ -175,9 +189,6 @@ class TestBrowserWindow : public BrowserWindow {
       const std::optional<url::Origin>& initiating_origin,
       IntentPickerResponse callback) override {}
 #endif  //  !define(OS_ANDROID)
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  void VerifyUserEligibilityIOSPasswordPromoBubble() override;
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
   send_tab_to_self::SendTabToSelfBubbleView*
   ShowSendTabToSelfDevicePickerBubble(content::WebContents* contents) override;
   send_tab_to_self::SendTabToSelfBubbleView* ShowSendTabToSelfPromoBubble(
@@ -206,6 +217,7 @@ class TestBrowserWindow : public BrowserWindow {
   bool IsDownloadShelfVisible() const override;
   DownloadShelf* GetDownloadShelf() override;
   views::View* GetTopContainer() override;
+  views::View* GetLensOverlayView() override;
   DownloadBubbleUIController* GetDownloadBubbleUIController() override;
   void ConfirmBrowserCloseWithPendingDownloads(
       int download_count,
@@ -220,7 +232,7 @@ class TestBrowserWindow : public BrowserWindow {
   void MaybeShowSupervisedUserProfileSignInIPH() override {}
 
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
-    BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
+    BUILDFLAG(IS_LINUX)
   void ShowHatsDialog(
       const std::string& site_id,
       const std::optional<std::string>& hats_histogram_name,
@@ -254,6 +266,7 @@ class TestBrowserWindow : public BrowserWindow {
           tab_search::mojom::TabOrganizationFeature::kNone) override {}
   void CloseTabSearchBubble() override {}
 
+  bool IsFeaturePromoQueued(const base::Feature& iph_feature) const override;
   bool IsFeaturePromoActive(const base::Feature& iph_feature) const override;
   user_education::FeaturePromoResult CanShowFeaturePromo(
       const base::Feature& iph_feature) const override;
@@ -271,6 +284,9 @@ class TestBrowserWindow : public BrowserWindow {
   user_education::DisplayNewBadge MaybeShowNewBadgeFor(
       const base::Feature& new_badge_feature) override;
   void NotifyNewBadgeFeatureUsed(const base::Feature& feature) override;
+  bool IsTabModalPopupDeprecated() const override;
+  void SetIsTabModalPopupDeprecated(
+      bool is_tab_modal_popup_deprecated) override;
 
   // Sets the controller returned by GetFeaturePromoController().
   // Deletes the existing one, if any.
@@ -331,6 +347,7 @@ class TestBrowserWindow : public BrowserWindow {
   bool is_active_ = false;
   bool is_closed_ = false;
   bool is_tab_strip_editable_ = true;
+  bool is_tab_modal_popup_deprecated_ = false;
 
   std::unique_ptr<user_education::FeaturePromoController>
       feature_promo_controller_;

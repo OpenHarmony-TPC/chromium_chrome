@@ -106,18 +106,15 @@ public class CustomTabsTestUtils {
     public static CustomTabsConnection warmUpAndWait() throws TimeoutException {
         CustomTabsConnection connection = setUpConnection();
         final CallbackHelper startupCallbackHelper = new CallbackHelper();
-        CustomTabsSession session =
-                bindWithCallback(
-                                new CustomTabsCallback() {
-                                    @Override
-                                    public void extraCallback(String callbackName, Bundle args) {
-                                        if (callbackName.equals(
-                                                CustomTabsConnection.ON_WARMUP_COMPLETED)) {
-                                            startupCallbackHelper.notifyCalled();
-                                        }
-                                    }
-                                })
-                        .session;
+        bindWithCallback(
+                new CustomTabsCallback() {
+                    @Override
+                    public void extraCallback(String callbackName, Bundle args) {
+                        if (callbackName.equals(CustomTabsConnection.ON_WARMUP_COMPLETED)) {
+                            startupCallbackHelper.notifyCalled();
+                        }
+                    }
+                });
         Assert.assertTrue(connection.warmup(0));
         startupCallbackHelper.waitForCallback(0, 1, 20, TimeUnit.SECONDS);
         return connection;
@@ -191,8 +188,8 @@ public class CustomTabsTestUtils {
         for (int i = 0; i < list.size(); i++) {
             PropertyModel model = list.get(i).model;
             items.append("\n").append(model.get(AppMenuItemProperties.TITLE));
-            if (model.get(AppMenuItemProperties.SUBMENU) != null) {
-                for (var submenu : model.get(AppMenuItemProperties.SUBMENU)) {
+            if (model.get(AppMenuItemProperties.ADDITIONAL_ICONS) != null) {
+                for (var submenu : model.get(AppMenuItemProperties.ADDITIONAL_ICONS)) {
                     items.append("\n - ").append(submenu.model.get(AppMenuItemProperties.TITLE));
                 }
             }

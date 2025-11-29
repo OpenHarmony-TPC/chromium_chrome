@@ -22,6 +22,7 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.browserservices.intents.WebappConstants;
@@ -70,6 +71,7 @@ public class CustomTabTaskDescriptionHelperTest {
     @Test
     @MediumTest
     @Restriction({DeviceFormFactor.PHONE})
+    @DisabledTest(message = "crbug.com/397827744")
     public void testPageHasThemeColorThemeColorInIntent() throws Exception {
         final int intentThemeColor = Color.GREEN;
 
@@ -87,6 +89,7 @@ public class CustomTabTaskDescriptionHelperTest {
     @Test
     @MediumTest
     @Restriction({DeviceFormFactor.PHONE})
+    @DisabledTest(message = "crbug.com/380313945")
     public void testPageNoThemeColorThemeColorInIntent() throws Exception {
         final int intentThemeColor = Color.GREEN;
         final String pageWithoutThemeColorUrl =
@@ -109,6 +112,7 @@ public class CustomTabTaskDescriptionHelperTest {
     @Test
     @MediumTest
     @Restriction({DeviceFormFactor.PHONE})
+    @DisabledTest(message = "crbug.com/409695389")
     public void testPageNorLaunchIntentProvidesThemeColor() throws Exception {
         final String pageWithoutThemeColorUrl =
                 mTestServer.getURL("/chrome/test/data/android/simple.html");
@@ -131,6 +135,7 @@ public class CustomTabTaskDescriptionHelperTest {
     @Test
     @MediumTest
     @Restriction({DeviceFormFactor.PHONE})
+    @DisabledTest(message = "https://crbug.com/380179652")
     public void testLaunchIntentThemeColorMadeOpaque() throws Exception {
         final int intentThemeColor = Color.argb(100, 0, 255, 0);
         final int opaqueIntentThemeColor = Color.GREEN;

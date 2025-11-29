@@ -7,6 +7,7 @@
 #include "base/json/values_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
@@ -141,7 +142,7 @@ TokenHandleUtil::TokenHandleUtil()
 TokenHandleUtil::~TokenHandleUtil() = default;
 
 // static
-bool TokenHandleUtil::HasToken(const AccountId& account_id) {
+bool TokenHandleUtil::HasToken(const AccountId& account_id) const {
   user_manager::KnownUser known_user(g_browser_process->local_state());
   const std::string* token =
       known_user.FindStringPath(account_id, kTokenHandlePref);
@@ -149,7 +150,7 @@ bool TokenHandleUtil::HasToken(const AccountId& account_id) {
 }
 
 // static
-bool TokenHandleUtil::IsRecentlyChecked(const AccountId& account_id) {
+bool TokenHandleUtil::IsRecentlyChecked(const AccountId& account_id) const {
   user_manager::KnownUser known_user(g_browser_process->local_state());
   const base::Value* value =
       known_user.FindPath(account_id, kTokenHandleLastCheckedPref);
@@ -165,11 +166,10 @@ bool TokenHandleUtil::IsRecentlyChecked(const AccountId& account_id) {
 }
 
 // static
-bool TokenHandleUtil::ShouldObtainHandle(const AccountId& account_id) {
+bool TokenHandleUtil::ShouldObtainHandle(const AccountId& account_id) const {
   return !HasToken(account_id) || HasTokenStatusInvalid(account_id);
 }
 
-// static
 void TokenHandleUtil::IsReauthRequired(
     const AccountId& account_id,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
@@ -228,6 +228,15 @@ void TokenHandleUtil::StoreTokenHandle(const AccountId& account_id,
                            kHandleStatusValid);
   known_user.SetPath(account_id, kTokenHandleLastCheckedPref,
                      base::TimeToValue(base::Time::Now()));
+}
+
+void TokenHandleUtil::MaybeFetchTokenHandle(
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const AccountId& account_id,
+    const std::string& access_token,
+    const std::string& refresh_token_hash) {
+  NOTREACHED() << "This is a new interface method not defined for the legacy"
+               << "implementation and should not be accessed";
 }
 
 // static

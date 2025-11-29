@@ -57,6 +57,12 @@ export class ModuleElement extends I18nMixinLit
       urlVisits: {type: Object},
 
       /**
+       * To determine whether the favicon service should use the host if
+       * the url does not produce a match.
+       */
+      fallbackToHost_: {type: Boolean},
+
+      /**
        * To determine whether to show the module with the device icon.
        */
       shouldShowDeviceIcon_: {
@@ -65,23 +71,26 @@ export class ModuleElement extends I18nMixinLit
       },
 
       showInfoDialog_: {type: Boolean},
+
+      allowFaviconServerFallback_: {type: Boolean},
     };
   }
 
-  format: string = 'wide';
-  urlVisits: URLVisit[] = [];
-  protected shouldShowDeviceIcon_: boolean =
-    loadTimeData.getBoolean('mostRelevantTabResumptionDeviceIconEnabled');
-  protected showInfoDialog_: boolean = false;
+  accessor format: string = 'wide';
+  accessor urlVisits: URLVisit[] = [];
+  protected accessor fallbackToHost_: boolean =
+      loadTimeData.getBoolean('mostRelevantTabResumptionModuleFallbackToHost');
+  protected accessor showInfoDialog_: boolean = false;
+  protected accessor allowFaviconServerFallback_: boolean =
+      loadTimeData.getBoolean(
+          'mostRelevantTabResumptionAllowFaviconServerFallback');
 
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
     if (changedProperties.has('urlVisits') && this.urlVisits.length === 0) {
       const urlVisit = changedProperties.get('urlVisits')![0];
       this.fire('dismiss-module-instance', {
-        message: loadTimeData.getStringF(
-            'dismissModuleToastMessage',
-            loadTimeData.getString('modulesTabResumptionSentence')),
+        message: loadTimeData.getString('modulesTabResumptionSingleDismiss'),
         restoreCallback: () => {
           MostRelevantTabResumptionProxyImpl.getInstance()
               .handler.restoreURLVisit(urlVisit);
@@ -134,9 +143,7 @@ export class ModuleElement extends I18nMixinLit
     MostRelevantTabResumptionProxyImpl.getInstance().handler.dismissModule(
         this.urlVisits);
     this.fire('dismiss-module-instance', {
-      message: loadTimeData.getStringF(
-          'dismissModuleToastMessage',
-          loadTimeData.getString('modulesTabResumptionSentence')),
+      message: loadTimeData.getString('modulesTabResumptionMultiDismiss'),
       restoreCallback: () => MostRelevantTabResumptionProxyImpl.getInstance()
                                  .handler.restoreModule(this.urlVisits),
     });
@@ -160,12 +167,10 @@ export class ModuleElement extends I18nMixinLit
         this.urlVisits[index]);
 
     this.urlVisits =
-        [...this.urlVisits.slice(0, index), ...this.urlVisits.slice(index + 1)];
+      [...this.urlVisits.slice(0, index), ...this.urlVisits.slice(index + 1)];
     if (this.urlVisits.length > 0) {
       this.fire('dismiss-module-element', {
-        message: loadTimeData.getStringF(
-            'dismissModuleToastMessage',
-            loadTimeData.getString('modulesTabResumptionSentence')),
+        message: loadTimeData.getString('modulesTabResumptionSingleDismiss'),
         restoreCallback: () => {
           chrome.metricsPrivate.recordSmallCount(
               'NewTabPage.TabResumption.VisitRestoreIndex', index);
@@ -179,10 +184,6 @@ export class ModuleElement extends I18nMixinLit
         },
       });
     }
-  }
-
-  protected onMenuButtonClick_(e: Event) {
-    this.$.moduleHeaderElementV2.showAt(e);
   }
 
   protected onUrlVisitClick_(e: Event) {
@@ -238,14 +239,11 @@ export class ModuleElement extends I18nMixinLit
   }
 
   protected computeDeviceName_(urlVisit: URLVisit): string|null {
-    return loadTimeData.getBoolean('modulesRedesignedEnabled') ?
-        urlVisit.sessionName :
-        this.i18n('modulesTabResumptionDevicePrefix') +
-            ` ${urlVisit.sessionName}`;
+    return urlVisit.sessionName;
   }
 
   protected computeShouldShowDeviceName_(urlVisit: URLVisit): boolean {
-    return !this.shouldShowDeviceIcon_ && !!this.computeDeviceName_(urlVisit);
+    return !!this.computeDeviceName_(urlVisit);
   }
 
   protected getVisibleUrlVisits_(): URLVisit[] {

@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_result_view.h"
@@ -40,7 +41,6 @@ class OmniboxTextView : public views::View {
   // views::View:
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
-  bool GetCanProcessEventsWithinSubtree() const override;
   void OnPaint(gfx::Canvas* canvas) override;
 
   // Applies given theme color to underlying render text. This is called Apply*
@@ -49,25 +49,28 @@ class OmniboxTextView : public views::View {
   void ApplyTextColor(ui::ColorId id);
 
   // Returns the render text, or an empty string if there is none.
-  const std::u16string& GetText() const;
+  std::u16string_view GetText() const;
 
   // Used for content/description separator & tail suggest ellipses.
-  void SetText(const std::u16string& new_text);
+  void SetText(std::u16string_view new_text);
 
   // Used for standard suggestions.
-  void SetTextWithStyling(const std::u16string& new_text,
+  void SetTextWithStyling(std::u16string_view new_text,
                           const ACMatchClassifications& classifications);
 
   // Used for search answers using `RichAnswerTemplate`.
   // Sets the styling for `FormattedString`'s `FormattedStringFragment`s.
   // `fragment_index` specifies where to start appending and styling text from.
-  void AppendTextWithStyling(const omnibox::FormattedString& formatted_string,
-                             size_t fragment_index,
-                             const omnibox::AnswerType& answer_type);
+  // Headlines should be styled differently than subheads.
+  void AppendAndStyleAnswerText(
+      const omnibox::FormattedString& formatted_string,
+      size_t fragment_index,
+      const omnibox::AnswerType& answer_type,
+      bool is_headline);
 
   // Used for suggestions using `RichAnswerTemplate`.
-  void SetMultilineText(const omnibox::FormattedString& formatted_string,
-                        const omnibox::AnswerType& answer_type);
+  void SetMultilineAnswerText(const omnibox::FormattedString& formatted_string,
+                              const omnibox::AnswerType& answer_type);
 
   // Used for history embedding answers.
   void SetMultilineText(const std::u16string& text);
@@ -83,7 +86,7 @@ class OmniboxTextView : public views::View {
   // Creates a platform-approriate RenderText, sets its format to that of
   // a suggestion and inserts (renders) the provided |text|.
   std::unique_ptr<gfx::RenderText> CreateRenderText(
-      const std::u16string& text) const;
+      std::u16string_view text) const;
 
  private:
   // Updates the cached maximum line height and recomputes the preferred size.

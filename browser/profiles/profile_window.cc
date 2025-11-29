@@ -35,18 +35,18 @@
 #include "chrome/browser/ui/startup/startup_types.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
-#include "components/flags_ui/pref_service_flags_storage.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/webui/flags/pref_service_flags_storage.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/buildflags/buildflags.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/extension_service.h"
 #include "extensions/browser/extension_prefs.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_registry_factory.h"
 #include "extensions/browser/extension_system.h"
@@ -71,9 +71,7 @@ namespace {
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 void UnblockExtensions(Profile* profile) {
-  extensions::ExtensionService* extension_service =
-      extensions::ExtensionSystem::Get(profile)->extension_service();
-  extension_service->UnblockAllExtensions();
+  extensions::ExtensionRegistrar::Get(profile)->UnblockAllExtensions();
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -250,7 +248,7 @@ BrowserAddedForProfileObserver::BrowserAddedForProfileObserver(
   browser_list_observation_.Observe(BrowserList::GetInstance());
 }
 
-BrowserAddedForProfileObserver::~BrowserAddedForProfileObserver() {}
+BrowserAddedForProfileObserver::~BrowserAddedForProfileObserver() = default;
 
 void BrowserAddedForProfileObserver::OnBrowserAdded(Browser* browser) {
   if (browser_) {

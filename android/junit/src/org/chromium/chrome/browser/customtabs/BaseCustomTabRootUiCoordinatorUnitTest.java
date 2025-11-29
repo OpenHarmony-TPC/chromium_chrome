@@ -15,7 +15,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.text.format.DateUtils;
-import android.view.View;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,12 +29,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
+import org.chromium.base.CallbackUtils;
 import org.chromium.base.FakeTimeTestRule;
 import org.chromium.base.FeatureList;
-import org.chromium.base.FeatureList.TestValues;
+import org.chromium.base.FeatureOverrides;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.UnownedUserDataHost;
 import org.chromium.base.supplier.ObservableSupplier;
@@ -46,7 +47,6 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
@@ -59,6 +59,7 @@ import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityTabController;
 import org.chromium.chrome.browser.customtabs.features.minimizedcustomtab.CustomTabMinimizeDelegate;
+import org.chromium.chrome.browser.customtabs.features.toolbar.BrowserServicesThemeColorProvider;
 import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarCoordinator;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -78,7 +79,8 @@ import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.google_bottom_bar.GoogleBottomBarCoordinator;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController.StatusBarColorProvider;
-import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeStateProvider;
+import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
+import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeManager;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
 import org.chromium.components.commerce.core.CommerceFeatureUtils;
 import org.chromium.components.commerce.core.CommerceFeatureUtilsJni;
@@ -99,11 +101,11 @@ import java.util.function.BooleanSupplier;
 @Config(manifest = Config.NONE)
 public final class BaseCustomTabRootUiCoordinatorUnitTest {
 
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+
     @Rule
     public ActivityScenarioRule<TestActivity> mActivityScenarioRule =
             new ActivityScenarioRule<>(TestActivity.class);
-
-    @Rule public JniMocker mJniMocker = new JniMocker();
 
     @Rule public FakeTimeTestRule mFakeTimeTestRule = new FakeTimeTestRule();
 
@@ -113,7 +115,6 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
     @Mock private ObservableSupplier<BookmarkModel> mBookmarkModelSupplier;
     @Mock private ObservableSupplier<TabBookmarker> mTabBookmarkerSupplier;
     @Mock private ObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
-    @Mock private Supplier<Long> mLastUserInteractionTimeSupplier;
     @Mock private BrowserControlsManager mBrowserControlsManager;
 
     @Mock
@@ -146,15 +147,16 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
     @Mock private Supplier<CustomTabActivityTabController> mTabController;
     @Mock private Supplier<CustomTabMinimizeDelegate> mMinimizeDelegateSupplier;
     @Mock private Supplier<CustomTabFeatureOverridesManager> mFeatureOverridesManagerSupplier;
-    @Mock private View mBaseChromeLayout;
     @Mock private Profile mProfile;
     @Mock private GoogleBottomBarCoordinator mGoogleBottomBarCoordinator;
     @Mock private ShoppingService mShoppingService;
     @Mock private ShoppingServiceFactory.Natives mShoppingServiceFactoryJniMock;
     @Mock private CommerceFeatureUtils.Natives mCommerceFeatureUtilsJniMock;
-    @Mock private EdgeToEdgeStateProvider mEdgeToEdgeStateProvider;
+    @Mock private EdgeToEdgeManager mEdgeToEdgeManager;
     @Mock private IdentityServicesProvider mIdentityServicesProvider;
+    @Mock private DesktopWindowStateManager mDesktopWindowStateManager;
     @Mock private IdentityManager mIdentityManager;
+    @Mock private Supplier<BrowserServicesThemeColorProvider> mBrowserServicesColorProviderSupplier;
 
     private AppCompatActivity mActivity;
     private BaseCustomTabRootUiCoordinator mBaseCustomTabRootUiCoordinator;
@@ -162,13 +164,12 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
     @Before
     public void setup() {
         mActivityScenarioRule.getScenario().onActivity(activity -> mActivity = activity);
-        MockitoAnnotations.initMocks(this);
 
         // Setup the shopping service.
-        mJniMocker.mock(CommerceFeatureUtilsJni.TEST_HOOKS, mCommerceFeatureUtilsJniMock);
+        CommerceFeatureUtilsJni.setInstanceForTesting(mCommerceFeatureUtilsJniMock);
         doReturn(false).when(mCommerceFeatureUtilsJniMock).isShoppingListEligible(anyLong());
 
-        mJniMocker.mock(ShoppingServiceFactoryJni.TEST_HOOKS, mShoppingServiceFactoryJniMock);
+        ShoppingServiceFactoryJni.setInstanceForTesting(mShoppingServiceFactoryJniMock);
         doReturn(mShoppingService).when(mShoppingServiceFactoryJniMock).getForProfile(any());
 
         when(mWindowAndroid.getUnownedUserDataHost()).thenReturn(new UnownedUserDataHost());
@@ -189,7 +190,6 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
                         mBookmarkModelSupplier,
                         mTabBookmarkerSupplier,
                         mTabModelSelectorSupplier,
-                        mLastUserInteractionTimeSupplier,
                         mBrowserControlsManager,
                         mWindowAndroid,
                         mActivityLifecycleDispatcher,
@@ -217,8 +217,10 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
                         mTabController,
                         mMinimizeDelegateSupplier,
                         mFeatureOverridesManagerSupplier,
-                        mBaseChromeLayout,
-                        mEdgeToEdgeStateProvider) {
+                        CallbackUtils.emptyRunnable(),
+                        mEdgeToEdgeManager,
+                        mDesktopWindowStateManager,
+                        mBrowserServicesColorProviderSupplier) {
 
                     @Nullable
                     @Override
@@ -336,9 +338,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
                                         .CCT_IS_OFF_THE_RECORD)
                         .build();
         FeatureList.setDisableNativeForTesting(true);
-        TestValues testValues = new TestValues();
-        testValues.addFeatureFlagOverride(SigninFeatures.CCT_SIGN_IN_PROMPT, true);
-        FeatureList.setTestValues(testValues);
+        FeatureOverrides.enable(SigninFeatures.CCT_SIGN_IN_PROMPT);
         CustomTabsConnection connection = Mockito.mock(CustomTabsConnection.class);
         CustomTabsConnection.setInstanceForTesting(connection);
         when(connection.isAppForAccountMismatchNotification(any())).thenReturn(true);

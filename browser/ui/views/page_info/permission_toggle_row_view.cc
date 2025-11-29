@@ -40,6 +40,19 @@
 #include "ui/views/style/typography.h"
 #include "ui/views/view_class_properties.h"
 
+namespace {
+
+const ui::ImageModel GetManagedPermissionIcon(
+    const PageInfo::PermissionInfo& info) {
+  const gfx::VectorIcon& managed_vector_icon =
+      info.source == content_settings::SettingSource::kExtension
+          ? vector_icons::kExtensionIcon
+          : vector_icons::kBusinessIcon;
+  return PageInfoViewFactory::GetImageModel(managed_vector_icon);
+}
+
+}  // namespace
+
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PermissionToggleRowView,
                                       kRowSubTitleCameraElementId);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PermissionToggleRowView,
@@ -69,8 +82,9 @@ PermissionToggleRowView::PermissionToggleRowView(
 
   // Add extra details as sublabel.
   std::u16string detail = delegate->GetPermissionDetail(permission.type);
-  if (!detail.empty())
+  if (!detail.empty()) {
     row_view_->AddSecondaryLabel(detail);
+  }
 
   if (permission.requesting_origin.has_value()) {
     std::u16string requesting_origin_string;
@@ -118,7 +132,8 @@ PermissionToggleRowView::PermissionToggleRowView(
     // When permission is blocked on the system level, all control elements are
     // disabled. The permission row's title should match color with disabled
     // control elements.
-    row_view_->title()->SetEnabledColorId(
+    row_view_->SetTitleTextStyleAndColor(
+        views::style::STYLE_BODY_3_MEDIUM,
         kColorPageInfoPermissionBlockedOnSystemLevelDisabled);
   }
 
@@ -132,7 +147,7 @@ PermissionToggleRowView::PermissionToggleRowView(
           row_view_->AddControl(std::make_unique<views::Label>(
               delegate->GetAutomaticallyBlockedReason(permission_.type),
               views::style::CONTEXT_LABEL, views::style::STYLE_BODY_4));
-      label->SetEnabledColorId(kColorPageInfoSubtitleForeground);
+      label->SetEnabledColor(kColorPageInfoSubtitleForeground);
     } else {
       InitForUserSource(should_show_spacer_view, toggle_accessible_name);
     }
@@ -252,14 +267,13 @@ void PermissionToggleRowView::InitForManagedSource(
   auto state_label = std::make_unique<views::Label>(
       PageInfoUI::PermissionStateToUIString(delegate, permission_),
       views::style::CONTEXT_LABEL, views::style::STYLE_BODY_4);
-  state_label->SetEnabledColorId(kColorPageInfoSubtitleForeground);
+  state_label->SetEnabledColor(kColorPageInfoSubtitleForeground);
   state_label->SetProperty(views::kMarginsKey,
                            gfx::Insets::VH(0, icon_label_spacing));
   row_view_->AddControl(std::move(state_label));
 
   auto managed_icon = std::make_unique<NonAccessibleImageView>();
-  managed_icon->SetImage(
-      PageInfoViewFactory::GetManagedPermissionIcon(permission_));
+  managed_icon->SetImage(GetManagedPermissionIcon(permission_));
   std::u16string managed_tooltip =
       PageInfoUI::PermissionManagedTooltipToUIString(delegate, permission_);
   managed_icon->SetTooltipText(managed_tooltip);

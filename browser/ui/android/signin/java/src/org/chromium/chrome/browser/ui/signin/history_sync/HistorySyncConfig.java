@@ -4,19 +4,20 @@
 
 package org.chromium.chrome.browser.ui.signin.history_sync;
 
-import android.os.Parcel;
-import android.os.Parcelable;
-
 import androidx.annotation.IntDef;
 import androidx.annotation.StringRes;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.signin.R;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.Objects;
 
 /* Class containing IDs of resources for the history sync opt-in view. */
-public final class HistorySyncConfig implements Parcelable {
+@NullMarked
+public final class HistorySyncConfig {
 
     /** The visibility rule to apply to the history opt-in step in the sign-in flow. */
     @IntDef({OptInMode.NONE, OptInMode.OPTIONAL, OptInMode.REQUIRED})
@@ -35,44 +36,26 @@ public final class HistorySyncConfig implements Parcelable {
     public final @StringRes int titleId;
     public final @StringRes int subtitleId;
 
-    public static final Parcelable.Creator<HistorySyncConfig> CREATOR =
-            new Parcelable.Creator<HistorySyncConfig>() {
-                @Override
-                public HistorySyncConfig createFromParcel(Parcel in) {
-                    return new HistorySyncConfig(in);
-                }
-
-                @Override
-                public HistorySyncConfig[] newArray(int size) {
-                    return new HistorySyncConfig[size];
-                }
-            };
-
     public HistorySyncConfig() {
-        this(
-                /* titleId= */ R.string.history_sync_title,
-                /* subtitleId= */ R.string.history_sync_subtitle);
+        this(/* titleId= */ 0, /* subtitleId= */ 0);
     }
 
     public HistorySyncConfig(@StringRes int titleId, @StringRes int subtitleId) {
-        this.titleId = titleId;
-        this.subtitleId = subtitleId;
+        this.titleId = titleId == 0 ? R.string.history_sync_title : titleId;
+        this.subtitleId = subtitleId == 0 ? R.string.history_sync_subtitle : subtitleId;
     }
 
-    private HistorySyncConfig(Parcel in) {
-        this(/* titleId= */ in.readInt(), /* subtitleId= */ in.readInt());
-    }
-
-    /** Implements {@link Parcelable} */
     @Override
-    public int describeContents() {
-        return 0;
+    public boolean equals(@Nullable Object object) {
+        if (!(object instanceof HistorySyncConfig)) {
+            return false;
+        }
+        HistorySyncConfig other = (HistorySyncConfig) object;
+        return titleId == other.titleId && subtitleId == other.subtitleId;
     }
 
-    /** Implements {@link Parcelable} */
     @Override
-    public void writeToParcel(Parcel out, int flags) {
-        out.writeInt(titleId);
-        out.writeInt(subtitleId);
+    public int hashCode() {
+        return Objects.hash(titleId, subtitleId);
     }
 }

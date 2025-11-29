@@ -14,31 +14,26 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.chromium.base.Callback;
+import org.chromium.base.Token;
 import org.chromium.base.supplier.Supplier;
-import org.chromium.chrome.R;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
-import org.chromium.chrome.browser.data_sharing.DataSharingServiceFactory;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabGroupUtils;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabGroupUtils.GroupsPendingDestroy;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
-import org.chromium.chrome.browser.tasks.tab_management.ActionConfirmationManager;
+import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
+import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager.MaybeBlockingResult;
 import org.chromium.chrome.browser.tasks.tab_management.TabShareUtils;
+import org.chromium.chrome.browser.tasks.tab_management.TabUiUtils;
 import org.chromium.components.browser_ui.widget.ActionConfirmationResult;
 import org.chromium.components.collaboration.CollaborationService;
-import org.chromium.components.data_sharing.DataSharingService;
-import org.chromium.components.data_sharing.PeopleGroupActionOutcome;
 import org.chromium.components.data_sharing.member_role.MemberRole;
-import org.chromium.components.signin.base.CoreAccountInfo;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
-import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.tab_group_sync.LocalTabGroupId;
 import org.chromium.components.tab_group_sync.SavedTabGroup;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.ui.modaldialog.ModalDialogManager;
-import org.chromium.ui.modaldialog.ModalDialogUtils;
 
 import java.util.List;
 
@@ -69,20 +64,21 @@ class TabModelRemover {
          * @param onResult A callback invoked with the {@link ActionConfirmationResult} of showing
          *     the dialog. May be invoked synchronously in some cases.
          */
-        void showTabGroupDeletionConfirmationDialog(@NonNull Callback<Integer> onResult);
+        void showTabGroupDeletionConfirmationDialog(
+                @NonNull Callback<@ActionConfirmationResult Integer> onResult);
 
         /**
          * Requests to show a dialog asking the user whether to keep the collaboration.
          *
          * @param memberRole The role of the member.
          * @param title The title of the tab group.
-         * @param onResult A callback invoked with the {@link ActionConfirmationResult} of showing
-         *     the dialog.
+         * @param onResult A callback invoked with the {@link MaybeBlockingResult} of showing the
+         *     dialog.
          */
         void showCollaborationKeepDialog(
                 @MemberRole int memberRole,
                 @NonNull String title,
-                @NonNull Callback<Integer> onResult);
+                @NonNull Callback<MaybeBlockingResult> onResult);
 
         /** Perform the action. */
         void performAction();
@@ -95,7 +91,6 @@ class TabModelRemover {
     // Lazily created objects use corresponding getters.
     private @Nullable ActionConfirmationManager mActionConfirmationManager;
     private @Nullable TabGroupSyncService mTabGroupSyncService;
-    private @Nullable DataSharingService mDataSharingService;
     private @Nullable CollaborationService mCollaborationService;
 
     /**
@@ -119,19 +114,17 @@ class TabModelRemover {
             TabGroupModelFilter filter = getTabGroupModelFilter();
             mActionConfirmationManager =
                     new ActionConfirmationManager(
-                            filter.getTabModel().getProfile(),
-                            mContext,
-                            filter,
-                            mModalDialogManager);
+                            filter.getTabModel().getProfile(), mContext, mModalDialogManager);
         }
         return mActionConfirmationManager;
     }
 
-    /** Returns the {@link TabGroupModelFilter} for the regular tab model. */
+    /** Returns the {@link TabGroupModelFilterInternal} for the regular tab model. */
     /*package*/ @NonNull
-    TabGroupModelFilter getTabGroupModelFilter() {
-        TabGroupModelFilter filter = mTabGroupModelFilterSupplier.get();
-        assert filter != null && !filter.isIncognitoBranded();
+    TabGroupModelFilterInternal getTabGroupModelFilter() {
+        TabGroupModelFilterInternal filter =
+                (TabGroupModelFilterInternal) mTabGroupModelFilterSupplier.get();
+        assert filter != null && !filter.getTabModel().isIncognitoBranded();
         return filter;
     }
 
@@ -176,23 +169,31 @@ class TabModelRemover {
         handler.performAction();
     }
 
-    private void doCreatePlaceholderTabsInGroups(
+    private List<Tab> doCreatePlaceholderTabsInGroups(
             @NonNull TabModelRemoverFlowHandler handler, @NonNull List<LocalTabGroupId> tabGroups) {
         TabModel model = getTabGroupModelFilter().getTabModel();
         List<Tab> newTabs = DataSharingTabGroupUtils.createPlaceholderTabInGroups(model, tabGroups);
         handler.onPlaceholderTabsCreated(newTabs);
+        return newTabs;
     }
 
-    private @NonNull Callback<Integer> createCollaborationKeepCallback(
+    private @NonNull Callback<MaybeBlockingResult> createCollaborationKeepCallback(
             @NonNull CollaborationInfo collaborationInfo) {
         assert collaborationInfo.isValid();
-        return (confirmationResult) -> {
-            switch (confirmationResult) {
+        return (MaybeBlockingResult maybeBlockingResult) -> {
+            switch (maybeBlockingResult.result) {
                 case CONFIRMATION_POSITIVE:
+                    if (maybeBlockingResult.finishBlocking != null) {
+                        assert false : "Should not be reachable.";
+                        // Do the safe thing and run the runnable anyway.
+                        maybeBlockingResult.finishBlocking.run();
+                    }
                     return;
                 case CONFIRMATION_NEGATIVE:
+                    assert maybeBlockingResult.finishBlocking != null;
                     getTabGroupModelFilter().getTabModel().commitAllTabClosures();
-                    leaveOrDeleteCollaboration(collaborationInfo);
+                    leaveOrDeleteCollaboration(
+                            collaborationInfo, maybeBlockingResult.finishBlocking);
                     return;
                 case IMMEDIATE_CONTINUE: // fallthrough
                 default:
@@ -218,54 +219,25 @@ class TabModelRemover {
         };
     }
 
-    private void leaveOrDeleteCollaboration(@NonNull CollaborationInfo collaborationInfo) {
+    private void leaveOrDeleteCollaboration(
+            @NonNull CollaborationInfo collaborationInfo, @NonNull Runnable finishBlocking) {
         assert collaborationInfo.isValid();
-        // TODO(crbug.com/376907248): Remove DataSharingService from here once these operations
-        // are supported by CollaborationService.
-        @Nullable DataSharingService dataSharingService = getDataSharingService();
-        if (dataSharingService == null) {
-            showGenericErrorDialog(mContext, mModalDialogManager);
-            return;
-        }
-        if (collaborationInfo.memberRole == MemberRole.OWNER) {
-            dataSharingService.deleteGroup(
-                    collaborationInfo.collaborationId,
-                    bindOnLeaveOrDeleteGroup(mContext, mModalDialogManager));
-        } else if (collaborationInfo.memberRole == MemberRole.MEMBER) {
-            IdentityManager identityManager =
-                    IdentityServicesProvider.get().getIdentityManager(getProfile());
-            @Nullable
-            CoreAccountInfo account = identityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN);
-            if (account == null) {
-                showGenericErrorDialog(mContext, mModalDialogManager);
-                return;
-            }
-            dataSharingService.removeMember(
-                    collaborationInfo.collaborationId,
-                    account.getEmail(),
-                    bindOnLeaveOrDeleteGroup(mContext, mModalDialogManager));
+
+        String collaborationId = collaborationInfo.collaborationId;
+        @MemberRole int memberRole = collaborationInfo.memberRole;
+        @Nullable CollaborationService collaborationService = getCollaborationService();
+        if (collaborationService == null) {
+            finishBlocking.run();
+            TabUiUtils.showGenericErrorDialog(mContext, mModalDialogManager);
         } else {
-            showGenericErrorDialog(mContext, mModalDialogManager);
+            TabUiUtils.exitCollaborationWithoutWarning(
+                    mContext,
+                    mModalDialogManager,
+                    collaborationService,
+                    collaborationId,
+                    memberRole,
+                    finishBlocking);
         }
-    }
-
-    private static Callback<Integer> bindOnLeaveOrDeleteGroup(
-            Context context, ModalDialogManager modalDialogManager) {
-        return (@PeopleGroupActionOutcome Integer outcome) -> {
-            if (outcome != PeopleGroupActionOutcome.SUCCESS) {
-                showGenericErrorDialog(context, modalDialogManager);
-            }
-        };
-    }
-
-    private static void showGenericErrorDialog(
-            Context context, ModalDialogManager modalDialogManager) {
-        ModalDialogUtils.showOneButtonConfirmation(
-                modalDialogManager,
-                context.getResources(),
-                R.string.data_sharing_generic_failure_title,
-                R.string.data_sharing_generic_failure_description,
-                R.string.data_sharing_invitation_failure_button);
     }
 
     /** Contains info about a collaboration. */
@@ -300,11 +272,18 @@ class TabModelRemover {
 
         @Nullable SavedTabGroup savedTabGroup = tabGroupSyncService.getGroup(localTabGroupId);
         String collaborationId = savedTabGroup != null ? savedTabGroup.collaborationId : null;
-        if (!TabShareUtils.isCollaborationIdValid(collaborationId)) {
+        if (!TabShareUtils.isCollaborationIdValid(collaborationId)
+                || savedTabGroup.localId == null
+                || savedTabGroup.localId.tabGroupId == null) {
             return new CollaborationInfo();
         }
 
-        String title = TabGroupTitleUtils.getDisplayableTitle(mContext, savedTabGroup);
+        TabGroupModelFilter filter = getTabGroupModelFilter();
+        Token tabGroupId = savedTabGroup.localId.tabGroupId;
+        if (!filter.tabGroupExists(tabGroupId)) {
+            return new CollaborationInfo();
+        }
+        String title = TabGroupTitleUtils.getDisplayableTitle(mContext, filter, tabGroupId);
 
         CollaborationService collaborationService = getCollaborationService();
         @MemberRole
@@ -322,8 +301,38 @@ class TabModelRemover {
                     collaborationInfo.title,
                     createCollaborationKeepCallback(collaborationInfo));
         }
-        doCreatePlaceholderTabsInGroups(handler, collaborationGroupsDestroyed);
+        List<Tab> placeholderTabs =
+                doCreatePlaceholderTabsInGroups(handler, collaborationGroupsDestroyed);
+        // TODO(crbug.com/383509750): Stale data in TabGroupSyncService may cause this assertion to
+        // not hold. Restore this assert once fixed.
+        // assert placeholderTabs.size() == 1;
+        if (!placeholderTabs.isEmpty()) {
+            maybeSelectPlaceholderTab(placeholderTabs.get(0));
+        }
+
         handler.performAction();
+    }
+
+    /**
+     * Selects the placeholder tab if applicable. This requires the placeholder tab to be: 1) in the
+     * active tab model, and 2) in a group with the currently selected tab.
+     *
+     * @param placeholderTab The newly created placeholder tab.
+     */
+    private void maybeSelectPlaceholderTab(Tab placeholderTab) {
+        assert placeholderTab.getTabGroupId() != null;
+
+        TabModel tabModel = getTabGroupModelFilter().getTabModel();
+        if (!tabModel.isActiveModel()) return;
+
+        @Nullable Tab currentTab = tabModel.getTabAt(tabModel.index());
+        if (currentTab == null) return;
+
+        if (placeholderTab.getTabGroupId().equals(currentTab.getTabGroupId())) {
+            // Use FROM_CLOSE since we are going to close/remove the rest of the tabs in the group
+            // momentarily and this helps mitigate cases where tab switcher UI may be dismissed.
+            tabModel.setIndex(tabModel.indexOf(placeholderTab), TabSelectionType.FROM_CLOSE);
+        }
     }
 
     private @NonNull Profile getProfile() {
@@ -336,14 +345,6 @@ class TabModelRemover {
             mTabGroupSyncService = TabGroupSyncServiceFactory.getForProfile(profile);
         }
         return mTabGroupSyncService;
-    }
-
-    private @Nullable DataSharingService getDataSharingService() {
-        if (mDataSharingService == null) {
-            Profile profile = getProfile();
-            mDataSharingService = DataSharingServiceFactory.getForProfile(profile);
-        }
-        return mDataSharingService;
     }
 
     private @NonNull CollaborationService getCollaborationService() {

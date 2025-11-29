@@ -10,6 +10,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "base/gtest_prod_util.h"
@@ -17,7 +18,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/values.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/permissions/system/system_permission_settings.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_observer.h"
@@ -28,7 +28,6 @@
 #include "components/prefs/pref_store.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "ppapi/buildflags/buildflags.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "url/origin.h"
 
 class BrowsingDataModel;
@@ -73,12 +72,12 @@ class SiteSettingsHandler
     bool operator<(const GroupingKey& other) const;
 
    private:
-    explicit GroupingKey(const absl::variant<std::string, url::Origin>& value);
+    explicit GroupingKey(const std::variant<std::string, url::Origin>& value);
 
     url::Origin ToOrigin() const;
 
     // eTLD+1 or Origin
-    absl::variant<std::string, url::Origin> value_;
+    std::variant<std::string, url::Origin> value_;
   };
 
   using AllSitesMap =
@@ -181,16 +180,6 @@ class SiteSettingsHandler
 
   // Revokes all of the File System Access permissions for a given origin.
   void HandleRevokeFileSystemGrants(const base::Value::List& args);
-
-  // Returns all persistent smart card reader grants.
-  void HandleGetSmartCardReaderGrants(const base::Value::List& args);
-
-  // Revokes all of the current smart card reader grants - both persistent and
-  // ephemeral.
-  void HandleRevokeAllSmartCardReaderGrants(const base::Value::List& args);
-
-  // Revokes a particular reader grant.
-  void HandleRevokeSmartCardReaderGrant(const base::Value::List& args);
 
   // Gets and sets a list of ContentSettingTypes for an origin.
   // TODO(crbug.com/40528601): Investigate replacing the

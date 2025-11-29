@@ -17,7 +17,6 @@ import '../controls/settings_toggle_button.js';
 import '../privacy_icons.html.js';
 import '../settings_shared.css.js';
 import './recent_site_permissions.js';
-import './unused_site_permissions.js';
 
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {assert} from 'chrome://resources/js/assert.js';
@@ -66,7 +65,6 @@ function getCategoryItemMap(): Map<ContentSettingsTypes, CategoryListItem> {
       icon: 'privacy20:person-check',
       enabledLabel: 'siteSettingsAntiAbuseEnabledSubLabel',
       disabledLabel: 'siteSettingsAntiAbuseDisabledSubLabel',
-      shouldShow: () => loadTimeData.getBoolean('privateStateTokensEnabled'),
     },
     {
       route: routes.SITE_SETTINGS_AR,
@@ -238,8 +236,7 @@ function getCategoryItemMap(): Map<ContentSettingsTypes, CategoryListItem> {
       icon: 'settings20:keyboard-lock',
       enabledLabel: 'siteSettingsKeyboardLockAllowed',
       disabledLabel: 'siteSettingsKeyboardLockBlocked',
-      shouldShow: () =>
-          loadTimeData.getBoolean('enableKeyboardAndPointerLockPrompt'),
+      shouldShow: () => loadTimeData.getBoolean('enableKeyboardLockPrompt'),
     },
     {
       route: routes.SITE_SETTINGS_LOCAL_FONTS,
@@ -248,6 +245,16 @@ function getCategoryItemMap(): Map<ContentSettingsTypes, CategoryListItem> {
       icon: 'privacy:font-download',
       enabledLabel: 'siteSettingsFontsAllowed',
       disabledLabel: 'siteSettingsFontsBlocked',
+    },
+    {
+      route: routes.SITE_SETTINGS_LOCAL_NETWORK_ACCESS,
+      id: Id.LOCAL_NETWORK_ACCESS,
+      label: 'siteSettingsLocalNetworkAccess',
+      icon: 'settings20:router',
+      enabledLabel: 'siteSettingsLocalNetworkAccessAsk',
+      disabledLabel: 'siteSettingsLocalNetworkAccessBlock',
+      shouldShow: () =>
+          loadTimeData.getBoolean('enableLocalNetworkAccessSetting'),
     },
     {
       route: routes.SITE_SETTINGS_MICROPHONE,
@@ -312,16 +319,6 @@ function getCategoryItemMap(): Map<ContentSettingsTypes, CategoryListItem> {
       disabledLabel: 'siteSettingsPerformanceSublabel',
     },
     {
-      route: routes.SITE_SETTINGS_POINTER_LOCK,
-      id: Id.POINTER_LOCK,
-      label: 'siteSettingsPointerLock',
-      icon: 'settings20:pointer-lock',
-      enabledLabel: 'siteSettingsPointerLockAllowed',
-      disabledLabel: 'siteSettingsPointerLockBlocked',
-      shouldShow: () =>
-          loadTimeData.getBoolean('enableKeyboardAndPointerLockPrompt'),
-    },
-    {
       route: routes.SITE_SETTINGS_POPUPS,
       id: Id.POPUPS,
       label: 'siteSettingsPopups',
@@ -368,6 +365,7 @@ function getCategoryItemMap(): Map<ContentSettingsTypes, CategoryListItem> {
       label: 'siteDataPageTitle',
       icon: 'privacy:database',
     },
+    // <if expr="is_chromeos">
     {
       route: routes.SITE_SETTINGS_SMART_CARD_READERS,
       id: Id.SMART_CARD_READERS,
@@ -378,6 +376,7 @@ function getCategoryItemMap(): Map<ContentSettingsTypes, CategoryListItem> {
       shouldShow: () =>
           loadTimeData.getBoolean('enableSmartCardReadersContentSetting'),
     },
+    // </if>
     {
       route: routes.SITE_SETTINGS_SOUND,
       id: Id.SOUND,
@@ -443,23 +442,13 @@ function getCategoryItemMap(): Map<ContentSettingsTypes, CategoryListItem> {
       label: 'siteSettingsZoomLevels',
       icon: 'privacy:zoom-in',
     },
-  ];
-  if (loadTimeData.getBoolean('is3pcdCookieSettingsRedesignEnabled') &&
-      loadTimeData.getBoolean('isTrackingProtectionUxEnabled')) {
-    categoryList.push({
-      route: routes.TRACKING_PROTECTION,
-      id: Id.COOKIES,
-      label: 'trackingProtectionLinkRowLabel',
-      icon: 'settings:visibility-off',
-    });
-  } else {
-    categoryList.push({
+    {
       route: routes.COOKIES,
       id: Id.COOKIES,
       label: 'thirdPartyCookiesLinkRowLabel',
       icon: 'privacy:cookie',
-    });
-  }
+    },
+  ];
   categoryItemMap = new Map(categoryList.map(item => [item.id, item]));
   return categoryItemMap;
 }
@@ -541,9 +530,11 @@ export class SettingsSiteSettingsPageElement extends
               Id.AUTO_PICTURE_IN_PICTURE,
               Id.CAPTURED_SURFACE_CONTROL,
               Id.KEYBOARD_LOCK,
-              Id.POINTER_LOCK,
+              // <if expr="is_chromeos">
               Id.SMART_CARD_READERS,
+              // </if>
               Id.WEB_APP_INSTALLATION,
+              Id.LOCAL_NETWORK_ACCESS,
             ]),
             contentBasic: buildItemListFromIds([
               Id.COOKIES,
@@ -584,29 +575,14 @@ export class SettingsSiteSettingsPageElement extends
         value: false,
       },
 
-      unusedSitePermissionsEnabled_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean(
-              'safetyCheckUnusedSitePermissionsEnabled');
-        },
-      },
-
       safetyHubAbusiveNotificationRevocationEnabled_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean(
             'safetyHubAbusiveNotificationRevocationEnabled'),
       },
 
-      enableSafetyHub_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('enableSafetyHub');
-        },
-      },
-
       unusedSitePermissionsHeader_: String,
-      unusedSitePermissionsSubeader_: String,
+      unusedSitePermissionsSubheader_: String,
     };
   }
 
@@ -623,22 +599,21 @@ export class SettingsSiteSettingsPageElement extends
             this.onUnusedSitePermissionListChanged_(sites));
   }
 
-  prefs: Object;
-  focusConfig: FocusConfig;
-  private permissionsExpanded_: boolean;
-  private contentExpanded_: boolean;
-  private noRecentSitePermissions_: boolean;
-  private showUnusedSitePermissions_: boolean;
-  private unusedSitePermissionsEnabled_: boolean;
-  private safetyHubAbusiveNotificationRevocationEnabled_: boolean;
-  private unusedSitePermissionsHeader_: string;
-  private unusedSitePermissionsSubheader_: string;
+  declare prefs: Object;
+  declare focusConfig: FocusConfig;
+  declare private permissionsExpanded_: boolean;
+  declare private contentExpanded_: boolean;
+  declare private noRecentSitePermissions_: boolean;
+  declare private showUnusedSitePermissions_: boolean;
+  declare private safetyHubAbusiveNotificationRevocationEnabled_: boolean;
+  declare private unusedSitePermissionsHeader_: string;
+  declare private unusedSitePermissionsSubheader_: string;
   private safetyHubBrowserProxy_: SafetyHubBrowserProxy =
       SafetyHubBrowserProxyImpl.getInstance();
   private metricsBrowserProxy_: MetricsBrowserProxy =
       MetricsBrowserProxyImpl.getInstance();
 
-  private lists_: {
+  declare private lists_: {
     all: CategoryListItem[],
     permissionsBasic: CategoryListItem[],
     permissionsAdvanced: CategoryListItem[],
@@ -683,18 +658,16 @@ export class SettingsSiteSettingsPageElement extends
     }
 
     this.showUnusedSitePermissions_ =
-        (this.unusedSitePermissionsEnabled_ ||
-         this.safetyHubAbusiveNotificationRevocationEnabled_) &&
         permissions.length > 0 && !loadTimeData.getBoolean('isGuest');
     this.unusedSitePermissionsHeader_ =
         await PluralStringProxyImpl.getInstance().getPluralString(
-            'safetyCheckUnusedSitePermissionsPrimaryLabel', permissions.length);
+            'safetyHubUnusedSitePermissionsPrimaryLabel', permissions.length);
     // TODO(crbug/342210522): Add test for this.
     this.unusedSitePermissionsSubheader_ =
         await PluralStringProxyImpl.getInstance().getPluralString(
             this.safetyHubAbusiveNotificationRevocationEnabled_ ?
                 'safetyHubRevokedPermissionsSecondaryLabel' :
-                'safetyCheckUnusedSitePermissionsSecondaryLabel',
+                'safetyHubUnusedSitePermissionsSecondaryLabel',
             permissions.length);
   }
 

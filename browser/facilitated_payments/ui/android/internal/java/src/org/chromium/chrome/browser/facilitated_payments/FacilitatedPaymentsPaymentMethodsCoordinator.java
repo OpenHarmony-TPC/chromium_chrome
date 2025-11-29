@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser.facilitated_payments;
 
-import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.DISMISS_HANDLER;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SCREEN;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SequenceScreen.UNINITIALIZED;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.UI_EVENT_LISTENER;
@@ -15,6 +14,8 @@ import android.content.Context;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.autofill.payments.BankAccount;
 import org.chromium.components.autofill.payments.Ewallet;
@@ -28,11 +29,12 @@ import java.util.List;
  * Implements the FacilitatedPaymentsPaymentMethodsComponent. It uses a bottom sheet to let the user
  * select a form of payment.
  */
+@NullMarked
 public class FacilitatedPaymentsPaymentMethodsCoordinator
         implements FacilitatedPaymentsPaymentMethodsComponent {
     private final FacilitatedPaymentsPaymentMethodsMediator mMediator =
             new FacilitatedPaymentsPaymentMethodsMediator();
-    private PropertyModel mFacilitatedPaymentsPaymentMethodsModel;
+    private @Nullable PropertyModel mFacilitatedPaymentsPaymentMethodsModel;
 
     @Override
     public void initialize(
@@ -53,8 +55,8 @@ public class FacilitatedPaymentsPaymentMethodsCoordinator
     }
 
     @Override
-    public void showSheet(List<BankAccount> bankAccounts) {
-        mMediator.showSheet(bankAccounts);
+    public void showSheetForPix(List<BankAccount> bankAccounts) {
+        mMediator.showSheetForPix(bankAccounts);
     }
 
     @Override
@@ -75,6 +77,11 @@ public class FacilitatedPaymentsPaymentMethodsCoordinator
     @Override
     public void dismiss() {
         mMediator.dismiss();
+    }
+
+    @Override
+    public void showPixAccountLinkingPrompt() {
+        mMediator.showPixAccountLinkingPrompt();
     }
 
     /**
@@ -98,12 +105,11 @@ public class FacilitatedPaymentsPaymentMethodsCoordinator
         return new PropertyModel.Builder(FacilitatedPaymentsPaymentMethodsProperties.ALL_KEYS)
                 .with(VISIBLE_STATE, HIDDEN)
                 .with(SCREEN, UNINITIALIZED)
-                .with(DISMISS_HANDLER, mediator::onDismissed)
                 .with(UI_EVENT_LISTENER, mediator::onUiEvent)
                 .build();
     }
 
-    PropertyModel getModelForTesting() {
+    @Nullable PropertyModel getModelForTesting() {
         return mFacilitatedPaymentsPaymentMethodsModel;
     }
 

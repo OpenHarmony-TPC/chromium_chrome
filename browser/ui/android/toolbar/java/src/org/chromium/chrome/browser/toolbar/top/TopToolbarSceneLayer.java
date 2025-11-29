@@ -8,6 +8,8 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.cc.input.OffsetTag;
 import org.chromium.chrome.browser.layouts.scene_layer.SceneLayer;
 import org.chromium.chrome.browser.layouts.scene_layer.SceneOverlayLayer;
@@ -18,6 +20,7 @@ import org.chromium.ui.resources.ResourceManager;
 
 /** A SceneLayer to render the top toolbar. This is the "view" piece of the top toolbar overlay. */
 @JNINamespace("android")
+@NullMarked
 class TopToolbarSceneLayer extends SceneOverlayLayer {
     /** Pointer to native TopToolbarSceneLayer. */
     private long mNativePtr;
@@ -72,7 +75,16 @@ class TopToolbarSceneLayer extends SceneOverlayLayer {
                         progressInfo.progressBarBackgroundRect.top,
                         progressInfo.progressBarBackgroundRect.width(),
                         progressInfo.progressBarBackgroundRect.height(),
-                        progressInfo.progressBarBackgroundColor);
+                        progressInfo.progressBarBackgroundColor,
+                        progressInfo.progressBarStaticBackgroundRect.left,
+                        progressInfo.progressBarStaticBackgroundRect.width(),
+                        progressInfo.progressBarStaticBackgroundColor,
+                        progressInfo.progressBarEndIndicator.left,
+                        progressInfo.progressBarEndIndicator.top,
+                        progressInfo.progressBarEndIndicator.width(),
+                        progressInfo.progressBarEndIndicator.height(),
+                        progressInfo.cornerRadius,
+                        progressInfo.progressBarVisualUpdateAvailable);
     }
 
     @Override
@@ -117,7 +129,7 @@ class TopToolbarSceneLayer extends SceneOverlayLayer {
                 boolean showShadow,
                 boolean visible,
                 boolean anonymize,
-                OffsetTag offsetTag);
+                @Nullable OffsetTag offsetTag);
 
         void updateProgressBar(
                 long nativeTopToolbarSceneLayer,
@@ -131,6 +143,15 @@ class TopToolbarSceneLayer extends SceneOverlayLayer {
                 int progressBarBackgroundY,
                 int progressBarBackgroundWidth,
                 int progressBarBackgroundHeight,
-                int progressBarBackgroundColor);
+                int progressBarBackgroundColor,
+                int progressBarStaticBackgroundX,
+                int progressBarStaticBackgroundWidth,
+                int progressBarStaticBackgroundColor,
+                int progressBarEndIndicatorX,
+                int progressBarEndIndicatorY,
+                int progressBarEndIndicatorWidth,
+                int progressBarEndIndicatorHeight,
+                float cornerRadius,
+                boolean progressBarVisualUpdateAvailable);
     }
 }

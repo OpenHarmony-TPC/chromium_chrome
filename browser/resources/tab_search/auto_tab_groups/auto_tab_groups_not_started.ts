@@ -40,16 +40,19 @@ export class AutoTabGroupsNotStartedElement extends
       modelStrategy: {type: Number},
       signedIn_: {type: Boolean},
       tabOrganizationModelStrategyEnabled_: {type: Boolean},
+      tabOrganizationUserInstructionEnabled_: {type: Boolean},
     };
   }
 
-  showFre: boolean = false;
-  modelStrategy: TabOrganizationModelStrategy =
+  accessor showFre: boolean = false;
+  accessor modelStrategy: TabOrganizationModelStrategy =
       TabOrganizationModelStrategy.kTopic;
 
-  protected tabOrganizationModelStrategyEnabled_: boolean =
+  protected accessor tabOrganizationModelStrategyEnabled_: boolean =
       loadTimeData.getBoolean('tabOrganizationModelStrategyEnabled');
-  private signedIn_: boolean = false;
+  protected accessor tabOrganizationUserInstructionEnabled_: boolean =
+      loadTimeData.getBoolean('TabOrganizationUserInstructionEnabled');
+  private accessor signedIn_: boolean = false;
   private syncBrowserProxy_: TabSearchSyncBrowserProxy =
       TabSearchSyncBrowserProxyImpl.getInstance();
 
@@ -119,12 +122,23 @@ export class AutoTabGroupsNotStartedElement extends
     this.fire('learn-more-click');
   }
 
+  protected onLearnMoreKeyDown_(event: KeyboardEvent) {
+    if (event.key === 'Enter') {
+      this.onLearnMoreClick_();
+    }
+  }
+
   protected onModelStrategyChange_(
       e: CustomEvent<{value: TabOrganizationModelStrategy}>) {
     const modelStrategy = e.detail.value;
     if (Number(modelStrategy) !== Number(this.modelStrategy)) {
       this.fire('model-strategy-change', {value: modelStrategy});
     }
+  }
+
+  protected onUserInstructionInputChange_(e: KeyboardEvent) {
+    const value = (e.target as HTMLInputElement).value;
+    this.fire('user-instruction-input-change', {value: value});
   }
 }
 

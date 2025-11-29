@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/ash/capture_mode/chrome_capture_mode_delegate.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -88,7 +89,8 @@ IN_PROC_BROWSER_TEST_F(ChromeCaptureModeDelegateBrowserTest,
 
   // Successfully finalized to the same location.
   base::test::TestFuture<bool, const base::FilePath&> path_future;
-  delegate->FinalizeSavedFile(path_future.GetCallback(), path, gfx::Image());
+  delegate->FinalizeSavedFile(path_future.GetCallback(), path, gfx::Image(),
+                              /*for_video=*/false);
   EXPECT_TRUE(path_future.Get<0>());
   EXPECT_EQ(path_future.Get<1>(), path);
 
@@ -107,11 +109,12 @@ IN_PROC_BROWSER_TEST_F(ChromeCaptureModeDelegateBrowserTest,
           browser()->profile());
   ASSERT_TRUE(provided_file_system);
   EXPECT_FALSE(delegate->GetOneDriveMountPointPath().empty());
+  EXPECT_FALSE(delegate->GetOneDriveVirtualPath().empty());
 
   // Check that file going to OneDrive will be redirected to /tmp.
   const std::string test_file_name = "capture_mode_delegate.test";
   base::FilePath original_file =
-      delegate->GetOneDriveMountPointPath().Append(test_file_name);
+      delegate->GetOneDriveVirtualPath().Append(test_file_name);
   base::FilePath redirected_path = delegate->RedirectFilePath(original_file);
   EXPECT_NE(redirected_path, original_file);
   base::FilePath tmp_dir;
@@ -127,7 +130,7 @@ IN_PROC_BROWSER_TEST_F(ChromeCaptureModeDelegateBrowserTest,
   // Check that the file is successfully finalized to different location.
   base::test::TestFuture<bool, const base::FilePath&> path_future;
   delegate->FinalizeSavedFile(path_future.GetCallback(), redirected_path,
-                              gfx::Image());
+                              gfx::Image(), /*for_video=*/false);
   EXPECT_TRUE(path_future.Get<0>());
 
   // Check that file now exists in OneDrive.
@@ -142,18 +145,34 @@ IN_PROC_BROWSER_TEST_F(ChromeCaptureModeDelegateBrowserTest,
 
   // Original file was moved.
   EXPECT_FALSE(base::PathExists(redirected_path));
+
+  // Delete the file using delegate.
+  base::test::TestFuture<bool> deletion_future;
+  delegate->DeleteRemoteFile(path_future.Get<1>(),
+                             deletion_future.GetCallback());
+  EXPECT_TRUE(deletion_future.Get<0>());
+
+  // Check that file now does not in OneDrive.
+  base::test::TestFuture<
+      std::unique_ptr<ash::file_system_provider::EntryMetadata>,
+      base::File::Error>
+      deleted_metadata_future;
+  provided_file_system->GetMetadata(base::FilePath("/").Append(test_file_name),
+                                    {}, deleted_metadata_future.GetCallback());
+  EXPECT_EQ(base::File::Error::FILE_ERROR_NOT_FOUND,
+            deleted_metadata_future.Get<base::File::Error>());
 }
 
 // The OCR service is not supported on ChromeOS browser tests, so we can't check
 // the real detected text.
 IN_PROC_BROWSER_TEST_F(ChromeCaptureModeDelegateBrowserTest,
                        EmptyDetectedTextWhenOCRNotSupported) {
-  base::test::TestFuture<std::string> detected_text_future;
+  base::test::TestFuture<std::optional<std::string>> detected_text_future;
 
   ChromeCaptureModeDelegate::Get()->DetectTextInImage(
       SkBitmap(), detected_text_future.GetCallback());
 
-  EXPECT_EQ(detected_text_future.Get(), "");
+  EXPECT_EQ(detected_text_future.Get(), std::nullopt);
 }
 
 // Simulates successful text detection using a fake OCR backend.
@@ -175,7 +194,7 @@ IN_PROC_BROWSER_TEST_F(ChromeCaptureModeDelegateBrowserTest,
       std::move(visual_annotation));
   delegate->set_optical_character_recognizer_for_testing(
       std::move(optical_character_recognizer));
-  base::test::TestFuture<std::string> detected_text_future;
+  base::test::TestFuture<std::optional<std::string>> detected_text_future;
 
   delegate->DetectTextInImage(SkBitmap(), detected_text_future.GetCallback());
 
@@ -188,11 +207,11 @@ IN_PROC_BROWSER_TEST_F(ChromeCaptureModeDelegateBrowserTest,
   delegate->set_optical_character_recognizer_for_testing(
       screen_ai::FakeOpticalCharacterRecognizer::Create(
           /*empty_ax_tree_update_result=*/false));
-  base::test::TestFuture<std::string> detected_text_future;
+  base::test::TestFuture<std::optional<std::string>> detected_text_future;
 
   // Close the session immediately after a text detection request.
   delegate->DetectTextInImage(SkBitmap(), detected_text_future.GetCallback());
   delegate->OnSessionStateChanged(/*started=*/false);
 
-  EXPECT_EQ(detected_text_future.Get(), "");
+  EXPECT_EQ(detected_text_future.Get(), std::nullopt);
 }

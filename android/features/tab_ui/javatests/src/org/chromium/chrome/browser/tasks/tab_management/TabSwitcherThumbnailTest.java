@@ -46,7 +46,7 @@ public class TabSwitcherThumbnailTest {
     @Rule
     public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
 
-    private ThumbnailFetcher mNullThumbnailFetcher =
+    private final ThumbnailFetcher mNullThumbnailFetcher =
             new ThumbnailFetcher(
                     (tabId, thumbnailSize, isSelected, callback) -> callback.onResult(null),
                     Tab.INVALID_TAB_ID);
@@ -122,8 +122,8 @@ public class TabSwitcherThumbnailTest {
             return new ThumbnailAspectRatioAssertion(ratio, position);
         }
 
-        private int mPosition;
-        private float mExpectedRatio;
+        private final int mPosition;
+        private final float mExpectedRatio;
 
         ThumbnailAspectRatioAssertion(float ratio, int position) {
             mExpectedRatio = ratio;
@@ -140,7 +140,7 @@ public class TabSwitcherThumbnailTest {
             if (viewHolder != null) {
                 ViewLookupCachingFrameLayout tabView =
                         (ViewLookupCachingFrameLayout) viewHolder.itemView;
-                ImageView thumbnail = (ImageView) tabView.fastFindViewById(R.id.tab_thumbnail);
+                ImageView thumbnail = tabView.fastFindViewById(R.id.tab_thumbnail);
                 float thumbnailRatio = thumbnail.getWidth() * 1.f / thumbnail.getHeight();
                 assertEquals(mExpectedRatio, thumbnailRatio, 0.01);
             }
@@ -152,7 +152,7 @@ public class TabSwitcherThumbnailTest {
             return new ThumbnailHeightAssertion(position);
         }
 
-        private int mPosition;
+        private final int mPosition;
 
         ThumbnailHeightAssertion(int position) {
             mPosition = position;
@@ -168,7 +168,7 @@ public class TabSwitcherThumbnailTest {
             if (viewHolder != null) {
                 ViewLookupCachingFrameLayout tabView =
                         (ViewLookupCachingFrameLayout) viewHolder.itemView;
-                ImageView thumbnail = (ImageView) tabView.fastFindViewById(R.id.tab_thumbnail);
+                ImageView thumbnail = tabView.fastFindViewById(R.id.tab_thumbnail);
                 assertNotEquals("Thumbnail's height should not be zero", 0, thumbnail.getHeight());
             }
         }

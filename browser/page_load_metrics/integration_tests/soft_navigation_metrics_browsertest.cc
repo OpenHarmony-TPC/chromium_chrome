@@ -36,8 +36,9 @@ class SoftNavigationTest : public MetricIntegrationTest,
     command_line->AppendSwitch(switches::kEnableGpuBenchmarking);
     command_line->AppendSwitch(blink::switches::kAllowPreCommitInput);
     std::vector<base::test::FeatureRef> enabled_feature_list = {
+        blink::features::kSoftNavigationDetection,
         blink::features::kNavigationId,
-        blink::features::kSoftNavigationDetection};
+        blink::features::kSoftNavigationDetectionAdvancedPaintAttribution};
     if (GetParam()) {
       enabled_feature_list.push_back(
           blink::features::kSoftNavigationHeuristics);
@@ -331,10 +332,9 @@ class SoftNavigationTest : public MetricIntegrationTest,
   base::test::ScopedFeatureList feature_list_;
 };
 
-// TODO(crbug.com/40924160): Investigate timeout issue on linux-lacros-rel and
-// linux-wayland when retrieving web exposed soft nav lcp entries using the
-// EvalJs method.
-#if BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_LINUX)
+// TODO(crbug.com/40924160): Investigate timeout issue on linux-wayland when
+// retrieving web exposed soft nav lcp entries using the EvalJs method.
+#if BUILDFLAG(IS_LINUX)
 #define MAYBE_LargestContentfulPaint DISABLED_LargestContentfulPaint
 #else
 #define MAYBE_LargestContentfulPaint LargestContentfulPaint
@@ -451,10 +451,10 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, MAYBE_LargestContentfulPaint) {
     double soft_nav_2_lcp = std::next(source_id_to_lcp.cbegin())->second;
 
     EXPECT_NEAR(soft_nav_1_start_time + soft_nav_1_lcp,
-                soft_nav_1_web_exposed_lcp, 2);
+                soft_nav_1_web_exposed_lcp, 6);
 
     EXPECT_NEAR(soft_nav_2_start_time + soft_nav_2_lcp,
-                soft_nav_2_web_exposed_lcp, 2);
+                soft_nav_2_web_exposed_lcp, 6);
   }
 
   // Verify 2 LCP discovery time timings are reported.

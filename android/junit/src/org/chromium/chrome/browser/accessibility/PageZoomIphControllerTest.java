@@ -15,16 +15,16 @@ import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
-import org.chromium.base.FeatureList;
-import org.chromium.base.FeatureList.TestValues;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
@@ -37,6 +37,7 @@ import org.chromium.components.feature_engagement.FeatureConstants;
 @Config(manifest = Config.NONE)
 public class PageZoomIphControllerTest {
 
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Mock private Context mContext;
     @Mock private AppMenuHandler mAppMenuHandler;
     @Mock private View mToolbarMenuButton;
@@ -44,15 +45,10 @@ public class PageZoomIphControllerTest {
 
     @Captor private ArgumentCaptor<IphCommand> mIphCommandCaptor;
 
-    private final TestValues mTestValues = new TestValues();
-
     private PageZoomIphController mPageZoomIphController;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
-
-        FeatureList.setTestValues(mTestValues);
 
         Resources resources = ApplicationProvider.getApplicationContext().getResources();
         doReturn(resources).when(mContext).getResources();
@@ -71,8 +67,8 @@ public class PageZoomIphControllerTest {
         IphCommand command = mIphCommandCaptor.getValue();
         Assert.assertEquals(
                 "IphCommand feature should match.",
-                command.featureName,
-                FeatureConstants.PAGE_ZOOM_FEATURE);
+                FeatureConstants.PAGE_ZOOM_FEATURE,
+                command.featureName);
         Assert.assertEquals(
                 "IphCommand stringId should match.",
                 R.string.page_zoom_iph_message,

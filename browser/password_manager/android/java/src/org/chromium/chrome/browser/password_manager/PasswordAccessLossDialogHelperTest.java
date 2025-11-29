@@ -9,12 +9,12 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import android.app.Activity;
 import android.content.Context;
-import android.view.ContextThemeWrapper;
 import android.view.View;
 import android.widget.TextView;
 
-import androidx.test.core.app.ApplicationProvider;
+import androidx.test.core.app.ActivityScenario;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -30,13 +30,14 @@ import org.chromium.base.BuildInfo;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.access_loss.PasswordAccessLossWarningType;
 import org.chromium.chrome.browser.access_loss.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.browser_ui.settings.SettingsCustomTabLauncher;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.user_prefs.UserPrefsJni;
@@ -48,31 +49,29 @@ import org.chromium.ui.test.util.modaldialog.FakeModalDialogManager;
 /** Tests for {@link PasswordAccessLossDialogHelper} */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@EnableFeatures(
-        ChromeFeatureList.UNIFIED_PASSWORD_MANAGER_LOCAL_PASSWORDS_ANDROID_ACCESS_LOSS_WARNING)
+@DisableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
 public class PasswordAccessLossDialogHelperTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
-    @Rule public JniMocker mJniMocker = new JniMocker();
     @Mock private PrefService mPrefService;
     @Mock private Profile mProfile;
     @Mock private UserPrefs.Natives mUserPrefsJniMock;
     @Mock private PasswordManagerUtilBridge.Natives mPasswordManagerUtilBridgeJniMock;
-    @Mock private CustomTabIntentHelper mCustomTabIntentHelper;
+    @Mock private SettingsCustomTabLauncher mSettingsCustomTabIntentLauncher;
     @Mock private BuildInfo mBuildInfo;
-    private final Context mContext =
-            new ContextThemeWrapper(
-                    ApplicationProvider.getApplicationContext(),
-                    org.chromium.chrome.browser.access_loss.R.style.Theme_BrowserUI_DayNight);
     private FakeModalDialogManager mModalDialogManager;
     private ObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
 
     @Before
     public void setUp() {
-        mJniMocker.mock(PasswordManagerUtilBridgeJni.TEST_HOOKS, mPasswordManagerUtilBridgeJniMock);
-        mJniMocker.mock(UserPrefsJni.TEST_HOOKS, mUserPrefsJniMock);
+        PasswordManagerUtilBridgeJni.setInstanceForTesting(mPasswordManagerUtilBridgeJniMock);
+        UserPrefsJni.setInstanceForTesting(mUserPrefsJniMock);
         when(mUserPrefsJniMock.get(any())).thenReturn(mPrefService);
         mModalDialogManager = new FakeModalDialogManager(ModalDialogManager.ModalDialogType.APP);
         mModalDialogManagerSupplier = new ObservableSupplierImpl<>(mModalDialogManager);
+        FakePasswordManagerBackendSupportHelper helper =
+                new FakePasswordManagerBackendSupportHelper();
+        helper.setBackendPresent(true);
+        PasswordManagerBackendSupportHelper.setInstanceForTesting(helper);
     }
 
     @Test
@@ -80,15 +79,7 @@ public class PasswordAccessLossDialogHelperTest {
         when(mPasswordManagerUtilBridgeJniMock.getPasswordAccessLossWarningType(mPrefService))
                 .thenReturn(PasswordAccessLossWarningType.NO_GMS_CORE);
         when(mPrefService.getBoolean(Pref.EMPTY_PROFILE_STORE_LOGIN_DATABASE)).thenReturn(false);
-
-        assertTrue(
-                PasswordAccessLossDialogHelper.tryShowAccessLossWarning(
-                        mProfile,
-                        mContext,
-                        ManagePasswordsReferrer.CHROME_SETTINGS,
-                        mModalDialogManagerSupplier,
-                        mCustomTabIntentHelper,
-                        mBuildInfo));
+        assertThatShowAccessLossWarning(/* isTrue= */ true);
 
         PropertyModel dialogModel = mModalDialogManager.getShownDialogModel();
         View customView = dialogModel.get(ModalDialogProperties.CUSTOM_VIEW);
@@ -112,15 +103,7 @@ public class PasswordAccessLossDialogHelperTest {
     public void testPasswordAccessLossDialogNoUpm() {
         when(mPasswordManagerUtilBridgeJniMock.getPasswordAccessLossWarningType(mPrefService))
                 .thenReturn(PasswordAccessLossWarningType.NO_UPM);
-
-        assertTrue(
-                PasswordAccessLossDialogHelper.tryShowAccessLossWarning(
-                        mProfile,
-                        mContext,
-                        ManagePasswordsReferrer.CHROME_SETTINGS,
-                        mModalDialogManagerSupplier,
-                        mCustomTabIntentHelper,
-                        mBuildInfo));
+        assertThatShowAccessLossWarning(/* isTrue= */ true);
 
         PropertyModel dialogModel = mModalDialogManager.getShownDialogModel();
         View customView = dialogModel.get(ModalDialogProperties.CUSTOM_VIEW);
@@ -144,15 +127,7 @@ public class PasswordAccessLossDialogHelperTest {
     public void testPasswordAccessLossDialogOnlyAccountUpm() {
         when(mPasswordManagerUtilBridgeJniMock.getPasswordAccessLossWarningType(mPrefService))
                 .thenReturn(PasswordAccessLossWarningType.ONLY_ACCOUNT_UPM);
-
-        assertTrue(
-                PasswordAccessLossDialogHelper.tryShowAccessLossWarning(
-                        mProfile,
-                        mContext,
-                        ManagePasswordsReferrer.CHROME_SETTINGS,
-                        mModalDialogManagerSupplier,
-                        mCustomTabIntentHelper,
-                        mBuildInfo));
+        assertThatShowAccessLossWarning(/* isTrue= */ true);
 
         PropertyModel dialogModel = mModalDialogManager.getShownDialogModel();
         View customView = dialogModel.get(ModalDialogProperties.CUSTOM_VIEW);
@@ -176,15 +151,7 @@ public class PasswordAccessLossDialogHelperTest {
     public void testPasswordAccessLossDialogNewGmsMigrationFailed() {
         when(mPasswordManagerUtilBridgeJniMock.getPasswordAccessLossWarningType(mPrefService))
                 .thenReturn(PasswordAccessLossWarningType.NEW_GMS_CORE_MIGRATION_FAILED);
-
-        assertTrue(
-                PasswordAccessLossDialogHelper.tryShowAccessLossWarning(
-                        mProfile,
-                        mContext,
-                        ManagePasswordsReferrer.CHROME_SETTINGS,
-                        mModalDialogManagerSupplier,
-                        mCustomTabIntentHelper,
-                        mBuildInfo));
+        assertThatShowAccessLossWarning(/* isTrue= */ true);
 
         PropertyModel dialogModel = mModalDialogManager.getShownDialogModel();
         View customView = dialogModel.get(ModalDialogProperties.CUSTOM_VIEW);
@@ -210,15 +177,7 @@ public class PasswordAccessLossDialogHelperTest {
                 .thenReturn(PasswordAccessLossWarningType.NO_GMS_CORE);
         when(mBuildInfo.getGmsVersionCode()).thenReturn("");
         when(mPrefService.getBoolean(Pref.EMPTY_PROFILE_STORE_LOGIN_DATABASE)).thenReturn(true);
-
-        assertTrue(
-                PasswordAccessLossDialogHelper.tryShowAccessLossWarning(
-                        mProfile,
-                        mContext,
-                        ManagePasswordsReferrer.CHROME_SETTINGS,
-                        mModalDialogManagerSupplier,
-                        mCustomTabIntentHelper,
-                        mBuildInfo));
+        assertThatShowAccessLossWarning(/* isTrue= */ true);
 
         PropertyModel dialogModel = mModalDialogManager.getShownDialogModel();
         View customView = dialogModel.get(ModalDialogProperties.CUSTOM_VIEW);
@@ -233,5 +192,33 @@ public class PasswordAccessLossDialogHelperTest {
         assertEquals(
                 context.getString(R.string.close),
                 dialogModel.get(ModalDialogProperties.NEGATIVE_BUTTON_TEXT));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
+    public void testAccessLossWarningTypeNoneWhenDbDeprecationEnabled() {
+        when(mPasswordManagerUtilBridgeJniMock.getPasswordAccessLossWarningType(mPrefService))
+                .thenReturn(PasswordAccessLossWarningType.NO_GMS_CORE);
+        when(mBuildInfo.getGmsVersionCode()).thenReturn("");
+        when(mPrefService.getBoolean(Pref.EMPTY_PROFILE_STORE_LOGIN_DATABASE)).thenReturn(true);
+        assertThatShowAccessLossWarning(/* isTrue= */ false);
+    }
+
+    private void assertThatShowAccessLossWarning(boolean isTrue) {
+        try (ActivityScenario<Activity> scenario = ActivityScenario.launch(Activity.class)) {
+            scenario.onActivity(
+                    activity -> {
+                        boolean warningShown =
+                                PasswordAccessLossDialogHelper.tryShowAccessLossWarning(
+                                        mProfile,
+                                        activity,
+                                        ManagePasswordsReferrer.CHROME_SETTINGS,
+                                        mModalDialogManagerSupplier,
+                                        mSettingsCustomTabIntentLauncher,
+                                        mBuildInfo);
+                        boolean conditionFulfilled = isTrue ? warningShown : !warningShown;
+                        assertTrue(conditionFulfilled);
+                    });
+        }
     }
 }

@@ -11,9 +11,6 @@
 #include <string>
 #include <utility>
 
-#include "ash/components/arc/arc_util.h"
-#include "ash/components/arc/session/arc_session_runner.h"
-#include "ash/components/arc/session/arc_stop_reason.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
@@ -26,17 +23,17 @@
 #include "chrome/browser/ash/arc/session/arc_activation_necessity_checker.h"
 #include "chrome/browser/ash/arc/session/arc_app_id_provider_impl.h"
 #include "chrome/browser/ash/arc/session/arc_requirement_checker.h"
-#include "chrome/browser/ash/arc/session/arc_reven_hardware_checker.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager_observer.h"
 #include "chrome/browser/ash/arc/session/arc_vm_data_migration_necessity_checker.h"
 #include "chrome/browser/ash/guest_os/public/guest_os_mount_provider_registry.h"
 #include "chrome/browser/ash/policy/arc/android_management_client.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
-#include "chromeos/ash/components/dbus/dlcservice/dlcservice_client.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
+#include "chromeos/ash/experiences/arc/session/arc_session_runner.h"
+#include "chromeos/ash/experiences/arc/session/arc_stop_reason.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/session_manager/core/session_manager_observer.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 
 class ArcAppLauncher;
 class Profile;
@@ -44,25 +41,24 @@ class Profile;
 namespace arc {
 
 // The file exists only when ARC container is in use.
-constexpr const char kGeneratedBuildPropertyFilePath[] =
+inline constexpr char kGeneratedBuildPropertyFilePath[] =
     "/run/arc/host_generated/build.prop";
 
 // The file exists only when ARCVM is in use.
-constexpr const char kGeneratedCombinedPropertyFilePathVm[] =
+inline constexpr char kGeneratedCombinedPropertyFilePathVm[] =
     "/run/arcvm/host_generated/combined.prop";
 
 // Maximum number of auto-resumes for ARCVM /data migration. When this number of
 // auto-resumes have been already attempted but the migration has not finished,
 // ARC is blocked and the user needs to manually trigger the resume by clicking
 // a notification.
-constexpr int kArcVmDataMigrationMaxAutoResumeCount = 3;
+inline constexpr int kArcVmDataMigrationMaxAutoResumeCount = 3;
 
 class ArcDataRemover;
 class ArcFastAppReinstallStarter;
 class ArcPaiStarter;
 class ArcProvisioningResult;
 class ArcUiAvailabilityReporter;
-class ArcRevenHardwareChecker;
 
 enum class ProvisioningStatus;
 enum class ArcStopReason;
@@ -388,6 +384,10 @@ class ArcSessionManager : public ArcSessionRunner::Observer,
   // Getter for |serialno|.
   std::string GetSerialNumber() const;
 
+  // Helper to Get Serial number for Attestation and KeyMint.
+  // Calls GetSerialNumber() internally.
+  std::string GetSerialNumberForKeyMint();
+
   // Stops mini-ARC instance. This should only be called before login.
   void StopMiniArcIfNecessary();
 
@@ -396,26 +396,21 @@ class ArcSessionManager : public ArcSessionRunner::Observer,
     return is_activation_delayed_.value_or(false);
   }
 
-  // The unit test will use a mock hardware checker for testing.
-  void SetHardwareCheckerForTesting(
-      std::unique_ptr<ArcRevenHardwareChecker> hardware_checker) {
-    hardware_checker_ = std::move(hardware_checker);
-  }
-
  private:
+  // TODO(crbug.com/395161942, crbug.com/393644378): Tracking
+  // internal state transition for the production behavior.
+  // We saw some unexpected behavior, but we didn't see the root cause
+  // yet. This is for additional logging purpose only. We should remove
+  // once we get the idea why unexpected behavior happens.
+  enum InternalState {
+    kNotInitialized,
+    kRunning,
+    kShutdown,
+    kDestroying,
+  };
+
   // Reports statuses of OptIn flow to UMA.
   class ScopedOptInFlowTracker;
-
-  // Handles the completion of the hardware compatibility check for ARC on a
-  // reven device. If the device is compatible with ARC, the DLC service client
-  // starts to install the Android DLC image.
-  void OnEnableArcOnReven(std::deque<JobDesc> jobs, bool is_compatible);
-
-  // Handles the completion of the arcvm DLC installation. If the installation
-  // succeeds, adds a job to mount the DLC directory to the arc root directory.
-  void OnDlcInstalled(
-      std::deque<JobDesc> jobs,
-      const ash::DlcserviceClient::InstallResult& install_result);
 
   // Requests to disable ARC session and allows to optionally remove ARC data.
   // If ARC is already disabled, no-op.
@@ -538,6 +533,11 @@ class ArcSessionManager : public ArcSessionRunner::Observer,
   // Internal state machine. See also State enum class.
   State state_ = State::NOT_INITIALIZED;
 
+  // Internal state for investigation purpose.
+  // TODO(crbug.com/395161942, crbug.com/393644378): remove these once
+  // we figure out the cause.
+  InternalState internal_state_ = InternalState::kNotInitialized;
+
   base::ObserverList<ArcSessionManagerObserver>::UncheckedAndDanglingUntriaged
       observer_list_;
   std::unique_ptr<ArcAppLauncher> playstore_launcher_;
@@ -570,8 +570,6 @@ class ArcSessionManager : public ArcSessionRunner::Observer,
   std::unique_ptr<ArcPaiStarter> pai_starter_;
   std::unique_ptr<ArcFastAppReinstallStarter> fast_app_reinstall_starter_;
   std::unique_ptr<ArcUiAvailabilityReporter> arc_ui_availability_reporter_;
-  std::unique_ptr<ArcRevenHardwareChecker> hardware_checker_ =
-      std::make_unique<arc::ArcRevenHardwareChecker>();
 
   // The time when the sign in process started.
   base::TimeTicks sign_in_start_time_;

@@ -13,8 +13,8 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/permissions/embedded_permission_prompt_base_view.h"
 #include "chrome/browser/ui/views/permissions/permission_prompt_bubble_base_view.h"
+#include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/ui/popup_open_enums.h"
-#include "components/autofill/core/browser/ui/suggestion_type.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/common/constants.h"
@@ -51,9 +51,9 @@ bool IsElementSufficientlyVisibleForAVerticalArrow(
 
   int visible_width =
       std::clamp(element_bounds.right(), content_area_bounds.x(),
-                  content_area_bounds.right()) -
+                 content_area_bounds.right()) -
       std::clamp(element_bounds.x(), content_area_bounds.x(),
-                  content_area_bounds.right());
+                 content_area_bounds.right());
 
   return visible_width > 3 * BubbleBorder::kVisibleArrowRadius;
 }
@@ -122,10 +122,10 @@ void CalculatePopupYAndHeight(int popup_preferred_height,
                               const gfx::Rect& element_bounds,
                               gfx::Rect* popup_bounds) {
   int top_growth_end = std::clamp(element_bounds.y(), content_area_bounds.y(),
-                                   content_area_bounds.bottom());
+                                  content_area_bounds.bottom());
   int bottom_growth_start =
       std::clamp(element_bounds.bottom(), content_area_bounds.y(),
-                  content_area_bounds.bottom());
+                 content_area_bounds.bottom());
 
   int top_available = top_growth_end - content_area_bounds.y();
   int bottom_available = content_area_bounds.bottom() - bottom_growth_start;
@@ -195,8 +195,8 @@ bool BoundsOverlapWithAnyOpenPrompt(const gfx::Rect& screen_bounds,
   top_level_view = platform_util::GetParent(top_level_view)
                        ? platform_util::GetParent(top_level_view)
                        : top_level_view;
-  views::Widget::Widgets all_widgets;
-  views::Widget::GetAllChildWidgets(top_level_view, &all_widgets);
+  views::Widget::Widgets all_widgets =
+      views::Widget::GetAllChildWidgets(top_level_view);
   return std::ranges::any_of(
       all_widgets, [&screen_bounds, web_contents_widget](views::Widget* w) {
         return w->IsDialogBox() &&
@@ -455,66 +455,56 @@ bool IsExpandableSuggestionType(SuggestionType type) {
   switch (type) {
     case SuggestionType::kAddressEntry:
     case SuggestionType::kAddressFieldByFieldFilling:
-    case SuggestionType::kCreditCardEntry:
-    case SuggestionType::kCreditCardFieldByFieldFilling:
     case SuggestionType::kComposeProactiveNudge:
+    case SuggestionType::kCreditCardEntry:
     case SuggestionType::kDevtoolsTestAddresses:
-    case SuggestionType::kFillFullAddress:
-    case SuggestionType::kFillFullEmail:
-    case SuggestionType::kFillFullName:
-    case SuggestionType::kFillFullPhoneNumber:
+    case SuggestionType::kFillAutofillAi:
+    case SuggestionType::kLoyaltyCardEntry:
+    case SuggestionType::kHomeAndWorkAddressEntry:
     case SuggestionType::kPasswordEntry:
-    case SuggestionType::kFillPredictionImprovements:
-    case SuggestionType::kPredictionImprovementsError:
       return true;
     case SuggestionType::kAccountStoragePasswordEntry:
+    case SuggestionType::kAddressEntryOnTyping:
     case SuggestionType::kAllSavedPasswordsEntry:
     case SuggestionType::kAutocompleteEntry:
-    case SuggestionType::kManageAddress:
-    case SuggestionType::kManageCreditCard:
-    case SuggestionType::kManageIban:
-    case SuggestionType::kManagePlusAddress:
-    case SuggestionType::kUndoOrClear:
-    case SuggestionType::kComposeResumeNudge:
+    case SuggestionType::kBnplEntry:
     case SuggestionType::kComposeDisable:
     case SuggestionType::kComposeGoToSettings:
     case SuggestionType::kComposeNeverShowOnThisSiteAgain:
+    case SuggestionType::kComposeResumeNudge:
     case SuggestionType::kComposeSavedStateNotification:
     case SuggestionType::kCreateNewPlusAddress:
     case SuggestionType::kCreateNewPlusAddressInline:
     case SuggestionType::kDatalistEntry:
-    case SuggestionType::kDeleteAddressProfile:
     case SuggestionType::kDevtoolsTestAddressByCountry:
     case SuggestionType::kDevtoolsTestAddressEntry:
-    case SuggestionType::kEditAddressProfile:
-    case SuggestionType::kFillEverythingFromAddressProfile:
     case SuggestionType::kFillExistingPlusAddress:
     case SuggestionType::kFillPassword:
     case SuggestionType::kGeneratePasswordEntry:
     case SuggestionType::kIbanEntry:
-    case SuggestionType::kBnplEntry:
     case SuggestionType::kInsecureContextPaymentDisabledMessage:
+    case SuggestionType::kManageAddress:
+    case SuggestionType::kManageAutofillAi:
+    case SuggestionType::kManageCreditCard:
+    case SuggestionType::kManageIban:
+    case SuggestionType::kManageLoyaltyCard:
+    case SuggestionType::kManagePlusAddress:
     case SuggestionType::kMerchantPromoCodeEntry:
     case SuggestionType::kMixedFormMessage:
-    case SuggestionType::kPasswordAccountStorageEmpty:
-    case SuggestionType::kPasswordAccountStorageOptIn:
-    case SuggestionType::kPasswordAccountStorageOptInAndGenerate:
-    case SuggestionType::kPasswordAccountStorageReSignin:
     case SuggestionType::kPasswordFieldByFieldFilling:
     case SuggestionType::kPlusAddressError:
-    case SuggestionType::kPredictionImprovementsFeedback:
+    case SuggestionType::kSaveAndFillCreditCardEntry:
     case SuggestionType::kScanCreditCard:
     case SuggestionType::kSeePromoCodeDetails:
     case SuggestionType::kSeparator:
-    case SuggestionType::kShowAccountCards:
     case SuggestionType::kTitle:
+    case SuggestionType::kUndoOrClear:
     case SuggestionType::kViewPasswordDetails:
     case SuggestionType::kVirtualCreditCardEntry:
+    case SuggestionType::kIdentityCredential:
     case SuggestionType::kWebauthnCredential:
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
-    case SuggestionType::kRetrievePredictionImprovements:
-    case SuggestionType::kEditPredictionImprovementsInformation:
-    case SuggestionType::kPredictionImprovementsLoadingState:
+    case SuggestionType::kPendingStateSignin:
       return false;
   }
 }

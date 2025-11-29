@@ -38,20 +38,31 @@ export class SettingsAiLoggingInfoBullet extends
         type: String,
         computed: 'computeLabel_(pref.value)',
       },
+
+      loggingManagedDisabledCustomLabel: {
+        type: String,
+        value: null,
+      },
     };
   }
 
-  private label_: string;
+  declare private label_: string;
+  declare loggingManagedDisabledCustomLabel: string|null;
 
   private isLoggingDisabledByPolicy_(): boolean {
     return this.pref?.value ===
-        ModelExecutionEnterprisePolicyValue.ALLOW_WITHOUT_LOGGING;
+        ModelExecutionEnterprisePolicyValue.ALLOW_WITHOUT_LOGGING ||
+        this.pref?.value === ModelExecutionEnterprisePolicyValue.DISABLE;
   }
 
   private computeLabel_(): string {
-    return this.isLoggingDisabledByPolicy_() ?
-        loadTimeData.getString('aiSubpageSublabelLoggingManagedDisabled') :
-        loadTimeData.getString('aiSubpageSublabelReviewers');
+    if (!this.isLoggingDisabledByPolicy_()) {
+      return loadTimeData.getString('aiSubpageSublabelReviewers');
+    }
+    if (this.loggingManagedDisabledCustomLabel) {
+      return this.loggingManagedDisabledCustomLabel;
+    }
+    return loadTimeData.getString('aiSubpageSublabelLoggingManagedDisabled');
   }
 }
 

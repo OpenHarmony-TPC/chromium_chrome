@@ -35,7 +35,6 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
-#include "base/not_fatal_until.h"
 #include "base/observer_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/download/download_crx_util.h"
@@ -59,12 +58,6 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/download/download_item_web_app_data.h"
-#endif
-
-#if BUILDFLAG(IS_OHOS)
-#include "net/base/filename_util.h"
-#include "ohos/adapter/permission_manager/permission_manager_adapter.h"
-namespace ohos_permission = ohos::adapter::permission;
 #endif
 
 using history::DownloadState;
@@ -120,7 +113,7 @@ class DownloadHistoryData : public base::SupportsUserData::Data {
   DownloadHistoryData(const DownloadHistoryData&) = delete;
   DownloadHistoryData& operator=(const DownloadHistoryData&) = delete;
 
-  ~DownloadHistoryData() override {}
+  ~DownloadHistoryData() override = default;
 
   PersistenceState state() const { return state_; }
   void SetState(PersistenceState s) { state_ = s; }
@@ -284,7 +277,7 @@ bool ShouldSkipLoadingDownload(const history::DownloadRow& row,
   if (file_path.empty())
     return false;
   auto iter = file_path_count->find(file_path);
-  CHECK(iter != file_path_count->end(), base::NotFatalUntil::M130);
+  CHECK(iter != file_path_count->end());
   --iter->second;
   if (iter->second < 1)
     return false;
@@ -298,7 +291,7 @@ DownloadHistory::HistoryAdapter::HistoryAdapter(
     history::HistoryService* history)
     : history_(history) {
 }
-DownloadHistory::HistoryAdapter::~HistoryAdapter() {}
+DownloadHistory::HistoryAdapter::~HistoryAdapter() = default;
 
 void DownloadHistory::HistoryAdapter::QueryDownloads(
     history::HistoryService::DownloadQueryCallback callback) {
@@ -321,8 +314,8 @@ void DownloadHistory::HistoryAdapter::RemoveDownloads(
   history_->RemoveDownloads(ids);
 }
 
-DownloadHistory::Observer::Observer() {}
-DownloadHistory::Observer::~Observer() {}
+DownloadHistory::Observer::Observer() = default;
+DownloadHistory::Observer::~Observer() = default;
 
 // static
 bool DownloadHistory::IsPersisted(const download::DownloadItem* item) {
@@ -553,13 +546,6 @@ void DownloadHistory::ItemAdded(uint32_t download_id,
   }
   data->SetState(DownloadHistoryData::PERSISTED);
 
-#if BUILDFLAG(IS_OHOS)
-  GURL file_url = net::FilePathToFileURL(item->GetTargetFilePath());
-  if (file_url.is_valid()) {
-    ohos_permission::PermissionManagerAdapter::FileAccessPersist(
-        file_url.spec());
-  }
-#endif
   // Notify the observer about the change in the persistence state.
   if (was_persisted != IsPersisted(item)) {
     for (Observer& observer : observers_)

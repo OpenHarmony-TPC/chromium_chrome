@@ -23,14 +23,11 @@
 #include "chrome/browser/ui/views/profiles/profile_menu_view.h"
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
-ProfileMenuCoordinator::~ProfileMenuCoordinator() {
-  // Forcefully close the Widget if it hasn't been closed by the time the
-  // browser is torn down to avoid dangling references.
-  if (IsShowing())
-    bubble_tracker_.view()->GetWidget()->CloseNow();
-}
+ProfileMenuCoordinator::~ProfileMenuCoordinator() = default;
 
-void ProfileMenuCoordinator::Show(bool is_source_accelerator) {
+void ProfileMenuCoordinator::Show(
+    bool is_source_accelerator,
+    std::optional<signin_metrics::AccessPoint> explicit_signin_access_point) {
   auto* avatar_toolbar_button =
       BrowserView::GetBrowserViewForBrowser(&GetBrowser())
           ->toolbar_button_provider()
@@ -49,6 +46,11 @@ void ProfileMenuCoordinator::Show(bool is_source_accelerator) {
   browser.window()->NotifyFeaturePromoFeatureUsed(
       feature_engagement::kIPHProfileSwitchFeature,
       FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  browser.window()->NotifyFeaturePromoFeatureUsed(
+      feature_engagement::kIPHSupervisedUserProfileSigninFeature,
+      FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+#endif
 
   std::unique_ptr<ProfileMenuViewBase> bubble;
   bool is_incognito = browser.profile()->IsIncognitoProfile();
@@ -60,7 +62,8 @@ void ProfileMenuCoordinator::Show(bool is_source_accelerator) {
     // Note: on Ash, only incognito windows have a profile menu.
     NOTREACHED() << "The profile menu is not implemented on Ash.";
 #else
-    bubble = std::make_unique<ProfileMenuView>(avatar_toolbar_button, &browser);
+    bubble = std::make_unique<ProfileMenuView>(avatar_toolbar_button, &browser,
+                                               explicit_signin_access_point);
 #endif  // BUILDFLAG(IS_CHROMEOS)
   }
   bubble->SetProperty(views::kElementIdentifierKey,
@@ -74,8 +77,9 @@ void ProfileMenuCoordinator::Show(bool is_source_accelerator) {
       views::BubbleDialogDelegateView::CreateBubble(std::move(bubble));
   bubble_ptr->CreateAXWidgetObserver(widget);
   widget->Show();
-  if (is_source_accelerator)
+  if (is_source_accelerator) {
     bubble_ptr->FocusFirstProfileButton();
+  }
 }
 
 bool ProfileMenuCoordinator::IsShowing() const {

@@ -260,12 +260,12 @@ suite('Basic', function() {
     assertTrue(routes.TRIGGERED_RESET_DIALOG.isNavigableDialog);
     assertTrue(routes.TRIGGERED_RESET_DIALOG.parent === routes.RESET);
 
-    // <if expr="chromeos_ash">
+    // <if expr="is_chromeos">
     // Regression test for b/265453606.
     assertFalse('SIGN_OUT' in routes);
     // </if>
 
-    // <if expr="not chromeos_ash">
+    // <if expr="not is_chromeos">
     assertTrue(routes.SIGN_OUT.isNavigableDialog);
     assertTrue(routes.SIGN_OUT.parent === routes.PEOPLE);
     assertTrue(routes.IMPORT_DATA.isNavigableDialog);
@@ -330,6 +330,28 @@ suite('Basic', function() {
     assertNotEquals(routesLocal1, routesLocal2);
     assertEquals(routes, routesLocal2);
   });
+
+  test('autofillAi route defined', function() {
+    resetPageVisibilityForTesting({
+      autofill: true,
+    });
+    loadTimeData.overrideValues({
+      showAutofillAiControl: true,
+    });
+    resetRouterForTesting();
+    assertTrue(!!routes.AUTOFILL_AI);
+  });
+
+  test('autofillAi route not defined', function() {
+    resetPageVisibilityForTesting({
+      autofill: true,
+    });
+    loadTimeData.overrideValues({
+      showAutofillAiControl: false,
+    });
+    resetRouterForTesting();
+    assertFalse(!!routes.AUTOFILL_AI);
+  });
 });
 
 suite('DynamicParameters', function() {
@@ -380,19 +402,17 @@ suite('NonExistentRoute', function() {
   });
 });
 
-suite('SafetyHubReachable', function() {
+suite('SafetyHub', function() {
   let routes: SettingsRoutes;
 
-  setup(function() {
-    loadTimeData.overrideValues({enableSafetyHub: true});
+  function setupRoutes() {
+    resetPageVisibilityForTesting();
     resetRouterForTesting();
-
     routes = Router.getInstance().getRoutes();
-    Router.getInstance().navigateTo(routes.BASIC);
-    return flushTasks();
-  });
+  }
 
   test('SafetyHubRouteReachable', async function() {
+    setupRoutes();
     let path = Router.getInstance().getCurrentRoute().path;
     assertEquals('/', path);
 
@@ -404,36 +424,11 @@ suite('SafetyHubReachable', function() {
     assertEquals('/safetyCheck', path);
   });
 
-  test('SafetyCheckRouteNotReachable', async function() {
-    // When Safety Hub is enabled, SafetyCheck is not reachable.
-    assertEquals(routes.SAFETY_CHECK, undefined);
-  });
-});
+  test('SafetyHubRouteNotReachableInGuestMode', function() {
+    loadTimeData.overrideValues({isGuest: true});
+    setupRoutes();
 
-suite('SafetyHubNotReachable', function() {
-  let routes: SettingsRoutes;
-
-  setup(function() {
-    loadTimeData.overrideValues({enableSafetyHub: false});
-    resetRouterForTesting();
-
-    routes = Router.getInstance().getRoutes();
-  });
-
-  test('SafetyHubRouteNotReachable', async function() {
-    // Safety Hub should not be reachable.
-    assertEquals(routes.SAFETY_HUB, undefined);
-  });
-
-  test('SafetyCheckRouteReachable', async function() {
-    let path = Router.getInstance().getCurrentRoute().path;
-    assertEquals('/', path);
-
-    Router.getInstance().navigateTo(routes.SAFETY_CHECK);
-    await flushTasks();
-
-    // Assert that the route is changed to SafetyCheck.
-    path = Router.getInstance().getCurrentRoute().path;
-    assertEquals('/safetyCheck', path);
+    // Safety Hub should not be reachable in Guest mode.
+    assertEquals(undefined, routes.SAFETY_HUB);
   });
 });

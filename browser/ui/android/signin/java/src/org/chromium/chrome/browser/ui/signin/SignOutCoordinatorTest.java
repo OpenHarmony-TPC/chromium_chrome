@@ -37,9 +37,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.Batch;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.password_manager.PasswordManagerUtilBridge;
 import org.chromium.chrome.browser.password_manager.PasswordManagerUtilBridgeJni;
@@ -67,7 +65,6 @@ import java.util.Set;
 /** Instrumentation tests for {@link SignOutDialogCoordinator}. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
-@EnableFeatures({ChromeFeatureList.REPLACE_SYNC_PROMOS_WITH_SIGN_IN_PROMOS})
 public class SignOutCoordinatorTest {
     @Rule
     public final BaseActivityTestRule<BlankUiTestActivity> mActivityTestRule =
@@ -75,8 +72,6 @@ public class SignOutCoordinatorTest {
 
     @Rule
     public final MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
-
-    @Rule public final JniMocker mocker = new JniMocker();
 
     @Mock private Profile mProfile;
     @Mock private FragmentManager mFragmentManager;
@@ -100,27 +95,12 @@ public class SignOutCoordinatorTest {
 
     @Test
     @MediumTest
-    @DisableFeatures(ChromeFeatureList.REPLACE_SYNC_PROMOS_WITH_SIGN_IN_PROMOS)
-    public void testLegacyDialog_replaceSyncPromosFeatureDisabled() {
-        setUpMocks();
-        mocker.mock(PasswordManagerUtilBridgeJni.TEST_HOOKS, mPasswordManagerUtilBridgeNativeMock);
-        mocker.mock(UserPrefsJni.TEST_HOOKS, mUserPrefsNatives);
-        when(mUserPrefsNatives.get(mProfile)).thenReturn(mPrefService);
-        when(mPrefService.getBoolean(Pref.ALLOW_DELETING_BROWSER_HISTORY)).thenReturn(true);
-
-        startSignOutFlow(SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS, mOnSignOut, false);
-
-        onView(withText(R.string.signout_title)).inRoot(isDialog()).check(matches(isDisplayed()));
-    }
-
-    @Test
-    @MediumTest
-    @EnableFeatures(ChromeFeatureList.REPLACE_SYNC_PROMOS_WITH_SIGN_IN_PROMOS)
-    public void testLegacyDialogWithRevokeSyncConsentReason_replaceSyncPromosFeatureEnabled() {
+    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
+    public void testLegacyDialogWithRevokeSyncConsentReason() {
         setUpMocks();
         doReturn(true).when(mIdentityManagerMock).hasPrimaryAccount(ConsentLevel.SYNC);
-        mocker.mock(PasswordManagerUtilBridgeJni.TEST_HOOKS, mPasswordManagerUtilBridgeNativeMock);
-        mocker.mock(UserPrefsJni.TEST_HOOKS, mUserPrefsNatives);
+        PasswordManagerUtilBridgeJni.setInstanceForTesting(mPasswordManagerUtilBridgeNativeMock);
+        UserPrefsJni.setInstanceForTesting(mUserPrefsNatives);
         when(mUserPrefsNatives.get(mProfile)).thenReturn(mPrefService);
         when(mProfile.isChild()).thenReturn(true);
         when(mPrefService.getBoolean(Pref.ALLOW_DELETING_BROWSER_HISTORY)).thenReturn(true);
@@ -135,10 +115,11 @@ public class SignOutCoordinatorTest {
 
     @Test
     @MediumTest
+    @EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
     public void testLegacyDialog_hasSyncingAccount() {
         setUpMocks();
-        mocker.mock(PasswordManagerUtilBridgeJni.TEST_HOOKS, mPasswordManagerUtilBridgeNativeMock);
-        mocker.mock(UserPrefsJni.TEST_HOOKS, mUserPrefsNatives);
+        PasswordManagerUtilBridgeJni.setInstanceForTesting(mPasswordManagerUtilBridgeNativeMock);
+        UserPrefsJni.setInstanceForTesting(mUserPrefsNatives);
         when(mUserPrefsNatives.get(mProfile)).thenReturn(mPrefService);
         when(mPrefService.getBoolean(Pref.ALLOW_DELETING_BROWSER_HISTORY)).thenReturn(true);
         doReturn(true).when(mIdentityManagerMock).hasPrimaryAccount(ConsentLevel.SYNC);
@@ -179,7 +160,7 @@ public class SignOutCoordinatorTest {
                     Assert.assertTrue(mSnackbarManager.isShowing());
                     Snackbar currentSnackbar = mSnackbarManager.getCurrentSnackbarForTesting();
                     Assert.assertEquals(
-                            currentSnackbar.getIdentifierForTesting(), Snackbar.UMA_SIGN_OUT);
+                            Snackbar.UMA_SIGN_OUT, currentSnackbar.getIdentifierForTesting());
                     Assert.assertEquals(
                             currentSnackbar.getTextForTesting(),
                             mActivityTestRule
@@ -340,7 +321,7 @@ public class SignOutCoordinatorTest {
                     Assert.assertTrue(mSnackbarManager.isShowing());
                     Snackbar currentSnackbar = mSnackbarManager.getCurrentSnackbarForTesting();
                     Assert.assertEquals(
-                            currentSnackbar.getIdentifierForTesting(), Snackbar.UMA_SIGN_OUT);
+                            Snackbar.UMA_SIGN_OUT, currentSnackbar.getIdentifierForTesting());
                     Assert.assertEquals(
                             currentSnackbar.getTextForTesting(),
                             mActivityTestRule

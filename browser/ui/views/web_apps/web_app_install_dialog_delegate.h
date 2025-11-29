@@ -16,6 +16,7 @@
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "ui/base/interaction/element_identifier.h"
+#include "ui/base/interaction/element_tracker.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
@@ -80,6 +81,8 @@ class WebAppInstallDialogDelegate : public ui::DialogModelDelegate,
                                     public views::WidgetObserver {
  public:
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kDiyAppsDialogOkButtonId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kPwaInstallDialogInstallButton);
+  DECLARE_CLASS_CUSTOM_ELEMENT_EVENT_TYPE(kInstalledPWAEventId);
 
   WebAppInstallDialogDelegate(
       content::WebContents* web_contents,
@@ -93,9 +96,12 @@ class WebAppInstallDialogDelegate : public ui::DialogModelDelegate,
 
   ~WebAppInstallDialogDelegate() override;
 
-  // Starts observing the install dialog's widget for picture in picture
-  // occlusion or size changes if any.
-  void StartObservingWidgetForChanges(views::Widget* install_dialog_widget);
+  // Once the install dialog is shown, start tracking the widget for:
+  // 1. Observing it to prevent picture in picture occlusion.
+  // 2. Observing it for size changes so that it can be closed if needed.
+  // 3. Tracking it as a security dialog so that extension popups do not appear
+  // over it.
+  void OnWidgetShownStartTracking(views::Widget* install_dialog_widget);
 
   void OnAccept();
   void OnCancel();

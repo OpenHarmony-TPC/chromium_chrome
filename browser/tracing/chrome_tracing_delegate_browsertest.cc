@@ -35,7 +35,6 @@
 #include "components/prefs/pref_service.h"
 #include "components/tracing/common/background_tracing_state_manager.h"
 #include "components/tracing/common/pref_names.h"
-#include "components/variations/variations_params_manager.h"
 #include "content/public/browser/background_tracing_manager.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -59,6 +58,10 @@ class TestBackgroundTracingHelper
     content::RemoveBackgroundTracingEnabledStateObserverForTesting(this);
   }
 
+  void OnScenarioActive(const std::string& scenario_name) override {
+    wait_for_scenario_active_.Quit();
+  }
+
   void OnScenarioIdle(const std::string& scenario_name) override {
     wait_for_scenario_idle_.Quit();
   }
@@ -67,10 +70,12 @@ class TestBackgroundTracingHelper
     wait_for_trace_received_.Quit();
   }
 
+  void WaitForScenarioActive() { wait_for_scenario_active_.Run(); }
   void WaitForScenarioIdle() { wait_for_scenario_idle_.Run(); }
   void WaitForTraceReceived() { wait_for_trace_received_.Run(); }
 
  private:
+  base::RunLoop wait_for_scenario_active_;
   base::RunLoop wait_for_scenario_idle_;
   base::RunLoop wait_for_trace_received_;
 };
@@ -160,30 +165,6 @@ void SetSessionState(base::Value::Dict dict) {
                    base::Value(std::move(dict)));
 }
 
-IN_PROC_BROWSER_TEST_F(ChromeTracingDelegateBrowserTest,
-                       BackgroundTracingSessionRanLong) {
-  base::Value::Dict dict;
-  dict.Set("state",
-           static_cast<int>(tracing::BackgroundTracingState::RAN_30_SECONDS));
-  SetSessionState(std::move(dict));
-  tracing::BackgroundTracingStateManager::GetInstance().ResetForTesting();
-
-  EXPECT_TRUE(
-      StartScenario(content::BackgroundTracingManager::NO_DATA_FILTERING));
-}
-
-IN_PROC_BROWSER_TEST_F(ChromeTracingDelegateBrowserTest,
-                       BackgroundTracingFinalizationStarted) {
-  base::Value::Dict dict;
-  dict.Set("state", static_cast<int>(
-                        tracing::BackgroundTracingState::FINALIZATION_STARTED));
-  SetSessionState(std::move(dict));
-  tracing::BackgroundTracingStateManager::GetInstance().ResetForTesting();
-
-  EXPECT_TRUE(
-      StartScenario(content::BackgroundTracingManager::NO_DATA_FILTERING));
-}
-
 // If we need a PII-stripped trace, any existing OTR session should block the
 // trace.
 IN_PROC_BROWSER_TEST_F(ChromeTracingDelegateBrowserTest,
@@ -209,12 +190,13 @@ IN_PROC_BROWSER_TEST_F(ChromeTracingDelegateBrowserTest,
 // block the finalization of the trace.
 IN_PROC_BROWSER_TEST_F(ChromeTracingDelegateBrowserTest,
                        NewIncognitoSessionBlockingTraceFinalization) {
+  TestBackgroundTracingHelper background_tracing_helper;
   EXPECT_TRUE(StartScenario(content::BackgroundTracingManager::ANONYMIZE_DATA));
+  background_tracing_helper.WaitForScenarioActive();
 
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), IDC_NEW_INCOGNITO_WINDOW));
   EXPECT_TRUE(BrowserList::IsOffTheRecordBrowserActive());
 
-  TestBackgroundTracingHelper background_tracing_helper;
   TriggerPreemptiveScenario();
   background_tracing_helper.WaitForScenarioIdle();
 }

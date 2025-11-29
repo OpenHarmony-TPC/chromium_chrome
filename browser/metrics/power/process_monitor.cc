@@ -11,7 +11,6 @@
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/not_fatal_until.h"
 #include "base/observer_list.h"
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
@@ -114,7 +113,7 @@ MonitoredProcessType GetMonitoredProcessTypeForRenderProcess(
 
   const extensions::Extension* extension =
       extensions::ProcessMap::Get(browser_context)
-          ->GetEnabledExtensionByProcessID(host->GetID());
+          ->GetEnabledExtensionByProcessID(host->GetDeprecatedID());
   if (!extension) {
     return kRenderer;
   }
@@ -329,8 +328,7 @@ void ProcessMonitor::BrowserChildProcessLaunchedAndConnected(
 #if BUILDFLAG(IS_WIN)
   // Cannot gather process metrics for elevated process as browser has no
   // access to them.
-  CHECK(data.sandbox_type.has_value());
-  if (data.sandbox_type ==
+  if (data.sandbox_type.value() ==
       sandbox::mojom::Sandbox::kNoSandboxAndElevatedPrivileges) {
     return;
   }
@@ -350,16 +348,6 @@ void ProcessMonitor::BrowserChildProcessLaunchedAndConnected(
 void ProcessMonitor::BrowserChildProcessHostDisconnected(
     const content::ChildProcessData& data) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-#if BUILDFLAG(IS_WIN)
-  // Cannot gather process metrics for elevated process as browser has no
-  // access to them.
-  CHECK(data.sandbox_type.has_value());
-  if (data.sandbox_type ==
-      sandbox::mojom::Sandbox::kNoSandboxAndElevatedPrivileges) {
-    return;
-  }
-#endif
-
   DCHECK(browser_child_process_infos_.find(data.id) ==
          browser_child_process_infos_.end());
 }
@@ -392,8 +380,7 @@ void ProcessMonitor::OnBrowserChildProcessExited(
 #if BUILDFLAG(IS_WIN)
   // Cannot gather process metrics for elevated process as browser has no
   // access to them.
-  CHECK(data.sandbox_type.has_value());
-  if (data.sandbox_type ==
+  if (data.sandbox_type.value() ==
       sandbox::mojom::Sandbox::kNoSandboxAndElevatedPrivileges) {
     return;
   }
@@ -405,7 +392,7 @@ void ProcessMonitor::OnBrowserChildProcessExited(
     return;
   }
 
-  CHECK(it != browser_child_process_infos_.end(), base::NotFatalUntil::M130);
+  CHECK(it != browser_child_process_infos_.end());
   // Remember the metrics from when the process exited, if available.
   if (info.cpu_usage.has_value()) {
     const ProcessInfo& process_info = it->second;

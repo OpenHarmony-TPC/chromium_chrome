@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/core/persistence/linux_key_persistence_delegate.h"
 
@@ -93,7 +89,7 @@ void ValidateSigningKey(enterprise_connectors::SigningKeyPair* key_pair,
 
   // Signing should work.
   auto signed_data = key_pair->key()->SignSlowly(
-      base::as_bytes(base::make_span("data to sign")));
+      base::byte_span_with_nul_from_cstring("data to sign"));
   ASSERT_TRUE(signed_data.has_value());
   ASSERT_GT(signed_data->size(), 0u);
 }

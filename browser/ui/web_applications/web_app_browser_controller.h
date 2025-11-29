@@ -24,8 +24,6 @@
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "components/services/app_service/public/cpp/icon_types.h"
 #include "components/webapps/common/web_app_id.h"
-#include "third_party/liburlpattern/options.h"
-#include "third_party/liburlpattern/pattern.h"
 #include "third_party/re2/src/re2/set.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/models/image_model.h"
@@ -170,23 +168,13 @@ class WebAppBrowserController : public AppBrowserController,
   // Save the display mode at time of launch. The web app display mode may
   // change with manifest updates but the app window should continue using
   // whatever it was launched with.
-  DisplayMode manifest_display_mode_ = DisplayMode::kUndefined;
   DisplayMode effective_display_mode_ = DisplayMode::kUndefined;
   bool is_isolated_web_app_for_testing_ = false;
 
 #if BUILDFLAG(IS_CHROMEOS)
-  raw_ptr<const ash::SystemWebAppDelegate> system_app_ = nullptr;
+  const raw_ptr<const ash::SystemWebAppDelegate> system_app_;
 #endif  // BUILDFLAG(IS_CHROMEOS)
   mutable std::optional<ui::ImageModel> app_icon_;
-
-  // Lazily initialized list of patterns to match URLs against for tabbed mode
-  // home tab navigations. If a URL matches any pattern in this list, it is
-  // considered within home tab scope.
-  //
-  // An empty list means there is no home tab scope to match against (i.e.
-  // nothing matches), whereas an uninitialized list means it has not yet been
-  // needed.
-  mutable std::unique_ptr<std::vector<TabbedModeScopeMatcher>> home_tab_scope_;
 
 #if BUILDFLAG(IS_CHROMEOS)
   // The result of digital asset link verification of the web app.

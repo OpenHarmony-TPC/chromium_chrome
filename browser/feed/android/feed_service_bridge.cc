@@ -85,14 +85,24 @@ static jlong JNI_FeedServiceBridge_AddUnreadContentObserver(
   return reinterpret_cast<jlong>(observer);
 }
 
-static void JNI_FeedServiceBridge_ReportOtherUserAction(JNIEnv* env,
-                                                        jint stream_kind,
-                                                        jint action) {
+static void JNI_FeedServiceBridge_ReportOtherUserActionForStream(
+    JNIEnv* env,
+    jint stream_kind,
+    jint action) {
   FeedApi* api = GetFeedApi();
   if (!api)
     return;
   api->ReportOtherUserAction(StreamType(static_cast<StreamKind>(stream_kind)),
                              static_cast<FeedUserActionType>(action));
+}
+
+static void JNI_FeedServiceBridge_ReportOtherUserAction(JNIEnv* env,
+                                                        jint action) {
+  FeedApi* api = GetFeedApi();
+  if (!api) {
+    return;
+  }
+  api->ReportOtherUserAction(static_cast<FeedUserActionType>(action));
 }
 
 static jint JNI_FeedServiceBridge_GetContentOrderForWebFeed(JNIEnv* env) {
@@ -130,8 +140,7 @@ static jboolean JNI_FeedServiceBridge_IsSignedIn(JNIEnv* env) {
 
 std::string FeedServiceBridge::GetLanguageTag() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  return base::android::ConvertJavaStringToUTF8(
-      env, Java_FeedServiceBridge_getLanguageTag(env));
+  return Java_FeedServiceBridge_getLanguageTag(env);
 }
 
 DisplayMetrics FeedServiceBridge::GetDisplayMetrics() {
@@ -159,8 +168,7 @@ bool FeedServiceBridge::IsEnabled() {
 
 void FeedServiceBridge::PrefetchImage(const GURL& url) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_FeedServiceBridge_prefetchImage(
-      env, base::android::ConvertUTF8ToJavaString(env, url.spec()));
+  Java_FeedServiceBridge_prefetchImage(env, url.spec());
 }
 
 uint64_t FeedServiceBridge::GetReliabilityLoggingId() {

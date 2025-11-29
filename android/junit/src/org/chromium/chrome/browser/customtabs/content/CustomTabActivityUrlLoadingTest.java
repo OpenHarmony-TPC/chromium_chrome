@@ -6,8 +6,8 @@ package org.chromium.chrome.browser.customtabs.content;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -26,24 +26,24 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features;
-import org.chromium.base.test.util.JniMocker;
-import org.chromium.chrome.browser.content.WebContentsFactory;
-import org.chromium.chrome.browser.content.WebContentsFactoryJni;
-import org.chromium.chrome.browser.customtabs.CustomTabAuthUrlHeuristics;
-import org.chromium.chrome.browser.customtabs.CustomTabAuthUrlHeuristicsJni;
+import org.chromium.chrome.browser.autofill.AndroidAutofillAvailabilityStatus;
+import org.chromium.chrome.browser.autofill.AutofillClientProviderUtils;
 import org.chromium.chrome.browser.customtabs.CustomTabIntentDataProvider;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.components.autofill.AndroidAutofillFeatures;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.embedder_support.util.UrlUtilitiesJni;
+import org.chromium.components.prefs.PrefService;
+import org.chromium.components.user_prefs.UserPrefsJni;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.url.GURL;
 import org.chromium.url.Origin;
@@ -56,7 +56,12 @@ import org.chromium.url.Origin;
 @Config(
         manifest = Config.NONE,
         shadows = {CustomTabActivityUrlLoadingTest.ShadowOrigin.class})
-@Features.EnableFeatures(ChromeFeatureList.CCT_PREWARM_TAB)
+@Features.EnableFeatures({
+    ChromeFeatureList.CCT_EARLY_NAV,
+    ChromeFeatureList.CCT_PREWARM_TAB,
+    ChromeFeatureList.ANDROID_WEB_APP_LAUNCH_HANDLER,
+    AndroidAutofillFeatures.ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID_IN_CCT_NAME
+})
 public class CustomTabActivityUrlLoadingTest {
     @Implements(Origin.class)
     public static class ShadowOrigin {
@@ -66,33 +71,28 @@ public class CustomTabActivityUrlLoadingTest {
         }
     }
 
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+
     @Rule
     public final CustomTabActivityContentTestEnvironment env =
             new CustomTabActivityContentTestEnvironment();
-
-    @Mock private Profile mProfile;
-    @Mock private Profile mIncognitoProfile;
 
     private CustomTabActivityTabController mTabController;
     private CustomTabActivityNavigationController mNavigationController;
     private CustomTabIntentHandler mIntentHandler;
 
-    @Rule public JniMocker mocker = new JniMocker();
-
     @Mock UrlUtilities.Natives mUrlUtilitiesJniMock;
-    @Mock CustomTabAuthUrlHeuristics.Natives mCustomTabAuthUrlHeuristicsJniMock;
-    @Mock WebContentsFactory.Natives mWebContentsFactoryJni;
+    @Mock private UserPrefsJni mMockUserPrefsJni;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
-        mocker.mock(UrlUtilitiesJni.TEST_HOOKS, mUrlUtilitiesJniMock);
-        mocker.mock(CustomTabAuthUrlHeuristicsJni.TEST_HOOKS, mCustomTabAuthUrlHeuristicsJniMock);
-        mocker.mock(WebContentsFactoryJni.TEST_HOOKS, mWebContentsFactoryJni);
+        UrlUtilitiesJni.setInstanceForTesting(mUrlUtilitiesJniMock);
+        UserPrefsJni.setInstanceForTesting(mMockUserPrefsJni);
+        doReturn(mock(PrefService.class)).when(mMockUserPrefsJni).get(any());
 
-        when(env.profileProvider.getOriginalProfile()).thenReturn(mProfile);
-        when(env.profileProvider.getOffTheRecordProfile(eq(true))).thenReturn(mIncognitoProfile);
-        when(mIncognitoProfile.isOffTheRecord()).thenReturn(true);
+        // Ensure the test can read the Autofill pref. Assume it's turned off by default.
+        AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                AndroidAutofillAvailabilityStatus.SETTING_TURNED_OFF);
 
         mTabController = env.createTabController();
         mNavigationController = env.createNavigationController(mTabController);
@@ -182,13 +182,13 @@ public class CustomTabActivityUrlLoadingTest {
         mTabController.finishNativeInitialization();
         clearInvocations(env.tabFromFactory);
 
-        mIntentHandler.onNewIntent(createDataProviderForNewIntent(OTHER_URL));
+        mIntentHandler.onNewIntent(createDataProviderForNewIntent());
         verify(env.tabFromFactory).loadUrl(argThat(params -> OTHER_URL.equals(params.getUrl())));
     }
 
     @Test
     public void loadsUrlFromTheLastIntent_IfTwoIntentsArriveBeforeNativeInit() {
-        mIntentHandler.onNewIntent(createDataProviderForNewIntent(OTHER_URL));
+        mIntentHandler.onNewIntent(createDataProviderForNewIntent());
         mTabController.setUpInitialTab(null);
         mTabController.finishNativeInitialization();
 
@@ -196,12 +196,13 @@ public class CustomTabActivityUrlLoadingTest {
         verify(env.tabFromFactory).loadUrl(argThat(params -> OTHER_URL.equals(params.getUrl())));
     }
 
-    private CustomTabIntentDataProvider createDataProviderForNewIntent(String url) {
+    private CustomTabIntentDataProvider createDataProviderForNewIntent() {
         CustomTabIntentDataProvider dataProvider = mock(CustomTabIntentDataProvider.class);
-        when(dataProvider.getUrlToLoad()).thenReturn(url);
+        when(dataProvider.getUrlToLoad()).thenReturn(OTHER_URL);
         when(dataProvider.getSession()).thenReturn(env.session);
         Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setData(Uri.parse(url));
+        intent.setData(Uri.parse(OTHER_URL));
+
         when(dataProvider.getIntent()).thenReturn(intent);
         return dataProvider;
     }

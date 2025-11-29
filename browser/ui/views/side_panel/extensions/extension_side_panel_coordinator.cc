@@ -118,7 +118,6 @@ void ExtensionSidePanelCoordinator::DeregisterEntry() {
   registry_->Deregister(GetEntryKey());
 }
 
-
 void ExtensionSidePanelCoordinator::OnPanelOptionsChanged(
     const ExtensionId& extension_id,
     const api::side_panel::PanelOptions& updated_options) {
@@ -154,8 +153,8 @@ void ExtensionSidePanelCoordinator::OnPanelOptionsChanged(
     return;
   }
 
-  bool should_create_entry = !entry && should_enable_entry &&
-                             !side_panel_url_.is_empty();
+  bool should_create_entry =
+      !entry && should_enable_entry && !side_panel_url_.is_empty();
   if (should_create_entry) {
     // Create a global entry if the extension has not disabled its side panel
     // for the current tab.
@@ -199,7 +198,8 @@ void ExtensionSidePanelCoordinator::CreateAndRegisterEntry() {
   registry_->Register(std::make_unique<SidePanelEntry>(
       GetEntryKey(),
       base::BindRepeating(&ExtensionSidePanelCoordinator::CreateView,
-                          base::Unretained(this))));
+                          base::Unretained(this)),
+      SidePanelEntry::kSidePanelDefaultContentWidth));
 }
 
 std::unique_ptr<views::View> ExtensionSidePanelCoordinator::CreateView(
@@ -226,7 +226,8 @@ std::unique_ptr<views::View> ExtensionSidePanelCoordinator::CreateView(
       &ExtensionSidePanelCoordinator::HandleCloseExtensionSidePanel,
       base::Unretained(this)));
 
-  auto extension_view = std::make_unique<ExtensionViewViews>(host_.get());
+  auto extension_view =
+      std::make_unique<ExtensionViewViews>(profile_, host_.get());
   extension_view->SetVisible(true);
 
   scoped_view_observation_.Reset();
@@ -284,7 +285,7 @@ void ExtensionSidePanelCoordinator::LoadExtensionIcon() {
   // Triggers actual image loading with all supported scale factors.
   // TODO(crbug.com/40910886): This is a temporary fix since the combobox and
   // its drop down menu currently do not automatically get an image's
-  // representation when they are shown. Remove this when the aforementioend
+  // representation when they are shown. Remove this when the aforementioned
   // crbug has been fixed.
   extension_icon_->image_skia().EnsureRepsForSupportedScales();
 }

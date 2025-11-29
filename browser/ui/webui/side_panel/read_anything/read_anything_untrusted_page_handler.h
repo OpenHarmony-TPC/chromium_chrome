@@ -11,13 +11,13 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/safe_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/side_panel/read_anything/read_anything_side_panel_controller.h"
 #include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_screenshotter.h"
 #include "chrome/common/read_anything/read_anything.mojom.h"
-#include "chrome/common/read_anything/read_anything_constants.h"
 #include "components/translate/core/browser/translate_client.h"
+#include "components/translate/core/browser/translate_driver.h"
 #include "content/public/browser/tts_controller.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -26,8 +26,10 @@
 #include "ui/accessibility/ax_action_data.h"
 #include "ui/accessibility/ax_updates_and_events.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/public/cpp/session/session_observer.h"
+#else
+#include "extensions/browser/extension_registry_observer.h"
 #endif
 
 namespace content {
@@ -62,6 +64,7 @@ class ReadAnythingWebContentsObserver : public content::WebContentsObserver {
       ui::AXLocationAndScrollUpdates& details) override;
   void PrimaryPageChanged(content::Page& page) override;
   void WebContentsDestroyed() override;
+  void DidStopLoading() override;
 
   // base::SafeRef used since the lifetime of ReadAnythingWebContentsObserver is
   // completely contained by page_handler_. See
@@ -83,10 +86,11 @@ class ReadAnythingWebContentsObserver : public content::WebContentsObserver {
 //  lifetime as the Side Panel view.
 //
 class ReadAnythingUntrustedPageHandler :
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     public ash::SessionObserver,
 #else
     public content::UpdateLanguageStatusDelegate,
+    public extensions::ExtensionRegistryObserver,
 #endif
     public ui::AXActionHandlerObserver,
     public read_anything::mojom::UntrustedPageHandler,
@@ -110,17 +114,42 @@ class ReadAnythingUntrustedPageHandler :
       const ui::AXTreeID& tree_id,
       ui::AXLocationAndScrollUpdates& details);
   void PrimaryPageChanged();
+  void DidStopLoading();
   void WebContentsDestroyed();
+  void OnActiveAXTreeIDChanged();
 
   // read_anything::mojom::UntrustedPageHandler:
   void OnVoiceChange(const std::string& voice,
                      const std::string& lang) override;
   void OnLanguagePrefChange(const std::string& lang, bool enabled) override;
+  void OnSpeechRateChange(double rate) override;
   void OnImageDataRequested(const ui::AXTreeID& target_tree_id,
                             ui::AXNodeID target_node_id) override;
+  void OnLineSpaceChange(
+      read_anything::mojom::LineSpacing line_spacing) override;
+  void OnLetterSpaceChange(
+      read_anything::mojom::LetterSpacing letter_spacing) override;
+  void OnFontChange(const std::string& font) override;
+  void OnFontSizeChange(double font_size) override;
+  void OnLinksEnabledChanged(bool enabled) override;
+  void OnImagesEnabledChanged(bool enabled) override;
+  void OnColorChange(read_anything::mojom::Colors color) override;
+  void OnHighlightGranularityChanged(
+      read_anything::mojom::HighlightGranularity granularity) override;
+  void GetVoicePackInfo(const std::string& language) override;
+  void InstallVoicePack(const std::string& language) override;
+  void UninstallVoice(const std::string& language) override;
+
+  // TranslateDriver::LanguageDetectionObserver:
+  void OnLanguageDetermined(
+      const translate::LanguageDetectionDetails& details) override;
+  void OnTranslateDriverDestroyed(translate::TranslateDriver* driver) override;
+
+  // ReadAnythingSidePanelController::Observer:
+  void OnTabWillDetach() override;
 
   // ash::SessionObserver
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void OnLockStateChanged(bool locked) override;
 #endif
 
@@ -134,17 +163,18 @@ class ReadAnythingUntrustedPageHandler :
                              const std::vector<gfx::Size>& sizes);
 
  private:
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   // content::UpdateLanguageStatusDelegate:
   void OnUpdateLanguageStatus(const std::string& lang,
                               content::LanguageInstallStatus install_status,
                               const std::string& error) override;
-#endif
+  // extensions::ExtensionRegistryObserver implementation.
 
-  // TranslateDriver::LanguageDetectionObserver:
-  void OnLanguageDetermined(
-      const translate::LanguageDetectionDetails& details) override;
-  void OnTranslateDriverDestroyed(translate::TranslateDriver* driver) override;
+  // OnExtensionReady is called even if the TTS engine was previously installed,
+  // which read anything needs to know about to access the new voices.
+  void OnExtensionReady(content::BrowserContext* browser_context,
+                        const extensions::Extension* extension) override;
+#endif
 
   // ui::AXActionHandlerObserver:
   void TreeRemoved(ui::AXTreeID ax_tree_id) override;
@@ -152,22 +182,8 @@ class ReadAnythingUntrustedPageHandler :
   // read_anything::mojom::UntrustedPageHandler:
   void GetDependencyParserModel(
       GetDependencyParserModelCallback callback) override;
-  void GetVoicePackInfo(const std::string& language) override;
-  void InstallVoicePack(const std::string& language) override;
-  void UninstallVoice(const std::string& language) override;
   void OnCopy() override;
-  void OnLineSpaceChange(
-      read_anything::mojom::LineSpacing line_spacing) override;
-  void OnLetterSpaceChange(
-      read_anything::mojom::LetterSpacing letter_spacing) override;
-  void OnFontChange(const std::string& font) override;
-  void OnFontSizeChange(double font_size) override;
-  void OnLinksEnabledChanged(bool enabled) override;
-  void OnImagesEnabledChanged(bool enabled) override;
-  void OnColorChange(read_anything::mojom::Colors color) override;
-  void OnSpeechRateChange(double rate) override;
-  void OnHighlightGranularityChanged(
-      read_anything::mojom::HighlightGranularity granularity) override;
+
   void OnLinkClicked(const ui::AXTreeID& target_tree_id,
                      ui::AXNodeID target_node_id) override;
   void ScrollToTargetNode(const ui::AXTreeID& target_tree_id,
@@ -182,6 +198,7 @@ class ReadAnythingUntrustedPageHandler :
 
   // ReadAnythingSidePanelController::Observer:
   void Activate(bool active) override;
+  void OnSidePanelControllerDestroyed() override;
 
   void SetDefaultLanguageCode(const std::string& code);
 
@@ -189,12 +206,7 @@ class ReadAnythingUntrustedPageHandler :
   // be determined.
   void SetLanguageCode(const std::string& code);
 
-  // ReadAnythingSidePanelController::Observer:
-  void OnSidePanelControllerDestroyed() override;
-
   void SetUpPdfObserver();
-
-  void OnActiveAXTreeIDChanged();
 
   void OnGetVoicePackInfo(read_anything::mojom::VoicePackInfoPtr info);
 
@@ -206,6 +218,21 @@ class ReadAnythingUntrustedPageHandler :
   void ObserveWebContentsSidePanelController(tabs::TabInterface* tab);
 
   void PerformActionInTargetTree(const ui::AXActionData& data);
+
+  bool AreInnerContentsPdfContent(
+      std::vector<content::WebContents*> inner_contents);
+
+  void OnScreenAIServiceInitialized(bool successful);
+
+  // Called to notify this instance that the dependency parser loader
+  // is available for model requests or is invalidating existing requests
+  // specified by "is_available". The "callback" will be either forwarded to a
+  // request to get the actual model file or will be run with an empty file if
+  // the dependency parser loader is rejecting requests because the pending
+  // model request queue is already full (100 requests maximum).
+  void OnDependencyParserModelFileAvailabilityChanged(
+      GetDependencyParserModelCallback callback,
+      bool is_available);
 
   raw_ptr<ReadAnythingSidePanelController> side_panel_controller_;
   const raw_ptr<Profile> profile_;
@@ -228,6 +255,8 @@ class ReadAnythingUntrustedPageHandler :
   // Whether the Read Anything feature is currently active. The feature is
   // active when it is currently shown in the Side Panel.
   bool active_ = true;
+  // Whether the tab is going to detach soon.
+  bool tab_will_detach_ = false;
 
   // The current language being used in the app.
   std::string current_language_code_ = "en-US";
@@ -239,23 +268,18 @@ class ReadAnythingUntrustedPageHandler :
 
   const bool use_screen_ai_service_;
 
-  void OnScreenAIServiceInitialized(bool successful);
+  bool extension_installed_ = false;
+
+  // Whether the currently distilled page is recognized as a pdf. This allows
+  // the page handler to trigger distillation if the page would now be
+  // recognized as a pdf after it finishes loading.
+  bool is_pdf_ = false;
 
   // Observes LanguageDetectionObserver, which notifies us when the language of
   // the contents of the current page has been determined.
   base::ScopedObservation<translate::TranslateDriver,
                           translate::TranslateDriver::LanguageDetectionObserver>
       translate_observation_{this};
-
-  // Called to notify this instance that the dependency parser loader
-  // is available for model requests or is invalidating existing requests
-  // specified by "is_available". The "callback" will be either forwarded to a
-  // request to get the actual model file or will be run with an empty file if
-  // the dependency parser loader is rejecting requests because the pending
-  // model request queue is already full (100 requests maximum).
-  void OnDependencyParserModelFileAvailabilityChanged(
-      GetDependencyParserModelCallback callback,
-      bool is_available);
 
   base::WeakPtrFactory<ReadAnythingUntrustedPageHandler> weak_factory_{this};
 };

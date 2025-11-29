@@ -17,6 +17,7 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/scoped_canvas.h"
 #include "ui/ozone/public/ozone_platform.h"
 
@@ -41,8 +42,12 @@ StatusIconButtonLinux::StatusIconButtonLinux()
 
 StatusIconButtonLinux::~StatusIconButtonLinux() = default;
 
-void StatusIconButtonLinux::SetIcon(const gfx::ImageSkia& image) {
+void StatusIconButtonLinux::SetImage(const gfx::ImageSkia& image) {
   SchedulePaint();
+}
+
+void StatusIconButtonLinux::SetIcon(const gfx::VectorIcon& icon) {
+  SetImage(gfx::CreateVectorIcon(icon, SK_ColorWHITE));
 }
 
 void StatusIconButtonLinux::SetToolTip(const std::u16string& tool_tip) {
@@ -57,6 +62,11 @@ void StatusIconButtonLinux::OnSetDelegate() {
   if (!ui::OzonePlatform::GetInstance()
            ->GetPlatformRuntimeProperties()
            .supports_system_tray_windowing) {
+    return;
+  }
+
+  // The delegate may have been cleared.
+  if (!delegate_) {
     return;
   }
 
@@ -90,10 +100,10 @@ void StatusIconButtonLinux::OnSetDelegate() {
   }
 
   widget_->SetContentsView(this);
-  set_owned_by_client();
+  set_owned_by_client(OwnedByClientPassKey());
 
   SetBorder(nullptr);
-  SetIcon(delegate_->GetImage());
+  SetImage(delegate_->GetImage());
   SetTooltipText(delegate_->GetToolTip());
   set_context_menu_controller(this);
 

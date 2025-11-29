@@ -11,7 +11,6 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "chrome/browser/after_startup_task_utils.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/predictors/lcp_critical_path_predictor/lcp_critical_path_predictor_util.h"
 #include "chrome/browser/predictors/lcp_critical_path_predictor/prewarm_http_disk_cache_manager.h"
@@ -98,6 +97,7 @@ void MaybeWarmUpServiceWorker(const GURL& url, Profile* profile) {
     return;
   }
 
+  // TODO(jbroman): Allow a non-default storage partition.
   content::StoragePartition* storage_partition =
       profile->GetDefaultStoragePartition();
 
@@ -135,8 +135,7 @@ LoadingPredictor::LoadingPredictor(const LoadingPredictorConfig& config,
       resource_prefetch_predictor_(
           std::make_unique<ResourcePrefetchPredictor>(config, profile)),
       stats_collector_(std::make_unique<LoadingStatsCollector>(
-          resource_prefetch_predictor_.get(),
-          config)),
+          resource_prefetch_predictor_.get())),
       loading_data_collector_(std::make_unique<LoadingDataCollector>(
           resource_prefetch_predictor_.get(),
           stats_collector_.get(),
@@ -152,8 +151,7 @@ bool LoadingPredictor::PrepareForPageLoad(
     HintOrigin origin,
     bool preconnectable,
     std::optional<PreconnectPrediction> preconnect_prediction) {
-  if (shutdown_)
-    return true;
+  CHECK(!shutdown_);
 
   TRACE_EVENT("loading", "LoadingPredictor::PrepareForPageLoad");
 
@@ -291,14 +289,11 @@ void LoadingPredictor::Shutdown() {
   shutdown_ = true;
 }
 
-bool LoadingPredictor::OnNavigationStarted(
-    NavigationId navigation_id,
-    ukm::SourceId ukm_source_id,
-    const std::optional<url::Origin>& initiator_origin,
-    const GURL& main_frame_url,
-    base::TimeTicks creation_time) {
-  if (shutdown_)
-    return true;
+void LoadingPredictor::OnNavigationStarted(NavigationId navigation_id,
+                                           ukm::SourceId ukm_source_id,
+                                           const GURL& main_frame_url,
+                                           base::TimeTicks creation_time) {
+  CHECK(!shutdown_);
 
   TRACE_EVENT("loading", "LoadingPredictor::OnNavigationStarted");
 
@@ -308,8 +303,6 @@ bool LoadingPredictor::OnNavigationStarted(
   active_navigations_.emplace(navigation_id,
                               NavigationInfo{main_frame_url, creation_time});
   active_urls_to_navigations_[main_frame_url].insert(navigation_id);
-  return PrepareForPageLoad(initiator_origin, main_frame_url,
-                            HintOrigin::NAVIGATION);
 }
 
 void LoadingPredictor::OnNavigationFinished(NavigationId navigation_id,
@@ -376,10 +369,7 @@ void LoadingPredictor::CleanupAbandonedHintsAndNavigations(
 void LoadingPredictor::MaybeAddPreconnect(const GURL& url,
                                           PreconnectPrediction prediction) {
   CHECK(!shutdown_);
-  if (!prediction.prefetch_requests.empty() &&
-      (AfterStartupTaskUtils::IsBrowserStartupComplete() ||
-       !base::FeatureList::IsEnabled(
-           features::kAvoidLoadingPredictorPrefetchDuringBrowserStartup))) {
+  if (!prediction.prefetch_requests.empty()) {
     CHECK(base::FeatureList::IsEnabled(features::kLoadingPredictorPrefetch) ||
           base::FeatureList::IsEnabled(
               blink::features::kLCPPPrefetchSubresource));
@@ -431,7 +421,9 @@ bool LoadingPredictor::HandleHintByOrigin(const GURL& url,
       preconnect_data.last_preconnect_time_ = now;
       preconnect_manager()->StartPreconnectUrl(
           url, true, network_anonymization_key,
-          kLoadingPredictorPreconnectTrafficAnnotation);
+          kLoadingPredictorPreconnectTrafficAnnotation,
+          /*storage_partition_config=*/nullptr,
+          /*keepalive_config=*/std::nullopt, mojo::NullRemote());
     }
     return true;
   }
@@ -441,7 +433,8 @@ bool LoadingPredictor::HandleHintByOrigin(const GURL& url,
     preconnect_data.last_preresolve_time_ = now;
     preconnect_manager()->StartPreresolveHost(
         url, network_anonymization_key,
-        kLoadingPredictorPreconnectTrafficAnnotation);
+        kLoadingPredictorPreconnectTrafficAnnotation,
+        /*storage_partition_config=*/nullptr);
     return true;
   }
 
@@ -470,7 +463,6 @@ void LoadingPredictor::PreconnectFinished(
 
   DCHECK(stats);
   active_hints_.erase(stats->url);
-  stats_collector_->RecordPreconnectStats(std::move(stats));
 }
 
 void LoadingPredictor::PrefetchInitiated(const GURL& url,
@@ -499,12 +491,15 @@ void LoadingPredictor::PreconnectURLIfAllowed(
     const GURL& url,
     bool allow_credentials,
     const net::NetworkAnonymizationKey& network_anonymization_key,
-    const net::NetworkTrafficAnnotationTag& traffic_annotation) {
+    const net::NetworkTrafficAnnotationTag& traffic_annotation,
+    const content::StoragePartitionConfig* storage_partition_config) {
   if (!url.is_valid() || !url.has_host() || !IsPreconnectAllowed(profile_))
     return;
 
   preconnect_manager()->StartPreconnectUrl(
-      url, allow_credentials, network_anonymization_key, traffic_annotation);
+      url, allow_credentials, network_anonymization_key, traffic_annotation,
+      storage_partition_config, /*keepalive_config=*/std::nullopt,
+      mojo::NullRemote());
 }
 
 void LoadingPredictor::MaybePrewarmResources(
@@ -535,6 +530,7 @@ void LoadingPredictor::MaybePrewarmResources(
   }
 
   if (!prewarm_http_disk_cache_manager_) {
+    // TODO(jbroman): Allow a non-default storage partition.
     prewarm_http_disk_cache_manager_ =
         std::make_unique<PrewarmHttpDiskCacheManager>(
             profile_->GetDefaultStoragePartition()
@@ -542,7 +538,8 @@ void LoadingPredictor::MaybePrewarmResources(
   }
 
   prewarm_http_disk_cache_manager_->MaybePrewarmResources(
-      top_frame_main_resource_url, PredictFetchedSubresourceUrls(*lcpp_stat));
+      initiator_origin, top_frame_main_resource_url,
+      PredictFetchedSubresourceUrls(*lcpp_stat));
 }
 
 }  // namespace predictors

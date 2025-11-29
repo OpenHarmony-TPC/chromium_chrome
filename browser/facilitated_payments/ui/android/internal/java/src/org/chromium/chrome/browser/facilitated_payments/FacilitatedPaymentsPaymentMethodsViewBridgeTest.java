@@ -32,7 +32,10 @@ import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.autofill.AutofillImageFetcher;
+import org.chromium.chrome.browser.autofill.AutofillImageFetcherFactory;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.components.autofill.payments.AccountType;
 import org.chromium.components.autofill.payments.BankAccount;
 import org.chromium.components.autofill.payments.Ewallet;
@@ -98,20 +101,22 @@ public class FacilitatedPaymentsPaymentMethodsViewBridgeTest {
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    @Mock private WebContents mWebContents;
-    @Mock private ManagedBottomSheetController mBottomSheetController;
     @Mock private FacilitatedPaymentsPaymentMethodsComponent.Delegate mDelegateMock;
+    @Mock private ManagedBottomSheetController mBottomSheetController;
+    @Mock private AutofillImageFetcher mAutofillImageFetcher;
     @Mock private Profile mProfile;
+    @Mock private WebContents mWebContents;
 
     private Context mApplicationContext;
-
     private FacilitatedPaymentsPaymentMethodsViewBridge mViewBridge;
     private WindowAndroid mWindow;
 
     @Before
     public void setUp() {
+        ProfileManager.setLastUsedProfileForTesting(mProfile);
+        AutofillImageFetcherFactory.setInstanceForTesting(mAutofillImageFetcher);
         mApplicationContext = ApplicationProvider.getApplicationContext();
-        mWindow = new WindowAndroid(mApplicationContext);
+        mWindow = new WindowAndroid(mApplicationContext, /* trackOcclusion= */ false);
         BottomSheetControllerFactory.attach(mWindow, mBottomSheetController);
         mViewBridge =
                 FacilitatedPaymentsPaymentMethodsViewBridge.create(
@@ -233,5 +238,17 @@ public class FacilitatedPaymentsPaymentMethodsViewBridgeTest {
         assertThat(
                 content.getSheetClosedAccessibilityStringId(),
                 equalTo(R.string.facilitated_payments_payment_methods_bottom_sheet_closed));
+    }
+
+    @Test
+    @SmallTest
+    public void showPixAccountLinkingPrompt_callsControllerRequestShowContent() {
+        when(mWebContents.getTopLevelNativeWindow()).thenReturn(mWindow);
+
+        mViewBridge.showPixAccountLinkingPrompt();
+
+        verify(mBottomSheetController)
+                .requestShowContent(
+                        any(FacilitatedPaymentsPaymentMethodsView.class), /* animate= */ eq(true));
     }
 }

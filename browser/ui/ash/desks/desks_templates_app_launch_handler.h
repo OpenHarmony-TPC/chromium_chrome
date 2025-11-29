@@ -28,7 +28,7 @@ class DeskTemplate;
 // The DesksTemplatesAppLaunchHandler class is passed a profile, and will launch
 // apps and web pages based on the template or coral group. Note that a new
 // handler should be created for each launch.
-// TODO(sammiequon): Rename this to `DeskAppLaunchHandler`.
+// TODO: Rename this to `DeskAppLaunchHandler`.
 class DesksTemplatesAppLaunchHandler : public ash::AppLaunchHandler {
  public:
   enum class Type {
@@ -71,9 +71,6 @@ class DesksTemplatesAppLaunchHandler : public ash::AppLaunchHandler {
 
   // Launches ARC apps if they are supported.
   void MaybeLaunchArcApps();
-
-  // Launches Lacros browsers if there are entries for them in the restore data.
-  void MaybeLaunchLacrosBrowsers();
 
   // Notifies observers that a single instance app has moved.
   void NotifyMovedSingleInstanceApp(int32_t window_id);

@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
 #endif
 
 #include "chrome/updater/certificate_tag.h"
@@ -15,13 +15,14 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/functional/overloaded.h"
 #include "chrome/updater/certificate_tag_internal.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/crypto.h"
 
@@ -40,7 +41,7 @@ using SuccessfulParse = base::span<const uint8_t>;
 // list and see whether it has an extension with `kTagOID`, and if so, returns a
 // `base::span` of the tag within this `signed_data`. `success` is set to `true`
 // if there were no parse errors, even if a tag could not be found.
-absl::variant<FailedParse, SuccessfulEmptyParse, SuccessfulParse> ParseTagImpl(
+std::variant<FailedParse, SuccessfulEmptyParse, SuccessfulParse> ParseTagImpl(
     base::span<const uint8_t> signed_data) {
   CBS content_info = CBSFromSpan(signed_data);
   CBS pkcs7, certs;
@@ -148,7 +149,8 @@ CBS CBSFromSpan(base::span<const uint8_t> span) {
 }
 
 base::span<const uint8_t> SpanFromCBS(const CBS* cbs) {
-  return base::span<const uint8_t>(CBS_data(cbs), CBS_len(cbs));
+  // SAFETY: this is how a span is made from `cbs`.
+  return UNSAFE_BUFFERS(base::span<const uint8_t>(CBS_data(cbs), CBS_len(cbs)));
 }
 
 PEBinary::PEBinary(const PEBinary&) = default;
@@ -375,7 +377,7 @@ std::optional<std::vector<uint8_t>> SetTagImpl(
   // it.
   {
     const auto result = ParseTagImpl(signed_data);
-    if (!absl::holds_alternative<SuccessfulParse>(result) &&
+    if (!std::holds_alternative<SuccessfulParse>(result) &&
         !CBB_add_bytes(&certs_cbb, CBS_data(&last_cert), CBS_len(&last_cert))) {
       return std::nullopt;
     }
@@ -473,10 +475,11 @@ std::optional<std::vector<uint8_t>> SetTagImpl(
   }
 
   // Copy the CBB result into a std::vector, padding to 8-byte alignment.
+  // SAFETY: the CBB data comes in from boringssl as a memory buffer.
   std::vector<uint8_t> ret;
   const size_t padding = (8 - cbb_len % 8) % 8;
   ret.reserve(cbb_len + padding);
-  ret.insert(ret.begin(), cbb_data, cbb_data + cbb_len);
+  UNSAFE_BUFFERS(ret.insert(ret.begin(), cbb_data, cbb_data + cbb_len));
   ret.insert(ret.end(), padding, 0);
   OPENSSL_free(cbb_data);
 
@@ -491,7 +494,7 @@ std::optional<std::vector<uint8_t>> PEBinary::SetTag(
   }
 
   // Recreate the header for the `WIN_CERTIFICATE` structure.
-  constexpr size_t kSizeofWinCertificateHeader = 8;
+  static constexpr size_t kSizeofWinCertificateHeader = 8;
   std::vector<uint8_t> win_certificate_header(kSizeofWinCertificateHeader);
   const uint32_t certs_size = kSizeofWinCertificateHeader + ret->size();
   memcpy(&win_certificate_header[0], &certs_size, sizeof(certs_size));
@@ -502,27 +505,33 @@ std::optional<std::vector<uint8_t>> PEBinary::SetTag(
 
   ret->insert(ret->begin(), win_certificate_header.begin(),
               win_certificate_header.end());
-  ret->insert(ret->begin(), binary_.data(), binary_.data() + attr_cert_offset_);
+
+  // SAFETY: test that `attr_cert_offset_` does not exceed the size of the
+  // `binary_` span.
+  CHECK_LE(attr_cert_offset_, binary_.size_bytes());
+  ret->insert(ret->begin(), binary_.data(),
+              UNSAFE_BUFFERS(binary_.data() + attr_cert_offset_));
 
   // Inject the updated length in the `IMAGE_DATA_DIRECTORY` structure that
   // delineates the `WIN_CERTIFICATE` structure.
-  memcpy(ret->data() + certs_size_offset_, &certs_size, sizeof(certs_size));
-
+  // SAFETY: byte manipulation of a C data structure.
+  memcpy(UNSAFE_BUFFERS(ret->data() + certs_size_offset_), &certs_size,
+         sizeof(certs_size));
   return ret;
 }
 
 PEBinary::PEBinary() = default;
 
 bool PEBinary::ParseTag() {
-  return absl::visit(base::Overloaded{
-                         [](FailedParse unused) { return false; },
-                         [](SuccessfulEmptyParse unused) { return true; },
-                         [this](SuccessfulParse tag) {
-                           tag_ = std::vector<uint8_t>(tag.begin(), tag.end());
-                           return true;
-                         },
-                     },
-                     ParseTagImpl(content_info_));
+  return std::visit(base::Overloaded{
+                        [](FailedParse unused) { return false; },
+                        [](SuccessfulEmptyParse unused) { return true; },
+                        [this](SuccessfulParse tag) {
+                          tag_ = std::vector<uint8_t>(tag.begin(), tag.end());
+                          return true;
+                        },
+                    },
+                    ParseTagImpl(content_info_));
 }
 
 std::optional<SectorFormat> NewSectorFormat(uint16_t sector_shift) {
@@ -669,15 +678,17 @@ void MSIBinary::PopulateDifatEntries() {
   difat_sectors_ = difat_sectors;
 }
 
+// SAFETY: byte manipulation of a C data structure.
 SignedDataDir MSIBinary::SignedDataDirFromSector(uint64_t dir_sector) {
   MSIDirEntry sig_dir_entry;
   for (uint64_t i = 0; i < sector_format_.size / kNumDirEntryBytes; ++i) {
     const uint64_t offset =
         dir_sector * sector_format_.size + i * kNumDirEntryBytes;
     std::memcpy(&sig_dir_entry, &contents_[offset], sizeof(MSIDirEntry));
-    if (std::equal(sig_dir_entry.name,
-                   sig_dir_entry.name + sig_dir_entry.num_name_bytes,
-                   std::begin(kSignatureName))) {
+    if (std::equal(
+            sig_dir_entry.name,
+            UNSAFE_BUFFERS(sig_dir_entry.name + sig_dir_entry.num_name_bytes),
+            std::begin(kSignatureName))) {
       return {sig_dir_entry, offset, true};
     }
   }
@@ -966,15 +977,15 @@ std::optional<std::vector<uint8_t>> MSIBinary::SetTag(
 }
 
 bool MSIBinary::ParseTag() {
-  return absl::visit(base::Overloaded{
-                         [](FailedParse unused) { return false; },
-                         [](SuccessfulEmptyParse unused) { return true; },
-                         [this](SuccessfulParse tag) {
-                           tag_ = std::vector<uint8_t>(tag.begin(), tag.end());
-                           return true;
-                         },
-                     },
-                     ParseTagImpl(signed_data_bytes_));
+  return std::visit(base::Overloaded{
+                        [](FailedParse unused) { return false; },
+                        [](SuccessfulEmptyParse unused) { return true; },
+                        [this](SuccessfulParse tag) {
+                          tag_ = std::vector<uint8_t>(tag.begin(), tag.end());
+                          return true;
+                        },
+                    },
+                    ParseTagImpl(signed_data_bytes_));
 }
 
 std::optional<std::vector<uint8_t>> MSIBinary::tag() const {

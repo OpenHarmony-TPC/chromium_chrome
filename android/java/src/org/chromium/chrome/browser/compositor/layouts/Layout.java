@@ -10,6 +10,7 @@ import android.graphics.RectF;
 import android.view.MotionEvent;
 import android.view.ViewGroup;
 
+import androidx.annotation.CallSuper;
 import androidx.annotation.IntDef;
 
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
@@ -87,7 +88,7 @@ public abstract class Layout {
         int HIDDEN = 3;
     }
 
-    /** Length of the unstalling animation. **/
+    /** Length of the unstalling animation. */
     public static final long UNSTALLED_ANIMATION_DURATION_MS = 500;
 
     private static final float SNAP_SPEED = 1.0f; // dp per second
@@ -121,12 +122,16 @@ public abstract class Layout {
     protected final float mDpToPx;
     protected final float mPxToDp;
 
+    // Whether the {@link Layout} is currently active.
+    private boolean mIsActive;
+
     /**
-     * The {@link Layout} is not usable until sizeChanged is called.
-     * This is convenient this way so we can pre-create the layout before the host is fully defined.
-     * @param context      The current Android's context.
-     * @param updateHost   The parent {@link LayoutUpdateHost}.
-     * @param renderHost   The parent {@link LayoutRenderHost}.
+     * The {@link Layout} is not usable until sizeChanged is called. This is convenient this way so
+     * we can pre-create the layout before the host is fully defined.
+     *
+     * @param context The current Android's context.
+     * @param updateHost The parent {@link LayoutUpdateHost}.
+     * @param renderHost The parent {@link LayoutRenderHost}.
      */
     public Layout(Context context, LayoutUpdateHost updateHost, LayoutRenderHost renderHost) {
         mContext = context;
@@ -164,37 +169,26 @@ public abstract class Layout {
         return mContext;
     }
 
+    protected void setIsActive(boolean active) {
+        mIsActive = active;
+    }
+
     /**
      * @return Whether the {@link Layout} is currently active.
      */
     public boolean isActive() {
-        return mUpdateHost.isActiveLayout(this);
+        return mIsActive;
     }
 
     /**
      * Creates a {@link LayoutTab}.
-     * @param id              The id of the reference {@link Tab} in the {@link TabModel}.
-     * @param isIncognito     Whether the new tab is incognito.
-     * @return                The newly created {@link LayoutTab}.
+     *
+     * @param id The id of the reference {@link Tab} in the {@link TabModel}.
+     * @param isIncognito Whether the new tab is incognito.
+     * @return The newly created {@link LayoutTab}.
      */
     public LayoutTab createLayoutTab(int id, boolean isIncognito) {
-        return createLayoutTab(id, isIncognito, -1.f, -1.f);
-    }
-
-    /**
-     * Creates a {@link LayoutTab}.
-     * @param id               The id of the reference {@link Tab} in the {@link TabModel}.
-     * @param isIncognito      Whether the new tab is incognito.
-     * @param maxContentWidth  The max content width of the tab.  Negative numbers will use the
-     *                         original content width.
-     * @param maxContentHeight The max content height of the tab.  Negative numbers will use the
-     *                         original content height.
-     * @return                 The newly created {@link LayoutTab}.
-     */
-    public LayoutTab createLayoutTab(
-            int id, boolean isIncognito, float maxContentWidth, float maxContentHeight) {
-        LayoutTab layoutTab =
-                mUpdateHost.createLayoutTab(id, isIncognito, maxContentWidth, maxContentHeight);
+        LayoutTab layoutTab = mUpdateHost.createLayoutTab(id, isIncognito);
         initLayoutTabFromHost(layoutTab);
         return layoutTab;
     }
@@ -225,7 +219,7 @@ public abstract class Layout {
         final boolean doneAnimating = onUpdateAnimation(time, false);
 
         // Don't update the layout if onUpdateAnimation ended up making a new layout active.
-        if (mUpdateHost.isActiveLayout(this)) updateLayout(time, dt);
+        if (mIsActive) updateLayout(time, dt);
 
         return doneAnimating;
     }
@@ -291,8 +285,9 @@ public abstract class Layout {
     /**
      * Called when the context and size of the view has changed.
      *
-     * @param context     The current Android's context.
+     * @param context The current Android's context.
      */
+    @CallSuper
     public void contextChanged(Context context) {
         mContext = context;
         LayoutTab.resetDimensionConstants(context);
@@ -312,16 +307,20 @@ public abstract class Layout {
 
     /**
      * Sets the the {@link TabModelSelector} for the layout.
+     *
      * @param modelSelector The {@link TabModelSelector} to be set on the layout.
      */
+    @CallSuper
     public void setTabModelSelector(TabModelSelector modelSelector) {
         mTabModelSelector = modelSelector;
     }
 
     /**
      * Sets the {@link TabContentManager} needed for the layout to get thumbnails.
+     *
      * @param manager The {@link TabContentManager} to get tab display content.
      */
+    @CallSuper
     protected void setTabContentManager(TabContentManager manager) {
         if (manager == null) return;
 
@@ -371,14 +370,8 @@ public abstract class Layout {
         return mLayoutState == LayoutState.STARTING_TO_SHOW;
     }
 
-    /**
-     * @return The incognito state of the layout.
-     */
-    public boolean isIncognito() {
-        return mTabModelSelector.isIncognitoSelected();
-    }
-
     /** To be called when the transition into the layout is done. */
+    @CallSuper
     public void doneShowing() {
         if (mLayoutState != LayoutState.STARTING_TO_SHOW) return;
 
@@ -387,9 +380,10 @@ public abstract class Layout {
     }
 
     /**
-     * To be called when the transition out of the view mode is done.
-     * This is currently called by the renderer when all the animation are done while hiding.
+     * To be called when the transition out of the view mode is done. This is currently called by
+     * the renderer when all the animation are done while hiding.
      */
+    @CallSuper
     public void doneHiding() {
         if (mLayoutState != LayoutState.STARTING_TO_HIDE) return;
 
@@ -408,6 +402,7 @@ public abstract class Layout {
      * @param time The current time of the app in ms.
      * @param animate Whether to play an entry animation.
      */
+    @CallSuper
     public void show(long time, boolean animate) {
         // TODO(crbug.com/40141330): Remove after LayoutManager explicitly hide the old layout.
         mLayoutState = LayoutState.STARTING_TO_SHOW;
@@ -464,15 +459,6 @@ public abstract class Layout {
         }
         return false;
     }
-
-    /** Called by the LayoutManager when an animation should be killed. */
-    public void unstallImmediately() {}
-
-    /**
-     * Called by the LayoutManager when an animation should be killed.
-     * @param tabId The tab that the kill signal is associated with
-     */
-    public void unstallImmediately(int tabId) {}
 
     /**
      * Called by the LayoutManager when they system back button is pressed.

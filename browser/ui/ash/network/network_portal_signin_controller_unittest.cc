@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/check_deref.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -48,7 +49,8 @@ constexpr char kTestPortalUrl[] = "http://www.gstatic.com/generate_204";
 
 class TestSigninController : public NetworkPortalSigninController {
  public:
-  TestSigninController() = default;
+  explicit TestSigninController(PrefService& local_state)
+      : NetworkPortalSigninController(local_state) {}
   TestSigninController(const TestSigninController&) = delete;
   TestSigninController& operator=(const TestSigninController&) = delete;
   ~TestSigninController() override = default;
@@ -107,7 +109,8 @@ class NetworkPortalSigninControllerTest : public testing::Test {
 
   void SetUp() override {
     network_helper_ = std::make_unique<NetworkHandlerTestHelper>();
-    controller_ = std::make_unique<TestSigninController>();
+    controller_ = std::make_unique<TestSigninController>(
+        CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
 
     CHECK(test_profile_manager_.SetUp());
     user_manager_ = std::make_unique<FakeChromeUserManager>();
@@ -340,8 +343,7 @@ TEST_F(NetworkPortalSigninControllerTest,
   SetNetworkProxy();
   EXPECT_EQ(GetSigninMode(), SigninMode::kIncognitoDisabledByParentalControls);
   ShowSignin();
-  EXPECT_EQ(controller_->tab_url(), expected_url);
-  EXPECT_FALSE(controller_->incognito());
+  EXPECT_TRUE(IsWindowForSigninDefault(expected_url));
 }
 
 TEST_F(NetworkPortalSigninControllerTest, ProxyPref) {

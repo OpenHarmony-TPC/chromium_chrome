@@ -9,6 +9,7 @@
 
 #include "chrome/browser/ash/printing/zeroconf_printer_detector.h"
 
+#include <algorithm>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -16,8 +17,7 @@
 
 #include "base/containers/contains.h"
 #include "base/containers/fixed_flat_set.h"
-#include "base/hash/md5.h"
-#include "base/ranges/algorithm.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -26,8 +26,15 @@
 #include "chrome/browser/local_discovery/service_discovery_shared_client.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/device_event_log/device_event_log.h"
+#include "crypto/obsolete/md5.h"
 
 namespace ash {
+
+namespace printing {
+crypto::obsolete::Md5 MakeMd5HasherForZeroconf() {
+  return {};
+}
+}  // namespace printing
 
 // Supported service names for printers.
 const char ZeroconfPrinterDetector::kIppServiceName[] = "_ipp._tcp.local";
@@ -144,19 +151,16 @@ class ParsedMetadata {
 // all to be considered the same printer.
 std::string ZeroconfPrinterId(const ServiceDescription& service,
                               const ParsedMetadata& metadata) {
-  base::MD5Context ctx;
-  base::MD5Init(&ctx);
-  base::MD5Update(&ctx, service.instance_name());
-  base::MD5Update(&ctx, metadata.product);
-  base::MD5Update(&ctx, metadata.UUID);
-  base::MD5Update(&ctx, metadata.usb_MFG);
-  base::MD5Update(&ctx, metadata.usb_MDL);
-  base::MD5Update(&ctx, metadata.ty);
-  base::MD5Update(&ctx, metadata.rp);
-  base::MD5Digest digest;
-  base::MD5Final(&digest, &ctx);
+  auto md5 = ash::printing::MakeMd5HasherForZeroconf();
+  md5.Update(service.instance_name());
+  md5.Update(metadata.product);
+  md5.Update(metadata.UUID);
+  md5.Update(metadata.usb_MFG);
+  md5.Update(metadata.usb_MDL);
+  md5.Update(metadata.ty);
+  md5.Update(metadata.rp);
   return base::StringPrintf("zeroconf-%s",
-                            base::MD5DigestToBase16(digest).c_str());
+                            base::ToLowerASCII(base::HexEncode(md5.Finish())));
 }
 
 // Attempt to fill |detected_printer| using the information in
@@ -174,12 +178,6 @@ bool ConvertToPrinter(const std::string& service_type,
                        << " printer with missing service name.";
     return false;
   }
-  if (service_description.ip_address.empty()) {
-    PRINTER_LOG(ERROR) << "Found zeroconf " << service_type
-                       << " printer named '" << service_description.service_name
-                       << "' with missing IP address.";
-    return false;
-  }
   if (service_description.address.port() == 0) {
     // Bonjour printers are required to register the _printer._tcp name even if
     // they don't support LPD.  If they don't support LPD, they use a port of 0
@@ -191,6 +189,12 @@ bool ConvertToPrinter(const std::string& service_type,
                          << "' with invalid port.";
     }
     return false;
+  }
+  if (service_description.ip_address.empty()) {
+    PRINTER_LOG(DEBUG) << "Zeroconf " << service_type << " printer named '"
+                       << service_description.service_name
+                       << "' is missing IP address.  Continuing with hostname: "
+                       << service_description.address.HostForURL();
   }
 
   chromeos::Printer& printer = detected_printer->printer;
@@ -263,7 +267,7 @@ bool ConvertToPrinter(const std::string& service_type,
       // Prune any empty splits.
       std::erase_if(media_types, [](std::string_view s) { return s.empty(); });
 
-      base::ranges::transform(
+      std::ranges::transform(
           media_types,
           std::back_inserter(
               detected_printer->ppd_search_data.supported_document_formats),
@@ -301,7 +305,7 @@ class ZeroconfPrinterDetectorImpl : public ZeroconfPrinterDetector {
     }
   }
 
-  ~ZeroconfPrinterDetectorImpl() override {}
+  ~ZeroconfPrinterDetectorImpl() override = default;
 
   // PrinterDetector override.
   void RegisterPrintersFoundCallback(OnPrintersFoundCallback cb) override {

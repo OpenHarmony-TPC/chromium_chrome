@@ -8,7 +8,6 @@
  * subsection settings in system settings.
  */
 
-import '../icons.html.js';
 import '../settings_shared.css.js';
 import 'chrome://resources/ash/common/bluetooth/bluetooth_battery_icon_percentage.js';
 import 'chrome://resources/ash/common/cr_elements/localized_link/localized_link.js';
@@ -31,7 +30,6 @@ import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/pol
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {DeepLinkingMixin} from '../common/deep_linking_mixin.js';
-import {isRevampWayfindingEnabled} from '../common/load_time_booleans.js';
 import {RouteObserverMixin} from '../common/route_observer_mixin.js';
 import {Setting} from '../mojom-webui/setting.mojom-webui.js';
 import type {Route} from '../router.js';
@@ -119,7 +117,7 @@ export class SettingsPerDeviceMouseSubsectionElement extends
         value: true,
       },
 
-      swapPrimaryOptions: {
+      swapPrimaryOptions_: {
         readOnly: true,
         type: Array,
         value() {
@@ -159,33 +157,12 @@ export class SettingsPerDeviceMouseSubsectionElement extends
         readOnly: true,
       },
 
-      isRevampWayfindingEnabled_: {
-        type: Boolean,
-        value: () => {
-          return isRevampWayfindingEnabled();
-        },
-      },
-
       mouse: {
         type: Object,
       },
 
       mousePolicies: {
         type: Object,
-      },
-
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kMouseSwapPrimaryButtons,
-          Setting.kMouseReverseScrolling,
-          Setting.kMouseAcceleration,
-          Setting.kMouseScrollAcceleration,
-          Setting.kMouseSpeed,
-        ]),
       },
 
       mouseIndex: {
@@ -215,14 +192,6 @@ export class SettingsPerDeviceMouseSubsectionElement extends
         },
         readOnly: true,
       },
-
-      deviceImageDataUrl: {
-        type: String,
-      },
-
-      bluetoothDevice: {
-        type: Object,
-      },
     };
   }
 
@@ -239,7 +208,7 @@ export class SettingsPerDeviceMouseSubsectionElement extends
     ];
   }
 
-  override async currentRouteChanged(route: Route): Promise<void> {
+  override currentRouteChanged(route: Route) {
     // Avoid override currentMouseChanged when on the customization subpage.
     if (route === routes.CUSTOMIZE_MOUSE_BUTTONS) {
       return;
@@ -270,6 +239,16 @@ export class SettingsPerDeviceMouseSubsectionElement extends
   }
 
   isWelcomeExperienceEnabled: boolean;
+
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kMouseSwapPrimaryButtons,
+    Setting.kMouseReverseScrolling,
+    Setting.kMouseAcceleration,
+    Setting.kMouseScrollAcceleration,
+    Setting.kMouseSpeed,
+  ]);
+
   private mouse: Mouse;
   protected mousePolicies: MousePolicies;
   private primaryRightPref: chrome.settingsPrivate.PrefObject;
@@ -284,9 +263,11 @@ export class SettingsPerDeviceMouseSubsectionElement extends
       getInputDeviceSettingsProvider();
   private mouseIndex: number;
   private isLastDevice: boolean;
-  private isRevampWayfindingEnabled_: boolean;
   private customizationRestriction: CustomizationRestriction;
   private currentMouseChanged: boolean;
+  private readonly allowScrollSettings_: boolean;
+  private readonly sensitivityValues_: number[];
+  private readonly swapPrimaryOptions_: Array<{value: boolean, name: string}>;
 
   private showCustomizeButtonRow(): boolean {
     return (this.customizationRestriction !==
@@ -417,13 +398,6 @@ export class SettingsPerDeviceMouseSubsectionElement extends
         routes.CUSTOMIZE_MOUSE_BUTTONS,
         /* dynamicParams= */ url, /* removeSearch= */ true);
     this.currentMouseChanged = true;
-  }
-
-  private getMouseAccelerationDescription(): string {
-    if (this.isRevampWayfindingEnabled_) {
-      return this.i18n('mouseAccelerationDescription');
-    }
-    return '';
   }
 
   private isCompanionAppInstalled(): boolean {

@@ -21,6 +21,7 @@
 #include "chrome/browser/ash/app_list/search/local_image_search/sql_database.h"
 #include "chrome/browser/ash/app_list/search/search_features.h"
 #include "chromeos/ash/components/string_matching/fuzzy_tokenized_string_match.h"
+#include "sql/database.h"
 #include "sql/statement.h"
 
 namespace app_list {
@@ -39,8 +40,7 @@ constexpr double kDefaultScore = 0.7;
 constexpr double kRelevanceWeight = 0.9;
 constexpr int kVersionNumber = 6;
 
-constexpr char kSqlDatabaseUmaTag[] =
-    "Apps.AppList.AnnotationStorage.SqlDatabase.Status";
+constexpr char kSqlDatabaseUmaTag[] = "AnnotationStorage";
 
 // These values persist to logs. Entries should not be renumbered and numeric
 // values should never be reused.
@@ -102,12 +102,12 @@ int MigrateSchema(SqlDatabase* db, int current_version_number) {
 
 }  // namespace
 
-ImageInfo::ImageInfo(const std::set<std::string>& annotations,
-                     const base::FilePath& path,
-                     const base::Time& last_modified,
+ImageInfo::ImageInfo(std::set<std::string> annotations,
+                     base::FilePath path,
+                     base::Time last_modified,
                      int64_t file_size)
-    : annotations(annotations),
-      path(path),
+    : annotations(std::move(annotations)),
+      path(std::move(path)),
       last_modified(last_modified),
       file_size(file_size) {}
 
@@ -121,7 +121,7 @@ AnnotationStorage::AnnotationStorage(
     : annotation_worker_(std::move(annotation_worker)),
       sql_database_(
           std::make_unique<SqlDatabase>(path_to_db,
-                                        kSqlDatabaseUmaTag,
+                                        sql::Database::Tag(kSqlDatabaseUmaTag),
                                         current_version_number,
                                         base::BindRepeating(CreateNewSchema),
                                         base::BindRepeating(MigrateSchema))) {
@@ -161,6 +161,11 @@ void AnnotationStorage::Insert(const ImageInfo& image_info,
                                IndexingSource indexing_source) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(1) << "Insert " << image_info.path;
+  if (indexing_source == IndexingSource::kIca) {
+    LogIcaUma(IcaStatus::kIcaInsertStart);
+  } else if (indexing_source == IndexingSource::kOcr) {
+    LogIcaUma(IcaStatus::kOcrInsertStart);
+  }
 
   int64_t document_id;
   if (!DocumentsTable::InsertOrIgnore(sql_database_.get(), image_info.path,
@@ -170,6 +175,11 @@ void AnnotationStorage::Insert(const ImageInfo& image_info,
                                      document_id)) {
     LOG(ERROR) << "Failed to insert into the db.";
     LogErrorUma(ErrorStatus::kFailedToInsertInDb);
+    if (indexing_source == IndexingSource::kIca) {
+      LogIcaUma(IcaStatus::kIcaDocumentInsertFailed);
+    } else if (indexing_source == IndexingSource::kOcr) {
+      LogIcaUma(IcaStatus::kOcrDocumentInsertFailed);
+    }
     return;
   }
 
@@ -189,6 +199,7 @@ void AnnotationStorage::Insert(const ImageInfo& image_info,
                                         document_id, indexing_source)) {
           LOG(ERROR) << "Failed to insert into the db from OCR.";
           LogErrorUma(ErrorStatus::kFailedToInsertInDb);
+          LogIcaUma(IcaStatus::kOcrAnnotationInsertFailed);
           return;
         }
       }
@@ -210,6 +221,7 @@ void AnnotationStorage::Insert(const ImageInfo& image_info,
                 annotation_info.y, annotation_info.area)) {
           LOG(ERROR) << "Failed to insert into the db from ICA.";
           LogErrorUma(ErrorStatus::kFailedToInsertInDb);
+          LogIcaUma(IcaStatus::kIcaAnnotationInsertFailed);
           return;
         }
       }
@@ -221,6 +233,11 @@ void AnnotationStorage::Insert(const ImageInfo& image_info,
   if (!execution_succeed) {
     LOG(ERROR) << "Failed to update the document table.";
     LogErrorUma(ErrorStatus::kFailedToInsertInDb);
+    if (indexing_source == IndexingSource::kIca) {
+      LogIcaUma(IcaStatus::kIcaUpdateFailed);
+    } else if (indexing_source == IndexingSource::kOcr) {
+      LogIcaUma(IcaStatus::kOcrUpdateFailed);
+    }
   }
 }
 
@@ -260,19 +277,19 @@ std::vector<ImageInfo> AnnotationStorage::GetAllAnnotationsForTest() {
 
   std::vector<ImageInfo> matched_paths;
   while (statement->Step()) {
-    const std::string annotation = statement->ColumnString(0);
-    base::FilePath file_path(statement->ColumnString(1));
-    file_path = file_path.Append(statement->ColumnString(2));
+    std::string annotation = statement->ColumnString(0);
+    base::FilePath file_path(statement->ColumnStringView(1));
+    file_path = file_path.Append(statement->ColumnStringView(2));
     const base::Time time = statement->ColumnTime(3);
     const int64_t file_size = statement->ColumnInt64(4);
     DVLOG(1) << "Select find: " << annotation << ", " << file_path << ", "
              << time << ", " << file_size;
     ImageInfo image_info(
-        {{}, std::move(file_path), std::move(time), file_size});
+        /*annotations=*/{}, std::move(file_path), time, file_size);
 
     const int source = statement->ColumnInt(5);
     if (source == 0) {  // OCR annotation.
-      image_info.annotations.insert(annotation);
+      image_info.annotations.insert(std::move(annotation));
     } else if (source == 1) {  // ICA annotation.
       AnnotationInfo annotation_info;
       annotation_info.score = statement->ColumnDouble(6);
@@ -285,7 +302,7 @@ std::vector<ImageInfo> AnnotationStorage::GetAllAnnotationsForTest() {
       if (statement->GetColumnType(9) != sql::ColumnType::kNull) {
         annotation_info.area = statement->ColumnDouble(9);
       }
-      image_info.annotation_map[annotation] = annotation_info;
+      image_info.annotation_map[std::move(annotation)] = annotation_info;
     }
     matched_paths.push_back(image_info);
   }
@@ -353,15 +370,13 @@ std::vector<ImageInfo> AnnotationStorage::FindImagePath(
 
   std::vector<ImageInfo> matched_paths;
   while (statement->Step()) {
-    const std::string annotation = statement->ColumnString(0);
+    std::string annotation = statement->ColumnString(0);
     const base::Time time = statement->ColumnTime(3);
     const int64_t file_size = statement->ColumnInt64(4);
     DVLOG(1) << "Select find: " << annotation << ", " << image_path << ", "
              << time << ", " << file_size;
-    matched_paths.push_back({{std::move(annotation)},
-                             std::move(image_path),
-                             std::move(time),
-                             file_size});
+    matched_paths.emplace_back(std::set<std::string>{std::move(annotation)},
+                               image_path, time, file_size);
   }
 
   return matched_paths;
@@ -437,25 +452,25 @@ std::vector<FileSearchResult> AnnotationStorage::PrefixSearch(
   while (statement->Step()) {
     double relevance = FuzzyTokenizedStringMatch::TokenSetRatio(
         tokenized_query,
-        TokenizedString(base::UTF8ToUTF16(statement->ColumnString(0)),
+        TokenizedString(base::UTF8ToUTF16(statement->ColumnStringView(0)),
                         Mode::kWords),
         /*partial=*/false);
     if (relevance < GetRelevanceThreshold()) {
       continue;
     }
 
-    base::FilePath file_path(statement->ColumnString(1));
-    file_path = file_path.Append(statement->ColumnString(2));
+    base::FilePath file_path(statement->ColumnStringView(1));
+    file_path = file_path.Append(statement->ColumnStringView(2));
     const base::Time time = statement->ColumnTime(3);
     // Updates the relevance as a weighted average of the query-term relevance
     // and the image annotation relevance score.
     relevance = kRelevanceWeight * relevance +
                 (1 - kRelevanceWeight) * statement->ColumnDouble(4);
-    DVLOG(1) << "Select: " << statement->ColumnString(0) << ", " << file_path
-             << ", " << time << " rl: " << relevance;
+    DVLOG(1) << "Select: " << statement->ColumnStringView(0) << ", "
+             << file_path << ", " << time << " rl: " << relevance;
 
     if (matched_paths.empty() || matched_paths.back().file_path != file_path) {
-      matched_paths.emplace_back(file_path, std::move(time), relevance);
+      matched_paths.emplace_back(std::move(file_path), time, relevance);
     } else if (matched_paths.back().relevance < relevance) {
       matched_paths.back().relevance = relevance;
     }

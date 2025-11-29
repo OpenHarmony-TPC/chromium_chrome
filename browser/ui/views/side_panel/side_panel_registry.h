@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_SIDE_PANEL_REGISTRY_H_
 
 #include <memory>
+#include <variant>
 #include <vector>
 
 #include "base/supports_user_data.h"
@@ -35,8 +36,8 @@ class SidePanelRegistry final : public SidePanelEntryObserver,
   ~SidePanelRegistry() override;
 
   // The tab-scoped registry should be obtained from the tab, e.g.
-  // tab_model->tab_features()->side_panel_registry(). This is the fallback for
-  // old code that is conceptually tab-scoped but does not use tab_model.
+  // tab->GetTabFeatures()->side_panel_registry(). This is the fallback for old
+  // code that is conceptually tab-scoped but does not use TabInterface.
   //
   // Gets the contextual registry for the tab associated with |web_contents|.
   // Can return null for non-tab contents.

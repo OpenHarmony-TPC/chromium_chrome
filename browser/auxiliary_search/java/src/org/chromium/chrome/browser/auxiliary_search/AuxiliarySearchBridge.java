@@ -4,36 +4,36 @@
 
 package org.chromium.chrome.browser.auxiliary_search;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-
+import org.jni_zero.CalledByNative;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
-import org.chromium.chrome.browser.auxiliary_search.AuxiliarySearchGroupProto.AuxiliarySearchBookmarkGroup;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.url.GURL;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /** Java bridge to provide information for the auxiliary search. */
+@NullMarked
 public class AuxiliarySearchBridge {
-    private long mNativeBridge;
+    private final long mNativeBridge;
 
     /**
      * Constructs a bridge for the auxiliary search provider.
      *
      * @param profile The Profile to retrieve the corresponding information.
      */
-    public AuxiliarySearchBridge(@NonNull Profile profile) {
+    public AuxiliarySearchBridge(Profile profile) {
         if ((!ChromeFeatureList.sAndroidAppIntegration.isEnabled()
                         && !ChromeFeatureList.sAndroidAppIntegrationV2.isEnabled())
                 || profile.isOffTheRecord()) {
@@ -44,34 +44,15 @@ public class AuxiliarySearchBridge {
     }
 
     /**
-     * @return AuxiliarySearchGroup for bookmarks, which is necessary for the auxiliary search.
-     */
-    public @Nullable AuxiliarySearchBookmarkGroup getBookmarksSearchableData() {
-        if (mNativeBridge != 0) {
-            try {
-                return AuxiliarySearchBookmarkGroup.parseFrom(
-                        AuxiliarySearchBridgeJni.get().getBookmarksSearchableData(mNativeBridge));
-
-            } catch (InvalidProtocolBufferException e) {
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * This method will return non sensitive url tabs, and the scheme is http or https.
+     * This method will return non-sensitive url tabs, and the scheme is http or https.
      *
      * @param tabs A list of {@link Tab}s to check if they are sensitive.
-     * @param callback {@link Callback} to pass back the list of non sensitive {@link Tab}s.
+     * @param callback {@link Callback} to pass back the list of non-sensitive {@link Tab}s.
      */
-    public void getNonSensitiveTabs(List<Tab> tabs, Callback<List<Tab>> callback) {
+    public void getNonSensitiveTabs(List<Tab> tabs, Callback<@Nullable List<Tab>> callback) {
         if (mNativeBridge == 0) {
-            PostTask.runOrPostTask(
-                    TaskTraits.UI_DEFAULT,
-                    () -> {
-                        callback.onResult(null);
-                    });
+            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, () -> callback.onResult(null));
+            return;
         }
 
         AuxiliarySearchBridgeJni.get()
@@ -89,12 +70,55 @@ public class AuxiliarySearchBridge {
                                 }
 
                                 PostTask.runOrPostTask(
-                                        TaskTraits.UI_DEFAULT,
-                                        () -> {
-                                            callback.onResult(tabList);
-                                        });
+                                        TaskTraits.UI_DEFAULT, callback.bind(tabList));
                             }
                         });
+    }
+
+    /**
+     * This method will return non-sensitive URLs of supported data types.
+     *
+     * @param callback {@link Callback} to pass back the list of non-sensitive {@link
+     *     AuxiliarySearchDataEntry}s.
+     */
+    public void getNonSensitiveHistoryData(
+            Callback<@Nullable List<AuxiliarySearchDataEntry>> callback) {
+        if (mNativeBridge == 0) {
+            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, () -> callback.onResult(null));
+            return;
+        }
+
+        AuxiliarySearchBridgeJni.get().getNonSensitiveHistoryData(mNativeBridge, callback);
+    }
+
+    /**
+     * This method will return a list of Custom Tabs URLs.
+     *
+     * @param url The current URL of the Custom Tab.
+     * @param callback {@link Callback} to pass back the list of {@link AuxiliarySearchDataEntry}s.
+     */
+    public void getCustomTabs(
+            GURL url, long timestamp, Callback<@Nullable List<AuxiliarySearchDataEntry>> callback) {
+        if (mNativeBridge == 0) {
+            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, () -> callback.onResult(null));
+            return;
+        }
+
+        AuxiliarySearchBridgeJni.get().getCustomTabs(mNativeBridge, url, timestamp, callback);
+    }
+
+    /**
+     * Helper to call previously injected callback to pass suggestion results.
+     *
+     * @param entries The list of fetched entries.
+     * @param callback The callback to notify once the fetching is completed.
+     */
+    @CalledByNative
+    @VisibleForTesting
+    static void onDataReady(
+            @JniType("std::vector") List<AuxiliarySearchDataEntry> entries,
+            Callback<List<AuxiliarySearchDataEntry>> callback) {
+        callback.onResult(entries);
     }
 
     @NativeMethods
@@ -102,9 +126,17 @@ public class AuxiliarySearchBridge {
     public interface Natives {
         long getForProfile(@JniType("Profile*") Profile profile);
 
-        byte[] getBookmarksSearchableData(long nativeAuxiliarySearchProvider);
-
         void getNonSensitiveTabs(
                 long nativeAuxiliarySearchProvider, Tab[] tabs, Callback<Object[]> callback);
+
+        void getNonSensitiveHistoryData(
+                long nativeAuxiliarySearchProvider,
+                Callback<@Nullable List<AuxiliarySearchDataEntry>> callback);
+
+        void getCustomTabs(
+                long nativeAuxiliarySearchProvider,
+                GURL url,
+                long timestamp,
+                Callback<@Nullable List<AuxiliarySearchDataEntry>> callback);
     }
 }

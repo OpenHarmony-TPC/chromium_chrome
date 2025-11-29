@@ -72,10 +72,9 @@ class IntroUI : public content::WebUIController {
 
   void SetSigninChoiceCallback(IntroSigninChoiceCallback callback);
   void SetDefaultBrowserCallback(DefaultBrowserCallback callback);
+  void SetCanPinToTaskbar(bool can_pin);
 
  private:
-  friend class ProfilePickerLacrosFirstRunBrowserTestBase;
-
   void HandleSigninChoice(IntroChoice choice);
   void HandleDefaultBrowserChoice(DefaultBrowserChoice choice);
 

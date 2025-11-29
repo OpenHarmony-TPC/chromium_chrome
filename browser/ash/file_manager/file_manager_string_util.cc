@@ -6,8 +6,6 @@
 
 #include <math.h>
 
-#include "ash/components/arc/arc_features.h"
-#include "ash/components/arc/arc_util.h"
 #include "ash/constants/ash_features.h"
 #include "ash/system/time/calendar_utils.h"
 #include "ash/system/time/date_helper.h"
@@ -37,6 +35,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
+#include "chromeos/ash/experiences/arc/arc_features.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/user_manager/user_manager.h"
@@ -1280,6 +1280,8 @@ void AddStringsForSkyVault(base::Value::Dict* dict) {
                 l10n_util::GetStringUTF16(IDS_POLICY_SKYVAULT_MIGRATION_BANNER),
                 l10n_util::GetStringUTF16(IDS_OFFICE_CLOUD_PROVIDER_ONEDRIVE),
                 /*offset=*/nullptr));
+  dict->Set("SKYVAULT_DELETION_BANNER",
+            l10n_util::GetStringUTF16(IDS_POLICY_SKYVAULT_DELETION_BANNER));
   dict->Set("SKYVAULT_MISCONFIGURED_POLICY_MESSAGE",
             l10n_util::GetStringUTF16(
                 IDS_POLICY_SKYVAULT_MISCONFIGURED_POLICY_MESSAGE));

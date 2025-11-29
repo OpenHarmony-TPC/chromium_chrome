@@ -4,9 +4,10 @@
 
 #include "chrome/browser/ui/views/extensions/extensions_menu_main_page_view.h"
 
+#include <algorithm>
+
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/user_action_tester.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -15,7 +16,6 @@
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/permissions/active_tab_permission_granter.h"
 #include "chrome/browser/extensions/permissions/site_permissions_helper.h"
-#include "chrome/browser/extensions/tab_helper.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_controller.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
@@ -37,6 +37,7 @@
 #include "extensions/test/test_extension_dir.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/gfx/image/image_unittest_util.h"
+#include "ui/gfx/paint_vector_icon.h"
 #include "ui/views/controls/styled_label.h"
 #include "ui/views/vector_icons.h"
 #include "ui/views/view_utils.h"
@@ -102,10 +103,11 @@ class ExtensionsMenuMainPageViewUnitTest : public ExtensionsToolbarUnitTest {
 
   // ExtensionsToolbarUnitTest:
   void SetUp() override;
+  void TearDown() override;
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
-  raw_ptr<content::WebContentsTester, DanglingUntriaged> web_contents_tester_;
+  raw_ptr<content::WebContentsTester> web_contents_tester_;
 };
 
 ExtensionsMenuMainPageViewUnitTest::ExtensionsMenuMainPageViewUnitTest() {
@@ -192,6 +194,11 @@ void ExtensionsMenuMainPageViewUnitTest::SetUp() {
   web_contents_tester_ = AddWebContentsAndGetTester();
 }
 
+void ExtensionsMenuMainPageViewUnitTest::TearDown() {
+  web_contents_tester_ = nullptr;
+  ExtensionsToolbarUnitTest::TearDown();
+}
+
 TEST_F(ExtensionsMenuMainPageViewUnitTest, ExtensionsAreSorted) {
   constexpr char kExtensionZName[] = "Z Extension";
   InstallExtension(kExtensionZName);
@@ -215,7 +222,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest, ExtensionsAreSorted) {
 
 // Verifies the site access toggle and site permissions button properties for an
 // extension that doesn't request site access.
-TEST_F(ExtensionsMenuMainPageViewUnitTest, NoSiteAccessRequested) {
+TEST_F(ExtensionsMenuMainPageViewUnitTest, NoHostAccessRequested) {
   auto extension = InstallExtension("Extension");
 
   const GURL url("http://www.example.com");
@@ -254,7 +261,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest, NoSiteAccessRequested) {
 // Verifies the site access toggle and site permissions button properties for an
 // enterprise extension that doesn't request host permissions.
 TEST_F(ExtensionsMenuMainPageViewUnitTest,
-       NoSiteAccessRequested_EnterpriseExtension) {
+       NoHostAccessRequested_EnterpriseExtension) {
   auto extension =
       InstallEnterpriseExtension("Extension", /*host_permissions*/ {});
 
@@ -786,9 +793,8 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest, ActiveTabRequested_DynamicUpdates) {
   //     access on grants tab permissions but doesn't change the user site
   //     access.
   extensions::ActiveTabPermissionGranter* active_tab_permission_granter =
-      extensions::TabHelper::FromWebContents(
-          browser()->tab_strip_model()->GetActiveWebContents())
-          ->active_tab_permission_granter();
+      extensions::ActiveTabPermissionGranter::FromWebContents(
+          browser()->tab_strip_model()->GetActiveWebContents());
   ASSERT_TRUE(active_tab_permission_granter);
   active_tab_permission_granter->GrantIfRequested(extension.get());
   EXPECT_TRUE(menu_item->site_permissions_button_for_testing()->GetVisible());
@@ -909,7 +915,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest, NavigationWhenMainPageIsOpen) {
   // Withhold extension A's host permissions and add a site access
   // request.
   WithholdHostPermissions(extension_A.get());
-  AddSiteAccessRequest(*extension_A,
+  AddHostAccessRequest(*extension_A,
                        browser()->tab_strip_model()->GetActiveWebContents());
 
   ShowMenu();
@@ -993,9 +999,6 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest, PinnedExtensions) {
 
   const ui::ColorProvider* color_provider =
       context_menu_button->GetColorProvider();
-  auto pin_icon = gfx::Image(gfx::CreateVectorIcon(
-      views::kPinIcon,
-      color_provider->GetColor(kColorExtensionMenuPinButtonIcon)));
   auto three_dot_icon = gfx::Image(
       gfx::CreateVectorIcon(kBrowserToolsChromeRefreshIcon,
                             color_provider->GetColor(kColorExtensionMenuIcon)));
@@ -1126,7 +1129,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest, ReloadExtensionFailed) {
   extension_directory.WriteManifest(kManifestWithErrors);
 
   // Reload the extension. It should fail due to the manifest errors.
-  extension_service()->ReloadExtensionWithQuietFailure(extension->id());
+  extension_registrar()->ReloadExtensionWithQuietFailure(extension->id());
   base::RunLoop().RunUntilIdle();
   LayoutMenuIfNecessary();
 
@@ -1434,7 +1437,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest, RequestsSection) {
 
   // Requests section is visible and has extension A when extension A added a
   // site access request.
-  AddSiteAccessRequest(*extension_A, web_contents);
+  AddHostAccessRequest(*extension_A, web_contents);
   LayoutMenuIfNecessary();
   EXPECT_FALSE(reload_section->GetVisible());
   EXPECT_TRUE(requests_section->GetVisible());
@@ -1443,7 +1446,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest, RequestsSection) {
 
   // Requests section is visible and has extension A and B when both extensions
   // added site access requests.
-  AddSiteAccessRequest(*extension_B, web_contents);
+  AddHostAccessRequest(*extension_B, web_contents);
   LayoutMenuIfNecessary();
   EXPECT_FALSE(reload_section->GetVisible());
   EXPECT_TRUE(requests_section->GetVisible());
@@ -1452,7 +1455,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest, RequestsSection) {
 
   // Message section is visible and has extension B when extension A removed its
   // site access request.
-  RemoveSiteAccessRequest(*extension_A, web_contents);
+  RemoveHostAccessRequest(*extension_A, web_contents);
   LayoutMenuIfNecessary();
   EXPECT_FALSE(reload_section->GetVisible());
   EXPECT_TRUE(requests_section->GetVisible());
@@ -1461,7 +1464,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest, RequestsSection) {
 
   // Requests section is hidden when extension B removed its site access request
   // and no other extension has an active site access request.
-  RemoveSiteAccessRequest(*extension_B, web_contents);
+  RemoveHostAccessRequest(*extension_B, web_contents);
   EXPECT_FALSE(reload_section->GetVisible());
   EXPECT_FALSE(requests_section->GetVisible());
 }
@@ -1498,7 +1501,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest,
   // filter that doesn't match the current web contents.
   URLPattern filter(extensions::Extension::kValidHostPermissionSchemes,
                     "http://www.other.com/");
-  AddSiteAccessRequest(*extension, web_contents, filter);
+  AddHostAccessRequest(*extension, web_contents, filter);
   LayoutMenuIfNecessary();
   EXPECT_FALSE(reload_section->GetVisible());
   EXPECT_FALSE(requests_section->GetVisible());
@@ -1507,7 +1510,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest,
   // site access request with filter that matches the current web contents.
   filter = URLPattern(extensions::Extension::kValidHostPermissionSchemes,
                       "http://www.example.com/");
-  AddSiteAccessRequest(*extension, web_contents, filter);
+  AddHostAccessRequest(*extension, web_contents, filter);
   LayoutMenuIfNecessary();
   EXPECT_FALSE(reload_section->GetVisible());
   EXPECT_TRUE(requests_section->GetVisible());
@@ -1519,7 +1522,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest,
   // was removed).
   filter = URLPattern(extensions::Extension::kValidHostPermissionSchemes,
                       "http://www.example.com/other");
-  AddSiteAccessRequest(*extension, web_contents, filter);
+  AddHostAccessRequest(*extension, web_contents, filter);
   LayoutMenuIfNecessary();
   EXPECT_FALSE(reload_section->GetVisible());
   EXPECT_FALSE(requests_section->GetVisible());
@@ -1550,7 +1553,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest,
   // extension with a filter that doesn't match the current web contents.
   URLPattern filter(extensions::Extension::kValidHostPermissionSchemes,
                     "*://*/path");
-  AddSiteAccessRequest(
+  AddHostAccessRequest(
       *extension, browser()->tab_strip_model()->GetActiveWebContents(), filter);
   LayoutMenuIfNecessary();
   EXPECT_FALSE(reload_section->GetVisible());
@@ -1598,8 +1601,8 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest,
 
   // Add site access requests for both extensions and verify they are both
   // visible on the requests section.
-  AddSiteAccessRequest(*extension_A, web_contents);
-  AddSiteAccessRequest(*extension_B, web_contents);
+  AddHostAccessRequest(*extension_A, web_contents);
+  AddHostAccessRequest(*extension_B, web_contents);
   EXPECT_TRUE(requests_section->GetVisible());
   EXPECT_THAT(GetExtensionsInRequestsSection(),
               testing::ElementsAre(extension_A->id(), extension_B->id()));
@@ -1625,7 +1628,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest,
   // Navigate to a site and add a site access request for the extension.
   const GURL url("http://www.example.com");
   web_contents_tester()->NavigateAndCommit(url);
-  AddSiteAccessRequest(*extension,
+  AddHostAccessRequest(*extension,
                        browser()->tab_strip_model()->GetActiveWebContents());
 
   ShowMenu();
@@ -1690,7 +1693,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest,
   // Navigate to a site and add a site access request for the extension.
   const GURL url("http://www.example.com");
   web_contents_tester()->NavigateAndCommit(url);
-  AddSiteAccessRequest(*extension,
+  AddHostAccessRequest(*extension,
                        browser()->tab_strip_model()->GetActiveWebContents());
 
   ShowMenu();
@@ -1752,7 +1755,7 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest,
   // Navigate to a site and add a site access request for the extension.
   const GURL url("http://www.example.com");
   web_contents_tester()->NavigateAndCommit(url);
-  AddSiteAccessRequest(*extension,
+  AddHostAccessRequest(*extension,
                        browser()->tab_strip_model()->GetActiveWebContents());
 
   // By default, user can customize the site access of each extension and site

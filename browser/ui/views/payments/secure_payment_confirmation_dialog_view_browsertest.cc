@@ -126,12 +126,15 @@ class SecurePaymentConfirmationDialogViewTest
     model_.set_network_label(l10n_util::GetStringUTF16(
         IDS_SECURE_PAYMENT_CONFIRMATION_NETWORK_LABEL));
     model_.set_network_value(u"MasterCard");
-    model_.set_network_icon(CreateMaxSizeIcon(SK_ColorGREEN));
+    network_icon_ =
+        std::make_unique<SkBitmap>(CreateMaxSizeIcon(SK_ColorGREEN));
+    model_.set_network_icon(network_icon_.get());
 
     model_.set_issuer_label(l10n_util::GetStringUTF16(
         IDS_SECURE_PAYMENT_CONFIRMATION_ISSUER_LABEL));
     model_.set_issuer_value(u"ScotiaBank");
-    model_.set_issuer_icon(CreateMaxSizeIcon(SK_ColorRED));
+    issuer_icon_ = std::make_unique<SkBitmap>(CreateMaxSizeIcon(SK_ColorRED));
+    model_.set_issuer_icon(issuer_icon_.get());
   }
 
   void InvokeSecurePaymentConfirmationUI() {
@@ -272,7 +275,7 @@ class SecurePaymentConfirmationDialogViewTest
     ExpectOptOutText(opt_out_view, model_.relying_party_id(),
                      model_.opt_out_link_label());
 
-    ExpectViewMatchesModelForNetworkAndIssuerRows();
+    ExpectViewMatchesModelForNetworkAndIssuerIcons();
   }
 
   virtual bool ShouldShowHeaderIcon() { return true; }
@@ -285,8 +288,8 @@ class SecurePaymentConfirmationDialogViewTest
         SecurePaymentConfirmationDialogView::DialogViewID::DESCRIPTION));
   }
 
-  virtual void ExpectViewMatchesModelForNetworkAndIssuerRows() {
-    // Without the flag enabled, the network and issuer views should not be
+  virtual void ExpectViewMatchesModelForNetworkAndIssuerIcons() {
+    // Without the flag enabled, the network and issuer icons should not be
     // shown even though the data is set into the model. See
     // SecurePaymentConfirmationDialogViewNetworkAndIssuerIconsTest for tests
     // that enable the feature.
@@ -327,11 +330,13 @@ class SecurePaymentConfirmationDialogViewTest
   void OnOptOutClicked() override { opt_out_clicked_ = true; }
 
  protected:
+  std::unique_ptr<SkBitmap> instrument_icon_;
+  std::unique_ptr<SkBitmap> network_icon_;
+  std::unique_ptr<SkBitmap> issuer_icon_;
+
   SecurePaymentConfirmationModel model_;
   std::unique_ptr<TestSecurePaymentConfirmationPaymentRequestDelegate>
       test_delegate_;
-
-  std::unique_ptr<SkBitmap> instrument_icon_;
 
   bool dialog_closed_ = false;
   bool confirm_pressed_ = false;
@@ -468,6 +473,9 @@ IN_PROC_BROWSER_TEST_F(SecurePaymentConfirmationDialogViewTest,
   InvokeSecurePaymentConfirmationUI();
   ExpectViewMatchesModel();
 
+  // Avoid a dangling when replacing with a different icon.
+  model_.set_instrument_icon(nullptr);
+
   // Change the bitmap pointer
   instrument_icon_ =
       std::make_unique<SkBitmap>(CreateMaxSizeIcon(SK_ColorGREEN));
@@ -507,6 +515,9 @@ IN_PROC_BROWSER_TEST_F(SecurePaymentConfirmationDialogViewTest,
 IN_PROC_BROWSER_TEST_F(SecurePaymentConfirmationDialogViewTest,
                        DefaultInstrumentIcon) {
   CreateModel();
+
+  // Avoid a dangling when replacing with a different icon.
+  model_.set_instrument_icon(nullptr);
 
   instrument_icon_ = std::make_unique<SkBitmap>();
   ASSERT_TRUE(instrument_icon_->drawsNothing());
@@ -653,95 +664,11 @@ IN_PROC_BROWSER_TEST_F(SecurePaymentConfirmationDialogViewTest,
 }
 
 // A variant of SecurePaymentConfirmationDialogViewTest that enables the network
-// and issuer rows feature, and verifies their contents.
+// and issuer icons feature, and verifies the contents.
 class SecurePaymentConfirmationDialogViewNetworkAndIssuerIconsTest
     : public SecurePaymentConfirmationDialogViewTest {
  public:
-  SecurePaymentConfirmationDialogViewNetworkAndIssuerIconsTest() {
-    base::FieldTrialParams params;
-    params["spc_network_and_issuer_icons_option"] = "rows";
-    scoped_feature_list_.InitAndEnableFeatureWithParameters(
-        blink::features::kSecurePaymentConfirmationNetworkAndIssuerIcons,
-        params);
-  }
-  void ExpectViewMatchesModelForNetworkAndIssuerRows() override {
-    ExpectLabelText(
-        model_.network_label(),
-        SecurePaymentConfirmationDialogView::DialogViewID::NETWORK_LABEL);
-    ExpectLabelText(
-        model_.network_value(),
-        SecurePaymentConfirmationDialogView::DialogViewID::NETWORK_VALUE);
-    ExpectIcon(*model_.network_icon(),
-               SecurePaymentConfirmationDialogView::DialogViewID::NETWORK_ICON);
-
-    ExpectLabelText(
-        model_.issuer_label(),
-        SecurePaymentConfirmationDialogView::DialogViewID::ISSUER_LABEL);
-    ExpectLabelText(
-        model_.issuer_value(),
-        SecurePaymentConfirmationDialogView::DialogViewID::ISSUER_VALUE);
-    ExpectIcon(*model_.issuer_icon(),
-               SecurePaymentConfirmationDialogView::DialogViewID::ISSUER_ICON);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-// Variant of the main ViewMatchesModel test, which verifies that the network
-// and issuer rows are shown when the flag is enabled.
-IN_PROC_BROWSER_TEST_F(
-    SecurePaymentConfirmationDialogViewNetworkAndIssuerIconsTest,
-    ViewMatchesModel) {
-  CreateModel();
-  InvokeSecurePaymentConfirmationUI();
-  ExpectViewMatchesModel();
-}
-
-// Tests that the Network row is not shown if an icon wasn't present.
-IN_PROC_BROWSER_TEST_F(
-    SecurePaymentConfirmationDialogViewNetworkAndIssuerIconsTest,
-    NetworkRowNotShownIfIconNotPresent) {
-  CreateModel();
-  model_.set_network_icon(SkBitmap());
-  InvokeSecurePaymentConfirmationUI();
-
-  ASSERT_FALSE(GetViewByID(
-      SecurePaymentConfirmationDialogView::DialogViewID::NETWORK_LABEL));
-  ASSERT_FALSE(GetViewByID(
-      SecurePaymentConfirmationDialogView::DialogViewID::NETWORK_VALUE));
-  ASSERT_FALSE(GetViewByID(
-      SecurePaymentConfirmationDialogView::DialogViewID::NETWORK_ICON));
-}
-
-// Tests that the Issuer row is not shown if an icon wasn't present.
-IN_PROC_BROWSER_TEST_F(
-    SecurePaymentConfirmationDialogViewNetworkAndIssuerIconsTest,
-    IssuerRowNotShownIfIconNotPresent) {
-  CreateModel();
-  model_.set_issuer_icon(SkBitmap());
-  InvokeSecurePaymentConfirmationUI();
-
-  ASSERT_FALSE(GetViewByID(
-      SecurePaymentConfirmationDialogView::DialogViewID::ISSUER_LABEL));
-  ASSERT_FALSE(GetViewByID(
-      SecurePaymentConfirmationDialogView::DialogViewID::ISSUER_VALUE));
-  ASSERT_FALSE(GetViewByID(
-      SecurePaymentConfirmationDialogView::DialogViewID::ISSUER_ICON));
-}
-
-// A variant of SecurePaymentConfirmationDialogViewTest that enables the inline
-// title feature, and verifies the contents.
-class SecurePaymentConfirmationDialogViewInlineNetworkAndIssuerIconsTest
-    : public SecurePaymentConfirmationDialogViewTest {
- public:
-  SecurePaymentConfirmationDialogViewInlineNetworkAndIssuerIconsTest() {
-    base::FieldTrialParams params;
-    params["spc_network_and_issuer_icons_option"] = "inline";
-    scoped_feature_list_.InitAndEnableFeatureWithParameters(
-        blink::features::kSecurePaymentConfirmationNetworkAndIssuerIcons,
-        params);
-  }
+  SecurePaymentConfirmationDialogViewNetworkAndIssuerIconsTest() = default;
 
   void CreateModel() override {
     SecurePaymentConfirmationDialogViewTest::CreateModel();
@@ -765,7 +692,7 @@ class SecurePaymentConfirmationDialogViewInlineNetworkAndIssuerIconsTest
         SecurePaymentConfirmationDialogView::DialogViewID::DESCRIPTION);
   }
 
-  void ExpectViewMatchesModelForNetworkAndIssuerRows() override {
+  void ExpectViewMatchesModelForNetworkAndIssuerIcons() override {
     // For the inline view, there are no label or values for network/issuer, but
     // the icons should be present.
     EXPECT_FALSE(GetViewByID(
@@ -784,13 +711,14 @@ class SecurePaymentConfirmationDialogViewInlineNetworkAndIssuerIconsTest
   }
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      blink::features::kSecurePaymentConfirmationNetworkAndIssuerIcons};
 };
 
 // Variant of the main ViewMatchesModel test, which verifies that the title,
 // description, and network/issuer icons are shown when the flag is enabled.
 IN_PROC_BROWSER_TEST_F(
-    SecurePaymentConfirmationDialogViewInlineNetworkAndIssuerIconsTest,
+    SecurePaymentConfirmationDialogViewNetworkAndIssuerIconsTest,
     ViewMatchesModel) {
   CreateModel();
   InvokeSecurePaymentConfirmationUI();
@@ -799,11 +727,12 @@ IN_PROC_BROWSER_TEST_F(
 
 // Tests that the network icon is not shown if it isn't in the model.
 IN_PROC_BROWSER_TEST_F(
-    SecurePaymentConfirmationDialogViewInlineNetworkAndIssuerIconsTest,
+    SecurePaymentConfirmationDialogViewNetworkAndIssuerIconsTest,
     NetworkIconNotShownIfNotPresent) {
   CreateModel();
 
-  model_.set_network_icon(SkBitmap());
+  SkBitmap network_icon = SkBitmap();
+  model_.set_network_icon(&network_icon);
   InvokeSecurePaymentConfirmationUI();
 
   // The title should still be present.
@@ -820,11 +749,12 @@ IN_PROC_BROWSER_TEST_F(
 
 // Tests that the issuer icon is not shown if it isn't in the model.
 IN_PROC_BROWSER_TEST_F(
-    SecurePaymentConfirmationDialogViewInlineNetworkAndIssuerIconsTest,
+    SecurePaymentConfirmationDialogViewNetworkAndIssuerIconsTest,
     IssuerIconNotShownIfNotPresent) {
   CreateModel();
 
-  model_.set_issuer_icon(SkBitmap());
+  SkBitmap issuer_icon = SkBitmap();
+  model_.set_issuer_icon(&issuer_icon);
   InvokeSecurePaymentConfirmationUI();
 
   // The title should still be present.

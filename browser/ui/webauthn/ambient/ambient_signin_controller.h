@@ -4,6 +4,7 @@
 #ifndef CHROME_BROWSER_UI_WEBAUTHN_AMBIENT_AMBIENT_SIGNIN_CONTROLLER_H_
 #define CHROME_BROWSER_UI_WEBAUTHN_AMBIENT_AMBIENT_SIGNIN_CONTROLLER_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -13,7 +14,6 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/views/webauthn/ambient/ambient_signin_bubble_view.h"
 #include "chrome/browser/webauthn/authenticator_request_dialog_model.h"
-#include "components/password_manager/core/browser/password_manager_client.h"
 #include "content/public/browser/document_user_data.h"
 #include "ui/views/widget/widget_observer.h"
 
@@ -30,7 +30,7 @@ class RenderFrameHost;
 namespace password_manager {
 class PasskeyCredential;
 struct PasswordForm;
-}
+}  // namespace password_manager
 
 namespace tabs {
 class TabInterface;
@@ -51,6 +51,8 @@ class AmbientSigninController
  public:
   using PasskeyCredentialSelectionCallback =
       base::OnceCallback<void(const std::vector<uint8_t>)>;
+  using PasswordCredentialSelectionCallback =
+      base::OnceCallback<void(PasswordCredentialPair)>;
 
   ~AmbientSigninController() override;
 
@@ -64,7 +66,7 @@ class AmbientSigninController
   void AddAndShowPasswordMethods(
       std::vector<std::unique_ptr<password_manager::PasswordForm>> forms,
       int expected_credential_type_flags,
-      password_manager::PasswordManagerClient::CredentialsCallback callback);
+      PasswordCredentialSelectionCallback callback);
 
   // Called when the user selects a passkey shown in the bubble.
   void OnPasskeySelected(const std::vector<uint8_t>& account_id);
@@ -106,8 +108,7 @@ class AmbientSigninController
   std::vector<base::CallbackListSubscription> tab_subscriptions_;
   raw_ptr<AmbientSigninBubbleView> ambient_signin_bubble_view_;
   PasskeyCredentialSelectionCallback passkey_selection_callback_;
-  password_manager::PasswordManagerClient::CredentialsCallback
-      password_selection_callback_;
+  PasswordCredentialSelectionCallback password_selection_callback_;
   CredentialsReceived credentials_received_state_ = CredentialsReceived::kNone;
   std::vector<std::unique_ptr<password_manager::PasswordForm>> password_forms_;
   std::vector<password_manager::PasskeyCredential> passkey_credentials_;

@@ -36,11 +36,6 @@ import org.chromium.chrome.browser.ui.android.webid.data.IdentityProviderData;
 import org.chromium.chrome.browser.ui.android.webid.data.IdentityProviderMetadata;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerItemDecoration;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
-import org.chromium.components.browser_ui.util.ConversionUtils;
-import org.chromium.components.browser_ui.util.GlobalDiscardableReferencePool;
-import org.chromium.components.image_fetcher.ImageFetcher;
-import org.chromium.components.image_fetcher.ImageFetcherConfig;
-import org.chromium.components.image_fetcher.ImageFetcherFactory;
 import org.chromium.content.webid.IdentityRequestDialogDismissReason;
 import org.chromium.content.webid.IdentityRequestDialogLinkType;
 import org.chromium.content_public.browser.WebContents;
@@ -60,27 +55,25 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Creates the AccountSelection component. AccountSelection uses a bottom sheet
- * to let the user select an account.
+ * Creates the AccountSelection component. AccountSelection uses a bottom sheet to let the user
+ * select an account.
  */
 public class AccountSelectionCoordinator
         implements AccountSelectionComponent, ActivityStateObserver {
-    private static final int MAX_IMAGE_CACHE_SIZE = 500 * ConversionUtils.BYTES_PER_KILOBYTE;
-
-    private static Map<Integer, WeakReference<AccountSelectionComponent.Delegate>>
+    private static final Map<Integer, WeakReference<AccountSelectionComponent.Delegate>>
             sFedCMDelegateMap = new HashMap<>();
 
     // A counter used to generate a unique ID every time a new showModalDialog()
     // call occurs.
     private static int sCurrentFedcmId;
 
-    private Tab mTab;
-    private WindowAndroid mWindowAndroid;
-    private BottomSheetController mBottomSheetController;
-    private AccountSelectionBottomSheetContent mBottomSheetContent;
-    private AccountSelectionComponent.Delegate mDelegate;
-    private AccountSelectionMediator mMediator;
-    private RecyclerView mSheetItemListView;
+    private final Tab mTab;
+    private final WindowAndroid mWindowAndroid;
+    private final BottomSheetController mBottomSheetController;
+    private final AccountSelectionBottomSheetContent mBottomSheetContent;
+    private final AccountSelectionComponent.Delegate mDelegate;
+    private final AccountSelectionMediator mMediator;
+    private final RecyclerView mSheetItemListView;
     private WeakReference<AccountSelectionComponent> mPopupComponent;
     private WeakReference<AccountSelectionComponent.Delegate> mOpenerDelegate;
 
@@ -112,13 +105,6 @@ public class AccountSelectionCoordinator
                         mSheetItemListView::computeVerticalScrollOffset,
                         rpMode);
 
-        ImageFetcher imageFetcher =
-                ImageFetcherFactory.createImageFetcher(
-                        ImageFetcherConfig.IN_MEMORY_ONLY,
-                        tab.getProfile().getProfileKey(),
-                        GlobalDiscardableReferencePool.getReferencePool(),
-                        MAX_IMAGE_CACHE_SIZE);
-
         @Px
         int avatarSize =
                 context.getResources()
@@ -134,7 +120,6 @@ public class AccountSelectionCoordinator
                         sheetItems,
                         mBottomSheetController,
                         mBottomSheetContent,
-                        imageFetcher,
                         avatarSize,
                         rpMode,
                         context,
@@ -186,12 +171,16 @@ public class AccountSelectionCoordinator
                                 : R.layout.account_selection_account_item),
                 AccountSelectionViewBinder::bindAccountView);
         adapter.registerType(
-                AccountSelectionProperties.ITEM_TYPE_ADD_ACCOUNT,
+                AccountSelectionProperties.ITEM_TYPE_LOGIN,
                 new LayoutViewBuilder(
                         rpMode == RpMode.ACTIVE
                                 ? R.layout.account_selection_active_mode_add_account_row_item
                                 : R.layout.account_selection_add_account_row_item),
-                AccountSelectionViewBinder::bindAddAccountView);
+                AccountSelectionViewBinder::bindLoginButtonView);
+        adapter.registerType(
+                AccountSelectionProperties.ITEM_TYPE_SEPARATOR,
+                new LayoutViewBuilder(R.layout.account_selection_login_buttons_start_separator),
+                (unusedModel, unusedView, unusedKey) -> {});
         sheetItemListView.setAdapter(adapter);
 
         return contentView;
@@ -203,40 +192,43 @@ public class AccountSelectionCoordinator
     }
 
     @Override
-    public void showAccounts(
+    public boolean showAccounts(
             String rpEtldPlusOne,
-            String idpEtldPlusOne,
             List<Account> accounts,
-            IdentityProviderData idpData,
-            boolean isAutoReauthn,
+            List<IdentityProviderData> idpDataList,
             List<Account> newAccounts) {
-        mMediator.showAccounts(
-                rpEtldPlusOne, idpEtldPlusOne, accounts, idpData, isAutoReauthn, newAccounts);
+        return mMediator.showAccounts(rpEtldPlusOne, accounts, idpDataList, newAccounts);
     }
 
     @Override
-    public void showFailureDialog(
+    public boolean showFailureDialog(
             String rpForDisplay,
             String idpForDisplay,
             IdentityProviderMetadata idpMetadata,
             @RpContext.EnumType int rpContext) {
-        mMediator.showFailureDialog(rpForDisplay, idpForDisplay, idpMetadata, rpContext);
+        return mMediator.showFailureDialog(rpForDisplay, idpForDisplay, idpMetadata, rpContext);
     }
 
     @Override
-    public void showErrorDialog(
+    public boolean showErrorDialog(
             String rpForDisplay,
             String idpForDisplay,
             IdentityProviderMetadata idpMetadata,
             @RpContext.EnumType int rpContext,
             IdentityCredentialTokenError error) {
-        mMediator.showErrorDialog(rpForDisplay, idpForDisplay, idpMetadata, rpContext, error);
+        return mMediator.showErrorDialog(
+                rpForDisplay, idpForDisplay, idpMetadata, rpContext, error);
     }
 
     @Override
-    public void showLoadingDialog(
+    public boolean showLoadingDialog(
             String rpForDisplay, String idpForDisplay, @RpContext.EnumType int rpContext) {
-        mMediator.showLoadingDialog(rpForDisplay, idpForDisplay, rpContext);
+        return mMediator.showLoadingDialog(rpForDisplay, idpForDisplay, rpContext);
+    }
+
+    @Override
+    public boolean showVerifyingDialog(Account account, boolean isAutoReauthn) {
+        return mMediator.showVerifyingDialog(account, isAutoReauthn);
     }
 
     @Override

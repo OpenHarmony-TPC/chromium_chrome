@@ -13,26 +13,17 @@
 #include <winsock2.h>
 
 #include <iphlpapi.h>
-#include <wincred.h>  // For <ntsecapi.h>
-#include <winternl.h>
-
-#include <string>
-#include <string_view>
-
-#include "base/values.h"
-
-#define _NTDEF_  // Prevent redefition errors, must come after <winternl.h>
 #include <malloc.h>
 #include <memory.h>
-#include <ntsecapi.h>  // For LsaLookupAuthenticationPackage()
-#include <sddl.h>      // For ConvertSidToStringSid()
-#include <security.h>  // For NEGOSSP_NAME_A
+#include <sddl.h>
+#include <security.h>
 #include <stdlib.h>
-#include <wbemidl.h>
 
 #include <algorithm>
 #include <iomanip>
 #include <memory>
+#include <string>
+#include <string_view>
 
 #include "base/base64.h"
 #include "base/command_line.h"
@@ -50,10 +41,14 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/values.h"
 #include "base/win/atl.h"
 #include "base/win/current_module.h"
 #include "base/win/embedded_i18n/language_selector.h"
+#include "base/win/ntsecapi_shim.h"
+#include "base/win/wbemidl_shim.h"
 #include "base/win/win_util.h"
+#include "base/win/wincred_shim.h"
 #include "base/win/wmi.h"
 #include "build/branding_buildflags.h"
 #include "chrome/common/chrome_version.h"
@@ -79,7 +74,7 @@ constexpr base::FilePath::CharType kCredentialProviderFolder[] =
 constexpr wchar_t kDefaultMdmUrl[] =
     L"https://deviceenrollmentforwindows.googleapis.com/v1/discovery";
 
-constexpr int kMaxNumConsecutiveUploadDeviceFailures = 3;
+constexpr int kMaxNumConsecutiveUploadDeviceFailures = 7;
 
 // The following staleness time limits are set to 5 days to prevent file fetch
 // operations unnecessarily by GCPW when machine is offline during weekends and
@@ -136,6 +131,7 @@ constexpr char kMinimumSupportedChromeVersionStr[] = "77.0.3865.65";
 
 constexpr char kSentinelFilename[] = "gcpw_startup.sentinel";
 constexpr int64_t kMaxConsecutiveCrashCount = 5;
+constexpr int kHoursToDisableGCPW = 10;
 
 // L$ prefix means this secret can only be accessed locally.
 constexpr wchar_t kLsaKeyDMTokenPrefix[] = L"L$GCPW-DM-Token-";
@@ -148,17 +144,17 @@ constexpr base::win::i18n::LanguageSelector::LangToOffset
 };
 
 base::FilePath GetStartupSentinelLocation(const std::wstring& version) {
-  base::FilePath sentienal_path;
-  if (!base::PathService::Get(base::DIR_COMMON_APP_DATA, &sentienal_path)) {
+  base::FilePath sentinel_path;
+  if (!base::PathService::Get(base::DIR_COMMON_APP_DATA, &sentinel_path)) {
     HRESULT hr = HRESULT_FROM_WIN32(::GetLastError());
     LOGFN(ERROR) << "PathService::Get(DIR_COMMON_APP_DATA) hr=" << putHR(hr);
     return base::FilePath();
   }
 
-  sentienal_path = sentienal_path.Append(GetInstallParentDirectoryName())
-                       .Append(kCredentialProviderFolder);
+  sentinel_path = sentinel_path.Append(GetInstallParentDirectoryName())
+                      .Append(kCredentialProviderFolder);
 
-  return sentienal_path.Append(version).AppendASCII(kSentinelFilename);
+  return sentinel_path.Append(version).AppendASCII(kSentinelFilename);
 }
 
 const base::win::i18n::LanguageSelector& GetLanguageSelector() {
@@ -204,8 +200,8 @@ void DeleteVersionDirectory(const base::FilePath& version_path) {
     }
 
     // Mark the file for deletion.
-    HRESULT hr = base::DeleteFile(path);
-    if (FAILED(hr)) {
+    bool deleted = base::DeleteFile(path);
+    if (!deleted) {
       LOGFN(ERROR) << "Could not delete " << path;
       all_deletes_succeeded = false;
     }
@@ -228,7 +224,6 @@ HRESULT GetGCPWDmTokenInternal(const std::wstring& sid,
   std::wstring store_key = kLsaKeyDMTokenPrefix + sid;
 
   auto policy = ScopedLsaPolicy::Create(POLICY_ALL_ACCESS);
-
   if (!policy) {
     HRESULT hr = HRESULT_FROM_WIN32(::GetLastError());
     LOGFN(ERROR) << "ScopedLsaPolicy::Create hr=" << putHR(hr);
@@ -372,9 +367,9 @@ void DeleteVersionsExcept(const base::FilePath& gcp_path,
 
 // StdParentHandles ///////////////////////////////////////////////////////////
 
-StdParentHandles::StdParentHandles() {}
+StdParentHandles::StdParentHandles() = default;
 
-StdParentHandles::~StdParentHandles() {}
+StdParentHandles::~StdParentHandles() = default;
 
 // ScopedStartupInfo //////////////////////////////////////////////////////////
 
@@ -869,6 +864,18 @@ HRESULT LookupLocalizedNameForWellKnownSid(WELL_KNOWN_SID_TYPE sid_type,
   return LookupLocalizedNameBySid(well_known_sid, localized_name);
 }
 
+bool IsSentinelOlderThanSetTime(const base::File::Info info) {
+  base::Time sentinel_time = info.last_modified;
+  base::Time current_time = base::Time::Now();
+
+  LOGFN(VERBOSE) << "Sentinel time: " << sentinel_time
+                 << " Current time: " << current_time;
+
+  return (current_time.ToDeltaSinceWindowsEpoch().InHours() -
+          sentinel_time.ToDeltaSinceWindowsEpoch().InHours()) >
+         kHoursToDisableGCPW;
+}
+
 bool WriteToStartupSentinel() {
   LOGFN(VERBOSE);
   // Always try to write to the startup sentinel file. If writing or opening
@@ -878,8 +885,10 @@ bool WriteToStartupSentinel() {
   // Each process will only write once to startup sentinel file.
 
   static volatile long sentinel_initialized = 0;
-  if (::InterlockedCompareExchange(&sentinel_initialized, 1, 0))
+  if (::InterlockedCompareExchange(&sentinel_initialized, 1, 0)) {
+    LOGFN(VERBOSE) << "Sentinel already initialized.";
     return true;
+  }
 
   base::FilePath startup_sentinel_path =
       GetStartupSentinelLocation(TEXT(CHROME_VERSION_STRING));
@@ -910,7 +919,13 @@ bool WriteToStartupSentinel() {
     if (startup_sentinel.GetLength() >= kMaxConsecutiveCrashCount) {
       LOGFN(ERROR) << "Sentinel file length indicates "
                    << startup_sentinel.GetLength() << " possible crashes";
-      return false;
+
+      base::File::Info info;
+      startup_sentinel.GetInfo(&info);
+
+      // Is sentinel older than kHoursToDisableGCPW hours? Then, enable GCPW
+      // again.
+      return IsSentinelOlderThanSetTime(info);
     }
 
     LOGFN(VERBOSE) << "Writing to sentinel. Current length="
@@ -923,15 +938,16 @@ bool WriteToStartupSentinel() {
 }
 
 void DeleteStartupSentinel() {
+  LOGFN(VERBOSE);
   DeleteStartupSentinelForVersion(TEXT(CHROME_VERSION_STRING));
 }
 
 void DeleteStartupSentinelForVersion(const std::wstring& version) {
   LOGFN(VERBOSE) << "Deleting sentinel for version " << version;
   base::FilePath startup_sentinel_path = GetStartupSentinelLocation(version);
-  if (base::PathExists(startup_sentinel_path) &&
-      !base::DeleteFile(startup_sentinel_path)) {
-    LOGFN(ERROR) << "Failed to delete sentinel file: " << startup_sentinel_path;
+  if (!base::DeleteFile(startup_sentinel_path)) {
+    LOGFN(ERROR) << "Could not delete sentinel file, maybe it doesn't exist: "
+                 << startup_sentinel_path;
   }
 }
 
@@ -1309,9 +1325,9 @@ HRESULT GetGCPWDmToken(const std::wstring& sid, std::wstring* token) {
   return GetGCPWDmTokenInternal(sid, token, false);
 }
 
-FakesForTesting::FakesForTesting() {}
+FakesForTesting::FakesForTesting() = default;
 
-FakesForTesting::~FakesForTesting() {}
+FakesForTesting::~FakesForTesting() = default;
 
 GURL GetGcpwServiceUrl() {
   std::wstring dev = GetGlobalFlagOrDefault(kRegDeveloperMode, L"");

@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-assert(is_win || is_mac || is_linux || is_chromeos || is_ohos)
+assert(is_win || is_mac || is_linux || is_chromeos)
 
 source_set("importer") {
   sources = [
@@ -26,6 +26,7 @@ source_set("importer") {
     "//components/favicon_base",
     "//components/history/core/browser",
     "//components/search_engines",
+    "//components/user_data_importer/common",
     "//mojo/public/cpp/bindings",
     "//ui/gfx",
     "//url",
@@ -47,6 +48,7 @@ source_set("impl") {
 
   deps = [
     ":importer",
+    "//chrome/browser:shell_integration",
     "//chrome/browser/favicon",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/search_engines",
@@ -76,6 +78,7 @@ source_set("browser_tests") {
   deps = [
     "//base",
     "//chrome/common/importer",
+    "//components/user_data_importer/common",
     "//testing/gtest",
   ]
 
@@ -123,6 +126,7 @@ source_set("unit_tests") {
     "//components/password_manager/core/common",
     "//components/prefs",
     "//components/query_parser",
+    "//components/user_data_importer/common",
     "//content/test:test_support",
     "//testing/gtest",
   ]

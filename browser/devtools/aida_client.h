@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <string>
+#include <variant>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -33,7 +34,7 @@ class AidaClient {
 
   void PrepareRequestOrFail(
       base::OnceCallback<
-          void(absl::variant<network::ResourceRequest, std::string>)> callback);
+          void(std::variant<network::ResourceRequest, std::string>)> callback);
   void RemoveAccessToken();
 
   // Needed because VariationsService is not available for unit tests.
@@ -55,6 +56,8 @@ class AidaClient {
     bool blocked_by_geo = true;
     bool blocked_by_rollout = false;
     bool disallow_logging = true;
+    DevToolsGenAiEnterprisePolicyValue enterprise_policy_value =
+        DevToolsGenAiEnterprisePolicyValue::kAllow;
   };
 
   static Availability CanUseAida(Profile* profile);
@@ -62,10 +65,10 @@ class AidaClient {
  private:
   void PrepareAidaRequest(
       base::OnceCallback<
-          void(absl::variant<network::ResourceRequest, std::string>)> callback);
+          void(std::variant<network::ResourceRequest, std::string>)> callback);
   void AccessTokenFetchFinished(
       base::OnceCallback<
-          void(absl::variant<network::ResourceRequest, std::string>)> callback,
+          void(std::variant<network::ResourceRequest, std::string>)> callback,
       GoogleServiceAuthError error,
       signin::AccessTokenInfo access_token_info);
 

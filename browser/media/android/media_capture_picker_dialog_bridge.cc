@@ -33,6 +33,7 @@ MediaCapturePickerDialogBridge::~MediaCapturePickerDialogBridge() {
 void MediaCapturePickerDialogBridge::Show(
     content::WebContents* web_contents,
     const std::u16string& app_name,
+    bool request_audio,
     MediaCapturePickerDialogCallback callback) {
   CHECK(web_contents);
   CHECK(callback_.is_null());
@@ -47,26 +48,39 @@ void MediaCapturePickerDialogBridge::Show(
   }
 
   Java_MediaCapturePickerDialogBridge_showDialog(
-      env, java_object_, window_android->GetJavaObject(),
-      base::android::ConvertUTF16ToJavaString(env, app_name));
+      env, java_object_, window_android->GetJavaObject(), app_name,
+      request_audio);
 }
 
-void MediaCapturePickerDialogBridge::OnResult(
+void MediaCapturePickerDialogBridge::OnPickTab(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& java_web_contents) {
-  content::DesktopMediaID desktop_media_id;
-
-  // If no web contents was selected to capture, return a null DesktopMediaID.
-  // TODO(crbug.com/352186941): Implement for window and screen sharing.
+    const base::android::JavaParamRef<jobject>& java_web_contents,
+    bool audio_share) {
   content::WebContents* web_contents =
       content::WebContents::FromJavaWebContents(java_web_contents);
-  if (web_contents) {
-    desktop_media_id = content::DesktopMediaID(
-        content::DesktopMediaID::TYPE_WEB_CONTENTS,
-        content::DesktopMediaID::kNullId,
-        content::WebContentsMediaCaptureId(
-            web_contents->GetPrimaryMainFrame()->GetProcess()->GetID(),
-            web_contents->GetPrimaryMainFrame()->GetRoutingID()));
-  }
+  CHECK(web_contents);
+  auto desktop_media_id = content::DesktopMediaID(
+      content::DesktopMediaID::TYPE_WEB_CONTENTS,
+      content::DesktopMediaID::kNullId,
+      content::WebContentsMediaCaptureId(
+          web_contents->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID(),
+          web_contents->GetPrimaryMainFrame()->GetRoutingID()));
+  desktop_media_id.audio_share = audio_share;
   std::move(callback_).Run(desktop_media_id);
+}
+
+void MediaCapturePickerDialogBridge::OnPickWindow(JNIEnv* env) {
+  auto desktop_media_id = content::DesktopMediaID(
+      content::DesktopMediaID::TYPE_WINDOW, content::DesktopMediaID::kNullId);
+  std::move(callback_).Run(desktop_media_id);
+}
+
+void MediaCapturePickerDialogBridge::OnPickScreen(JNIEnv* env) {
+  auto desktop_media_id = content::DesktopMediaID(
+      content::DesktopMediaID::TYPE_SCREEN, content::DesktopMediaID::kNullId);
+  std::move(callback_).Run(desktop_media_id);
+}
+
+void MediaCapturePickerDialogBridge::OnCancel(JNIEnv* env) {
+  std::move(callback_).Run({});
 }

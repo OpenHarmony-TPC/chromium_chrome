@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/autofill/autofill_bubble_handler.h"
 #include "components/autofill/core/browser/ui/payments/payments_ui_closed_reasons.h"
 #include "components/autofill/core/browser/ui/payments/save_payment_method_and_virtual_card_enroll_confirmation_ui_params.h"
+#include "components/signin/public/base/signin_buildflags.h"
 
 class PageActionIconView;
 class ToolbarButtonProvider;
@@ -26,7 +27,6 @@ class View;
 namespace autofill {
 class AutofillBubbleBase;
 class FilledCardInformationBubbleController;
-class LocalCardMigrationBubbleController;
 class SaveCardBubbleController;
 class IbanBubbleController;
 enum class IbanBubbleType;
@@ -52,28 +52,25 @@ class AutofillBubbleHandlerImpl : public AutofillBubbleHandler {
                                      bool is_user_gesture,
                                      IbanBubbleType bubble_type) override;
 
-  AutofillBubbleBase* ShowLocalCardMigrationBubble(
-      content::WebContents* web_contents,
-      LocalCardMigrationBubbleController* controller,
-      bool is_user_gesture) override;
   AutofillBubbleBase* ShowOfferNotificationBubble(
       content::WebContents* contents,
       OfferNotificationBubbleController* controller,
       bool is_user_gesture) override;
-  AutofillBubbleBase* ShowSaveAutofillPredictionImprovementsBubble(
+  AutofillBubbleBase* ShowSaveAutofillAiDataBubble(
       content::WebContents* web_contents,
-      SaveAutofillPredictionImprovementsController* controller) override;
+      autofill_ai::SaveOrUpdateAutofillAiDataController* controller) override;
   AutofillBubbleBase* ShowSaveAddressProfileBubble(
       content::WebContents* web_contents,
       std::unique_ptr<SaveAddressBubbleController> controller,
       bool is_user_gesture) override;
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  AutofillBubbleBase* ShowAddressSignInPromo(
+      content::WebContents* web_contents,
+      const AutofillProfile& autofill_profile) override;
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
   AutofillBubbleBase* ShowUpdateAddressProfileBubble(
       content::WebContents* web_contents,
       std::unique_ptr<UpdateAddressBubbleController> controller,
-      bool is_user_gesture) override;
-  AutofillBubbleBase* ShowAddNewAddressProfileBubble(
-      content::WebContents* web_contents,
-      std::unique_ptr<AddNewAddressBubbleController> controller,
       bool is_user_gesture) override;
   AutofillBubbleBase* ShowFilledCardInformationBubble(
       content::WebContents* web_contents,

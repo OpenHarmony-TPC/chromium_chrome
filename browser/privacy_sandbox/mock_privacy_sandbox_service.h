@@ -7,9 +7,14 @@
 
 #include <memory>
 
+#include "chrome/browser/privacy_sandbox/mock_queue_manager.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_countries.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/privacy_sandbox/privacy_sandbox_queue_manager.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace content {
 class BrowserContext;
@@ -38,10 +43,20 @@ class MockPrivacySandboxService : public PrivacySandboxService {
 #if !BUILDFLAG(IS_ANDROID)
   MOCK_METHOD(void,
               PromptOpenedForBrowser,
-              (Browser*, views::Widget*),
+              (BrowserWindowInterface*, views::Widget*),
               (override));
-  MOCK_METHOD(void, PromptClosedForBrowser, (Browser*), (override));
-  MOCK_METHOD(bool, IsPromptOpenForBrowser, (Browser*), (override));
+  MOCK_METHOD(void,
+              PromptClosedForBrowser,
+              (BrowserWindowInterface*),
+              (override));
+  MOCK_METHOD(bool,
+              IsPromptOpenForBrowser,
+              (BrowserWindowInterface*),
+              (override));
+  MOCK_METHOD(privacy_sandbox::PrivacySandboxQueueManager&,
+              GetPrivacySandboxNoticeQueueManager,
+              (),
+              (override));
 #endif  // !BUILDFLAG(IS_ANDROID)
   MOCK_METHOD(void, ForceChromeBuildForTests, (bool), (override));
   // Mock this method to enable opening the settings page in tests.
@@ -54,10 +69,6 @@ class MockPrivacySandboxService : public PrivacySandboxService {
               (const, override));
   MOCK_METHOD(bool,
               IsRelatedWebsiteSetsDataAccessManaged,
-              (),
-              (const, override));
-  MOCK_METHOD((base::flat_map<net::SchemefulSite, net::SchemefulSite>),
-              GetSampleRelatedWebsiteSets,
               (),
               (const, override));
   MOCK_METHOD(std::optional<net::SchemefulSite>,
@@ -108,6 +119,7 @@ class MockPrivacySandboxService : public PrivacySandboxService {
               PrivacySandboxPrivacyGuideShouldShowAdTopicsCard,
               (),
               (override));
+  MOCK_METHOD(bool, ShouldUsePrivacyPolicyChinaDomain, (), (override));
   MOCK_METHOD(void, TopicsToggleChanged, (bool), (const, override));
   MOCK_METHOD(bool, TopicsConsentRequired, (), (const, override));
   MOCK_METHOD(bool, TopicsHasActiveConsent, (), (const, override));
@@ -117,6 +129,10 @@ class MockPrivacySandboxService : public PrivacySandboxService {
               (const, override));
   MOCK_METHOD(base::Time, TopicsConsentLastUpdateTime, (), (const, override));
   MOCK_METHOD(std::string, TopicsConsentLastUpdateText, (), (const, override));
+
+ private:
+  std::unique_ptr<privacy_sandbox::MockPrivacySandboxQueueManager>
+      mock_queue_manager_;
 };
 
 std::unique_ptr<KeyedService> BuildMockPrivacySandboxService(

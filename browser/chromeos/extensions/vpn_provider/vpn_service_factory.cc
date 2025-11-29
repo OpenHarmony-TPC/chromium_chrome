@@ -49,8 +49,6 @@ VpnServiceFactory::VpnServiceFactory()
           "VpnService",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/40257657): Check if this service is needed in
-              // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
               // TODO(crbug.com/41488885): Check if this service is needed for
               // Ash Internals.
@@ -69,12 +67,13 @@ bool VpnServiceFactory::ServiceIsNULLWhileTesting() const {
   return true;
 }
 
-KeyedService* VpnServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+VpnServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   if (!VpnService::GetVpnService() || !IsContextForMainProfile(context)) {
     return nullptr;
   }
-  return new VpnService(context);
+  return std::make_unique<VpnService>(context);
 }
 
 }  // namespace chromeos

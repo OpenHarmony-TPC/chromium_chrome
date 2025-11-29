@@ -59,12 +59,20 @@
       </extension-controlled-indicator>
     </div>
   </template>
+  <template is="dom-if" if="[[isPasskeyUpgradeSettingsToggleVisible_]]">
+    <pref-toggle-button id="passkeyUpgradeToggle"
+        label="$i18n{passkeyUpgradeSettingsToggleLabel}"
+        sub-label="$i18n{passkeyUpgradeSettingsToggleSubLabel}"
+        pref="{{prefs.credentials_enable_automatic_passkey_upgrades}}"
+        hidden="[[!prefs.credentials_enable_service.value]]">
+    </pref-toggle-button>
+  </template>
   <pref-toggle-button id="autosigninToggle" class="hr"
       label="$i18n{autosigninLabel}"
       sub-label="$i18n{autosigninDescription}"
       pref="{{prefs.credentials_enable_autosignin}}">
   </pref-toggle-button>
-  <if expr="is_win or is_macosx or is_chromeos or is_ohos">
+  <if expr="is_win or is_macosx or is_chromeos">
     <template is="dom-if"
         if="[[isBiometricAuthenticationForFillingToggleVisible_]]">
       <pref-toggle-button id="biometricAuthenticationToggle" class="hr"
@@ -145,7 +153,7 @@
         on-click="onChangePasswordManagerPinRowClick_">
     </cr-link-row>
   </template>
-  <if expr="is_win or is_macosx or is_ohos">
+  <if expr="is_win or is_macosx">
     <template is="dom-if" if="[[hasPasskeys_]]" restamp>
       <cr-link-row id="managePasskeysRow" external
           class="cr-row settings-cr-link-row" on-click="onManagePasskeysClick_"
@@ -153,12 +161,9 @@
       </cr-link-row>
     </template>
   </if>
-  <template is="dom-if"
-      if="[[isDeleteAllPasswordManagerDataRowAvailable_]]" restamp>
-    <full-data-reset is-account-store-user="[[isAccountStoreUser]]"
-        is-syncing-passwords="[[isSyncingPasswords]]">
-    </full-data-reset>
-  </template>
+  <full-data-reset is-account-store-user="[[isAccountStoreUser]]"
+      is-syncing-passwords="[[isSyncingPasswords]]">
+  </full-data-reset>
 </div>
 <div hidden="[[!blockedSites_.length]]">
   <h3 id="blockedSitesTitle" class="page-title">$i18n{blockedSitesTitle}</h3>
@@ -186,12 +191,6 @@
     </div>
   </div>
 </div>
-<template is="dom-if" if="[[showMovePasswordsDialog_]]" restamp>
-  <move-passwords-dialog on-close="onMovePasswordsDialogClose_"
-      id="movePasswordsDialog" passwords="[[passwordsOnDevice_]]"
-      trigger="[[getMovePasswordsDialogTrigger_()]]">
-  </move-passwords-dialog>
-</template>
 <template is="dom-if" if="[[showDisconnectCloudAuthenticatorDialog_]]" restamp>
   <disconnect-cloud-authenticator-dialog id="disconnectCloudAuthenticatorDialog"
       on-close="onCloseDisconnectCloudAuthenticatorDialog_"

@@ -2,21 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-'chrome://settings/settings.js';
+import 'chrome://settings/settings.js';
 
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {FeatureOptInState, SettingsAiPageFeaturePrefName as PrefName} from 'chrome://settings/lazy_load.js';
-import type {CrLinkRowElement, SettingsToggleButtonElement, SettingsAiPageElement, SettingsPrefsElement} from 'chrome://settings/settings.js';
-import {AiPageInteractions, CrSettingsPrefs, loadTimeData, MetricsBrowserProxyImpl, resetRouterForTesting, Router, routes, OpenWindowProxyImpl} from 'chrome://settings/settings.js';
+import type {CrLinkRowElement, SettingsAiPageElement, SettingsPrefsElement} from 'chrome://settings/settings.js';
+import {AiPageInteractions, CrSettingsPrefs, loadTimeData, MetricsBrowserProxyImpl, OpenWindowProxyImpl, resetRouterForTesting, Router, routes} from 'chrome://settings/settings.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
-
-import {assertEquals, assertTrue, assertFalse} from 'chrome://webui-test/chai_assert.js';
 import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
-import {microtasksFinished, isChildVisible, isVisible} from 'chrome://webui-test/test_util.js';
+import {isChildVisible, isVisible} from 'chrome://webui-test/test_util.js';
 
 import {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
 
-suite('ExperimentalAdvancedPage', function() {
+suite('AiPage', function() {
   let metricsBrowserProxy: TestMetricsBrowserProxy;
   let openWindowProxy: TestOpenWindowProxy;
   let page: SettingsAiPageElement;
@@ -28,7 +26,10 @@ suite('ExperimentalAdvancedPage', function() {
     openWindowProxy = new TestOpenWindowProxy();
     OpenWindowProxyImpl.setInstance(openWindowProxy);
 
-    loadTimeData.overrideValues({showAdvancedFeaturesMainControl: true});
+    loadTimeData.overrideValues({
+      showAiPage: true,
+      showAiPageAiFeatureSection: true,
+    });
     settingsPrefs = document.createElement('settings-prefs');
     return CrSettingsPrefs.initialized;
   });
@@ -36,6 +37,7 @@ suite('ExperimentalAdvancedPage', function() {
   teardown(function() {
     Router.getInstance().resetRouteForTesting();
     metricsBrowserProxy.reset();
+    openWindowProxy.reset();
   });
 
   async function createPage() {
@@ -68,15 +70,17 @@ suite('ExperimentalAdvancedPage', function() {
   test('FeaturesVisibilityWithRefreshEnabled', async () => {
     // Case 1, a subset of the controls should be visible.
     loadTimeData.overrideValues({
+      showAutofillAiControl: true,
       showHistorySearchControl: false,
       showCompareControl: true,
       showComposeControl: true,
       showTabOrganizationControl: false,
-      showWallpaperSearchControl: false,
+      showPasswordChangeControl: false,
     });
     resetRouterForTesting();
     await createPage();
-    assertEquals(5, metricsBrowserProxy.getCallCount('recordBooleanHistogram'));
+
+    assertEquals(6, metricsBrowserProxy.getCallCount('recordBooleanHistogram'));
 
     assertFalse(isChildVisible(page, '#historySearchRowV2'));
     await verifyFeatureVisibilityMetrics(
@@ -94,15 +98,13 @@ suite('ExperimentalAdvancedPage', function() {
     await verifyFeatureVisibilityMetrics(
         'Settings.AiPage.ElementVisibility.TabOrganization', false);
 
-    assertFalse(isChildVisible(page, '#wallpaperSearchRowV2'));
+    assertTrue(isChildVisible(page, '#autofillAiRowV2'));
     await verifyFeatureVisibilityMetrics(
-        'Settings.AiPage.ElementVisibility.Themes', false);
+        'Settings.AiPage.ElementVisibility.AutofillAI', true);
 
-    // The old UI should not be visible if the refresh flag is enabled.
-    const toggles1 =
-        page.shadowRoot!.querySelectorAll('settings-toggle-button');
-    assertEquals(0, toggles1.length);
-    assertFalse(isChildVisible(page, '#historySearchRow'));
+    assertFalse(isChildVisible(page, '#passwordChangeRowV2'));
+    await verifyFeatureVisibilityMetrics(
+        'Settings.AiPage.ElementVisibility.PasswordChange', false);
 
     metricsBrowserProxy.resetResolver('recordBooleanHistogram');
 
@@ -112,15 +114,16 @@ suite('ExperimentalAdvancedPage', function() {
 
     // Case 2, a different subset of the controls should be visible.
     loadTimeData.overrideValues({
+      showAutofillAiControl: false,
       showHistorySearchControl: true,
       showCompareControl: false,
       showComposeControl: false,
       showTabOrganizationControl: true,
-      showWallpaperSearchControl: true,
+      showPasswordChangeControl: true,
     });
     resetRouterForTesting();
     await createPage();
-    assertEquals(5, metricsBrowserProxy.getCallCount('recordBooleanHistogram'));
+    assertEquals(6, metricsBrowserProxy.getCallCount('recordBooleanHistogram'));
 
     assertTrue(isChildVisible(page, '#historySearchRowV2'));
     await verifyFeatureVisibilityMetrics(
@@ -138,15 +141,13 @@ suite('ExperimentalAdvancedPage', function() {
     await verifyFeatureVisibilityMetrics(
         'Settings.AiPage.ElementVisibility.TabOrganization', true);
 
-    assertTrue(isChildVisible(page, '#wallpaperSearchRowV2'));
+    assertFalse(isChildVisible(page, '#autofillAiRowV2'));
     await verifyFeatureVisibilityMetrics(
-        'Settings.AiPage.ElementVisibility.Themes', true);
+        'Settings.AiPage.ElementVisibility.AutofillAI', false);
 
-    // The old UI should not be visible if the refresh flag is enabled.
-    const toggles2 =
-        page.shadowRoot!.querySelectorAll('settings-toggle-button');
-    assertEquals(0, toggles2.length);
-    assertFalse(isChildVisible(page, '#historySearchRow'));
+    assertTrue(isChildVisible(page, '#passwordChangeRowV2'));
+    await verifyFeatureVisibilityMetrics(
+        'Settings.AiPage.ElementVisibility.PasswordChange', true);
 
     metricsBrowserProxy.resetResolver('recordBooleanHistogram');
 
@@ -157,7 +158,7 @@ suite('ExperimentalAdvancedPage', function() {
 
   test('historySearchRow', async () => {
     loadTimeData.overrideValues({
-      showAdvancedFeaturesMainControl: true,
+      showAiPage: true,
       showHistorySearchControl: true,
     });
     resetRouterForTesting();
@@ -197,7 +198,7 @@ suite('ExperimentalAdvancedPage', function() {
 
   test('compareRow', async () => {
     loadTimeData.overrideValues({
-      showAdvancedFeaturesMainControl: true,
+      showAiPage: true,
       showCompareControl: true,
     });
     resetRouterForTesting();
@@ -220,7 +221,7 @@ suite('ExperimentalAdvancedPage', function() {
 
   test('composeRow', async () => {
     loadTimeData.overrideValues({
-      showAdvancedFeaturesMainControl: true,
+      showAiPage: true,
       showComposeControl: true,
     });
     resetRouterForTesting();
@@ -243,7 +244,7 @@ suite('ExperimentalAdvancedPage', function() {
 
   test('tabOrganizationRow', async () => {
     loadTimeData.overrideValues({
-      showAdvancedFeaturesMainControl: true,
+      showAiPage: true,
       showTabOrganizationControl: true,
     });
     resetRouterForTesting();
@@ -263,274 +264,54 @@ suite('ExperimentalAdvancedPage', function() {
         routes.AI_TAB_ORGANIZATION, Router.getInstance().getCurrentRoute());
   });
 
-  test('WallpaperSearchRow', async () => {
+  test('autofillAiRowClick', async () => {
     loadTimeData.overrideValues({
-      showWallpaperSearchControl: true,
+      showAutofillAiControl: true,
     });
     resetRouterForTesting();
+
     await createPage();
 
-    const wallpaperSearchRow =
-        page.shadowRoot!.querySelector<HTMLElement>('#wallpaperSearchRowV2');
-    assertTrue(!!wallpaperSearchRow);
-    assertTrue(isVisible(wallpaperSearchRow));
+    const autofillAiRow =
+        page.shadowRoot!.querySelector<HTMLElement>('#autofillAiRowV2');
+    assertTrue(!!autofillAiRow);
+    autofillAiRow.click();
 
-    wallpaperSearchRow.click();
     await verifyFeatureInteractionMetrics(
-        AiPageInteractions.WALLPAPER_SEARCH_CLICK,
-        'Settings.AiPage.ThemesEntryPointClick');
+        AiPageInteractions.AUTOFILL_AI_CLICK,
+        'Settings.AiPage.AutofillAIEntryPointClick');
+    assertEquals(routes.AUTOFILL_AI, Router.getInstance().getCurrentRoute());
+  });
+
+  test('PasswordChangeRow', async () => {
+    loadTimeData.overrideValues({
+      showPasswordChangeControl: true,
+    });
+    await createPage();
+
+    const passwordChangeRow =
+        page.shadowRoot!.querySelector<HTMLElement>('#passwordChangeRowV2');
+    assertTrue(!!passwordChangeRow);
+    assertTrue(isVisible(passwordChangeRow));
+
+    passwordChangeRow.click();
+    await verifyFeatureInteractionMetrics(
+        AiPageInteractions.PASSWORD_CHANGE_CLICK,
+        'Settings.AiPage.PasswordChangeEntryPointClick');
 
     const url = await openWindowProxy.whenCalled('openUrl');
-    assertEquals(url, loadTimeData.getString('wallpaperSearchLearnMoreUrl'));
-  });
-});
-
-// TODO(crbug.com/362225975): Remove after AiSettingsPageRefresh is launched.
-suite('ExperimentalAdvancedPageRefreshDisabled', () => {
-  let page: SettingsAiPageElement;
-  let settingsPrefs: SettingsPrefsElement;
-
-  suiteSetup(function() {
-    loadTimeData.overrideValues({enableAiSettingsPageRefresh: false});
-
-    settingsPrefs = document.createElement('settings-prefs');
-    return CrSettingsPrefs.initialized;
+    assertEquals(url, loadTimeData.getString('passwordChangeSettingsUrl'));
   });
 
-  function createPage() {
-    document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    page = document.createElement('settings-ai-page');
-    page.prefs = settingsPrefs.prefs;
-    document.body.appendChild(page);
-    flush();
-  }
-
-  // Test that interacting with the main toggle
-  //  - updates the corresponding pref
-  //  - updates the cr-collapse opened status
-  test('MainToggle', () => {
-    createPage();
-    page.setPrefValue(PrefName.MAIN, FeatureOptInState.NOT_INITIALIZED);
-
-    const mainToggle = page.shadowRoot!.querySelector('settings-toggle-button');
-    assertTrue(!!mainToggle);
-    const collapse = page.shadowRoot!.querySelector('cr-collapse');
-    assertTrue(!!collapse);
-
-    // Check NOT_INITIALIZED case.
-    assertFalse(mainToggle.checked);
-    assertFalse(collapse.opened);
-
-    // Check ENABLED case.
-    mainToggle.click();
-    assertEquals(FeatureOptInState.ENABLED, page.getPref(PrefName.MAIN).value);
-    assertTrue(mainToggle.checked);
-    assertTrue(collapse.opened);
-
-    // Check DISABLED case.
-    mainToggle.click();
-    assertEquals(FeatureOptInState.DISABLED, page.getPref(PrefName.MAIN).value);
-    assertFalse(mainToggle.checked);
-    assertFalse(collapse.opened);
-  });
-
-  test('FeaturesVisibility', async () => {
-    // Case 1, a subset of the controls should be visible.
+  test('NoPasswordChangeRowWhenFeatureDisabled', async () => {
     loadTimeData.overrideValues({
-      showComposeControl: true,
-      showTabOrganizationControl: false,
-      showWallpaperSearchControl: false,
-      showHistorySearchControl: false,
+      showPasswordChangeControl: false,
     });
-    createPage();
+    await createPage();
 
-    // Turn the main pref to ENABLED so that the cr-collapse holding the
-    // feature specific toggles is expanded.
-    page.setPrefValue(PrefName.MAIN, FeatureOptInState.ENABLED);
-    await microtasksFinished();
-
-    let toggles =
-        page.shadowRoot!.querySelectorAll('cr-collapse settings-toggle-button');
-    assertEquals(3, toggles.length);
-    assertTrue(isVisible(toggles[0]!));
-    assertFalse(isVisible(toggles[1]!));
-    assertFalse(isVisible(toggles[2]!));
-    assertFalse(isChildVisible(page, '#historySearchRow'));
-
-    // V2 UI should be hidden if refresh flag is disabled.
-    assertFalse(isChildVisible(page, '#historySearchRowV2'));
-    assertFalse(isChildVisible(page, '#compareRowV2'));
-    assertFalse(isChildVisible(page, '#composeRowV2'));
-    assertFalse(isChildVisible(page, '#tabOrganizationRowV2'));
-    assertFalse(isChildVisible(page, '#wallpaperSearchRowV2'));
-
-    // Case 2, a different subset of the controls should be visible.
-    loadTimeData.overrideValues({
-      showComposeControl: false,
-      showTabOrganizationControl: true,
-      showWallpaperSearchControl: true,
-      showHistorySearchControl: true,
-    });
-    createPage();
-
-    toggles =
-        page.shadowRoot!.querySelectorAll('cr-collapse settings-toggle-button');
-    assertEquals(3, toggles.length);
-    assertFalse(isVisible(toggles[0]!));
-    assertTrue(isVisible(toggles[1]!));
-    assertTrue(isVisible(toggles[2]!));
-    assertTrue(isChildVisible(page, '#historySearchRow'));
-
-    // V2 UI should be hidden if refresh flag is disabled.
-    assertFalse(isChildVisible(page, '#historySearchRowV2'));
-    assertFalse(isChildVisible(page, '#compareRowV2'));
-    assertFalse(isChildVisible(page, '#composeRowV2'));
-    assertFalse(isChildVisible(page, '#tabOrganizationRowV2'));
-    assertFalse(isChildVisible(page, '#wallpaperSearchRowV2'));
-  });
-
-  test('FeatureTogglesInteraction', () => {
-    loadTimeData.overrideValues({
-      showComposeControl: true,
-      showTabOrganizationControl: true,
-      showWallpaperSearchControl: true,
-      showHistorySearchControl: false,
-    });
-    createPage();
-    const toggles =
-        page.shadowRoot!.querySelectorAll<SettingsToggleButtonElement>(
-            'cr-collapse settings-toggle-button');
-    assertEquals(3, toggles.length);
-
-    for (const toggle of toggles) {
-      assertTrue(!!toggle.pref);
-      page.setPrefValue(toggle.pref.key, FeatureOptInState.NOT_INITIALIZED);
-      assertFalse(toggle.checked);
-    }
-
-    function assertPrefs(
-        value1: FeatureOptInState, value2: FeatureOptInState,
-        value3: FeatureOptInState) {
-      assertEquals(value1, page.getPref(PrefName.COMPOSE).value);
-      assertEquals(value2, page.getPref(PrefName.TAB_ORGANIZATION).value);
-      assertEquals(value3, page.getPref(PrefName.WALLPAPER_SEARCH).value);
-    }
-
-    // Check turning on toggles one by one.
-    toggles[0]!.click();
-    assertPrefs(
-        FeatureOptInState.ENABLED, FeatureOptInState.NOT_INITIALIZED,
-        FeatureOptInState.NOT_INITIALIZED);
-
-    toggles[1]!.click();
-    assertPrefs(
-        FeatureOptInState.ENABLED, FeatureOptInState.ENABLED,
-        FeatureOptInState.NOT_INITIALIZED);
-
-    toggles[2]!.click();
-    assertPrefs(
-        FeatureOptInState.ENABLED, FeatureOptInState.ENABLED,
-        FeatureOptInState.ENABLED);
-
-    // Check turning off toggles one by one.
-    toggles[0]!.click();
-    assertPrefs(
-        FeatureOptInState.DISABLED, FeatureOptInState.ENABLED,
-        FeatureOptInState.ENABLED);
-
-    toggles[1]!.click();
-    assertPrefs(
-        FeatureOptInState.DISABLED, FeatureOptInState.DISABLED,
-        FeatureOptInState.ENABLED);
-
-    toggles[2]!.click();
-    assertPrefs(
-        FeatureOptInState.DISABLED, FeatureOptInState.DISABLED,
-        FeatureOptInState.DISABLED);
-  });
-
-  test('FeaturesSeparators', () => {
-    // Asserts whether a separator is shown for each visible row.
-    function assertSeparatorsVisible(expected: boolean[]) {
-      const rows = page.shadowRoot!.querySelectorAll<HTMLElement>(
-          'cr-collapse settings-toggle-button:not([hidden]),' +
-          'cr-link-row:not([hidden])');
-
-      assertEquals(expected.length, rows.length);
-      expected.forEach((visible, i) => {
-        assertEquals(visible, rows[i]!.classList.contains('hr'));
-      });
-    }
-
-    // Case1: All rows visible.
-    loadTimeData.overrideValues({
-      showComposeControl: true,
-      showTabOrganizationControl: true,
-      showWallpaperSearchControl: true,
-      showHistorySearchControl: true,
-    });
-    createPage();
-    assertSeparatorsVisible([false, true, true, true]);
-
-    // Case2: Row 0 hidden.
-    loadTimeData.overrideValues({
-      showComposeControl: false,
-      showTabOrganizationControl: true,
-      showWallpaperSearchControl: true,
-      showHistorySearchControl: true,
-    });
-    createPage();
-    assertSeparatorsVisible([false, true, true]);
-
-    // Case3: Row 1 hidden.
-    loadTimeData.overrideValues({
-      showComposeControl: true,
-      showTabOrganizationControl: false,
-      showWallpaperSearchControl: true,
-      showHistorySearchControl: true,
-    });
-    createPage();
-    assertSeparatorsVisible([false, true, true]);
-
-    // Case4: Row 2 hidden.
-    loadTimeData.overrideValues({
-      showComposeControl: true,
-      showTabOrganizationControl: true,
-      showWallpaperSearchControl: false,
-      showHistorySearchControl: true,
-    });
-    createPage();
-    assertSeparatorsVisible([false, true, true]);
-
-    // Case5: Rows 0,1 hidden.
-    loadTimeData.overrideValues({
-      showComposeControl: false,
-      showTabOrganizationControl: false,
-      showWallpaperSearchControl: true,
-      showHistorySearchControl: true,
-    });
-    createPage();
-    assertSeparatorsVisible([false, true]);
-
-    // Case6: Rows 0,2 hidden.
-    loadTimeData.overrideValues({
-      showComposeControl: false,
-      showTabOrganizationControl: true,
-      showWallpaperSearchControl: false,
-      showHistorySearchControl: true,
-    });
-    createPage();
-    assertSeparatorsVisible([false, true]);
-
-    // Case7: Rows 0-3 hidden.
-    // History search always shows separator.
-    loadTimeData.overrideValues({
-      showComposeControl: false,
-      showTabOrganizationControl: false,
-      showWallpaperSearchControl: false,
-      showHistorySearchControl: true,
-    });
-    createPage();
-    assertSeparatorsVisible([true]);
+    const passwordChangeRow =
+        page.shadowRoot!.querySelector<HTMLElement>('#passwordChangeRowV2');
+    assertTrue(!!passwordChangeRow);
+    assertFalse(isVisible(passwordChangeRow));
   });
 });

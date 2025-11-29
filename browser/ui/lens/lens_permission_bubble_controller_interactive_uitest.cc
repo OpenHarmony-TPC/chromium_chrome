@@ -38,14 +38,15 @@ class LensPermissionBubbleInteractiveUiTest : public InteractiveBrowserTest {
   void SetUpOnMainThread() override {
     InteractiveBrowserTest::SetUpOnMainThread();
     controller_ = std::make_unique<lens::LensPermissionBubbleController>(
-        browser(), GetPrefService(), LensOverlayInvocationSource::kAppMenu);
+        *browser()->GetActiveTabInterface(), GetPrefService(),
+        LensOverlayInvocationSource::kAppMenu);
     request_permission_callback_called_ = false;
   }
 
   auto RequestPermission() {
     return Do(base::BindLambdaForTesting([&]() {
       controller_->RequestPermission(
-          browser()->tab_strip_model()->GetActiveTab()->contents(),
+          browser()->tab_strip_model()->GetActiveTab()->GetContents(),
           base::BindRepeating(
               &LensPermissionBubbleInteractiveUiTest::RequestPermissionCallback,
               base::Unretained(this)));

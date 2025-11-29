@@ -24,7 +24,7 @@ static_assert(static_cast<unsigned>(SupportedLanguage::kMaxValue) ==
                   static_cast<unsigned>(LanguagePackKey::kMaxValue) + 1,
               "Missmatching SupportedLanguage size and LanguagePackKey size");
 
-// The supported languages for on-device translation.
+// Map from `SupportedLanguage` to the language code.
 inline constexpr auto kSupportedLanguageCodeMap = base::MakeFixedFlatMap<
     SupportedLanguage,
     std::string_view>(
@@ -45,7 +45,9 @@ inline constexpr auto kSupportedLanguageCodeMap = base::MakeFixedFlatMap<
      {SupportedLanguage::kLt, "lt"},          {SupportedLanguage::kNo, "no"},
      {SupportedLanguage::kRo, "ro"},          {SupportedLanguage::kSk, "sk"},
      {SupportedLanguage::kSl, "sl"},          {SupportedLanguage::kSv, "sv"},
-     {SupportedLanguage::kUk, "uk"}});
+     {SupportedLanguage::kUk, "uk"},          {SupportedLanguage::kKn, "kn"},
+     {SupportedLanguage::kTa, "ta"},          {SupportedLanguage::kTe, "te"},
+     {SupportedLanguage::kMr, "mr"}});
 static_assert(std::size(kSupportedLanguageCodeMap) ==
                   static_cast<unsigned>(SupportedLanguage::kMaxValue) + 1,
               "All languages must be in kSupportedLanguageCodeMap.");
@@ -84,7 +86,9 @@ inline constexpr auto kSupportedLanguageCodeInverseMap = base::MakeFixedFlatMap<
      {"lt", SupportedLanguage::kLt},          {"no", SupportedLanguage::kNo},
      {"ro", SupportedLanguage::kRo},          {"sk", SupportedLanguage::kSk},
      {"sl", SupportedLanguage::kSl},          {"sv", SupportedLanguage::kSv},
-     {"uk", SupportedLanguage::kUk}});
+     {"uk", SupportedLanguage::kUk},          {"kn", SupportedLanguage::kKn},
+     {"ta", SupportedLanguage::kTa},          {"te", SupportedLanguage::kTe},
+     {"mr", SupportedLanguage::kMr}});
 static_assert(std::size(kSupportedLanguageCodeInverseMap) ==
                   static_cast<unsigned>(SupportedLanguage::kMaxValue) + 1,
               "All languages must be in kSupportedLanguageCodeInverseMap.");
@@ -96,27 +100,7 @@ LanguagePackKey LanguagePackKeyFromNonEnglishSupportedLanguage(
       static_cast<unsigned>(supported_language) - 1);
 }
 
-SupportedLanguage NonEnglishSupportedLanguageFromLanguagePackKey(
-    LanguagePackKey language_pack_key) {
-  return static_cast<SupportedLanguage>(
-      static_cast<unsigned>(language_pack_key) + 1);
-}
-
 }  // namespace
-
-bool IsPopularLanguage(SupportedLanguage supported_language) {
-  return supported_language == SupportedLanguage::kEn ||
-         supported_language == SupportedLanguage::kZh ||
-         supported_language == SupportedLanguage::kZhHant ||
-         supported_language == SupportedLanguage::kJa ||
-         supported_language == SupportedLanguage::kPt ||
-         supported_language == SupportedLanguage::kRu ||
-         supported_language == SupportedLanguage::kEs ||
-         supported_language == SupportedLanguage::kTr ||
-         supported_language == SupportedLanguage::kHi ||
-         supported_language == SupportedLanguage::kVi ||
-         supported_language == SupportedLanguage::kBn;
-}
 
 // Converts a SupportedLanguage to a language code.
 std::string_view ToLanguageCode(SupportedLanguage supported_language) {
@@ -131,6 +115,12 @@ std::optional<SupportedLanguage> ToSupportedLanguage(
     return it->second;
   }
   return std::nullopt;
+}
+
+SupportedLanguage NonEnglishSupportedLanguageFromLanguagePackKey(
+    LanguagePackKey language_pack_key) {
+  return static_cast<SupportedLanguage>(
+      static_cast<unsigned>(language_pack_key) + 1);
 }
 
 std::string GetComponentPathPrefName(

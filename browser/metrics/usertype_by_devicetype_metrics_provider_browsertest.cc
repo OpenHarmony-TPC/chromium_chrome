@@ -13,7 +13,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
 #include "chrome/browser/ash/app_mode/kiosk_test_helper.h"
-#include "chrome/browser/ash/app_mode/test/kiosk_session_initialized_waiter.h"
+#include "chrome/browser/ash/app_mode/test/kiosk_test_utils.h"
 #include "chrome/browser/ash/app_mode/test/scoped_device_settings.h"
 #include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_data.h"
 #include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_manager.h"
@@ -31,11 +31,11 @@
 #include "chrome/browser/browser_process_platform_part_ash.h"
 #include "chrome/test/base/fake_gaia_mixin.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
+#include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
 #include "components/metrics/metrics_service.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_store.h"
 #include "components/policy/core/common/cloud/test/policy_builder.h"
-#include "components/policy/core/common/device_local_account_type.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "content/public/test/browser_test.h"
 
@@ -43,10 +43,10 @@ namespace {
 
 namespace em = enterprise_management;
 using UserSegment = UserTypeByDeviceTypeMetricsProvider::UserSegment;
-using ash::KioskSessionInitializedWaiter;
 using ash::LoginScreenTestApi;
 using ash::ScopedDeviceSettings;
 using ash::WebKioskAppManager;
+using ash::kiosk::test::WaitKioskLaunched;
 using testing::InvokeWithoutArgs;
 
 const char kAccountId1[] = "dla1@example.com";
@@ -368,7 +368,7 @@ class UserTypeByDeviceTypeMetricsProviderTest
   void StartKioskApp() {
     PrepareAppLaunch();
     LaunchApp();
-    KioskSessionInitializedWaiter().Wait();
+    ASSERT_TRUE(WaitKioskLaunched());
   }
 
   void WaitForSessionStart() {

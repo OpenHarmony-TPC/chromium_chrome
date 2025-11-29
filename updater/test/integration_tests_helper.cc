@@ -58,7 +58,7 @@ constexpr int kBadCommand = 102;
 
 base::Value ValueFromString(const std::string& values) {
   std::optional<base::Value> results_value = base::JSONReader::Read(values);
-  EXPECT_TRUE(results_value);
+  EXPECT_TRUE(results_value) << values;
   return results_value->Clone();
 }
 
@@ -70,7 +70,7 @@ base::RepeatingCallback<bool(Args...)> WithSwitch(
     const base::CommandLine* command_line =
         base::CommandLine::ForCurrentProcess();
     if (command_line->HasSwitch(flag)) {
-      return callback.Run(command_line->GetSwitchValueASCII(flag),
+      return callback.Run(command_line->GetSwitchValueUTF8(flag),
                           std::move(args)...);
     }
     LOG(ERROR) << "Missing switch: " << flag;
@@ -301,7 +301,7 @@ void AppTestHelper::FirstTaskRun() {
                                    WithSwitch("update_url",
                                               Wrap(&EnterTestMode))))))))},
           {"exit_test_mode", WithSystemScope(Wrap(&ExitTestMode))},
-          {"set_group_policies", WithSwitch("values", Wrap(&SetGroupPolicies))},
+          {"set_dict_policies", WithSwitch("values", Wrap(&SetDictPolicies))},
           {"set_platform_policies",
            WithSwitch("values", Wrap(&SetPlatformPolicies))},
           {"set_machine_managed",
@@ -357,7 +357,13 @@ void AppTestHelper::FirstTaskRun() {
                                   WithSystemScope(Wrap(
                                       &ExpectLegacyAppCommandWebSucceeds))))))},
           {"expect_legacy_policy_status_succeeds",
-           WithSystemScope(Wrap(&ExpectLegacyPolicyStatusSucceeds))},
+           WithSwitch(
+               "updater_version",
+               WithSystemScope(Wrap(&ExpectLegacyPolicyStatusSucceeds)))},
+          {"legacy_install_app",
+           WithSwitch(
+               "app_version",
+               WithSwitch("app_id", WithSystemScope(Wrap(&LegacyInstallApp))))},
           {"run_uninstall_cmd_line",
            WithSystemScope(Wrap(&RunUninstallCmdLine))},
           {"run_handoff",
@@ -372,25 +378,29 @@ void AppTestHelper::FirstTaskRun() {
           {"install", WithSwitch("switches", WithSystemScope(Wrap(&Install)))},
           {"install_updater_and_app",
            WithSwitch(
-               "additional_switches",
+               "updater_path",
                WithSwitch(
-                   "wait_for_the_installer",
+                   "additional_switches",
                    WithSwitch(
-                       "expect_success",
+                       "expected_exit_code",
                        WithSwitch(
-                           "verify_app_logo_loaded",
+                           "wait_for_the_installer",
                            WithSwitch(
-                               "always_launch_cmd",
+                               "expect_success",
                                WithSwitch(
-                                   "child_window_text_to_find",
+                                   "verify_app_logo_loaded",
                                    WithSwitch(
-                                       "tag",
+                                       "always_launch_cmd",
                                        WithSwitch(
-                                           "is_silent_install",
+                                           "child_window_text_to_find",
                                            WithSwitch(
-                                               "app_id",
-                                               WithSystemScope(Wrap(
-                                                   &InstallUpdaterAndApp)))))))))))},
+                                               "tag",
+                                               WithSwitch(
+                                                   "is_silent_install",
+                                                   WithSwitch(
+                                                       "app_id",
+                                                       WithSystemScope(Wrap(
+                                                           &InstallUpdaterAndApp)))))))))))))},  // NOLINT
           {"print_log", WithSystemScope(Wrap(&PrintLog))},
           {"run_wake",
            WithSwitch("version", WithSwitch("exit_code",
@@ -410,6 +420,10 @@ void AppTestHelper::FirstTaskRun() {
                       WithSystemScope(Wrap(&RegisterAppByValue)))},
           {"check_for_update",
            (WithSwitch("app_id", WithSystemScope(Wrap(&CheckForUpdate))))},
+          {"expect_check_for_update_opposite_scope_fails",
+           (WithSwitch("app_id",
+                       WithSystemScope(
+                           Wrap(&ExpectCheckForUpdateOppositeScopeFails))))},
           {"update_all", WithSystemScope(Wrap(&UpdateAll))},
           {"get_app_states", WithSwitch("expected_app_states",
                                         WithSystemScope(Wrap(&GetAppStates)))},
@@ -437,8 +451,9 @@ void AppTestHelper::FirstTaskRun() {
           {"setup_fake_updater_lower_version",
            WithSystemScope(Wrap(&SetupFakeUpdaterLowerVersion))},
           {"setup_real_updater",
-           WithSwitch("updater_path",
-                      WithSystemScope(Wrap(&SetupRealUpdater)))},
+           WithSwitch("switches",
+                      WithSwitch("updater_path",
+                                 WithSystemScope(Wrap(&SetupRealUpdater))))},
           {"set_first_registration_counter",
            WithSwitch("value", WithSystemScope(Wrap(&SetServerStarts)))},
           {"stress_update_service",
@@ -475,14 +490,20 @@ void AppTestHelper::FirstTaskRun() {
           {"expect_last_checked", WithSystemScope(Wrap(&ExpectLastChecked))},
           {"expect_last_started", WithSystemScope(Wrap(&ExpectLastStarted))},
           {"run_offline_install",
-           WithSwitch("silent",
-                      WithSwitch("legacy_install",
-                                 WithSystemScope(Wrap(&RunOfflineInstall))))},
+           WithSwitch(
+               "installer_error",
+               WithSwitch("installer_result",
+                          WithSwitch("silent",
+                                     WithSwitch("legacy_install",
+                                                WithSystemScope(Wrap(
+                                                    &RunOfflineInstall))))))},
           {"run_offline_install_os_not_supported",
-           WithSwitch("silent",
-                      WithSwitch("legacy_install",
-                                 WithSystemScope(
-                                     Wrap(&RunOfflineInstallOsNotSupported))))},
+           WithSwitch(
+               "language",
+               WithSwitch("silent",
+                          WithSwitch("legacy_install",
+                                     WithSystemScope(Wrap(
+                                         &RunOfflineInstallOsNotSupported)))))},
           {"dm_push_enrollment_token",
            WithSwitch("enrollment_token", Wrap(DMPushEnrollmentToken))},
           {"dm_deregister_device", WithSystemScope(Wrap(&DMDeregisterDevice))},

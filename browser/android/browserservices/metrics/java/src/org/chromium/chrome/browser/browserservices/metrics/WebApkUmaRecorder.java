@@ -13,6 +13,8 @@ import androidx.annotation.IntDef;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.util.ConversionUtils;
 import org.chromium.components.content_settings.ContentSettingValues;
 import org.chromium.components.webapps.WebApkDistributor;
@@ -25,6 +27,7 @@ import java.lang.annotation.RetentionPolicy;
  * Centralizes UMA data collection for WebAPKs. NOTE: Histogram names and values are defined in
  * tools/metrics/histograms/histograms.xml. Please update that file if any change is made.
  */
+@NullMarked
 public class WebApkUmaRecorder {
     // This enum is used to back UMA histograms, and should therefore be treated as append-only.
     @IntDef({UpdateRequestSent.WHILE_WEBAPK_CLOSED})
@@ -224,12 +227,7 @@ public class WebApkUmaRecorder {
         RecordHistogram.recordCount100Histogram("WebApk.WebappRegistry.NumberOfOrigins", count);
     }
 
-    private static int roundByteToMb(long bytes) {
-        int mbs = (int) (bytes / (long) ConversionUtils.BYTES_PER_MEGABYTE / 10L * 10L);
-        return Math.min(1000, Math.max(-1000, mbs));
-    }
-
-    private static long getDirectorySizeInByte(File dir) {
+    private static long getDirectorySizeInByte(@Nullable File dir) {
         if (dir == null) return 0;
         if (!dir.isDirectory()) return dir.length();
 

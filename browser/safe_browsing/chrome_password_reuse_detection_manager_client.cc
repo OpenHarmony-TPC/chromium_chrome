@@ -16,9 +16,11 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/chrome_password_protection_service.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/autofill/autofill_client_provider.h"
 #include "chrome/browser/ui/autofill/autofill_client_provider_factory.h"
+#include "components/autofill/core/browser/logging/log_router.h"
 #include "components/password_manager/content/browser/password_manager_log_router_factory.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_sync_util.h"
@@ -102,6 +104,16 @@ void ChromePasswordReuseDetectionManagerClient::
   if (FromWebContents(contents)) {
     return;
   }
+  // For some SSO users that enforce browser sign-in, Chrome crashes.
+  // This early exit should be removed once a suitable test environment has been
+  // established and fix verified. crbug.com/405438533 tracks this.
+  if (signin_util::IsForceSigninEnabled()) {
+    base::UmaHistogramBoolean(
+        "PasswordProtection.SkipProfilePickerPasswordHashSaveAttempt", true);
+    return;
+  }
+  base::UmaHistogramBoolean(
+      "PasswordProtection.SkipProfilePickerPasswordHashSaveAttempt", false);
   // ChromePasswordReuseDetectionManagerClient depends on
   // ChromePasswordManagerClient for obtaining objects it needs to attempt
   // saving password hashes. ChromePasswordManagerClient depends on
@@ -183,7 +195,11 @@ void ChromePasswordReuseDetectionManagerClient::
 #endif  // BUILDFLAG(IS_ANDROID)
 
 autofill::LogManager*
-ChromePasswordReuseDetectionManagerClient::GetLogManager() {
+ChromePasswordReuseDetectionManagerClient::GetCurrentLogManager() {
+  if (!log_manager_ && log_router_ && log_router_->HasReceivers()) {
+    log_manager_ =
+        autofill::LogManager::Create(log_router_, base::RepeatingClosure());
+  }
   return log_manager_.get();
 }
 
@@ -272,9 +288,7 @@ void ChromePasswordReuseDetectionManagerClient::CheckProtectedPasswordEntry(
   auto* telemetry_service =
       safe_browsing::ExtensionTelemetryServiceFactory::GetForProfile(
           Profile::FromBrowserContext(browser_context));
-  if (!telemetry_service || !telemetry_service->enabled() ||
-      !base::FeatureList::IsEnabled(
-          safe_browsing::kExtensionTelemetryPotentialPasswordTheft)) {
+  if (!telemetry_service || !telemetry_service->enabled()) {
     return;
   }
   // Construct password reuse info.
@@ -308,13 +322,11 @@ ChromePasswordReuseDetectionManagerClient::
           *web_contents),
       password_reuse_detection_manager_(this),
       profile_(Profile::FromBrowserContext(web_contents->GetBrowserContext())),
+      log_router_(password_manager::PasswordManagerLogRouterFactory::
+                      GetForBrowserContext(profile_)),
       phishy_interaction_tracker_(
           safe_browsing::PhishyInteractionTracker(web_contents)),
       identity_manager_(identity_manager) {
-  log_manager_ = autofill::LogManager::Create(
-      password_manager::PasswordManagerLogRouterFactory::GetForBrowserContext(
-          profile_),
-      base::RepeatingClosure());
   // Expected to be non-null in prod only when instantiated from
   // CreateForProfilePickerWebContents.
   if (identity_manager_) {
@@ -329,7 +341,9 @@ void ChromePasswordReuseDetectionManagerClient::WebContentsDestroyed() {
 void ChromePasswordReuseDetectionManagerClient::PrimaryPageChanged(
     content::Page& page) {
   // Suspends logging on WebUI sites.
-  log_manager_->SetSuspended(web_contents()->GetWebUI() != nullptr);
+  if (GetCurrentLogManager()) {
+    log_manager_->SetSuspended(web_contents()->GetWebUI() != nullptr);
+  }
 
   password_reuse_detection_manager_.DidNavigateMainFrame(GetLastCommittedURL());
 
@@ -364,6 +378,7 @@ void ChromePasswordReuseDetectionManagerClient::OnPaste() {
 }
 
 void ChromePasswordReuseDetectionManagerClient::OnInputEvent(
+    const content::RenderWidgetHost& widget,
     const blink::WebInputEvent& event) {
   phishy_interaction_tracker_.HandleInputEvent(event);
 #if BUILDFLAG(IS_ANDROID)

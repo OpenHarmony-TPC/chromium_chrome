@@ -8,12 +8,14 @@ import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /** Used by the access loss warning UI to log metrics. */
+@NullMarked
 public class AccessLossWarningMetricsRecorder {
 
     // These values are persisted to logs. Entries should not be renumbered and
@@ -114,12 +116,6 @@ public class AccessLossWarningMetricsRecorder {
     public static void logExportFlowLastStepMetric(
             @PasswordAccessLossWarningType int warningType,
             @PasswordAccessLossWarningExportStep int exportStep) {
-        if (!ChromeFeatureList.isEnabled(
-                ChromeFeatureList
-                        .UNIFIED_PASSWORD_MANAGER_LOCAL_PASSWORDS_ANDROID_ACCESS_LOSS_WARNING)) {
-            // This metric should only be logged if the password access loss warning is shown.
-            return;
-        }
         RecordHistogram.recordEnumeratedHistogram(
                 getExportFlowFinalStepHistogramName(warningType),
                 exportStep,
@@ -151,7 +147,7 @@ public class AccessLossWarningMetricsRecorder {
                 + EXPORT_FLOW_FINAL_STEP_SUFFIX;
     }
 
-    private static String getAccessLossWarningTypeName(
+    private static @Nullable String getAccessLossWarningTypeName(
             @PasswordAccessLossWarningType int warningType) {
         switch (warningType) {
             case PasswordAccessLossWarningType.NO_GMS_CORE:

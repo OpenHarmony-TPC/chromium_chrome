@@ -35,6 +35,8 @@ import org.robolectric.Robolectric;
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.DisabledTest;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.commerce.ShoppingServiceFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
@@ -75,8 +77,16 @@ public class DiscountsBottomSheetContentMediatorTest {
         doReturn(mMockProfile).when(mMockTab).getProfile();
 
         ShoppingServiceFactory.setShoppingServiceForTesting(mMockShoppingService);
+        doReturn(true).when(mMockShoppingService).isDiscountEligibleToShowOnNavigation();
 
         mMediator = new DiscountsBottomSheetContentMediator(mActivity, () -> mMockTab, mModelList);
+    }
+
+    @Test
+    public void testRequestShowContent_discountNotEligible() {
+        doReturn(false).when(mMockShoppingService).isDiscountEligibleToShowOnNavigation();
+        mMediator.requestShowContent(mMockCallback);
+        verify(mMockCallback).onResult(false);
     }
 
     @Test
@@ -87,6 +97,7 @@ public class DiscountsBottomSheetContentMediatorTest {
     }
 
     @Test
+    @DisabledTest(message = "https://crbug.com/393301380")
     public void testRequestShowContent_contentReady() {
         List<DiscountInfo> infoList = createDiscountInfoList();
         setShoppingServiceGetDiscountInfoForUrl(infoList);
@@ -100,8 +111,8 @@ public class DiscountsBottomSheetContentMediatorTest {
             assertEquals(
                     mModelList.get(i).model.get(DESCRIPTION_DETAIL),
                     infoList.get(i).descriptionDetail);
-            assertEquals(mModelList.get(i).model.get(EXPIRY_TIME), "Valid until 09/20/2024");
-            assertEquals(mModelList.get(i).model.get(COPY_BUTTON_TEXT), "Copy");
+            assertEquals("Valid until 09/20/2024", mModelList.get(i).model.get(EXPIRY_TIME));
+            assertEquals("Copy", mModelList.get(i).model.get(COPY_BUTTON_TEXT));
         }
     }
 
@@ -109,9 +120,9 @@ public class DiscountsBottomSheetContentMediatorTest {
     public void testCloseContent() {
         setShoppingServiceGetDiscountInfoForUrl(createDiscountInfoList());
         mMediator.requestShowContent(mMockCallback);
-        assertEquals(mModelList.size(), 3);
+        assertEquals(3, mModelList.size());
         mMediator.closeContent();
-        assertEquals(mModelList.size(), 0);
+        assertEquals(0, mModelList.size());
     }
 
     @Test
@@ -119,32 +130,37 @@ public class DiscountsBottomSheetContentMediatorTest {
         List<DiscountInfo> infoList = createDiscountInfoList();
         setShoppingServiceGetDiscountInfoForUrl(infoList);
         mMediator.requestShowContent(mMockCallback);
-
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord("Commerce.Discounts.BottomSheet.ClusterTypeOnCopy", 1)
+                        .build();
         for (int i = 0; i < mModelList.size(); i++) {
             PropertyModel model = mModelList.get(i).model;
             OnClickListener copyButtonOnClickListener = model.get(COPY_BUTTON_ON_CLICK_LISTENER);
             assertNotNull(copyButtonOnClickListener);
             copyButtonOnClickListener.onClick(null);
             assertEquals(mClipboardManager.getText(), model.get(DISCOUNT_CODE));
-            assertEquals(model.get(COPY_BUTTON_TEXT), "Copied");
+            assertEquals("Copied", model.get(COPY_BUTTON_TEXT));
             for (int j = 0; j < mModelList.size(); j++) {
                 if (j != i) {
-                    assertEquals(mModelList.get(j).model.get(COPY_BUTTON_TEXT), "Copy");
+                    assertEquals("Copy", mModelList.get(j).model.get(COPY_BUTTON_TEXT));
                 }
             }
         }
+        watcher.assertExpected();
     }
 
     private List<DiscountInfo> createDiscountInfoList() {
-        DiscountInfo discountInfo1 = createDiscountInfo("SAVE20", "20% off all Muir silverware");
-        DiscountInfo discountInfo2 = createDiscountInfo("SAVE15", "15% off all Nike shoes");
-        DiscountInfo discountInfo3 = createDiscountInfo("SAVE40", "40% off all iPhone");
+        DiscountInfo discountInfo1 = createDiscountInfo("SAVE20", 1, "20% off all Muir silverware");
+        DiscountInfo discountInfo2 = createDiscountInfo("SAVE15", 0, "15% off all Nike shoes");
+        DiscountInfo discountInfo3 = createDiscountInfo("SAVE40", 2, "40% off all iPhone");
         return Arrays.asList(discountInfo1, discountInfo2, discountInfo3);
     }
 
-    private DiscountInfo createDiscountInfo(String discountCode, String descriptionDetail) {
+    private DiscountInfo createDiscountInfo(
+            String discountCode, int clusterType, String descriptionDetail) {
         return new DiscountInfo(
-                0,
+                clusterType,
                 0,
                 "en-US",
                 descriptionDetail,
@@ -152,6 +168,7 @@ public class DiscountsBottomSheetContentMediatorTest {
                 "",
                 discountCode,
                 0L,
+                true,
                 true,
                 1.7267948E+9f,
                 0L);

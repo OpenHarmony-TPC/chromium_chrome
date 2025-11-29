@@ -67,7 +67,7 @@ public class PriceTrackingNotificationBridge {
             long nativePriceTrackingNotificationBridge, Profile profile) {
         return new PriceTrackingNotificationBridge(
                 nativePriceTrackingNotificationBridge,
-                PriceDropNotifier.create(ContextUtils.getApplicationContext(), profile),
+                new PriceDropNotifier(profile),
                 PriceDropNotificationManagerFactory.create(profile));
     }
 
@@ -76,8 +76,15 @@ public class PriceTrackingNotificationBridge {
     void showNotification(byte[] payload) {
         // Price drop notification channel is created after the alert card UI is shown. If that
         // didn't happen, don't show the notification.
-        if (!mPriceDropNotificationManager.canPostNotification()) return;
+        mPriceDropNotificationManager.canPostNotification(
+                (canPost) -> {
+                    if (canPost) {
+                        showNotificationInternal(payload);
+                    }
+                });
+    }
 
+    private void showNotificationInternal(byte[] payload) {
         ChromeNotification chromeNotification = parseAndValidateChromeNotification(payload);
         if (chromeNotification == null) {
             Log.e(TAG, "Invalid ChromeNotification proto.");

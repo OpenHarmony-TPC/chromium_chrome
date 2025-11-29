@@ -29,6 +29,7 @@ import android.widget.TextView;
 
 import androidx.fragment.app.FragmentActivity;
 
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,13 +49,13 @@ import org.chromium.base.FileProviderUtils.FileProviderUtil;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Features.DisableFeatures;
-import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.access_loss.AccessLossWarningMetricsRecorder.PasswordAccessLossWarningExportStep;
 import org.chromium.chrome.browser.access_loss.PasswordAccessLossWarningType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.password_manager.FakePasswordManagerBackendSupportHelper;
 import org.chromium.chrome.browser.password_manager.FakePasswordManagerHandler;
+import org.chromium.chrome.browser.password_manager.PasswordManagerBackendSupportHelper;
 import org.chromium.chrome.browser.password_manager.PasswordManagerUtilBridge;
 import org.chromium.chrome.browser.password_manager.PasswordManagerUtilBridgeJni;
 import org.chromium.chrome.browser.password_manager.PasswordStoreBridge;
@@ -67,6 +68,7 @@ import org.chromium.components.browser_ui.test.BrowserUiDummyFragmentActivity;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.user_prefs.UserPrefsJni;
+import org.chromium.ui.widget.ToastManager;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -76,9 +78,7 @@ import java.io.OutputStream;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @DoNotBatch(reason = "The ReauthenticationManager setup should not leak between tests.")
-@EnableFeatures(
-        ChromeFeatureList.UNIFIED_PASSWORD_MANAGER_LOCAL_PASSWORDS_ANDROID_ACCESS_LOSS_WARNING)
-@DisableFeatures(ChromeFeatureList.UNIFIED_PASSWORD_MANAGER_LOCAL_PWD_MIGRATION_WARNING)
+@DisableFeatures({ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID})
 public class PasswordAccessLossExportDialogCoordinatorTest {
     private static final Uri TEMP_EXPORT_FILE_URI = Uri.parse("tmp/fake/test/path/file.ext");
     private static final Uri SAVED_EXPORT_FILE_URI = Uri.parse("fake/test/path/file.ext");
@@ -86,7 +86,6 @@ public class PasswordAccessLossExportDialogCoordinatorTest {
     private static final long TIME_PASSED_SINCE_LAST_AUTH_MINS = 1000L * 60 * 10;
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
-    @Rule public JniMocker mJniMocker = new JniMocker();
     private PasswordAccessLossExportDialogCoordinator mCoordinator;
     private FragmentActivity mActivity;
     @Mock private Profile mProfile;
@@ -102,12 +101,16 @@ public class PasswordAccessLossExportDialogCoordinatorTest {
     private FakePasswordManagerHandler mPasswordManagerHandler;
 
     public void setUp(@PasswordAccessLossWarningType int type) {
-        mJniMocker.mock(PasswordStoreBridgeJni.TEST_HOOKS, mPasswordStoreBridgeJniMock);
-        mJniMocker.mock(UserPrefsJni.TEST_HOOKS, mUserPrefsJniMock);
-        mJniMocker.mock(PasswordManagerUtilBridgeJni.TEST_HOOKS, mPasswordManagerUtilBridgeJniMock);
+        PasswordStoreBridgeJni.setInstanceForTesting(mPasswordStoreBridgeJniMock);
+        UserPrefsJni.setInstanceForTesting(mUserPrefsJniMock);
+        PasswordManagerUtilBridgeJni.setInstanceForTesting(mPasswordManagerUtilBridgeJniMock);
         when(mProfileProvider.getOriginalProfile()).thenReturn(mProfile);
         when(mProfile.getOriginalProfile()).thenReturn(mProfile);
         setUpAccessLossWarningType(type);
+        FakePasswordManagerBackendSupportHelper helper =
+                new FakePasswordManagerBackendSupportHelper();
+        helper.setBackendPresent(true);
+        PasswordManagerBackendSupportHelper.setInstanceForTesting(helper);
 
         mActivity =
                 Robolectric.buildActivity(BrowserUiDummyFragmentActivity.class)
@@ -118,6 +121,11 @@ public class PasswordAccessLossExportDialogCoordinatorTest {
         mCoordinator =
                 new PasswordAccessLossExportDialogCoordinator(
                         mActivity, mProfile, mPasswordsDeletionFinished);
+    }
+
+    @After
+    public void tearDown() {
+        ToastManager.resetForTesting();
     }
 
     private void setUpPasswordManagerHandler() {

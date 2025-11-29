@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.locale;
 import android.app.Activity;
 import android.content.Context;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ActivityState;
@@ -16,6 +15,10 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.library_loader.LibraryLoader;
+import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.ProfileManager;
@@ -37,6 +40,7 @@ import org.chromium.ui.base.PageTransition;
 
 import java.lang.ref.WeakReference;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Base class for defining methods where different behavior is required by downstream targets.
@@ -44,6 +48,7 @@ import java.util.List;
  * <p>The correct version of {@link LocaleManagerDelegate} will be determined at runtime by
  * ServiceLoader.
  */
+@NullMarked
 public class LocaleManagerDelegate {
     private static final String SPECIAL_LOCALE_ID = "US";
 
@@ -66,19 +71,24 @@ public class LocaleManagerDelegate {
     private @SearchEngineType int mIsSnackbarQueuedForDeviceSearchEngineType =
             SearchEngineType.SEARCH_ENGINE_UNKNOWN;
 
-    private LocaleTemplateUrlLoader mLocaleTemplateUrlLoader;
+    private @Nullable LocaleTemplateUrlLoader mLocaleTemplateUrlLoader;
     private DefaultSearchEngineDialogHelper.Delegate mSearchEngineHelperDelegate;
 
-    private SnackbarController mSnackbarController =
+    private final SnackbarController mSnackbarController =
             new SnackbarController() {
                 @Override
-                public void onDismissNoAction(Object actionData) {}
+                public void onDismissNoAction(@Nullable Object actionData) {}
 
                 @Override
-                public void onAction(Object actionData) {
+                public void onAction(@Nullable Object actionData) {
                     Context context = ContextUtils.getApplicationContext();
                     SettingsNavigationFactory.createSettingsNavigation()
                             .startSettings(context, SearchEngineSettings.class);
+                    if (Objects.equals(
+                            actionData, Snackbar.UMA_SEARCH_ENGINE_CHANGED_NOTIFICATION)) {
+                        RecordHistogram.recordBooleanHistogram(
+                                "Search.SearchEngineChangedSnackbar.SettingsTapped", true);
+                    }
                 }
             };
 
@@ -95,9 +105,11 @@ public class LocaleManagerDelegate {
 
     /**
      * Sets the delegate for {@link DefaultSearchEngineDialogHelper}.
+     *
      * @param delegate Delegate used to select/notify the default search engine.
      */
-    public void setDefaulSearchEngineDelegate(DefaultSearchEngineDialogHelper.Delegate delegate) {
+    @Initializer
+    public void setDefaultSearchEngineDelegate(DefaultSearchEngineDialogHelper.Delegate delegate) {
         mSearchEngineHelperDelegate = delegate;
     }
 
@@ -332,7 +344,9 @@ public class LocaleManagerDelegate {
                                 mSnackbarController,
                                 Snackbar.TYPE_NOTIFICATION,
                                 Snackbar.UMA_SEARCH_ENGINE_CHANGED_NOTIFICATION)
-                        .setAction(context.getString(R.string.settings), null)
+                        .setAction(
+                                context.getString(R.string.settings),
+                                Snackbar.UMA_SEARCH_ENGINE_CHANGED_NOTIFICATION)
                         .setDuration(SNACKBAR_DURATION_MS);
         manager.showSnackbar(snackbar);
     }

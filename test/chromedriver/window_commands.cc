@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "base/containers/adapters.h"
+#include "base/containers/flat_set.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -65,6 +66,11 @@ const double kDefaultCookieExpiryTime = 20*365*24*60*60;
 
 // for pointer actions
 enum class PointerActionType { NOT_INITIALIZED, PRESS, MOVE, RELEASE, IDLE };
+
+const base::flat_set<StatusCode> kNavigationHints = {
+    kNoSuchExecutionContext,
+    kAbortedByNavigation,
+};
 
 Status GetMouseButton(const base::Value::Dict& params, MouseButton* button) {
   // Default to left mouse button.
@@ -721,13 +727,13 @@ Status ExecuteWindowCommand(const WindowCommand& command,
     }
 
     status = command.Run(session, web_view, params, value, &timeout);
-    if (status.code() == kNoSuchExecutionContext) {
+    if (kNavigationHints.contains(status.code())) {
       // Navigation was detected while running the command. Retry.
       continue;
     }
     if (status.code() == kTimeout) {
       // If the command timed out, let WaitForPendingNavigations cancel
-      // the navigation if there is one.
+      // the navigation if there is any.
       continue;
     } else if (status.code() == kUnknownError && web_view->IsNonBlocking() &&
                status.message().find(kTargetClosedMessage) !=
@@ -768,10 +774,11 @@ Status ExecuteWindowCommand(const WindowCommand& command,
   if (status.code() == kUnexpectedAlertOpen_Keep) {
     return Status(kUnexpectedAlertOpen, status.message());
   }
-  if (status.code() == kNoSuchExecutionContext) {
+  if (kNavigationHints.contains(status.code())) {
     // The command has failed to run due to pending navigation three times.
-    // Giving up with an appropriate standard error.
-    return Status{kUnknownError, status};
+    // Returning a "timeout" error because infinite retries would, presumably,
+    // never end.
+    return Status{kTimeout, status};
   }
   return status;
 }
@@ -883,8 +890,8 @@ Status ExecuteNewWindow(Session* session,
                                        : Chrome::WindowType::kTab;
 
   std::string handle;
-  Status status =
-      session->chrome->NewWindow(session->window, window_type, true, &handle);
+  Status status = session->chrome->NewWindow(session->window, window_type, true,
+                                             session->w3c_compliant, &handle);
 
   if (status.IsError())
     return status;
@@ -1498,14 +1505,29 @@ Status ProcessInputActionSequence(Session* session,
           action_dict.Set("button", button_str);
         }
       } else if (*subtype == "pointerMove" || *subtype == "scroll") {
-        std::optional<int> x = action_item.FindInt("x");
-        if (!x.has_value())
-          return Status(kInvalidArgument, "'x' must be an int");
-        std::optional<int> y = action_item.FindInt("y");
-        if (!y.has_value())
-          return Status(kInvalidArgument, "'y' must be an int");
-        action_dict.Set("x", *x);
-        action_dict.Set("y", *y);
+        if (*subtype == "scroll") {
+          std::optional<int> x = action_item.FindInt("x");
+          if (!x.has_value()) {
+            return Status(kInvalidArgument, "'x' must be an int");
+          }
+          std::optional<int> y = action_item.FindInt("y");
+          if (!y.has_value()) {
+            return Status(kInvalidArgument, "'y' must be an int");
+          }
+          action_dict.Set("x", *x);
+          action_dict.Set("y", *y);
+        } else {
+          std::optional<double> x = action_item.FindDouble("x");
+          if (!x.has_value()) {
+            return Status(kInvalidArgument, "'x' must be a number");
+          }
+          std::optional<double> y = action_item.FindDouble("y");
+          if (!y.has_value()) {
+            return Status(kInvalidArgument, "'y' must be a number");
+          }
+          action_dict.Set("x", *x);
+          action_dict.Set("y", *y);
+        }
 
         const base::Value* origin_val = action_item.Find("origin");
         if (origin_val) {
@@ -2955,5 +2977,61 @@ Status ExecuteClearDevicePosture(Session* session,
                                  std::unique_ptr<base::Value>* value,
                                  Timeout* timeout) {
   return web_view->SendCommand("Emulation.clearDevicePostureOverride",
+                               base::Value::Dict());
+}
+
+Status ExecuteSetDisplayFeatures(Session* session,
+                                 WebView* web_view,
+                                 const base::Value::Dict& params,
+                                 std::unique_ptr<base::Value>* value,
+                                 Timeout* timeout) {
+  bool has_value;
+  const base::Value::List* features_list = nullptr;
+  if (!GetOptionalList(params, "features", &features_list, &has_value)) {
+    return Status(kInvalidArgument, "'features' must be an array");
+  }
+
+  if (!has_value) {
+    return Status(kInvalidArgument, "'features' must have a value");
+  }
+
+  for (const base::Value& feature : *features_list) {
+    if (!feature.is_dict()) {
+      return Status(kInvalidArgument, "a feature must be a dictionary");
+    }
+    const auto& feature_dict = feature.GetDict();
+    std::optional<int> mask = feature_dict.FindInt("maskLength");
+    if (!mask) {
+      return Status(kInvalidArgument,
+                    "a feature must contain the maskLength attribute");
+    } else if (mask.value() < 0) {
+      return Status(kInvalidArgument,
+                    "a feature must have a positive maskLength attribute");
+    }
+
+    std::optional<int> offset = feature_dict.FindInt("offset");
+    if (!offset) {
+      return Status(kInvalidArgument,
+                    "a feature must contain the offset attribute");
+    } else if (offset.value() < 0) {
+      return Status(kInvalidArgument,
+                    "a feature must have a positive offset attribute");
+    }
+
+    const std::string* orientation = feature_dict.FindString("orientation");
+    if (!orientation) {
+      return Status(kInvalidArgument,
+                    "a feature must contain the orientation attribute");
+    }
+  }
+  return web_view->SendCommand("Emulation.setDisplayFeaturesOverride", params);
+}
+
+Status ExecuteClearDisplayFeatures(Session* session,
+                                   WebView* web_view,
+                                   const base::Value::Dict& params,
+                                   std::unique_ptr<base::Value>* value,
+                                   Timeout* timeout) {
+  return web_view->SendCommand("Emulation.clearDisplayFeaturesOverride",
                                base::Value::Dict());
 }

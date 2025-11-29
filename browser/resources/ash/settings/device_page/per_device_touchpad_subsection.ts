@@ -8,7 +8,6 @@
  * per-device-touchpad subsection settings in system settings.
  */
 
-import '../icons.html.js';
 import '../settings_shared.css.js';
 import 'chrome://resources/ash/common/cr_elements/localized_link/localized_link.js';
 import 'chrome://resources/ash/common/cr_elements/cr_link_row/cr_link_row.js';
@@ -31,7 +30,6 @@ import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/pol
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {DeepLinkingMixin} from '../common/deep_linking_mixin.js';
-import {isRevampWayfindingEnabled} from '../common/load_time_booleans.js';
 import {RouteObserverMixin} from '../common/route_observer_mixin.js';
 import type {MousePolicies} from '../mojom-webui/input_device_settings.mojom-webui.js';
 import {MouseSettingsObserverReceiver} from '../mojom-webui/input_device_settings_provider.mojom-webui.js';
@@ -129,7 +127,7 @@ export class SettingsPerDeviceTouchpadSubsectionElement extends
         },
       },
 
-      simulateRightClickOptions: {
+      simulateRightClickOptions_: {
         readOnly: true,
         type: Array,
         value() {
@@ -181,13 +179,6 @@ export class SettingsPerDeviceTouchpadSubsectionElement extends
         readOnly: true,
       },
 
-      isRevampWayfindingEnabled_: {
-        type: Boolean,
-        value: () => {
-          return isRevampWayfindingEnabled();
-        },
-      },
-
       reverseScrollValue: {
         type: Boolean,
         value: false,
@@ -199,24 +190,6 @@ export class SettingsPerDeviceTouchpadSubsectionElement extends
       },
 
       touchpad: {type: Object},
-
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kTouchpadTapToClick,
-          Setting.kTouchpadTapDragging,
-          Setting.kTouchpadReverseScrolling,
-          Setting.kTouchpadAcceleration,
-          Setting.kTouchpadScrollAcceleration,
-          Setting.kTouchpadSpeed,
-          Setting.kTouchpadHapticFeedback,
-          Setting.kTouchpadHapticClickSensitivity,
-          Setting.kTouchpadSimulateRightClick,
-        ]),
-      },
 
       touchpadIndex: {
         type: Number,
@@ -268,6 +241,19 @@ export class SettingsPerDeviceTouchpadSubsectionElement extends
     }
   }
 
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kTouchpadTapToClick,
+    Setting.kTouchpadTapDragging,
+    Setting.kTouchpadReverseScrolling,
+    Setting.kTouchpadAcceleration,
+    Setting.kTouchpadScrollAcceleration,
+    Setting.kTouchpadSpeed,
+    Setting.kTouchpadHapticFeedback,
+    Setting.kTouchpadHapticClickSensitivity,
+    Setting.kTouchpadSimulateRightClick,
+  ]);
+
   private touchpad: Touchpad;
   private enableTapToClickPref: chrome.settingsPrivate.PrefObject;
   private enableTapDraggingPref: chrome.settingsPrivate.PrefObject;
@@ -283,9 +269,13 @@ export class SettingsPerDeviceTouchpadSubsectionElement extends
   private touchpadIndex: number;
   private isLastDevice: boolean;
   isAltClickAndSixPackCustomizationEnabled: boolean;
-  private isRevampWayfindingEnabled_: boolean;
   protected mice: Mouse[];
   private mouseSettingsObserverReceiver: MouseSettingsObserverReceiver;
+  private readonly hapticClickSensitivityValues_:
+      Array<{value: number, ariaValue: number}>;
+  private readonly sensitivityValues_: number[];
+  private readonly simulateRightClickOptions_:
+      Array<{value: number, name: string}>;
 
   constructor() {
     super();
@@ -412,27 +402,6 @@ export class SettingsPerDeviceTouchpadSubsectionElement extends
     return tempEl.innerHTML;
   }
 
-  private getTouchpadAccelerationDescription(): string {
-    if (this.isRevampWayfindingEnabled_) {
-      return this.i18n('touchpadAccelerationDescription');
-    }
-    return '';
-  }
-
-  private getTouchpadTapDraggingDescription(): string {
-    if (this.isRevampWayfindingEnabled_) {
-      return this.i18n('tapDraggingDescription');
-    }
-    return '';
-  }
-
-  private getTouchpadTapToClickDescription(): string {
-    if (this.isRevampWayfindingEnabled_) {
-      return this.i18n('touchpadTapToClickDescription');
-    }
-    return '';
-  }
-
   private isCompanionAppInstalled(): boolean {
     return this.touchpad.appInfo?.state === CompanionAppState.kInstalled;
   }
@@ -445,7 +414,12 @@ export class SettingsPerDeviceTouchpadSubsectionElement extends
   }
 
   private onDisabledTouchpadSettingsClick_(): void {
-    Router.getInstance().navigateTo(routes.A11Y_CURSOR_AND_TOUCHPAD);
+    const urlParams =
+        new URLSearchParams({settingId: Setting.kDisableTouchpad.toString()});
+    Router.getInstance().navigateTo(
+        routes.A11Y_CURSOR_AND_TOUCHPAD,
+        /* dynamicParams */ urlParams,
+    );
   }
 
   private isMouseConnected_(): boolean {

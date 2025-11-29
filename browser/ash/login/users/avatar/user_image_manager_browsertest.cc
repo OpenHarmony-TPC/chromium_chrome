@@ -64,13 +64,16 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/signin/public/identity_manager/signin_constants.h"
 #include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/test_helper.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_image/user_image.h"
 #include "components/user_manager/user_manager.h"
 #include "components/user_manager/user_type.h"
 #include "content/public/test/browser_test.h"
 #include "crypto/rsa_private_key.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -81,6 +84,8 @@
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/image/image_skia.h"
 #include "url/gurl.h"
+
+using signin::constants::kNoHostedDomainFound;
 
 namespace ash {
 namespace {
@@ -192,8 +197,7 @@ class UserImageManagerTestBase : public LoginManagerTest,
   // Logs in `account_id`.
   void LogIn(const AccountId& account_id) {
     user_manager::UserManager::Get()->UserLoggedIn(
-        account_id, account_id.GetUserEmail(), false /* browser_restart */,
-        false /* is_child */);
+        account_id, user_manager::TestHelper::GetFakeUsernameHash(account_id));
   }
 
   // Verifies user image info.
@@ -358,7 +362,6 @@ IN_PROC_BROWSER_TEST_F(UserImageManagerTest, PRE_SaveAndLoadUserImage) {
 
 // Ensures that the user image in JPEG format is loaded correctly.
 IN_PROC_BROWSER_TEST_F(UserImageManagerTest, SaveAndLoadUserImage) {
-  user_manager::UserManager::Get()->GetUsers();  // Load users.
   const user_manager::User* user =
       user_manager::UserManager::Get()->FindUser(test_account_id1_);
   ASSERT_TRUE(user);
@@ -518,7 +521,7 @@ IN_PROC_BROWSER_TEST_F(UserImageManagerTest, SaveUserImageFromProfileImage) {
 
 IN_PROC_BROWSER_TEST_F(UserImageManagerTest, ProfileImageSetForNewUser) {
   const AccountId account_id = AccountId::FromUserEmailGaiaId(
-      "testing-new-user@example.com", "testing-new-user-gaia-id");
+      "testing-new-user@example.com", GaiaId("testing-new-user-gaia-id"));
   SetupFakeGaia(account_id);
 
   UserContext user_context = {user_manager::UserType::kRegular, account_id};
@@ -594,7 +597,8 @@ class UserImageManagerPolicyTest : public UserImageManagerTestBase,
     ASSERT_TRUE(base::WriteFile(user_key_file, user_key_bits));
     user_policy_.policy_data().set_username(
         enterprise_account_id_.GetUserEmail());
-    user_policy_.policy_data().set_gaia_id(enterprise_account_id_.GetGaiaId());
+    user_policy_.policy_data().set_gaia_id(
+        enterprise_account_id_.GetGaiaId().ToString());
 
     policy_image_ = test::ImageLoader(test_data_dir_.Append(
                                           test::kUserAvatarImage2RelativePath))

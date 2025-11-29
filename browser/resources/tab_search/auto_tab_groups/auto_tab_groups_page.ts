@@ -52,23 +52,21 @@ export class AutoTabGroupsPageElement extends CrLitElement {
       state_: {type: Number},
       session_: {type: Object},
       showFRE_: {type: Boolean},
-      multiTabOrganization_: {type: Boolean},
       modelStrategy_: {type: Number, notify: true},
     };
   }
 
-  availableHeight: number = 0;
-  showBackButton: boolean = false;
+  accessor availableHeight: number = 0;
+  accessor showBackButton: boolean = false;
 
   private apiProxy_: TabSearchApiProxy = TabSearchApiProxyImpl.getInstance();
   private listenerIds_: number[] = [];
-  private state_: TabOrganizationState = TabOrganizationState.kInitializing;
-  protected session_: TabOrganizationSession|null = null;
-  protected showFRE_: boolean =
+  private accessor state_: TabOrganizationState =
+      TabOrganizationState.kInitializing;
+  protected accessor session_: TabOrganizationSession|null = null;
+  protected accessor showFRE_: boolean =
       loadTimeData.getBoolean('showTabOrganizationFRE');
-  protected multiTabOrganization_: boolean =
-      loadTimeData.getBoolean('multiTabOrganizationEnabled');
-  protected modelStrategy_: TabOrganizationModelStrategy =
+  protected accessor modelStrategy_: TabOrganizationModelStrategy =
       TabOrganizationModelStrategy.kTopic;
   private documentVisibilityChangedListener_: () => void;
   private futureState_: TabOrganizationState|null = null;
@@ -122,21 +120,15 @@ export class AutoTabGroupsPageElement extends CrLitElement {
     if (!this.session_ || this.session_.organizations.length === 0) {
       return;
     }
-    if (this.multiTabOrganization_) {
-      this.session_.organizations.forEach((organization: TabOrganization) => {
-        this.apiProxy_.rejectTabOrganization(
-            this.session_!.sessionId, organization.organizationId);
-      });
-    } else {
+    this.session_.organizations.forEach((organization: TabOrganization) => {
       this.apiProxy_.rejectTabOrganization(
-          this.session_.sessionId,
-          this.session_.organizations[0]!.organizationId);
-    }
+          this.session_!.sessionId, organization.organizationId);
+    });
   }
 
   override focus() {
     if (this.showBackButton) {
-      const backButton = this.shadowRoot!.querySelector('cr-icon-button')!;
+      const backButton = this.shadowRoot.querySelector('cr-icon-button')!;
       backButton.focus();
     } else {
       super.focus();
@@ -243,7 +235,7 @@ export class AutoTabGroupsPageElement extends CrLitElement {
 
   protected onBackClick_() {
     if (this.session_ && this.state_ !== TabOrganizationState.kNotStarted) {
-      this.apiProxy_.rejectSession(this.session_!.sessionId);
+      this.apiProxy_.rejectSession(this.session_.sessionId);
     } else {
       this.fire('back-click');
     }
@@ -289,27 +281,18 @@ export class AutoTabGroupsPageElement extends CrLitElement {
     if (!this.session_) {
       return;
     }
-    // Multi organization feedback is per-session, single organization feedback
-    // is per-organization.
-    let organizationId = -1;
-    if (!this.multiTabOrganization_) {
-      organizationId = this.session_.organizations[0]!.organizationId;
-    }
     switch (event.detail.value) {
       case CrFeedbackOption.UNSPECIFIED:
         this.apiProxy_.setUserFeedback(
-            this.session_!.sessionId, organizationId,
-            UserFeedback.kUserFeedBackUnspecified);
+            this.session_.sessionId, UserFeedback.kUserFeedBackUnspecified);
         break;
       case CrFeedbackOption.THUMBS_UP:
         this.apiProxy_.setUserFeedback(
-            this.session_!.sessionId, organizationId,
-            UserFeedback.kUserFeedBackPositive);
+            this.session_.sessionId, UserFeedback.kUserFeedBackPositive);
         break;
       case CrFeedbackOption.THUMBS_DOWN:
         this.apiProxy_.setUserFeedback(
-            this.session_!.sessionId, organizationId,
-            UserFeedback.kUserFeedBackNegative);
+            this.session_.sessionId, UserFeedback.kUserFeedBackNegative);
         break;
     }
     if (event.detail.value === CrFeedbackOption.THUMBS_DOWN) {
@@ -323,6 +306,10 @@ export class AutoTabGroupsPageElement extends CrLitElement {
     this.apiProxy_.setTabOrganizationModelStrategy(event.detail.value);
   }
 
+  protected onUserInstructionInputChange_(event: CustomEvent<{value: string}>) {
+    this.apiProxy_.setTabOrganizationUserInstruction(event.detail.value);
+  }
+
   protected getSessionError_(): TabOrganizationError {
     return this.session_?.error || TabOrganizationError.kNone;
   }
@@ -331,11 +318,7 @@ export class AutoTabGroupsPageElement extends CrLitElement {
     if (!this.session_) {
       return [];
     }
-    if (this.multiTabOrganization_) {
-      return this.session_.organizations;
-    } else {
-      return this.session_.organizations.slice(0, 1);
-    }
+    return this.session_.organizations;
   }
 
   private missingActiveTab_(): boolean {
@@ -383,15 +366,13 @@ export class AutoTabGroupsPageElement extends CrLitElement {
   private getSuccessTitle_(): string {
     if (this.missingActiveTab_()) {
       return loadTimeData.getString('successMissingActiveTabTitle');
-    } else if (this.multiTabOrganization_) {
+    } else {
       if (this.getOrganizations_().length > 1) {
         return loadTimeData.getStringF(
             'successTitleMulti', this.getOrganizations_().length);
       } else {
         return loadTimeData.getString('successTitleSingle');
       }
-    } else {
-      return loadTimeData.getString('successTitle');
     }
   }
 

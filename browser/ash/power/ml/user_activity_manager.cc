@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/power/ml/user_activity_manager.h"
 
 #include <cmath>
+#include <optional>
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
@@ -16,19 +17,18 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_event.h"
+#include "chrome/browser/ash/browser_delegate/browser_controller.h"
+#include "chrome/browser/ash/browser_delegate/browser_delegate.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/tab_contents/form_interaction_tab_helper.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "chromeos/constants/devicetype.h"
 #include "chromeos/dbus/power_manager/power_supply_properties.pb.h"
 #include "chromeos/ui/base/app_types.h"
 #include "chromeos/ui/base/window_properties.h"
+#include "components/prefs/pref_service.h"
 #include "components/site_engagement/content/site_engagement_service.h"
 #include "ui/aura/client/aura_constants.h"
 
@@ -292,6 +292,10 @@ void UserActivityManager::UpdateAndGetSmartDimDecision(
     waiting_for_model_decision_ = true;
     SmartDimMlAgent::GetInstance()->RequestDimDecision(
         features_, std::move(request_callback));
+  } else {
+    // Smart Dim feature is unsupported or disabled by policy => the dim
+    // decision defaults to false (i.e. do not defer screen dim).
+    std::move(callback).Run(false);
   }
 
   waiting_for_final_action_ = true;
@@ -299,25 +303,38 @@ void UserActivityManager::UpdateAndGetSmartDimDecision(
 
 void UserActivityManager::HandleSmartDimDecision(
     base::OnceCallback<void(bool)> callback,
-    UserActivityEvent::ModelPrediction prediction) {
+    std::optional<UserActivityEvent::ModelPrediction> prediction) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   waiting_for_model_decision_ = false;
+
+  if (!prediction.has_value()) {
+    // No decision from Smart Dim (e.g. it was canceled). Return default value
+    // (false means "allow dim") to the D-bus caller.
+    std::move(callback).Run(false);
+    return;
+  }
+
+  // Smart Dim model actually ran:
+
   const base::TimeDelta wait_time =
       base::TimeTicks::Now() - time_dim_decision_requested_;
   LogPowerMLSmartDimModelRequestComplete(wait_time);
   time_dim_decision_requested_ = base::TimeTicks();
+
   // Only defer the dim if the model predicts so and also if the dim was not
   // previously deferred.
-  if (prediction.response() == UserActivityEvent::ModelPrediction::NO_DIM &&
+  if (prediction->response() == UserActivityEvent::ModelPrediction::NO_DIM &&
       !dim_deferred_) {
     dim_deferred_ = true;
-    prediction.set_model_applied(true);
+    prediction->set_model_applied(true);
   } else {
     // Either model predicts dim or model fails, or it was previously dimmed.
+    // TODO(amoylan): Are the below in the wrong order?! dim_deferred_ has no
+    //                effect in the second line...
     dim_deferred_ = false;
-    prediction.set_model_applied(prediction.response() ==
-                                     UserActivityEvent::ModelPrediction::DIM &&
-                                 !dim_deferred_);
+    prediction->set_model_applied(prediction->response() ==
+                                      UserActivityEvent::ModelPrediction::DIM &&
+                                  !dim_deferred_);
   }
   model_prediction_ = prediction;
   std::move(callback).Run(dim_deferred_);
@@ -460,40 +477,31 @@ void UserActivityManager::ExtractFeatures(
 }
 
 TabProperty UserActivityManager::UpdateOpenTabURL() {
-  TabProperty property;
-
-  // Find the active tab in the visible focused or topmost browser.
-  for (Browser* browser : BrowserList::GetInstance()->OrderedByActivation()) {
-    if (!browser->window()->GetNativeWindow()->IsVisible())
-      continue;
-
-    // We only need the visible focused or topmost browser.
-    if (browser->profile()->IsOffTheRecord())
-      return property;
-
-    const TabStripModel* const tab_strip_model = browser->tab_strip_model();
-    DCHECK(tab_strip_model);
-
-    content::WebContents* contents = tab_strip_model->GetActiveWebContents();
-
-    if (contents) {
-      ukm::SourceId source_id =
-          contents->GetPrimaryMainFrame()->GetPageUkmSourceId();
-      if (source_id == ukm::kInvalidSourceId)
-        return property;
-
-      property.source_id = source_id;
-
-      // Domain could be empty.
-      property.domain = contents->GetLastCommittedURL().host();
-      // Engagement score could be -1 if engagement service is disabled.
-      property.engagement_score = GetRoundedOrInvalidEngagementScore(contents);
-      property.has_form_entry =
-          FormInteractionTabHelper::FromWebContents(contents)
-              ->had_form_interaction();
-    }
-    return property;
+  BrowserDelegate* browser =
+      BrowserController::GetInstance()->GetLastUsedVisibleBrowser();
+  if (!browser || browser->IsOffTheRecord()) {
+    return TabProperty{};
   }
+
+  content::WebContents* contents = browser->GetActiveWebContents();
+  if (!contents) {
+    return TabProperty{};
+  }
+
+  ukm::SourceId source_id =
+      contents->GetPrimaryMainFrame()->GetPageUkmSourceId();
+  if (source_id == ukm::kInvalidSourceId) {
+    return TabProperty{};
+  }
+
+  TabProperty property;
+  property.source_id = source_id;
+  // Domain could be empty.
+  property.domain = contents->GetLastCommittedURL().host();
+  // Engagement score could be -1 if engagement service is disabled.
+  property.engagement_score = GetRoundedOrInvalidEngagementScore(contents);
+  property.has_form_entry = FormInteractionTabHelper::FromWebContents(contents)
+                                ->had_form_interaction();
   return property;
 }
 

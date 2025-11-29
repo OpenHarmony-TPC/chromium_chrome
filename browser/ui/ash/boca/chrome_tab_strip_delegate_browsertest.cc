@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/ash/boca/chrome_tab_strip_delegate.h"
 
 #include "ash/constants/ash_features.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/apps/platform_apps/app_browsertest_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -38,7 +39,8 @@ class ChromeTabStripDelegateBrowserTest
 
   void SetUp() override {
     scoped_feature_list_.InitWithFeatures(
-        {ash::features::kBoca, ash::features::kBocaConsumer},
+        {ash::features::kBoca, ash::features::kBocaConsumer,
+         ash::features::kOnDeviceSpeechRecognition},
         /*disabled_features=*/{});
     extensions::PlatformAppBrowserTest::SetUp();
   }
@@ -70,6 +72,7 @@ class ChromeTabStripDelegateBrowserTest
     EXPECT_EQ(base::UTF8ToUTF16(title), tab.title);
     EXPECT_EQ(url, tab.url);
     EXPECT_GT(tab.last_access_timetick, base::TimeTicks());
+    EXPECT_GT(tab.id, 0);
   }
 
  private:

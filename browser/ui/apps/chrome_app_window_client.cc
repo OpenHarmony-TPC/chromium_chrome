@@ -10,7 +10,6 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/singleton.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/devtools_agent_host.h"
@@ -53,7 +52,7 @@ std::unique_ptr<extensions::NativeAppWindow>
 ChromeAppWindowClient::CreateNativeAppWindow(
     extensions::AppWindow* window,
     extensions::AppWindow::CreateParams* params) {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_OHOS)
+#if BUILDFLAG(IS_ANDROID)
   return nullptr;
 #else
   return base::WrapUnique(CreateNativeAppWindowImpl(window, *params));
@@ -70,10 +69,11 @@ void ChromeAppWindowClient::OpenDevToolsWindow(
 
   DevToolsWindow* devtools_window =
       DevToolsWindow::FindDevToolsWindow(agent.get());
-  if (devtools_window)
+  if (devtools_window) {
     devtools_window->SetLoadCompletedCallback(std::move(callback));
-  else
+  } else {
     std::move(callback).Run();
+  }
 }
 
 bool ChromeAppWindowClient::IsCurrentChannelOlderThanDev() {

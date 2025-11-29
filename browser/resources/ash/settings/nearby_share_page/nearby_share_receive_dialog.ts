@@ -19,7 +19,6 @@
  *  - showConfirmPage()
  */
 
-import '/shared/settings/prefs/prefs.js';
 import 'chrome://resources/ash/common/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/ash/common/cr_elements/cr_dialog/cr_dialog.js';
 import 'chrome://resources/ash/common/cr_elements/cr_view_manager/cr_view_manager.js';
@@ -66,7 +65,7 @@ export class NearbyShareReceiveDialogElement extends PolymerElement {
   static get properties() {
     return {
       /** Mirroring the enum to allow usage in Polymer HTML bindings. */
-      Page: {
+      PageEnum_: {
         type: Object,
         value: Page,
       },

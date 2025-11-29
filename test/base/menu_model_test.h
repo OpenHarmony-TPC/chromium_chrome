@@ -12,22 +12,22 @@
 // testing::Test to provide some extra functionality for testing menu models.
 class MenuModelTest {
  public:
-  MenuModelTest() {}
-  virtual ~MenuModelTest() {}
+  MenuModelTest() = default;
+  virtual ~MenuModelTest() = default;
 
  protected:
   // A menu delegate that counts the number of times certain things are called
   // to make sure things are hooked up properly.
   class Delegate : public ui::SimpleMenuModel::Delegate {
    public:
-    Delegate() : execute_count_(0), enable_count_(0) {}
+    Delegate() = default;
 
     bool IsCommandIdChecked(int command_id) const override;
     bool IsCommandIdEnabled(int command_id) const override;
     void ExecuteCommand(int command_id, int event_flags) override;
 
-    int execute_count_;
-    mutable int enable_count_;
+    int execute_count_ = 0;
+    mutable int enable_count_ = 0;
   };
 
   // Recursively checks the enabled state and executes a command on every item

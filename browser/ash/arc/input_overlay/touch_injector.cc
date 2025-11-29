@@ -245,6 +245,12 @@ TouchInjector::TouchInjector(aura::Window* top_level_window,
       save_file_callback_(save_file_callback) {}
 
 TouchInjector::~TouchInjector() {
+  if (!played_with_game_controls_) {
+    // Record the game never played with Game Controls before shutting down the
+    // game.
+    RecordPlayGameWithGameControls(package_name_,
+                                   /*played_with_game_controls=*/false);
+  }
   UnRegisterEventRewriter();
 }
 
@@ -294,10 +300,6 @@ void TouchInjector::UnRegisterEventRewriter() {
   }
   DispatchTouchReleaseEvent();
   observation_.Reset();
-  // Need reset pending input bind if it is unregistered in edit mode.
-  for (auto& action : actions_) {
-    action->ResetPendingBind();
-  }
   OnSaveProtoFile();
 }
 
@@ -313,20 +315,12 @@ void TouchInjector::OnInputBindingChange(
     overlapped_action->UnbindInput(*input_element);
   }
 
-  target_action->PrepareToBindInput(std::move(input_element));
+  target_action->BindInput(std::move(input_element));
 
   if (overlapped_action) {
-    overlapped_action->BindPending();
     NotifyActionInputBindingUpdated(*overlapped_action);
   }
-  target_action->BindPending();
   NotifyActionInputBindingUpdated(*target_action);
-}
-
-void TouchInjector::OnApplyPendingBinding() {
-  for (auto& action : actions_) {
-    action->BindPending();
-  }
 }
 
 void TouchInjector::OnBindingSave() {
@@ -379,8 +373,7 @@ void TouchInjector::MaybeBindDefaultInputElement(Action* action) {
   if (auto* overlapped_action = FindActionWithOverlapInputElement(
           actions_, /*target_action=*/action, *input_element);
       !overlapped_action) {
-    action->PrepareToBindInput(std::move(input_element));
-    action->BindPending();
+    action->BindInput(std::move(input_element));
     NotifyActionInputBindingUpdated(*action);
   }
 }
@@ -561,6 +554,14 @@ ui::EventDispatchDetails TouchInjector::RewriteEvent(
     }
 
     has_pending_touch_events_ = true;
+
+    if (!played_with_game_controls_) {
+      played_with_game_controls_ = true;
+      // Record once only when it is played with Game Controls for the first
+      // time.
+      RecordPlayGameWithGameControls(package_name_,
+                                     /*played_with_game_controls=*/true);
+    }
 
     if (keep_original_event) {
       SendExtraEvent(continuation, event);

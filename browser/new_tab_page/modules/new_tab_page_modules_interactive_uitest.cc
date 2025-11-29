@@ -9,9 +9,15 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/new_tab_page/modules/modules_switches.h"
 #include "chrome/browser/new_tab_page/modules/test_support.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "chrome/test/interaction/webcontents_interaction_test_util.h"
+#include "components/policy/core/browser/browser_policy_connector.h"
+#include "components/policy/core/common/mock_configuration_policy_provider.h"
+#include "components/policy/policy_constants.h"
+#include "components/prefs/pref_service.h"
 #include "components/search/ntp_features.h"
 #include "content/public/test/browser_test.h"
 
@@ -20,10 +26,10 @@ namespace {
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewTabPageElementId);
 
 using DeepQuery = WebContentsInteractionTestUtil::DeepQuery;
-const DeepQuery kModulesV2Container = {"ntp-app", "ntp-modules-v2",
-                                       "#container"};
-const DeepQuery kModulesV2Wrapper = {"ntp-app", "ntp-modules-v2", "#container",
+const DeepQuery kModulesV2Container = {"ntp-app", "ntp-modules", "#container"};
+const DeepQuery kModulesV2Wrapper = {"ntp-app", "ntp-modules", "#container",
                                      "ntp-module-wrapper"};
+const DeepQuery kMicrosoftAuthIframe = {"ntp-app", "#microsoftAuth"};
 
 struct ModuleLink {
   const DeepQuery query;
@@ -45,20 +51,19 @@ ModuleDetails kMostRelevantTabResumptionModuleDetails = {
     ntp_features::kNtpMostRelevantTabResumptionModule,
     {{ntp_features::kNtpMostRelevantTabResumptionModule,
       {{ntp_features::kNtpMostRelevantTabResumptionModuleDataParam,
-        "Fake Data"}}},
-     {ntp_features::kNtpModulesRedesigned, {}}},
-    {"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+        "Fake Data"}}}},
+    {"ntp-app", "ntp-modules", "ntp-module-wrapper",
      "ntp-most-relevant-tab-resumption"},
-    {"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+    {"ntp-app", "ntp-modules", "ntp-module-wrapper",
      "ntp-most-relevant-tab-resumption", "ntp-module-header-v2", "#menuButton"},
-    {"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+    {"ntp-app", "ntp-modules", "ntp-module-wrapper",
      "ntp-most-relevant-tab-resumption", "ntp-module-header-v2",
      "cr-action-menu", "dialog"},
-    {"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+    {"ntp-app", "ntp-modules", "ntp-module-wrapper",
      "ntp-most-relevant-tab-resumption", "ntp-module-header-v2", "#dismiss"},
-    {"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+    {"ntp-app", "ntp-modules", "ntp-module-wrapper",
      "ntp-most-relevant-tab-resumption", "ntp-module-header-v2", "#disable"},
-    {{{"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+    {{{"ntp-app", "ntp-modules", "ntp-module-wrapper",
        "ntp-most-relevant-tab-resumption", "#urlVisits", "a"},
       "https://www.google.com"}},
 };
@@ -66,31 +71,30 @@ ModuleDetails kMostRelevantTabResumptionModuleDetails = {
 ModuleDetails kGoogleCalendarModuleDetails = {
     ntp_features::kNtpCalendarModule,
     {{ntp_features::kNtpCalendarModule,
-      {{ntp_features::kNtpCalendarModuleDataParam, "fake"}}},
-     {ntp_features::kNtpModulesRedesigned, {}}},
-    {"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+      {{ntp_features::kNtpCalendarModuleDataParam, "fake"}}}},
+    {"ntp-app", "ntp-modules", "ntp-module-wrapper",
      "ntp-google-calendar-module"},
-    {"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+    {"ntp-app", "ntp-modules", "ntp-module-wrapper",
      "ntp-google-calendar-module", "ntp-module-header-v2", "#menuButton"},
-    {"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+    {"ntp-app", "ntp-modules", "ntp-module-wrapper",
      "ntp-google-calendar-module", "ntp-module-header-v2", "cr-action-menu",
      "dialog"},
-    {"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+    {"ntp-app", "ntp-modules", "ntp-module-wrapper",
      "ntp-google-calendar-module", "ntp-module-header-v2", "#dismiss"},
-    {"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+    {"ntp-app", "ntp-modules", "ntp-module-wrapper",
      "ntp-google-calendar-module", "ntp-module-header-v2", "#disable"},
-    {{{"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+    {{{"ntp-app", "ntp-modules", "ntp-module-wrapper",
        "ntp-google-calendar-module", "ntp-calendar", "ntp-calendar-event",
        "#header"},
       "https://foo.com/0"},
-     {{"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+     {{"ntp-app", "ntp-modules", "ntp-module-wrapper",
        "ntp-google-calendar-module", "ntp-calendar", "#seeMore", "a"},
       "https://calendar.google.com"},
-     {{"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+     {{"ntp-app", "ntp-modules", "ntp-module-wrapper",
        "ntp-google-calendar-module", "ntp-calendar", "ntp-calendar-event",
        "cr-chip"},
       "https://foo.com/attachment0"},
-     {{"ntp-app", "ntp-modules-v2", "ntp-module-wrapper",
+     {{"ntp-app", "ntp-modules", "ntp-module-wrapper",
        "ntp-google-calendar-module", "ntp-calendar", "ntp-calendar-event",
        "cr-button"},
       "https://foo.com/conference0"}},
@@ -136,6 +140,16 @@ class NewTabPageModulesInteractiveUiBaseTest : public InteractiveBrowserTest {
                                      GURL(chrome::kChromeUINewTabPageURL)),
                  WaitForWebContentsReady(kNewTabPageElementId,
                                          GURL(chrome::kChromeUINewTabPageURL)));
+  }
+
+  InteractiveTestApi::MultiStep WaitForElementToLoad(
+      const WebContentsInteractionTestUtil::DeepQuery& element) {
+    DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kElementLoaded);
+    WebContentsInteractionTestUtil::StateChange element_loaded;
+    element_loaded.event = kElementLoaded;
+    element_loaded.where = element;
+    element_loaded.test_function = "(el) => { return el !== null; }";
+    return WaitForStateChange(kNewTabPageElementId, element_loaded);
   }
 
   InteractiveTestApi::MultiStep WaitForElementToRender(
@@ -222,8 +236,11 @@ INSTANTIATE_TEST_SUITE_P(All,
                          NewTabPageModulesInteractiveUiTest,
                          ::testing::ValuesIn(kAllModules));
 
+// TODO(crbug.com/416206296): Re-enable once we have a workaround for querying
+// the `module_wrapper.html` slotted element.
+// @see chrome/browser/resources/new_tab_page/modules/module_wrapper.html
 IN_PROC_BROWSER_TEST_P(NewTabPageModulesInteractiveUiTest,
-                       ClickingHideButtonDismissesModule) {
+                       DISABLED_ClickingHideButtonDismissesModule) {
   RunTestSequence(
       // 1. Wait for new tab page to load.
       LoadNewTabPage(),
@@ -254,8 +271,11 @@ IN_PROC_BROWSER_TEST_P(NewTabPageModulesInteractiveUiTest,
       WaitForElementChildElementCount(kModulesV2Container, 0));
 }
 
+// TODO(crbug.com/416206296): Re-enable once we have a workaround for querying
+// the `module_wrapper.html` slotted element.
+// @see chrome/browser/resources/new_tab_page/modules/module_wrapper.html
 IN_PROC_BROWSER_TEST_P(NewTabPageModulesInteractiveUiTest,
-                       ClickingDisableButtonDisablesModule) {
+                       DISABLED_ClickingDisableButtonDisablesModule) {
   const auto& module_details = ModuleDetails();
   RunTestSequence(
       // 1. Wait for new tab page to load.
@@ -319,8 +339,11 @@ INSTANTIATE_TEST_SUITE_P(All,
                          ::testing::ValuesIn(GetAllModuleLinks(kAllModules)));
 #endif
 
+// TODO(crbug.com/416206296): Re-enable once we have a workaround for querying
+// the `module_wrapper.html` slotted element.
+// @see chrome/browser/resources/new_tab_page/modules/module_wrapper.html
 IN_PROC_BROWSER_TEST_P(NewTabPageModulesInteractiveLinkUiTest,
-                       ClickingEntryNavigatesToCorrectPage) {
+                       DISABLED_ClickingEntryNavigatesToCorrectPage) {
   RunTestSequence(
       // 1. Wait for new tab page to load.
       LoadNewTabPage(),
@@ -336,4 +359,48 @@ IN_PROC_BROWSER_TEST_P(NewTabPageModulesInteractiveLinkUiTest,
       // 6. Verify that the tab navigates to the tile's link.
       WaitForWebContentsNavigation(kNewTabPageElementId,
                                    GURL(ModuleLink().url)));
+}
+
+class NewTabPageModulesInteractiveMicrosoftAuthUiTest
+    : public NewTabPageModulesInteractiveUiBaseTest {
+ public:
+  NewTabPageModulesInteractiveMicrosoftAuthUiTest() = default;
+  ~NewTabPageModulesInteractiveMicrosoftAuthUiTest() override = default;
+  NewTabPageModulesInteractiveMicrosoftAuthUiTest(
+      const NewTabPageModulesInteractiveMicrosoftAuthUiTest&) = delete;
+  void operator=(const NewTabPageModulesInteractiveMicrosoftAuthUiTest&) =
+      delete;
+
+  void SetUp() override {
+    policy_provider_.SetDefaultReturns(
+        /*is_initialization_complete_return=*/true,
+        /*is_first_policy_load_complete_return=*/true);
+    policy::BrowserPolicyConnector::SetPolicyProviderForTesting(
+        &policy_provider_);
+    features.InitWithFeatures({ntp_features::kNtpMicrosoftAuthenticationModule,
+                               ntp_features::kNtpSharepointModule},
+                              {});
+    InteractiveBrowserTest::SetUp();
+  }
+
+  policy::MockConfigurationPolicyProvider& policy_provider() {
+    return policy_provider_;
+  }
+
+ private:
+  testing::NiceMock<policy::MockConfigurationPolicyProvider> policy_provider_;
+};
+
+IN_PROC_BROWSER_TEST_F(NewTabPageModulesInteractiveMicrosoftAuthUiTest,
+                       LoadMicrosoftAuthIframe) {
+  policy::PolicyMap policies;
+  policies.Set(policy::key::kNTPSharepointCardVisible,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+               policy::POLICY_SOURCE_PLATFORM, base::Value(true), nullptr);
+  policy_provider().UpdateChromePolicy(policies);
+  RunTestSequence(
+      // 1. Wait for new tab page to load.
+      LoadNewTabPage(),
+      // 2. Wait for iframe to load.
+      WaitForElementToLoad(kMicrosoftAuthIframe));
 }

@@ -13,7 +13,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/default_clock.h"
 #include "base/values.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/profiles/profile.h"
@@ -32,24 +32,24 @@
 #include "content/public/browser/storage_partition.h"
 #include "net/base/url_util.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Minimum score of an HTTPS origin to enable HFM on its hostname.
 const base::FeatureParam<int> kHttpsAddThreshold{
-    &features::kHttpsFirstModeV2ForEngagedSites, "https-add-threshold", 40};
+    &features::kHttpsFirstModeV2ForEngagedSites, "https-add-threshold", 80};
 
 // Maximum score of an HTTP origin to enable HFM on its hostname.
 const base::FeatureParam<int> kHttpsRemoveThreshold{
-    &features::kHttpsFirstModeV2ForEngagedSites, "https-remove-threshold", 30};
+    &features::kHttpsFirstModeV2ForEngagedSites, "https-remove-threshold", 75};
 
 // If HTTPS score goes below kHttpsRemoveThreshold or HTTP score goes above
 // kHttpRemoveThreshold, disable HFM on this hostname.
 const base::FeatureParam<int> kHttpAddThreshold{
-    &features::kHttpsFirstModeV2ForEngagedSites, "http-add-threshold", 5};
+    &features::kHttpsFirstModeV2ForEngagedSites, "http-add-threshold", 1};
 const base::FeatureParam<int> kHttpRemoveThreshold{
-    &features::kHttpsFirstModeV2ForEngagedSites, "http-remove-threshold", 10};
+    &features::kHttpsFirstModeV2ForEngagedSites, "http-remove-threshold", 5};
 
 // Parameters for Typically Secure User heuristic:
 
@@ -185,14 +185,14 @@ GURL GetHttpsUrlFromHttp(const GURL& http_url) {
 
 std::unique_ptr<KeyedService> BuildService(content::BrowserContext* context) {
   Profile* profile = Profile::FromBrowserContext(context);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Explicitly check for ChromeOS sign-in profiles (which would cause
   // double-counting of at-startup metrics for ChromeOS restarts) which are not
   // covered by the `IsRegularProfile()` check.
   if (ash::ProfileHelper::IsSigninProfile(profile)) {
     return nullptr;
   }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
   return std::make_unique<HttpsFirstModeService>(profile, GetClock());
 }
 
@@ -578,6 +578,62 @@ HttpsFirstModeSetting HttpsFirstModeService::GetCurrentSetting() const {
     return HttpsFirstModeSetting::kEnabledBalanced;
   }
   return HttpsFirstModeSetting::kDisabled;
+}
+
+bool HttpsFirstModeService::UpdatePrefs(
+    const HttpsFirstModeSetting& selection) {
+  if (selection != HttpsFirstModeSetting::kDisabled &&
+      selection != HttpsFirstModeSetting::kEnabledBalanced &&
+      selection != HttpsFirstModeSetting::kEnabledFull) {
+    return false;
+  }
+
+  if (!IsBalancedModeAvailable() &&
+      selection == HttpsFirstModeSetting::kEnabledBalanced) {
+    return false;
+  }
+
+  // Update both HTTPS-First Mode preferences to match the selection.
+  //
+  // Note that the HttpsFirstModeSetting::kEnabledBalanced is not available by
+  // default. If the feature flag is disabled, then the kEnabledFull and
+  // kDisabled settings will only be mapped to the kHttpsOnlyModeEnabled pref.
+  //
+  // Note: The Security.HttpsFirstMode.SettingChanged* histograms are logged
+  // here instead of in HttpsFirstModeService::OnHttpsFirstModePrefChanged()
+  // because this will fire the pref observer _twice_, so logging the histogram
+  // in the pref observer would cause double counting.
+  if (IsBalancedModeAvailable()) {
+    switch (selection) {
+      case HttpsFirstModeSetting::kDisabled:
+        base::UmaHistogramEnumeration("Security.HttpsFirstMode.SettingChanged2",
+                                      HttpsFirstModeSetting::kDisabled);
+        profile_->GetPrefs()->SetBoolean(prefs::kHttpsOnlyModeEnabled, false);
+        profile_->GetPrefs()->SetBoolean(prefs::kHttpsFirstBalancedMode, false);
+        break;
+      case HttpsFirstModeSetting::kEnabledBalanced:
+        base::UmaHistogramEnumeration("Security.HttpsFirstMode.SettingChanged2",
+                                      HttpsFirstModeSetting::kEnabledBalanced);
+        profile_->GetPrefs()->SetBoolean(prefs::kHttpsOnlyModeEnabled, false);
+        profile_->GetPrefs()->SetBoolean(prefs::kHttpsFirstBalancedMode, true);
+        break;
+      case HttpsFirstModeSetting::kEnabledFull:
+        base::UmaHistogramEnumeration("Security.HttpsFirstMode.SettingChanged2",
+                                      HttpsFirstModeSetting::kEnabledFull);
+        profile_->GetPrefs()->SetBoolean(prefs::kHttpsOnlyModeEnabled, true);
+        profile_->GetPrefs()->SetBoolean(prefs::kHttpsFirstBalancedMode, false);
+        break;
+    }
+  } else {
+    // TODO(crbug.com/349860796): Remove old settings path once Balanced Mode
+    // is launched.
+    base::UmaHistogramBoolean("Security.HttpsFirstMode.SettingChanged",
+                              selection == HttpsFirstModeSetting::kEnabledFull);
+    profile_->GetPrefs()->SetBoolean(
+        prefs::kHttpsOnlyModeEnabled,
+        selection == HttpsFirstModeSetting::kEnabledFull);
+  }
+  return true;
 }
 
 void HttpsFirstModeService::IncrementRecentNavigationCount() {

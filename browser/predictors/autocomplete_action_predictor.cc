@@ -7,6 +7,7 @@
 #include <math.h>
 #include <stddef.h>
 
+#include <algorithm>
 #include <queue>
 
 #include "base/containers/contains.h"
@@ -14,7 +15,6 @@
 #include "base/i18n/case_conversion.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/observer_list.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
@@ -72,23 +72,11 @@ namespace {
 const base::FeatureParam<double> kPrerenderDUIConfidenceCutoff{
     &features::kAutocompleteActionPredictorConfidenceCutoff,
     "prerender_dui_confidence_cutoff", 0.5};
-
-#if BUILDFLAG(IS_OHOS)
-const base::FeatureParam<double> kPrefetchDUIConfidenceCutoff{
-    &features::kAutocompleteActionPredictorConfidenceCutoff,
-    "prefetch_dui_confidence_cutoff", 0.4};
-#endif
-
 const base::FeatureParam<double> kPreconnectConfidenceCutoff{
     &features::kAutocompleteActionPredictorConfidenceCutoff,
     "preconnect_dui_confidence_cutoff", 0.3};
 
 const int kMinimumNumberOfHits = 3;
- 
-#if BUILDFLAG(IS_OHOS)
-const int kMinimumHitsOfPreFetch = 1;
-#endif
- 
 const size_t kMaximumTransitionalMatchesSize = 1024 * 1024;  // 1 MB.
 
 // As of February 2019, 99% of users on Windows have less than 2000 entries in
@@ -179,7 +167,9 @@ void AutocompleteActionPredictor::RegisterTransitionalMatches(
   const std::u16string lower_user_text(base::i18n::ToLower(user_text));
 
   // Merge this in to an existing match if we already saw |user_text|
-  auto match_it = base::ranges::find(transitional_matches_, lower_user_text);
+  auto match_it = std::ranges::find(
+      transitional_matches_, lower_user_text,
+      &AutocompleteActionPredictor::TransitionalMatch::user_text);
 
   if (match_it == transitional_matches_.end()) {
     if (transitional_matches_size_ + lower_user_text.length() >
@@ -209,8 +199,7 @@ void AutocompleteActionPredictor::ClearTransitionalMatches() {
 
 void AutocompleteActionPredictor::StartPrerendering(
     const GURL& url,
-    content::WebContents& web_contents,
-    const gfx::Size& size) {
+    content::WebContents& web_contents) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   // Helpers to create content::PreloadingAttempt.
@@ -227,7 +216,6 @@ void AutocompleteActionPredictor::StartPrerendering(
       preloading_data->AddPreloadingAttempt(
           chrome_preloading_predictor::kOmniboxDirectURLInput,
           content::PreloadingType::kPrerender, std::move(same_url_matcher),
-          /*planned_max_preloading_type=*/std::nullopt,
           web_contents.GetPrimaryMainFrame()->GetPageUkmSourceId());
 
   PrerenderManager::CreateForWebContents(&web_contents);
@@ -236,28 +224,11 @@ void AutocompleteActionPredictor::StartPrerendering(
       prerender_manager->StartPrerenderDirectUrlInput(url, *preloading_attempt);
 }
 
-#if BUILDFLAG(IS_OHOS)
-void AutocompleteActionPredictor::TryPrefetch(
-    const GURL& url,
-    content::WebContents& web_contents,
-    const gfx::Size& size) {
-  PrerenderManager::CreateForWebContents(&web_contents);
-  auto* prerender_manager = PrerenderManager::FromWebContents(&web_contents);
-  direct_url_input_prerender_handle_ = prerender_manager->StartPrerenderNewTabPage(
-      url,
-      chrome_preloading_predictor::kMouseHoverOrMouseDownOnNewTabPage);
-}
-#endif
- 
 AutocompleteActionPredictor::Action
 AutocompleteActionPredictor::DecideActionByConfidence(double confidence) {
   Action action = ACTION_NONE;
   if (confidence >= kPrerenderDUIConfidenceCutoff.Get()) {
     action = ACTION_PRERENDER;
-#if BUILDFLAG(IS_OHOS)
-  } else if (confidence >= kPrefetchDUIConfidenceCutoff.Get()) {
-    action = ACTION_PREFETCH;
-#endif
   } else if (confidence >= kPreconnectConfidenceCutoff.Get()) {
     action = ACTION_PRECONNECT;
   }
@@ -425,8 +396,8 @@ void AutocompleteActionPredictor::DeleteRowsFromCaches(
   DCHECK(id_list);
 
   for (auto it = db_cache_.begin(); it != db_cache_.end();) {
-    if (base::ranges::any_of(rows,
-                             history::URLRow::URLRowHasURL(it->first.url))) {
+    if (std::ranges::any_of(rows,
+                            history::URLRow::URLRowHasURL(it->first.url))) {
       const DBIdCacheMap::iterator id_it = db_id_cache_.find(it->first);
       DCHECK(id_it != db_id_cache_.end());
       id_list->push_back(id_it->second);
@@ -639,12 +610,8 @@ void AutocompleteActionPredictor::FinishInitialization() {
 double AutocompleteActionPredictor::CalculateConfidence(
     const std::u16string& user_text,
     const AutocompleteMatch& match) const {
-#if BUILDFLAG(IS_OHOS)
-  const std::u16string lower_user_text(base::i18n::ToLower(user_text));
-  const DBCacheKey key = { lower_user_text, match.destination_url };
-#else
   const DBCacheKey key = { user_text, match.destination_url };
-#endif
+
   if (user_text.length() < kMinimumUserTextLength) {
     return 0.0;
   }
@@ -660,20 +627,9 @@ double AutocompleteActionPredictor::CalculateConfidence(
 double AutocompleteActionPredictor::CalculateConfidenceForDbEntry(
     DBCacheMap::const_iterator iter) const {
   const DBCacheValue& value = iter->second;
-
-#if BUILDFLAG(IS_OHOS)
-  if (value.number_of_hits < kMinimumNumberOfHits) {
-    if (value.number_of_hits >= kMinimumHitsOfPreFetch) {
-      return kPrefetchDUIConfidenceCutoff.Get();
-    } else {
-      return 0.0;
-    }
-  }
-#else
   if (value.number_of_hits < kMinimumNumberOfHits) {
     return 0.0;
   }
-#endif
 
   const double number_of_hits = static_cast<double>(value.number_of_hits);
   return number_of_hits / (number_of_hits + value.number_of_misses);
@@ -733,7 +689,6 @@ AutocompleteActionPredictor::TransitionalMatch::TransitionalMatch(
 AutocompleteActionPredictor::TransitionalMatch::TransitionalMatch(
     const TransitionalMatch& other) = default;
 
-AutocompleteActionPredictor::TransitionalMatch::~TransitionalMatch() {
-}
+AutocompleteActionPredictor::TransitionalMatch::~TransitionalMatch() = default;
 
 }  // namespace predictors

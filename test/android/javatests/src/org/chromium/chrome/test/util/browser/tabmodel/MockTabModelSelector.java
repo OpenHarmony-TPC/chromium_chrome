@@ -28,7 +28,7 @@ public class MockTabModelSelector extends TabModelSelectorBase {
     public static final int ID_OFFSET = 100000;
     public static final int INCOGNITO_ID_OFFSET = 200000;
     private static int sCurTabOffset;
-    private int mTabCount;
+    private final int mTabCount;
 
     public MockTabModelSelector(
             Profile profile,
@@ -81,11 +81,6 @@ public class MockTabModelSelector extends TabModelSelectorBase {
     @Override
     public Tab openNewTab(
             LoadUrlParams loadUrlParams, @TabLaunchType int type, Tab parent, boolean incognito) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void closeAllTabs() {
         throw new UnsupportedOperationException();
     }
 

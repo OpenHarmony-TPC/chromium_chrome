@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/media/prefs/capture_device_ranking.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/grit/generated_resources.h"
@@ -235,8 +236,9 @@ std::string MediaDevicesSelectionHandler::GetDeviceDisplayName(
   }
 #endif
 
-  if (facing_info.empty())
+  if (facing_info.empty()) {
     return device.descriptor.display_name();
+  }
   return device.descriptor.display_name() + " " + facing_info;
 }
 

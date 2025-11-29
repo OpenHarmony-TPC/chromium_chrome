@@ -9,7 +9,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.browserservices.ui.TrustedWebActivityModel.DISCLOSURE_EVENTS_CALLBACK;
 import static org.chromium.chrome.browser.browserservices.ui.TrustedWebActivityModel.DISCLOSURE_FIRST_TIME;
@@ -20,12 +19,14 @@ import static org.chromium.chrome.browser.browserservices.ui.TrustedWebActivityM
 import static org.chromium.chrome.browser.browserservices.ui.TrustedWebActivityModel.DISCLOSURE_STATE_SHOWN;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -35,7 +36,6 @@ import org.chromium.chrome.browser.browserservices.ui.TrustedWebActivityModel;
 import org.chromium.chrome.browser.browserservices.ui.controller.CurrentPageVerifier;
 import org.chromium.chrome.browser.browserservices.ui.controller.CurrentPageVerifier.VerificationState;
 import org.chromium.chrome.browser.browserservices.ui.controller.CurrentPageVerifier.VerificationStatus;
-import org.chromium.chrome.browser.customtabs.BaseCustomTabActivity;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 
 /** Tests for {@link TrustedWebActivityDisclosureController}. */
@@ -45,10 +45,10 @@ public class TrustedWebActivityDisclosureControllerTest {
     private static final String CLIENT_PACKAGE = "com.example.twaclient";
     private static final String SCOPE = "https://www.example.com";
 
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Mock public ActivityLifecycleDispatcher mLifecycleDispatcher;
     @Mock public CurrentPageVerifier mCurrentPageVerifier;
     @Mock public ClientPackageNameProvider mClientPackageNameProvider;
-    @Mock public BaseCustomTabActivity mActivity;
 
     @Captor public ArgumentCaptor<Runnable> mVerificationObserverCaptor;
 
@@ -57,17 +57,18 @@ public class TrustedWebActivityDisclosureControllerTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
 
         doReturn(CLIENT_PACKAGE).when(mClientPackageNameProvider).get();
         doNothing()
                 .when(mCurrentPageVerifier)
                 .addVerificationObserver(mVerificationObserverCaptor.capture());
-        when(mActivity.getClientPackageNameProvider()).thenReturn(mClientPackageNameProvider);
 
         mController =
                 new TrustedWebActivityDisclosureController(
-                        mModel, mLifecycleDispatcher, mCurrentPageVerifier, mActivity);
+                        mModel,
+                        mLifecycleDispatcher,
+                        mCurrentPageVerifier,
+                        mClientPackageNameProvider);
     }
 
     @Test

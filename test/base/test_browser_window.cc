@@ -93,6 +93,10 @@ bool TestBrowserWindow::IsOnCurrentWorkspace() const {
   return true;
 }
 
+bool TestBrowserWindow::IsVisibleOnScreen() const {
+  return true;
+}
+
 void TestBrowserWindow::SetTopControlsShownRatio(
     content::WebContents* web_contents,
     float ratio) {}
@@ -126,8 +130,8 @@ int TestBrowserWindow::GetTopControlsHeight() const {
 void TestBrowserWindow::SetTopControlsGestureScrollInProgress(
     bool in_progress) {}
 
-StatusBubble* TestBrowserWindow::GetStatusBubble() {
-  return nullptr;
+std::vector<StatusBubble*> TestBrowserWindow::GetStatusBubbles() {
+  return {};
 }
 
 gfx::Rect TestBrowserWindow::GetRestoredBounds() const {
@@ -200,6 +204,10 @@ ExtensionsContainer* TestBrowserWindow::GetExtensionsContainer() {
   return nullptr;
 }
 
+bool TestBrowserWindow::PreHandleMouseEvent(const blink::WebMouseEvent& event) {
+  return false;
+}
+
 content::KeyboardEventProcessingResult
 TestBrowserWindow::PreHandleKeyboardEvent(
     const input::NativeWebKeyboardEvent& event) {
@@ -223,8 +231,8 @@ bool TestBrowserWindow::IsTabStripEditable() const {
   return is_tab_strip_editable_;
 }
 
-void TestBrowserWindow::SetIsTabStripEditable(bool is_editable) {
-  is_tab_strip_editable_ = is_editable;
+void TestBrowserWindow::SetTabStripNotEditableForTesting() {
+  is_tab_strip_editable_ = false;
 }
 
 bool TestBrowserWindow::IsToolbarVisible() const {
@@ -287,10 +295,6 @@ TestBrowserWindow::ShowScreenshotCapturedBubble(content::WebContents* contents,
 }
 #endif
 
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-void TestBrowserWindow::VerifyUserEligibilityIOSPasswordPromoBubble() {}
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
-
 send_tab_to_self::SendTabToSelfBubbleView*
 TestBrowserWindow::ShowSendTabToSelfDevicePickerBubble(
     content::WebContents* contents) {
@@ -325,6 +329,10 @@ DownloadShelf* TestBrowserWindow::GetDownloadShelf() {
   return &download_shelf_;
 }
 views::View* TestBrowserWindow::GetTopContainer() {
+  return nullptr;
+}
+
+views::View* TestBrowserWindow::GetLensOverlayView() {
   return nullptr;
 }
 
@@ -370,6 +378,13 @@ void TestBrowserWindow::SetCloseCallback(base::OnceClosure close_callback) {
 user_education::FeaturePromoController*
 TestBrowserWindow::GetFeaturePromoControllerImpl() {
   return feature_promo_controller_.get();
+}
+
+bool TestBrowserWindow::IsFeaturePromoQueued(
+    const base::Feature& iph_feature) const {
+  return feature_promo_controller_ &&
+         feature_promo_controller_->GetPromoStatus(iph_feature) ==
+             user_education::FeaturePromoStatus::kQueued;
 }
 
 bool TestBrowserWindow::IsFeaturePromoActive(
@@ -442,6 +457,15 @@ user_education::DisplayNewBadge TestBrowserWindow::MaybeShowNewBadgeFor(
 
 void TestBrowserWindow::NotifyNewBadgeFeatureUsed(
     const base::Feature& feature) {}
+
+bool TestBrowserWindow::IsTabModalPopupDeprecated() const {
+  return is_tab_modal_popup_deprecated_;
+}
+
+void TestBrowserWindow::SetIsTabModalPopupDeprecated(
+    bool is_tab_modal_popup_deprecated) {
+  is_tab_modal_popup_deprecated_ = is_tab_modal_popup_deprecated;
+}
 
 user_education::FeaturePromoController*
 TestBrowserWindow::SetFeaturePromoController(

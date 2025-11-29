@@ -12,13 +12,6 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
 
-#if BUILDFLAG(IS_OHOS)
-#include "chrome/browser/ui/browser_window.h"
-#include "ohos/adapter/window/app_window_adapter.h"
-#include "ui/aura/window.h"
-#include "ui/aura/window_tree_host.h"
-#endif
-
 namespace chrome {
 namespace {
 
@@ -28,19 +21,12 @@ void SetBrowserTitleFromTextfield(Browser* browser,
                                   ui::DialogModel* dialog_model) {
   std::string text = base::UTF16ToUTF8(
       dialog_model->GetTextfieldByUniqueId(kWindowNameFieldId)->text());
-  if (text.empty())
+  if (text.empty()) {
     base::RecordAction(base::UserMetricsAction("WindowNaming_Cleared"));
-  else
+  } else {
     base::RecordAction(base::UserMetricsAction("WindowNaming_Set"));
-  browser->SetWindowUserTitle(text);
-
-#if BUILDFLAG(IS_OHOS)
-  aura::Window* window = browser->window()->GetNativeWindow();
-  if (window) {
-    ohos::adapter::window::AppWindowAdapter::GetInstance()
-        .SetTitle(text, window->GetHost()->GetAcceleratedWidget());
   }
-#endif
+  browser->SetWindowUserTitle(text);
 }
 
 std::unique_ptr<ui::DialogModel> CreateWindowNamePromptDialogModel(

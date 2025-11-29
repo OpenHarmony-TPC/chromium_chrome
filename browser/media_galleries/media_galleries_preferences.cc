@@ -2,15 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "chrome/browser/media_galleries/media_galleries_preferences.h"
 
 #include <stddef.h>
 
+#include <array>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -29,7 +25,6 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/media_galleries/media_file_system_registry.h"
 #include "chrome/browser/profiles/profile.h"
@@ -371,7 +366,7 @@ MediaGalleryPrefInfo::MediaGalleryPrefInfo()
 MediaGalleryPrefInfo::MediaGalleryPrefInfo(const MediaGalleryPrefInfo& other) =
     default;
 
-MediaGalleryPrefInfo::~MediaGalleryPrefInfo() {}
+MediaGalleryPrefInfo::~MediaGalleryPrefInfo() = default;
 
 base::FilePath MediaGalleryPrefInfo::AbsolutePath() const {
   base::FilePath base_path = MediaStorageUtil::FindDevicePathById(device_id);
@@ -393,7 +388,7 @@ std::u16string MediaGalleryPrefInfo::GetGalleryDisplayName() const {
     if (!display_name.empty())
       return display_name;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     // See chrome/browser/ash/fileapi/file_system_backend.cc
     base::FilePath download_path;
     if (base::PathService::Get(chrome::DIR_DEFAULT_DOWNLOADS_SAFE,
@@ -445,7 +440,8 @@ bool MediaGalleryPrefInfo::IsGalleryAvailable() const {
          MediaStorageUtil::IsRemovableStorageAttached(device_id);
 }
 
-MediaGalleriesPreferences::GalleryChangeObserver::~GalleryChangeObserver() {}
+MediaGalleriesPreferences::GalleryChangeObserver::~GalleryChangeObserver() =
+    default;
 
 MediaGalleriesPreferences::MediaGalleriesPreferences(Profile* profile)
     : initialized_(false),
@@ -483,14 +479,15 @@ bool MediaGalleriesPreferences::IsInitialized() const { return initialized_; }
 Profile* MediaGalleriesPreferences::profile() { return profile_; }
 
 void MediaGalleriesPreferences::AddDefaultGalleries() {
-  const struct DefaultTypes {
+  struct DefaultTypes {
     int directory_key;
     MediaGalleryPrefInfo::DefaultGalleryType default_gallery_type;
-  } kDirectories[] = {
-    {chrome::DIR_USER_MUSIC, MediaGalleryPrefInfo::kMusicDefault},
-    {chrome::DIR_USER_PICTURES, MediaGalleryPrefInfo::kPicturesDefault},
-    {chrome::DIR_USER_VIDEOS, MediaGalleryPrefInfo::kVideosDefault},
   };
+  const auto kDirectories = std::to_array<DefaultTypes>({
+      {chrome::DIR_USER_MUSIC, MediaGalleryPrefInfo::kMusicDefault},
+      {chrome::DIR_USER_PICTURES, MediaGalleryPrefInfo::kPicturesDefault},
+      {chrome::DIR_USER_VIDEOS, MediaGalleryPrefInfo::kVideosDefault},
+  });
 
   for (size_t i = 0; i < std::size(kDirectories); ++i) {
     base::FilePath path;

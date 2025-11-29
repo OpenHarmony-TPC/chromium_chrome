@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "base/debug/dump_without_crashing.h"
 #include "content/public/browser/back_forward_transition_animation_manager.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
@@ -60,7 +61,7 @@ void TabOnBackGestureHandler::OnBackStarted(JNIEnv* env,
 
   is_in_progress_ = true;
   content::WebContents* web_contents = tab_android_->web_contents();
-  CHECK(web_contents, base::NotFatalUntil::M123);
+  CHECK(web_contents);
   AssertHasWindowAndCompositor(web_contents);
 
   ui::BackGestureEvent back_gesture(progress);

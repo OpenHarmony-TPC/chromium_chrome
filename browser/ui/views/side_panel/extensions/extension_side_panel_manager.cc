@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.h"
 
 #include "base/memory/scoped_refptr.h"
+#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/actions/chrome_actions.h"
@@ -115,7 +116,9 @@ void ExtensionSidePanelManager::MaybeCreateActionItemForExtension(
               browser_))
           .SetText(base::UTF8ToUTF16(extension->short_name()))
           .SetActionId(extension_action_id)
-          .SetProperty(actions::kActionItemPinnableKey, true)
+          .SetProperty(actions::kActionItemPinnableKey,
+                       std::underlying_type_t<actions::ActionPinnableState>(
+                           actions::ActionPinnableState::kPinnable))
           .Build());
 }
 

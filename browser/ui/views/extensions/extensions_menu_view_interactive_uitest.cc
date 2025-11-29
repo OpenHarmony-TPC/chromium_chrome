@@ -6,14 +6,12 @@
 #include <optional>
 
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/browsertest_util.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_context_menu_model.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/install_verifier.h"
 #include "chrome/browser/extensions/permissions/scripting_permissions_modifier.h"
 #include "chrome/browser/profiles/profile.h"
@@ -38,6 +36,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "extensions/browser/disable_reason.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/permissions_manager.h"
 #include "extensions/browser/pref_names.h"
@@ -121,7 +120,7 @@ class ExtensionsMenuViewInteractiveUITest : public ExtensionsToolbarUITest {
   void TriggerExtensionButton(const std::string& id) {
     auto menu_items = GetExtensionMenuItemViews();
     auto iter =
-        base::ranges::find(menu_items, id, [](ExtensionMenuItemView* view) {
+        std::ranges::find(menu_items, id, [](ExtensionMenuItemView* view) {
           return view->view_controller()->GetId();
         });
     ASSERT_TRUE(iter != menu_items.end());
@@ -308,10 +307,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionsMenuViewInteractiveUITest,
   ASSERT_NE(std::nullopt, action_id);
   ASSERT_EQ(1u, GetVisibleToolbarActionViews().size());
 
-  extensions::ExtensionSystem::Get(browser()->profile())
-      ->extension_service()
+  extensions::ExtensionRegistrar::Get(browser()->profile())
       ->DisableExtension(action_id.value(),
-                         extensions::disable_reason::DISABLE_USER_ACTION);
+                         {extensions::disable_reason::DISABLE_USER_ACTION});
 
   EXPECT_EQ(std::nullopt, extensions_container->GetPoppedOutActionId());
   EXPECT_TRUE(GetVisibleToolbarActionViews().empty());
@@ -330,14 +328,12 @@ IN_PROC_BROWSER_TEST_F(ExtensionsMenuViewInteractiveUITest,
       browser()->GetBrowserView().toolbar()->extensions_container();
   ASSERT_NE(std::nullopt, extensions_container->GetPoppedOutActionId());
 
-  auto* extension_service =
-      extensions::ExtensionSystem::Get(browser()->profile())
-          ->extension_service();
-
-  extension_service->DisableExtension(
-      id1, extensions::disable_reason::DISABLE_USER_ACTION);
-  extension_service->DisableExtension(
-      id2, extensions::disable_reason::DISABLE_USER_ACTION);
+  auto* extension_registrar =
+      extensions::ExtensionRegistrar::Get(browser()->profile());
+  extension_registrar->DisableExtension(
+      id1, {extensions::disable_reason::DISABLE_USER_ACTION});
+  extension_registrar->DisableExtension(
+      id2, {extensions::disable_reason::DISABLE_USER_ACTION});
 
   EXPECT_EQ(std::nullopt, extensions_container->GetPoppedOutActionId());
 }
@@ -441,7 +437,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionsMenuViewInteractiveUITest,
 
   // Verify extension is pinned but not stored as the popped out action.
   auto visible_icons = GetVisibleToolbarActionViews();
-  visible_icons = GetVisibleToolbarActionViews();
   ASSERT_EQ(1u, visible_icons.size());
   EXPECT_EQ(std::nullopt, extensions_container->GetPoppedOutActionId());
 

@@ -18,7 +18,7 @@ import type {ESimProfileRemote} from 'chrome://resources/mojo/chromeos/ash/servi
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {DeepLinkingMixin} from '../common/deep_linking_mixin.js';
-import {isRevampWayfindingEnabled, isSanitizeAllowed} from '../common/load_time_booleans.js';
+import {isSanitizeAllowed} from '../common/load_time_booleans.js';
 import {RouteObserverMixin} from '../common/route_observer_mixin.js';
 import {Setting} from '../mojom-webui/setting.mojom-webui.js';
 import type {Route} from '../router.js';
@@ -60,13 +60,6 @@ export class ResetSettingsCardElement extends ResetSettingsCardElementBase {
         },
       },
 
-      isRevampWayfindingEnabled_: {
-        type: Boolean,
-        value() {
-          return isRevampWayfindingEnabled();
-        },
-        readOnly: true,
-      },
       isSanitizeAllowed_: {
         type: Boolean,
         value() {
@@ -74,23 +67,17 @@ export class ResetSettingsCardElement extends ResetSettingsCardElementBase {
         },
         readOnly: true,
       },
-
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kPowerwash,
-          Setting.kSanitizeCrosSettings,
-        ]),
-      },
     };
   }
 
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kPowerwash,
+    Setting.kSanitizeCrosSettings,
+  ]);
+
   private osResetBrowserProxy_: OsResetBrowserProxy;
   private installedESimProfiles_: ESimProfileRemote[];
-  private readonly isRevampWayfindingEnabled_: boolean;
   private readonly isSanitizeAllowed_: boolean;
   private route_: Route;
   private showPowerwashDialog_: boolean;
@@ -98,8 +85,7 @@ export class ResetSettingsCardElement extends ResetSettingsCardElementBase {
   constructor() {
     super();
 
-    this.route_ = this.isRevampWayfindingEnabled_ ? routes.SYSTEM_PREFERENCES :
-                                                    routes.OS_RESET;
+    this.route_ = routes.SYSTEM_PREFERENCES;
     this.osResetBrowserProxy_ = OsResetBrowserProxyImpl.getInstance();
   }
 

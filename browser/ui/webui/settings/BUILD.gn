@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-assert(is_win || is_mac || is_linux || is_chromeos || is_ohos)
+assert(is_win || is_mac || is_linux || is_chromeos)
 
 # TODO(crbug.com/369369575): complete modularization of this component.
 # At the moment, there are a lot of dependencies from headers to //c/b and
@@ -18,7 +18,6 @@ source_set("settings") {
     "//base",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/safety_hub",
-    "//chrome/browser/upgrade_detector:build_state_observer",
     "//components/content_settings/core/common",
     "//extensions/browser",
     "//extensions/common",

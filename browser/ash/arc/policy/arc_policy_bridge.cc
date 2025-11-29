@@ -10,9 +10,6 @@
 #include <utility>
 
 #include "arc_policy_util.h"
-#include "ash/components/arc/arc_browser_context_keyed_service_factory_base.h"
-#include "ash/components/arc/arc_prefs.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
 #include "ash/constants/ash_switches.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
@@ -35,6 +32,9 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
+#include "chromeos/ash/experiences/arc/arc_browser_context_keyed_service_factory_base.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
 #include "chromeos/components/onc/onc_utils.h"
 #include "components/onc/onc_constants.h"
 #include "components/policy/core/common/policy_map.h"
@@ -339,6 +339,7 @@ void ConfigureRevenPolicies(base::Value::Dict* arc_policy) {
       "com.netskope.netskopeclient",
       "com.zimperium.zips",
       "com.fortinet.forticlient_vpn",
+      "com.fortinet.forticlient_fa",
       "com.forcepoint.sslvpn"};
 
   FilterApps(arc_policy, allowed_packages);
@@ -528,7 +529,7 @@ class ArcPolicyBridgeFactory
  private:
   friend base::DefaultSingletonTraits<ArcPolicyBridgeFactory>;
 
-  ArcPolicyBridgeFactory() {}
+  ArcPolicyBridgeFactory() = default;
   ~ArcPolicyBridgeFactory() override = default;
 };
 
@@ -644,6 +645,17 @@ void ArcPolicyBridge::GetPolicies(GetPoliciesCallback callback) {
 void ArcPolicyBridge::ReportCompliance(const std::string& request,
                                        ReportComplianceCallback callback) {
   VLOG(1) << "ArcPolicyBridge::ReportCompliance";
+  if(!is_dpc_first_compliance_reported_) {
+      VLOG(1) << "Reporting DPC compliance for the first time";
+      CertStoreService* cert_store_service =
+        CertStoreServiceFactory::GetForBrowserContext(context_);
+      if(cert_store_service != nullptr) {
+        VLOG(1) << "Calling OnClientCertStoreChanged to update certificates";
+        cert_store_service->OnClientCertStoreChanged();
+      }
+      is_dpc_first_compliance_reported_ = true;
+  }
+
   data_decoder::DataDecoder::ParseJsonIsolated(
       request,
       base::BindOnce(&ArcPolicyBridge::OnReportComplianceParse,

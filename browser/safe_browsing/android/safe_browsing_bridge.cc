@@ -78,23 +78,20 @@ static void JNI_SafeBrowsingBridge_SetSafeBrowsingState(
     jint state) {
   return safe_browsing::SetSafeBrowsingState(
       GetPrefService(j_profile), static_cast<SafeBrowsingState>(state),
-      /*is_esb_enabled_in_sync=*/false);
+      /*is_esb_enabled_by_account_integration=*/false);
+}
+
+static void JNI_SafeBrowsingBridge_EnableSafeBrowsingSettingSetLocallyPref(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& j_profile) {
+  return safe_browsing::EnableSafeBrowsingSettingSetLocallyPref(
+      GetPrefService(j_profile));
 }
 
 static jboolean JNI_SafeBrowsingBridge_IsSafeBrowsingManaged(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_profile) {
   return safe_browsing::IsSafeBrowsingPolicyManaged(*GetPrefService(j_profile));
-}
-
-static jboolean JNI_SafeBrowsingBridge_IsUnderAdvancedProtection(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& j_profile) {
-  Profile* profile = Profile::FromJavaObject(j_profile);
-  return profile &&
-         safe_browsing::AdvancedProtectionStatusManagerFactory::GetForProfile(
-             profile)
-             ->IsUnderAdvancedProtection();
 }
 
 static jboolean JNI_SafeBrowsingBridge_IsHashRealTimeLookupEligibleInSession(

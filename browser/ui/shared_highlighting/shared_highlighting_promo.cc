@@ -6,8 +6,6 @@
 
 #include <memory>
 
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "content/public/browser/render_frame_host.h"
@@ -47,8 +45,9 @@ void SharedHighlightingPromo::DidFinishLoad(
     return;
   }
 
-  if (HasTextFragment(validated_url.spec()))
+  if (HasTextFragment(validated_url.spec())) {
     CheckExistingSelectors(render_frame_host);
+  }
 }
 
 void SharedHighlightingPromo::CheckExistingSelectors(
@@ -67,8 +66,9 @@ void SharedHighlightingPromo::CheckExistingSelectors(
 }
 
 bool SharedHighlightingPromo::HasTextFragment(std::string url) {
-  if (url.empty())
+  if (url.empty()) {
     return false;
+  }
 
   return url.find(":~:text=") != std::string::npos;
 }

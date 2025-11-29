@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import '../../info_dialog.js';
-import '../../module_header.js';
+import '../module_header.js';
 import './file_suggestion.js';
 
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
@@ -16,9 +16,6 @@ import type {MenuItem, ModuleHeaderElement} from '../module_header.js';
 import {getHtml} from './drive_module.html.js';
 import {FileProxy} from './file_module_proxy.js';
 import type {FileSuggestionElement} from './file_suggestion.js';
-
-const DRIVE_ICON_BASE_URL: string =
-    'https://drive-thirdparty.googleusercontent.com/32/type/';
 
 export interface DriveModuleElement {
   $: {
@@ -45,14 +42,12 @@ export class DriveModuleElement extends DriveModuleElementBase {
   static override get properties() {
     return {
       files: {type: Array},
-      imageSourceBaseUrl_: {type: String},
       showInfoDialog_: {type: Boolean},
     };
   }
 
-  files: File[] = [];
-  protected imageSourceBaseUrl_: string = DRIVE_ICON_BASE_URL;
-  protected showInfoDialog_: boolean = false;
+  accessor files: File[] = [];
+  protected accessor showInfoDialog_: boolean = false;
 
   protected getMenuItemGroups_(): MenuItem[][] {
     return [
@@ -60,7 +55,9 @@ export class DriveModuleElement extends DriveModuleElementBase {
         {
           action: 'dismiss',
           icon: 'modules:visibility_off',
-          text: this.i18n('modulesDriveDismissButtonText'),
+          text: this.i18nRecursive(
+              '', 'modulesDismissForHoursButtonText',
+              'fileSuggestionDismissHours'),
         },
         {
           action: 'disable',
@@ -85,6 +82,7 @@ export class DriveModuleElement extends DriveModuleElementBase {
 
   protected onDisableButtonClick_() {
     const disableEvent = new CustomEvent('disable-module', {
+      bubbles: true,
       composed: true,
       detail: {
         message: loadTimeData.getStringF(
@@ -103,7 +101,7 @@ export class DriveModuleElement extends DriveModuleElementBase {
       detail: {
         message: loadTimeData.getStringF(
             'dismissModuleToastMessage',
-            loadTimeData.getString('modulesDriveFilesSentence')),
+            loadTimeData.getString('modulesFilesSentence')),
         restoreCallback: () => FileProxy.getHandler().restoreModule(),
       },
     }));
@@ -115,10 +113,6 @@ export class DriveModuleElement extends DriveModuleElementBase {
 
   protected onInfoDialogClose_() {
     this.showInfoDialog_ = false;
-  }
-
-  protected onMenuButtonClick_(e: Event) {
-    this.$.moduleHeaderElementV2.showAt(e);
   }
 }
 

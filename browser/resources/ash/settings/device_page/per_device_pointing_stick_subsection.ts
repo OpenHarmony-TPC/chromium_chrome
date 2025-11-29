@@ -8,7 +8,6 @@
  * per-device-pointing-stick subsection settings in system settings.
  */
 
-import '../icons.html.js';
 import '../settings_shared.css.js';
 import 'chrome://resources/ash/common/cr_elements/localized_link/localized_link.js';
 import 'chrome://resources/ash/common/cr_elements/cr_radio_button/cr_radio_button.js';
@@ -113,18 +112,6 @@ export class SettingsPerDevicePointingStickSubsectionElement extends
 
       pointingStick: {type: Object},
 
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kPointingStickAcceleration,
-          Setting.kPointingStickSpeed,
-          Setting.kPointingStickSwapPrimaryButtons,
-        ]),
-      },
-
       pointingStickIndex: {
         type: Number,
       },
@@ -156,6 +143,13 @@ export class SettingsPerDevicePointingStickSubsectionElement extends
       this.attemptDeepLink();
     }
   }
+
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kPointingStickAcceleration,
+    Setting.kPointingStickSpeed,
+    Setting.kPointingStickSwapPrimaryButtons,
+  ]);
 
   private pointingStick: PointingStick;
   private sensitivityValues: number[];

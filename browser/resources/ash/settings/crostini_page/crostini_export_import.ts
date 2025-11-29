@@ -11,6 +11,7 @@
 import 'chrome://resources/ash/common/cr_elements/cr_button/cr_button.js';
 import './crostini_import_confirmation_dialog.js';
 import '../settings_shared.css.js';
+import '../guest_os/guest_os_container_select.js';
 
 import {WebUiListenerMixin} from 'chrome://resources/ash/common/cr_elements/web_ui_listener_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
@@ -116,21 +117,17 @@ export class SettingsCrostiniExportImportElement extends
         type: String,
         value: DEFAULT_CROSTINI_VM,
       },
-
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kBackupLinuxAppsAndFiles,
-          Setting.kRestoreLinuxAppsAndFiles,
-        ]),
-      },
     };
   }
 
   prefs: PrefsState;
+
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kBackupLinuxAppsAndFiles,
+    Setting.kRestoreLinuxAppsAndFiles,
+  ]);
+
   private allContainers_: ContainerInfo[];
   private browserProxy_: CrostiniBrowserProxy;
   private defaultVmName_: string;

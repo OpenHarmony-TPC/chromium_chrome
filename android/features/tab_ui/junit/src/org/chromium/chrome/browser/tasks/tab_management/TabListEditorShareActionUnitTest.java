@@ -15,7 +15,6 @@ import android.content.Intent;
 import android.graphics.drawable.Drawable;
 
 import androidx.appcompat.content.res.AppCompatResources;
-import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -23,13 +22,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.CallbackHelper;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
 import org.chromium.chrome.browser.tab.Tab;
@@ -39,7 +38,6 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListEditorAction.Acti
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorAction.ButtonType;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorAction.IconPosition;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorAction.ShowMode;
-import org.chromium.chrome.tab_ui.R;
 import org.chromium.chrome.test.util.browser.tabmodel.MockTabModel;
 import org.chromium.components.browser_ui.share.ShareParams;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate;
@@ -58,10 +56,11 @@ import java.util.Set;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class TabListEditorShareActionUnitTest {
-    @Rule public JniMocker mJniMocker = new JniMocker();
+
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Mock private TabGroupModelFilter mTabGroupModelFilter;
-    @Mock private SelectionDelegate<Integer> mSelectionDelegate;
+    @Mock private SelectionDelegate<TabListEditorItemSelectionId> mSelectionDelegate;
     @Mock private ActionDelegate mDelegate;
     @Mock private DomDistillerUrlUtilsJni mDomDistillerUrlUtilsJni;
     @Mock private Profile mProfile;
@@ -85,7 +84,6 @@ public class TabListEditorShareActionUnitTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         mContext = RuntimeEnvironment.application;
         mAction =
                 (TabListEditorShareAction)
@@ -113,11 +111,10 @@ public class TabListEditorShareActionUnitTest {
                         })
                 .when(mTabGroupModelFilter)
                 .getRelatedTabList(anyInt());
-        mJniMocker.mock(DomDistillerUrlUtilsJni.TEST_HOOKS, mDomDistillerUrlUtilsJni);
+        DomDistillerUrlUtilsJni.setInstanceForTesting(mDomDistillerUrlUtilsJni);
     }
 
     @Test
-    @SmallTest
     public void testInherentActionProperties() {
         mAction.configure(() -> mTabGroupModelFilter, mSelectionDelegate, mDelegate, false);
 
@@ -145,11 +142,10 @@ public class TabListEditorShareActionUnitTest {
     }
 
     @Test
-    @SmallTest
     public void testShareActionNoTabs() {
         mAction.configure(() -> mTabGroupModelFilter, mSelectionDelegate, mDelegate, false);
 
-        mAction.onSelectionStateChange(new ArrayList<Integer>());
+        mAction.onSelectionStateChange(new ArrayList<TabListEditorItemSelectionId>());
         Assert.assertEquals(
                 false, mAction.getPropertyModel().get(TabListEditorActionProperties.ENABLED));
         Assert.assertEquals(
@@ -157,25 +153,26 @@ public class TabListEditorShareActionUnitTest {
     }
 
     @Test
-    @SmallTest
     public void testShareActionWithOneTab() throws Exception {
         mAction.configure(() -> mTabGroupModelFilter, mSelectionDelegate, mDelegate, false);
 
         mAction.setSkipUrlCheckForTesting(true);
         List<Integer> tabIds = new ArrayList<>();
         tabIds.add(1);
+        List<TabListEditorItemSelectionId> itemIds = new ArrayList<>();
+        itemIds.add(TabListEditorItemSelectionId.createTabId(1));
 
         List<Tab> tabs = new ArrayList<>();
         for (int id : tabIds) {
             tabs.add(mTabModel.addTab(id));
         }
 
-        Set<Integer> tabIdsSet = new LinkedHashSet<>(tabIds);
-        when(mSelectionDelegate.getSelectedItems()).thenReturn(tabIdsSet);
+        Set<TabListEditorItemSelectionId> itemIdsSet = new LinkedHashSet<>(itemIds);
+        when(mSelectionDelegate.getSelectedItems()).thenReturn(itemIdsSet);
         when(mDomDistillerUrlUtilsJni.getOriginalUrlFromDistillerUrl(any(String.class)))
                 .thenReturn(JUnitTestGURLs.URL_1);
 
-        mAction.onSelectionStateChange(tabIds);
+        mAction.onSelectionStateChange(itemIds);
         Assert.assertEquals(
                 true, mAction.getPropertyModel().get(TabListEditorActionProperties.ENABLED));
         Assert.assertEquals(
@@ -222,7 +219,6 @@ public class TabListEditorShareActionUnitTest {
     }
 
     @Test
-    @SmallTest
     public void testShareActionWithMultipleTabs() throws Exception {
         mAction.configure(() -> mTabGroupModelFilter, mSelectionDelegate, mDelegate, false);
 
@@ -231,15 +227,19 @@ public class TabListEditorShareActionUnitTest {
         tabIds.add(1);
         tabIds.add(2);
         tabIds.add(3);
+        List<TabListEditorItemSelectionId> itemIds = new ArrayList<>();
+        itemIds.add(TabListEditorItemSelectionId.createTabId(1));
+        itemIds.add(TabListEditorItemSelectionId.createTabId(2));
+        itemIds.add(TabListEditorItemSelectionId.createTabId(3));
 
         List<Tab> tabs = new ArrayList<>();
         for (int id : tabIds) {
             tabs.add(mTabModel.addTab(id));
         }
-        Set<Integer> tabIdsSet = new LinkedHashSet<>(tabIds);
-        when(mSelectionDelegate.getSelectedItems()).thenReturn(tabIdsSet);
+        Set<TabListEditorItemSelectionId> itemIdsSet = new LinkedHashSet<>(itemIds);
+        when(mSelectionDelegate.getSelectedItems()).thenReturn(itemIdsSet);
 
-        mAction.onSelectionStateChange(tabIds);
+        mAction.onSelectionStateChange(itemIds);
         Assert.assertEquals(
                 true, mAction.getPropertyModel().get(TabListEditorActionProperties.ENABLED));
         Assert.assertEquals(
@@ -286,21 +286,23 @@ public class TabListEditorShareActionUnitTest {
     }
 
     @Test
-    @SmallTest
     public void testShareActionWithAllFilterableTabs_actionsOnTabs() throws Exception {
         mAction.configure(() -> mTabGroupModelFilter, mSelectionDelegate, mDelegate, false);
 
         List<Integer> tabIds = new ArrayList<>();
         tabIds.add(4);
         tabIds.add(5);
+        List<TabListEditorItemSelectionId> itemIds = new ArrayList<>();
+        itemIds.add(TabListEditorItemSelectionId.createTabId(4));
+        itemIds.add(TabListEditorItemSelectionId.createTabId(5));
 
         for (int id : tabIds) {
             mTabModel.addTab(id);
         }
-        Set<Integer> tabIdsSet = new LinkedHashSet<>(tabIds);
-        when(mSelectionDelegate.getSelectedItems()).thenReturn(tabIdsSet);
+        Set<TabListEditorItemSelectionId> itemIdsSet = new LinkedHashSet<>(itemIds);
+        when(mSelectionDelegate.getSelectedItems()).thenReturn(itemIdsSet);
 
-        mAction.onSelectionStateChange(tabIds);
+        mAction.onSelectionStateChange(itemIds);
         Assert.assertEquals(
                 false, mAction.getPropertyModel().get(TabListEditorActionProperties.ENABLED));
         Assert.assertEquals(
@@ -308,7 +310,6 @@ public class TabListEditorShareActionUnitTest {
     }
 
     @Test
-    @SmallTest
     public void testShareActionWithAllFilterableTabs_actionsOnTabsAndRelatedTabs()
             throws Exception {
         mAction.configure(() -> mTabGroupModelFilter, mSelectionDelegate, mDelegate, true);
@@ -316,14 +317,17 @@ public class TabListEditorShareActionUnitTest {
         List<Integer> tabIds = new ArrayList<>();
         tabIds.add(4);
         tabIds.add(5);
+        List<TabListEditorItemSelectionId> itemIds = new ArrayList<>();
+        itemIds.add(TabListEditorItemSelectionId.createTabId(4));
+        itemIds.add(TabListEditorItemSelectionId.createTabId(5));
 
         for (int id : tabIds) {
             mTabModel.addTab(id);
         }
-        Set<Integer> tabIdsSet = new LinkedHashSet<>(tabIds);
-        when(mSelectionDelegate.getSelectedItems()).thenReturn(tabIdsSet);
+        Set<TabListEditorItemSelectionId> itemIdsSet = new LinkedHashSet<>(itemIds);
+        when(mSelectionDelegate.getSelectedItems()).thenReturn(itemIdsSet);
 
-        mAction.onSelectionStateChange(tabIds);
+        mAction.onSelectionStateChange(itemIds);
         Assert.assertEquals(
                 false, mAction.getPropertyModel().get(TabListEditorActionProperties.ENABLED));
         Assert.assertEquals(

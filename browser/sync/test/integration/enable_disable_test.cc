@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "base/run_loop.h"
+#include "base/scoped_observation.h"
 #include "base/strings/string_util.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -19,11 +20,14 @@
 #include "components/sync/base/features.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/engine/cycle/entity_change_metric_recording.h"
+#include "components/sync/protocol/sync.pb.h"
 #include "components/sync/service/glue/sync_transport_data_prefs.h"
 #include "components/sync/service/sync_service_impl.h"
 #include "components/sync/test/bookmark_entity_builder.h"
 #include "components/sync/test/entity_builder_factory.h"
 #include "content/public/test/browser_test.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 // To control Floating SSO (= sync of cookies) on ChromeOS.
@@ -33,15 +37,61 @@
 
 namespace {
 
+using fake_server::FakeServer;
 using syncer::DataType;
 using syncer::DataTypeSet;
 using syncer::DataTypeToDebugString;
 using syncer::UserSelectableType;
 using syncer::UserSelectableTypeSet;
+using testing::ElementsAre;
+using testing::IsEmpty;
 
 const char kSyncedBookmarkURL[] = "http://www.mybookmark.com";
 // Non-utf8 string to make sure it gets handled well.
 const char kTestServerChips[] = "\xed\xa0\x80\xed\xbf\xbf";
+
+// A FakeServer observer than saves all issued GetUpdates requests to a vector.
+class GetUpdatesRequestRecorder : public FakeServer::Observer {
+ public:
+  explicit GetUpdatesRequestRecorder(FakeServer* fake_server) {
+    CHECK(fake_server);
+    observation_.Observe(fake_server);
+  }
+
+  ~GetUpdatesRequestRecorder() override = default;
+
+  const std::vector<sync_pb::ClientToServerMessage>& recorded_requests() const {
+    return recorded_requests_;
+  }
+
+  // FakeServer::Observer overrides.
+  void OnWillGetUpdates(
+      const sync_pb::ClientToServerMessage& message) override {
+    recorded_requests_.push_back(message);
+  }
+
+ private:
+  std::vector<sync_pb::ClientToServerMessage> recorded_requests_;
+  base::ScopedObservation<FakeServer, FakeServer::Observer> observation_{this};
+};
+
+MATCHER_P2(MatchesGetUpdatesRequest, origin, data_type_set, "") {
+  if (!testing::ExplainMatchResult(
+          origin, arg.get_updates().get_updates_origin(), result_listener)) {
+    *result_listener << "Unexpected origin "
+                     << arg.get_updates().get_updates_origin();
+    return false;
+  }
+
+  DataTypeSet actual_data_types;
+  for (const sync_pb::DataTypeProgressMarker& marker :
+       arg.get_updates().from_progress_marker()) {
+    actual_data_types.Put(
+        syncer::GetDataTypeFromSpecificsFieldNumber(marker.data_type_id()));
+  }
+  return testing::ExplainMatchResult(data_type_set, actual_data_types,
+                                     result_listener);
+}
 
 // Some types show up in multiple groups. This means that there are at least two
 // user selectable groups that will cause these types to become enabled. This
@@ -113,10 +163,15 @@ class EnableDisableSingleClientTest : public SyncTest {
     GetProfile(0)->GetPrefs()->SetBoolean(::prefs::kFloatingSsoEnabled, true);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-    ASSERT_TRUE(GetClient(0)->SetupSync(base::BindLambdaForTesting(
-        [all_types_enabled](syncer::SyncUserSettings* user_settings) {
-          user_settings->SetSelectedTypes(all_types_enabled, {});
-        })));
+    ASSERT_TRUE(
+        GetClient(0)->SetupSyncWithCustomSettings(base::BindLambdaForTesting(
+            [all_types_enabled](syncer::SyncUserSettings* user_settings) {
+              user_settings->SetSelectedTypes(all_types_enabled, {});
+#if !BUILDFLAG(IS_CHROMEOS)
+              user_settings->SetInitialSyncFeatureSetupComplete(
+                  syncer::SyncFirstSetupCompleteSource::ADVANCED_FLOW_CONFIRM);
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+            })));
 
     registered_data_types_ = GetSyncService(0)->GetRegisteredDataTypesForTest();
 
@@ -141,6 +196,76 @@ class EnableDisableSingleClientTest : public SyncTest {
  private:
   fake_server::EntityBuilderFactory entity_builder_factory_;
 };
+
+IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, PRE_EnableAndRestart) {
+  GetUpdatesRequestRecorder get_updates_recorder(GetFakeServer());
+
+  SetupTest(/*all_types_enabled=*/true);
+
+  // Commit-only types don't issue GetUpdates (by definition) and supervised
+  // user types are also excluded in this test, because the account being used
+  // isn't supervised. Finally, a few types aren't launched so they should also
+  // be excluded.
+  const DataTypeSet types_without_updates =
+      Union(syncer::CommitOnlyTypes(),
+            {syncer::SUPERVISED_USER_SETTINGS, syncer::PLUS_ADDRESS,
+             syncer::PLUS_ADDRESS_SETTING});
+  // High priority types in this test are a subset of
+  // syncer::HighPriorityUserTypes(), excluding those identified earlier.
+  const DataTypeSet high_priority_types = Difference(
+      Intersection(syncer::HighPriorityUserTypes(), registered_data_types_),
+      types_without_updates);
+  // Similarly, low priority types in this test are a subset of
+  // syncer::LowPriorityUserTypes().
+  const DataTypeSet low_priority_types = Difference(
+      Intersection(syncer::LowPriorityUserTypes(), registered_data_types_),
+      types_without_updates);
+  // All other types have regular priority.
+  const DataTypeSet regular_priority_types = Difference(
+      registered_data_types_,
+      Union(types_without_updates, Union(syncer::HighPriorityUserTypes(),
+                                         syncer::LowPriorityUserTypes())));
+
+  // Initial sync takes four GetUpdates requests to the server to download:
+  // 1. Control types (NIGORI).
+  // 2. High-priority user types.
+  // 3. Regular-priority types.
+  // 4. Low-priority types.
+  //
+  // The sequence of GetUpdatesOrigin below matches what is empirically
+  // observed outside tests when Sync is turned on during desktop FRE using the
+  // advanced sync setup flow (open settings), which is also what tests mimic.
+  EXPECT_THAT(
+      get_updates_recorder.recorded_requests(),
+      ElementsAre(MatchesGetUpdatesRequest(sync_pb::SyncEnums::NEW_CLIENT,
+                                           syncer::ControlTypes()),
+                  MatchesGetUpdatesRequest(
+                      sync_pb::SyncEnums::NEW_CLIENT,
+                      Union(syncer::ControlTypes(), high_priority_types)),
+                  MatchesGetUpdatesRequest(
+                      sync_pb::SyncEnums::NEW_CLIENT,
+                      Union(syncer::ControlTypes(), regular_priority_types)),
+                  MatchesGetUpdatesRequest(
+                      sync_pb::SyncEnums::NEW_CLIENT,
+                      Union(syncer::ControlTypes(), low_priority_types))));
+}
+
+IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, EnableAndRestart) {
+  GetUpdatesRequestRecorder get_updates_recorder(GetFakeServer());
+
+  ASSERT_TRUE(SetupClients());
+
+  EXPECT_TRUE(GetClient(0)->AwaitEngineInitialization());
+
+  for (UserSelectableType type : UserSelectableTypeSet::All()) {
+    for (DataType data_type : ResolveGroup(type)) {
+      EXPECT_TRUE(IsDataTypeActive(data_type))
+          << " for " << DataTypeToDebugString(data_type);
+    }
+  }
+
+  EXPECT_THAT(get_updates_recorder.recorded_requests(), IsEmpty());
+}
 
 IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, EnableOneAtATime) {
   // Setup sync with no enabled types.
@@ -318,23 +443,6 @@ IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, EnableDisable) {
   }
 }
 
-IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, PRE_EnableAndRestart) {
-  SetupTest(/*all_types_enabled=*/true);
-}
-
-IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, EnableAndRestart) {
-  ASSERT_TRUE(SetupClients());
-
-  EXPECT_TRUE(GetClient(0)->AwaitEngineInitialization());
-
-  for (UserSelectableType type : UserSelectableTypeSet::All()) {
-    for (DataType data_type : ResolveGroup(type)) {
-      EXPECT_TRUE(IsDataTypeActive(data_type))
-          << " for " << DataTypeToDebugString(data_type);
-    }
-  }
-}
-
 IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, FastEnableDisableEnable) {
   SetupTest(/*all_types_enabled=*/false);
 
@@ -359,7 +467,7 @@ IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, FastEnableDisableEnable) {
 // the following tests.
 //
 // ChromeOS does not support signing out of a primary account.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, RedownloadsAfterSignout) {
   ASSERT_TRUE(SetupClients());
   ASSERT_FALSE(bookmarks_helper::GetBookmarkModel(0)->IsBookmarked(
@@ -374,12 +482,16 @@ IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, RedownloadsAfterSignout) {
   // in.
   // TODO(crbug.com/40215602): Rewrite this test to avoid disabling low priotiy
   // types.
-  ASSERT_TRUE(GetClient(0)->SetupSync(
+  ASSERT_TRUE(GetClient(0)->SetupSyncWithCustomSettings(
       base::BindOnce([](syncer::SyncUserSettings* settings) {
         UserSelectableTypeSet types = settings->GetRegisteredSelectableTypes();
         types.Remove(syncer::UserSelectableType::kHistory);
         types.Remove(syncer::UserSelectableType::kPasswords);
         settings->SetSelectedTypes(/*sync_everything=*/false, types);
+#if !BUILDFLAG(IS_CHROMEOS)
+        settings->SetInitialSyncFeatureSetupComplete(
+            syncer::SyncFirstSetupCompleteSource::ADVANCED_FLOW_CONFIRM);
+#endif  // !BUILDFLAG(IS_CHROMEOS)
       })));
   ASSERT_TRUE(GetSyncService(0)->IsSyncFeatureActive());
   ASSERT_FALSE(GetSyncService(0)->GetActiveDataTypes().HasAny(
@@ -403,7 +515,7 @@ IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, RedownloadsAfterSignout) {
       GURL(kSyncedBookmarkURL)));
   EXPECT_EQ(GetNumUpdatesDownloadedInLastCycle(), initial_updates_downloaded);
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest,
                        DoesNotRedownloadAfterSyncUnpaused) {
@@ -420,12 +532,16 @@ IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest,
   // in.
   // TODO(crbug.com/40215602): Rewrite this test to avoid disabling low priotiy
   // types.
-  ASSERT_TRUE(GetClient(0)->SetupSync(
+  ASSERT_TRUE(GetClient(0)->SetupSyncWithCustomSettings(
       base::BindOnce([](syncer::SyncUserSettings* settings) {
         UserSelectableTypeSet types = settings->GetRegisteredSelectableTypes();
         types.Remove(syncer::UserSelectableType::kHistory);
         types.Remove(syncer::UserSelectableType::kPasswords);
         settings->SetSelectedTypes(/*sync_everything=*/false, types);
+#if !BUILDFLAG(IS_CHROMEOS)
+        settings->SetInitialSyncFeatureSetupComplete(
+            syncer::SyncFirstSetupCompleteSource::ADVANCED_FLOW_CONFIRM);
+#endif  // !BUILDFLAG(IS_CHROMEOS)
       })));
   ASSERT_TRUE(GetSyncService(0)->IsSyncFeatureActive());
   ASSERT_FALSE(GetSyncService(0)->GetActiveDataTypes().HasAny(

@@ -16,6 +16,7 @@
 #include "base/check.h"
 #include "base/check_is_test.h"
 #include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_ash.h"
@@ -27,7 +28,6 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chromeos/ash/components/growth/action_performer.h"
 #include "chromeos/ash/components/growth/campaigns_constants.h"
@@ -97,9 +97,7 @@ bool IsEligible() {
 }
 
 bool IsWebBrowserAppId(std::string_view app_id) {
-  return app_id == app_constants::kChromeAppId ||
-         app_id == app_constants::kAshDebugBrowserAppId ||
-         app_id == app_constants::kLacrosAppId;
+  return app_id == app_constants::kChromeAppId;
 }
 
 bool IsAppVisible(const apps::InstanceUpdate& update) {
@@ -118,6 +116,10 @@ std::optional<growth::ActionType> GetActionTypeBySlot(growth::Slot slot) {
 
   if (slot == growth::Slot::kNudge) {
     return growth::ActionType::kShowNudge;
+  }
+
+  if (slot == growth::Slot::kDryRun) {
+    return growth::ActionType::kDryRun;
   }
 
   return std::nullopt;
@@ -171,6 +173,11 @@ void MaybeTriggerSlot(growth::Slot slot) {
     return;
   }
 
+  if (action_type == growth::ActionType::kDryRun) {
+    // Skip rendering for dry run.
+    return;
+  }
+
   const auto* payload = growth::GetPayloadBySlot(campaign, slot);
   if (!payload) {
     // No payload for the targeted slot. It is valid for counterfactual control.
@@ -199,6 +206,7 @@ void MaybeTriggerRuntimeCampaigns(growth::TriggerType type,
 
   MaybeTriggerSlot(growth::Slot::kNudge);
   MaybeTriggerSlot(growth::Slot::kNotification);
+  MaybeTriggerSlot(growth::Slot::kDryRun);
 }
 
 void MaybeTriggerCampaignsWhenCampaignsLoaded() {
@@ -275,21 +283,6 @@ std::optional<apps::AppType> GetAppType(const std::string& app_id) {
   return cache->GetAppType(app_id);
 }
 
-// Returns current active browser. If there's no active browser, return nullptr.
-Browser* GetActiveBrowser() {
-  for (Browser* browser : BrowserList::GetInstance()->OrderedByActivation()) {
-    if (browser->profile()->IsOffTheRecord() ||
-        !browser->window()->IsVisible()) {
-      continue;
-    }
-
-    if (browser->window()->IsActive()) {
-      return browser;
-    }
-  }
-  return nullptr;
-}
-
 bool IsSystemWebApp(Profile* profile, const webapps::AppId& app_id) {
   ash::SystemWebAppManager* swa_manager =
       ash::SystemWebAppManager::Get(profile);
@@ -301,24 +294,26 @@ bool IsSystemWebApp(Profile* profile, const webapps::AppId& app_id) {
 }
 
 bool HasValidPwaBrowserForAppId(const std::string& app_id) {
-  auto* browser = GetActiveBrowser();
+  for (Browser* browser : BrowserList::GetInstance()->OrderedByActivation()) {
+    if (browser->profile()->IsOffTheRecord() || !browser->IsActive()) {
+      continue;
+    }
 
-  if (!browser) {
-    CAMPAIGNS_LOG(ERROR) << "No browser window";
-    return false;
+    if (browser->type() != Browser::TYPE_APP) {
+      CAMPAIGNS_LOG(ERROR) << "Not pwa browser type";
+      return false;
+    }
+
+    if (!web_app::AppBrowserController::IsForWebApp(browser, app_id)) {
+      CAMPAIGNS_LOG(ERROR) << "Browser belongs to a different app";
+      return false;
+    }
+
+    return true;
   }
 
-  if (browser->type() != Browser::TYPE_APP) {
-    CAMPAIGNS_LOG(ERROR) << "Not pwa browser type";
-    return false;
-  }
-
-  if (!web_app::AppBrowserController::IsForWebApp(browser, app_id)) {
-    CAMPAIGNS_LOG(ERROR) << "Browser belongs to a different app";
-    return false;
-  }
-
-  return true;
+  CAMPAIGNS_LOG(ERROR) << "No browser window";
+  return false;
 }
 
 void SetCampaignManagerPrefService(Profile* profile) {
@@ -444,9 +439,7 @@ void CampaignsManagerSession::OnInstanceUpdate(
 
   switch (app_type.value()) {
     case apps::AppType::kUnknown:
-      // e.g Ash debug browser.
       break;
-    case apps::AppType::kStandaloneBrowser:
     case apps::AppType::kChromeApp:
       HandleWebBrowserInstanceUpdate(update);
       break;

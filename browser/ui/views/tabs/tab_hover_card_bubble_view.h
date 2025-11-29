@@ -7,7 +7,7 @@
 
 #include <memory>
 #include <optional>
-#include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/callback_list.h"
@@ -31,9 +31,14 @@ namespace gfx {
 class ImageSkia;
 }
 
+namespace tabs {
+enum class TabAlert;
+}
+
 class Tab;
 class TabStyle;
 class FadeLabelView;
+struct TabRendererData;
 
 // Dialog that displays an informational hover card containing page information.
 class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
@@ -62,6 +67,10 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
   TabHoverCardBubbleView& operator=(const TabHoverCardBubbleView&) = delete;
   ~TabHoverCardBubbleView() override;
 
+  // Create the CollaborationMessagingRowData from TabRendererData.
+  CollaborationMessagingRowData GetCollaborationMessagingData(
+      const TabRendererData& tab_data);
+
   // Updates and formats title, alert state, domain, and preview image.
   void UpdateCardContent(const Tab* tab);
 
@@ -76,8 +85,8 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
   void SetPlaceholderImage();
 
   // Accessors used by tests.
-  std::u16string GetTitleTextForTesting() const;
-  std::u16string GetDomainTextForTesting() const;
+  std::u16string_view GetTitleTextForTesting() const;
+  std::u16string_view GetDomainTextForTesting() const;
   views::View* GetThumbnailViewForTesting();
   FooterView* GetFooterViewForTesting();
 
@@ -99,7 +108,7 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
   raw_ptr<FadeLabelView> domain_label_ = nullptr;
   raw_ptr<ThumbnailView> thumbnail_view_ = nullptr;
   raw_ptr<FooterView> footer_view_ = nullptr;
-  std::optional<TabAlertState> alert_state_;
+  std::optional<tabs::TabAlert> alert_state_;
   const raw_ptr<const TabStyle> tab_style_;
 
   const InitParams bubble_params_;

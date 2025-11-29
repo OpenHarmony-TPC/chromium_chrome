@@ -28,7 +28,6 @@
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
@@ -194,7 +193,7 @@ class ApiInfoDatabase {
       api_database_[info.api_name] = &info;
     }
   }
-  virtual ~ApiInfoDatabase() {}
+  virtual ~ApiInfoDatabase() = default;
 
   // The map is keyed by API name only, since API names aren't be repeated
   // across multiple action types in kApiInfoTable.  However, the action type

@@ -29,7 +29,6 @@ import org.mockito.junit.MockitoRule;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -38,7 +37,6 @@ import org.chromium.chrome.browser.signin.services.SigninPreferencesManager;
 import org.chromium.chrome.test.AutomotiveContextWrapperTestRule;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
 import org.chromium.components.prefs.PrefService;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.signin.test.util.FakeAccountManagerFacade;
@@ -50,15 +48,10 @@ import java.util.Set;
 
 /** Tests for {@link FullscreenSigninPromoLauncher}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@DisableFeatures({
-    ChromeFeatureList.FORCE_DISABLE_EXTENDED_SYNC_PROMOS,
-    ChromeFeatureList.FORCE_STARTUP_SIGNIN_PROMO
-})
+@DisableFeatures({ChromeFeatureList.FORCE_STARTUP_SIGNIN_PROMO})
 public class FullscreenSigninPromoLauncherTest {
     private static final int CURRENT_MAJOR_VERSION = 42;
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
-
-    @Rule public final JniMocker mocker = new JniMocker();
 
     private final FakeAccountManagerFacade mFakeAccountManagerFacade =
             spy(new FakeAccountManagerFacade());
@@ -89,7 +82,7 @@ public class FullscreenSigninPromoLauncherTest {
 
     @Before
     public void setUp() {
-        mocker.mock(UserPrefsJni.TEST_HOOKS, mUserPrefsNativeMock);
+        UserPrefsJni.setInstanceForTesting(mUserPrefsNativeMock);
         IdentityServicesProvider.setInstanceForTests(mock(IdentityServicesProvider.class));
         when(IdentityServicesProvider.get().getIdentityManager(mProfile))
                 .thenReturn(mIdentityManagerMock);
@@ -123,7 +116,7 @@ public class FullscreenSigninPromoLauncherTest {
                 FullscreenSigninPromoLauncher.launchPromoIfNeeded(
                         mContext, mProfile, mFullscreenSigninLauncherMock, CURRENT_MAJOR_VERSION));
         Assert.assertEquals(42, mPrefManager.getSigninPromoLastShownVersion());
-        verify(mFakeAccountManagerFacade, never()).getCoreAccountInfos();
+        verify(mFakeAccountManagerFacade, never()).getAccounts();
     }
 
     @EnableFeatures(ChromeFeatureList.FORCE_STARTUP_SIGNIN_PROMO)
@@ -143,30 +136,18 @@ public class FullscreenSigninPromoLauncherTest {
 
     @Test
     @EnableFeatures(ChromeFeatureList.FORCE_STARTUP_SIGNIN_PROMO)
-    public void promoNotShownWhenForcingSigninPromoAtStartupOnAuto() {
+    public void promoShownWhenForcingSigninPromoAtStartupOnAuto() {
         mAutomotiveContextWrapperTestRule.setIsAutomotive(true);
         mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
+        when(mFullscreenSigninLauncherMock.createFullscreenSigninIntent(
+                        eq(mContext), eq(mProfile), any(), eq(SigninAccessPoint.SIGNIN_PROMO)))
+                .thenReturn(mSigninIntent);
 
-        Assert.assertFalse(
+        Assert.assertTrue(
                 FullscreenSigninPromoLauncher.launchPromoIfNeeded(
                         mContext, mProfile, mFullscreenSigninLauncherMock, CURRENT_MAJOR_VERSION));
-        verify(mFullscreenSigninLauncherMock, never())
-                .createFullscreenSigninIntent(
-                        eq(mContext), eq(mProfile), any(), eq(SigninAccessPoint.SIGNIN_PROMO));
-    }
 
-    @Test
-    public void whenSignedInAndSyncingShouldReturnFalse() {
-        mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
-        when(mIdentityManagerMock.getPrimaryAccountInfo(ConsentLevel.SYNC))
-                .thenReturn(TestAccounts.ACCOUNT1);
-        mPrefManager.setSigninPromoLastShownVersion(38);
-        Assert.assertFalse(
-                FullscreenSigninPromoLauncher.launchPromoIfNeeded(
-                        mContext, mProfile, mFullscreenSigninLauncherMock, CURRENT_MAJOR_VERSION));
-        verify(mFakeAccountManagerFacade, never()).getCoreAccountInfos();
-        verify(mFullscreenSigninLauncherMock, never())
-                .createFullscreenSigninIntent(any(), any(), any(), anyInt());
+        verify(mContext).startActivity(mSigninIntent);
     }
 
     @Test
@@ -178,7 +159,7 @@ public class FullscreenSigninPromoLauncherTest {
         Assert.assertFalse(
                 FullscreenSigninPromoLauncher.launchPromoIfNeeded(
                         mContext, mProfile, mFullscreenSigninLauncherMock, CURRENT_MAJOR_VERSION));
-        verify(mFakeAccountManagerFacade, never()).getCoreAccountInfos();
+        verify(mFakeAccountManagerFacade, never()).getAccounts();
         verify(mFullscreenSigninLauncherMock, never())
                 .createFullscreenSigninIntent(any(), any(), any(), anyInt());
     }
@@ -190,7 +171,7 @@ public class FullscreenSigninPromoLauncherTest {
         Assert.assertFalse(
                 FullscreenSigninPromoLauncher.launchPromoIfNeeded(
                         mContext, mProfile, mFullscreenSigninLauncherMock, CURRENT_MAJOR_VERSION));
-        verify(mFakeAccountManagerFacade, never()).getCoreAccountInfos();
+        verify(mFakeAccountManagerFacade, never()).getAccounts();
         verify(mFullscreenSigninLauncherMock, never())
                 .createFullscreenSigninIntent(any(), any(), any(), anyInt());
     }
@@ -201,7 +182,7 @@ public class FullscreenSigninPromoLauncherTest {
         Assert.assertFalse(
                 FullscreenSigninPromoLauncher.launchPromoIfNeeded(
                         mContext, mProfile, mFullscreenSigninLauncherMock, CURRENT_MAJOR_VERSION));
-        verify(mFakeAccountManagerFacade).getCoreAccountInfos();
+        verify(mFakeAccountManagerFacade).getAccounts();
         verify(mFullscreenSigninLauncherMock, never())
                 .createFullscreenSigninIntent(any(), any(), any(), anyInt());
     }
@@ -250,10 +231,10 @@ public class FullscreenSigninPromoLauncherTest {
 
     @Test
     public void whenHasNewAccountShouldReturnTrue() {
-        mAccountManagerTestRule.addAccount(AccountManagerTestRule.AADC_ADULT_ACCOUNT);
+        mAccountManagerTestRule.addAccount(TestAccounts.AADC_ADULT_ACCOUNT);
         when(mIdentityManagerMock.findExtendedAccountInfoByEmailAddress(
-                        AccountManagerTestRule.AADC_ADULT_ACCOUNT.getEmail()))
-                .thenReturn(AccountManagerTestRule.AADC_ADULT_ACCOUNT);
+                        TestAccounts.AADC_ADULT_ACCOUNT.getEmail()))
+                .thenReturn(TestAccounts.AADC_ADULT_ACCOUNT);
         mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT2);
         mPrefManager.setSigninPromoLastShownVersion(40);
         mPrefManager.setSigninPromoLastAccountEmails(Set.of(TestAccounts.ACCOUNT1.getEmail()));
@@ -273,10 +254,10 @@ public class FullscreenSigninPromoLauncherTest {
     @Test
     public void whenHasNewAccountOnAutoShouldReturnFalse() {
         mAutomotiveContextWrapperTestRule.setIsAutomotive(true);
-        mAccountManagerTestRule.addAccount(AccountManagerTestRule.AADC_ADULT_ACCOUNT);
+        mAccountManagerTestRule.addAccount(TestAccounts.AADC_ADULT_ACCOUNT);
         when(mIdentityManagerMock.findExtendedAccountInfoByEmailAddress(
-                        AccountManagerTestRule.AADC_ADULT_ACCOUNT.getEmail()))
-                .thenReturn(AccountManagerTestRule.AADC_ADULT_ACCOUNT);
+                        TestAccounts.AADC_ADULT_ACCOUNT.getEmail()))
+                .thenReturn(TestAccounts.AADC_ADULT_ACCOUNT);
         mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT2);
         mPrefManager.setSigninPromoLastShownVersion(40);
         mPrefManager.setSigninPromoLastAccountEmails(Set.of(TestAccounts.ACCOUNT1.getEmail()));
@@ -301,7 +282,7 @@ public class FullscreenSigninPromoLauncherTest {
         Assert.assertFalse(
                 FullscreenSigninPromoLauncher.launchPromoIfNeeded(
                         mContext, mProfile, mFullscreenSigninLauncherMock, CURRENT_MAJOR_VERSION));
-        verify(mFakeAccountManagerFacade).getCoreAccountInfos();
+        verify(mFakeAccountManagerFacade).getAccounts();
         verify(mFullscreenSigninLauncherMock, never())
                 .createFullscreenSigninIntent(any(), any(), any(), anyInt());
         Assert.assertEquals(40, mPrefManager.getSigninPromoLastShownVersion());
@@ -319,10 +300,35 @@ public class FullscreenSigninPromoLauncherTest {
         Assert.assertFalse(
                 FullscreenSigninPromoLauncher.launchPromoIfNeeded(
                         mContext, mProfile, mFullscreenSigninLauncherMock, CURRENT_MAJOR_VERSION));
-        verify(mFakeAccountManagerFacade).getCoreAccountInfos();
+        verify(mFakeAccountManagerFacade).getAccounts();
         verify(mFullscreenSigninLauncherMock, never())
                 .createFullscreenSigninIntent(any(), any(), any(), anyInt());
         Assert.assertEquals(40, mPrefManager.getSigninPromoLastShownVersion());
         Assert.assertEquals(2, mPrefManager.getSigninPromoLastAccountEmails().size());
+    }
+
+    /**
+     * Tests that the upgrade promo doesn't record "promo shown" preferences when the related
+     * sign-in flow fails to launch, as the user will not see any UI in this case. The failure can
+     * occur (a null intent is returned by SigninAndHistorySyncActivityLauncher) due to multiple
+     * reasons: e.g. sign-in is disabled, the user is signed-in but can't opt-in to history sync, or
+     * the user is signed-in but declined history sync too recently. See {@link
+     * SigninAndHistorySyncActivityLauncherImpl#canStartSigninAndHistorySyncOrShowError}
+     */
+    @Test
+    public void testSigninFlowFailsToLaunch() {
+        mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
+        mPrefManager.setSigninPromoLastShownVersion(10);
+        when(mFullscreenSigninLauncherMock.createFullscreenSigninIntent(
+                        eq(mContext), eq(mProfile), any(), eq(SigninAccessPoint.SIGNIN_PROMO)))
+                .thenReturn(null);
+
+        Assert.assertFalse(
+                FullscreenSigninPromoLauncher.launchPromoIfNeeded(
+                        mContext, mProfile, mFullscreenSigninLauncherMock, CURRENT_MAJOR_VERSION));
+
+        verify(mContext, never()).startActivity(any());
+        Assert.assertEquals(10, mPrefManager.getSigninPromoLastShownVersion());
+        Assert.assertEquals(null, mPrefManager.getSigninPromoLastAccountEmails());
     }
 }

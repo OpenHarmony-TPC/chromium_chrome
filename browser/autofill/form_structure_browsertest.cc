@@ -29,11 +29,11 @@
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/content/browser/content_autofill_driver_factory.h"
 #include "components/autofill/content/browser/test_autofill_manager_injector.h"
-#include "components/autofill/core/browser/autofill_experiments.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
-#include "components/autofill/core/browser/browser_autofill_manager.h"
+#include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
+#include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
 #include "components/autofill/core/browser/heuristic_source.h"
-#include "components/autofill/core/browser/test_autofill_manager_waiter.h"
+#include "components/autofill/core/browser/studies/autofill_experiments.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/autofill/core/common/unique_ids.h"
@@ -73,7 +73,7 @@ const auto& GetFailingTestNames() {
 #endif
 
 const base::FilePath& GetTestDataDir() {
-  static base::NoDestructor<base::FilePath> dir([]() {
+  static base::NoDestructor<base::FilePath> dir([] {
     base::FilePath dir;
     base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &dir);
     dir = dir.AppendASCII("components").AppendASCII("test").AppendASCII("data");
@@ -138,8 +138,8 @@ std::string FormStructuresToString(
       }
       string_form += base::JoinString(
           {field->Type().ToStringView(), base::UTF16ToUTF8(field->name()),
-           base::UTF16ToUTF8(field->label()),
-           base::UTF16ToUTF8(field->value(ValueSemantics::kCurrent)), section},
+           base::UTF16ToUTF8(field->label()), base::UTF16ToUTF8(field->value()),
+           section},
           " | ");
       string_form.push_back('\n');
     }
@@ -181,7 +181,7 @@ class FormStructureBrowserTest
   class TestAutofillManager : public BrowserAutofillManager {
    public:
     explicit TestAutofillManager(ContentAutofillDriver* driver)
-        : BrowserAutofillManager(driver, "en-US") {}
+        : BrowserAutofillManager(driver) {}
 
     TestAutofillManagerWaiter& waiter() { return waiter_; }
 
@@ -208,30 +208,34 @@ FormStructureBrowserTest::FormStructureBrowserTest()
   feature_list_.InitWithFeatures(
       // Enabled
       {
-          features::kAutofillPageLanguageDetection,
-          features::kAutofillFixValueSemantics,
           // TODO(crbug.com/40741721): Remove once shared labels are launched.
           features::kAutofillEnableSupportForParsingWithSharedLabels,
-          // TODO(crbug.com/40230674): Remove once launched.
-          features::kAutofillParseVcnCardOnFileStandaloneCvcFields,
-          // TODO(crbug.com/40220393): Remove once launched.
-          features::kAutofillEnableSupportForPhoneNumberTrunkTypes,
-          features::kAutofillInferCountryCallingCode,
           // TODO(crbug.com/40266396): Remove once launched.
           features::kAutofillEnableExpirationDateImprovements,
-          features::kAutofillUseITAddressModel,
-          // TODO(crbug.com/320965828): Remove once launched.
-          features::kAutofillInferLabelFromDefaultSelectText,
+          features::kAutofillUnifyRationalizationAndSectioningOrder,
       },
       // Disabled
-      {// TODO(crbug.com/40220393): Remove once launched.
-       // This feature is part of the AutofillRefinedPhoneNumberTypes rollout.
-       // As it is not supported on iOS yet, it is disabled.
-       features::kAutofillConsiderPhoneNumberSeparatorsValidLabels,
-       // TODO(crbug.com/1493145): Remove when/if launched. This feature changes
-       // default parsing behavior, so must be disabled to avoid
-       // fieldtrial_testing_config interference.
-       features::kAutofillEnableEmailHeuristicOnlyAddressForms});
+      {
+          // TODO(crbug.com/320965828): This feature is not supported on the iOS
+          // renderer side and disabled to avoid too many differences between
+          // the expectations.
+          features::kAutofillBetterLocalHeuristicPlaceholderSupport,
+          // TODO(crbug.com/395831853): Remove once launched.
+          features::kAutofillEnableLoyaltyCardsFilling,
+          // TODO(crbug.com/360322019): kAutofillPageLanguageDetection needs to
+          // be disabled because the page language detection is an asynchronous
+          // process in the renderer. If the form parsing in the browser
+          // completes before the language detection triggers a second run with
+          // a known language, the results are different from results without
+          // such a second run: Form parsing with a known language applies fewer
+          // regular expressions than formparsing without a known language. It
+          // would be ideal if the browser could just wait until the page
+          // language detection is complete but at the moment the browser is
+          // only informed if a non-null language could be determined. See
+          // crbug.com/409067352. We disable page language detection to get a
+          // deterministic result until this is fixed.
+          features::kAutofillPageLanguageDetection,
+      });
 }
 
 FormStructureBrowserTest::~FormStructureBrowserTest() = default;
@@ -264,7 +268,7 @@ void FormStructureBrowserTest::GenerateResults(const std::string& input,
   html_content_.clear();
   html_content_.reserve(input.length());
   for (const char c : input) {
-    // Strip `\n`, `\t`, `\r` from |html| to match old `data:` URL behavior.
+    // Strip `\n`, `\t`, `\r` from `html` to match old `data:` URL behavior.
     // TODO(crbug.com/40317270): the tests expect weird concatenation behavior
     // based
     //   legacy data URL behavior. Fix this so the the tests better represent
