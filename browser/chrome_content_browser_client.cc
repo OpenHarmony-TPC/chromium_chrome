@@ -4921,21 +4921,33 @@ std::string ChromeContentBrowserClient::GetDefaultDownloadName() {
 
 base::FilePath ChromeContentBrowserClient::GetShaderDiskCacheDirectory() {
   base::FilePath user_data_dir;
+#if BUILDFLAG(ARKWEB_CACHE)
+  base::PathService::Get(base::DIR_CACHE, &user_data_dir);
+#else
   base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
+#endif
   DCHECK(!user_data_dir.empty());
   return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
 }
 
 base::FilePath ChromeContentBrowserClient::GetGrShaderDiskCacheDirectory() {
   base::FilePath user_data_dir;
+#if BUILDFLAG(ARKWEB_CACHE)
+  base::PathService::Get(base::DIR_CACHE, &user_data_dir);
+#else
   base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
+#endif
   DCHECK(!user_data_dir.empty());
   return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
 }
 
 base::FilePath ChromeContentBrowserClient::GetGraphiteDawnDiskCacheDirectory() {
   base::FilePath user_data_dir;
+#if BUILDFLAG(ARKWEB_CACHE)
+  base::PathService::Get(base::DIR_CACHE, &user_data_dir);
+#else
   base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
+#endif
   return user_data_dir.Append(FILE_PATH_LITERAL("GraphiteDawnCache"));
 }
 
