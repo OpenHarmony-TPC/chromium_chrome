@@ -76,8 +76,7 @@ class ExtensionTabUtil {
   static constexpr char kBrowserWindowNotAllowed[] =
       "Browser windows not allowed.";
   static constexpr char kCannotNavigateToDevtools[] =
-      "Cannot navigate to a devtools:// page without either the devtools or "
-      "debugger permission.";
+      "Cannot navigate to a devtools:// page.";
   static constexpr char kLockedFullscreenModeNewTabError[] =
       "You cannot create new tabs while in locked fullscreen mode.";
   static constexpr char kCannotNavigateToChromeUntrusted[] =
