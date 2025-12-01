@@ -41,7 +41,6 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.omnibox.LocationBarLayout;
@@ -51,9 +50,10 @@ import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteCoordinator;
 import org.chromium.chrome.browser.omnibox.suggestions.carousel.BaseCarouselSuggestionView;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
-import org.chromium.chrome.test.util.ChromeTabUtils;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.OmniboxTestUtils;
 import org.chromium.chrome.test.util.OmniboxTestUtils.SuggestionInfo;
 import org.chromium.components.omnibox.AutocompleteMatch;
@@ -85,15 +85,15 @@ public class MostVisitedTilesTest {
     private static final int MV_TILE_CAROUSEL_MATCH_POSITION = 1;
     private static final long MV_TILE_NATIVE_HANDLE = 0xfce2;
 
-    public final @Rule ChromeTabbedActivityTestRule mActivityTestRule =
-            new ChromeTabbedActivityTestRule();
+    public final @Rule FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule();
-    public @Rule JniMocker mJniMocker = new JniMocker();
     private @Mock AutocompleteController.Natives mAutocompleteControllerJniMock;
     private @Mock AutocompleteController mController;
     private @Captor ArgumentCaptor<AutocompleteController.OnSuggestionsReceivedListener> mListener;
 
+    private WebPageStation mPage;
     private ChromeTabbedActivity mActivity;
     private LocationBarLayout mLocationBarLayout;
 
@@ -110,22 +110,18 @@ public class MostVisitedTilesTest {
 
     @Before
     public void setUp() throws Exception {
-        mJniMocker.mock(AutocompleteControllerJni.TEST_HOOKS, mAutocompleteControllerJniMock);
+        AutocompleteControllerJni.setInstanceForTesting(mAutocompleteControllerJniMock);
         doReturn(mController).when(mAutocompleteControllerJniMock).getForProfile(any());
 
-        mActivityTestRule.startMainActivityOnBlankPage();
-        mActivityTestRule.waitForActivityNativeInitializationComplete();
+        mPage = mActivityTestRule.startOnTestServerUrl(START_PAGE_LOCATION);
 
-        mActivity = mActivityTestRule.getActivity();
+        mActivity = mPage.getActivity();
         mOmnibox = new OmniboxTestUtils(mActivity);
         mLocationBarLayout = mActivity.findViewById(R.id.location_bar);
         mAutocomplete = mLocationBarLayout.getAutocompleteCoordinator();
-        mTab = mActivity.getActivityTab();
+        mTab = mPage.loadedTabElement.get();
         mStartUrl = mActivityTestRule.getTestServer().getURL(START_PAGE_LOCATION);
 
-        ChromeTabUtils.waitForInteractable(mTab);
-        ChromeTabUtils.loadUrlOnUiThread(mTab, mStartUrl);
-        ChromeTabUtils.waitForTabPageLoaded(mTab, null);
         verify(mController).addOnSuggestionsReceivedListener(mListener.capture());
 
         setUpSuggestionsToShow();
@@ -135,7 +131,7 @@ public class MostVisitedTilesTest {
 
     @After
     public void tearDown() {
-        mJniMocker.mock(AutocompleteControllerJni.TEST_HOOKS, null);
+        AutocompleteControllerJni.setInstanceForTesting(null);
     }
 
     /**
@@ -204,18 +200,6 @@ public class MostVisitedTilesTest {
                     mListener.getValue().onSuggestionsReceived(autocompleteResult, true);
                 });
         mOmnibox.checkSuggestionsShown();
-    }
-
-    private void clickTileAtPosition(int position) {
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    LayoutManager manager = mCarousel.view.getLayoutManager();
-                    Assert.assertTrue(position < manager.getItemCount());
-                    manager.scrollToPosition(position);
-                    View view = manager.findViewByPosition(position);
-                    Assert.assertNotNull(view);
-                    view.performClick();
-                });
     }
 
     private void longClickTileAtPosition(int position) {

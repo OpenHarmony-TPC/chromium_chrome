@@ -36,7 +36,7 @@ class DiceWebSigninInterceptorDelegate : public WebSigninInterceptor::Delegate {
       const BubbleParameters& bubble_parameters,
       signin::SigninChoiceWithConfirmAndRetryCallback callback,
       base::OnceClosure dialog_closed_closure,
-      base::RepeatingClosure retry_callback = base::DoNothing()) override;
+      base::RepeatingClosure retry_callback) override;
   void ShowFirstRunExperienceInNewProfile(
       Browser* browser,
       const CoreAccountId& account_id,
@@ -60,9 +60,7 @@ class DiceWebSigninInterceptorDelegate : public WebSigninInterceptor::Delegate {
       const BubbleParameters& bubble_parameters,
       base::OnceCallback<void(SigninInterceptionResult)> callback);
 
-  // Implemented in profile_customization_bubble_view.cc
   static bool IsSigninInterceptionSupportedInternal(const Browser& Browser);
-  void ShowProfileCustomizationBubbleInternal(Browser* browser);
 };
 
 #endif  // CHROME_BROWSER_UI_SIGNIN_DICE_WEB_SIGNIN_INTERCEPTOR_DELEGATE_H_

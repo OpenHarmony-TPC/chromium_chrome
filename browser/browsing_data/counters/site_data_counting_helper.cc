@@ -29,7 +29,6 @@
 #include "storage/browser/file_system/file_system_context.h"
 #include "storage/browser/quota/quota_manager.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
-#include "third_party/blink/public/mojom/quota/quota_types.mojom.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -49,7 +48,7 @@ SiteDataCountingHelper::SiteDataCountingHelper(
       completion_callback_(std::move(completion_callback)),
       tasks_(0) {}
 
-SiteDataCountingHelper::~SiteDataCountingHelper() {}
+SiteDataCountingHelper::~SiteDataCountingHelper() = default;
 
 void SiteDataCountingHelper::CountAndDestroySelfWhenFinished() {
   content::StoragePartition* partition = profile_->GetDefaultStoragePartition();
@@ -66,24 +65,16 @@ void SiteDataCountingHelper::CountAndDestroySelfWhenFinished() {
 
   storage::QuotaManager* quota_manager = partition->GetQuotaManager();
   if (quota_manager) {
-    // Count storage keys with filesystem, websql, indexeddb, serviceworkers,
-    // cachestorage, and medialicense using quota manager.
-    // TODO(crbug.com/40264778): For now, media licenses are part of the quota
-    // management system, but when dis-integrated, remove media license logic
-    // from quota logic.
+    // Count storage keys with filesystem, indexeddb, serviceworkers,
+    // and cachestorage using quota manager.
     auto buckets_callback =
         base::BindRepeating(&SiteDataCountingHelper::GetQuotaBucketsCallback,
                             base::Unretained(this));
-    const blink::mojom::StorageType types[] = {
-        blink::mojom::StorageType::kTemporary,
-        blink::mojom::StorageType::kSyncable};
-    for (auto type : types) {
-      tasks_ += 1;
-      content::GetIOThreadTaskRunner({})->PostTask(
-          FROM_HERE,
-          base::BindOnce(&storage::QuotaManager::GetBucketsModifiedBetween,
-                         quota_manager, type, begin_, end_, buckets_callback));
-    }
+    tasks_ += 1;
+    content::GetIOThreadTaskRunner({})->PostTask(
+        FROM_HERE,
+        base::BindOnce(&storage::QuotaManager::GetBucketsModifiedBetween,
+                       quota_manager, begin_, end_, buckets_callback));
   }
 
   // Count origins with local storage or session storage.
@@ -98,8 +89,6 @@ void SiteDataCountingHelper::CountAndDestroySelfWhenFinished() {
     // is fixed.
   }
 
-// TODO(crbug.com/40272342): Add CdmStorageManager logic to count origins, and
-// add test to browsing_data_remover_browsertest.cc to test counting logic.
 #if BUILDFLAG(IS_ANDROID)
   // Count origins with media licenses on Android.
   tasks_ += 1;

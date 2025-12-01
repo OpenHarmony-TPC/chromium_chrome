@@ -14,7 +14,6 @@ import static org.junit.Assert.assertTrue;
 import android.app.Activity;
 import android.content.Context;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 
 import org.junit.Assert;
@@ -33,7 +32,6 @@ import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.signin.metrics.SignoutReason;
-import org.chromium.components.sync.SyncFirstSetupCompleteSource;
 import org.chromium.components.sync.SyncService;
 import org.chromium.components.sync.UserSelectableType;
 import org.chromium.ui.base.WindowAndroid;
@@ -133,46 +131,18 @@ public final class SigninTestUtil {
                 });
     }
 
-    /**
-     * Signs into an account and enables the sync if given a {@link SyncService} object.
-     *
-     * @param syncService Enable the sync with it if it is not null.
-     */
+    /** Signs into an account with the legacy Sync consent level. */
+    // TODO(crbug.com/40066949): Remove once Sync-the-feature is fully removed.
     @WorkerThread
-    public static void signinAndEnableSync(
-            CoreAccountInfo coreAccountInfo, @Nullable SyncService syncService) {
-        CallbackHelper callbackHelper = new CallbackHelper();
+    static void signinWithConsentLevelSync(CoreAccountInfo coreAccountInfo) {
+        signinAndWaitForPrefsCommit(coreAccountInfo);
+
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     SigninManager signinManager =
                             IdentityServicesProvider.get()
                                     .getSigninManager(ProfileManager.getLastUsedRegularProfile());
-                    signinManager.signinAndEnableSync(
-                            coreAccountInfo,
-                            SigninAccessPoint.UNKNOWN,
-                            new SigninManager.SignInCallback() {
-                                @Override
-                                public void onSignInComplete() {
-                                    if (syncService != null) {
-                                        syncService.setInitialSyncFeatureSetupComplete(
-                                                SyncFirstSetupCompleteSource.BASIC_FLOW);
-                                    }
-                                    callbackHelper.notifyCalled();
-                                }
-
-                                @Override
-                                public void onSignInAborted() {
-                                    Assert.fail("Sign-in was aborted");
-                                }
-                            });
-                });
-        try {
-            callbackHelper.waitForOnly();
-        } catch (TimeoutException e) {
-            throw new RuntimeException("Timed out waiting for callback", e);
-        }
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
+                    signinManager.turnOnSyncForTesting(coreAccountInfo, SigninAccessPoint.UNKNOWN);
                     Assert.assertEquals(coreAccountInfo, getPrimaryAccount(ConsentLevel.SYNC));
                 });
     }

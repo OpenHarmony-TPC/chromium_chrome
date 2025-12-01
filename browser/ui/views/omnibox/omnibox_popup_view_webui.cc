@@ -7,8 +7,8 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <string_view>
 
-#include "base/auto_reset.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
@@ -72,7 +72,7 @@ void OmniboxPopupViewWebUI::OnSelectionChanged(
 void OmniboxPopupViewWebUI::UpdatePopupAppearance() {
   // Measure time since construction just once.
   if (!construction_time_.is_null()) {
-    base::TimeDelta delta = base::TimeTicks::Now() - construction_time_;
+    const base::TimeDelta delta = base::TimeTicks::Now() - construction_time_;
     construction_time_ = base::TimeTicks();
     base::UmaHistogramTimes("Omnibox.WebUI.FirstUpdate", delta);
   }
@@ -100,14 +100,4 @@ void OmniboxPopupViewWebUI::OnMatchIconUpdated(size_t match_index) {
 void OmniboxPopupViewWebUI::OnDragCanceled() {}
 
 void OmniboxPopupViewWebUI::GetPopupAccessibleNodeData(
-    ui::AXNodeData* node_data) {}
-
-void OmniboxPopupViewWebUI::AddPopupAccessibleNodeData(
-    ui::AXNodeData* node_data) {
-  // TODO(crbug.com/40062053): Not implemented for WebUI omnibox popup yet.
-}
-
-std::u16string OmniboxPopupViewWebUI::GetAccessibleButtonTextForResult(
-    size_t line) {
-  return u"";
-}
+    ui::AXNodeData* node_data) const {}

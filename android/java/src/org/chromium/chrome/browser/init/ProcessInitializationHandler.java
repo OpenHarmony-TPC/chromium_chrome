@@ -49,8 +49,8 @@ import org.chromium.chrome.browser.app.flags.ChromeCachedFlags;
 import org.chromium.chrome.browser.app.usb.UsbNotificationService;
 import org.chromium.chrome.browser.backup.ChromeBackupAgentImpl;
 import org.chromium.chrome.browser.bluetooth.BluetoothNotificationManager;
+import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.bookmarkswidget.BookmarkWidgetProvider;
-import org.chromium.chrome.browser.browserservices.ClearDataDialogResultRecorder;
 import org.chromium.chrome.browser.contacts_picker.ChromePickerAdapter;
 import org.chromium.chrome.browser.content_capture.ContentCaptureHistoryDeletionObserver;
 import org.chromium.chrome.browser.crash.CrashUploadCountStore;
@@ -105,13 +105,13 @@ import org.chromium.chrome.browser.webapps.WebappRegistry;
 import org.chromium.components.background_task_scheduler.BackgroundTaskSchedulerFactory;
 import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
 import org.chromium.components.browser_ui.contacts_picker.ContactsPickerDialog;
+import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeStateProvider;
 import org.chromium.components.browser_ui.photo_picker.DecoderServiceHost;
 import org.chromium.components.browser_ui.photo_picker.PhotoPickerDelegateBase;
 import org.chromium.components.browser_ui.photo_picker.PhotoPickerDialog;
 import org.chromium.components.browser_ui.share.ClipboardImageFileProvider;
 import org.chromium.components.browser_ui.share.ShareImageFileUtils;
 import org.chromium.components.content_capture.PlatformContentCaptureController;
-import org.chromium.components.crash.anr.AnrCollector;
 import org.chromium.components.crash.browser.ChildProcessCrashObserver;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.minidump_uploader.CrashFileManager;
@@ -217,7 +217,8 @@ public class ProcessInitializationHandler {
     /** Performs the shared class initialization. */
     @CallSuper
     protected void handlePreNativeInitialization() {
-        setProcessStateSummaryForAnrs(false);
+        ChromeCachedFlags.getInstance().setFullListOfFlags();
+        setProcessStateSummaryForAnrs();
     }
 
     /**
@@ -264,7 +265,7 @@ public class ProcessInitializationHandler {
         // - Nokia 1 (Android Go): 20-200 ms
         warmUpSharedPrefs();
 
-        DeviceUtils.addDeviceSpecificUserAgentSwitch();
+        DeviceUtils.updateDeviceSpecificUserAgentSwitch(ContextUtils.getApplicationContext());
         ApplicationStatus.registerStateListenerForAllActivities(
                 (activity, newState) -> {
                     if (newState == ActivityState.CREATED || newState == ActivityState.DESTROYED) {
@@ -385,7 +386,8 @@ public class ProcessInitializationHandler {
                                         windowAndroid.getContext().get().getContentResolver(),
                                         listener,
                                         allowMultiple,
-                                        mimeTypes);
+                                        mimeTypes,
+                                        shouldDialogPadForContent(windowAndroid));
                         dialog.getWindow().getAttributes().windowAnimations =
                                 R.style.PickerDialogAnimation;
                         dialog.show();
@@ -417,7 +419,8 @@ public class ProcessInitializationHandler {
                                     includeTel,
                                     includeAddresses,
                                     includeIcons,
-                                    formattedOrigin);
+                                    formattedOrigin,
+                                    shouldDialogPadForContent(windowAndroid));
                     dialog.getWindow().getAttributes().windowAnimations =
                             R.style.PickerDialogAnimation;
                     dialog.show();
@@ -429,7 +432,11 @@ public class ProcessInitializationHandler {
         QuickActionSearchWidgetProvider.initialize();
 
         PrivacyPreferencesManagerImpl.getInstance().onNativeInitialized();
-        setProcessStateSummaryForAnrs(true);
+
+        // Give BookmarkModel a provider of PartnerBookmark.BookmarkIterator so that
+        // PartnerBookmarksShim can be loaded lazily when BookmarkModel is needed.
+        BookmarkModel.setPartnerBookmarkIteratorProvider(
+                AppHooks.get()::requestPartnerBookmarkIterator);
 
         List<Profile> profiles = ProfileManager.getLoadedProfiles();
         assert !profiles.isEmpty()
@@ -528,28 +535,26 @@ public class ProcessInitializationHandler {
 
     /**
      * We use the Android API to store key information which we can't afford to have wrong on our
-     * ANR reports. So, we set the version number, and the main .so file's Build ID once native has
-     * been loaded. Then, when we query Android for any ANRs that have happened, we can also pull
-     * these key fields.
+     * ANR reports. So, in this function, we store the version number before the native is loaded.
+     * Once native starts to load, AnrCollector.java will store the main .so file's Build ID and the
+     * list of Finch experiments in addition to the version number. Then, when we query Android for
+     * any ANRs that have happened, we can also pull these key fields.
      *
      * <p>We are limited to 128 bytes in ProcessStateSummary, so we only store the most important
      * things that can change between the ANR happening and an upload (when the rest of the metadata
      * is gathered). Some fields we ignore because they won't change (eg. which channel or what the
-     * .so filename is) and some we ignore because they aren't as critical (eg. experiments). In the
-     * future, we could make this point to a file where we would write out all our crash keys, and
-     * thus get full fidelity.
+     * .so filename is) and some we ignore because they aren't as critical. In the future, we could
+     * make this point to a file where we would write out all our crash keys, and thus get full
+     * fidelity.
      */
-    protected void setProcessStateSummaryForAnrs(boolean includeNative) {
+    protected void setProcessStateSummaryForAnrs() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             ActivityManager am =
                     (ActivityManager)
                             ContextUtils.getApplicationContext()
                                     .getSystemService(Context.ACTIVITY_SERVICE);
-            String summary = VersionInfo.getProductVersion();
-            if (includeNative) {
-                summary += "," + AnrCollector.getSharedLibraryBuildId();
-            }
-            am.setProcessStateSummary(summary.getBytes(StandardCharsets.UTF_8));
+            byte[] version = VersionInfo.getProductVersion().getBytes(StandardCharsets.UTF_8);
+            am.setProcessStateSummary(version);
         }
     }
 
@@ -669,7 +674,6 @@ public class ProcessInitializationHandler {
 
         tasks.add(MediaViewerUtils::updateMediaLauncherActivityEnabled);
 
-        tasks.add(ClearDataDialogResultRecorder::makeDeferredRecordings);
         tasks.add(WebApkUninstallTracker::runDeferredTasks);
 
         tasks.add(OfflineContentAvailabilityStatusProvider::getInstance);
@@ -717,7 +721,7 @@ public class ProcessInitializationHandler {
                         optimizationGuideBridge.onDeferredStartup();
                     }
                     // TODO(crbug.com/40236066) Move to PersistedTabData.onDeferredStartup
-                    if (PriceTrackingFeatures.isPriceTrackingEligible(profile)) {
+                    if (PriceTrackingFeatures.isPriceAnnotationsEligible(profile)) {
                         ShoppingPersistedTabData.onDeferredStartup();
                     }
                 });
@@ -943,5 +947,9 @@ public class ProcessInitializationHandler {
             }
         }
         RecordHistogram.recordCount1MHistogram("InputMethod.ActiveCount", uniqueLanguages.size());
+    }
+
+    private static boolean shouldDialogPadForContent(WindowAndroid windowAndroid) {
+        return EdgeToEdgeStateProvider.isEdgeToEdgeEnabledForWindow(windowAndroid);
     }
 }

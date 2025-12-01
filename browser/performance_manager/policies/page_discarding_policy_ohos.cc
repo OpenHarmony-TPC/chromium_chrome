@@ -1,31 +1,6 @@
-/*
- * Copyright (c) 2023-2025 Haitai FangYuan Co., Ltd.
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this list of
- *    conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice, this list
- *    of conditions and the following disclaimer in the documentation and/or other materials
- *    provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its contributors may be used
- *    to endorse or promote products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+// Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "chrome/browser/performance_manager/policies/page_discarding_policy_ohos.h"
 
@@ -64,8 +39,8 @@ PageNodeVector GetSortedPageNodeVector(const PageNodeSet& page_node_set) {
   // Sort lifecycle_units with ascending importance.
   std::sort(sorted_page_nodes.begin(), sorted_page_nodes.end(),
             [](const PageNode* a, const PageNode* b) {
-               return a->GetTimeSinceLastVisibilityChange() >
-                      b->GetTimeSinceLastVisibilityChange();
+               return a->GetLastVisibilityChangeTime() >
+                      b->GetLastVisibilityChangeTime();
             });
   return sorted_page_nodes;
 }
@@ -218,10 +193,10 @@ void PageDiscardingPolicyOhos::PostMemoryDiscardTask(DiscardReason reason) {
       base::Milliseconds(kFastDiscardTimeDelatMs));
 }
 
-void PageDiscardingPolicyOhos::DiscardTabByReason(DiscardReason reson) {
+void PageDiscardingPolicyOhos::DiscardTabByReason(DiscardReason reason) {
   PageNodeVector sorted_page_node;
   int32_t count_to_discard = 0;
-  switch (reson) {
+  switch (reason) {
     case DiscardReason::kTabCountOverflow:
       {
         base::AutoLock auto_lock(lock_);
@@ -256,15 +231,15 @@ void PageDiscardingPolicyOhos::DiscardTabByReason(DiscardReason reson) {
     default:
       return;
   }
-  DiscardTabImpl(reson, sorted_page_node, count_to_discard);
+  DiscardTabImpl(reason, sorted_page_node, count_to_discard);
 }
 
-void PageDiscardingPolicyOhos::DiscardTabImpl(DiscardReason reson,
+void PageDiscardingPolicyOhos::DiscardTabImpl(DiscardReason reason,
                                               PageNodeVector nodes,
                                               int32_t total_count) {
   int32_t discard_count = 0;
   // min of total count and discard count to be removed
-  PageNodeVector discard_vector{total_count};
+  PageNodeVector discard_vector;
   for (const PageNode* page_node : nodes) {
     discard_vector.push_back(page_node);
     if (++discard_count >= total_count) {
@@ -273,13 +248,8 @@ void PageDiscardingPolicyOhos::DiscardTabImpl(DiscardReason reson,
   }
   auto iter1 = std::begin(nodes);
   PageDiscardingHelper::GetFromGraph(graph_)->ImmediatelyDiscardMultiplePages(
-      discard_vector, PageDiscardingHelper::DiscardReason::EXTERNAL,
-      base::BindOnce([](std::optional<base::TimeTicks> ticks) {
-        if (!ticks) {
-          LOG(WARNING) << "DiscardByTabNumberOverflow failed!";
-        }
-      }));
-  LOG(WARNING) << "DiscardTabImpl reason: " << reson << ", total candidate tab: "
+      discard_vector, DiscardEligibilityPolicy::DiscardReason::EXTERNAL);
+  LOG(WARNING) << "DiscardTabImpl reason: " << reason << ", total candidate tab: "
                << nodes.size() << ", discard count: " << discard_count;
 }
 

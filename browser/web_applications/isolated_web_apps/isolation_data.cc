@@ -7,6 +7,7 @@
 #include "base/containers/to_value_list.h"
 #include "base/values.h"
 #include "base/version.h"
+#include "components/webapps/isolated_web_apps/update_channel.h"
 
 namespace web_app {
 
@@ -40,7 +41,10 @@ IsolationData::IsolationData(
       pending_update_info_(std::move(pending_update_info)),
       integrity_block_data_(std::move(integrity_block_data)),
       update_manifest_url_(std::move(update_manifest_url)),
-      update_channel_(std::move(update_channel)) {}
+      update_channel_(std::move(update_channel)) {
+  CHECK(!update_manifest_url_.has_value() || update_manifest_url_->is_valid(),
+        base::NotFatalUntil::M138);
+}
 
 IsolationData::~IsolationData() = default;
 IsolationData::IsolationData(const IsolationData&) = default;
@@ -135,7 +139,6 @@ IsolationData::Builder&& IsolationData::Builder::SetControlledFramePartitions(
 IsolationData::Builder& IsolationData::Builder::SetPendingUpdateInfo(
     IsolationData::PendingUpdateInfo pending_update_info) & {
   CHECK_EQ(pending_update_info.location.dev_mode(), location_.dev_mode());
-  CHECK_GE(pending_update_info.version, version_);
   pending_update_info_ = std::move(pending_update_info);
   return *this;
 }
@@ -143,7 +146,6 @@ IsolationData::Builder& IsolationData::Builder::SetPendingUpdateInfo(
 IsolationData::Builder&& IsolationData::Builder::SetPendingUpdateInfo(
     IsolationData::PendingUpdateInfo pending_update_info) && {
   CHECK_EQ(pending_update_info.location.dev_mode(), location_.dev_mode());
-  CHECK_GE(pending_update_info.version, version_);
   pending_update_info_ = std::move(pending_update_info);
   return std::move(*this);
 }
@@ -175,6 +177,7 @@ IsolationData::Builder& IsolationData::Builder::SetUpdateManifestUrl(
   CHECK(location_.dev_mode())
       << "This field is supposed to be used only with dev mode installs via "
          "chrome://web-app-internals.";
+  CHECK(update_manifest_url.is_valid(), base::NotFatalUntil::M138);
   update_manifest_url_ = std::move(update_manifest_url);
   return *this;
 }
@@ -184,6 +187,7 @@ IsolationData::Builder&& IsolationData::Builder::SetUpdateManifestUrl(
   CHECK(location_.dev_mode())
       << "This field is supposed to be used only with dev mode installs via "
          "chrome://web-app-internals.";
+  CHECK(update_manifest_url.is_valid(), base::NotFatalUntil::M138);
   update_manifest_url_ = std::move(update_manifest_url);
   return std::move(*this);
 }

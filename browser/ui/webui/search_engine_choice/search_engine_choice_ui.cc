@@ -2,26 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice_ui.h"
 
 #include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/json/json_writer.h"
-#include "base/not_fatal_until.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service.h"
 #include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service_factory.h"
 #include "chrome/browser/search_engine_choice/search_engine_choice_service_factory.h"
-#include "chrome/browser/ui/webui/search_engine_choice/icon_utils.h"
 #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice_handler.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/chrome_unscaled_resources.h"
 #include "chrome/grit/search_engine_choice_resources.h"
@@ -36,6 +28,7 @@
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "ui/webui/webui_util.h"
 
 namespace {
 std::string GetChoiceListJSON(
@@ -47,14 +40,11 @@ std::string GetChoiceListJSON(
   for (const auto& choice : choices) {
     base::Value::Dict choice_value;
 
-    std::string_view icon_path =
-        GetSearchEngineGeneratedIconPath(choice->keyword());
-    if (icon_path.empty()) {
-      icon_path = "chrome://theme/IDR_DEFAULT_FAVICON";
-    }
     choice_value.Set("prepopulateId", choice->prepopulate_id());
     choice_value.Set("name", choice->short_name());
-    choice_value.Set("iconPath", icon_path);
+    choice_value.Set(
+        "iconPath",
+        base::StrCat({"chrome://theme/", choice->GetBuiltinImageResourceId()}));
     choice_value.Set("url", choice->url());
     choice_value.Set("marketingSnippet",
                      search_engines::GetMarketingSnippetString(choice->data()));
@@ -76,7 +66,6 @@ bool SearchEngineChoiceUIConfig::IsWebUIEnabled(
 SearchEngineChoiceUI::SearchEngineChoiceUI(content::WebUI* web_ui)
     : ui::MojoWebUIController(web_ui, true),
       profile_(CHECK_DEREF(Profile::FromWebUI(web_ui))) {
-
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       web_ui->GetWebContents()->GetBrowserContext(),
       chrome::kChromeUISearchEngineChoiceHost);
@@ -135,12 +124,10 @@ SearchEngineChoiceUI::SearchEngineChoiceUI(content::WebUI* web_ui)
           &profile_.get());
   source->AddBoolean(
       "showGuestCheckbox",
-      search_engine_choice_service->IsProfileEligibleForDseGuestPropagation());
+      search_engine_choice_service->IsDsePropagationAllowedForGuest());
 
   webui::SetupWebUIDataSource(
-      source,
-      base::make_span(kSearchEngineChoiceResources,
-                      kSearchEngineChoiceResourcesSize),
+      source, kSearchEngineChoiceResources,
       IDR_SEARCH_ENGINE_CHOICE_SEARCH_ENGINE_CHOICE_HTML);
 }
 
@@ -166,7 +153,7 @@ void SearchEngineChoiceUI::Initialize(
   if (entry_point_ != SearchEngineChoiceDialogService::EntryPoint::kDialog) {
     // This callback should always be populated.
     // TODO(b/344899110): Cleanup once the bug root cause is found.
-    CHECK(on_choice_made_callback_, base::NotFatalUntil::M131);
+    CHECK(on_choice_made_callback_);
   }
 }
 
@@ -178,7 +165,7 @@ void SearchEngineChoiceUI::HandleSearchEngineChoiceMade(
     // is a bug. (Or the initialization was skipped, but that would point to
     // users manually entering the URL, which is not supported)
     // TODO(b/344899110): Cleanup once the bug root cause is found.
-    CHECK(on_choice_made_callback_, base::NotFatalUntil::M131);
+    CHECK(on_choice_made_callback_);
   }
 
   SearchEngineChoiceDialogService* search_engine_choice_dialog_service =

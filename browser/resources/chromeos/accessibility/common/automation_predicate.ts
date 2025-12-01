@@ -7,6 +7,10 @@
  */
 import {constants} from './constants.js';
 import {TestImportManager} from './testing/test_import_manager.js';
+// Required for AccessibilityExtensionAutomationPredicateTest
+import {createMockNode} from './testing/test_node_generator.js';
+
+TestImportManager.exportForTesting(createMockNode);
 
 import ActionType = chrome.automation.ActionType;
 import AutomationNode = chrome.automation.AutomationNode;
@@ -844,6 +848,9 @@ export namespace AutomationPredicate {
   /** Matches against nodes that we may be able to retrieve image data from. */
   export const supportsImageData =
       AutomationPredicate.roles([Role.CANVAS, Role.IMAGE, Role.VIDEO]);
+
+  /** Matches against menu like nodes. */
+  export const menu = AutomationPredicate.roles([Role.MENU, Role.MENU_BAR]);
 
   /** Matches against menu item like nodes. */
   export const menuItem = AutomationPredicate.roles(

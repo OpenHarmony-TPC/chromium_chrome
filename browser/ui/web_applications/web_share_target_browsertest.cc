@@ -26,6 +26,7 @@
 #include "chrome/browser/apps/app_service/browser_app_launcher.h"
 #include "chrome/browser/apps/app_service/intent_util.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
+#include "chrome/browser/apps/link_capturing/link_capturing_feature_test_support.h"
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/fileapi/recent_file.h"
@@ -113,8 +114,15 @@ content::EvalJsResult ReadTextContent(content::WebContents* web_contents,
 
 namespace web_app {
 
-class WebShareTargetBrowserTest : public WebAppBrowserTestBase {
+class WebShareTargetBrowserTest : public WebAppBrowserTestBase,
+                                  public testing::WithParamInterface<
+                                      apps::test::LinkCapturingFeatureVersion> {
  public:
+  WebShareTargetBrowserTest() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        apps::test::GetFeaturesToEnableLinkCapturingUX(GetParam()), {});
+  }
+
   GURL share_target_url() const {
     return embedded_test_server()->GetURL("/web_share_target/share.html");
   }
@@ -157,14 +165,20 @@ class WebShareTargetBrowserTest : public WebAppBrowserTestBase {
     run_loop.Run();
     return result;
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(WebShareTargetBrowserTest, ShareUsingFileURL) {
+IN_PROC_BROWSER_TEST_P(WebShareTargetBrowserTest, ShareUsingFileURL) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL app_url =
       embedded_test_server()->GetURL("/web_share_target/charts.html");
   const webapps::AppId app_id =
       web_app::InstallWebAppFromManifest(browser(), app_url);
+  // Enabling link capturing to ensure it doesn't interfere.
+  ASSERT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
+            base::ok());
 
   base::ScopedAllowBlockingForTesting allow_blocking;
   base::ScopedTempDir scoped_temp_dir;
@@ -197,12 +211,15 @@ IN_PROC_BROWSER_TEST_F(WebShareTargetBrowserTest, ShareUsingFileURL) {
   EXPECT_EQ("1,2,3,4,5 6,7,8,9,0", ReadTextContent(web_contents, "records"));
 }
 
-IN_PROC_BROWSER_TEST_F(WebShareTargetBrowserTest, ShareImageWithText) {
+IN_PROC_BROWSER_TEST_P(WebShareTargetBrowserTest, ShareImageWithText) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL app_url =
       embedded_test_server()->GetURL("/web_share_target/charts.html");
   const webapps::AppId app_id =
       web_app::InstallWebAppFromManifest(browser(), app_url);
+  // Enabling link capturing to ensure it doesn't interfere.
+  ASSERT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
+            base::ok());
   const base::FilePath directory = PrepareWebShareDirectory(profile());
 
   apps::IntentPtr intent;
@@ -230,12 +247,15 @@ IN_PROC_BROWSER_TEST_F(WebShareTargetBrowserTest, ShareImageWithText) {
   RemoveWebShareDirectory(directory);
 }
 
-IN_PROC_BROWSER_TEST_F(WebShareTargetBrowserTest, ShareAudio) {
+IN_PROC_BROWSER_TEST_P(WebShareTargetBrowserTest, ShareAudio) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL app_url =
       embedded_test_server()->GetURL("/web_share_target/charts.html");
   const webapps::AppId app_id =
       web_app::InstallWebAppFromManifest(browser(), app_url);
+  // Enabling link capturing to ensure it doesn't interfere.
+  ASSERT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
+            base::ok());
   const base::FilePath directory = PrepareWebShareDirectory(profile());
 
   apps::IntentPtr intent;
@@ -264,7 +284,7 @@ IN_PROC_BROWSER_TEST_F(WebShareTargetBrowserTest, ShareAudio) {
   RemoveWebShareDirectory(directory);
 }
 
-IN_PROC_BROWSER_TEST_F(WebShareTargetBrowserTest, PostBlank) {
+IN_PROC_BROWSER_TEST_P(WebShareTargetBrowserTest, PostBlank) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL app_url =
       embedded_test_server()->GetURL("/web_share_target/poster.html");
@@ -283,12 +303,15 @@ IN_PROC_BROWSER_TEST_F(WebShareTargetBrowserTest, PostBlank) {
   EXPECT_EQ("N/A", ReadTextContent(web_contents, "link"));
 }
 
-IN_PROC_BROWSER_TEST_F(WebShareTargetBrowserTest, PostLink) {
+IN_PROC_BROWSER_TEST_P(WebShareTargetBrowserTest, PostLink) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL app_url =
       embedded_test_server()->GetURL("/web_share_target/poster.html");
   const webapps::AppId app_id =
       web_app::InstallWebAppFromManifest(browser(), app_url);
+  // Enabling link capturing to ensure it doesn't interfere.
+  ASSERT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
+            base::ok());
   const apps::ShareTarget* share_target =
       WebAppProvider::GetForTest(browser()->profile())
           ->registrar_unsafe()
@@ -315,12 +338,15 @@ IN_PROC_BROWSER_TEST_F(WebShareTargetBrowserTest, PostLink) {
   EXPECT_EQ(shared_link, ReadTextContent(web_contents, "link"));
 }
 
-IN_PROC_BROWSER_TEST_F(WebShareTargetBrowserTest, GetLink) {
+IN_PROC_BROWSER_TEST_P(WebShareTargetBrowserTest, GetLink) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL app_url =
       embedded_test_server()->GetURL("/web_share_target/gatherer.html");
   const webapps::AppId app_id =
       web_app::InstallWebAppFromManifest(browser(), app_url);
+  // Enabling link capturing to ensure it doesn't interfere.
+  ASSERT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
+            base::ok());
   const apps::ShareTarget* share_target =
       WebAppProvider::GetForTest(browser()->profile())
           ->registrar_unsafe()
@@ -347,5 +373,15 @@ IN_PROC_BROWSER_TEST_F(WebShareTargetBrowserTest, GetLink) {
   EXPECT_EQ("N/A", ReadTextContent(web_contents, "author"));
   EXPECT_EQ(shared_link, ReadTextContent(web_contents, "link"));
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    WebShareTargetBrowserTest,
+    // Ensure share target still works with navigation capturing v2.
+    testing::Values(apps::test::LinkCapturingFeatureVersion::kV1DefaultOff,
+                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
+                    apps::test::LinkCapturingFeatureVersion::
+                        kV2DefaultOffCaptureExistingFrames),
+    apps::test::LinkCapturingVersionToString);
 
 }  // namespace web_app

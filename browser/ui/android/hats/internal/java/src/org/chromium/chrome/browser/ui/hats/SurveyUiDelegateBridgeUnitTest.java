@@ -30,7 +30,6 @@ import org.robolectric.shadow.api.Shadow;
 
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorSupplier;
 import org.chromium.components.messages.ManagedMessageDispatcher;
@@ -46,8 +45,6 @@ import org.chromium.ui.base.WindowAndroid;
 public class SurveyUiDelegateBridgeUnitTest {
     private static final long TEST_NATIVE_POINTER = 123541L;
 
-    @Rule public JniMocker mJniMocker = new JniMocker();
-
     @Rule
     public TestSurveyUtils.TestSurveyComponentRule mSurveyTestRule =
             new TestSurveyUtils.TestSurveyComponentRule();
@@ -58,13 +55,14 @@ public class SurveyUiDelegateBridgeUnitTest {
     @Mock private ManagedMessageDispatcher mMockMessageDispatcher;
     @Mock private TabModelSelector mTabModelSelector;
     @Mock private InsetObserver mInsetObserver;
+    @Mock private SurveyConfig mSurveyConfig;
 
     private Activity mActivity;
     private WindowAndroid mWindow;
 
     @Before
     public void setup() {
-        mJniMocker.mock(SurveyUiDelegateBridgeJni.TEST_HOOKS, mMockSurveyUiDelegateBridge);
+        SurveyUiDelegateBridgeJni.setInstanceForTesting(mMockSurveyUiDelegateBridge);
 
         mActivity = Robolectric.buildActivity(Activity.class).get();
         mWindow =
@@ -72,7 +70,8 @@ public class SurveyUiDelegateBridgeUnitTest {
                         mActivity,
                         false,
                         IntentRequestTracker.createFromActivity(mActivity),
-                        mInsetObserver);
+                        mInsetObserver,
+                        /* trackOcclusion= */ true);
         MessagesFactory.attachMessageDispatcher(mWindow, mMockMessageDispatcher);
         TabModelSelectorSupplier.setInstanceForTesting(mTabModelSelector);
     }

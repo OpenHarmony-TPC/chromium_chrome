@@ -23,13 +23,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 
-import org.chromium.base.FeatureList;
+import org.chromium.base.FeatureOverrides;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.feed.componentinterfaces.SurfaceCoordinator.StreamTabId;
 import org.chromium.chrome.browser.feed.test.R;
@@ -41,10 +41,9 @@ import org.chromium.components.feature_engagement.Tracker;
 @RunWith(BaseRobolectricTestRunner.class)
 @DisableFeatures({ChromeFeatureList.FEED_CONTAINMENT})
 public final class SectionHeaderViewTest {
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     private SectionHeaderView mSectionHeaderView;
     private Activity mActivity;
-
-    @Rule public JniMocker mJniMocker = new JniMocker();
 
     @Mock private Tracker mTracker;
     @Mock private UserEducationHelper mHelper;
@@ -52,7 +51,6 @@ public final class SectionHeaderViewTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         mActivity = Robolectric.setupActivity(Activity.class);
         mActivity.setTheme(R.style.Theme_BrowserUI_DayNight);
         TrackerFactory.setTrackerForTests(mTracker);
@@ -71,11 +69,10 @@ public final class SectionHeaderViewTest {
     }
 
     private void setFeatureOverridesForIph() {
-        FeatureList.TestValues testValues = new FeatureList.TestValues();
-        testValues.addFeatureFlagOverride(ChromeFeatureList.WEB_FEED_ONBOARDING, true);
-        testValues.addFieldTrialParamOverride(
-                ChromeFeatureList.WEB_FEED_AWARENESS, "awareness_style", "IPH");
-        FeatureList.setTestValues(testValues);
+        FeatureOverrides.newBuilder()
+                .enable(ChromeFeatureList.WEB_FEED_ONBOARDING)
+                .param(ChromeFeatureList.WEB_FEED_AWARENESS, "awareness_style", "IPH")
+                .apply();
     }
 
     @Test

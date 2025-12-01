@@ -16,7 +16,6 @@
 #include "base/files/memory_mapped_file.h"
 #include "base/functional/bind.h"
 #include "base/path_service.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/pattern.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -108,7 +107,7 @@ class MinimumWindowsSupportTest : public DelayloadsTest {
       return false;
     }
     // Need at least api-{components}-l1-1-0.dll so > four dashes.
-    if (base::ranges::count(import, '-') < 5) {
+    if (std::ranges::count(import, '-') < 5) {
       return false;
     }
 
@@ -505,7 +504,7 @@ TEST_F(MinimumWindowsSupportTest, ChromeExtraDlls) {
       // These are not yet supported for Arm64.
       L"dxcompiler.dll", L"dxil.dll",
 #endif  // !defined(ARCH_CPU_ARM64
-      L"libEGL.dll", L"libGLESv2.dll", L"vk_swiftshader.dll", L"vulkan-1.dll"};
+      L"vk_swiftshader.dll", L"vulkan-1.dll"};
   for (const auto& dll : extra_dlls) {
     Validate(dll);
   }

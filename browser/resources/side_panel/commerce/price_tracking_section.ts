@@ -6,7 +6,10 @@ import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
 import '/strings.m.js';
 import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 
-import type {BookmarkProductInfo, PriceInsightsInfo, ProductInfo} from '//resources/cr_components/commerce/shopping_service.mojom-webui.js';
+import type {PriceTrackingBrowserProxy} from '//resources/cr_components/commerce/price_tracking_browser_proxy.js';
+import {PriceTrackingBrowserProxyImpl} from '//resources/cr_components/commerce/price_tracking_browser_proxy.js';
+import type {BookmarkProductInfo, ProductInfo} from '//resources/cr_components/commerce/shared.mojom-webui.js';
+import type {PriceInsightsInfo} from '//resources/cr_components/commerce/shopping_service.mojom-webui.js';
 import {PriceInsightsInfo_PriceBucket} from '//resources/cr_components/commerce/shopping_service.mojom-webui.js';
 import type {ShoppingServiceBrowserProxy} from '//resources/cr_components/commerce/shopping_service_browser_proxy.js';
 import {ShoppingServiceBrowserProxyImpl} from '//resources/cr_components/commerce/shopping_service_browser_proxy.js';
@@ -45,26 +48,34 @@ export class PriceTrackingSection extends PolymerElement {
         type: Boolean,
         value: false,
       },
+
+      folderName_: String,
+      saveLocationEndText_: String,
+      saveLocationStartText_: String,
+      showSaveLocationText_: Boolean,
+      toggleAnnotationText_: String,
     };
   }
 
-  productInfo: ProductInfo;
-  priceInsightsInfo: PriceInsightsInfo;
-  isProductTracked: boolean;
-  private listenerIds_: number[] = [];
-  private toggleAnnotationText_: string;
-  private saveLocationStartText_: string;
-  private saveLocationEndText_: string;
-  private showSaveLocationText_: boolean;
-  private folderName_: string;
+  declare productInfo: ProductInfo;
+  declare isProductTracked: boolean;
+  declare private folderName_: string;
+  declare private saveLocationStartText_: string;
+  declare private saveLocationEndText_: string;
+  declare private showSaveLocationText_: boolean;
+  declare private toggleAnnotationText_: string;
 
+  priceInsightsInfo: PriceInsightsInfo;
+  private listenerIds_: number[] = [];
   private shoppingApi_: ShoppingServiceBrowserProxy =
       ShoppingServiceBrowserProxyImpl.getInstance();
+  private priceTrackingProxy_: PriceTrackingBrowserProxy =
+      PriceTrackingBrowserProxyImpl.getInstance();
 
   override connectedCallback() {
     super.connectedCallback();
 
-    const callbackRouter = this.shoppingApi_.getCallbackRouter();
+    const callbackRouter = this.priceTrackingProxy_.getCallbackRouter();
     this.listenerIds_.push(
         callbackRouter.priceTrackedForBookmark.addListener(
             (product: BookmarkProductInfo) =>
@@ -89,8 +100,8 @@ export class PriceTrackingSection extends PolymerElement {
       this.toggleAnnotationText_ =
           loadTimeData.getString('trackPriceDescription');
     } else {
-      const {name} =
-          await this.shoppingApi_.getParentBookmarkFolderNameForCurrentUrl();
+      const {name} = await this.priceTrackingProxy_
+                         .getParentBookmarkFolderNameForCurrentUrl();
       this.folderName_ = decodeString16(name);
 
       this.toggleAnnotationText_ =
@@ -124,11 +135,11 @@ export class PriceTrackingSection extends PolymerElement {
     super.disconnectedCallback();
 
     this.listenerIds_.forEach(
-        id => this.shoppingApi_.getCallbackRouter().removeListener(id));
+        id => this.priceTrackingProxy_.getCallbackRouter().removeListener(id));
   }
 
   private onPriceTrackingToggled_() {
-    this.shoppingApi_.setPriceTrackingStatusForCurrentUrl(
+    this.priceTrackingProxy_.setPriceTrackingStatusForCurrentUrl(
         this.isProductTracked);
     chrome.metricsPrivate.recordEnumerationValue(
         this.isProductTracked ?
@@ -153,7 +164,7 @@ export class PriceTrackingSection extends PolymerElement {
   }
 
   private onFolderClicked_() {
-    this.shoppingApi_.showBookmarkEditorForCurrentUrl();
+    this.priceTrackingProxy_.showBookmarkEditorForCurrentUrl();
     chrome.metricsPrivate.recordUserAction(
         'Commerce.PriceTracking.' +
         'EditedBookmarkFolderFromPriceInsightsSidePanel');
@@ -173,8 +184,8 @@ export class PriceTrackingSection extends PolymerElement {
   private async onProductBookmarkMoved(product: BookmarkProductInfo) {
     if (product.info.clusterId === this.productInfo.clusterId &&
         this.isProductTracked) {
-      const {name} =
-          await this.shoppingApi_.getParentBookmarkFolderNameForCurrentUrl();
+      const {name} = await this.priceTrackingProxy_
+                         .getParentBookmarkFolderNameForCurrentUrl();
       this.folderName_ = decodeString16(name);
     }
   }

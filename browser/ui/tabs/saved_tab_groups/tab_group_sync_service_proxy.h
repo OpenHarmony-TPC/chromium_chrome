@@ -14,12 +14,14 @@
 #include "components/saved_tab_groups/internal/saved_tab_group_model_observer.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/saved_tab_groups/public/types.h"
+#include "components/sync/base/collaboration_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "url/gurl.h"
 
 namespace tab_groups {
 
 class SavedTabGroupKeyedService;
+class SavedTabGroupModel;
 
 // Proxy service which implements TabGroupSyncService. Forwards and translates
 // TabGroupSyncService calls to SavedTabGroupKeyedService calls.
@@ -65,22 +67,39 @@ class TabGroupSyncServiceProxy : public TabGroupSyncService,
   void MoveTab(const LocalTabGroupID& group_id,
                const LocalTabID& tab_id,
                int new_group_index) override;
-  void OnTabSelected(const LocalTabGroupID& group_id,
-                     const LocalTabID& tab_id) override;
+  void OnTabSelected(const std::optional<LocalTabGroupID>& group_id,
+                     const LocalTabID& tab_id,
+                     const std::u16string& tab_title) override;
   void SaveGroup(SavedTabGroup group) override;
   void UnsaveGroup(const LocalTabGroupID& local_id) override;
 
   void MakeTabGroupShared(const LocalTabGroupID& local_group_id,
-                          std::string_view collaboration_id) override;
+                          std::string_view collaboration_id,
+                          TabGroupSharingCallback callback) override;
+  void MakeTabGroupSharedForTesting(const LocalTabGroupID& local_group_id,
+                                    std::string_view collaboration_id) override;
 
+  void AboutToUnShareTabGroup(const LocalTabGroupID& local_group_id,
+                              base::OnceClosure on_complete_cb) override;
+  void OnTabGroupUnShareComplete(const LocalTabGroupID& local_group_id,
+                                 bool success) override;
+  void OnCollaborationRemoved(
+      const syncer::CollaborationId& collaboration_id) override;
+
+  std::vector<const SavedTabGroup*> ReadAllGroups() const override;
   std::vector<SavedTabGroup> GetAllGroups() const override;
   std::optional<SavedTabGroup> GetGroup(const base::Uuid& guid) const override;
   std::optional<SavedTabGroup> GetGroup(
       const LocalTabGroupID& local_id) const override;
+  std::optional<SavedTabGroup> GetGroup(
+      const EitherGroupID& either_id) const override;
   std::vector<LocalTabGroupID> GetDeletedGroupIds() const override;
+  std::optional<std::u16string> GetTitleForPreviouslyExistingSharedTabGroup(
+      const CollaborationId& collaboration_id) const override;
 
-  void OpenTabGroup(const base::Uuid& sync_group_id,
-                    std::unique_ptr<TabGroupActionContext> context) override;
+  std::optional<LocalTabGroupID> OpenTabGroup(
+      const base::Uuid& sync_group_id,
+      std::unique_ptr<TabGroupActionContext> context) override;
 
   void UpdateLocalTabGroupMapping(const base::Uuid& sync_id,
                                   const LocalTabGroupID& local_id,
@@ -98,11 +117,19 @@ class TabGroupSyncServiceProxy : public TabGroupSyncService,
       const std::optional<std::string>& cache_guid) const override;
   bool WasTabGroupClosedLocally(const base::Uuid& sync_id) const override;
   void RecordTabGroupEvent(const EventDetails& event_details) override;
+  void UpdateArchivalStatus(const base::Uuid& sync_id,
+                            bool archival_status) override;
+  void UpdateTabLastSeenTime(const base::Uuid& group_id,
+                             const base::Uuid& tab_id,
+                             TriggerSource source) override;
+
   TabGroupSyncMetricsLogger* GetTabGroupSyncMetricsLogger() override;
   base::WeakPtr<syncer::DataTypeControllerDelegate>
   GetSavedTabGroupControllerDelegate() override;
   base::WeakPtr<syncer::DataTypeControllerDelegate>
   GetSharedTabGroupControllerDelegate() override;
+  base::WeakPtr<syncer::DataTypeControllerDelegate>
+  GetSharedTabGroupAccountControllerDelegate() override;
   std::unique_ptr<ScopedLocalObservationPauser>
   CreateScopedLocalObserverPauser() override;
   void GetURLRestriction(
@@ -110,18 +137,15 @@ class TabGroupSyncServiceProxy : public TabGroupSyncService,
       TabGroupSyncService::UrlRestrictionCallback callback) override;
   std::unique_ptr<std::vector<SavedTabGroup>>
   TakeSharedTabGroupsAvailableAtStartupForMessaging() override;
+  void OnLastTabClosed(const SavedTabGroup& saved_tab_group) override;
 
   void AddObserver(Observer* observer) override;
   void RemoveObserver(Observer* observer) override;
 
   void SetIsInitializedForTesting(bool initialized) override;
+  std::u16string GetTabTitle(const LocalTabID& local_tab_id) override;
 
-  // Used to manually set the favicon for a specific tab.
-  // TODO(crbug.com/348486163): Find a way to support favicons for the
-  // sync_service_ code paths.
-  void SetFaviconForTab(const LocalTabGroupID& group_id,
-                        const LocalTabID& tab_id,
-                        std::optional<gfx::Image> favicon);
+  SavedTabGroupModel* GetModel();
 
  private:
   // SavedTabGroupModelObserver:

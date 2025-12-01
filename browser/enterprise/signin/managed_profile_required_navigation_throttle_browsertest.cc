@@ -27,16 +27,21 @@
 #include "content/public/browser/navigation_throttle.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/mock_navigation_handle.h"
+#include "content/public/test/mock_navigation_throttle_registry.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
+
+constexpr char16_t kEmail[] = u"user@email.com";
+
 bool Equals(content::NavigationThrottle::ThrottleCheckResult& expected,
             content::NavigationThrottle::ThrottleCheckResult&& actual) {
   return expected.action() == actual.action() &&
          expected.net_error_code() == actual.net_error_code() &&
          expected.error_page_content() == actual.error_page_content();
 }
+
 }  // namespace
 
 class ManagedProfileRequiredNavigationThrottleFeatureDisabledTest
@@ -56,9 +61,11 @@ IN_PROC_BROWSER_TEST_F(
     NoThrottle) {
   auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   content::MockNavigationHandle mock_nav_handle(web_contents);
-
-  EXPECT_FALSE(ManagedProfileRequiredNavigationThrottle::MaybeCreateThrottleFor(
-      &mock_nav_handle));
+  content::MockNavigationThrottleRegistry registry(
+      &mock_nav_handle,
+      content::MockNavigationThrottleRegistry::RegistrationMode::kHold);
+  ManagedProfileRequiredNavigationThrottle::MaybeCreateAndAdd(registry);
+  CHECK_EQ(0u, registry.throttles().size());
 }
 
 class ManagedProfileRequiredNavigationThrottleTest
@@ -74,7 +81,7 @@ IN_PROC_BROWSER_TEST_F(ManagedProfileRequiredNavigationThrottleTest,
   content::MockNavigationHandle mock_nav_handle(web_contents);
 
   auto managed_profile_required = std::make_unique<ManagedProfileRequiredPage>(
-      mock_nav_handle.GetWebContents(), mock_nav_handle.GetURL(),
+      mock_nav_handle.GetWebContents(), mock_nav_handle.GetURL(), kEmail,
       std::make_unique<ManagedProfileRequiredControllerClient>(
           mock_nav_handle.GetWebContents(), mock_nav_handle.GetURL()));
   std::string error_page_content = managed_profile_required->GetHTMLContents();
@@ -82,16 +89,18 @@ IN_PROC_BROWSER_TEST_F(ManagedProfileRequiredNavigationThrottleTest,
       content::NavigationThrottle::ThrottleAction::CANCEL,
       net::ERR_BLOCKED_BY_CLIENT, error_page_content);
 
-  auto throttle =
-      ManagedProfileRequiredNavigationThrottle::MaybeCreateThrottleFor(
-          &mock_nav_handle);
-  ASSERT_FALSE(throttle);
+  content::MockNavigationThrottleRegistry registry(
+      &mock_nav_handle,
+      content::MockNavigationThrottleRegistry::RegistrationMode::kHold);
+  ManagedProfileRequiredNavigationThrottle::MaybeCreateAndAdd(registry);
+  ASSERT_EQ(0u, registry.throttles().size());
 
   auto enable_navigations = ManagedProfileRequiredNavigationThrottle::
       BlockNavigationUntilEnterpriseActionTaken(browser()->profile(),
-                                                web_contents);
-  throttle = ManagedProfileRequiredNavigationThrottle::MaybeCreateThrottleFor(
-      &mock_nav_handle);
+                                                web_contents, nullptr, kEmail);
+  ManagedProfileRequiredNavigationThrottle::MaybeCreateAndAdd(registry);
+  ASSERT_EQ(1u, registry.throttles().size());
+  auto* throttle = registry.throttles().back().get();
   ASSERT_TRUE(throttle);
   EXPECT_TRUE(Equals(expected_result, throttle->WillStartRequest()));
   EXPECT_TRUE(Equals(expected_result, throttle->WillRedirectRequest()));
@@ -116,7 +125,7 @@ IN_PROC_BROWSER_TEST_F(
   content::MockNavigationHandle mock_nav_handle(web_contents);
 
   auto managed_profile_required = std::make_unique<ManagedProfileRequiredPage>(
-      mock_nav_handle.GetWebContents(), mock_nav_handle.GetURL(),
+      mock_nav_handle.GetWebContents(), mock_nav_handle.GetURL(), kEmail,
       std::make_unique<ManagedProfileRequiredControllerClient>(
           mock_nav_handle.GetWebContents(), mock_nav_handle.GetURL()));
   std::string error_page_content = managed_profile_required->GetHTMLContents();
@@ -124,16 +133,18 @@ IN_PROC_BROWSER_TEST_F(
       content::NavigationThrottle::ThrottleAction::CANCEL,
       net::ERR_BLOCKED_BY_CLIENT, error_page_content);
 
-  auto throttle =
-      ManagedProfileRequiredNavigationThrottle::MaybeCreateThrottleFor(
-          &mock_nav_handle);
-  ASSERT_FALSE(throttle);
+  content::MockNavigationThrottleRegistry registry(
+      &mock_nav_handle,
+      content::MockNavigationThrottleRegistry::RegistrationMode::kHold);
+  ManagedProfileRequiredNavigationThrottle::MaybeCreateAndAdd(registry);
+  ASSERT_EQ(0u, registry.throttles().size());
 
   auto enable_navigations = ManagedProfileRequiredNavigationThrottle::
       BlockNavigationUntilEnterpriseActionTaken(browser()->profile(),
-                                                web_contents);
-  throttle = ManagedProfileRequiredNavigationThrottle::MaybeCreateThrottleFor(
-      &mock_nav_handle);
+                                                web_contents, nullptr, kEmail);
+  ManagedProfileRequiredNavigationThrottle::MaybeCreateAndAdd(registry);
+  ASSERT_EQ(1u, registry.throttles().size());
+  auto* throttle = registry.throttles().back().get();
   ASSERT_TRUE(throttle);
   EXPECT_TRUE(Equals(expected_result, throttle->WillStartRequest()));
   EXPECT_TRUE(Equals(expected_result, throttle->WillRedirectRequest()));

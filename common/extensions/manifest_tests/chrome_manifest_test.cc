@@ -17,8 +17,7 @@ ChromeManifestTest::ChromeManifestTest()
     // CHANNEL_UNKNOWN == trunk.
     : current_channel_(version_info::Channel::UNKNOWN) {}
 
-ChromeManifestTest::~ChromeManifestTest() {
-}
+ChromeManifestTest::~ChromeManifestTest() = default;
 
 base::FilePath ChromeManifestTest::GetTestDataDir() {
 #if BUILDFLAG(IS_OHOS)

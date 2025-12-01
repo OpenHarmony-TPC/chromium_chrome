@@ -244,6 +244,45 @@ bool GetValue(const base::Value& value, KeyDownEvent* event) {
   return true;
 }
 
+bool GetValue(const base::Value& value, SettingAccessEvent* event) {
+  if (!value.is_dict()) {
+    return false;
+  }
+
+  std::optional<int> name = value.GetDict().FindInt("name");
+  if (name) {
+    event->name = *name;
+  }
+
+  std::optional<int> numeric_value = value.GetDict().FindInt("numeric_value");
+  if (numeric_value) {
+    event->numeric_value = *numeric_value;
+  }
+
+  std::optional<int> string_value = value.GetDict().FindInt("string_value");
+  if (string_value) {
+    event->string_value = *string_value;
+  }
+  return true;
+}
+
+bool GetValue(const base::Value& value, FunctionCallEvent* event) {
+  if (!value.is_dict()) {
+    return false;
+  }
+
+  std::optional<int> name = value.GetDict().FindInt("name");
+  if (name) {
+    event->name = *name;
+  }
+
+  std::optional<int> context = value.GetDict().FindInt("context");
+  if (context) {
+    event->context = *context;
+  }
+  return true;
+}
+
 template <typename T>
 struct StorageTraits {
   using StorageType = T;
@@ -390,6 +429,11 @@ DevToolsEmbedderMessageDispatcher::CreateForDevToolsFrontend(
   d->RegisterHandler("removeFileSystem", &Delegate::RemoveFileSystem, delegate);
   d->RegisterHandler("upgradeDraggedFileSystemPermissions",
                      &Delegate::UpgradeDraggedFileSystemPermissions, delegate);
+  d->RegisterHandlerWithCallback("connectAutomaticFileSystem",
+                                 &Delegate::ConnectAutomaticFileSystem,
+                                 delegate);
+  d->RegisterHandler("disconnectAutomaticFileSystem",
+                     &Delegate::DisconnectAutomaticFileSystem, delegate);
   d->RegisterHandler("indexPath", &Delegate::IndexPath, delegate);
   d->RegisterHandlerWithCallback("loadNetworkResource",
                                  &Delegate::LoadNetworkResource, delegate);
@@ -419,6 +463,8 @@ DevToolsEmbedderMessageDispatcher::CreateForDevToolsFrontend(
                      &Delegate::RecordEnumeratedHistogram, delegate);
   d->RegisterHandler("recordPerformanceHistogram",
                      &Delegate::RecordPerformanceHistogram, delegate);
+  d->RegisterHandler("recordPerformanceHistogramMedium",
+                     &Delegate::RecordPerformanceHistogramMedium, delegate);
   d->RegisterHandler("recordUserMetricsAction",
                      &Delegate::RecordUserMetricsAction, delegate);
   d->RegisterHandler("recordImpression", &Delegate::RecordImpression, delegate);
@@ -428,8 +474,10 @@ DevToolsEmbedderMessageDispatcher::CreateForDevToolsFrontend(
   d->RegisterHandler("recordDrag", &Delegate::RecordDrag, delegate);
   d->RegisterHandler("recordChange", &Delegate::RecordChange, delegate);
   d->RegisterHandler("recordKeyDown", &Delegate::RecordKeyDown, delegate);
-  d->RegisterHandlerWithCallback("sendJsonRequest",
-                                 &Delegate::SendJsonRequest, delegate);
+  d->RegisterHandler("recordSettingAccess", &Delegate::RecordSettingAccess,
+                     delegate);
+  d->RegisterHandler("recordFunctionCall", &Delegate::RecordFunctionCall,
+                     delegate);
   d->RegisterHandler("registerPreference", &Delegate::RegisterPreference,
                      delegate);
   d->RegisterHandlerWithCallback("getPreferences",

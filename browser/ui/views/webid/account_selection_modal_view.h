@@ -22,39 +22,42 @@
 #include "ui/views/controls/throbber.h"
 #include "ui/views/window/dialog_delegate.h"
 
+namespace views {
+class BoxLayoutView;
+}  // namespace views
+
+namespace webid {
+
+// This view is used for the "active" flow for fedCM. This is only ever shown as
+// a result of user action (e.g. clicking a button).
 class AccountSelectionModalView : public views::DialogDelegateView,
                                   public AccountSelectionViewBase {
   METADATA_HEADER(AccountSelectionModalView, views::DialogDelegateView)
 
  public:
   AccountSelectionModalView(
-      const std::u16string& rp_for_display,
+      const content::RelyingPartyData& rp_data,
       const std::optional<std::u16string>& idp_title,
       blink::mojom::RpContext rp_context,
-      content::WebContents* web_contents,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      AccountSelectionViewBase::Observer* observer,
-      views::WidgetObserver* widget_observer);
+      FedCmAccountSelectionView* owner);
   ~AccountSelectionModalView() override;
   AccountSelectionModalView(const AccountSelectionModalView&) = delete;
   AccountSelectionModalView& operator=(const AccountSelectionModalView&) =
       delete;
 
   // AccountSelectionViewBase:
-  void InitDialogWidget() override;
-
   void ShowMultiAccountPicker(
       const std::vector<IdentityRequestAccountPtr>& accounts,
       const std::vector<IdentityProviderDataPtr>& idp_list,
-      bool show_back_button,
-      bool is_choose_an_account) override;
+      const gfx::Image& rp_icon,
+      bool show_back_button) override;
 
-  void ShowVerifyingSheet(const content::IdentityRequestAccount& account,
+  void ShowVerifyingSheet(const IdentityRequestAccountPtr& account,
                           const std::u16string& title) override;
 
-  void ShowSingleAccountConfirmDialog(
-      const content::IdentityRequestAccount& account,
-      bool show_back_button) override;
+  void ShowSingleAccountConfirmDialog(const IdentityRequestAccountPtr& account,
+                                      bool show_back_button) override;
 
   void ShowFailureDialog(
       const std::u16string& idp_for_display,
@@ -67,25 +70,14 @@ class AccountSelectionModalView : public views::DialogDelegateView,
       override;
 
   void ShowRequestPermissionDialog(
-      const content::IdentityRequestAccount& account,
-      const content::IdentityProviderData& idp_data) override;
-
-  void ShowSingleReturningAccountDialog(
-      const std::vector<IdentityRequestAccountPtr>& accounts,
-      const std::vector<IdentityProviderDataPtr>& idp_list) override;
-
-  void ShowLoadingDialog() override;
-
-  void CloseDialog() override;
-
-  void UpdateDialogPosition() override;
+      const IdentityRequestAccountPtr& account) override;
 
   std::string GetDialogTitle() const override;
-  void DidShowWidget() override;
-  void DidHideWidget() override;
+  std::optional<std::string> GetDialogSubtitle() const override;
 
   // views::DialogDelegateView:
   views::View* GetInitiallyFocusedView() override;
+  void VisibilityChanged(View* starting_from, bool is_visible) override;
 
   std::u16string GetQueuedAnnouncementForTesting();
 
@@ -96,20 +88,20 @@ class AccountSelectionModalView : public views::DialogDelegateView,
   // the user to sign in to an RP with an account from an IDP.
   std::unique_ptr<views::View> CreateHeader();
 
-  // Returns a View for single account chooser. It contains a row of account
-  // information. `should_hover` determines whether the row is clickable.
-  // `show_disclosure_label` determines whether disclosure text is shown.
-  std::unique_ptr<views::View> CreateSingleAccountChooser(
-      const content::IdentityRequestAccount& account,
-      bool should_hover,
-      bool show_disclosure_label,
-      bool show_separator,
-      int additional_row_vertical_padding);
-
   // Returns a View for multiple account chooser. It contains the info for each
   // account in a button, so the user can pick an account.
   std::unique_ptr<views::View> CreateMultipleAccountChooser(
       const std::vector<IdentityRequestAccountPtr>& accounts);
+
+  // Returns a View to display account rows. It contains one row per account.
+  // `should_hover` determines whether the rows are clickable.
+  // `show_separator` determines whether rows should be surrounded by a
+  // separator.
+  std::unique_ptr<views::View> CreateAccountRows(
+      const std::vector<IdentityRequestAccountPtr>& accounts,
+      bool should_hover,
+      bool show_separator,
+      bool is_request_permission_dialog);
 
   // Returns a View for an account row that acts as a placeholder.
   std::unique_ptr<views::View> CreatePlaceholderAccountRow();
@@ -140,13 +132,13 @@ class AccountSelectionModalView : public views::DialogDelegateView,
   // that order, horizontally.
   std::unique_ptr<views::BoxLayoutView> CreateCombinedIconsView();
 
-  // Hides `header_icon_spinner_` and shows `idp_brand_icon_` upon successful
-  // IDP icon fetch.
-  void OnIdpBrandIconFetched();
+  // Hides `header_icon_spinner_` and shows `idp_brand_icon_` upon successfully
+  // setting the IDP icon.
+  void OnIdpBrandIconSet();
 
   // Hides `header_icon_spinner_`, `idp_brand_icon_` and shows `combined_icons_`
-  // upon successful IDP and RP icon fetches.
-  void OnCombinedIconsFetched();
+  // upon successfully setting the IDP and RP icons.
+  void OnCombinedIconsSet();
 
   // Removes all child views and dangling pointers and adjust header with
   // progress bar and body label if needed.
@@ -157,8 +149,7 @@ class AccountSelectionModalView : public views::DialogDelegateView,
 
   // Notifies the observer of the account selection and updates the continue
   // button into a spinner button.
-  void OnContinueButtonClicked(const content::IdentityRequestAccount& account,
-                               const content::IdentityProviderData& idp_data,
+  void OnContinueButtonClicked(const IdentityRequestAccountPtr& account,
                                const ui::Event& event);
 
   // Notifies the observer of the use other account button being clicked.
@@ -171,6 +162,10 @@ class AccountSelectionModalView : public views::DialogDelegateView,
       views::MdTextButton* button,
       ui::ColorId spinner_color = ui::kColorButtonForeground,
       ui::ColorId button_color = ui::kColorButtonBackground);
+
+  // Helper method to show the given accounts.
+  void ShowAccounts(const std::vector<IdentityRequestAccountPtr>& accounts,
+                    bool is_single_account_chooser);
 
   // The following are raw_ptrs for views in the header. These do not need to be
   // reset by RemoveNonHeaderChildViewsAndUpdateHeaderIfNeeded().
@@ -222,10 +217,6 @@ class AccountSelectionModalView : public views::DialogDelegateView,
   // Whether the title has been announced for accessibility.
   bool has_announced_title_{false};
 
-  // Disable events when widget is showing.
-  std::optional<content::WebContents::ScopedIgnoreInputEvents>
-      scoped_ignore_input_events_;
-
   // The announcement that should be made upon view focus, if screen reader is
   // turned on.
   std::u16string queued_announcement_;
@@ -233,9 +224,14 @@ class AccountSelectionModalView : public views::DialogDelegateView,
   // The title for the modal dialog.
   std::u16string title_;
 
+  // The subtitle for the modal dialog.
+  std::u16string subtitle_;
+
   // Used to ensure that callbacks are not run if the AccountSelectionModalView
   // is destroyed.
   base::WeakPtrFactory<AccountSelectionModalView> weak_ptr_factory_{this};
 };
+
+}  // namespace webid
 
 #endif  // CHROME_BROWSER_UI_VIEWS_WEBID_ACCOUNT_SELECTION_MODAL_VIEW_H_

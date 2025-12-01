@@ -2,13 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "chrome/browser/media/webrtc/display_media_access_handler.h"
 
+#include <array>
 #include <memory>
 #include <string>
 #include <utility>
@@ -62,7 +59,8 @@ class DisplayMediaAccessHandlerTest : public ChromeRenderViewHostTestHarness {
 
   content::WebContentsMediaCaptureId GetWebContentsMediaCaptureId() {
     return content::WebContentsMediaCaptureId(
-        web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID(), 1);
+        web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID(),
+        1);
   }
 
   FakeDesktopMediaPickerFactory::TestFlags MakePickerTestFlags(
@@ -80,7 +78,7 @@ class DisplayMediaAccessHandlerTest : public ChromeRenderViewHostTestHarness {
 
   content::MediaStreamRequest MakeRequest(bool request_audio) {
     return content::MediaStreamRequest(
-        web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID(),
+        web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID(),
         web_contents()->GetPrimaryMainFrame()->GetRoutingID(), 0,
         url::Origin::Create(GURL("http://origin/")), false,
         blink::MEDIA_GENERATE_STREAM, /*requested_audio_device_ids=*/{},
@@ -161,13 +159,17 @@ class DisplayMediaAccessHandlerTest : public ChromeRenderViewHostTestHarness {
       blink::mojom::MediaStreamRequestResult* request_result,
       blink::mojom::StreamDevices& devices_result,
       bool request_audio,
-      bool expect_result = true) {
+      bool expect_result = true,
+      bool expect_picker = true,
+      std::optional<content::MediaStreamRequest> request = std::nullopt) {
     SetTestFlags({{true /* expect_screens */, true /* expect_windows*/,
                    true /* expect_tabs */, /* expect_current_tab, */ false,
                    request_audio,
                    fake_desktop_media_id_response /* selected_source */}});
 
-    content::MediaStreamRequest request = MakeRequest(request_audio);
+    if (!request.has_value()) {
+      request = MakeRequest(request_audio);
+    }
 
     base::RunLoop wait_loop;
     content::MediaResponseCallback callback;
@@ -180,19 +182,19 @@ class DisplayMediaAccessHandlerTest : public ChromeRenderViewHostTestHarness {
       callback = mock_callback.Get();
     }
 
-    access_handler_->HandleRequest(web_contents(), request, std::move(callback),
-                                   nullptr /* extension */);
+    access_handler_->HandleRequest(
+        web_contents(), *request, std::move(callback), nullptr /* extension */);
     if (expect_result) {
       wait_loop.Run();
     } else {
       wait_loop.RunUntilIdle();
     }
 
-    EXPECT_TRUE(test_flags_[0].picker_created);
+    EXPECT_EQ(test_flags_[0].picker_created, expect_picker);
 
     picker_factory_ = nullptr;
     access_handler_.reset();
-    EXPECT_TRUE(test_flags_[0].picker_deleted);
+    EXPECT_EQ(test_flags_[0].picker_deleted, expect_picker);
   }
 
   void NotifyWebContentsDestroyed() {
@@ -258,7 +260,7 @@ TEST_F(DisplayMediaAccessHandlerTest, PermissionGiven) {
 #if BUILDFLAG(IS_MAC)
   // On macOS, screen capture requires system permissions that are disabled by
   // default.
-  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::SYSTEM_PERMISSION_DENIED,
+  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED_BY_SYSTEM,
             result);
   return;
 #endif
@@ -300,7 +302,7 @@ TEST_F(DisplayMediaAccessHandlerTest, PermissionGivenToRequestWithAudio) {
 #if BUILDFLAG(IS_MAC)
   // On macOS, screen capture requires system permissions that are disabled by
   // default.
-  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::SYSTEM_PERMISSION_DENIED,
+  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED_BY_SYSTEM,
             result);
   return;
 #endif
@@ -321,6 +323,68 @@ TEST_F(DisplayMediaAccessHandlerTest, PermissionDenied) {
                  true /* request_audio */);
   EXPECT_EQ(blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED, result);
   EXPECT_EQ(0u, blink::CountDevices(devices));
+}
+
+class DisplayMediaAccessHandlerActiveRfhTest
+    : public DisplayMediaAccessHandlerTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  DisplayMediaAccessHandlerActiveRfhTest() : active_rfh_(GetParam()) {}
+  ~DisplayMediaAccessHandlerActiveRfhTest() override = default;
+
+  void SetUp() override {
+    DisplayMediaAccessHandlerTest::SetUp();
+    Navigate("https://a.com");
+  }
+
+  void Navigate(const std::string& url) {
+    std::unique_ptr<content::NavigationSimulator> navigation =
+        content::NavigationSimulator::CreateBrowserInitiated(GURL(url),
+                                                             web_contents());
+    navigation->Commit();
+  }
+
+  void DeactivateMainRfh() {
+    // Cross-origin navigation will deactivate the previous RFH.
+    Navigate("https://b.com");
+  }
+
+ protected:
+  const bool active_rfh_;
+};
+
+INSTANTIATE_TEST_SUITE_P(,
+                         DisplayMediaAccessHandlerActiveRfhTest,
+                         testing::Bool());
+
+TEST_P(DisplayMediaAccessHandlerActiveRfhTest, ProcessRequest) {
+  blink::mojom::MediaStreamRequestResult result;
+  blink::mojom::StreamDevices devices;
+  const content::DesktopMediaID media_id(
+      content::DesktopMediaID::TYPE_WEB_CONTENTS,
+      content::DesktopMediaID::kNullId, GetWebContentsMediaCaptureId());
+
+  // Lock in the RFH for use after deactivation. (If `!active_rfh_`; otherwise
+  // it stays active.)
+  const bool request_audio = false;
+  content::MediaStreamRequest request = MakeRequest(request_audio);
+  request.render_process_id =
+      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID();
+  request.render_frame_id =
+      web_contents()->GetPrimaryMainFrame()->GetRoutingID();
+
+  if (!active_rfh_) {
+    DeactivateMainRfh();
+  }
+
+  ProcessRequest(media_id, &result, devices, request_audio,
+                 /*expect_result=*/true, /*expect_picker=*/active_rfh_,
+                 request);
+
+  EXPECT_EQ(result,
+            active_rfh_
+                ? blink::mojom::MediaStreamRequestResult::OK
+                : blink::mojom::MediaStreamRequestResult::INVALID_STATE);
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -401,7 +465,7 @@ TEST_F(DisplayMediaAccessHandlerTest, DlpWebContentsDestroyed) {
 
 TEST_F(DisplayMediaAccessHandlerTest, UpdateMediaRequestStateWithClosing) {
   const int render_process_id =
-      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID();
+      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID();
   const int render_frame_id =
       web_contents()->GetPrimaryMainFrame()->GetRoutingID();
   const int page_request_id = 0;
@@ -441,7 +505,7 @@ TEST_F(DisplayMediaAccessHandlerTest, UpdateMediaRequestStateWithClosing) {
 
 TEST_F(DisplayMediaAccessHandlerTest, CorrectHostAsksForPermissions) {
   const int render_process_id =
-      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID();
+      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID();
   const int render_frame_id =
       web_contents()->GetPrimaryMainFrame()->GetRoutingID();
   const int page_request_id = 0;
@@ -478,7 +542,7 @@ TEST_F(DisplayMediaAccessHandlerTest, CorrectHostAsksForPermissions) {
 
 TEST_F(DisplayMediaAccessHandlerTest, CorrectHostAsksForPermissionsNormalURLs) {
   const int render_process_id =
-      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID();
+      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID();
   const int render_frame_id =
       web_contents()->GetPrimaryMainFrame()->GetRoutingID();
   const int page_request_id = 0;
@@ -524,7 +588,7 @@ TEST_F(DisplayMediaAccessHandlerTest, IsolatedWebAppNameAsksForPermissions) {
           web_app::ManifestBuilder()
               .SetName(app_name)
               .AddPermissionsPolicyWildcard(
-                  blink::mojom::PermissionsPolicyFeature::kDisplayCapture))
+                  network::mojom::PermissionsPolicyFeature::kDisplayCapture))
           .BuildBundle();
   iwa->TrustSigningKey();
   iwa->FakeInstallPageState(profile());
@@ -534,7 +598,7 @@ TEST_F(DisplayMediaAccessHandlerTest, IsolatedWebAppNameAsksForPermissions) {
                                             url_info.origin().GetURL());
 
   const int render_process_id =
-      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID();
+      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID();
   const int render_frame_id =
       web_contents()->GetPrimaryMainFrame()->GetRoutingID();
   const int page_request_id = 0;
@@ -570,7 +634,7 @@ TEST_F(DisplayMediaAccessHandlerTest, WebContentsDestroyed) {
                  false /* expect_audio */, content::DesktopMediaID(),
                  true /* cancelled */}});
   content::MediaStreamRequest request(
-      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID(),
+      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID(),
       web_contents()->GetPrimaryMainFrame()->GetRoutingID(), 0,
       url::Origin::Create(GURL("http://origin/")), false,
       blink::MEDIA_GENERATE_STREAM, /*requested_audio_device_ids=*/{},
@@ -609,10 +673,10 @@ TEST_F(DisplayMediaAccessHandlerTest, MultipleRequests) {
 
   blink::mojom::MediaStreamRequestResult result;
   blink::MediaStreamDevices devices;
-  base::RunLoop wait_loop[kTestFlagCount];
+  std::array<base::RunLoop, kTestFlagCount> wait_loop;
   for (size_t i = 0; i < kTestFlagCount; ++i) {
     content::MediaStreamRequest request(
-        web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID(),
+        web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID(),
         web_contents()->GetPrimaryMainFrame()->GetRoutingID(), 0,
         url::Origin::Create(GURL("http://origin/")), false,
         blink::MEDIA_GENERATE_STREAM, /*requested_audio_device_ids=*/{},
@@ -650,7 +714,7 @@ TEST_F(DisplayMediaAccessHandlerTest, MultipleRequests) {
 #if BUILDFLAG(IS_MAC)
   // On macOS, screen capture requires system permissions that are disabled by
   // default.
-  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::SYSTEM_PERMISSION_DENIED,
+  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED_BY_SYSTEM,
             result);
   return;
 #endif
@@ -740,9 +804,9 @@ TEST_F(DisplayMediaAccessHandlerTest, ChangeSourceWithPendingPickerRequest) {
   SetTestFlags({MakePickerTestFlags(false /*request_audio*/),
                 MakePickerTestFlags(false /*request_audio*/)});
 
-  blink::mojom::MediaStreamRequestResult results[2];
-  blink::mojom::StreamDevices devices[2];
-  base::RunLoop wait_loop[2];
+  std::array<blink::mojom::MediaStreamRequestResult, 2> results;
+  std::array<blink::mojom::StreamDevices, 2> devices;
+  std::array<base::RunLoop, 2> wait_loop;
 
   HandleRequest(MakeRequest(false /* request_audio */), &wait_loop[0],
                 &results[0], devices[0]);
@@ -756,7 +820,7 @@ TEST_F(DisplayMediaAccessHandlerTest, ChangeSourceWithPendingPickerRequest) {
 #if BUILDFLAG(IS_MAC)
   // On macOS, screen capture requires system permissions that are disabled by
   // default.
-  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::SYSTEM_PERMISSION_DENIED,
+  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED_BY_SYSTEM,
             results[0]);
   return;
 #endif
@@ -771,9 +835,9 @@ TEST_F(DisplayMediaAccessHandlerTest,
   SetTestFlags({MakePickerTestFlags(false /*request_audio*/),
                 MakePickerTestFlags(false /*request_audio*/)});
 
-  blink::mojom::MediaStreamRequestResult results[2];
-  blink::mojom::StreamDevices devices[2];
-  base::RunLoop wait_loop[2];
+  std::array<blink::mojom::MediaStreamRequestResult, 2> results;
+  std::array<blink::mojom::StreamDevices, 2> devices;
+  std::array<base::RunLoop, 2> wait_loop;
 
   HandleRequest(MakeRequest(false /* request_audio */), &wait_loop[0],
                 &results[0], devices[0]);
@@ -791,7 +855,7 @@ TEST_F(DisplayMediaAccessHandlerTest,
 #if BUILDFLAG(IS_MAC)
   // On macOS, screen capture requires system permissions that are disabled by
   // default.
-  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::SYSTEM_PERMISSION_DENIED,
+  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED_BY_SYSTEM,
             results[0]);
   return;
 #endif
@@ -805,9 +869,9 @@ TEST_F(DisplayMediaAccessHandlerTest,
        MalformedChangeSourceBetweenPickerRequests) {
   SetTestFlags({{MakePickerTestFlags(false /*request_audio*/)}});
 
-  blink::mojom::MediaStreamRequestResult results[3];
-  blink::mojom::StreamDevices devices[3];
-  base::RunLoop wait_loop[3];
+  std::array<blink::mojom::MediaStreamRequestResult, 3> results;
+  std::array<blink::mojom::StreamDevices, 3> devices;
+  std::array<base::RunLoop, 3> wait_loop;
 
   HandleRequest(MakeRequest(false /* request_audio */), &wait_loop[0],
                 &results[0], devices[0]);
@@ -827,7 +891,7 @@ TEST_F(DisplayMediaAccessHandlerTest,
 #if BUILDFLAG(IS_MAC)
   // On macOS, screen capture requires system permissions that are disabled by
   // default.
-  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::SYSTEM_PERMISSION_DENIED,
+  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED_BY_SYSTEM,
             results[0]);
   return;
 #endif

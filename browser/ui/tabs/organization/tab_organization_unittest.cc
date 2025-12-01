@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <variant>
 
 #include "base/functional/bind.h"
 #include "base/test/bind.h"
@@ -23,7 +24,6 @@
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
 #include "chrome/browser/ui/tabs/test_util.h"
 #include "chrome/test/base/testing_profile.h"
-#include "components/optimization_guide/core/model_quality/feature_type_map.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -449,22 +449,20 @@ TEST_F(TabOrganizationTest, TabOrganizationChangingCurrentName) {
   std::u16string name_0 = u"name_0";
   std::u16string name_1 = u"name_1";
   TabOrganization organization({}, {name_0, name_1});
-  EXPECT_TRUE(absl::holds_alternative<size_t>(organization.current_name()));
-  EXPECT_EQ(static_cast<int>(absl::get<size_t>(organization.current_name())),
-            0);
+  EXPECT_TRUE(std::holds_alternative<size_t>(organization.current_name()));
+  EXPECT_EQ(static_cast<int>(std::get<size_t>(organization.current_name())), 0);
   EXPECT_EQ(organization.GetDisplayName(), name_0);
 
   organization.SetCurrentName(1u);
-  EXPECT_TRUE(absl::holds_alternative<size_t>(organization.current_name()));
-  EXPECT_EQ(static_cast<int>(absl::get<size_t>(organization.current_name())),
-            1);
+  EXPECT_TRUE(std::holds_alternative<size_t>(organization.current_name()));
+  EXPECT_EQ(static_cast<int>(std::get<size_t>(organization.current_name())), 1);
   EXPECT_EQ(organization.GetDisplayName(), name_1);
 
   std::u16string custom_name = u"custom_name";
   organization.SetCurrentName(custom_name);
   EXPECT_TRUE(
-      absl::holds_alternative<std::u16string>(organization.current_name()));
-  EXPECT_EQ((absl::get<std::u16string>(organization.current_name())),
+      std::holds_alternative<std::u16string>(organization.current_name()));
+  EXPECT_EQ((std::get<std::u16string>(organization.current_name())),
             custom_name);
   EXPECT_EQ(organization.GetDisplayName(), custom_name);
 }
@@ -1250,8 +1248,9 @@ TEST_F(TabOrganizationTest, LoggingUtilAddOrganizationsToModelQuality) {
   std::unique_ptr<optimization_guide::ModelQualityLogEntry>
       model_quality_log_entry = std::make_unique<FakeModelQualityLogEntry>();
   optimization_guide::proto::TabOrganizationQuality* quality =
-      model_quality_log_entry
-          ->quality_data<optimization_guide::TabOrganizationFeatureTypeMap>();
+      model_quality_log_entry->log_ai_data_request()
+          ->mutable_tab_organization()
+          ->mutable_quality();
 
   EXPECT_NE(quality, nullptr);
   EXPECT_NE(session.get(), nullptr);
@@ -1346,8 +1345,9 @@ TEST_F(TabOrganizationTest, LoggingUtilAddOrganizationsToModelQualityAccepted) {
   std::unique_ptr<optimization_guide::ModelQualityLogEntry>
       model_quality_log_entry = std::make_unique<FakeModelQualityLogEntry>();
   optimization_guide::proto::TabOrganizationQuality* quality =
-      model_quality_log_entry
-          ->quality_data<optimization_guide::TabOrganizationFeatureTypeMap>();
+      model_quality_log_entry->log_ai_data_request()
+          ->mutable_tab_organization()
+          ->mutable_quality();
 
   EXPECT_NE(quality, nullptr);
   EXPECT_NE(session.get(), nullptr);

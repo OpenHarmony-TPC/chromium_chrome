@@ -41,13 +41,11 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.autofill.AutofillUiUtils.CardIconSpecs;
-import org.chromium.chrome.browser.autofill.PersonalDataManager;
-import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
+import org.chromium.chrome.browser.autofill.AutofillImageFetcher;
+import org.chromium.chrome.browser.autofill.AutofillImageFetcherFactory;
+import org.chromium.chrome.browser.autofill.AutofillUiUtils.IconSpecs;
 import org.chromium.chrome.browser.autofill.vcn.AutofillVcnEnrollBottomSheetProperties.IssuerIcon;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -55,6 +53,7 @@ import org.chromium.chrome.browser.profiles.ProfileJni;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.autofill.AutofillFeatures;
 import org.chromium.components.autofill.ImageSize;
+import org.chromium.components.autofill.ImageType;
 import org.chromium.components.autofill.VirtualCardEnrollmentLinkType;
 import org.chromium.components.autofill.payments.LegalMessageLine;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
@@ -70,15 +69,11 @@ import java.util.Optional;
 /** Unit test for {@link AutofillVcnEnrollBottomSheetBridge}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @SmallTest
-@EnableFeatures({
-    AutofillFeatures.AUTOFILL_ENABLE_VIRTUAL_CARD_JAVA_PAYMENTS_DATA_MANAGER,
-    ChromeFeatureList.AUTOFILL_ENABLE_NEW_CARD_ART_AND_NETWORK_IMAGES
-})
+@EnableFeatures({AutofillFeatures.AUTOFILL_ENABLE_VIRTUAL_CARD_JAVA_PAYMENTS_DATA_MANAGER})
 public final class AutofillVcnEnrollBottomSheetBridgeTest {
     private static final long NATIVE_AUTOFILL_VCN_ENROLL_BOTTOM_SHEET_BRIDGE = 0xa1fabe7a;
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
-    @Rule public JniMocker mJniMocker = new JniMocker();
 
     @Mock private AutofillVcnEnrollBottomSheetBridge.Natives mBridgeNatives;
     @Mock private Profile.Natives mProfileNatives;
@@ -87,7 +82,7 @@ public final class AutofillVcnEnrollBottomSheetBridgeTest {
     @Mock private LayoutStateProvider mLayoutStateProvider;
     @Mock private ObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
     @Mock private Profile mProfile;
-    @Mock private PersonalDataManager mPersonalDataManager;
+    @Mock private AutofillImageFetcher mImageFetcher;
 
     private ShadowActivity mShadowActivity;
     private WindowAndroid mWindow;
@@ -98,16 +93,19 @@ public final class AutofillVcnEnrollBottomSheetBridgeTest {
 
     @Before
     public void setUp() {
-        PersonalDataManagerFactory.setInstanceForTesting(mPersonalDataManager);
-        mJniMocker.mock(ProfileJni.TEST_HOOKS, mProfileNatives);
+        AutofillImageFetcherFactory.setInstanceForTesting(mImageFetcher);
+        ProfileJni.setInstanceForTesting(mProfileNatives);
         when(mProfileNatives.fromWebContents(any())).thenReturn(mProfile);
-        mJniMocker.mock(AutofillVcnEnrollBottomSheetBridgeJni.TEST_HOOKS, mBridgeNatives);
+        AutofillVcnEnrollBottomSheetBridgeJni.setInstanceForTesting(mBridgeNatives);
         Activity activity = Robolectric.buildActivity(Activity.class).create().get();
         mShadowActivity = shadowOf(activity);
-        mWindow = new WindowAndroid(activity);
-        when(mPersonalDataManager.getCustomImageForAutofillSuggestionIfAvailable(
+        mWindow = new WindowAndroid(activity, /* trackOcclusion= */ true);
+        when(mImageFetcher.getImageIfAvailable(
                         ISSUER_ICON_URL,
-                        CardIconSpecs.create(mWindow.getContext().get(), ImageSize.SMALL)))
+                        IconSpecs.create(
+                                mWindow.getContext().get(),
+                                ImageType.CREDIT_CARD_ART_IMAGE,
+                                ImageSize.SMALL)))
                 .thenReturn(
                         Optional.of(
                                 Bitmap.createBitmap(
@@ -142,21 +140,18 @@ public final class AutofillVcnEnrollBottomSheetBridgeTest {
                 "Message text",
                 "Description text. Learn more",
                 "Learn more",
-                "Card container accessibility description",
-                /* issuerIcon= */ Bitmap.createBitmap(
+                /* issuerIconBitmap= */ Bitmap.createBitmap(
                         /* colors= */ new int[1],
                         /* width= */ 1,
                         /* height= */ 1,
                         Bitmap.Config.ARGB_8888),
-                /* issuerIconResource= */ ISSUER_ICON_RESOURCE_ID,
+                /* networkIconResource= */ ISSUER_ICON_RESOURCE_ID,
                 /* issuerIconUrl= */ ISSUER_ICON_URL,
                 "Card label",
-                "Card description",
                 googleLegalMessages,
                 issuerLegalMessages,
                 "Accept button label",
-                "Cancel button label",
-                "Loading description");
+                "Cancel button label");
     }
 
     @Test
@@ -255,13 +250,6 @@ public final class AutofillVcnEnrollBottomSheetBridgeTest {
                         .getPropertyModelForTesting()
                         .get(AutofillVcnEnrollBottomSheetProperties.DESCRIPTION)
                         .mLearnMoreLinkText);
-        assertEquals(
-                "Card container accessibility description",
-                mBridge.getCoordinatorForTesting()
-                        .getPropertyModelForTesting()
-                        .get(
-                                AutofillVcnEnrollBottomSheetProperties
-                                        .CARD_CONTAINER_ACCESSIBILITY_DESCRIPTION));
         IssuerIcon issuerIcon =
                 mBridge.getCoordinatorForTesting()
                         .getPropertyModelForTesting()
@@ -273,11 +261,6 @@ public final class AutofillVcnEnrollBottomSheetBridgeTest {
                 mBridge.getCoordinatorForTesting()
                         .getPropertyModelForTesting()
                         .get(AutofillVcnEnrollBottomSheetProperties.CARD_LABEL));
-        assertEquals(
-                "Card description",
-                mBridge.getCoordinatorForTesting()
-                        .getPropertyModelForTesting()
-                        .get(AutofillVcnEnrollBottomSheetProperties.CARD_DESCRIPTION));
         assertEquals(
                 1,
                 mBridge.getCoordinatorForTesting()
@@ -322,11 +305,6 @@ public final class AutofillVcnEnrollBottomSheetBridgeTest {
                 mBridge.getCoordinatorForTesting()
                         .getPropertyModelForTesting()
                         .get(AutofillVcnEnrollBottomSheetProperties.SHOW_LOADING_STATE));
-        assertEquals(
-                "Loading description",
-                mBridge.getCoordinatorForTesting()
-                        .getPropertyModelForTesting()
-                        .get(AutofillVcnEnrollBottomSheetProperties.LOADING_DESCRIPTION));
     }
 
     @Test

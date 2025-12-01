@@ -7,7 +7,6 @@
 #include <array>
 #include <utility>
 
-#include "ash/components/arc/app/arc_app_constants.h"
 #include "ash/constants/ash_paths.h"
 #include "ash/constants/web_app_id_constants.h"
 #include "ash/public/cpp/app_list/internal_app_id_constants.h"
@@ -26,8 +25,10 @@
 #include "chrome/browser/apps/app_service/policy_util.h"
 #include "chrome/browser/ash/guest_os/guest_os_terminal.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/extensions/extension_constants.h"
 #include "chromeos/ash/components/file_manager/app_id.h"
+#include "chromeos/ash/experiences/arc/app/arc_app_constants.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/app_constants/constants.h"
 #include "components/services/app_service/public/cpp/package_id.h"
@@ -146,6 +147,8 @@ void GetDefault(std::vector<std::string>* app_ids) {
 
     ash::kMessagesAppId,
 
+    ash::kNotebookLmAppId,
+
     arc::kYoutubeAppId,
     extension_misc::kYoutubeAppId,
     ash::kYoutubeAppId,
@@ -216,7 +219,7 @@ void GetDefault(std::vector<std::string>* app_ids) {
 
 PackageId SystemPackageId(ash::SystemWebAppType type) {
   return PackageId(PackageType::kSystem,
-                   *apps_util::GetPolicyIdForSystemWebAppType(type));
+                   *web_app::GetPolicyIdForSystemWebAppType(type));
 }
 
 }  // namespace
@@ -306,10 +309,9 @@ void Get(std::vector<std::string>* app_ids) {
 }
 
 base::span<const apps::LauncherItem> GetAppPreloadServiceDefaults() {
-  static const base::NoDestructor<std::array<apps::LauncherItem, 20>>
+  static const base::NoDestructor<std::array<apps::LauncherItem, 19>>
       kPackageIds({
           PackageId(PackageType::kChromeApp, app_constants::kChromeAppId),
-          PackageId(PackageType::kSystem, app_constants::kLacrosChrome),
           PackageId(PackageType::kChromeApp, arc::kPlayStoreAppId),
           SystemPackageId(ash::SystemWebAppType::FILE_MANAGER),
           PackageId(PackageType::kWeb, ash::kGmailManifestId),

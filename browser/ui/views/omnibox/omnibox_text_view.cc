@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <string_view>
 
 #include "base/feature_list.h"
 #include "base/strings/string_util.h"
@@ -62,26 +63,20 @@ struct TextStyle {
   gfx::BaselineStyle baseline = gfx::BaselineStyle::kNormalBaseline;
 };
 
-void ApplyTextStyleFromColorType(
-    const std::optional<omnibox::FormattedString::ColorType>& color_type,
-    OmniboxResultView* result_view,
-    gfx::RenderText* render_text,
-    const gfx::Range& range) {
+void ApplyTextStyleForAnswer(OmniboxResultView* result_view,
+                             gfx::RenderText* render_text,
+                             const gfx::Range& range,
+                             bool is_headline) {
   render_text->ApplyWeight(gfx::Font::Weight::NORMAL, range);
   render_text->ApplyBaselineStyle(gfx::BaselineStyle::kNormalBaseline, range);
   const bool selected =
       result_view->GetThemeState() == OmniboxPartState::SELECTED;
   ui::ColorId id;
-  if (color_type.value() ==
-      omnibox::FormattedString::COLOR_ON_SURFACE_POSITIVE) {
-    id = selected ? kColorOmniboxResultsTextPositiveSelected
-                  : kColorOmniboxResultsTextPositive;
-  } else if (color_type.value() ==
-             omnibox::FormattedString::COLOR_ON_SURFACE_NEGATIVE) {
-    id = selected ? kColorOmniboxResultsTextNegativeSelected
-                  : kColorOmniboxResultsTextNegative;
+  if (is_headline) {
+    id = selected ? kColorOmniboxResultsTextSelected : kColorOmniboxText;
   } else {
-    return;
+    id = selected ? kColorOmniboxResultsTextDimmedSelected
+                  : kColorOmniboxResultsTextDimmed;
   }
   render_text->ApplyColor(result_view->GetColorProvider()->GetColor(id), range);
 }
@@ -95,7 +90,9 @@ bool AnswerHasDefinedMaxLines(omnibox::AnswerType answer_type) {
 }  // namespace
 
 OmniboxTextView::OmniboxTextView(OmniboxResultView* result_view)
-    : result_view_(result_view) {}
+    : result_view_(result_view) {
+  SetCanProcessEventsWithinSubtree(false);
+}
 
 OmniboxTextView::~OmniboxTextView() = default;
 
@@ -110,7 +107,7 @@ gfx::Size OmniboxTextView::CalculatePreferredSize(
     return render_text_->GetStringSize();
   }
 
-  int width = available_size.width().value();
+  const int width = available_size.width().value();
   if (!wrap_text_lines_) {
     return gfx::Size(width, GetLineHeight());
   }
@@ -126,31 +123,29 @@ gfx::Size OmniboxTextView::CalculatePreferredSize(
   return cached_calculate_preferred_size_;
 }
 
-bool OmniboxTextView::GetCanProcessEventsWithinSubtree() const {
-  return false;
-}
-
 void OmniboxTextView::OnPaint(gfx::Canvas* canvas) {
   View::OnPaint(canvas);
 
-  if (!render_text_)
+  if (!render_text_) {
     return;
+  }
   render_text_->SetDisplayRect(GetContentsBounds());
   render_text_->Draw(canvas);
 }
 
 void OmniboxTextView::ApplyTextColor(ui::ColorId id) {
-  if (GetText().empty())
+  if (GetText().empty()) {
     return;
+  }
   render_text_->SetColor(GetColorProvider()->GetColor(id));
   SchedulePaint();
 }
 
-const std::u16string& OmniboxTextView::GetText() const {
-  return render_text_ ? render_text_->text() : base::EmptyString16();
+std::u16string_view OmniboxTextView::GetText() const {
+  return render_text_ ? render_text_->text() : std::u16string_view();
 }
 
-void OmniboxTextView::SetText(const std::u16string& new_text) {
+void OmniboxTextView::SetText(std::u16string_view new_text) {
   if (cached_classifications_) {
     cached_classifications_.reset();
   } else if (GetText() == new_text) {
@@ -165,11 +160,12 @@ void OmniboxTextView::SetText(const std::u16string& new_text) {
 }
 
 void OmniboxTextView::SetTextWithStyling(
-    const std::u16string& new_text,
+    std::u16string_view new_text,
     const ACMatchClassifications& classifications) {
   if (GetText() == new_text && cached_classifications_ &&
-      classifications == *cached_classifications_)
+      classifications == *cached_classifications_) {
     return;
+  }
 
   cached_classifications_ =
       std::make_unique<ACMatchClassifications>(classifications);
@@ -179,14 +175,16 @@ void OmniboxTextView::SetTextWithStyling(
   ReapplyStyling();
 }
 
-void OmniboxTextView::AppendTextWithStyling(
+void OmniboxTextView::AppendAndStyleAnswerText(
     const omnibox::FormattedString& formatted_string,
     size_t fragment_index,
-    const omnibox::AnswerType& answer_type) {
+    const omnibox::AnswerType& answer_type,
+    bool is_headline) {
   cached_classifications_.reset();
   wrap_text_lines_ = AnswerHasDefinedMaxLines(answer_type);
-  for (size_t i = fragment_index;
-       i < static_cast<size_t>(formatted_string.fragments_size()); i++) {
+  const auto fragments_size =
+      static_cast<size_t>(formatted_string.fragments_size());
+  for (size_t i = fragment_index; i < fragments_size; ++i) {
     const std::u16string space_separator = i == 0u ? u"" : u" ";
     const std::u16string append_text =
         space_separator +
@@ -194,13 +192,13 @@ void OmniboxTextView::AppendTextWithStyling(
     size_t offset = render_text_ ? render_text_->text().length() : 0u;
     gfx::Range range(offset, offset + append_text.length());
     render_text_->AppendText(append_text);
-    ApplyTextStyleFromColorType(formatted_string.fragments(i).color(),
-                                result_view_, render_text_.get(), range);
+    ApplyTextStyleForAnswer(result_view_, render_text_.get(), range,
+                            is_headline);
   }
   OnStyleChanged();
 }
 
-void OmniboxTextView::SetMultilineText(
+void OmniboxTextView::SetMultilineAnswerText(
     const omnibox::FormattedString& formatted_string,
     const omnibox::AnswerType& answer_type) {
   render_text_ = CreateRenderText(u"");
@@ -209,7 +207,8 @@ void OmniboxTextView::SetMultilineText(
     render_text_->SetMultiline(true);
     render_text_->SetMaxLines(1);
   }
-  AppendTextWithStyling(formatted_string, /*fragment_index=*/0u, answer_type);
+  AppendAndStyleAnswerText(formatted_string, /*fragment_index=*/0u, answer_type,
+                           /*is_headline=*/false);
 }
 
 void OmniboxTextView::SetMultilineText(const std::u16string& text) {
@@ -239,14 +238,16 @@ int OmniboxTextView::GetLineHeight() const {
 
 void OmniboxTextView::ReapplyStyling() {
   // No work required if there are no preexisting styles.
-  if (!cached_classifications_)
+  if (!cached_classifications_) {
     return;
+  }
 
   const size_t text_length = GetText().length();
   for (size_t i = 0; i < cached_classifications_->size(); ++i) {
     const size_t text_start = (*cached_classifications_)[i].offset;
-    if (text_start >= text_length)
+    if (text_start >= text_length) {
       break;
+    }
 
     const size_t text_end =
         (i < (cached_classifications_->size() - 1))
@@ -255,8 +256,9 @@ void OmniboxTextView::ReapplyStyling() {
     const gfx::Range current_range(text_start, text_end);
 
     // Calculate style-related data.
-    if ((*cached_classifications_)[i].style & ACMatchClassification::MATCH)
+    if ((*cached_classifications_)[i].style & ACMatchClassification::MATCH) {
       render_text_->ApplyWeight(gfx::Font::Weight::BOLD, current_range);
+    }
 
     const bool selected =
         result_view_->GetThemeState() == OmniboxPartState::SELECTED;
@@ -277,7 +279,7 @@ void OmniboxTextView::ReapplyStyling() {
 }
 
 std::unique_ptr<gfx::RenderText> OmniboxTextView::CreateRenderText(
-    const std::u16string& text) const {
+    std::u16string_view text) const {
   std::unique_ptr<gfx::RenderText> render_text =
       gfx::RenderText::CreateRenderText();
   render_text->SetDisplayRect(gfx::Rect(gfx::Size(INT_MAX, 0)));
@@ -316,6 +318,6 @@ void OmniboxTextView::OnStyleChanged() {
 }
 
 BEGIN_METADATA(OmniboxTextView)
-ADD_PROPERTY_METADATA(std::u16string, Text)
+ADD_PROPERTY_METADATA(std::u16string_view, Text)
 ADD_READONLY_PROPERTY_METADATA(int, LineHeight)
 END_METADATA

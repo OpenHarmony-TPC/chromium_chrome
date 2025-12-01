@@ -404,6 +404,8 @@ void RecentTabsSubMenuModel::BuildLocalEntries() {
         }
         case sessions::tab_restore::Type::WINDOW: {
           auto& window = static_cast<sessions::tab_restore::Window&>(*entry);
+          // TODO(https://crbug.com/41227458): Consider if we should re-add the
+          // ability for single tab windows to be represented as single tabs.
           BuildLocalWindowItem(window, ++last_local_model_index_);
           break;
         }
@@ -702,7 +704,7 @@ std::u16string RecentTabsSubMenuModel::GetGroupItemLabel(std::u16string title,
   } else {
     item_label = l10n_util::GetPluralStringFUTF16(IDS_RECENTLY_CLOSED_GROUP,
                                                   static_cast<int>(num_tabs));
-    item_label = base::ReplaceStringPlaceholders(item_label, {title}, nullptr);
+    item_label = base::ReplaceStringPlaceholders(item_label, title, nullptr);
   }
   return item_label;
 }
@@ -782,9 +784,7 @@ void RecentTabsSubMenuModel::AddTabFavicon(int command_id,
         url,
         base::BindOnce(&RecentTabsSubMenuModel::OnFaviconDataAvailable,
                        weak_ptr_factory_for_other_devices_tab_.GetWeakPtr(),
-                       command_id, menu_model),
-
-        favicon::HistoryUiFaviconRequestOrigin::kRecentTabs);
+                       command_id, menu_model));
   }
 }
 

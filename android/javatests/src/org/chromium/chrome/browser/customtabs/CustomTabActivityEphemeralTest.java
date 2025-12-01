@@ -27,7 +27,6 @@ import android.graphics.Color;
 import android.net.Uri;
 
 import androidx.browser.customtabs.CustomTabsIntent;
-import androidx.browser.customtabs.CustomTabsSessionToken;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.MediumTest;
 
@@ -54,6 +53,7 @@ import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.IntentHandler;
+import org.chromium.chrome.browser.browserservices.intents.SessionHolder;
 import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbar;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -83,6 +83,12 @@ import java.util.concurrent.TimeoutException;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @EnableFeatures(ChromeFeatureList.CCT_EPHEMERAL_MODE)
+// TODO(crbug.com/419289558): Re-enable color surface feature flags
+@Features.DisableFeatures({
+    ChromeFeatureList.ANDROID_SURFACE_COLOR_UPDATE,
+    ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE,
+    ChromeFeatureList.GRID_TAB_SWITCHER_UPDATE
+})
 @Batch(Batch.PER_CLASS)
 public class CustomTabActivityEphemeralTest {
     private static final String HISTOGRAM_NAME = "CustomTabs.IncognitoCctCallerId";
@@ -145,7 +151,7 @@ public class CustomTabActivityEphemeralTest {
                 });
     }
 
-    private void setCanUseHiddenTabForSession(CustomTabsSessionToken token, boolean useHiddenTab) {
+    private void setCanUseHiddenTabForSession(SessionHolder<?> token, boolean useHiddenTab) {
         // Save the connection. In case the hidden tab is not consumed by the test, ensure that it
         // is properly cleaned up after the test.
         CustomTabsConnection.getInstance().mClientManager.setHideDomainForSession(token, true);
@@ -269,11 +275,11 @@ public class CustomTabActivityEphemeralTest {
         // allowed in OTR profiles. (crbug.com/1106757)
         Intent intent = createEphemeralCustomTabIntent();
         final CustomTabsConnection connection = CustomTabsTestUtils.warmUpAndWait();
-        final CustomTabsSessionToken token =
-                CustomTabsSessionToken.getSessionTokenFromIntent(intent);
+        final var sessionHolder = SessionHolder.getSessionHolderFromIntent(intent);
+        final var token = sessionHolder.getSessionAsCustomTab();
         Assert.assertTrue(connection.newSession(token));
         // Passes the launch intent to the connection.
-        setCanUseHiddenTabForSession(token, true);
+        setCanUseHiddenTabForSession(sessionHolder, true);
         Assert.assertFalse(
                 connection.mayLaunchUrl(token, Uri.parse(mTestPage), intent.getExtras(), null));
         CriteriaHelper.pollUiThread(
@@ -381,6 +387,10 @@ public class CustomTabActivityEphemeralTest {
         CustomTabActivity activity = launchEphemeralCustomTabActivity();
         var tab = activity.getActivityTab();
         ChromeTabUtils.waitForTabPageLoaded(tab, mTestPage);
+
+        // TODO(sinansahin): Find a better way to test omnibox interactivity because titleBar is
+        // going to have a click listener to show page info.
+        if (ChromeFeatureList.sCctNestedSecurityIcon.isEnabled()) return;
 
         var titleBar = activity.findViewById(R.id.title_url_container);
         Assert.assertFalse(titleBar.hasOnClickListeners());

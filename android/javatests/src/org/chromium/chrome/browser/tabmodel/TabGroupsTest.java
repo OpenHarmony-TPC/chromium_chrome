@@ -23,7 +23,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
@@ -63,6 +64,8 @@ public class TabGroupsTest {
     public static ChromeTabbedActivityTestRule sActivityTestRule =
             new ChromeTabbedActivityTestRule();
 
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+
     @Rule
     public BlankCTATabInitialStateRule mBlankCTATabInitialStateRule =
             new BlankCTATabInitialStateRule(sActivityTestRule, false);
@@ -74,7 +77,6 @@ public class TabGroupsTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         mTabModel = sActivityTestRule.getActivity().getTabModelSelector().getModel(false);
         mTabGroupModelFilter =
                 (TabGroupModelFilterImpl)
@@ -366,7 +368,11 @@ public class TabGroupsTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mTabModel.setIndex(2, TabSelectionType.FROM_USER);
-                    mTabModel.closeTabs(TabClosureParams.closeAllTabs().build());
+                    mTabModel
+                            .getTabRemover()
+                            .closeTabs(
+                                    TabClosureParams.closeAllTabs().build(),
+                                    /* allowDialog= */ false);
                 });
 
         List<Tab> noTabs = getCurrentTabs();
@@ -483,16 +489,5 @@ public class TabGroupsTest {
                     }
                 });
         return tabs;
-    }
-
-    private List<Integer> getCurrentTabIds() {
-        List<Integer> tabIds = new ArrayList<>();
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    for (int i = 0; i < mTabModel.getCount(); i++) {
-                        tabIds.add(mTabModel.getTabAt(i).getId());
-                    }
-                });
-        return tabIds;
     }
 }

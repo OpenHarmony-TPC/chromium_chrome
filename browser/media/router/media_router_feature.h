@@ -38,9 +38,6 @@ BASE_DECLARE_FEATURE(kMediaRouter);
 // https://crbug.com/813974.
 BASE_DECLARE_FEATURE(kCastAllowAllIPsFeature);
 
-// Determine whether global media controls are used to start and stop casting.
-BASE_DECLARE_FEATURE(kGlobalMediaControlsCastStartStop);
-
 // If enabled, allows all websites to request to start mirroring via
 // Presentation API. If disabled, only the allowlisted sites can do so.
 BASE_DECLARE_FEATURE(kAllowAllSitesToInitiateMirroring);
@@ -61,13 +58,6 @@ BASE_DECLARE_FEATURE(kShowCastPermissionRejectedError);
 // If enabled, sinks that do not support presentation or remote playback, will
 // fall back to audio tab mirroring when casting from the Global Media Controls.
 BASE_DECLARE_FEATURE(kFallbackToAudioTabMirroring);
-
-// When enabled, Cast virtual connections are removed without explicitly sending
-// a close connection request to the receiver when the sender webpage navigates
-// away.
-// TODO(crbug.com/1508704): Remove the flag when confident that the default-
-// enabled feature is not causing a regression.
-BASE_DECLARE_FEATURE(kCastSilentlyRemoveVcOnNavigation);
 
 // When enabled, messages between websites and Chrome, and Chrome and Cast
 // receivers will be logged in chrome://media-router-internals.  These messages
@@ -100,10 +90,6 @@ std::string GetReceiverIdHashToken(PrefService* pref_service);
 // Returns true if support for DIAL devices is enabled.  Disabling DIAL support
 // also disables SSDP-based discovery for Cast devices.
 bool DialMediaRouteProviderEnabled();
-
-// Returns true if global media controls are used to start and stop casting and
-// Media Router is enabled for |context|.
-bool GlobalMediaControlsCastStartStopEnabled(content::BrowserContext* context);
 
 // Returns the optional value to use for mirroring playout delay from the
 // relevant command line flag or feature, if any are set.

@@ -30,6 +30,7 @@ import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.app.ChromeActivity;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.native_page.ContextMenuManager;
 import org.chromium.chrome.browser.ntp.NewTabPage;
@@ -47,6 +48,7 @@ import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.content_public.browser.test.util.TestTouchUtils;
 import org.chromium.net.test.EmbeddedTestServer;
 import org.chromium.ui.base.DeviceFormFactor;
+import org.chromium.ui.listmenu.ListMenuTestUtils;
 import org.chromium.ui.test.util.ViewUtils;
 import org.chromium.url.GURL;
 
@@ -127,18 +129,18 @@ public class TileGroupTest {
         final View tileView = getNonNullTileViewFor(siteToDismiss);
 
         // Dismiss the tile using the context menu.
-        invokeContextMenu(tileView, ContextMenuManager.ContextMenuItemId.REMOVE);
+        removeTileFromContextMenu(tileView);
         Assert.assertTrue(mMostVisitedSites.isUrlBlocklisted(new GURL(mSiteSuggestionUrls[0])));
 
         // Ensure that the removal is reflected in the ui.
-        Assert.assertEquals(3, getTileLayout().getChildCount());
+        Assert.assertEquals(3, getTileLayout().getTileCount());
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mMostVisitedSites.setTileSuggestions(
                             mSiteSuggestionUrls[1], mSiteSuggestionUrls[2]);
                 });
         waitForTileRemoved(siteToDismiss);
-        Assert.assertEquals(2, getTileLayout().getChildCount());
+        Assert.assertEquals(2, getTileLayout().getTileCount());
     }
 
     @Test
@@ -161,12 +163,12 @@ public class TileGroupTest {
         initializeTab();
         GURL url0 = new GURL(mSiteSuggestionUrls[0]);
         SiteSuggestion siteToDismiss = mMostVisitedSites.getCurrentSites().get(0);
-        final ViewGroup tileContainer = getTileLayout();
+        final TilesLinearLayout tileContainer = getTileLayout();
         final View tileView = getNonNullTileViewFor(siteToDismiss);
-        Assert.assertEquals(3, tileContainer.getChildCount());
+        Assert.assertEquals(3, tileContainer.getTileCount());
 
         // Dismiss the tile using the context menu.
-        invokeContextMenu(tileView, ContextMenuManager.ContextMenuItemId.REMOVE);
+        removeTileFromContextMenu(tileView);
 
         // Ensure that the removal update goes through.
         ThreadUtils.runOnUiThreadBlocking(
@@ -175,7 +177,7 @@ public class TileGroupTest {
                             mSiteSuggestionUrls[1], mSiteSuggestionUrls[2]);
                 });
         waitForTileRemoved(siteToDismiss);
-        Assert.assertEquals(2, tileContainer.getChildCount());
+        Assert.assertEquals(2, tileContainer.getTileCount());
         final View snackbarButton = waitForSnackbar(sActivityTestRule.getActivity());
 
         Assert.assertTrue(mMostVisitedSites.isUrlBlocklisted(url0));
@@ -192,17 +194,16 @@ public class TileGroupTest {
                     mMostVisitedSites.setTileSuggestions(mSiteSuggestionUrls);
                 });
         waitForTileAdded(siteToDismiss);
-        Assert.assertEquals(3, tileContainer.getChildCount());
+        Assert.assertEquals(3, tileContainer.getTileCount());
     }
 
     private MostVisitedTilesLayout getTileLayout() {
         ViewGroup newTabPageLayout = mNtp.getNewTabPageLayout();
         Assert.assertNotNull("Unable to retrieve the NewTabPageLayout.", newTabPageLayout);
 
-        MostVisitedTilesLayout mostVisitedTilesLayout =
-                newTabPageLayout.findViewById(R.id.mv_tiles_layout);
-        Assert.assertNotNull("Unable to retrieve the MvTilesLayout.", mostVisitedTilesLayout);
-        return mostVisitedTilesLayout;
+        MostVisitedTilesLayout mvTilesLayout = newTabPageLayout.findViewById(R.id.mv_tiles_layout);
+        Assert.assertNotNull("Unable to retrieve the MvTilesLayout.", mvTilesLayout);
+        return mvTilesLayout;
     }
 
     private View getTileViewFor(SiteSuggestion suggestion) {
@@ -224,6 +225,15 @@ public class TileGroupTest {
                 InstrumentationRegistry.getInstrumentation()
                         .invokeContextMenuAction(
                                 sActivityTestRule.getActivity(), contextMenuItemId, 0));
+    }
+
+    private void removeTileFromContextMenu(View view) throws ExecutionException {
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.TILE_CONTEXT_MENU_REFACTOR)) {
+            ListMenuTestUtils.longClickAndWaitForListMenu(view);
+            ListMenuTestUtils.invokeMenuItem("Remove");
+        } else {
+            invokeContextMenu(view, ContextMenuManager.ContextMenuItemId.REMOVE);
+        }
     }
 
     /** Wait for the snackbar associated to a tile dismissal to be shown and returns its button. */

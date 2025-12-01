@@ -8,7 +8,6 @@
  * settings.
  */
 
-import '../icons.html.js';
 import '../settings_shared.css.js';
 import '//resources/ash/common/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/ash/common/cr_elements/cr_icon_button/cr_icon_button.js';
@@ -28,6 +27,7 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 
 import {DeepLinkingMixin} from '../common/deep_linking_mixin.js';
 import {RouteObserverMixin} from '../common/route_observer_mixin.js';
+import {SettingsRadioGroupElement} from '../controls/settings_radio_group.js';
 import type {AudioDevice, AudioSystemProperties} from '../mojom-webui/cros_audio_config.mojom-webui.js';
 import {AudioDeviceType, AudioEffectState, AudioEffectType, AudioSystemPropertiesObserverReceiver, MuteState} from '../mojom-webui/cros_audio_config.mojom-webui.js';
 import type {VoiceIsolationUIAppearance} from '../mojom-webui/cros_audio_config.mojom-webui.js';
@@ -55,7 +55,6 @@ const VOLUME_ICON_OFF_LEVEL = 0;
 // TODO(b/271871947): Match volume icon logic to QS revamp sliders.
 // Matches level calculated in unified_volume_view.cc.
 const VOLUME_ICON_LOUD_LEVEL = 34;
-const SETTINGS_20PX_ICON_PREFIX = 'settings20:';
 
 export class SettingsAudioElement extends SettingsAudioElementBase {
   static get is() {
@@ -117,17 +116,6 @@ export class SettingsAudioElement extends SettingsAudioElementBase {
         value: false,
       },
 
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kChargingSounds,
-          Setting.kLowBatterySound,
-        ]),
-      },
-
       showAllowAGC: {
         type: Boolean,
         value: loadTimeData.getBoolean('enableForceRespectUiGainsToggle'),
@@ -143,10 +131,6 @@ export class SettingsAudioElement extends SettingsAudioElementBase {
         type: Boolean,
       },
 
-      showHfpMicSr: {
-        type: Boolean,
-      },
-
       showSpatialAudio: {
         type: Boolean,
       },
@@ -158,10 +142,16 @@ export class SettingsAudioElement extends SettingsAudioElementBase {
     };
   }
 
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kChargingSounds,
+    Setting.kLowBatterySound,
+  ]);
+
   protected isAllowAGCEnabled: boolean;
   protected showAllowAGC: boolean;
   protected isHfpMicSrEnabled: boolean;
-  protected showHfpMicSr: boolean;
+  protected isHfpMicSrSupported: boolean;
   protected showSpatialAudio: boolean;
 
   private audioAndCaptionsBrowserProxy_: AudioAndCaptionsPageBrowserProxy;
@@ -179,7 +169,6 @@ export class SettingsAudioElement extends SettingsAudioElementBase {
   private startupSoundEnabled_: boolean;
   private batteryStatus_: BatteryStatus|undefined;
   private powerSoundsHidden_: boolean;
-  private isHfpMicSrSupported_: boolean;
   private voiceIsolationEffectModePrefValues_: {[key: string]: number};
 
   constructor() {
@@ -235,11 +224,8 @@ export class SettingsAudioElement extends SettingsAudioElementBase {
     this.outputVolume_ = this.audioSystemProperties_.outputVolumePercent;
     this.isHfpMicSrEnabled =
         (activeInputDevice?.hfpMicSrState === AudioEffectState.kEnabled);
-    this.isHfpMicSrSupported_ = activeInputDevice !== undefined &&
+    this.isHfpMicSrSupported = activeInputDevice !== undefined &&
         activeInputDevice?.hfpMicSrState !== AudioEffectState.kNotSupported;
-    this.showHfpMicSr =
-        (this.isHfpMicSrSupported_ &&
-         loadTimeData.getBoolean('enableAudioHfpMicSRToggle'));
 
     const activeOutputDevice = this.audioSystemProperties_.outputDevices.find(
         (device: AudioDevice) => device.isActive);
@@ -338,7 +324,7 @@ export class SettingsAudioElement extends SettingsAudioElementBase {
 
   /** Handles updating the mic icon depending on the input mute state. */
   protected getInputIcon_(): string {
-    return this.isInputMuted_ ? 'settings:mic-off' : 'cr:mic';
+    return this.isInputMuted_ ? 'os-settings:mic-off' : 'cr:mic';
   }
 
   /**
@@ -347,18 +333,18 @@ export class SettingsAudioElement extends SettingsAudioElementBase {
    */
   protected getOutputIcon_(): string {
     if (this.isOutputMuted_) {
-      return SETTINGS_20PX_ICON_PREFIX + 'volume-up-off';
+      return 'os-settings:volume-up-off';
     }
 
     if (this.outputVolume_ === VOLUME_ICON_OFF_LEVEL) {
-      return SETTINGS_20PX_ICON_PREFIX + 'volume-zero';
+      return 'os-settings:volume-zero';
     }
 
     if (this.outputVolume_ < VOLUME_ICON_LOUD_LEVEL) {
-      return SETTINGS_20PX_ICON_PREFIX + 'volume-down';
+      return 'os-settings:volume-down';
     }
 
-    return SETTINGS_20PX_ICON_PREFIX + 'volume-up';
+    return 'os-settings:volume-up';
   }
 
   /**
@@ -522,11 +508,25 @@ export class SettingsAudioElement extends SettingsAudioElementBase {
   }
 
   private onVoiceIsolationRowClicked_(): void {
-    this.crosAudioConfig_.refreshVoiceIsolationState();
+    // The pref change will be handled by
+    // CrasAudioHandler::OnVoiceIsolationPrefChanged().
+    // See also AudioDevicesPrefHandlerImpl::InitializePrefObservers().
+    this.crosAudioConfig_.recordVoiceIsolationEnabledChange();
   }
 
   private onVoiceIsolationEffectModeChanged_(): void {
-    this.crosAudioConfig_.refreshVoiceIsolationPreferredEffect();
+    // The pref change will be handled by
+    // CrasAudioHandler::OnVoiceIsolationPrefChanged().
+    // See also AudioDevicesPrefHandlerImpl::InitializePrefObservers().
+
+    // The pref value might not be updated yet, so only getting
+    // the UI value here to record to UMA.
+    const voiceIsolationEffectModes = strictQuery(
+        '#voiceIsolationEffectModeOptions', this.shadowRoot,
+        SettingsRadioGroupElement);
+    const selected: number = +voiceIsolationEffectModes.selected;
+    this.crosAudioConfig_.recordVoiceIsolationPreferredEffectChange(
+        selected as AudioEffectType);
   }
 
   private onSpatialAudioRowClicked_(): void {

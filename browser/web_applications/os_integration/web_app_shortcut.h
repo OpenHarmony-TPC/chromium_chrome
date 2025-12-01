@@ -15,6 +15,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/sequence_checker.h"
 #include "build/build_config.h"
+#include "chrome/browser/web_applications/os_integration/shortcut_creation_reason.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "components/webapps/common/web_app_id.h"
@@ -41,10 +42,12 @@ class ImageSkia;
 }
 
 namespace web_app {
-namespace proto {
-class WebAppOsIntegrationState;
+
+namespace proto::os_state {
+class WebAppOsIntegration;
 class ShortcutMenus;
-}
+}  // namespace proto::os_state
+
 class WebApp;
 class WebAppIconManager;
 
@@ -78,6 +81,11 @@ struct ShortcutInfo {
   std::set<DesktopActionInfo> actions;
 #endif  // BUILDFLAG(IS_LINUX)
 
+#if BUILDFLAG(IS_OHOS)
+  // Check the webapp is open as window.
+  bool open_as_window = true;
+#endif  // BUILDFLAG(IS_OHOS)
+
   // An app is multi-profile if there is a single shortcut and single app shim
   // for all profiles. The app itself has a profile switcher that may be used
   // to open windows for the various profiles. This is relevant only on macOS.
@@ -102,7 +110,7 @@ std::unique_ptr<ShortcutInfo> BuildShortcutInfoWithoutFavicon(
     const GURL& start_url,
     const base::FilePath& profile_path,
     const std::string& profile_name,
-    const proto::WebAppOsIntegrationState& state);
+    const proto::os_state::WebAppOsIntegration& state);
 
 void PopulateFaviconForShortcutInfo(
     const WebApp* app,
@@ -111,7 +119,7 @@ void PopulateFaviconForShortcutInfo(
     base::OnceCallback<void(std::unique_ptr<ShortcutInfo>)> callback);
 
 std::vector<WebAppShortcutsMenuItemInfo> CreateShortcutsMenuItemInfos(
-    const proto::ShortcutMenus& shortcut_menus);
+    const proto::os_state::ShortcutMenus& shortcut_menus);
 
 // This specifies a folder in the system applications menu (e.g the Start Menu
 // on Windows).
@@ -135,6 +143,10 @@ enum ApplicationsMenuLocation {
 struct ShortcutLocations {
   ShortcutLocations();
   ~ShortcutLocations();
+
+  friend bool operator==(const ShortcutLocations&,
+                         const ShortcutLocations&) = default;
+
   base::Value ToDebugValue() const;
 
   bool on_desktop = false;
@@ -154,18 +166,6 @@ ShortcutLocations MergeLocations(
     const ShortcutLocations& user_specified_locations,
     const ShortcutLocations& existing_locations);
 
-bool operator==(const ShortcutLocations& location1,
-                const ShortcutLocations& location2);
-
-bool operator!=(const ShortcutLocations& location1,
-                const ShortcutLocations& location2);
-
-// This encodes the cause of shortcut creation as the correct behavior in each
-// case is implementation specific.
-enum ShortcutCreationReason {
-  SHORTCUT_CREATION_BY_USER,
-  SHORTCUT_CREATION_AUTOMATED,
-};
 
 // Compute a deterministic name based on data in the shortcut_info.
 std::string GenerateApplicationNameFromInfo(const ShortcutInfo& shortcut_info);

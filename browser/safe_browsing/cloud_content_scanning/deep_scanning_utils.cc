@@ -4,13 +4,15 @@
 
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
 
+#include <algorithm>
+
 #include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_factory.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
 #include "components/crash/core/common/crash_key.h"
 
@@ -155,10 +157,11 @@ void MaybeReportDeepScanningVerdict(
     const std::string& content_transfer_method,
     DeepScanAccessPoint access_point,
     const int64_t content_size,
+    const safe_browsing::ReferrerChain& referrer_chain,
     BinaryUploadService::Result result,
     const enterprise_connectors::ContentAnalysisResponse& response,
-    EventResult event_result) {
-  DCHECK(base::ranges::all_of(download_digest_sha256, base::IsHexDigit<char>));
+    enterprise_connectors::EventResult event_result) {
+  DCHECK(std::ranges::all_of(download_digest_sha256, base::IsHexDigit<char>));
   auto* router =
       extensions::SafeBrowsingPrivateEventRouterFactory::GetForProfile(profile);
   if (!router)
@@ -169,7 +172,7 @@ void MaybeReportDeepScanningVerdict(
     router->OnUnscannedFileEvent(
         url, tab_url, source, destination, file_name, download_digest_sha256,
         mime_type, trigger, access_point, unscanned_reason,
-        content_transfer_method, content_size, event_result);
+        content_transfer_method, content_size, referrer_chain, event_result);
   }
 
   if (result != BinaryUploadService::Result::SUCCESS)
@@ -187,12 +190,13 @@ void MaybeReportDeepScanningVerdict(
       router->OnUnscannedFileEvent(
           url, tab_url, source, destination, file_name, download_digest_sha256,
           mime_type, trigger, access_point, std::move(unscanned_reason),
-          content_transfer_method, content_size, event_result);
+          content_transfer_method, content_size, referrer_chain, event_result);
     } else if (response_result.triggered_rules_size() > 0) {
       router->OnAnalysisConnectorResult(
           url, tab_url, source, destination, file_name, download_digest_sha256,
           mime_type, trigger, response.request_token(), content_transfer_method,
-          access_point, response_result, content_size, event_result);
+          access_point, response_result, content_size, referrer_chain,
+          event_result);
     }
   }
 }
@@ -210,9 +214,10 @@ void ReportAnalysisConnectorWarningBypass(
     const std::string& content_transfer_method,
     DeepScanAccessPoint access_point,
     const int64_t content_size,
+    const safe_browsing::ReferrerChain& referrer_chain,
     const enterprise_connectors::ContentAnalysisResponse& response,
     std::optional<std::u16string> user_justification) {
-  DCHECK(base::ranges::all_of(download_digest_sha256, base::IsHexDigit<char>));
+  DCHECK(std::ranges::all_of(download_digest_sha256, base::IsHexDigit<char>));
   auto* router =
       extensions::SafeBrowsingPrivateEventRouterFactory::GetForProfile(profile);
   if (!router)
@@ -226,24 +231,8 @@ void ReportAnalysisConnectorWarningBypass(
     router->OnAnalysisConnectorWarningBypassed(
         url, tab_url, source, destination, file_name, download_digest_sha256,
         mime_type, trigger, response.request_token(), content_transfer_method,
-        access_point, result, content_size, user_justification);
+        access_point, referrer_chain, result, content_size, user_justification);
   }
-}
-
-std::string EventResultToString(EventResult result) {
-  switch (result) {
-    case EventResult::UNKNOWN:
-      return "EVENT_RESULT_UNKNOWN";
-    case EventResult::ALLOWED:
-      return "EVENT_RESULT_ALLOWED";
-    case EventResult::WARNED:
-      return "EVENT_RESULT_WARNED";
-    case EventResult::BLOCKED:
-      return "EVENT_RESULT_BLOCKED";
-    case EventResult::BYPASSED:
-      return "EVENT_RESULT_BYPASSED";
-  }
-  NOTREACHED();
 }
 
 std::string DeepScanAccessPointToString(DeepScanAccessPoint access_point) {

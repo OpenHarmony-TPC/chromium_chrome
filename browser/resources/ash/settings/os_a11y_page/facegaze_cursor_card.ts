@@ -102,6 +102,27 @@ export class FaceGazeCursorCardElement extends FaceGazeCursorCardElementBase {
       resetAlert_: {
         type: String,
       },
+
+      precisionClickSpeedFactorOptions_: {
+        readOnly: true,
+        type: Array,
+        value() {
+          return [
+            {
+              value: 25,
+              name: '25%',
+            },
+            {
+              value: 50,
+              name: '50%',
+            },
+            {
+              value: 75,
+              name: '75%',
+            },
+          ];
+        },
+      },
     };
   }
 
@@ -113,6 +134,14 @@ export class FaceGazeCursorCardElement extends FaceGazeCursorCardElementBase {
     ];
   }
 
+  cursorSpeedTicks: number[];
+  maxCursorSpeed: number;
+  maxCursorTuning: number;
+  minCursorSpeed: number;
+  minCursorTuning: number;
+  velocityThresholdTicks: number[];
+  private readonly precisionClickSpeedFactorOptions_:
+      Array<{value: number, name: string}>;
   private syntheticCombinedCursorSpeedPref_:
       chrome.settingsPrivate.PrefObject<number>;
   private shouldAnnounceA11yCursorSettingsReset_ = false;
@@ -181,6 +210,10 @@ export class FaceGazeCursorCardElement extends FaceGazeCursorCardElementBase {
     this.setPrefValue(
         'settings.a11y.face_gaze.velocity_threshold',
         loadTimeData.getInteger('defaultFaceGazeVelocityThreshold'));
+    this.setPrefValue('settings.a11y.face_gaze.precision_click', false);
+    this.setPrefValue(
+        'settings.a11y.face_gaze.precision_click_speed_factor',
+        loadTimeData.getInteger('defaultFaceGazePrecisionClickSpeedFactor'));
     this.resetAlert_ = this.i18n('faceGazeCursorSettingsResetNotification');
     this.shouldAnnounceA11yCursorSettingsReset_ = true;
   }

@@ -37,6 +37,8 @@ enum class BackgroundScanningDevicesDetectedEvent {
 // be updated. This enum should be kept in sync with the
 // NearbyShareTransferFinalStatus enum in
 // //tools/metrics/histograms/metadata/nearby/enums.xml.
+//
+// LINT.IfChange(NearbyShareTransferFinalStatus)
 enum class TransferFinalStatus {
   kComplete = 0,
   kUnknown = 1,
@@ -62,12 +64,15 @@ enum class TransferFinalStatus {
   kUnexpectedDisconnection = 21,
   kMaxValue = kUnexpectedDisconnection
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/nearby/enums.xml:NearbyShareTransferFinalStatus)
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused. If entries are added, kMaxValue should
 // be updated. This enum should be kept in sync with the
 // NearbyShareStartAdvertisingFailureReason enum in
 // //tools/metrics/histograms/metadata/nearby/enums.xml.
+//
+// LINT.IfChange(NearbyShareStartAdvertisingFailureReason)
 enum class StartAdvertisingFailureReason {
   kUnknown = 0,
   kError = 1,
@@ -79,23 +84,29 @@ enum class StartAdvertisingFailureReason {
   kWifiLanError = 7,
   kMaxValue = kWifiLanError
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/nearby/enums.xml:NearbyShareStartAdvertisingFailureReason)
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused. If entries are added, kMaxValue should
 // be updated. This enum should be kept in sync with the NearbyShareFinalStatus
 // enum in //tools/metrics/histograms/metadata/nearby/enums.xml.
+//
+// LINT.IfChange(NearbyShareFinalStatus)
 enum class FinalStatus {
   kSuccess = 0,
   kFailure = 1,
   kCanceled = 2,
   kMaxValue = kCanceled
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/nearby/enums.xml:NearbyShareFinalStatus)
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused. If entries are added, kMaxValue should
 // be updated. This enum should be kept in sync with the
 // NearbyShareAttachmentType enum in
 // //tools/metrics/histograms/metadata/nearby/enums.xml.
+//
+// LINT.IfChange(NearbyShareAttachmentType)
 enum class AttachmentType {
   kUnknownFileType = 0,
   kUnknownTextType = 1,
@@ -110,12 +121,15 @@ enum class AttachmentType {
   kWifiCredentials = 10,
   kMaxValue = kWifiCredentials
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/nearby/enums.xml:NearbyShareAttachmentType)
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused. If entries are added, kMaxValue should
 // be updated. This enum should be kept in sync with the
 // NearbyShareUpgradedMedium enum in
 // //tools/metrics/histograms/metadata/nearby/enums.xml.
+//
+// LINT.IfChange(NearbyShareUpgradedMedium)
 enum class UpgradedMedium {
   kUnknown = 0,
   kMdns = 1,
@@ -131,8 +145,10 @@ enum class UpgradedMedium {
   kBleL2Cap = 11,
   kUsb = 12,
   kWebRtcNonCellular = 13,
-  kMaxValue = kWebRtcNonCellular
+  kAwdl = 14,
+  kMaxValue = kAwdl,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/nearby/enums.xml:NearbyShareUpgradedMedium)
 
 AttachmentType FileMetadataTypeToAttachmentType(
     ::sharing::mojom::FileMetadata::Type type) {
@@ -333,6 +349,7 @@ std::string GetUpgradedMediumSubcategoryName(
     case nearby::connections::mojom::Medium::kBleL2Cap:
     case nearby::connections::mojom::Medium::kUsb:
     case nearby::connections::mojom::Medium::kWebRtcNonCellular:
+    case nearby::connections::mojom::Medium::kAwdl:
       return ".UnknownMediumUpgrade";
   }
 }
@@ -370,6 +387,8 @@ UpgradedMedium GetUpgradedMediumForMetrics(
       return UpgradedMedium::kUsb;
     case nearby::connections::mojom::Medium::kWebRtcNonCellular:
       return UpgradedMedium::kWebRtcNonCellular;
+    case nearby::connections::mojom::Medium::kAwdl:
+      return UpgradedMedium::kAwdl;
   }
 }
 
@@ -451,6 +470,7 @@ bool IsTransferMedium(nearby::connections::mojom::Medium medium) {
     case nearby::connections::mojom::Medium::kBleL2Cap:
     case nearby::connections::mojom::Medium::kUsb:
     case nearby::connections::mojom::Medium::kWebRtcNonCellular:
+    case nearby::connections::mojom::Medium::kAwdl:
       return false;
   }
 }
@@ -485,6 +505,8 @@ std::string GetMediumName(nearby::connections::mojom::Medium medium) {
       return "Usb";
     case nearby::connections::mojom::Medium::kWebRtcNonCellular:
       return "WebRtcNonCellular";
+    case nearby::connections::mojom::Medium::kAwdl:
+      return "Awdl";
   }
 }
 

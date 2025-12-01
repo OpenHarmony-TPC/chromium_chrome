@@ -8,13 +8,14 @@ import static androidx.browser.customtabs.CustomTabsCallback.ACTIVITY_LAYOUT_STA
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.refEq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.robolectric.Shadows.shadowOf;
@@ -32,20 +33,22 @@ import android.os.Bundle;
 import androidx.browser.customtabs.CustomTabsCallback;
 import androidx.browser.customtabs.CustomTabsSessionToken;
 import androidx.browser.customtabs.EngagementSignalsCallback;
+import androidx.browser.customtabs.PostMessageServiceConnection;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.shadows.ShadowProcess;
 
-import org.chromium.base.ResettersForTesting;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.base.task.test.ShadowPostTask;
 import org.chromium.base.task.test.ShadowPostTask.TestImpl;
@@ -53,10 +56,11 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.browserservices.PostMessageHandler;
 import org.chromium.chrome.browser.browserservices.SessionDataHolder;
 import org.chromium.chrome.browser.browserservices.SessionHandler;
+import org.chromium.chrome.browser.browserservices.intents.SessionHolder;
 import org.chromium.chrome.browser.customtabs.content.EngagementSignalsHandler;
-import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.metrics.UmaSessionStats;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
@@ -68,14 +72,19 @@ import org.chromium.chrome.browser.tab.Tab;
 @Config(shadows = {CustomTabsConnectionUnitTest.ShadowUmaSessionStats.class, ShadowPostTask.class})
 public class CustomTabsConnectionUnitTest {
 
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Mock private SessionHandler mSessionHandler;
-    @Mock private CustomTabsSessionToken mSession;
+
     @Mock private CustomTabsCallback mCallback;
     @Mock private PrivacyPreferencesManagerImpl mPrivacyPreferencesManager;
     @Mock private EngagementSignalsCallback mEngagementSignalsCallback;
     @Mock private Tab mTab;
 
     private CustomTabsConnection mConnection;
+    private SessionHolder<?> mSessionHolder;
+    private CustomTabsSessionToken mSession;
+    private PostMessageServiceConnection mPostMessageServiceConnection;
+    private PostMessageHandler mPostMessageHandler;
 
     @Implements(UmaSessionStats.class)
     public static class ShadowUmaSessionStats {
@@ -92,7 +101,6 @@ public class CustomTabsConnectionUnitTest {
 
     @Before
     public void setup() {
-        MockitoAnnotations.initMocks(this);
         ShadowPostTask.setTestImpl(
                 new TestImpl() {
                     @Override
@@ -104,10 +112,14 @@ public class CustomTabsConnectionUnitTest {
         CustomTabsConnection.setInstanceForTesting(null);
         mConnection = CustomTabsConnection.getInstance();
         mConnection.setIsDynamicFeaturesEnabled(true);
+        mSession = spy(CustomTabsSessionToken.createMockSessionTokenForTesting());
+        mSessionHolder = new SessionHolder<>(mSession);
         when(mSession.getCallback()).thenReturn(mCallback);
-        when(mSessionHandler.getSession()).thenReturn(mSession);
+        doReturn(mSessionHolder).when(mSessionHandler).getSession();
         SessionDataHolder.getInstance().setActiveHandler(mSessionHandler);
         PrivacyPreferencesManagerImpl.setInstanceForTesting(mPrivacyPreferencesManager);
+        mPostMessageServiceConnection = new PostMessageServiceConnection(mSession) {};
+        mPostMessageHandler = new PostMessageHandler(mPostMessageServiceConnection);
     }
 
     @After
@@ -146,7 +158,7 @@ public class CustomTabsConnectionUnitTest {
 
         initSession();
         mConnection.onActivityLayout(
-                mSession, left, top, right, bottom, ACTIVITY_LAYOUT_STATE_BOTTOM_SHEET);
+                mSessionHolder, left, top, right, bottom, ACTIVITY_LAYOUT_STATE_BOTTOM_SHEET);
 
         verify(mCallback).extraCallback(eq(ON_ACTIVITY_LAYOUT_CALLBACK), refEq(bundle));
     }
@@ -180,7 +192,7 @@ public class CustomTabsConnectionUnitTest {
                         mSession, mEngagementSignalsCallback, Bundle.EMPTY));
         assertEquals(
                 mEngagementSignalsCallback,
-                mConnection.mClientManager.getEngagementSignalsCallbackForSession(mSession));
+                mConnection.mClientManager.getEngagementSignalsCallbackForSession(mSessionHolder));
     }
 
     @Test
@@ -190,20 +202,21 @@ public class CustomTabsConnectionUnitTest {
         assertFalse(
                 mConnection.setEngagementSignalsCallback(
                         mSession, mEngagementSignalsCallback, Bundle.EMPTY));
-        assertNull(mConnection.mClientManager.getEngagementSignalsCallbackForSession(mSession));
+        assertNull(
+                mConnection.mClientManager.getEngagementSignalsCallbackForSession(mSessionHolder));
     }
 
     @Test
     public void testOnMinimized() {
         initSession();
-        mConnection.onMinimized(mSession);
+        mConnection.onMinimized(mSessionHolder);
         verify(mCallback).onMinimized(any(Bundle.class));
     }
 
     @Test
     public void testOnUnminimized() {
         initSession();
-        mConnection.onUnminimized(mSession);
+        mConnection.onUnminimized(mSessionHolder);
         verify(mCallback).onUnminimized(any(Bundle.class));
     }
 
@@ -213,7 +226,13 @@ public class CustomTabsConnectionUnitTest {
         shadowOf(RuntimeEnvironment.getApplication().getApplicationContext().getPackageManager())
                 .setPackagesForUid(uid, "test.package.name");
         var handler = new EngagementSignalsHandler(mSession);
-        mConnection.mClientManager.newSession(mSession, uid, null, null, null, handler);
+        mConnection.mClientManager.newSession(
+                mSessionHolder,
+                uid,
+                null,
+                mPostMessageHandler,
+                mPostMessageServiceConnection,
+                handler);
     }
 
     @Test
@@ -232,60 +251,14 @@ public class CustomTabsConnectionUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.CCT_EPHEMERAL_MODE)
-    public void isEphemeralBrowsingSupported_featureEnabled() {
-        Bundle bundle =
-                mConnection.extraCommand(
-                        CustomTabsConnection.IS_EPHEMERAL_BROWSING_SUPPORTED, null);
-        assertNotNull(bundle);
-        assertTrue(bundle.containsKey(CustomTabsConnection.EPHEMERAL_BROWSING_SUPPORTED_KEY));
-        assertTrue(bundle.getBoolean(CustomTabsConnection.EPHEMERAL_BROWSING_SUPPORTED_KEY));
-    }
-
-    @Test
-    @DisableFeatures(ChromeFeatureList.CCT_EPHEMERAL_MODE)
-    public void isEphemeralBrowsingSupported_featureDisabled() {
-        Bundle bundle =
-                mConnection.extraCommand(
-                        CustomTabsConnection.IS_EPHEMERAL_BROWSING_SUPPORTED, null);
-        assertNotNull(bundle);
-        assertTrue(bundle.containsKey(CustomTabsConnection.EPHEMERAL_BROWSING_SUPPORTED_KEY));
-        assertFalse(bundle.getBoolean(CustomTabsConnection.EPHEMERAL_BROWSING_SUPPORTED_KEY));
-    }
-
-    @Test
     public void notifyOpenInBrowser() {
         initSession();
 
-        mConnection.notifyOpenInBrowser(mSession, mTab);
+        mConnection.notifyOpenInBrowser(mSessionHolder, mTab);
 
         verify(mCallback)
                 .extraCallback(
                         eq(CustomTabsConnection.OPEN_IN_BROWSER_CALLBACK), any(Bundle.class));
-    }
-
-    @Test
-    public void isAuthTabSupported_firstRunDone() {
-        boolean wasFirstRunFlowComplete = FirstRunStatus.getFirstRunFlowComplete();
-        ResettersForTesting.register(
-                () -> FirstRunStatus.setFirstRunFlowComplete(wasFirstRunFlowComplete));
-        FirstRunStatus.setFirstRunFlowComplete(true);
-        Bundle bundle = mConnection.extraCommand(CustomTabsConnection.IS_AUTH_TAB_SUPPORTED, null);
-        assertNotNull(bundle);
-        assertTrue(bundle.containsKey(CustomTabsConnection.AUTH_TAB_SUPPORTED_KEY));
-        assertTrue(bundle.getBoolean(CustomTabsConnection.AUTH_TAB_SUPPORTED_KEY));
-    }
-
-    @Test
-    public void isAuthTabSupported_firstRunNotDone() {
-        boolean wasFirstRunFlowComplete = FirstRunStatus.getFirstRunFlowComplete();
-        ResettersForTesting.register(
-                () -> FirstRunStatus.setFirstRunFlowComplete(wasFirstRunFlowComplete));
-        FirstRunStatus.setFirstRunFlowComplete(false);
-        Bundle bundle = mConnection.extraCommand(CustomTabsConnection.IS_AUTH_TAB_SUPPORTED, null);
-        assertNotNull(bundle);
-        assertTrue(bundle.containsKey(CustomTabsConnection.AUTH_TAB_SUPPORTED_KEY));
-        assertFalse(bundle.getBoolean(CustomTabsConnection.AUTH_TAB_SUPPORTED_KEY));
     }
 
     // TODO(https://crrev.com/c/4118209) Add more tests for Feature enabling/disabling.

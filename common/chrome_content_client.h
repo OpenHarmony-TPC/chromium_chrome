@@ -20,6 +20,7 @@
 #include "components/nacl/common/buildflags.h"
 #include "content/public/common/content_client.h"
 #include "ppapi/buildflags/buildflags.h"
+#include "third_party/wiseplay/cdm/buildflags.h"
 
 #if BUILDFLAG(ENABLE_NACL)
 #include "content/public/common/content_plugin_info.h"
@@ -58,7 +59,6 @@ class ChromeContentClient : public content::ContentClient {
   void SetActiveURL(const GURL& url, std::string top_origin) override;
   void SetGpuInfo(const gpu::GPUInfo& gpu_info) override;
   void AddPlugins(std::vector<content::ContentPluginInfo>* plugins) override;
-  std::vector<url::Origin> GetPdfInternalPluginAllowedOrigins() override;
   void AddContentDecryptionModules(
       std::vector<content::CdmInfo>* cdms,
       std::vector<media::CdmHostFilePath>* cdm_host_file_paths) override;
@@ -75,9 +75,14 @@ class ChromeContentClient : public content::ContentClient {
   gfx::Image& GetNativeImageNamed(int resource_id) override;
   std::string GetProcessTypeNameInEnglish(int type) override;
   blink::OriginTrialPolicy* GetOriginTrialPolicy() override;
+  bool IsFilePickerAllowedForCrossOriginSubframe(
+      const url::Origin& origin) override;
 #if BUILDFLAG(IS_ANDROID)
   media::MediaDrmBridgeClient* GetMediaDrmBridgeClient() override;
 #endif  // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_WISEPLAY)
+  media::OhosMediaDrmBridgeClient* GetOhosMediaDrmBridgeClient() override;
+#endif // BUILDFLAG(ENABLE_WISEPLAY)
   void ExposeInterfacesToBrowser(
       scoped_refptr<base::SequencedTaskRunner> io_task_runner,
       mojo::BinderMap* binders) override;

@@ -4,13 +4,14 @@
 
 #include <memory>
 #include <optional>
-#include <sstream>
 #include <utility>
 
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
+#include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
@@ -81,6 +82,15 @@ class FeaturePromoLifecycleUiTest : public TestBase {
  public:
   FeaturePromoLifecycleUiTest()
       : TestBase(UseMockTracker(), ClockMode::kUseDefaultClock) {}
+
+  void SetUp() override {
+    SetControllerMode(ControllerMode::kUserEd25);
+    static_cast<internal::InteractiveFeaturePromoTestPrivate&>(
+        private_test_impl())
+        .set_use_shortened_timeouts_for_internal_testing(true);
+    TestBase::SetUp();
+  }
+
   ~FeaturePromoLifecycleUiTest() override = default;
 
   void SetUpOnMainThread() override {
@@ -100,27 +110,26 @@ class FeaturePromoLifecycleUiTest : public TestBase {
   }
 
   auto InBrowser(base::OnceCallback<void(Browser*)> callback) {
-    return std::move(
-        WithView(kBrowserViewElementId,
-                 base::BindOnce(
-                     [](base::OnceCallback<void(Browser*)> callback,
-                        BrowserView* browser_view) {
-                       std::move(callback).Run(browser_view->browser());
-                     },
-                     std::move(callback)))
-            .SetDescription("InBrowser()"));
+    return WithView(kBrowserViewElementId,
+                    base::BindOnce(
+                        [](base::OnceCallback<void(Browser*)> callback,
+                           BrowserView* browser_view) {
+                          std::move(callback).Run(browser_view->browser());
+                        },
+                        std::move(callback)))
+        .SetDescription("InBrowser()");
   }
 
   auto CheckBrowser(base::OnceCallback<bool(Browser*)> callback) {
-    return std::move(
-        CheckView(kBrowserViewElementId,
-                  base::BindOnce(
-                      [](base::OnceCallback<bool(Browser*)> callback,
-                         BrowserView* browser_view) {
-                        return std::move(callback).Run(browser_view->browser());
-                      },
-                      std::move(callback)))
-            .SetDescription("CheckBrowser()"));
+    return CheckView(
+               kBrowserViewElementId,
+               base::BindOnce(
+                   [](base::OnceCallback<bool(Browser*)> callback,
+                      BrowserView* browser_view) {
+                     return std::move(callback).Run(browser_view->browser());
+                   },
+                   std::move(callback)))
+        .SetDescription("CheckBrowser()");
   }
 
   auto ShowPromoRecordingTime(const base::Feature& feature) {
@@ -128,43 +137,43 @@ class FeaturePromoLifecycleUiTest : public TestBase {
         Steps(Do([this]() { last_show_time_.first = base::Time::Now(); }),
               MaybeShowPromo(feature),
               Do([this]() { last_show_time_.second = base::Time::Now(); }));
-    AddDescription(steps, "ShowPromoRecordingTime() - %s");
+    AddDescriptionPrefix(steps, "ShowPromoRecordingTime()");
     return steps;
   }
 
   auto CheckSnoozePrefs(bool is_dismissed, int show_count, int snooze_count) {
-    return std::move(
-        CheckBrowser(
-            base::BindLambdaForTesting([this, is_dismissed, show_count,
-                                        snooze_count](Browser* browser) {
-              auto data = GetStorageService(browser)->ReadPromoData(
-                  kFeaturePromoLifecycleTestPromo);
+    return CheckBrowser(
+               base::BindLambdaForTesting([this, is_dismissed, show_count,
+                                           snooze_count](Browser* browser) {
+                 auto data = GetStorageService(browser)->ReadPromoData(
+                     kFeaturePromoLifecycleTestPromo);
 
-              if (!data.has_value()) {
-                return false;
-              }
+                 if (!data.has_value()) {
+                   return false;
+                 }
 
-              EXPECT_EQ(data->is_dismissed, is_dismissed);
-              EXPECT_EQ(data->show_count, show_count);
-              EXPECT_EQ(data->snooze_count, snooze_count);
+                 EXPECT_EQ(data->is_dismissed, is_dismissed);
+                 EXPECT_EQ(data->show_count, show_count);
+                 EXPECT_EQ(data->snooze_count, snooze_count);
 
-              // last_show_time is only meaningful if a show has occurred.
-              if (data->show_count > 0) {
-                EXPECT_GE(data->last_show_time, last_show_time_.first);
-                EXPECT_LE(data->last_show_time, last_show_time_.second);
-              }
+                 // last_show_time is only meaningful if a show has occurred.
+                 if (data->show_count > 0) {
+                   EXPECT_GE(data->last_show_time, last_show_time_.first);
+                   EXPECT_LE(data->last_show_time, last_show_time_.second);
+                 }
 
-              // last_snooze_time is only meaningful if a snooze has occurred.
-              if (data->snooze_count > 0) {
-                EXPECT_GE(data->last_snooze_time, last_snooze_time_.first);
-                EXPECT_LE(data->last_snooze_time, last_snooze_time_.second);
-              }
+                 // last_snooze_time is only meaningful if a snooze has
+                 // occurred.
+                 if (data->snooze_count > 0) {
+                   EXPECT_GE(data->last_snooze_time, last_snooze_time_.first);
+                   EXPECT_LE(data->last_snooze_time, last_snooze_time_.second);
+                 }
 
-              return !testing::Test::HasNonfatalFailure();
-            }))
-            .SetDescription(base::StringPrintf("CheckSnoozePrefs(%s, %d, %d)",
-                                               is_dismissed ? "true" : "false",
-                                               show_count, snooze_count)));
+                 return !testing::Test::HasNonfatalFailure();
+               }))
+        .SetDescription(base::StringPrintf("CheckSnoozePrefs( %s, %d, %d )",
+                                           base::ToString(is_dismissed),
+                                           show_count, snooze_count));
   }
 
   auto SetSnoozePrefs(const PromoData& data) {
@@ -182,7 +191,7 @@ class FeaturePromoLifecycleUiTest : public TestBase {
         WaitForHide(
             user_education::HelpBubbleView::kHelpBubbleElementIdForTesting),
         Do([this]() { last_snooze_time_.second = base::Time::Now(); }));
-    AddDescription(steps, "SnoozeIPH(%s)");
+    AddDescriptionPrefix(steps, "SnoozeIPH()");
     return steps;
   }
 
@@ -195,7 +204,7 @@ class FeaturePromoLifecycleUiTest : public TestBase {
           auto* const promo = GetPromoController(browser)->current_promo_.get();
           return !promo || (!promo->is_promo_active() && !promo->help_bubble());
         })));
-    AddDescription(steps, "DismissIPH(%s)");
+    AddDescriptionPrefix(steps, "DismissIPH()");
     return steps;
   }
 
@@ -203,31 +212,29 @@ class FeaturePromoLifecycleUiTest : public TestBase {
       bool dismissed,
       const base::Feature* feature = &kFeaturePromoLifecycleTestPromo,
       const std::string& key = std::string()) {
-    return std::move(
-        CheckBrowser(base::BindLambdaForTesting([dismissed, feature,
-                                                 key](Browser* browser) {
-          return GetPromoController(browser)->HasPromoBeenDismissed(
-                     {*feature, key}) == dismissed;
-        }))
-            .SetDescription(base::StringPrintf("CheckDismissed(%s, %s)",
-                                               dismissed ? "true" : "false",
-                                               feature->name)));
+    return CheckBrowser(base::BindLambdaForTesting([dismissed, feature,
+                                                    key](Browser* browser) {
+             return GetPromoController(browser)->HasPromoBeenDismissed(
+                        {*feature, key}) == dismissed;
+           }))
+        .SetDescription(
+            base::StrCat({"CheckDismissed( ", base::ToString(dismissed), ", ",
+                          feature->name, " )"}));
   }
 
   auto CheckDismissedWithReason(
       user_education::FeaturePromoClosedReason close_reason,
       const base::Feature* feature = &kFeaturePromoLifecycleTestPromo) {
-    std::ostringstream desc;
-    desc << "CheckDismissedWithReason(" << close_reason << ", " << feature->name
-         << ")";
-    return std::move(
-        CheckBrowser(base::BindLambdaForTesting([close_reason,
-                                                 feature](Browser* browser) {
-          user_education::FeaturePromoClosedReason actual_reason;
-          return GetPromoController(browser)->HasPromoBeenDismissed(
-                     *feature, &actual_reason) &&
-                 actual_reason == close_reason;
-        })).SetDescription(desc.str()));
+    return CheckBrowser(base::BindLambdaForTesting([close_reason,
+                                                    feature](Browser* browser) {
+             user_education::FeaturePromoClosedReason actual_reason;
+             return GetPromoController(browser)->HasPromoBeenDismissed(
+                        *feature, &actual_reason) &&
+                    actual_reason == close_reason;
+           }))
+        .SetDescription(base::StrCat({"CheckDismissedWithReason( ",
+                                      base::ToString(close_reason), ", ",
+                                      feature->name, " )"}));
   }
 
   auto CheckMessageActionHistogram(const base::Feature& feature,
@@ -235,12 +242,11 @@ class FeaturePromoLifecycleUiTest : public TestBase {
                                    int expected_count = 1) {
     const std::string name =
         base::StrCat({"UserEducation.MessageAction.", feature.name});
-    return std::move(Do([this, name, bucket, expected_count]() {
-                       histogram_tester_.ExpectBucketCount(name, bucket,
-                                                           expected_count);
-                     })
-                         .SetDescription(base::StringPrintf(
-                             "CheckHistogram(%s)", name.c_str())));
+    return Do([this, name, bucket, expected_count]() {
+             histogram_tester_.ExpectBucketCount(name, bucket, expected_count);
+           })
+        .SetDescription(
+            base::StringPrintf("CheckHistogram( %s )", name.c_str()));
   }
 
   static user_education::FeaturePromoControllerCommon* GetPromoController(
@@ -456,9 +462,9 @@ IN_PROC_BROWSER_TEST_F(FeaturePromoLifecycleUiTest,
                  bubble_widget = view->GetWidget();
                }),
       If([&bubble_widget]() { return !bubble_widget->IsActive(); },
-         WaitForState(
+         Then(WaitForState(
              views::test::kCurrentWidgetFocus,
-             [&bubble_widget]() { return bubble_widget->GetNativeView(); })),
+             [&bubble_widget]() { return bubble_widget->GetNativeView(); }))),
       SendAccelerator(
           user_education::HelpBubbleView::kHelpBubbleElementIdForTesting, kEsc),
       WaitForHide(
@@ -560,13 +566,13 @@ class FeaturePromoLifecycleAppUiTest : public FeaturePromoLifecycleUiTest {
   }
 
   auto CheckShownForApp() {
-    return std::move(
-        CheckBrowser(base::BindOnce([](Browser* browser) {
-          const auto data = GetStorageService(browser)->ReadPromoData(
-              kFeaturePromoLifecycleTestPromo);
-          return base::Contains(data->shown_for_keys,
-                                browser->app_controller()->app_id());
-        })).SetDescription("CheckShownForApp()"));
+    return CheckBrowser(base::BindOnce([](Browser* browser) {
+             const auto data = GetStorageService(browser)->ReadPromoData(
+                 kFeaturePromoLifecycleTestPromo);
+             return base::Contains(data->shown_for_keys,
+                                   browser->app_controller()->app_id());
+           }))
+        .SetDescription("CheckShownForApp()");
   }
 
  protected:

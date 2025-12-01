@@ -27,6 +27,7 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.ColorRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -531,9 +532,7 @@ class ShareSheetBottomSheetContent implements BottomSheetContent, OnItemClickLis
         imageView.setPadding(padding, padding, padding, padding);
     }
 
-    /**
-     * Fetches the favicon for the given url.
-     **/
+    /** Fetches the favicon for the given url. */
     private void fetchFavicon(String url) {
         if (!url.isEmpty()) {
             mIconBridge.getLargeIconForUrl(
@@ -606,7 +605,7 @@ class ShareSheetBottomSheetContent implements BottomSheetContent, OnItemClickLis
     /** One-shot reporter that records the first time the user scrolls a {@link RecyclerView}. */
     private static class ScrollEventReporter extends RecyclerView.OnScrollListener {
         private boolean mFired;
-        private String mActionName;
+        private final String mActionName;
 
         public ScrollEventReporter(String actionName) {
             mActionName = actionName;
@@ -670,12 +669,6 @@ class ShareSheetBottomSheetContent implements BottomSheetContent, OnItemClickLis
     }
 
     @Override
-    public int getPeekHeight() {
-        // Return false to ensure that the entire bottom sheet is shown.
-        return BottomSheetContent.HeightMode.DISABLED;
-    }
-
-    @Override
     public float getFullHeightRatio() {
         // Return WRAP_CONTENT to have the bottom sheet only open as far as it needs to display the
         // list of devices and nothing beyond that.
@@ -688,17 +681,17 @@ class ShareSheetBottomSheetContent implements BottomSheetContent, OnItemClickLis
     }
 
     @Override
-    public int getSheetHalfHeightAccessibilityStringId() {
+    public @StringRes int getSheetHalfHeightAccessibilityStringId() {
         return R.string.sharing_hub_sheet_half_height;
     }
 
     @Override
-    public int getSheetFullHeightAccessibilityStringId() {
+    public @StringRes int getSheetFullHeightAccessibilityStringId() {
         return R.string.sharing_hub_sheet_full_height;
     }
 
     @Override
-    public int getSheetClosedAccessibilityStringId() {
+    public @StringRes int getSheetClosedAccessibilityStringId() {
         return R.string.sharing_hub_sheet_closed;
     }
 

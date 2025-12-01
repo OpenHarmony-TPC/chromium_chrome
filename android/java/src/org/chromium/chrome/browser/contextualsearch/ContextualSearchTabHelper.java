@@ -71,10 +71,12 @@ public class ContextualSearchTabHelper extends EmptyTabObserver
     /** Whether the current default search engine is Google.  Is {@code null} if not inited. */
     private Boolean mIsDefaultSearchEngineGoogle;
 
-    private Callback<ContextualSearchManager> mManagerCallback;
+    private final Callback<ContextualSearchManager> mManagerCallback;
 
     /** The ReadAloudController supplier to get the active playback tab supplier when available. */
     private ObservableSupplier<ReadAloudController> mReadAloudControllerSupplier;
+
+    private final Callback<Tab> mActivePlaybackTabCallback = this::onActivePlaybackTabUpdated;
 
     /** To listen for when the current tab has an active ReadAloud playback. */
     private ObservableSupplier<Tab> mReadAloudActivePlaybackTab;
@@ -130,7 +132,7 @@ public class ContextualSearchTabHelper extends EmptyTabObserver
             mReadAloudActivePlaybackTab = readAloudController.getActivePlaybackTabSupplier();
         }
         if (mReadAloudActivePlaybackTab != null) {
-            mReadAloudActivePlaybackTab.addObserver(this::onActivePlaybackTabUpdated);
+            mReadAloudActivePlaybackTab.addObserver(mActivePlaybackTabCallback);
         }
     }
 
@@ -173,6 +175,9 @@ public class ContextualSearchTabHelper extends EmptyTabObserver
         }
         if (NetworkChangeNotifier.isInitialized()) {
             NetworkChangeNotifier.removeConnectionTypeObserver(this);
+        }
+        if (mReadAloudActivePlaybackTab != null) {
+            mReadAloudActivePlaybackTab.removeObserver(mActivePlaybackTabCallback);
         }
         removeContextualSearchHooks(mWebContents);
         mWebContents = null;

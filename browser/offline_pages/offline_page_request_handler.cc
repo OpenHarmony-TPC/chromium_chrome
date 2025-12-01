@@ -81,7 +81,7 @@ void UpdateDigest(
         validator,
     scoped_refptr<net::IOBuffer> buffer,
     size_t len) {
-  validator->Update(buffer->data(), len);
+  validator->Update(buffer->first(len));
 }
 
 OfflinePageModel* GetOfflinePageModel(
@@ -302,7 +302,7 @@ OfflinePageRequestHandler::OfflinePageRequestHandler(
   offline_header_ = OfflinePageHeader(offline_header_value);
 }
 
-OfflinePageRequestHandler::~OfflinePageRequestHandler() {}
+OfflinePageRequestHandler::~OfflinePageRequestHandler() = default;
 
 OfflinePageRequestHandler::NetworkState
 OfflinePageRequestHandler::GetNetworkState() const {

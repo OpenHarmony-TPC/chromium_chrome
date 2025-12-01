@@ -77,6 +77,7 @@ const DevicePolicyToUserPolicyMapEntry kDevicePoliciesWithPolicyOptionsMap[] = {
      key::kUserContextAwareAccessSignalsAllowlist},
     {key::kDeviceLoginScreenTouchVirtualKeyboardEnabled,
      key::kTouchVirtualKeyboardEnabled},
+    {key::kDeviceLoginScreenFaceGazeEnabled, key::kFaceGazeEnabled},
 
     // The authentication URL blocklist and allowlist policies implement content
     // control for authentication flows, including in the login screen and lock
@@ -182,7 +183,7 @@ LoginProfilePolicyProvider::LoginProfilePolicyProvider(
     : device_policy_service_(device_policy_service),
       waiting_for_device_policy_refresh_(false) {}
 
-LoginProfilePolicyProvider::~LoginProfilePolicyProvider() {}
+LoginProfilePolicyProvider::~LoginProfilePolicyProvider() = default;
 
 void LoginProfilePolicyProvider::Init(SchemaRegistry* registry) {
   ConfigurationPolicyProvider::Init(registry);

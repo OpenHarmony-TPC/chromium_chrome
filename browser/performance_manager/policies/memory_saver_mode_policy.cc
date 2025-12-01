@@ -195,7 +195,7 @@ void MemorySaverModePolicy::DiscardPageTimerCallback(
         ->GetRegisteredObjectAs<PageDiscardingHelper>()
         ->ImmediatelyDiscardMultiplePages(
             {tab_handle->page_node()},
-            PageDiscardingHelper::DiscardReason::PROACTIVE);
+            DiscardEligibilityPolicy::DiscardReason::PROACTIVE);
   }
 }
 
@@ -215,11 +215,11 @@ base::TimeDelta MemorySaverModePolicy::GetTimeBeforeDiscardForCurrentMode()
 int MemorySaverModePolicy::GetMaxNumRevisitsForCurrentMode() const {
   switch (mode_) {
     case MemorySaverModeAggressiveness::kConservative:
-      return 15;
+      return 5;
     case MemorySaverModeAggressiveness::kMedium:
       return 15;
     case MemorySaverModeAggressiveness::kAggressive:
-      return 5;
+      return 15;
   }
   NOTREACHED();
 }

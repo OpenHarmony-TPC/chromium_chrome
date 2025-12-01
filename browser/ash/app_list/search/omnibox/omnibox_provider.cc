@@ -26,6 +26,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/favicon/core/favicon_service.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
+#include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/prefs/pref_service.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
@@ -67,13 +68,13 @@ OmniboxProvider::OmniboxProvider(Profile* profile,
   controller_->AddObserver(this);
 }
 
-OmniboxProvider::~OmniboxProvider() {}
+OmniboxProvider::~OmniboxProvider() = default;
 
 void OmniboxProvider::Start(const std::u16string& query) {
   last_query_ = query;
   last_tokenized_query_.emplace(query, TokenizedString::Mode::kCamelCase);
 
-  controller_->Stop(false);
+  controller_->Stop(AutocompleteStopReason::kInteraction);
   query_finished_ = false;
   // The new page classification value(CHROMEOS_APP_LIST) is introduced
   // to differentiate the suggest requests initiated by ChromeOS app_list from
@@ -91,7 +92,7 @@ void OmniboxProvider::StopQuery() {
   last_tokenized_query_.reset();
   query_finished_ = false;
 
-  controller_->Stop(true);
+  controller_->Stop(AutocompleteStopReason::kClobbered);
 }
 
 ash::AppListSearchResultType OmniboxProvider::ResultType() const {
@@ -120,7 +121,7 @@ void OmniboxProvider::PopulateFromACResult(const AutocompleteResult& result) {
     }
 
     if (match.type == AutocompleteMatchType::OPEN_TAB) {
-      // Filters out open tab results if web in disabled in launcher search
+      // Filters out open tab results if web is disabled in launcher search
       // controls.
       if (ash::features::IsLauncherSearchControlEnabled() &&
           !IsControlCategoryEnabled(profile_, ControlCategory::kWeb)) {
@@ -134,7 +135,7 @@ void OmniboxProvider::PopulateFromACResult(const AutocompleteResult& result) {
                        input_),
           last_tokenized_query_.value()));
     } else if (!IsAnswer(match)) {
-      // Filters out omnibox results if web in disabled in launcher search
+      // Filters out omnibox results if web is disabled in launcher search
       // controls.
       if (ash::features::IsLauncherSearchControlEnabled() &&
           !IsControlCategoryEnabled(profile_, ControlCategory::kWeb)) {

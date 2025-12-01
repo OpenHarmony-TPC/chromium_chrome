@@ -7,12 +7,10 @@
 
 #include <memory>
 
-#include "chrome/browser/ash/system_web_apps/types/system_web_app_delegate.h"
+#include "chromeos/ash/experiences/system_web_apps/types/system_web_app_delegate.h"
 #include "ui/menus/simple_menu_model.h"
 #include "url/gurl.h"
 
-// Forward declare browser and profile.
-class Browser;
 class Profile;
 
 namespace web_app {
@@ -34,6 +32,7 @@ class BocaSystemAppDelegate : public ash::SystemWebAppDelegate {
   bool ShouldAllowMaximize() const override;
   bool ShouldHaveTabStrip() const override;
   bool ShouldHideNewTabButton() const override;
+  bool ShouldHaveExtensionsContainerInToolbar() const override;
   bool IsUrlInSystemAppScope(const GURL& url) const override;
   bool ShouldPinTab(GURL url) const override;
   bool IsAppEnabled() const override;
@@ -44,7 +43,7 @@ class BocaSystemAppDelegate : public ash::SystemWebAppDelegate {
   gfx::Size GetMinimumWindowSize() const override;
   std::unique_ptr<ui::SimpleMenuModel> GetTabMenuModel(
       ui::SimpleMenuModel::Delegate* delegate) const override;
-  Browser* LaunchAndNavigateSystemWebApp(
+  ash::BrowserDelegate* LaunchAndNavigateSystemWebApp(
       Profile* profile,
       web_app::WebAppProvider* provider,
       const GURL& url,

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "ash/app_list/app_list_controller_impl.h"
 #include "ash/app_list/app_list_public_test_util.h"
 #include "ash/app_list/test/app_list_test_helper.h"
 #include "ash/app_list/views/app_list_search_view.h"
@@ -40,6 +41,13 @@ class AppListSearchBrowserTest : public InProcessBrowserTest {
   void SearchForSystemApp(aura::Window* primary_root_window,
                           const std::u16string app_query,
                           const std::string app_id) {
+    // Disables sunfish nudge as it can take click event for clicking the top
+    // result. Remove this once sunfish nudge becomes dismissed automatically
+    // with a start of launcher search.
+    // TODO(crbug.com/385385395): sunfish nudge should be dismissed if launcher
+    // search starts.
+    AppListControllerImpl::SetSunfishNudgeDisabledForTest(true);
+
     // Ensure the System app is installed.
     Profile* profile = ProfileManager::GetActiveUserProfile();
     ASSERT_TRUE(profile);
@@ -97,12 +105,6 @@ class AppListSearchBrowserTest : public InProcessBrowserTest {
         top_result_view->GetBoundsInScreen().CenterPoint());
     event_generator.ClickLeftButton();
   }
-};
-
-class AppListSearchWithCustomizableShortcutsBrowserTest
-    : public AppListSearchBrowserTest {
-  base::test::ScopedFeatureList scoped_feature_list_{
-      features::kSearchCustomizableShortcutsInLauncher};
 };
 
 IN_PROC_BROWSER_TEST_F(AppListSearchBrowserTest, SearchBuiltInApps) {
@@ -163,7 +165,7 @@ IN_PROC_BROWSER_TEST_F(AppListSearchBrowserTest, OpenShortcutsApp) {
 }
 
 // Flaky. See http://crbug.com/324930012.
-IN_PROC_BROWSER_TEST_F(AppListSearchWithCustomizableShortcutsBrowserTest,
+IN_PROC_BROWSER_TEST_F(AppListSearchBrowserTest,
                        DISABLED_OpenShortcutsAppFromShortcut) {
   // Launch the app from the Launcher via searching for a shortcut
   aura::Window* const primary_root_window = Shell::GetPrimaryRootWindow();

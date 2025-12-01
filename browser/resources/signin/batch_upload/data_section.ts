@@ -15,6 +15,9 @@ import {assert} from '//resources/js/assert.js';
 import {PluralStringProxyImpl} from '//resources/js/plural_string_proxy.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
+import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
 import type {DataContainer} from './batch_upload.js';
 import {getCss} from './data_section.css.js';
@@ -25,16 +28,8 @@ function createEmptyContainer(): DataContainer {
   return {
     sectionTitle: '',
     dataItems: [],
+    isTheme: false,
   };
-}
-
-/**
- * Ensures the URL has a scheme (assumes http if omitted).
- * @param url The URL with or without a scheme.
- * @return The URL with a scheme, or an empty string.
- */
-function ensureUrlHasScheme(url: string): string {
-  return url.includes('://') ? url : 'http://' + url;
 }
 
 // Update request count, to be used along the transition duration to compute the
@@ -51,7 +46,9 @@ export interface DataSectionElement {
   };
 }
 
-export class DataSectionElement extends CrLitElement {
+const DataSectionElementBase = I18nMixinLit(CrLitElement);
+
+export class DataSectionElement extends DataSectionElementBase {
   static get is() {
     return 'data-section';
   }
@@ -76,24 +73,24 @@ export class DataSectionElement extends CrLitElement {
   }
 
   // Data to be displayed.
-  dataContainer: DataContainer = createEmptyContainer();
+  accessor dataContainer: DataContainer = createEmptyContainer();
 
   // Title of the section, updated on each item checkbox selection based on the
   // number of selected items.
-  protected title_: string = '';
+  protected accessor title_: string = '';
   // Computed once on page load as it does not contain the selected item count.
-  protected titleWithoutCount_: string = '';
+  protected accessor titleWithoutCount_: string = '';
 
   // If the collapse section is exapnded.
-  protected expanded_: boolean = false;
+  protected accessor expanded_: boolean = false;
   // If the section toggle is off.
-  protected disabled_: boolean = false;
+  protected accessor disabled_: boolean = false;
 
   // Map containing the ids of the selected items in the section. Initialized
   // with all the ids of the section.
   // To be used as the output of the section as well for the parent element.
   dataSelected: Set<number> = new Set<number>();
-  protected dataSelectedCount_: number = 0;
+  protected accessor dataSelectedCount_: number = 0;
 
   // Animation variables used to update the main view height based on the
   // collapse animation duration. Initialized to 0 and gets their values in
@@ -147,8 +144,17 @@ export class DataSectionElement extends CrLitElement {
       // id may be empty.
       if (this.dataContainer.sectionTitle &&
           this.dataContainer.sectionTitle.length > 0) {
-        this.title_ = await PluralStringProxyImpl.getInstance().getPluralString(
-            this.dataContainer.sectionTitle, this.dataSelectedCount_);
+        if (this.isThemeSection()) {
+          // Themes construct its title with the content of its one and only
+          // item title.
+          this.title_ = this.i18n(
+              this.dataContainer.sectionTitle,
+              this.dataContainer.dataItems[0]!.title);
+        } else {
+          this.title_ =
+              await PluralStringProxyImpl.getInstance().getPluralString(
+                  this.dataContainer.sectionTitle, this.dataSelectedCount_);
+        }
       }
     }
   }
@@ -212,11 +218,21 @@ export class DataSectionElement extends CrLitElement {
 
   // Needs to react to both property change (through a reset caused from all
   // checkboxes being unselected) and user action.
-  protected async onToggleChanged_(e: CustomEvent<{value: boolean}>) {
+  protected onToggleChanged_(e: CustomEvent<{value: boolean}>) {
     this.resetWithState_(/*disabled=*/ !e.detail.value);
 
     // Notify the parent with the new toggle value.
     this.fire('toggle-changed', {toggle: e.detail.value});
+  }
+
+  protected getToggleAriaLabel_(): string {
+    const selectedStr = this.disabled_ ? this.i18n('selectAllScreenReader') :
+                                         this.i18n('selectNoneScreenReader');
+
+    return [
+      this.titleWithoutCount_,
+      selectedStr,
+    ].join('. ');
   }
 
   protected isCheckboxChecked_(itemId: number): boolean {
@@ -227,35 +243,48 @@ export class DataSectionElement extends CrLitElement {
     const currentTarget = e.currentTarget as HTMLElement;
     const itemId = Number(currentTarget.dataset['id']);
 
-    // Checkbox on.
+    // Check the checkbox value.
     if (e.detail) {
       this.dataSelected.add(itemId);
-      // Triggers update of the section title.
-      this.dataSelectedCount_ = this.dataSelected.size;
-      return;
+    } else {
+      this.dataSelected.delete(itemId);
     }
 
-    // Checkbox off.
-    this.dataSelected.delete(itemId);
+    // Triggers update of the section title.
     this.dataSelectedCount_ = this.dataSelected.size;
+
     // If this is the last item unchecked then disable and reset the section
     // and focus the toggle since its value changed indirectly.
     if (this.dataSelectedCount_ === 0) {
       this.resetWithState_(/*disabled=*/ true);
       this.$.toggle.focus();
     }
+
+    getAnnouncerInstance().announce(loadTimeData.getStringF(
+        'itemCountSelectedScreenReader', this.dataSelectedCount_));
+  }
+
+  protected onCheckboxFocused_(e: Event) {
+    const currentTarget = e.currentTarget as HTMLElement;
+    const itemId = Number(currentTarget.dataset['id']);
+
+    if (this.dataSelectedCount_ === 1 && this.dataSelected.has(itemId)) {
+      getAnnouncerInstance().announce([
+        this.titleWithoutCount_,
+        this.i18n('lastItemSelectedScreenReader'),
+      ].join('. '));
+    }
+  }
+
+  // Theme section differs slightly from the regular section since it has always
+  // a single item. Therefore the Ui is simplified not to show the expand button
+  // and not giving access to items details.
+  protected isThemeSection(): boolean {
+    return this.dataContainer.isTheme;
   }
 
   protected isStrEmpty_(str: string) {
     return (!str || str.length === 0);
-  }
-
-  protected getFaviconUrl_(iconUrl: string) {
-    const faviconUrl = new URL('chrome://favicon2/');
-    faviconUrl.searchParams.set('size', '24');
-    faviconUrl.searchParams.set('scaleFactor', '1x');
-    faviconUrl.searchParams.set('pageUrl', ensureUrlHasScheme(iconUrl));
-    return faviconUrl.href;
   }
 }
 

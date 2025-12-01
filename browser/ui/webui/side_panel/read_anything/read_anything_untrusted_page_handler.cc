@@ -14,6 +14,7 @@
 #include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "base/values.h"
 #include "chrome/browser/accessibility/phrase_segmentation/dependency_parser_model_loader.h"
 #include "chrome/browser/accessibility/phrase_segmentation/dependency_parser_model_loader_factory.h"
@@ -30,21 +31,24 @@
 #include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_prefs.h"
 #include "chrome/common/read_anything/read_anything.mojom-forward.h"
 #include "chrome/common/read_anything/read_anything.mojom.h"
+#include "chrome/common/read_anything/read_anything_util.h"
 #include "components/language/core/browser/language_model.h"
 #include "components/language/core/browser/language_model_manager.h"
 #include "components/language/core/common/locale_util.h"
+#include "components/language_detection/core/constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/translate/core/browser/language_state.h"
 #include "components/translate/core/browser/translate_driver.h"
-#include "components/translate/core/common/translate_constants.h"
 #include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/scoped_accessibility_mode.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "content/public/browser/web_ui.h"
+#include "extensions/browser/extension_registry.h"
 #include "net/http/http_status_code.h"
 #include "pdf/buildflags.h"
+#include "read_anything_untrusted_page_handler.h"
 #include "services/network/public/cpp/header_util.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/accessibility/accessibility_features.h"
@@ -67,11 +71,13 @@
 #include "pdf/pdf_features.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/public/cpp/session/session_controller.h"
 #include "chromeos/ash/components/language_packs/language_pack_manager.h"
 using ash::language_packs::LanguagePackManager;
 using ash::language_packs::PackResult;
+#else
+#include "chrome/common/extensions/extension_constants.h"
 #endif
 
 using content::TtsController;
@@ -85,7 +91,7 @@ namespace {
 
 // All AXMode flags of kAXModeWebContentsOnly are needed. |ui::AXMode::kHTML| is
 // needed for retrieveing the `aria-expanded` attribute.
-// |ui::AXMode::kScreenReader| is needed for HTML tag, and heading level
+// |ui::AXMode::kExtendedProperties| is needed for HTML tag, and heading level
 // information. |ui::AXMode::kInlineTextBoxes| is needed for complete screen2x
 // output -- if excluded, some nodes from the tree will not be identified as
 // content nodes.
@@ -94,14 +100,7 @@ namespace {
 constexpr ui::AXMode kReadAnythingAXMode =
     ui::kAXModeWebContentsOnly | ui::AXMode::kHTML;
 
-int GetNormalizedFontScale(double font_scale) {
-  DCHECK(font_scale >= kReadAnythingMinimumFontScale &&
-         font_scale <= kReadAnythingMaximumFontScale);
-  return (font_scale - kReadAnythingMinimumFontScale) *
-         (1 / kReadAnythingFontScaleIncrement);
-}
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 
 InstallationState GetInstallationStateFromStatusCode(
     const PackResult::StatusCode status_code) {
@@ -179,6 +178,8 @@ void OnInstallPackResponse(
 }
 
 #else
+constexpr char kReadingModeName[] = "Reading mode";
+
 InstallationState GetInstallationStateFromStatusCode(
     const content::LanguageInstallStatus status_code) {
   switch (status_code) {
@@ -294,6 +295,10 @@ void ReadAnythingWebContentsObserver::PrimaryPageChanged(content::Page& page) {
   page_handler_->PrimaryPageChanged();
 }
 
+void ReadAnythingWebContentsObserver::DidStopLoading() {
+  page_handler_->DidStopLoading();
+}
+
 void ReadAnythingWebContentsObserver::WebContentsDestroyed() {
   page_handler_->WebContentsDestroyed();
 }
@@ -311,8 +316,11 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
   ax_action_handler_observer_.Observe(
       ui::AXActionHandlerRegistry::GetInstance());
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   content::TtsController::GetInstance()->AddUpdateLanguageStatusDelegate(this);
+
+  extensions::ExtensionRegistry::Get(profile_)->AddObserver(this);
+
 #endif
   side_panel_controller_ = ReadAnythingSidePanelControllerGlue::FromWebContents(
                                web_ui_->GetWebContents())
@@ -320,11 +328,11 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
   side_panel_controller_->AddPageHandlerAsObserver(weak_factory_.GetWeakPtr());
 
   PrefService* prefs = profile_->GetPrefs();
-  double speechRate =
+  double speech_rate =
       features::IsReadAnythingReadAloudEnabled()
           ? prefs->GetDouble(prefs::kAccessibilityReadAnythingSpeechRate)
-          : kReadAnythingDefaultSpeechRate;
-  read_anything::mojom::HighlightGranularity highlightGranularity =
+          : 1.0;
+  read_anything::mojom::HighlightGranularity highlight_granularity =
       features::IsReadAnythingReadAloudEnabled()
           ? static_cast<read_anything::mojom::HighlightGranularity>(
                 prefs->GetDouble(
@@ -332,16 +340,7 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
           : read_anything::mojom::HighlightGranularity::kDefaultValue;
   base::Value::Dict voices = base::Value::Dict();
   if (features::IsReadAnythingReadAloudEnabled()) {
-    if (features::IsReadAloudAutoVoiceSwitchingEnabled()) {
-      voices =
-          prefs->GetDict(prefs::kAccessibilityReadAnythingVoiceName).Clone();
-    } else {
-      std::string voice_name =
-          prefs->GetString(prefs::kAccessibilityReadAnythingVoiceName);
-      if (!voice_name.empty()) {
-        voices.Set("", voice_name);
-      }
-    }
+    voices = prefs->GetDict(prefs::kAccessibilityReadAnythingVoiceName).Clone();
   }
 
   page_->OnSettingsRestoredFromPrefs(
@@ -355,12 +354,12 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
       prefs->GetBoolean(prefs::kAccessibilityReadAnythingImagesEnabled),
       static_cast<read_anything::mojom::Colors>(
           prefs->GetInteger(prefs::kAccessibilityReadAnythingColorInfo)),
-      speechRate, std::move(voices),
+      speech_rate, std::move(voices),
       features::IsReadAnythingReadAloudEnabled()
           ? prefs->GetList(prefs::kAccessibilityReadAnythingLanguagesEnabled)
                 .Clone()
           : base::Value::List(),
-      highlightGranularity);
+      highlight_granularity);
 
   // Get user's default language to check for compatible fonts.
   language::LanguageModel* language_model =
@@ -371,14 +370,12 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
   SetDefaultLanguageCode(prefs_lang);
 
   if (use_screen_ai_service_) {
-    if (features::IsReadAnythingWithScreen2xEnabled()) {
-      screen_ai::ScreenAIServiceRouterFactory::GetForBrowserContext(profile_)
-          ->GetServiceStateAsync(
-              screen_ai::ScreenAIServiceRouter::Service::kMainContentExtraction,
-              base::BindOnce(&ReadAnythingUntrustedPageHandler::
-                                 OnScreenAIServiceInitialized,
-                             weak_factory_.GetWeakPtr()));
-    }
+    screen_ai::ScreenAIServiceRouterFactory::GetForBrowserContext(profile_)
+        ->GetServiceStateAsync(
+            screen_ai::ScreenAIServiceRouter::Service::kMainContentExtraction,
+            base::BindOnce(
+                &ReadAnythingUntrustedPageHandler::OnScreenAIServiceInitialized,
+                weak_factory_.GetWeakPtr()));
 #if BUILDFLAG(ENABLE_PDF)
     // PDF searchify feature adds OCR text to images while loading the PDF, so
     // warming up the OCR service is not needed.
@@ -400,7 +397,7 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
   SetUpPdfObserver();
   OnActiveAXTreeIDChanged();
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   auto* session_controller = ash::SessionController::Get();
   if (session_controller) {
     session_controller->AddObserver(this);
@@ -409,9 +406,10 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
 }
 
 ReadAnythingUntrustedPageHandler::~ReadAnythingUntrustedPageHandler() {
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   content::TtsController::GetInstance()->RemoveUpdateLanguageStatusDelegate(
       this);
+  extensions::ExtensionRegistry::Get(profile_)->RemoveObserver(this);
 #endif
   translate_observation_.Reset();
   web_screenshotter_.reset();
@@ -427,7 +425,7 @@ ReadAnythingUntrustedPageHandler::~ReadAnythingUntrustedPageHandler() {
         weak_factory_.GetWeakPtr());
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   auto* session_controller = ash::SessionController::Get();
   if (session_controller) {
     session_controller->RemoveObserver(this);
@@ -438,6 +436,31 @@ ReadAnythingUntrustedPageHandler::~ReadAnythingUntrustedPageHandler() {
 void ReadAnythingUntrustedPageHandler::PrimaryPageChanged() {
   SetUpPdfObserver();
   OnActiveAXTreeIDChanged();
+}
+
+void ReadAnythingUntrustedPageHandler::DidStopLoading() {
+#if BUILDFLAG(ENABLE_PDF)
+  content::WebContents* main_contents = main_observer_->web_contents();
+  if (!chrome_pdf::features::IsOopifPdfEnabled()) {
+    std::vector<content::WebContents*> inner_contents =
+        main_contents ? main_contents->GetInnerWebContents()
+                      : std::vector<content::WebContents*>();
+    // If this page was previously recognized as not a pdf from the original
+    // call to PrimaryPageChanged() but it's now recognized as a PDF after the
+    // page has finished loaded, call PrimaryPageChanged() again to redistill.
+    if (!is_pdf_ && AreInnerContentsPdfContent(inner_contents)) {
+      PrimaryPageChanged();
+    }
+  }
+#endif
+}
+
+bool ReadAnythingUntrustedPageHandler::AreInnerContentsPdfContent(
+    std::vector<content::WebContents*> inner_contents) {
+  return inner_contents.size() == 1 &&
+         IsPdfExtensionOrigin(inner_contents[0]
+                                  ->GetPrimaryMainFrame()
+                                  ->GetLastCommittedOrigin());
 }
 
 void ReadAnythingUntrustedPageHandler::WebContentsDestroyed() {
@@ -497,7 +520,7 @@ void ReadAnythingUntrustedPageHandler::GetDependencyParserModel(
   OnDependencyParserModelFileAvailabilityChanged(std::move(callback), true);
 }
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 void ReadAnythingUntrustedPageHandler::OnUpdateLanguageStatus(
     const std::string& language,
     content::LanguageInstallStatus install_status,
@@ -508,6 +531,24 @@ void ReadAnythingUntrustedPageHandler::OnUpdateLanguageStatus(
       GetInstallationStateFromStatusCode(install_status));
   OnGetVoicePackInfo(std::move(voicePackInfo));
 }
+
+void ReadAnythingUntrustedPageHandler::OnExtensionReady(
+    content::BrowserContext* browser_context,
+    const extensions::Extension* extension) {
+  const auto& extensionId =
+      features::IsWasmTtsComponentUpdaterEnabled()
+          ? extension_misc::kComponentUpdaterTTSEngineExtensionId
+          : extension_misc::kTTSEngineExtensionId;
+  if (extension->id() != extensionId || extension_installed_) {
+    return;
+  }
+  // Keep track of whether or not we've gotten a signal for installing the
+  // extension. Otherwise, if reading mode is opened simultaneously in
+  // multiple profiles, there can be an infinite loop of trying to install
+  // and uninstall voices.
+  extension_installed_ = true;
+  page_->OnTtsEngineInstalled();
+}
 #endif
 
 void ReadAnythingUntrustedPageHandler::OnGetVoicePackInfo(
@@ -517,7 +558,7 @@ void ReadAnythingUntrustedPageHandler::OnGetVoicePackInfo(
 
 void ReadAnythingUntrustedPageHandler::GetVoicePackInfo(
     const std::string& language) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   LanguagePackManager::GetPackState(
       ash::language_packs::kTtsFeatureId, language,
       base::BindOnce(
@@ -526,14 +567,14 @@ void ReadAnythingUntrustedPageHandler::GetVoicePackInfo(
                          weak_factory_.GetWeakPtr())));
 #else
   TtsController::GetInstance()->LanguageStatusRequest(
-      profile_, language, string_constants::kReadingModeName,
+      profile_, language, kReadingModeName,
       static_cast<int>(tts_engine_events::TtsClientSource::CHROMEFEATURE));
 #endif
 }
 
 void ReadAnythingUntrustedPageHandler::InstallVoicePack(
     const std::string& language) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   LanguagePackManager::InstallPack(
       ash::language_packs::kTtsFeatureId, language,
       base::BindOnce(
@@ -542,16 +583,16 @@ void ReadAnythingUntrustedPageHandler::InstallVoicePack(
                          weak_factory_.GetWeakPtr())));
 #else
   TtsController::GetInstance()->InstallLanguageRequest(
-      profile_, language, string_constants::kReadingModeName,
+      profile_, language, kReadingModeName,
       static_cast<int>(tts_engine_events::TtsClientSource::CHROMEFEATURE));
 #endif
 }
 
 void ReadAnythingUntrustedPageHandler::UninstallVoice(
     const std::string& language) {
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   TtsController::GetInstance()->UninstallLanguageRequest(
-      profile_, language, string_constants::kReadingModeName,
+      profile_, language, kReadingModeName,
       static_cast<int>(tts_engine_events::TtsClientSource::CHROMEFEATURE),
       /*uninstall_immediately=*/false);
 #endif
@@ -566,14 +607,14 @@ void ReadAnythingUntrustedPageHandler::OnCopy() {
 void ReadAnythingUntrustedPageHandler::OnLineSpaceChange(
     read_anything::mojom::LineSpacing line_spacing) {
   profile_->GetPrefs()->SetInteger(prefs::kAccessibilityReadAnythingLineSpacing,
-                                   static_cast<size_t>(line_spacing));
+                                   base::to_underlying(line_spacing));
 }
 
 void ReadAnythingUntrustedPageHandler::OnLetterSpaceChange(
     read_anything::mojom::LetterSpacing letter_spacing) {
   profile_->GetPrefs()->SetInteger(
       prefs::kAccessibilityReadAnythingLetterSpacing,
-      static_cast<size_t>(letter_spacing));
+      base::to_underlying(letter_spacing));
 }
 void ReadAnythingUntrustedPageHandler::OnFontChange(const std::string& font) {
   profile_->GetPrefs()->SetString(prefs::kAccessibilityReadAnythingFontName,
@@ -581,9 +622,8 @@ void ReadAnythingUntrustedPageHandler::OnFontChange(const std::string& font) {
 }
 
 void ReadAnythingUntrustedPageHandler::OnFontSizeChange(double font_size) {
-  double saved_font_size = std::min(font_size, kReadAnythingMaximumFontScale);
   profile_->GetPrefs()->SetDouble(prefs::kAccessibilityReadAnythingFontScale,
-                                  saved_font_size);
+                                  AdjustFontScale(font_size, 0));
 }
 
 void ReadAnythingUntrustedPageHandler::OnLinksEnabledChanged(bool enabled) {
@@ -599,7 +639,7 @@ void ReadAnythingUntrustedPageHandler::OnImagesEnabledChanged(bool enabled) {
 void ReadAnythingUntrustedPageHandler::OnColorChange(
     read_anything::mojom::Colors color) {
   profile_->GetPrefs()->SetInteger(prefs::kAccessibilityReadAnythingColorInfo,
-                                   static_cast<size_t>(color));
+                                   base::to_underlying(color));
 }
 
 void ReadAnythingUntrustedPageHandler::OnSpeechRateChange(double rate) {
@@ -609,13 +649,9 @@ void ReadAnythingUntrustedPageHandler::OnSpeechRateChange(double rate) {
 void ReadAnythingUntrustedPageHandler::OnVoiceChange(const std::string& voice,
                                                      const std::string& lang) {
   PrefService* prefs = profile_->GetPrefs();
-  if (features::IsReadAloudAutoVoiceSwitchingEnabled()) {
-    ScopedDictPrefUpdate update(prefs,
-                                prefs::kAccessibilityReadAnythingVoiceName);
-    update->Set(lang, voice);
-  } else {
-    prefs->SetString(prefs::kAccessibilityReadAnythingVoiceName, voice);
-  }
+  ScopedDictPrefUpdate update(prefs,
+                              prefs::kAccessibilityReadAnythingVoiceName);
+  update->Set(lang, voice);
 }
 
 void ReadAnythingUntrustedPageHandler::OnLanguagePrefChange(
@@ -625,7 +661,9 @@ void ReadAnythingUntrustedPageHandler::OnLanguagePrefChange(
   ScopedListPrefUpdate update(
       prefs, prefs::kAccessibilityReadAnythingLanguagesEnabled);
   if (enabled) {
-    update->Append(lang);
+    if (!base::Contains(update.Get(), lang)) {
+      update->Append(lang);
+    }
   } else {
     update->EraseValue(base::Value(lang));
   }
@@ -767,10 +805,27 @@ void ReadAnythingUntrustedPageHandler::SetDefaultLanguageCode(
 
 void ReadAnythingUntrustedPageHandler::Activate(bool active) {
   active_ = active;
+  if (features::IsReadAnythingReadAloudEnabled() && !active &&
+      side_panel_controller_->tab()->IsActivated() && !tab_will_detach_) {
+    page_->OnReadingModeHidden();
+  }
 }
 
 void ReadAnythingUntrustedPageHandler::OnSidePanelControllerDestroyed() {
   side_panel_controller_ = nullptr;
+}
+
+void ReadAnythingUntrustedPageHandler::OnTabWillDetach() {
+  if (!features::IsReadAnythingReadAloudEnabled()) {
+    return;
+  }
+
+  // When multiple tabs are open, we receive this call multiple times, so only
+  // inform once.
+  if (!tab_will_detach_) {
+    tab_will_detach_ = true;
+    page_->OnTabWillDetach();
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -779,7 +834,6 @@ void ReadAnythingUntrustedPageHandler::OnSidePanelControllerDestroyed() {
 
 void ReadAnythingUntrustedPageHandler::OnScreenAIServiceInitialized(
     bool successful) {
-  DCHECK(features::IsReadAnythingWithScreen2xEnabled());
   if (successful) {
     page_->ScreenAIServiceReady();
   }
@@ -797,10 +851,7 @@ void ReadAnythingUntrustedPageHandler::SetUpPdfObserver() {
         main_contents ? main_contents->GetInnerWebContents()
                       : std::vector<content::WebContents*>();
     // Check if this is a pdf.
-    if (inner_contents.size() == 1 &&
-        IsPdfExtensionOrigin(inner_contents[0]
-                                 ->GetPrimaryMainFrame()
-                                 ->GetLastCommittedOrigin())) {
+    if (AreInnerContentsPdfContent(inner_contents)) {
       pdf_observer_ = std::make_unique<ReadAnythingWebContentsObserver>(
           weak_factory_.GetSafeRef(), inner_contents[0], kReadAnythingAXMode);
     }
@@ -815,6 +866,7 @@ void ReadAnythingUntrustedPageHandler::SetUpPdfObserver() {
 }
 
 void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
+  is_pdf_ = false;
   if (!active_) {
     page_->OnActiveAXTreeIDChanged(ui::AXTreeIDUnknown(), ukm::kInvalidSourceId,
                                    /*is_pdf=*/false);
@@ -863,6 +915,7 @@ void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
     // What happens if there are multiple such `rfhs`?
     contents->ForEachRenderFrameHost([this](content::RenderFrameHost* rfh) {
       if (rfh->GetProcess()->IsPdf()) {
+        is_pdf_ = true;
         page_->OnActiveAXTreeIDChanged(rfh->GetAXTreeID(),
                                        rfh->GetPageUkmSourceId(),
                                        /*is_pdf=*/true);
@@ -880,9 +933,11 @@ void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
 void ReadAnythingUntrustedPageHandler::SetLanguageCode(
     const std::string& code) {
   const std::string& language_code =
-      (code.empty() || code == translate::kUnknownLanguageCode) ? "" : code;
-  // Only send the language code if it's a new language.
-  if (language_code != current_language_code_) {
+      (code.empty() || code == language_detection::kUnknownLanguageCode) ? ""
+                                                                         : code;
+  // Only send the language code if it's a new language, unless it's an empty
+  // code. Always send an empty code so we know to use the tree language.
+  if (language_code.empty() || (language_code != current_language_code_)) {
     current_language_code_ = language_code;
     page_->SetLanguageCode(current_language_code_);
   }
@@ -902,33 +957,21 @@ void ReadAnythingUntrustedPageHandler::LogTextStyle() {
   // This is called when the side panel closes, so retrieving the values from
   // preferences won't happen very often.
   PrefService* prefs = profile_->GetPrefs();
-  int maximum_font_scale_logging =
-      GetNormalizedFontScale(kReadAnythingMaximumFontScale);
-  double font_scale =
-      prefs->GetDouble(prefs::kAccessibilityReadAnythingFontScale);
-  base::UmaHistogramExactLinear(string_constants::kFontScaleHistogramName,
-                                GetNormalizedFontScale(font_scale),
-                                maximum_font_scale_logging + 1);
-  std::string font_name =
-      prefs->GetString(prefs::kAccessibilityReadAnythingFontName);
-  if (fonts::kFontInfos.contains(font_name)) {
-    base::UmaHistogramEnumeration(
-        string_constants::kFontNameHistogramName,
-        fonts::kFontInfos.at(font_name).logging_value);
-  }
+  LogFontScale(prefs->GetDouble(prefs::kAccessibilityReadAnythingFontScale));
+  LogFontName(prefs->GetString(prefs::kAccessibilityReadAnythingFontName));
   read_anything::mojom::Colors color =
       static_cast<read_anything::mojom::Colors>(
           prefs->GetInteger(prefs::kAccessibilityReadAnythingColorInfo));
-  base::UmaHistogramEnumeration(string_constants::kColorHistogramName, color);
+  base::UmaHistogramEnumeration("Accessibility.ReadAnything.Color", color);
   read_anything::mojom::LineSpacing line_spacing =
       static_cast<read_anything::mojom::LineSpacing>(
           prefs->GetInteger(prefs::kAccessibilityReadAnythingLineSpacing));
-  base::UmaHistogramEnumeration(string_constants::kLineSpacingHistogramName,
+  base::UmaHistogramEnumeration("Accessibility.ReadAnything.LineSpacing",
                                 line_spacing);
   read_anything::mojom::LetterSpacing letter_spacing =
       static_cast<read_anything::mojom::LetterSpacing>(
           prefs->GetInteger(prefs::kAccessibilityReadAnythingLetterSpacing));
-  base::UmaHistogramEnumeration(string_constants::kLetterSpacingHistogramName,
+  base::UmaHistogramEnumeration("Accessibility.ReadAnything.LetterSpacing",
                                 letter_spacing);
 }
 
@@ -947,7 +990,7 @@ void ReadAnythingUntrustedPageHandler::
 }
 
 // ash::SessionObserver
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 void ReadAnythingUntrustedPageHandler::OnLockStateChanged(bool locked) {
   if (locked) {
     page_->OnDeviceLocked();

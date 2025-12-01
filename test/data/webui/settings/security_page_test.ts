@@ -86,17 +86,6 @@ suite('Main', function() {
     Router.getInstance().navigateTo(routes.BASIC);
   });
 
-  test('ChromeRootStorePage', async function() {
-    // Chrome Root Store Help link should not be present since
-    // kEnableCertManagementUIV2 feature flag is enabled by
-    // SettingsSecurityPageTest constructor.
-    // TODO(crbug.com/40928765): remove this comment once the feature flag is
-    // set to default enabled.
-    const row =
-        page.shadowRoot!.querySelector<HTMLElement>('#chromeCertificates');
-    assertFalse(!!row, 'Chrome Root Store Help Center link unexpectedly found');
-  });
-
   test('ManageCertificatesClick', async function() {
     page.shadowRoot!.querySelector<HTMLElement>(
                         '#manageCertificatesLinkRow')!.click();
@@ -158,7 +147,7 @@ suite('Main', function() {
         '#httpsFirstModeEnabledStrict');
     assertTrue(!!radioButton);
     radioButton.click();
-    await eventToPromise('selected-changed', radioGroup);
+    await eventToPromise('change', radioGroup);
     assertEquals(
         HttpsFirstModeSetting.ENABLED_FULL,
         page.getPref('generated.https_first_mode_enabled').value);
@@ -168,7 +157,7 @@ suite('Main', function() {
         '#httpsFirstModeEnabledBalanced');
     assertTrue(!!radioButton);
     radioButton.click();
-    await eventToPromise('selected-changed', radioGroup);
+    await eventToPromise('change', radioGroup);
     assertEquals(
         HttpsFirstModeSetting.ENABLED_BALANCED,
         page.getPref('generated.https_first_mode_enabled').value);
@@ -290,7 +279,7 @@ suite('SecurityPageHappinessTrackingSurveys', function() {
   test('SecurityPageBeforeUnloadCallsHatsProxy', async function() {
     // Interact with the security page.
     page.$.safeBrowsingEnhanced.click();
-    await eventToPromise('selected-changed', page.$.safeBrowsingRadioGroup);
+    await eventToPromise('change', page.$.safeBrowsingRadioGroup);
 
     const t1 = 10000;
     testHatsBrowserProxy.setNow(t1);
@@ -337,9 +326,6 @@ suite('FlagsDisabled', function() {
       enableSecurityKeysSubpage: false,
       enableHashPrefixRealTimeLookups: false,
       enableHttpsFirstModeNewSettings: false,
-      enableCertManagementUIV2: false,
-      enableEsbAiStringUpdate: false,
-      enablePasswordLeakToggleMove: false,
       extendedReportingRemovePrefDependency: false,
       hashPrefixRealTimeLookupsSamplePing: false,
     });
@@ -369,23 +355,6 @@ suite('FlagsDisabled', function() {
 
   teardown(function() {
     page.remove();
-  });
-
-  // <if expr="is_macosx or is_win">
-  test('NativeCertificateManager', function() {
-    page.shadowRoot!.querySelector<HTMLElement>(
-                        '#manageCertificatesLinkRow')!.click();
-    return testPrivacyBrowserProxy.whenCalled('showManageSslCertificates');
-  });
-  // </if>
-
-  test('ChromeRootStorePage', async function() {
-    const row =
-        page.shadowRoot!.querySelector<HTMLElement>('#chromeCertificates');
-    assertTrue(!!row);
-    row.click();
-    const url = await openWindowProxy.whenCalled('openUrl');
-    assertEquals(url, loadTimeData.getString('chromeRootStoreHelpCenterURL'));
   });
 
   test('LogManageCertificatesClick', async function() {
@@ -562,7 +531,7 @@ suite('FlagsDisabled', function() {
     page.$.safeBrowsingStandard.click();
     assertFalse(safeBrowsingReportingToggle.disabled);
     page.$.safeBrowsingEnhanced.click();
-    await eventToPromise('selected-changed', page.$.safeBrowsingRadioGroup);
+    await eventToPromise('change', page.$.safeBrowsingRadioGroup);
 
     assertTrue(safeBrowsingReportingToggle.disabled);
   });
@@ -603,45 +572,6 @@ suite('FlagsDisabled', function() {
         assertTrue(page.$.safeBrowsingStandard.expanded);
         assertTrue(isChildVisible(page, '#safeBrowsingReportingToggle'));
       });
-
-  // TODO(crbug.com/372743989): Remove the test once the EsbAiStringUpdate is
-  // fully launched. This tests the old string before the AI addition to the
-  // description.
-  test('EnhancedProtectionTextIsRendered', async () => {
-    const enhancedProtection = page.$.safeBrowsingEnhanced;
-    const epSubLabel = loadTimeData.getString('safeBrowsingEnhancedDesc');
-    assertEquals(epSubLabel, enhancedProtection.subLabel);
-
-    page.$.safeBrowsingEnhanced.click();
-    await eventToPromise('selected-changed', page.$.safeBrowsingRadioGroup);
-  });
-
-  // TODO(crbug.com/372671916): Remove test once the passwordLeakToggleMove is
-  // launched.
-  test(
-      'OldLearnMoreLinkPositionWithoutPasswordLeakToggleEnabled',
-      async function() {
-        assertFalse(loadTimeData.getBoolean('enablePasswordLeakToggleMove'));
-
-        // Make sure ESB Description is visible.
-        page.$.safeBrowsingEnhanced.$.expandButton.click();
-        await microtasksFinished();
-        assertTrue(page.$.safeBrowsingEnhanced.expanded);
-
-        assertFalse(isChildVisible(page, '#learnMoreLabelContainer'));
-        assertTrue(isChildVisible(page, '#learnMoreLabelContainerOld'));
-      });
-
-  // TODO(crbug.com/372671916): Remove test once the passwordLeakToggleMove is
-  // launched.
-  test('PasswordLeakToggleNotMoved', function() {
-    assertFalse(loadTimeData.getBoolean('enablePasswordLeakToggleMove'));
-    // Check that the password leak toggle is still under the safe browsing
-    // radio group.
-    assertTrue(isChildVisible(page, '#passwordsLeakToggleOld'));
-    // Check that the password leak toggle is not visible in the new section.
-    assertFalse(isChildVisible(page, '#passwordsLeakToggle'));
-  });
 
 });
 
@@ -688,18 +618,6 @@ suite('SafeBrowsing', function() {
   test('SafeBrowsingRadio_InitialPrefOptionIsExpanded', function() {
     assertFalse(page.$.safeBrowsingEnhanced.expanded);
     assertTrue(page.$.safeBrowsingStandard.expanded);
-  });
-
-  // TODO(crbug.com/372671916): Remove test once the passwordLeakToggleMove is
-  // launched.
-  test('PasswordLeakToggleMoved', function() {
-    assertTrue(loadTimeData.getBoolean('enablePasswordLeakToggleMove'));
-    // Check that the password leak toggle is no longer under the safebrowsing
-    // radio group.
-    assertFalse(isChildVisible(page, '#passwordsLeakToggleOld'));
-    // Check that the password leak toggle is still visible on the page but now
-    // in the new section.
-    assertTrue(isChildVisible(page, '#passwordsLeakToggle'));
   });
 
   test('PasswordsLeakDetectionText', function() {
@@ -857,7 +775,7 @@ suite('SafeBrowsing', function() {
     const previous = page.prefs.safebrowsing.scout_reporting_enabled.value;
 
     page.$.safeBrowsingEnhanced.click();
-    await eventToPromise('selected-changed', page.$.safeBrowsingRadioGroup);
+    await eventToPromise('change', page.$.safeBrowsingRadioGroup);
 
     assertTrue(
         page.prefs.safebrowsing.scout_reporting_enabled.value === previous);
@@ -868,7 +786,7 @@ suite('SafeBrowsing', function() {
     const previous = page.prefs.safebrowsing.scout_reporting_enabled.value;
 
     page.$.safeBrowsingDisabled.click();
-    await eventToPromise('selected-changed', page.$.safeBrowsingRadioGroup);
+    await eventToPromise('change', page.$.safeBrowsingRadioGroup);
 
     // Previously selected option must remain opened.
     assertTrue(page.$.safeBrowsingStandard.expanded);
@@ -885,7 +803,7 @@ suite('SafeBrowsing', function() {
     const previous = page.prefs.profile.password_manager_leak_detection.value;
 
     page.$.safeBrowsingEnhanced.click();
-    await eventToPromise('selected-changed', page.$.safeBrowsingRadioGroup);
+    await eventToPromise('change', page.$.safeBrowsingRadioGroup);
 
     assertTrue(
         page.prefs.profile.password_manager_leak_detection.value === previous);
@@ -927,7 +845,7 @@ suite('SafeBrowsing', function() {
         'recordSafeBrowsingInteractionHistogram');
     testMetricsBrowserProxy.resetResolver('recordAction');
     page.$.safeBrowsingEnhanced.click();
-    await eventToPromise('selected-changed', page.$.safeBrowsingRadioGroup);
+    await eventToPromise('change', page.$.safeBrowsingRadioGroup);
     const [enhancedClickedResult, enhancedClickedAction] = await Promise.all([
       testMetricsBrowserProxy.whenCalled(
           'recordSafeBrowsingInteractionHistogram'),
@@ -980,7 +898,7 @@ suite('SafeBrowsing', function() {
         'recordSafeBrowsingInteractionHistogram');
     testMetricsBrowserProxy.resetResolver('recordAction');
     page.$.safeBrowsingDisabled.click();
-    await eventToPromise('selected-changed', page.$.safeBrowsingRadioGroup);
+    await eventToPromise('change', page.$.safeBrowsingRadioGroup);
     const [disableClickedResult, disableClickedAction] = await Promise.all([
       testMetricsBrowserProxy.whenCalled(
           'recordSafeBrowsingInteractionHistogram'),
@@ -1015,7 +933,7 @@ suite('SafeBrowsing', function() {
     await flushTasks();
 
     page.$.safeBrowsingDisabled.click();
-    await eventToPromise('selected-changed', page.$.safeBrowsingRadioGroup);
+    await eventToPromise('change', page.$.safeBrowsingRadioGroup);
     testMetricsBrowserProxy.resetResolver(
         'recordSafeBrowsingInteractionHistogram');
     testMetricsBrowserProxy.resetResolver('recordAction');
@@ -1079,21 +997,19 @@ suite('SafeBrowsing', function() {
     assertEquals(spSubLabel, standardProtection.subLabel);
   });
 
-  // TODO(crbug.com/372743989): Update test when EsbAiStringUpdate is fully
-  // launched.
-  test('EnhancedProtectionTextWithAI', async () => {
+  test('EnhancedProtectionText', async () => {
     const enhancedProtection = page.$.safeBrowsingEnhanced;
     const epSubLabel =
         loadTimeData.getString('safeBrowsingEnhancedDescUpdated');
     assertEquals(epSubLabel, enhancedProtection.subLabel);
 
     page.$.safeBrowsingEnhanced.click();
-    await eventToPromise('selected-changed', page.$.safeBrowsingRadioGroup);
+    await eventToPromise('change', page.$.safeBrowsingRadioGroup);
     // Learn more label should be visible.
     assertTrue(isChildVisible(page, '#learnMoreLabelContainer'));
   });
 
-  test('NoProtectionText', async () => {
+  test('NoProtectionText', () => {
     const noProtection = page.$.safeBrowsingDisabled;
     const npSubLabel = loadTimeData.getString('safeBrowsingNoneDesc');
     assertEquals(npSubLabel, noProtection.subLabel);
@@ -1118,7 +1034,7 @@ suite('SafeBrowsing', function() {
     // enforced.
     assertEquals(
         'auto',
-        (learnMoreLink!.computedStyleMap()!.get('pointer-events') as
+        (learnMoreLink!.computedStyleMap().get('pointer-events') as
          CSSKeywordValue)
             .value);
 
@@ -1128,22 +1044,6 @@ suite('SafeBrowsing', function() {
     assertEquals(
         url, loadTimeData.getString('enhancedProtectionHelpCenterURL'));
   });
-
-  // TODO(crbug.com/372671916): Remove test once the passwordLeakToggleMove is
-  // launched.
-  test(
-      'NewLearnMoreLinkPositionWithPasswordLeakToggleEnabled',
-      async function() {
-        assertTrue(loadTimeData.getBoolean('enablePasswordLeakToggleMove'));
-
-        // Make sure ESB Description is visible.
-        page.$.safeBrowsingEnhanced.$.expandButton.click();
-        await microtasksFinished();
-        assertTrue(page.$.safeBrowsingEnhanced.expanded);
-
-        assertTrue(isChildVisible(page, '#learnMoreLabelContainer'));
-        assertFalse(isChildVisible(page, '#learnMoreLabelContainerOld'));
-      });
 
   // <if expr="_google_chrome">
   test('StandardProtectionDropdownWithProxyString', async () => {
@@ -1230,68 +1130,6 @@ suite('SafeBrowsing', function() {
 
         assertTrue(isChildVisible(page, '#safeBrowsingReportingToggle'));
       });
-
-  // TODO(crbug.com/372671916): Remove test once the passwordLeakToggleMove
-  // and SBER deprecation is launched.
-  test('StandardProtectionNoCollapse', async function() {
-    // The Standard Protection radio button should not have a dropdown when
-    // these two flags are BOTH enabled and when the PasswordLeakToggleMove
-    // feature is enabled.
-    loadTimeData.overrideValues({
-      extendedReportingRemovePrefDependency: true,
-      hashPrefixRealTimeLookupsSamplePing: true,
-    });
-    resetRouterForTesting();
-
-    await resetPage();
-    assertTrue(page.$.safeBrowsingStandard.noCollapse);
-  });
-
-  // TODO(crbug.com/372671916): Remove test once the passwordLeakToggleMove
-  // and SBER deprecation is launched.
-  test('StandardProtectionCollapseVisibleCase1', async function() {
-    // The Standard Protection radio button should have a dropdown if any
-    // one of these flags are disabled.
-    loadTimeData.overrideValues({
-      extendedReportingRemovePrefDependency: false,
-      hashPrefixRealTimeLookupsSamplePing: true,
-    });
-    resetRouterForTesting();
-
-    await resetPage();
-    assertFalse(page.$.safeBrowsingStandard.noCollapse);
-  });
-
-  // TODO(crbug.com/372671916): Remove test once the passwordLeakToggleMove
-  // and SBER deprecation is launched.
-  test('StandardProtectionCollapseVisibleCase2', async function() {
-    // The Standard Protection radio button should have a dropdown if any
-    // one of these flags are disabled.
-    loadTimeData.overrideValues({
-      extendedReportingRemovePrefDependency: true,
-      hashPrefixRealTimeLookupsSamplePing: false,
-    });
-    resetRouterForTesting();
-
-    await resetPage();
-    assertFalse(page.$.safeBrowsingStandard.noCollapse);
-  });
-
-  // TODO(crbug.com/372671916): Remove test once the passwordLeakToggleMove
-  // and SBER deprecation is launched.
-  test('StandardProtectionCollapseVisibleCase3', async function() {
-    // The Standard Protection radio button should have a dropdown if the
-    // PasswordLeakToggleMove is disabled.
-    loadTimeData.overrideValues({
-      extendedReportingRemovePrefDependency: true,
-      hashPrefixRealTimeLookupsSamplePing: true,
-      enablePasswordLeakToggleMove: false,
-    });
-    resetRouterForTesting();
-
-    await resetPage();
-    assertFalse(page.$.safeBrowsingStandard.noCollapse);
-  });
 });
 
 async function clickCancelOnDisableSafebrowsingDialog(

@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_ASH_BOCA_ON_TASK_ON_TASK_LOCKED_SESSION_WINDOW_TRACKER_H_
 #define CHROME_BROWSER_ASH_BOCA_ON_TASK_ON_TASK_LOCKED_SESSION_WINDOW_TRACKER_H_
 
+#include <memory>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/memory/weak_ptr.h"
@@ -12,19 +14,24 @@
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chromeos/ash/components/boca/on_task/on_task_blocklist.h"
 #include "chromeos/ash/components/boca/on_task/on_task_notifications_manager.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 
 class Browser;
-class BrowserList;
 
 namespace ash::boca {
 class BocaWindowObserver;
+}
+
+namespace ash {
+class OnTaskPodController;
 }
 
 // This class is used to track the windows and tabs that are opened in the
@@ -39,12 +46,13 @@ class BocaWindowObserver;
 class LockedSessionWindowTracker : public KeyedService,
                                    public TabStripModelObserver,
                                    public BrowserListObserver,
+                                   public ImmersiveModeController::Observer,
                                    public content::WebContentsObserver {
  public:
   static Browser* GetBrowserWithTab(content::WebContents* tab);
 
-  explicit LockedSessionWindowTracker(
-      std::unique_ptr<OnTaskBlocklist> on_task_blocklist);
+  LockedSessionWindowTracker(std::unique_ptr<OnTaskBlocklist> on_task_blocklist,
+                             content::BrowserContext* context);
   LockedSessionWindowTracker(const LockedSessionWindowTracker&) = delete;
   LockedSessionWindowTracker& operator=(const LockedSessionWindowTracker&) =
       delete;
@@ -75,6 +83,10 @@ class LockedSessionWindowTracker : public KeyedService,
   // or new tabs that are opened when a navigation
   void ObserveWebContents(content::WebContents* web_content);
 
+  // Callback triggered to configure the browsing instance and the OnTask pod
+  // when entering or exiting pause mode.
+  void OnPauseModeChanged(bool paused);
+
   bool can_start_navigation_throttle() {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     return can_start_navigation_throttle_;
@@ -90,6 +102,7 @@ class LockedSessionWindowTracker : public KeyedService,
       std::unique_ptr<ash::boca::OnTaskNotificationsManager>
           notification_manager);
 
+  ash::OnTaskPodController* on_task_pod_controller();
   OnTaskBlocklist* on_task_blocklist();
   Browser* browser();
 
@@ -108,10 +121,15 @@ class LockedSessionWindowTracker : public KeyedService,
   // BrowserListObserver Implementation
   void OnBrowserClosing(Browser* browser) override;
   void OnBrowserAdded(Browser* browser) override;
+  void OnBrowserSetLastActive(Browser* browser) override;
 
   // content::WebContentsObserver Impl
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
+
+  // ImmersiveModeController::Observer:
+  void OnImmersiveRevealStarted() override;
+  void OnImmersiveModeControllerDestroyed() override;
 
   void MaybeCloseWebContents(base::WeakPtr<content::WebContents> weak_tab_ptr);
   void MaybeCloseBrowser(base::WeakPtr<Browser> weak_browser_ptr);
@@ -122,11 +140,13 @@ class LockedSessionWindowTracker : public KeyedService,
   bool can_start_navigation_throttle_ = true;
   bool oauth_in_progress_ = false;
   const std::unique_ptr<OnTaskBlocklist> on_task_blocklist_;
+  const bool is_consumer_profile_;
   std::unique_ptr<ash::boca::OnTaskNotificationsManager> notifications_manager_;
+  std::unique_ptr<ash::OnTaskPodController> on_task_pod_controller_;
   raw_ptr<Browser> browser_ = nullptr;
 
-  base::ScopedObservation<BrowserList, BrowserListObserver>
-      browser_list_observation_{this};
+  base::ScopedObservation<ImmersiveModeController, LockedSessionWindowTracker>
+      immersive_mode_controller_observation_{this};
   base::ObserverList<ash::boca::BocaWindowObserver> observers_;
 
   base::WeakPtrFactory<LockedSessionWindowTracker> weak_pointer_factory_{this};

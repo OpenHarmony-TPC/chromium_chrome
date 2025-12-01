@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "chrome/browser/error_reporting/chrome_js_error_report_processor.h"
 
 #include <utility>
@@ -27,6 +22,7 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
+#include "services/network/public/mojom/fetch_api.mojom-shared.h"
 #include "url/gurl.h"
 
 namespace {
@@ -119,6 +115,7 @@ void ChromeJsErrorReportProcessor::SendReport(
   auto resource_request = std::make_unique<network::ResourceRequest>();
   resource_request->method = "POST";
   resource_request->url = url;
+  resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
 
   const auto traffic_annotation =
       net::DefineNetworkTrafficAnnotation("javascript_report_error", R"(

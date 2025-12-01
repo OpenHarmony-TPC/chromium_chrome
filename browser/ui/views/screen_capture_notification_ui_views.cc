@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/ui/screen_capture_notification_ui.h"
-
 #include <memory>
 
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_multi_source_observation.h"
+#include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
+#include "chrome/browser/ui/screen_capture_notification_ui.h"
 #include "chrome/browser/ui/views/chrome_views_export.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
@@ -45,17 +44,19 @@
 #include "ui/views/win/hwnd_util.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/shell.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/window/window_common.h"
+#include "ohos/adapter/xcomponent/adapter/window_adapter.h"
 #endif
 
 namespace {
 
 const int kHorizontalMargin = 10;
 const float kWindowAlphaValue = 0.96f;
-#if BUILDFLAG(IS_OHOS)
-const gfx::Size kOhosMinimumWindowSize = gfx::Size(300, 90);
-#endif
 
 // A ClientView that overrides NonClientHitTest() so that the whole window area
 // acts as a window caption, except a rect specified using SetClientRect().
@@ -66,16 +67,16 @@ class NotificationBarClientView : public views::ClientView {
 
  public:
   NotificationBarClientView(views::Widget* widget, views::View* view)
-      : views::ClientView(widget, view) {
-  }
+      : views::ClientView(widget, view) {}
   NotificationBarClientView(const NotificationBarClientView&) = delete;
   NotificationBarClientView& operator=(const NotificationBarClientView&) =
       delete;
   ~NotificationBarClientView() override = default;
 
   void SetClientRect(const gfx::Rect& rect) {
-    if (rect_ == rect)
+    if (rect_ == rect) {
       return;
+    }
     rect_ = rect;
     OnPropertyChanged(&rect_, views::kPropertyEffectsNone);
   }
@@ -83,11 +84,13 @@ class NotificationBarClientView : public views::ClientView {
 
   // views::ClientView:
   int NonClientHitTest(const gfx::Point& point) override {
-    if (!bounds().Contains(point))
+    if (!bounds().Contains(point)) {
       return HTNOWHERE;
+    }
     // The whole window is HTCAPTION, except the |rect_|.
-    if (rect_.Contains(gfx::PointAtOffsetFromOrigin(point - origin())))
+    if (rect_.Contains(gfx::PointAtOffsetFromOrigin(point - origin()))) {
       return HTCLIENT;
+    }
 
     return HTCAPTION;
   }
@@ -99,6 +102,8 @@ class NotificationBarClientView : public views::ClientView {
 BEGIN_METADATA(NotificationBarClientView)
 ADD_PROPERTY_METADATA(gfx::Rect, ClientRect)
 END_METADATA
+
+}  // namespace
 
 class ScreenCaptureNotificationUIViews : public views::WidgetDelegateView,
                                          public views::ViewObserver {
@@ -121,11 +126,6 @@ class ScreenCaptureNotificationUIViews : public views::WidgetDelegateView,
   std::unique_ptr<views::NonClientFrameView> CreateNonClientFrameView(
       views::Widget* widget) override;
 
-#if BUILDFLAG(IS_OHOS)
-  gfx::Size CalculatePreferredSize(
-      const views::SizeBounds& available_size) const override;
-#endif
-
   // views::ViewObserver:
   void OnViewBoundsChanged(views::View* observed_view) override;
   void OnViewIsDeleting(views::View* observed_view) override;
@@ -147,34 +147,6 @@ class ScreenCaptureNotificationUIViews : public views::WidgetDelegateView,
   raw_ptr<views::View> hide_link_ = nullptr;
 };
 
-// ScreenCaptureNotificationUI implementation using Views.
-class ScreenCaptureNotificationUIImpl : public ScreenCaptureNotificationUI {
- public:
-  ScreenCaptureNotificationUIImpl(const std::u16string& text,
-                                  content::WebContents* capturing_web_contents);
-  ScreenCaptureNotificationUIImpl(const ScreenCaptureNotificationUIImpl&) =
-      delete;
-  ScreenCaptureNotificationUIImpl& operator=(
-      const ScreenCaptureNotificationUIImpl&) = delete;
-  ~ScreenCaptureNotificationUIImpl() override = default;
-
-  // ScreenCaptureNotificationUI override:
-  gfx::NativeViewId OnStarted(
-      base::OnceClosure stop_callback,
-      content::MediaStreamUI::SourceCallback source_callback,
-      const std::vector<content::DesktopMediaID>& media_ids) override;
-
- private:
-  // Helper to set window id to parent browser window id for task bar grouping.
-#if BUILDFLAG(IS_WIN)
-  void SetWindowsAppId(views::Widget* widget);
-#endif
-
-  std::u16string text_;
-  base::WeakPtr<content::WebContents> capturing_web_contents_;
-  std::unique_ptr<views::Widget> widget_;
-};
-
 ScreenCaptureNotificationUIViews::ScreenCaptureNotificationUIViews(
     const std::u16string& text,
     content::WebContents* capturing_web_contents,
@@ -189,8 +161,8 @@ ScreenCaptureNotificationUIViews::ScreenCaptureNotificationUIViews(
   SetShowTitle(false);
   SetTitle(text);
 
-  SetOwnedByWidget(false);
   RegisterDeleteDelegateCallback(
+      RegisterDeleteCallbackPassKey(),
       base::BindOnce(&ScreenCaptureNotificationUIViews::NotifyStopped,
                      base::Unretained(this)));
 
@@ -243,7 +215,7 @@ ScreenCaptureNotificationUIViews::ScreenCaptureNotificationUIViews(
   view_observations_.AddObservation(stop_button_.get());
   view_observations_.AddObservation(hide_link_.get());
 
-  SetBackground(views::CreateThemedSolidBackground(ui::kColorDialogBackground));
+  SetBackground(views::CreateSolidBackground(ui::kColorDialogBackground));
 }
 
 ScreenCaptureNotificationUIViews::~ScreenCaptureNotificationUIViews() {
@@ -275,16 +247,6 @@ ScreenCaptureNotificationUIViews::CreateNonClientFrameView(
 #endif
   return frame;
 }
-
-#if BUILDFLAG(IS_OHOS)
-gfx::Size ScreenCaptureNotificationUIViews::CalculatePreferredSize(
-    const views::SizeBounds& available_size) const {
-  auto preferred_size = View::CalculatePreferredSize(available_size);
-  return gfx::Size{
-      std::max(preferred_size.width(), kOhosMinimumWindowSize.width()),
-      std::max(preferred_size.height(), kOhosMinimumWindowSize.height())};
-}
-#endif
 
 void ScreenCaptureNotificationUIViews::OnViewBoundsChanged(
     views::View* observed_view) {
@@ -323,6 +285,36 @@ void ScreenCaptureNotificationUIViews::NotifyStopped() {
 BEGIN_METADATA(ScreenCaptureNotificationUIViews)
 END_METADATA
 
+namespace {
+
+// ScreenCaptureNotificationUI implementation using Views.
+class ScreenCaptureNotificationUIImpl : public ScreenCaptureNotificationUI {
+ public:
+  ScreenCaptureNotificationUIImpl(const std::u16string& text,
+                                  content::WebContents* capturing_web_contents);
+  ScreenCaptureNotificationUIImpl(const ScreenCaptureNotificationUIImpl&) =
+      delete;
+  ScreenCaptureNotificationUIImpl& operator=(
+      const ScreenCaptureNotificationUIImpl&) = delete;
+  ~ScreenCaptureNotificationUIImpl() override = default;
+
+  // ScreenCaptureNotificationUI override:
+  gfx::NativeViewId OnStarted(
+      base::OnceClosure stop_callback,
+      content::MediaStreamUI::SourceCallback source_callback,
+      const std::vector<content::DesktopMediaID>& media_ids) override;
+
+ private:
+  // Helper to set window id to parent browser window id for task bar grouping.
+#if BUILDFLAG(IS_WIN)
+  void SetWindowsAppId(views::Widget* widget);
+#endif
+
+  std::u16string text_;
+  base::WeakPtr<content::WebContents> capturing_web_contents_;
+  std::unique_ptr<views::Widget> widget_;
+};
+
 ScreenCaptureNotificationUIImpl::ScreenCaptureNotificationUIImpl(
     const std::u16string& text,
     content::WebContents* capturing_web_contents)
@@ -356,10 +348,9 @@ gfx::NativeViewId ScreenCaptureNotificationUIImpl::OnStarted(
 
 #if BUILDFLAG(IS_OHOS)
   params.caption_button_visible = false;
-  params.is_stateless = true;
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // TODO(sergeyu): The notification bar must be shown on the monitor that's
   // being captured. Make sure it's always the case. Currently we always capture
   // the primary monitor.
@@ -376,6 +367,19 @@ gfx::NativeViewId ScreenCaptureNotificationUIImpl::OnStarted(
 
   // Place the bar in the center of the bottom of the display.
   gfx::Size size = widget_->non_client_view()->GetPreferredSize();
+#if BUILDFLAG(IS_OHOS)
+  ohos::adapter::window::WindowLimits window_limits =
+      ohos::adapter::xcomponent::WindowAdapter::GetInstance()
+          .GetSystemWindowLimits();
+  gfx::Size min_window_size =
+      gfx::Size(window_limits.min_width, window_limits.min_height);
+  size.SetToMax(min_window_size);
+  if (widget_->GetNativeWindow()) {
+    display::Display current_display =
+        screen->GetDisplayNearestWindow(widget_->GetNativeWindow());
+    work_area = current_display.work_area();
+  }
+#endif
   gfx::Rect bounds(work_area.x() + work_area.width() / 2 - size.width() / 2,
                    work_area.y() + work_area.height() - size.height(),
                    size.width(), size.height());

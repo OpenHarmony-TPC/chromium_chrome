@@ -6,10 +6,11 @@
 #define CHROME_BROWSER_UI_AUTOFILL_PAYMENTS_FILLED_CARD_INFORMATION_BUBBLE_CONTROLLER_H_
 
 #include <string>
+#include <utility>
 
 #include "components/autofill/core/browser/ui/payments/payments_ui_closed_reasons.h"
 #include "content/public/browser/web_contents.h"
-#include "ui/gfx/image/image.h"
+#include "ui/base/models/image_model.h"
 
 namespace autofill {
 
@@ -62,9 +63,9 @@ class FilledCardInformationBubbleController {
   virtual const FilledCardInformationBubbleOptions& GetBubbleOptions()
       const = 0;
 
-  // Returns the text used to show that the card entity in the bubble is a
-  // virtual card.
-  virtual std::u16string GetVirtualCardIndicatorLabel() const = 0;
+  // Returns 'Virtual Card' if it is a virtual card, returns expiration date if
+  // it is a server card.
+  virtual std::u16string GetCardIndicatorLabel() const = 0;
 
   // Returns the text used in the learn more link.
   virtual std::u16string GetLearnMoreLinkText() const = 0;
@@ -101,10 +102,26 @@ class FilledCardInformationBubbleController {
   virtual void OnBubbleClosed(PaymentsUiClosedReason closed_reason) = 0;
 
   // Handles the event on the learn more link being clicked.
-  virtual void OnLinkClicked(const GURL& url) = 0;
+  virtual void OnLinkClicked() = 0;
 
   // Handles the event of clicking the |field|'s button.
   virtual void OnFieldClicked(FilledCardInformationBubbleField field) = 0;
+
+  // Returns whether the Google Pay icon should be shown in the bubble title.
+  virtual bool ShouldShowGooglePayIconInTitle() const = 0;
+
+  // Returns the masked card name to display in the description view of the
+  // bubble.
+  virtual std::u16string GetMaskedCardNameForDescriptionView() const = 0;
+
+  // Returns a pair of images to display in the description view of the bubble.
+  // The first is the image to be shown for light themes, and the second is an
+  // optional image to be shown for dark themes.
+  virtual std::pair<ui::ImageModel, std::optional<ui::ImageModel>>
+  GetCardImageForDescriptionView() const = 0;
+
+  // Returns whether the educational body includes a learn more link.
+  virtual bool EducationalBodyHasLearnMoreLink() const = 0;
 };
 
 }  // namespace autofill

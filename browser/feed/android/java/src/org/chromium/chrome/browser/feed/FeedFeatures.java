@@ -4,11 +4,13 @@
 
 package org.chromium.chrome.browser.feed;
 
-import androidx.annotation.NonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
 
 import org.chromium.base.CommandLine;
 import org.chromium.base.LocaleUtils;
 import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feed.componentinterfaces.SurfaceCoordinator.StreamTabId;
 import org.chromium.chrome.browser.feed.webfeed.WebFeedBridge;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -22,10 +24,11 @@ import org.chromium.components.user_prefs.UserPrefs;
 import java.util.concurrent.TimeUnit;
 
 /** Helper methods covering more complex Feed related feature checks and states. */
+@NullMarked
 public final class FeedFeatures {
     private static final long ONE_DAY_DELTA_MILLIS = TimeUnit.DAYS.toMillis(1L);
 
-    private static PrefService sFakePrefServiceForTest;
+    private static @Nullable PrefService sFakePrefServiceForTest;
 
     /**
      * @param profile the profile of the current user.
@@ -41,13 +44,12 @@ public final class FeedFeatures {
      * @return Whether the WebFeed UI should be enabled. Checks for the WEB_FEED flag, if the user
      *     is signed in and confirms it's not a child profile.
      */
-    public static boolean isWebFeedUIEnabled(@NonNull Profile profile) {
+    public static boolean isWebFeedUIEnabled(Profile profile) {
         // TODO(b/197354832, b/188188861): change consent check to SIGNIN.
         boolean isPrimaryAccountSignedIn = false;
         if (IdentityServicesProvider.get().getSigninManager(profile) != null) {
             isPrimaryAccountSignedIn =
-                    IdentityServicesProvider.get()
-                            .getSigninManager(profile)
+                    assumeNonNull(IdentityServicesProvider.get().getSigninManager(profile))
                             .getIdentityManager()
                             .hasPrimaryAccount(ConsentLevel.SIGNIN);
         }
@@ -152,9 +154,5 @@ public final class FeedFeatures {
         // called before getFeedTabIdToRestore, the value set here is taken into account in by the
         // latter at least for some of the restore logic atlernatives.
         getPrefService(profile).setInteger(Pref.LAST_SEEN_FEED_TYPE, tabId);
-    }
-
-    private static @StreamTabId int getLastSeenFeedTabId(Profile profile) {
-        return getPrefService(profile).getInteger(Pref.LAST_SEEN_FEED_TYPE);
     }
 }

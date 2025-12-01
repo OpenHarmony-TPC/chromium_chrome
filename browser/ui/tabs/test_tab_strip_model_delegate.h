@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_TABS_TEST_TAB_STRIP_MODEL_DELEGATE_H_
 
 #include <optional>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
@@ -44,6 +45,7 @@ class TestTabStripModelDelegate : public TabStripModelDelegate {
   bool CanDuplicateContentsAt(int index) override;
   bool IsTabStripEditable() override;
   void DuplicateContentsAt(int index) override;
+  void DuplicateSplit(split_tabs::SplitTabId split) override;
   void MoveToExistingWindow(const std::vector<int>& indices,
                             int browser_index) override;
   bool CanMoveTabsToWindow(const std::vector<int>& indices) override;
@@ -60,7 +62,7 @@ class TestTabStripModelDelegate : public TabStripModelDelegate {
   bool RunUnloadListenerBeforeClosing(content::WebContents* contents) override;
   bool ShouldDisplayFavicon(content::WebContents* web_contents) const override;
   bool CanReload() const override;
-  void AddToReadLater(content::WebContents* web_contents) override;
+  void AddToReadLater(std::vector<content::WebContents*> web_contents) override;
   bool SupportsReadLater() override;
   bool IsForWebApp() override;
   void CopyURL(content::WebContents* web_contents) override;
@@ -68,9 +70,10 @@ class TestTabStripModelDelegate : public TabStripModelDelegate {
   bool CanGoBack(content::WebContents* web_contents) override;
   bool IsNormalWindow() override;
   BrowserWindowInterface* GetBrowserWindowInterface() override;
+  void NewSplitTab(std::vector<int> indices) override;
   void OnGroupsDestruction(const std::vector<tab_groups::TabGroupId>& group_ids,
                            base::OnceCallback<void()> callback,
-                           bool is_bulk_operation) override;
+                           bool delete_groups) override;
   void OnRemovingAllTabsFromGroups(
       const std::vector<tab_groups::TabGroupId>& group_ids,
       base::OnceCallback<void()> callback) override;

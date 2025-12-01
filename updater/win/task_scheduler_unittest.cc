@@ -490,8 +490,8 @@ TEST(TaskSchedulerTest, NoSubfolders) {
       GetUpdaterScopeForTesting(), /*use_task_subfolders=*/false);
   ASSERT_TRUE(task_scheduler);
 
-  constexpr int kNumTasks = 6;
-  const std::wstring kTaskNamePrefix(base::ASCIIToWide(test::GetTestName()));
+  static constexpr int kNumTasks = 6;
+  const std::wstring kTaskNamePrefix(base::UTF8ToWide(test::GetTestName()));
 
   for (int count = 0; count < kNumTasks; ++count) {
     std::wstring task_name(kTaskNamePrefix);
@@ -512,8 +512,8 @@ TEST(TaskSchedulerTest, ForEachTaskWithPrefix) {
         GetUpdaterScopeForTesting(), use_task_subfolders);
     ASSERT_TRUE(task_scheduler);
 
-    constexpr int kNumTasks = 6;
-    const std::wstring kTaskNamePrefix(base::ASCIIToWide(test::GetTestName()));
+    static constexpr int kNumTasks = 6;
+    const std::wstring kTaskNamePrefix(base::UTF8ToWide(test::GetTestName()));
 
     for (int count = 0; count < kNumTasks; ++count) {
       std::wstring task_name(kTaskNamePrefix);

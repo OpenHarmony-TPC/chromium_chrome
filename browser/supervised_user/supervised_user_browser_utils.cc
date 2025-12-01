@@ -36,7 +36,7 @@
 #include "google_apis/gaia/core_account_id.h"
 #include "url/url_constants.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_type.h"
@@ -50,7 +50,7 @@
 namespace supervised_user {
 
 bool IsSupportedChromeExtensionURL(const GURL& effective_url) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   static const char* const kCrxDownloadUrls[] = {
       "https://clients2.googleusercontent.com/crx/blobs/",
       "https://chrome.google.com/webstore/download/"};
@@ -86,32 +86,25 @@ bool IsSupportedChromeExtensionURL(const GURL& effective_url) {
   return false;
 #else
   return false;
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
 
 bool SupervisedUserCanSkipExtensionParentApprovals(const Profile* profile) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   return profile->IsChild() &&
-         IsSupervisedUserSkipParentApprovalToInstallExtensionsEnabled() &&
          profile->GetPrefs()->GetBoolean(
              prefs::kSkipParentApprovalToInstallExtensions);
 #else
   return false;
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
 
 bool AreExtensionsPermissionsEnabled(Profile* profile) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   return profile->IsChild();
 #else
-  return profile->IsChild() &&
-         base::FeatureList::IsEnabled(
-             kEnableExtensionsPermissionsForSupervisedUsersOnDesktop);
-#endif  // BUILDFLAG(IS_CHROMEOS)
-#else
   return false;
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
 
 bool ShouldContentSkipParentAllowlistFiltering(content::WebContents* contents) {
@@ -125,18 +118,25 @@ bool ShouldContentSkipParentAllowlistFiltering(content::WebContents* contents) {
 }
 
 ProfileSelections BuildProfileSelectionsForRegularAndGuest() {
+#if BUILDFLAG(IS_CHROMEOS)
+  return ProfileSelections::Builder()
+      .WithRegular(ProfileSelection::kRedirectedToOriginal)
+      .WithGuest(ProfileSelection::kOwnInstance)
+      // TODO(crbug.com/41488885): Check if this is needed for Ash Internals.
+      .WithAshInternals(ProfileSelection::kOriginalOnly)
+      .Build();
+#else
   // Do not create for Incognito profile.
   return ProfileSelections::Builder()
       .WithRegular(ProfileSelection::kOriginalOnly)
       .WithGuest(ProfileSelection::kRedirectedToOriginal)
-      // TODO(crbug.com/41488885): Check if this is needed for Ash Internals.
-      .WithAshInternals(ProfileSelection::kOriginalOnly)
       .Build();
+#endif
 }
 
 std::string GetAccountGivenName(Profile& profile) {
   signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(&profile);
+      IdentityManagerFactory::GetForProfile(profile.GetOriginalProfile());
   CHECK(identity_manager);
 
   const CoreAccountInfo core_info =
@@ -147,7 +147,7 @@ std::string GetAccountGivenName(Profile& profile) {
 }
 
 void AssertChildStatusOfTheUser(Profile* profile, bool is_child) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   user_manager::User* user =
       ash::ProfileHelper::Get()->GetUserByProfile(profile);
   if (user && is_child != (user->GetType() == user_manager::UserType::kChild)) {
@@ -196,7 +196,7 @@ std::string CreateReauthenticationInterstitialForBlockedSites(
   supervised_user::SupervisedUserService* supervised_user_service =
       SupervisedUserServiceFactory::GetForProfile(profile);
   bool has_second_custodian =
-      !supervised_user_service->GetSecondCustodianName().empty();
+      supervised_user_service->GetSecondCustodian().has_value();
   GURL request_url = navigation_handle.GetURL();
   bool is_main_frame = navigation_handle.GetNavigatingFrameType() ==
                        content::FrameType::kPrimaryMainFrame;

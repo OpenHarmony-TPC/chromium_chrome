@@ -36,10 +36,11 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
+#include "chrome/test/base/scoped_testing_local_state.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/image_fetcher/core/mock_image_decoder.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
-#include "components/optimization_guide/core/model_quality/feature_type_map.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
 #include "components/optimization_guide/core/model_quality/test_model_quality_logs_uploader_service.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
@@ -132,9 +133,8 @@ class MockWallpaperSearchStringMap : public WallpaperSearchStringMap {
 };
 
 std::unique_ptr<TestingProfile> MakeTestingProfile(
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-    TestingPrefServiceSimple* local_state) {
-  MockOptimizationGuideKeyedService::Initialize(local_state);
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
+  MockOptimizationGuideKeyedService::InitializeWithExistingTestLocalState();
   TestingProfile::Builder profile_builder;
   profile_builder.AddTestingFactory(
       OptimizationGuideKeyedServiceFactory::GetInstance(),
@@ -156,9 +156,7 @@ class WallpaperSearchHandlerTest : public testing::Test {
  public:
   WallpaperSearchHandlerTest()
       : profile_(
-            MakeTestingProfile(test_url_loader_factory_.GetSafeWeakWrapper(),
-                               &local_state_)),
-        logs_uploader_(&local_state_),
+            MakeTestingProfile(test_url_loader_factory_.GetSafeWeakWrapper())),
         mock_optimization_guide_keyed_service_(
             static_cast<MockOptimizationGuideKeyedService*>(
                 OptimizationGuideKeyedServiceFactory::GetForProfile(
@@ -180,10 +178,17 @@ class WallpaperSearchHandlerTest : public testing::Test {
                               optimization_guide::features::
                                   kOptimizationGuideModelExecution},
         /*disabled_features=*/{});
+
+    auto logs_uploader = std::make_unique<
+        optimization_guide::TestModelQualityLogsUploaderService>(
+        scoped_testing_local_state_.Get());
+    mock_optimization_guide_keyed_service_
+        ->SetModelQualityLogsUploaderServiceForTesting(
+            std::move(logs_uploader));
   }
 
   void TearDown() override {
-    MockOptimizationGuideKeyedService::TearDown();
+    MockOptimizationGuideKeyedService::ResetForTesting();
     test_url_loader_factory_.ClearResponses();
   }
 
@@ -260,11 +265,18 @@ class WallpaperSearchHandlerTest : public testing::Test {
   }
 
   std::unique_ptr<ModelQualityLogEntry> ModelQuality() {
-    return std::make_unique<ModelQualityLogEntry>(logs_uploader_.GetWeakPtr());
+    return std::make_unique<ModelQualityLogEntry>(
+        mock_optimization_guide_keyed_service_
+            ->GetModelQualityLogsUploaderService()
+            ->GetWeakPtr());
   }
 
   const std::vector<std::unique_ptr<LogAiDataRequest>>& uploaded_logs() {
-    return logs_uploader_.uploaded_logs();
+    return static_cast<
+               optimization_guide::TestModelQualityLogsUploaderService*>(
+               mock_optimization_guide_keyed_service_
+                   ->GetModelQualityLogsUploaderService())
+        ->uploaded_logs();
   }
 
   base::HistogramTester& histogram_tester() { return histogram_tester_; }
@@ -296,11 +308,11 @@ class WallpaperSearchHandlerTest : public testing::Test {
   // NOTE: The initialization order of these members matters.
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  ScopedTestingLocalState scoped_testing_local_state_{
+      TestingBrowserProcess::GetGlobal()};
   network::TestURLLoaderFactory test_url_loader_factory_;
-  TestingPrefServiceSimple local_state_;
   std::unique_ptr<TestingProfile> profile_;
   base::test::ScopedFeatureList feature_list_;
-  optimization_guide::TestModelQualityLogsUploaderService logs_uploader_;
   raw_ptr<MockOptimizationGuideKeyedService>
       mock_optimization_guide_keyed_service_;
   image_fetcher::MockImageDecoder mock_image_decoder_;
@@ -735,7 +747,8 @@ TEST_F(WallpaperSearchHandlerTest, GetWallpaperSearchResults_Success) {
   response.SerializeToString(&serialized_metadata);
   optimization_guide::proto::Any result;
   result.set_value(serialized_metadata);
-  result.set_type_url("type.googleapis.com/" + response.GetTypeName());
+  result.set_type_url(
+      base::StrCat({"type.googleapis.com/", response.GetTypeName()}));
 
   std::vector<side_panel::customize_chrome::mojom::WallpaperSearchResultPtr>
       images;
@@ -845,7 +858,8 @@ TEST_F(WallpaperSearchHandlerTest, GetWallpaperSearchResults_MultipleRequests) {
   response1.SerializeToString(&serialized_metadata1);
   optimization_guide::proto::Any result1;
   result1.set_value(serialized_metadata1);
-  result1.set_type_url("type.googleapis.com/" + response1.GetTypeName());
+  result1.set_type_url(
+      base::StrCat({"type.googleapis.com/", response1.GetTypeName()}));
 
   std::vector<side_panel::customize_chrome::mojom::WallpaperSearchResultPtr>
       images1;
@@ -909,7 +923,8 @@ TEST_F(WallpaperSearchHandlerTest, GetWallpaperSearchResults_MultipleRequests) {
   response2.SerializeToString(&serialized_metadata2);
   optimization_guide::proto::Any result2;
   result2.set_value(serialized_metadata2);
-  result2.set_type_url("type.googleapis.com/" + response2.GetTypeName());
+  result2.set_type_url(
+      base::StrCat({"type.googleapis.com/", response2.GetTypeName()}));
 
   std::vector<side_panel::customize_chrome::mojom::WallpaperSearchResultPtr>
       images2;
@@ -1141,7 +1156,8 @@ TEST_F(WallpaperSearchHandlerTest, GetWallpaperSearchResults_NoImages) {
   response.SerializeToString(&serialized_metadata);
   optimization_guide::proto::Any result;
   result.set_value(serialized_metadata);
-  result.set_type_url("type.googleapis.com/" + response.GetTypeName());
+  result.set_type_url(
+      base::StrCat({"type.googleapis.com/", response.GetTypeName()}));
 
   std::vector<side_panel::customize_chrome::mojom::WallpaperSearchResultPtr>
       images;
@@ -1439,7 +1455,8 @@ TEST_F(WallpaperSearchHandlerTest, SetBackgroundToWallpaperSearchResult) {
   response.SerializeToString(&serialized_metadata);
   optimization_guide::proto::Any result;
   result.set_value(serialized_metadata);
-  result.set_type_url("type.googleapis.com/" + response.GetTypeName());
+  result.set_type_url(
+      base::StrCat({"type.googleapis.com/", response.GetTypeName()}));
 
   std::vector<side_panel::customize_chrome::mojom::WallpaperSearchResultPtr>
       images;
@@ -1574,15 +1591,15 @@ TEST_F(WallpaperSearchHandlerTest, SetUserFeedback) {
   response1.SerializeToString(&serialized_metadata1);
   optimization_guide::proto::Any result1;
   result1.set_value(serialized_metadata1);
-  result1.set_type_url("type.googleapis.com/" + response1.GetTypeName());
+  result1.set_type_url(
+      base::StrCat({"type.googleapis.com/", response1.GetTypeName()}));
   std::move(done_callback1)
       .Run(optimization_guide::OptimizationGuideModelExecutionResult(
                base::ok(result1), nullptr),
            ModelQuality());
 #if BUILDFLAG(IS_CHROMEOS)
-  // The feedback dialog on CrOS & LaCrOS happens at the system level.
-  // This can cause the unittest to crash. LaCrOS has a separate feedback
-  // browser test which gives us some coverage.
+  // The feedback dialog on CrOS happens at the system level. This can cause the
+  // unittest to crash.
   handler->SkipShowFeedbackPageForTesting(true);
 #endif  // BUILDFLAG(IS_CHROMEOS)
   handler->SetUserFeedback(
@@ -1622,7 +1639,8 @@ TEST_F(WallpaperSearchHandlerTest, SetUserFeedback) {
   response2.SerializeToString(&serialized_metadata2);
   optimization_guide::proto::Any result2;
   result2.set_value(serialized_metadata2);
-  result2.set_type_url("type.googleapis.com/" + response2.GetTypeName());
+  result2.set_type_url(
+      base::StrCat({"type.googleapis.com/", response2.GetTypeName()}));
 
   std::move(done_callback2)
       .Run(optimization_guide::OptimizationGuideModelExecutionResult(
@@ -1656,7 +1674,7 @@ TEST_F(WallpaperSearchHandlerTest, LaunchHatsSurvey) {
       },
       {});
   EXPECT_CALL(mock_hats_service(),
-              LaunchSurvey(kHatsSurveyTriggerWallpaperSearch, _, _, _, _))
+              LaunchSurvey(kHatsSurveyTriggerWallpaperSearch, _, _, _, _, _, _))
       .Times(1);
   auto handler = MakeHandler(/*session_id=*/123);
   handler->LaunchHatsSurvey();

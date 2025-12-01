@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/files/scoped_temp_dir.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "chrome/browser/ash/app_list/search/local_image_search/image_annotation_worker.h"
@@ -16,6 +17,7 @@
 #include "search_utils.h"
 #include "sql/statement.h"
 #include "sql/statement_id.h"
+#include "sql/test/test_helpers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -552,7 +554,7 @@ TEST_F(AnnotationStorageTest, SchemaMigration) {
   storage_.reset();
 
   auto sql_database = std::make_unique<SqlDatabase>(
-      test_directory_.AppendASCII("test.db"), /*histogram_tag=*/"test",
+      test_directory_.AppendASCII("test.db"), sql::test::kTestTag,
       /*current_version_number=*/2, base::BindRepeating(CreateOldTestSchema),
       base::BindRepeating([](SqlDatabase* db, int current_version_number) {
         return current_version_number;

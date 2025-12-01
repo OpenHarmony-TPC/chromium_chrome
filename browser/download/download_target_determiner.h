@@ -150,6 +150,7 @@ class DownloadTargetDeterminer : public download::DownloadItem::Observer {
     STATE_PROMPT_USER_FOR_DOWNLOAD_PATH,
     STATE_DETERMINE_LOCAL_PATH,
     STATE_DETERMINE_MIME_TYPE,
+    STATE_DETERMINE_INSTALLATION_PACKAGE,
     STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER,
     STATE_CHECK_DOWNLOAD_URL,
 #if BUILDFLAG(IS_ANDROID)
@@ -286,7 +287,10 @@ class DownloadTargetDeterminer : public download::DownloadItem::Observer {
   // Next state:
   // - STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER.
   Result DoDetermineMimeType();
-
+#if BUILDFLAG(IS_OHOS)
+  Result DoDetermineInstallationPackage();
+  void DetermineInstallationPackageDone(bool continue_download);
+#endif
   // Callback invoked when the MIME type is available. Since determination of
   // the MIME type can involve disk access, it is done in the blocking pool.
   void DetermineMimeTypeDone(const std::string& mime_type);

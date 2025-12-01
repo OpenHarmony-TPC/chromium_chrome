@@ -7,6 +7,8 @@
 
 #include "chrome/installer/util/install_util.h"
 
+#include <windows.h>
+
 #include <shellapi.h>
 #include <shlobj.h>
 
@@ -338,7 +340,7 @@ bool InstallUtil::IsStartMenuShortcutWithActivatorGuidInstalled() {
 bool InstallUtil::IsRunningAsInteractiveUser() {
   // Get the SID for interactive user.
   DWORD sid_size = SECURITY_MAX_SID_SIZE;
-  uint8_t sid_bytes[SECURITY_MAX_SID_SIZE] = {0};
+  uint8_t sid_bytes[SECURITY_MAX_SID_SIZE] = {};
   SID* interactive_sid = reinterpret_cast<SID*>(sid_bytes);
   if (!::CreateWellKnownSid(WinInteractiveSid, nullptr, interactive_sid,
                             &sid_size)) {
@@ -411,7 +413,7 @@ void InstallUtil::AppendModeAndChannelSwitches(
 // static
 std::wstring InstallUtil::GetCurrentDate() {
   static const wchar_t kDateFormat[] = L"yyyyMMdd";
-  wchar_t date_str[std::size(kDateFormat)] = {0};
+  wchar_t date_str[std::size(kDateFormat)] = {};
   int len = GetDateFormatW(LOCALE_INVARIANT, 0, nullptr, kDateFormat, date_str,
                            std::size(date_str));
   if (len) {

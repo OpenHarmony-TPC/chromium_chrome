@@ -10,9 +10,11 @@
 #include <utility>
 #include <vector>
 
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "chrome/browser/ui/ash/editor_menu/editor_menu_badge_view.h"
 #include "chrome/browser/ui/ash/editor_menu/editor_menu_chip_view.h"
 #include "chrome/browser/ui/ash/editor_menu/editor_menu_strings.h"
@@ -21,9 +23,10 @@
 #include "chrome/browser/ui/ash/editor_menu/utils/pre_target_handler.h"
 #include "chrome/browser/ui/ash/editor_menu/utils/pre_target_handler_view.h"
 #include "chrome/browser/ui/ash/editor_menu/utils/utils.h"
-#include "chromeos/components/editor_menu/public/cpp/icon.h"
-#include "chromeos/components/editor_menu/public/cpp/preset_text_query.h"
+#include "chromeos/ash/components/editor_menu/public/cpp/icon.h"
+#include "chromeos/ash/components/editor_menu/public/cpp/preset_text_query.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
+#include "components/application_locale_storage/application_locale_storage.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -90,7 +93,8 @@ const std::u16string GetEditorMenuAccessibilityName(
       text_and_image_mode == TextAndImageMode::kEditorWriteOnly) {
     return GetEditorMenuWriteCardTitle();
   }
-  if (text_and_image_mode == TextAndImageMode::kLobsterOnly) {
+  if (text_and_image_mode == TextAndImageMode::kLobsterWithNoSelectedText ||
+      text_and_image_mode == TextAndImageMode::kLobsterWithSelectedText) {
     return GetEditorMenuLobsterTitle();
   }
   return u"";
@@ -107,11 +111,14 @@ int GetChipsContainerHeightWithPaddings(int chip_height, int num_rows) {
   return total_chips_height + total_chips_paddings;
 }
 
-EditorMenuView::EditorMenuView(TextAndImageMode text_and_image_mode,
-                               const PresetTextQueries& preset_text_queries,
-                               const gfx::Rect& anchor_view_bounds,
-                               EditorMenuViewDelegate* delegate)
+EditorMenuView::EditorMenuView(
+    const ApplicationLocaleStorage* application_locale_storage,
+    TextAndImageMode text_and_image_mode,
+    const PresetTextQueries& preset_text_queries,
+    const gfx::Rect& anchor_view_bounds,
+    EditorMenuViewDelegate* delegate)
     : PreTargetHandlerView(CardType::kEditorMenu),
+      application_locale_storage_(CHECK_DEREF(application_locale_storage)),
       text_and_image_mode_(text_and_image_mode),
       delegate_(delegate) {
   CHECK(delegate_);
@@ -126,6 +133,7 @@ EditorMenuView::~EditorMenuView() = default;
 
 // static
 std::unique_ptr<views::Widget> EditorMenuView::CreateWidget(
+    const ApplicationLocaleStorage* application_locale_storage,
     TextAndImageMode text_and_image_mode,
     const PresetTextQueries& preset_text_queries,
     const gfx::Rect& anchor_view_bounds,
@@ -143,9 +151,10 @@ std::unique_ptr<views::Widget> EditorMenuView::CreateWidget(
   params.name = kWidgetName;
 
   auto widget = std::make_unique<views::Widget>(std::move(params));
-  EditorMenuView* editor_menu_view = widget->SetContentsView(
-      std::make_unique<EditorMenuView>(text_and_image_mode, preset_text_queries,
-                                       anchor_view_bounds, delegate));
+  EditorMenuView* editor_menu_view =
+      widget->SetContentsView(std::make_unique<EditorMenuView>(
+          application_locale_storage, text_and_image_mode, preset_text_queries,
+          anchor_view_bounds, delegate));
   editor_menu_view->UpdateBounds(anchor_view_bounds);
 
   return widget;
@@ -158,7 +167,17 @@ void EditorMenuView::AddedToWidget() {
 
 void EditorMenuView::RequestFocus() {
   views::View::RequestFocus();
-  settings_button_->RequestFocus();
+
+  // Focus on first chip if there is any; otherwise focus on the prompt text
+  // field.
+  if (!chips_container_->children().empty()) {
+    auto first_chips_row = chips_container_->children().front();
+    if (!first_chips_row->children().empty()) {
+      first_chips_row->children().front()->RequestFocus();
+      return;
+    }
+  }
+  textfield_->textfield()->RequestFocus();
 }
 
 gfx::Size EditorMenuView::CalculatePreferredSize(
@@ -225,11 +244,16 @@ void EditorMenuView::OnWidgetVisibilityChanged(views::Widget* widget,
 
 void EditorMenuView::TabSelectedAt(int index) {
   CHECK(delegate_);
+  textfield_->textfield()->SetPlaceholderText(
+      index == 1
+          ? GetEditorMenuFreeformPromptInputFieldPlaceholderForLobster()
+          : GetEditorMenuFreeformPromptInputFieldPlaceholderForHelpMeWrite());
   delegate_->OnTabSelected(index);
 }
 
 void EditorMenuView::UpdateBounds(const gfx::Rect& anchor_view_bounds) {
-  gfx::Rect editor_menu_bounds = GetEditorMenuBounds(anchor_view_bounds, this);
+  gfx::Rect editor_menu_bounds = GetEditorMenuBounds(
+      anchor_view_bounds, this, application_locale_storage_->Get());
   GetWidget()->SetBounds(editor_menu_bounds);
   UpdateChipsContainer(/*editor_menu_width=*/editor_menu_bounds.width());
 }
@@ -247,8 +271,12 @@ void EditorMenuView::DisableMenu() {
   textfield_->arrow_button()->SetEnabled(false);
 }
 
+const char* EditorMenuView::GetWidgetNameForTest() {
+  return kWidgetName;
+}
+
 void EditorMenuView::InitLayout(const PresetTextQueries& preset_text_queries) {
-  SetBackground(views::CreateThemedRoundedRectBackground(
+  SetBackground(views::CreateRoundedRectBackground(
       ui::kColorPrimaryBackground,
       views::LayoutProvider::Get()->GetCornerRadiusMetric(
           views::ShapeContextTokens::kMenuRadius)));
@@ -266,12 +294,13 @@ gfx::Insets EditorMenuView::GetTitleContainerInsets() const {
     case TextAndImageMode::kEditorWriteAndLobster:
       return kTabsTitleContainerInsets;
     case TextAndImageMode::kEditorWriteOnly:
-    case TextAndImageMode::kLobsterOnly:
     case TextAndImageMode::kEditorRewriteOnly:
+    case TextAndImageMode::kLobsterWithNoSelectedText:
+    case TextAndImageMode::kLobsterWithSelectedText:
     case TextAndImageMode::kEditorRewriteAndLobster:
       return kNoTabsTitleContainerInsets;
     case TextAndImageMode::kBlocked:
-    default:
+    case TextAndImageMode::kPromoCard:
       return gfx::Insets();
   }
 }
@@ -294,24 +323,31 @@ void EditorMenuView::AddTitleContainer() {
                          std::make_unique<views::View>());
     tabbed_pane_->AddTab(GetEditorMenuLobsterTitle(),
                          std::make_unique<views::View>());
-    tabbed_pane_->set_listener(this);
+    tabbed_pane_->SetListener(this);
   } else if (text_and_image_mode_ == TextAndImageMode::kEditorWriteOnly) {
     auto* title = title_container_->AddChildView(std::make_unique<views::Label>(
         GetEditorMenuWriteCardTitle(), views::style::CONTEXT_DIALOG_TITLE,
         views::style::STYLE_HEADLINE_5));
-    title->SetEnabledColorId(ui::kColorSysOnSurface);
+    title->SetEnabledColor(ui::kColorSysOnSurface);
   } else if (text_and_image_mode_ == TextAndImageMode::kEditorRewriteOnly ||
              text_and_image_mode_ ==
                  TextAndImageMode::kEditorRewriteAndLobster) {
     auto* title = title_container_->AddChildView(std::make_unique<views::Label>(
         GetEditorMenuRewriteCardTitle(), views::style::CONTEXT_DIALOG_TITLE,
         views::style::STYLE_HEADLINE_5));
-    title->SetEnabledColorId(ui::kColorSysOnSurface);
-  } else if (text_and_image_mode_ == TextAndImageMode::kLobsterOnly) {
+    title->SetEnabledColor(ui::kColorSysOnSurface);
+  } else if (text_and_image_mode_ ==
+             TextAndImageMode::kLobsterWithNoSelectedText) {
     auto* title = title_container_->AddChildView(std::make_unique<views::Label>(
         GetEditorMenuLobsterTitle(), views::style::CONTEXT_DIALOG_TITLE,
         views::style::STYLE_HEADLINE_5));
-    title->SetEnabledColorId(ui::kColorSysOnSurface);
+    title->SetEnabledColor(ui::kColorSysOnSurface);
+  } else if (text_and_image_mode_ ==
+             TextAndImageMode::kLobsterWithSelectedText) {
+    auto* title = title_container_->AddChildView(std::make_unique<views::Label>(
+        GetEditorMenuRewriteCardTitle(), views::style::CONTEXT_DIALOG_TITLE,
+        views::style::STYLE_HEADLINE_5));
+    title->SetEnabledColor(ui::kColorSysOnSurface);
   }
 
   auto* badge =

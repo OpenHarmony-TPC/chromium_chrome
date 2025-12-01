@@ -33,16 +33,18 @@ import org.robolectric.RuntimeEnvironment;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.Features;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
 import org.chromium.chrome.browser.preferences.Pref;
-import org.chromium.chrome.browser.preferences.PrefChangeRegistrar;
-import org.chromium.chrome.browser.preferences.PrefChangeRegistrar.PrefObserver;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.safe_browsing.settings.SafeBrowsingSettingsFragment;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.browser_ui.settings.SettingsNavigation;
+import org.chromium.components.prefs.PrefChangeRegistrar;
+import org.chromium.components.prefs.PrefChangeRegistrar.PrefObserver;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -126,14 +128,17 @@ public class SafetyHubMagicStackMediatorTest {
         assertEquals(
                 mModel.get(SafetyHubMagicStackViewProperties.TITLE),
                 mContext.getString(R.string.safety_hub_magic_stack_safe_browsing_title));
-        assertEquals(mModel.get(SafetyHubMagicStackViewProperties.SUMMARY), DESCRIPTION);
+        assertEquals(DESCRIPTION, mModel.get(SafetyHubMagicStackViewProperties.SUMMARY));
         assertEquals(
                 mModel.get(SafetyHubMagicStackViewProperties.BUTTON_TEXT),
                 mContext.getString(R.string.safety_hub_magic_stack_safe_browsing_button_text));
         assertEquals(
+                mModel.get(SafetyHubMagicStackViewProperties.BUTTON_CONTENT_DESCRIPTION),
+                mContext.getString(R.string.safety_hub_magic_stack_safe_browsing_button_text));
+        assertEquals(
                 shadowOf(mModel.get(SafetyHubMagicStackViewProperties.ICON_DRAWABLE))
                         .getCreatedFromResId(),
-                R.drawable.ic_gshield_24);
+                R.drawable.secured_by_brand_shield_24);
         verify(mSafetyHubHatsHelper, times(1))
                 .triggerProactiveHatsSurveyWhenCardShown(
                         mTabModelSelector, MagicStackEntry.ModuleType.SAFE_BROWSING);
@@ -161,11 +166,15 @@ public class SafetyHubMagicStackMediatorTest {
         assertEquals(
                 mModel.get(SafetyHubMagicStackViewProperties.HEADER),
                 mContext.getString(R.string.safety_hub_magic_stack_module_name));
-        assertEquals(mModel.get(SafetyHubMagicStackViewProperties.TITLE), DESCRIPTION);
+        assertEquals(DESCRIPTION, mModel.get(SafetyHubMagicStackViewProperties.TITLE));
         assertNull(mModel.get(SafetyHubMagicStackViewProperties.SUMMARY));
         assertEquals(
                 mModel.get(SafetyHubMagicStackViewProperties.BUTTON_TEXT),
                 mContext.getString(R.string.safety_hub_magic_stack_safe_state_button_text));
+        assertEquals(
+                mModel.get(SafetyHubMagicStackViewProperties.BUTTON_CONTENT_DESCRIPTION),
+                mContext.getString(
+                        R.string.safety_hub_magic_stack_safe_state_button_content_description));
         assertEquals(
                 shadowOf(mModel.get(SafetyHubMagicStackViewProperties.ICON_DRAWABLE))
                         .getCreatedFromResId(),
@@ -198,10 +207,14 @@ public class SafetyHubMagicStackMediatorTest {
         assertEquals(
                 mModel.get(SafetyHubMagicStackViewProperties.TITLE),
                 mContext.getString(R.string.safety_hub_magic_stack_notifications_title));
-        assertEquals(mModel.get(SafetyHubMagicStackViewProperties.SUMMARY), DESCRIPTION);
+        assertEquals(DESCRIPTION, mModel.get(SafetyHubMagicStackViewProperties.SUMMARY));
         assertEquals(
                 mModel.get(SafetyHubMagicStackViewProperties.BUTTON_TEXT),
                 mContext.getString(R.string.safety_hub_magic_stack_safe_state_button_text));
+        assertEquals(
+                mModel.get(SafetyHubMagicStackViewProperties.BUTTON_CONTENT_DESCRIPTION),
+                mContext.getString(
+                        R.string.safety_hub_magic_stack_safe_state_button_content_description));
         assertEquals(
                 shadowOf(mModel.get(SafetyHubMagicStackViewProperties.ICON_DRAWABLE))
                         .getCreatedFromResId(),
@@ -220,7 +233,11 @@ public class SafetyHubMagicStackMediatorTest {
     }
 
     @Test
-    public void testCompromisedPasswordsDisplayed() throws PendingIntent.CanceledException {
+    @Features.DisableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
+    public void testCompromisedPasswordsDisplayed_preLoginDbDeprecation()
+            throws PendingIntent.CanceledException {
+        mSafetyHubTestRule.setPasswordManagerAvailable(
+                true, ChromeFeatureList.isEnabled(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID));
         MagicStackEntry entry =
                 MagicStackEntry.create(DESCRIPTION, MagicStackEntry.ModuleType.PASSWORDS);
         doReturn(entry).when(mMagicStackBridge).getModuleToShow();
@@ -233,9 +250,55 @@ public class SafetyHubMagicStackMediatorTest {
         assertEquals(
                 mModel.get(SafetyHubMagicStackViewProperties.TITLE),
                 mContext.getString(R.string.safety_hub_magic_stack_compromised_passwords_title));
-        assertEquals(mModel.get(SafetyHubMagicStackViewProperties.SUMMARY), DESCRIPTION);
+        assertEquals(DESCRIPTION, mModel.get(SafetyHubMagicStackViewProperties.SUMMARY));
         assertEquals(
                 mModel.get(SafetyHubMagicStackViewProperties.BUTTON_TEXT),
+                mContext.getString(R.string.safety_hub_magic_stack_compromised_passwords_title));
+        assertEquals(
+                mModel.get(SafetyHubMagicStackViewProperties.BUTTON_CONTENT_DESCRIPTION),
+                mContext.getString(R.string.safety_hub_magic_stack_compromised_passwords_title));
+        assertEquals(
+                shadowOf(mModel.get(SafetyHubMagicStackViewProperties.ICON_DRAWABLE))
+                        .getCreatedFromResId(),
+                R.drawable.ic_password_manager_key);
+        verify(mSafetyHubHatsHelper, times(1))
+                .triggerProactiveHatsSurveyWhenCardShown(
+                        mTabModelSelector, MagicStackEntry.ModuleType.PASSWORDS);
+
+        OnClickListener onClickListener =
+                mModel.get(SafetyHubMagicStackViewProperties.BUTTON_ON_CLICK_LISTENER);
+        onClickListener.onClick(mView);
+        verify(mPasswordCheckIntentForAccountCheckup, times(1)).send();
+        verify(mModuleDelegate, times(1)).removeModule(ModuleType.SAFETY_HUB);
+        verify(mMagicStackBridge, times(1)).dismissCompromisedPasswordsModule();
+        verify(mSafetyHubHatsHelper, times(1))
+                .triggerProactiveHatsSurveyWhenCardTapped(
+                        mTabModelSelector, MagicStackEntry.ModuleType.PASSWORDS);
+    }
+
+    @Test
+    @Features.EnableFeatures(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)
+    public void testCompromisedPasswordsDisplayed() throws PendingIntent.CanceledException {
+        mSafetyHubTestRule.setPasswordManagerAvailable(
+                true, ChromeFeatureList.isEnabled(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID));
+        MagicStackEntry entry =
+                MagicStackEntry.create(DESCRIPTION, MagicStackEntry.ModuleType.PASSWORDS);
+        doReturn(entry).when(mMagicStackBridge).getModuleToShow();
+        mMediator.showModule();
+
+        verify(mModuleDelegate).onDataReady(eq(ModuleType.SAFETY_HUB), eq(mModel));
+        assertEquals(
+                mModel.get(SafetyHubMagicStackViewProperties.HEADER),
+                mContext.getString(R.string.safety_hub_magic_stack_module_name));
+        assertEquals(
+                mModel.get(SafetyHubMagicStackViewProperties.TITLE),
+                mContext.getString(R.string.safety_hub_magic_stack_compromised_passwords_title));
+        assertEquals(DESCRIPTION, mModel.get(SafetyHubMagicStackViewProperties.SUMMARY));
+        assertEquals(
+                mModel.get(SafetyHubMagicStackViewProperties.BUTTON_TEXT),
+                mContext.getString(R.string.safety_hub_magic_stack_compromised_passwords_title));
+        assertEquals(
+                mModel.get(SafetyHubMagicStackViewProperties.BUTTON_CONTENT_DESCRIPTION),
                 mContext.getString(R.string.safety_hub_magic_stack_compromised_passwords_title));
         assertEquals(
                 shadowOf(mModel.get(SafetyHubMagicStackViewProperties.ICON_DRAWABLE))

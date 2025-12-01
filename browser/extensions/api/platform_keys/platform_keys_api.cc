@@ -17,7 +17,7 @@
 #include "chrome/browser/chromeos/platform_keys/extension_platform_keys_service.h"
 #include "chrome/browser/chromeos/platform_keys/extension_platform_keys_service_factory.h"
 #include "chrome/browser/chromeos/platform_keys/platform_keys.h"
-#include "chrome/browser/extensions/api/platform_keys/verify_trust_api.h"
+#include "chrome/browser/extensions/api/platform_keys/verify_trust_api_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/extensions/api/platform_keys_internal.h"
 #include "chromeos/crosapi/cpp/keystore_service_util.h"
@@ -85,7 +85,7 @@ std::optional<KeystoreAlgorithmName> KeystoreAlgorithmNameFromString(
 
 //------------------------------------------------------------------------------
 PlatformKeysInternalSelectClientCertificatesFunction::
-    ~PlatformKeysInternalSelectClientCertificatesFunction() {}
+    ~PlatformKeysInternalSelectClientCertificatesFunction() = default;
 
 void PlatformKeysInternalSelectClientCertificatesFunction::
     SetSkipInteractiveCheckForTest(bool skip_interactive_check) {
@@ -216,7 +216,7 @@ void PlatformKeysInternalSelectClientCertificatesFunction::
 //------------------------------------------------------------------------------
 
 PlatformKeysInternalGetPublicKeyFunction::
-    ~PlatformKeysInternalGetPublicKeyFunction() {}
+    ~PlatformKeysInternalGetPublicKeyFunction() = default;
 
 ExtensionFunction::ResponseAction
 PlatformKeysInternalGetPublicKeyFunction::Run() {
@@ -305,7 +305,7 @@ PlatformKeysInternalGetPublicKeyBySpkiFunction::Run() {
 
 //------------------------------------------------------------------------------
 
-PlatformKeysInternalSignFunction::~PlatformKeysInternalSignFunction() {}
+PlatformKeysInternalSignFunction::~PlatformKeysInternalSignFunction() = default;
 
 ExtensionFunction::ResponseAction PlatformKeysInternalSignFunction::Run() {
   std::optional<api_pki::Sign::Params> params =
@@ -389,7 +389,7 @@ void PlatformKeysInternalSignFunction::OnSigned(
 //------------------------------------------------------------------------------
 
 PlatformKeysVerifyTLSServerCertificateFunction::
-    ~PlatformKeysVerifyTLSServerCertificateFunction() {}
+    ~PlatformKeysVerifyTLSServerCertificateFunction() = default;
 
 ExtensionFunction::ResponseAction
 PlatformKeysVerifyTLSServerCertificateFunction::Run() {
@@ -399,9 +399,9 @@ PlatformKeysVerifyTLSServerCertificateFunction::Run() {
       api_pk::VerifyTLSServerCertificate::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
-  VerifyTrustAPI::GetFactoryInstance()
+  VerifyTrustApiService::GetFactoryInstance()
       ->Get(browser_context())
-      ->Verify(std::move(params), extension_id(),
+      ->Verify(std::move(params.value()), extension_id(),
                base::BindOnce(&PlatformKeysVerifyTLSServerCertificateFunction::
                                   FinishedVerification,
                               this));

@@ -56,7 +56,7 @@
 #include "base/win/resource_exhaustion.h"
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_handle.h"
-#include "base/win/win_util.h"
+#include "base/win/windows_handle_util.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/core/network/win_key_network_delegate.h"
@@ -79,6 +79,7 @@
 #include "chrome/installer/setup/installer_state.h"
 #include "chrome/installer/setup/launch_chrome.h"
 #include "chrome/installer/setup/modify_params.h"
+#include "chrome/installer/setup/scoped_thread_pool.h"
 #include "chrome/installer/setup/setup_constants.h"
 #include "chrome/installer/setup/setup_install_details.h"
 #include "chrome/installer/setup/setup_singleton.h"
@@ -462,7 +463,8 @@ installer::InstallStatus RenameChromeExecutables(
                                     temp_path.path(), WorkItem::ALWAYS_MOVE);
   install_list->AddDeleteTreeWorkItem(chrome_proxy_new_exe, temp_path.path());
 
-  AddFinalizeUpdateWorkItems(base::Version(chrome::kChromeVersion),
+  AddFinalizeUpdateWorkItems(original_state,
+                             base::Version(chrome::kChromeVersion),
                              *installer_state, setup_exe, install_list.get());
 
   // Add work items to delete Chrome's "opv", "cpv", and "cmd" values.
@@ -649,14 +651,10 @@ installer::InstallStatus UninstallProducts(InstallationState& original_state,
   }
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  // Tell Google Update that an uninstall has taken place if this install did
-  // not originate from the MSI. Google Update has its own logic relating to
-  // MSI-driven uninstalls that conflicts with this. Ignore the return value:
-  // success or failure of Google Update has no bearing on the success or
-  // failure of Chrome's uninstallation.
-  if (!installer_state.is_msi()) {
-    google_update::UninstallGoogleUpdate(installer_state.system_install());
-  }
+  // Tell Google Update that an uninstall has taken place. Ignore the return
+  // value: success or failure of Google Update has no bearing on the success
+  // or failure of Chrome's uninstallation.
+  google_update::UninstallGoogleUpdate(installer_state.system_install());
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
   return install_status;
@@ -1143,9 +1141,12 @@ bool HandleNonInstallCmdLineOptions(installer::ModifyParams& modify_params,
     *exit_code = installer::DeleteDMToken() ? installer::DELETE_DMTOKEN_SUCCESS
                                             : installer::DELETE_DMTOKEN_FAILED;
   } else if (cmd_line.HasSwitch(installer::switches::kRotateDeviceTrustKey)) {
-    // RotateDeviceTrustKey() expects a single
-    // threaded task runner so creating one here.
+    // RotateDeviceTrustKey() expects a single threaded task runner.
     base::SingleThreadTaskExecutor executor;
+
+    // Part of the logic handling this command depends on a winhttp component
+    // which needs a thread pool.
+    ScopedThreadPool scoped_thread_pool;
 
     const auto result = enterprise_connectors::RotateDeviceTrustKey(
         enterprise_connectors::KeyRotationManager::Create(
@@ -1626,10 +1627,10 @@ int SetupMain() {
   PROCESS_MEMORY_COUNTERS pmc;
   if (::GetProcessMemoryInfo(::GetCurrentProcess(), &pmc, sizeof(pmc))) {
     UMA_HISTOGRAM_MEMORY_KB("Setup.Install.PeakPagefileUsage",
-                            base::saturated_cast<base::HistogramBase::Sample>(
+                            base::saturated_cast<base::HistogramBase::Sample32>(
                                 pmc.PeakPagefileUsage / 1024));
     UMA_HISTOGRAM_MEMORY_KB("Setup.Install.PeakWorkingSetSize",
-                            base::saturated_cast<base::HistogramBase::Sample>(
+                            base::saturated_cast<base::HistogramBase::Sample32>(
                                 pmc.PeakWorkingSetSize / 1024));
   }
 

@@ -4,11 +4,11 @@
 
 #include "chrome/browser/media/webrtc/desktop_capture_devices_util.h"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 
 #include "base/check_op.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/unguessable_token.h"
@@ -32,18 +32,6 @@
 #include "third_party/blink/public/mojom/media/capture_handle_config.mojom.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
-
-// If this feature is disabled, the SuppressLocalAudioPlayback constraint
-// will become no-op if the user chooses to share a tab.
-BASE_FEATURE(kSuppressLocalAudioPlaybackForTabAudio,
-             "SuppressLocalAudioPlaybackForTabAudio",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// If this feature is disabled, the SuppressLocalAudioPlayback constraint
-// will become no-op if the user chooses to share a screen.
-BASE_FEATURE(kSuppressLocalAudioPlaybackForSystemAudio,
-             "SuppressLocalAudioPlaybackForSystemAudio",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 namespace {
 
@@ -73,7 +61,7 @@ media::mojom::CaptureHandlePtr CreateCaptureHandle(
 
   const auto& captured_config = captured->GetCaptureHandleConfig();
   if (!captured_config.all_origins_permitted &&
-      base::ranges::none_of(
+      std::ranges::none_of(
           captured_config.permitted_origins,
           [capturer_origin](const url::Origin& permitted_origin) {
             return capturer_origin.IsSameOriginWith(permitted_origin);
@@ -224,7 +212,7 @@ std::string DeviceNamePrefix(
   // dialog for DISPLAY_VIDEO_CAPTURE_THIS_TAB could still return something
   // other than the current tab - be it a screen, window, or another tab.
   if (media_id.type == content::DesktopMediaID::TYPE_WEB_CONTENTS &&
-      web_contents->GetPrimaryMainFrame()->GetProcess()->GetID() ==
+      web_contents->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID() ==
           media_id.web_contents_id.render_process_id &&
       web_contents->GetPrimaryMainFrame()->GetRoutingID() ==
           media_id.web_contents_id.main_render_frame_id) {
@@ -249,6 +237,18 @@ std::string DeviceName(content::WebContents* web_contents,
   }
 }
 
+const char* GetDeviceId(bool disable_local_echo,
+                        bool suppress_local_audio_playback,
+                        bool restrict_own_audio) {
+  if (restrict_own_audio) {
+    return media::AudioDeviceDescription::kLoopbackWithoutChromeId;
+  } else if (disable_local_echo || suppress_local_audio_playback) {
+    return media::AudioDeviceDescription::kLoopbackWithMuteDeviceId;
+  } else {
+    return media::AudioDeviceDescription::kLoopbackInputDeviceId;
+  }
+}
+
 }  // namespace
 
 std::unique_ptr<content::MediaStreamUI> GetDevicesForDesktopCapture(
@@ -258,18 +258,12 @@ std::unique_ptr<content::MediaStreamUI> GetDevicesForDesktopCapture(
     bool capture_audio,
     bool disable_local_echo,
     bool suppress_local_audio_playback,
+    bool restrict_own_audio,
     bool display_notification,
     const std::u16string& application_title,
     bool captured_surface_control_active,
     blink::mojom::StreamDevices& out_devices) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-
-  DVLOG(2) << __func__ << ": media_id " << media_id.ToString()
-           << ", capture_audio " << capture_audio << ", disable_local_echo "
-           << disable_local_echo << ", suppress_local_audio_playback "
-           << suppress_local_audio_playback << ", display_notification "
-           << display_notification << ", application_title "
-           << application_title;
 
   // Add selected desktop source to the list.
   blink::MediaStreamDevice device(
@@ -286,10 +280,6 @@ std::unique_ptr<content::MediaStreamUI> GetDevicesForDesktopCapture(
 
     if (media_id.type == content::DesktopMediaID::TYPE_WEB_CONTENTS) {
       content::WebContentsMediaCaptureId web_id = media_id.web_contents_id;
-      if (!base::FeatureList::IsEnabled(
-              kSuppressLocalAudioPlaybackForTabAudio)) {
-        suppress_local_audio_playback = false;  // Surface-specific killswitch.
-      }
       // TODO(crbug.com/40244028): Deprecate disable_local_echo, support the
       // same functionality based only on suppress_local_audio_playback.
       web_id.disable_local_echo =
@@ -297,17 +287,12 @@ std::unique_ptr<content::MediaStreamUI> GetDevicesForDesktopCapture(
       out_devices.audio_device = blink::MediaStreamDevice(
           request.audio_type, web_id.ToString(), "Tab audio");
     } else {
-      if (!base::FeatureList::IsEnabled(
-              kSuppressLocalAudioPlaybackForSystemAudio)) {
-        suppress_local_audio_playback = false;  // Surface-specific killswitch.
-      }
       // Use the special loopback device ID for system audio capture.
+      const char* device_id =
+          GetDeviceId(disable_local_echo, suppress_local_audio_playback,
+                      restrict_own_audio);
       out_devices.audio_device = blink::MediaStreamDevice(
-          request.audio_type,
-          (disable_local_echo || suppress_local_audio_playback
-               ? media::AudioDeviceDescription::kLoopbackWithMuteDeviceId
-               : media::AudioDeviceDescription::kLoopbackInputDeviceId),
-          "System Audio");
+          request.audio_type, device_id, "System Audio");
     }
     out_devices.audio_device->display_media_info =
         DesktopMediaIDToDisplayMediaInformation(
@@ -333,7 +318,6 @@ std::unique_ptr<content::MediaStreamUI> GetDevicesForDesktopCapture(
           blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE_THIS_TAB;
       notification_ui =
           TabSharingUI::Create(capturer_id, media_id, application_title,
-                               /*favicons_used_for_switch_to_tab_button=*/false,
                                app_preferred_current_tab,
                                TabSharingInfoBarDelegate::TabShareType::CAPTURE,
                                captured_surface_control_active);

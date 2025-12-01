@@ -4,7 +4,7 @@
 
 import("//build/config/chromeos/ui_mode.gni")
 
-assert(is_chromeos_ash)
+assert(is_chromeos)
 
 static_library("core") {
   sources = [
@@ -66,11 +66,9 @@ static_library("core") {
 
   deps = [
     "//ash",
-    "//ash/components/arc:arc_features",
     "//ash/constants",
     "//base",
     "//build:buildflag_header_h",
-    "//build:chromeos_buildflags",
     "//chrome/browser:browser_process",
     "//chrome/browser/ash/policy/dev_mode",
     "//chrome/browser/ash/policy/enrollment",
@@ -88,6 +86,7 @@ static_library("core") {
     "//chrome/browser/ash/system",
     "//chrome/browser/ash/tpm",
     "//chrome/browser/chromeos/extensions/external_loader",
+    "//chrome/browser/policy:policy_util",
     "//chrome/browser/policy/messaging_layer/proto:user_session_activity_proto",
     "//chrome/browser/profiles:profile",
     "//chrome/common",
@@ -103,8 +102,10 @@ static_library("core") {
     "//chromeos/ash/components/dbus/userdataauth:userdataauth_proto",
     "//chromeos/ash/components/install_attributes",
     "//chromeos/ash/components/network",
+    "//chromeos/ash/components/policy/device_local_account",
     "//chromeos/ash/components/settings",
     "//chromeos/ash/components/system",
+    "//chromeos/ash/experiences/arc:arc_features",
     "//chromeos/constants",
     "//chromeos/dbus/constants",
     "//chromeos/dbus/power",
@@ -211,6 +212,7 @@ source_set("unit_tests") {
     "device_cloud_policy_store_ash_unittest.cc",
     "device_local_account_external_cache_unittest.cc",
     "device_local_account_policy_service_unittest.cc",
+    "device_local_account_policy_store_unittest.cc",
     "device_local_account_unittest.cc",
     "device_policy_decoder_unittest.cc",
     "reporting_user_tracker_unittest.cc",
@@ -221,6 +223,7 @@ source_set("unit_tests") {
 
   deps = [
     ":core",
+    ":test_support",
     "//ash/constants",
     "//base",
     "//base/test:test_support",
@@ -255,6 +258,7 @@ source_set("unit_tests") {
     "//chromeos/ash/components/dbus/userdataauth",
     "//chromeos/ash/components/install_attributes",
     "//chromeos/ash/components/install_attributes:test_support",
+    "//chromeos/ash/components/policy/device_local_account",
     "//chromeos/ash/components/policy/weekly_time",
     "//chromeos/ash/components/settings",
     "//chromeos/ash/components/system",
@@ -318,7 +322,6 @@ source_set("browser_tests") {
     ":test_support",
     "//ash",
     "//ash:test_support",
-    "//ash/components/arc:prefs",
     "//ash/constants",
     "//ash/public/cpp",
     "//base",
@@ -365,6 +368,7 @@ source_set("browser_tests") {
     "//chromeos/ash/components/network",
     "//chromeos/ash/components/settings",
     "//chromeos/ash/components/system",
+    "//chromeos/ash/experiences/arc:prefs",
     "//chromeos/components/mgs",
     "//components/crx_file",
     "//components/invalidation",

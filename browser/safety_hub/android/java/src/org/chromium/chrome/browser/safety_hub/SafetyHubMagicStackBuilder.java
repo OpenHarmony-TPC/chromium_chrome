@@ -8,15 +8,17 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
 
-import androidx.annotation.NonNull;
-
 import org.chromium.base.BuildInfo;
 import org.chromium.base.Callback;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.magic_stack.HomeModulesConfigManager;
 import org.chromium.chrome.browser.magic_stack.ModuleConfigChecker;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate;
+import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
 import org.chromium.chrome.browser.magic_stack.ModuleProvider;
 import org.chromium.chrome.browser.magic_stack.ModuleProviderBuilder;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -26,6 +28,7 @@ import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** {@link ModuleProviderBuilder} that builds the Safety Hub Magic Stack module. */
+@NullMarked
 public class SafetyHubMagicStackBuilder implements ModuleProviderBuilder, ModuleConfigChecker {
     private final Context mContext;
     private final ObservableSupplier<Profile> mProfileSupplier;
@@ -33,14 +36,28 @@ public class SafetyHubMagicStackBuilder implements ModuleProviderBuilder, Module
     private final Supplier<ModalDialogManager> mModalDialogManagerSupplier;
 
     public SafetyHubMagicStackBuilder(
-            @NonNull Context context,
-            @NonNull ObservableSupplier<Profile> profileSupplier,
-            @NonNull TabModelSelector tabModelSelector,
-            @NonNull Supplier<ModalDialogManager> modalDialogManagerSupplier) {
+            Context context,
+            ObservableSupplier<Profile> profileSupplier,
+            TabModelSelector tabModelSelector,
+            Supplier<ModalDialogManager> modalDialogManagerSupplier) {
         mContext = context;
         mProfileSupplier = profileSupplier;
         mTabModelSelector = tabModelSelector;
         mModalDialogManagerSupplier = modalDialogManagerSupplier;
+
+        recordMetricForMagicStackSettingState();
+    }
+
+    /**
+     * Records the metric related to the settings state of the safety hub magic stack module. This
+     * should only be recorded on start up.
+     */
+    private void recordMetricForMagicStackSettingState() {
+        boolean magicStackModuleEnabled =
+                HomeModulesConfigManager.getInstance()
+                        .getPrefModuleTypeEnabled(ModuleType.SAFETY_HUB);
+        RecordHistogram.recordBooleanHistogram(
+                "Settings.SafetyHub.MagicStack.StateOnStartup", magicStackModuleEnabled);
     }
 
     @Override

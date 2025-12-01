@@ -12,9 +12,9 @@
 #include "chrome/browser/ui/views/profiles/batch_upload_dialog_view.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/signin/public/identity_manager/signin_constants.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/service/local_data_description.h"
 #include "content/public/test/browser_test.h"
@@ -23,13 +23,16 @@
 #include "ui/gfx/image/image_unittest_util.h"
 #include "ui/views/widget/any_widget_observer.h"
 
+using signin::constants::kNoHostedDomainFound;
+
 namespace {
 
 const gfx::Image kSignedInImage = gfx::test::CreateImage(20, 20, SK_ColorBLUE);
 const char kSignedInImageUrl[] = "SIGNED_IN_IMAGE_URL";
 
 syncer::LocalDataDescription GetFakeLocalData(syncer::DataType type,
-                                              int item_count) {
+                                              int item_count,
+                                              bool long_title) {
   syncer::LocalDataDescription data_descriptions;
   data_descriptions.type = type;
 
@@ -39,13 +42,35 @@ syncer::LocalDataDescription GetFakeLocalData(syncer::DataType type,
   for (int i = 0; i < item_count; ++i) {
     syncer::LocalDataItemModel item;
     item.id = syncer::LocalDataItemModel::DataId(base::ToString(i));
-    item.icon_url = type == syncer::DataType::PASSWORDS
-                        ? GURL("chrome://theme/IDR_PASSWORD_MANAGER_FAVICON")
-                        : GURL();
-    item.title =
-        data_name + "_title_" + base::UTF16ToUTF8(base::FormatNumber(i));
-    item.subtitle =
-        data_name + "_subtitle_" + base::UTF16ToUTF8(base::FormatNumber(i));
+
+    switch (type) {
+      case syncer::DataType::PASSWORDS:
+        item.icon = syncer::LocalDataItemModel::PageUrlIcon(
+            GURL("https://chromium.org"));
+        break;
+      case syncer::DataType::BOOKMARKS:
+        item.icon = syncer::LocalDataItemModel::FolderIcon();
+        break;
+      case syncer::DataType::CONTACT_INFO:
+      case syncer::DataType::THEMES:
+        item.icon = syncer::LocalDataItemModel::NoIcon();
+        break;
+      default:
+        NOTREACHED();
+    }
+
+    // Theme item has a different title as it is shown in the section title.
+    if (type == syncer::DataType::THEMES) {
+      item.title = long_title ? "Custom theme name that is very very long long "
+                                "long long long long"
+                              : "Custom theme name";
+    } else {
+      item.title =
+          data_name + "_title_" + base::UTF16ToUTF8(base::FormatNumber(i));
+      item.subtitle =
+          data_name + "_subtitle_" + base::UTF16ToUTF8(base::FormatNumber(i));
+    }
+
     data_descriptions.local_data_models.push_back(std::move(item));
   }
   return data_descriptions;
@@ -58,6 +83,9 @@ struct TestParam {
       {2, syncer::DataType::PASSWORDS},
       {1, syncer::DataType::CONTACT_INFO},
   };
+  // Currently only relevant for Themes section as the item title is shown in
+  // the section title.
+  bool long_title = false;
 };
 
 // Allows the test to be named like
@@ -84,18 +112,30 @@ const TestParam kTestParams[] = {
 
     // Hero type means the type will be shown in the subtitle of the dialog.
     // Password is a hero type.
-    {.test_suffix = "SingleSectionHeroTypeWithOneItem",
+    {.test_suffix = "SingleSectionPasswordsHeroTypeWithOneItem",
      .section_item_count_type = {{1, syncer::DataType::PASSWORDS}}},
-    {.test_suffix = "SingleSectionHeroTypeWithMultipleItems",
+    {.test_suffix = "SingleSectionPasswordsHeroTypeWithMultipleItems",
      .section_item_count_type = {{5, syncer::DataType::PASSWORDS}}},
 
     // Hero type with multiple sections. Should show "and other items" in the
     // subtitle of the dialog.
-    {.test_suffix = "MultipleSectionsHeroTypeWithOneItem",
+    {.test_suffix = "MultipleSectionsPasswordsHeroTypeWithOneItem",
      .section_item_count_type = {{1, syncer::DataType::PASSWORDS},
                                  {3, syncer::DataType::CONTACT_INFO}}},
-    {.test_suffix = "MultipleSectionsHeroTypeWithMultipleItems",
+    {.test_suffix = "MultipleSectionsPasswordsHeroTypeWithMultipleItems",
      .section_item_count_type = {{5, syncer::DataType::PASSWORDS},
+                                 {3, syncer::DataType::CONTACT_INFO}}},
+
+    // Bookmarks hero type.
+    {.test_suffix = "SingleSectionBookmarksHeroTypeWithOneItem",
+     .section_item_count_type = {{1, syncer::DataType::BOOKMARKS}}},
+    {.test_suffix = "SingleSectionBookmarksHeroTypeWithMultipleItems",
+     .section_item_count_type = {{5, syncer::DataType::BOOKMARKS}}},
+    {.test_suffix = "MultipleSectionsBookmarksHeroTypeWithOneItem",
+     .section_item_count_type = {{1, syncer::DataType::BOOKMARKS},
+                                 {3, syncer::DataType::CONTACT_INFO}}},
+    {.test_suffix = "MultipleSectionsBookmarksHeroTypeWithMultipleItems",
+     .section_item_count_type = {{5, syncer::DataType::BOOKMARKS},
                                  {3, syncer::DataType::CONTACT_INFO}}},
 
     // Addresses is not a hero type. It should not show in the subtitle.
@@ -109,6 +149,22 @@ const TestParam kTestParams[] = {
     {.test_suffix = "MultipleSectionsWithNonHeroTypeAsPrimarySection",
      .section_item_count_type = {{5, syncer::DataType::CONTACT_INFO},
                                  {5, syncer::DataType::PASSWORDS}}},
+
+    // Themes data type section has a specific UI.
+    {.test_suffix = "ThemesSectionOnly",
+     .section_item_count_type = {{1, syncer::DataType::THEMES}}},
+    {.test_suffix = "ThemesSectionOnlyWithLongName",
+     .section_item_count_type = {{1, syncer::DataType::THEMES}},
+     .long_title = true},
+    {.test_suffix = "MultipleSectionsWithThemes",
+     .section_item_count_type = {{5, syncer::DataType::CONTACT_INFO},
+                                 {5, syncer::DataType::PASSWORDS},
+                                 {1, syncer::DataType::THEMES}}},
+    {.test_suffix = "MultipleSectionsWithThemesLongName",
+     .section_item_count_type = {{5, syncer::DataType::CONTACT_INFO},
+                                 {5, syncer::DataType::PASSWORDS},
+                                 {1, syncer::DataType::THEMES}},
+     .long_title = true},
 };
 
 }  // namespace
@@ -119,7 +175,8 @@ class BatchUploadDialogViewPixelTest
  public:
   BatchUploadDialogViewPixelTest() {
     for (const auto& [count, type] : GetParam().section_item_count_type) {
-      fake_descriptions_.emplace_back(GetFakeLocalData(type, count));
+      fake_descriptions_.emplace_back(
+          GetFakeLocalData(type, count, GetParam().long_title));
     }
 
     // The Batch Upload view seems not to be resized properly on changes which
@@ -179,9 +236,6 @@ class BatchUploadDialogViewPixelTest
 
  private:
   std::vector<syncer::LocalDataDescription> fake_descriptions_;
-
-  base::test::ScopedFeatureList scoped_feature_list_{
-      switches::kBatchUploadDesktop};
 };
 
 IN_PROC_BROWSER_TEST_P(BatchUploadDialogViewPixelTest, InvokeUi_default) {

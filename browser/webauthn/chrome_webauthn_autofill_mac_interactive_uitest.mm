@@ -16,16 +16,16 @@
 #include "chrome/browser/ui/autofill/chrome_autofill_client.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/webauthn/chrome_authenticator_request_delegate.h"
+#include "chrome/browser/webauthn/chrome_web_authentication_delegate.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "components/autofill/core/browser/ui/suggestion_type.h"
+#include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/password_manager/core/browser/password_ui_utils.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
-#include "device/fido/features.h"
 #include "device/fido/mac/credential_store.h"
 #include "device/fido/mac/scoped_touch_id_test_environment.h"
 #include "device/fido/public_key_credential_user_entity.h"
@@ -48,10 +48,6 @@ navigator.credentials.get({
 
 class WebAuthnMacAutofillIntegrationTest : public CertVerifierBrowserTest {
  protected:
-  WebAuthnMacAutofillIntegrationTest() {
-    feature_.InitAndEnableFeature(device::kWebAuthnEnclaveAuthenticator);
-  }
-
   void SetUpCommandLine(base::CommandLine* command_line) override {
     CertVerifierBrowserTest::SetUpCommandLine(command_line);
     command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
@@ -97,7 +93,6 @@ class WebAuthnMacAutofillIntegrationTest : public CertVerifierBrowserTest {
     touch_id_test_environment_->SimulateTouchIdPromptSuccess();
   }
 
-  base::test::ScopedFeatureList feature_;
   net::EmbeddedTestServer https_server_{net::EmbeddedTestServer::TYPE_HTTPS};
   device::fido::mac::AuthenticatorConfig config_;
   std::unique_ptr<device::fido::mac::ScopedTouchIdTestEnvironment>
@@ -143,7 +138,7 @@ IN_PROC_BROWSER_TEST_F(WebAuthnMacAutofillIntegrationTest, SelectAccount) {
   EXPECT_EQ(webauthn_entry.main_text.value, u"flandre");
   EXPECT_EQ(webauthn_entry.labels.at(0).at(0).value,
             l10n_util::GetStringUTF16(
-                IDS_PASSWORD_MANAGER_PASSKEY_FROM_CHROME_PROFILE_NEW));
+                IDS_PASSWORD_MANAGER_PASSKEY_FROM_CHROME_PROFILE));
   EXPECT_EQ(webauthn_entry.icon, autofill::Suggestion::Icon::kGlobe);
 
   // Click the credential.

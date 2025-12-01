@@ -65,6 +65,7 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "content/public/test/browser_task_environment.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/device/public/cpp/test/fake_usb_device_manager.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -202,7 +203,7 @@ class CrostiniManagerTest : public testing::Test {
 
     // Login user for crostini, link gaia for DriveFS.
     AccountId account_id = AccountId::FromUserEmailGaiaId(
-        profile()->GetProfileUserName(), "12345");
+        profile()->GetProfileUserName(), GaiaId("12345"));
     fake_user_manager_->AddUser(account_id);
     fake_user_manager_->LoginUser(account_id);
 
@@ -264,7 +265,7 @@ TEST_F(CrostiniManagerTest, CreateDiskImageEmptyNameError) {
   TestFuture<CrostiniResult, const base::FilePath&> result_future;
 
   crostini_manager()->CreateDiskImage(
-      "", vm_tools::concierge::STORAGE_CRYPTOHOME_ROOT, kDiskSizeBytes,
+      "", {}, vm_tools::concierge::STORAGE_CRYPTOHOME_ROOT, kDiskSizeBytes,
       result_future.GetCallback());
   EXPECT_TRUE(result_future.Wait());
 
@@ -276,7 +277,7 @@ TEST_F(CrostiniManagerTest, CreateDiskImageStorageLocationError) {
   TestFuture<CrostiniResult, const base::FilePath&> result_future;
 
   crostini_manager()->CreateDiskImage(
-      kVmName,
+      kVmName, {},
       vm_tools::concierge::StorageLocation_INT_MIN_SENTINEL_DO_NOT_USE_,
       kDiskSizeBytes, result_future.GetCallback());
   EXPECT_TRUE(result_future.Wait());
@@ -289,7 +290,7 @@ TEST_F(CrostiniManagerTest, CreateDiskImageSuccess) {
   TestFuture<CrostiniResult, const base::FilePath&> result_future;
 
   crostini_manager()->CreateDiskImage(
-      kVmName, vm_tools::concierge::STORAGE_CRYPTOHOME_ROOT, kDiskSizeBytes,
+      kVmName, {}, vm_tools::concierge::STORAGE_CRYPTOHOME_ROOT, kDiskSizeBytes,
       result_future.GetCallback());
   EXPECT_TRUE(result_future.Wait());
 
@@ -2461,7 +2462,7 @@ class CrostiniManagerAnsibleInfraTest : public CrostiniManagerRestartTest {
             profile_.get());
     ansible_management_test_helper_ =
         std::make_unique<AnsibleManagementTestHelper>(profile_.get());
-    ansible_management_test_helper_->SetUpAnsibleInfra();
+    ansible_management_test_helper_->SetUpAnsiblePlaybookPreference();
     SetUpViewsEnvironmentForTesting();
   }
 

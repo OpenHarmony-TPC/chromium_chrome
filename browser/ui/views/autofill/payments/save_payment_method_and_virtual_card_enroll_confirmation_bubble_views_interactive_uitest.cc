@@ -15,7 +15,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/test/browser_test.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -56,7 +56,8 @@ class SaveCardConfirmationBubbleViewsInteractiveUiTest
   }
 
   SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews* BubbleView() {
-    return static_cast<SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews*>(
+    return static_cast<
+        SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews*>(
         GetController()->GetPaymentBubbleView());
   }
 
@@ -89,13 +90,13 @@ class SaveCardConfirmationBubbleViewsInteractiveUiTest
 
 IN_PROC_BROWSER_TEST_F(SaveCardConfirmationBubbleViewsInteractiveUiTest,
                        ShowSuccessBubbleViewThenHideBubbleView) {
-  views::test::AXEventCounter counter(views::AXEventManager::Get());
+  views::test::AXEventCounter counter(views::AXUpdateNotifier::Get());
   EXPECT_EQ(0, counter.GetCount(ax::mojom::Event::kAlert));
 
   ShowBubble(/*card_saved=*/true);
 
   EXPECT_NE(BubbleView(), nullptr);
-  // Checks the count of accessibility event registered by AXEventManager when
+  // Checks the count of accessibility event registered by AXUpdateNotifier when
   // bubble is shown.
   EXPECT_EQ(1, counter.GetCount(ax::mojom::Event::kAlert));
 
@@ -132,12 +133,12 @@ IN_PROC_BROWSER_TEST_F(SaveCardConfirmationBubbleViewsInteractiveUiTest,
 
 IN_PROC_BROWSER_TEST_F(SaveCardConfirmationBubbleViewsInteractiveUiTest,
                        ShowFailureBubbleViewThenHideBubbleView) {
-  views::test::AXEventCounter counter(views::AXEventManager::Get());
+  views::test::AXEventCounter counter(views::AXUpdateNotifier::Get());
   EXPECT_EQ(0, counter.GetCount(ax::mojom::Event::kAlert));
   ShowBubble(/*card_saved=*/false);
 
   EXPECT_NE(BubbleView(), nullptr);
-  // Checks the count of accessibility event registered by AXEventManager when
+  // Checks the count of accessibility event registered by AXUpdateNotifier when
   // bubble is shown.
   EXPECT_EQ(1, counter.GetCount(ax::mojom::Event::kAlert));
 
@@ -211,7 +212,8 @@ class VirtualCardEnrollConfirmationBubbleViewsInteractiveUiTest
   }
 
   SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews* BubbleView() {
-    return static_cast<SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews*>(
+    return static_cast<
+        SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews*>(
         GetController()->GetVirtualCardBubbleView());
   }
 
@@ -240,13 +242,13 @@ class VirtualCardEnrollConfirmationBubbleViewsInteractiveUiTest
 IN_PROC_BROWSER_TEST_F(
     VirtualCardEnrollConfirmationBubbleViewsInteractiveUiTest,
     ShowSuccessBubbleViewThenHideBubbleView) {
-  views::test::AXEventCounter counter(views::AXEventManager::Get());
+  views::test::AXEventCounter counter(views::AXUpdateNotifier::Get());
   EXPECT_EQ(0, counter.GetCount(ax::mojom::Event::kAlert));
 
   ShowBubble(/*is_vcn_enrolled=*/true);
 
   EXPECT_NE(BubbleView(), nullptr);
-  // Checks the count of accessibility event registered by AXEventManager when
+  // Checks the count of accessibility event registered by AXUpdateNotifier when
   // bubble is shown.
   EXPECT_EQ(1, counter.GetCount(ax::mojom::Event::kAlert));
   EXPECT_TRUE(BubbleView()->ShouldShowCloseButton());
@@ -293,13 +295,13 @@ IN_PROC_BROWSER_TEST_F(
       .SetUiModel(
           std::make_unique<VirtualCardEnrollUiModel>(enrollment_fields));
 
-  views::test::AXEventCounter counter(views::AXEventManager::Get());
+  views::test::AXEventCounter counter(views::AXUpdateNotifier::Get());
   EXPECT_EQ(0, counter.GetCount(ax::mojom::Event::kAlert));
 
   ShowBubble(/*is_vcn_enrolled=*/false);
 
   EXPECT_NE(BubbleView(), nullptr);
-  // Checks the count of accessibility event registered by AXEventManager when
+  // Checks the count of accessibility event registered by AXUpdateNotifier when
   // bubble is shown.
   EXPECT_EQ(1, counter.GetCount(ax::mojom::Event::kAlert));
   EXPECT_FALSE(BubbleView()->ShouldShowCloseButton());

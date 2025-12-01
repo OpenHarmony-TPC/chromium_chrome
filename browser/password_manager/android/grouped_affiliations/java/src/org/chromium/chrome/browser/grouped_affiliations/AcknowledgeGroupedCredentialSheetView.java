@@ -5,36 +5,41 @@
 package org.chromium.chrome.browser.grouped_affiliations;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.text.SpannableString;
+import android.text.TextUtils;
 import android.text.style.StyleSpan;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.password_manager.PasswordManagerResourceProviderFactory;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.ui.text.SpanApplier;
 
+@NullMarked
 class AcknowledgeGroupedCredentialSheetView implements BottomSheetContent {
+    private static final float URL_IN_TITLE_MAX_LINES = 1.5f;
     private final View mContent;
-    private final String mCurrentOrigin;
-    private final String mCredentialOrigin;
-    private final Callback<Boolean> mInterationCallback;
+    private final String mCurrentHostname;
+    private final String mCredentialHostname;
+    private final Callback<Integer> mInterationCallback;
 
     public AcknowledgeGroupedCredentialSheetView(
             View content,
-            String currentOrigin,
-            String credentialOrigin,
-            Callback<Boolean> interactionCallback) {
+            String currentHostname,
+            String credentialHostname,
+            Callback<Integer> interactionCallback) {
         mContent = content;
-        mCurrentOrigin = currentOrigin;
-        mCredentialOrigin = credentialOrigin;
+        mCurrentHostname = currentHostname;
+        mCredentialHostname = credentialHostname;
         mInterationCallback = interactionCallback;
         mContent.setOnGenericMotionListener((v, e) -> true); // Filter background interaction.
         setHeaderIcon();
@@ -55,7 +60,23 @@ class AcknowledgeGroupedCredentialSheetView implements BottomSheetContent {
         TextView titleView = mContent.findViewById(R.id.sheet_title);
         titleView.setText(
                 mContent.getResources()
-                        .getString(R.string.ack_grouped_cred_sheet_title, mCredentialOrigin));
+                        .getString(R.string.ack_grouped_cred_sheet_title, mCredentialHostname));
+        titleView.post(
+                () -> {
+                    View sheetItemList = mContent.findViewById(R.id.sheet_item_list);
+                    // Url will ellipsize to take max 1.5 lines in the title.
+                    float maxWidth = URL_IN_TITLE_MAX_LINES * sheetItemList.getWidth();
+                    CharSequence ellipsizedUrl =
+                            TextUtils.ellipsize(
+                                    mCredentialHostname,
+                                    titleView.getPaint(),
+                                    maxWidth,
+                                    TextUtils.TruncateAt.START);
+                    titleView.setText(
+                            mContent.getResources()
+                                    .getString(
+                                            R.string.ack_grouped_cred_sheet_title, ellipsizedUrl));
+                });
     }
 
     private void setDescription() {
@@ -64,8 +85,8 @@ class AcknowledgeGroupedCredentialSheetView implements BottomSheetContent {
                 mContent.getResources()
                         .getString(
                                 R.string.ack_grouped_cred_sheet_desc,
-                                mCredentialOrigin,
-                                mCurrentOrigin);
+                                mCredentialHostname,
+                                mCurrentHostname);
         // There are 3 spans that should be bold, so applying it 3 times.
         SpannableString formattedString =
                 SpanApplier.applySpans(
@@ -81,9 +102,10 @@ class AcknowledgeGroupedCredentialSheetView implements BottomSheetContent {
 
     private void setInteractionCallback() {
         Button positiveButton = mContent.findViewById(R.id.confirmation_button);
-        positiveButton.setOnClickListener(view -> mInterationCallback.onResult(true));
+        positiveButton.setOnClickListener(
+                view -> mInterationCallback.onResult(DismissReason.ACCEPT));
         Button negativeButton = mContent.findViewById(R.id.cancel_button);
-        negativeButton.setOnClickListener(view -> mInterationCallback.onResult(false));
+        negativeButton.setOnClickListener(view -> mInterationCallback.onResult(DismissReason.BACK));
     }
 
     @Override
@@ -91,9 +113,8 @@ class AcknowledgeGroupedCredentialSheetView implements BottomSheetContent {
         return mContent;
     }
 
-    @Nullable
     @Override
-    public View getToolbarView() {
+    public @Nullable View getToolbarView() {
         return null;
     }
 
@@ -116,29 +137,25 @@ class AcknowledgeGroupedCredentialSheetView implements BottomSheetContent {
     }
 
     @Override
-    public @NonNull String getSheetContentDescription(Context context) {
-        // TODO(crbug.com/372635361): Append web site to the title.
-        return context.getString(R.string.ack_grouped_cred_sheet_title);
+    public String getSheetContentDescription(Context context) {
+        return context.getString(R.string.ack_grouped_cred_sheet_title, mCredentialHostname);
     }
 
     @Override
-    public int getSheetHalfHeightAccessibilityStringId() {
+    public @StringRes int getSheetHalfHeightAccessibilityStringId() {
         // Half-height is disabled so no need for an accessibility string.
         assert false : "This method should not be called";
-        return 0;
+        return Resources.ID_NULL;
     }
 
     @Override
-    public int getSheetFullHeightAccessibilityStringId() {
-        // TODO(crbug.com/372635361): Append web site to the title.
-        return R.string.ack_grouped_cred_sheet_title;
+    public @StringRes int getSheetFullHeightAccessibilityStringId() {
+        return R.string.ack_grouped_cred_sheet_opened;
     }
 
     @Override
-    public int getSheetClosedAccessibilityStringId() {
-        // TODO(crbug.com/372635361): Return  ack_grouped_cred_sheet_accepted or
-        // ack_grouped_cred_sheet_rejected here depending on user choice.
-        return R.string.ack_grouped_cred_sheet_accepted;
+    public @StringRes int getSheetClosedAccessibilityStringId() {
+        return R.string.ack_grouped_cred_sheet_closed;
     }
 
     @Override
@@ -149,10 +166,5 @@ class AcknowledgeGroupedCredentialSheetView implements BottomSheetContent {
     @Override
     public float getFullHeightRatio() {
         return HeightMode.WRAP_CONTENT;
-    }
-
-    @Override
-    public int getPeekHeight() {
-        return HeightMode.DISABLED;
     }
 }

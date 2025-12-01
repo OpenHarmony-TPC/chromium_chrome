@@ -7,12 +7,13 @@ package org.chromium.chrome.browser.merchant_viewer;
 import android.text.format.DateUtils;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.TimeUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
 import org.chromium.components.messages.DismissReason;
 import org.chromium.components.ukm.UkmRecorder;
@@ -22,6 +23,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /** Metrics util class for merchant trust. */
+@NullMarked
 public class MerchantTrustMetrics {
     @VisibleForTesting
     public static String MESSAGE_IMPACT_BROWSING_TIME_HISTOGRAM =
@@ -97,7 +99,7 @@ public class MerchantTrustMetrics {
     private long mMessageVisibleNsForBrowsingTime;
     private int mNavigationCountAfterMessageShown;
     private double mMessageStarRating;
-    private String mCurrentHost;
+    private @Nullable String mCurrentHost;
 
     /** Records metrics when the message is prepared. */
     public void recordMetricsForMessagePrepared() {
@@ -108,7 +110,7 @@ public class MerchantTrustMetrics {
     public void recordMetricsForMessageCleared(@MessageClearReason int clearReason) {
         finishMessagePreparedTimer();
         RecordHistogram.recordEnumeratedHistogram(
-                "MerchantTrust.Message.ClearReason", clearReason, MessageClearReason.MAX_VALUE + 1);
+                "MerchantTrust.Message.ClearReason", clearReason, MessageClearReason.MAX_VALUE);
         resetMessageMetrics();
     }
 
@@ -210,7 +212,7 @@ public class MerchantTrustMetrics {
         RecordHistogram.recordEnumeratedHistogram(
                 "MerchantTrust.BottomSheet.CloseReason",
                 stateChangeReason,
-                StateChangeReason.MAX_VALUE + 1);
+                StateChangeReason.MAX_VALUE);
         resetBottomSheetMetrics();
     }
 
@@ -301,11 +303,11 @@ public class MerchantTrustMetrics {
         RecordHistogram.recordEnumeratedHistogram(
                 "MerchantTrust.BottomSheet.OpenSource",
                 source,
-                BottomSheetOpenedSource.MAX_VALUE + 1);
+                BottomSheetOpenedSource.MAX_VALUE);
     }
 
     /** Start recording message impact on user browsing time and navigation times. */
-    public void startRecordingMessageImpact(String hostName, double starRating) {
+    public void startRecordingMessageImpact(@Nullable String hostName, double starRating) {
         mMessageVisibleNsForBrowsingTime = System.nanoTime();
         mNavigationCountAfterMessageShown = 0;
         mCurrentHost = hostName;

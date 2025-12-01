@@ -4,16 +4,24 @@
 
 package org.chromium.chrome.browser.data_sharing;
 
-import androidx.annotation.Nullable;
+import static org.chromium.build.NullUtil.assumeNonNull;
 
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.collaboration.messaging.MessagingBackendServiceFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileKeyedMap;
+import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
+import org.chromium.components.collaboration.messaging.MessagingBackendService;
+import org.chromium.components.data_sharing.DataSharingService;
+import org.chromium.components.tab_group_sync.TabGroupSyncService;
 
 /** Creates/provides {@link InstantMessageDelegateImpl} by {@link Profile}. */
+@NullMarked
 public final class InstantMessageDelegateFactory {
-    private static ProfileKeyedMap<InstantMessageDelegateImpl> sProfileMap;
+    private static @Nullable ProfileKeyedMap<InstantMessageDelegateImpl> sProfileMap;
     private static @Nullable InstantMessageDelegateImpl sInstantMessageDelegateImplForTesting;
 
     // No instantiation.
@@ -35,7 +43,18 @@ public final class InstantMessageDelegateFactory {
             sProfileMap = new ProfileKeyedMap<>(ProfileKeyedMap.NO_REQUIRED_CLEANUP_ACTION);
         }
 
-        return sProfileMap.getForProfile(profile, InstantMessageDelegateImpl::new);
+        return sProfileMap.getForProfile(profile, InstantMessageDelegateFactory::buildForProfile);
+    }
+
+    private static InstantMessageDelegateImpl buildForProfile(Profile profile) {
+        profile = profile.getOriginalProfile();
+        MessagingBackendService messagingBackendService =
+                MessagingBackendServiceFactory.getForProfile(profile);
+        DataSharingService dataSharingService = DataSharingServiceFactory.getForProfile(profile);
+        TabGroupSyncService tabGroupSyncService = TabGroupSyncServiceFactory.getForProfile(profile);
+        assumeNonNull(tabGroupSyncService);
+        return new InstantMessageDelegateImpl(
+                messagingBackendService, dataSharingService, tabGroupSyncService);
     }
 
     /**

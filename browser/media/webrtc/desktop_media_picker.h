@@ -48,6 +48,7 @@ class DesktopMediaPicker {
       kGetDisplayMedia,
       kScreenshotDataCollector,
       kArcScreenCapture,
+      kGlic
     };
 
     explicit Params(RequestSource request_source);
@@ -86,6 +87,9 @@ class DesktopMediaPicker {
     // Indicates that, if audio ends up being captured, then local playback
     // over the user's local speakers should be suppressed.
     bool suppress_local_audio_playback = false;
+    // Captured audio should not include audio originating from the document
+    // that called getDisplayMedia.
+    bool restrict_own_audio = false;
     // This flag controls the behvior in the case where the picker is invoked to
     // select a screen and there is only one screen available.  If true, the
     // dialog is bypassed entirely and the screen is automatically selected.
@@ -109,7 +113,7 @@ class DesktopMediaPicker {
 
   // Creates a picker dialog/confirmation box depending on the value of
   // |request|. If no request is available the default picker, namely
-  // DesktopMediaPickerViews is used.
+  // DesktopMediaPickerImpl is used.
   static std::unique_ptr<DesktopMediaPicker> Create(
       const content::MediaStreamRequest* request);
 

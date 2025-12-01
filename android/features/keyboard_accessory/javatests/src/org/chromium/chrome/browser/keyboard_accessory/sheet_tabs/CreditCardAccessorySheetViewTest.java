@@ -13,6 +13,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -43,15 +44,14 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.chrome.browser.autofill.PersonalDataManager;
-import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.autofill.AutofillImageFetcher;
+import org.chromium.chrome.browser.autofill.AutofillImageFetcherFactory;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.keyboard_accessory.AccessorySuggestionType;
 import org.chromium.chrome.browser.keyboard_accessory.AccessoryTabType;
 import org.chromium.chrome.browser.keyboard_accessory.R;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData;
+import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.LoyaltyCardInfo;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.PromoCodeInfo;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.UserInfo;
 import org.chromium.chrome.browser.keyboard_accessory.data.UserInfoField;
@@ -77,19 +77,19 @@ public class CreditCardAccessorySheetViewTest {
             Bitmap.createBitmap(100, 200, Bitmap.Config.ARGB_8888);
 
     private AccessorySheetTabItemsModel mModel;
-    private AtomicReference<RecyclerView> mView = new AtomicReference<>();
+    private final AtomicReference<RecyclerView> mView = new AtomicReference<>();
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Rule
     public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
 
-    @Mock PersonalDataManager mMockPersonalDataManager;
+    @Mock AutofillImageFetcher mMockImageFetcher;
 
     @Before
     public void setUp() throws InterruptedException {
         mActivityTestRule.startMainActivityOnBlankPage();
-        PersonalDataManagerFactory.setInstanceForTesting(mMockPersonalDataManager);
+        AutofillImageFetcherFactory.setInstanceForTesting(mMockImageFetcher);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mModel = new AccessorySheetTabItemsModel();
@@ -118,7 +118,7 @@ public class CreditCardAccessorySheetViewTest {
                                                         CreditCardAccessorySheetCoordinator
                                                                 .createUiConfiguration(
                                                                         view.getContext(),
-                                                                        mMockPersonalDataManager),
+                                                                        mMockImageFetcher),
                                                         mModel);
                                             }
 
@@ -198,10 +198,7 @@ public class CreditCardAccessorySheetViewTest {
         // Verify that the icon is correctly set.
         ImageView iconImageView = (ImageView) mView.get().getChildAt(0).findViewById(R.id.icon);
         Drawable expectedIcon =
-                ChromeFeatureList.isEnabled(
-                                ChromeFeatureList.AUTOFILL_ENABLE_NEW_CARD_ART_AND_NETWORK_IMAGES)
-                        ? mActivityTestRule.getActivity().getDrawable(R.drawable.visa_metadata_card)
-                        : mActivityTestRule.getActivity().getDrawable(R.drawable.visa_card);
+                mActivityTestRule.getActivity().getDrawable(R.drawable.visa_metadata_card);
         assertTrue(getBitmap(expectedIcon).sameAs(getBitmap(iconImageView.getDrawable())));
         // Chips are clickable:
         ThreadUtils.runOnUiThreadBlocking(findChipView(R.id.cc_number)::performClick);
@@ -213,16 +210,13 @@ public class CreditCardAccessorySheetViewTest {
 
     @Test
     @MediumTest
-    @EnableFeatures({ChromeFeatureList.AUTOFILL_ENABLE_NEW_CARD_ART_AND_NETWORK_IMAGES})
-    public void testAddingUserInfoWithIconUrl_iconCachedInPersonalDataManager()
-            throws ExecutionException {
+    public void testAddingUserInfoWithIconUrl_iconCachedInImageFetcher() throws ExecutionException {
         GURL iconUrl = mock(GURL.class);
         when(iconUrl.isValid()).thenReturn(true);
         when(iconUrl.getSpec()).thenReturn(CUSTOM_ICON_URL);
-        // Return the cached image when
-        // PersonalDataManager.getCustomImageForAutofillSuggestionIfAvailable is called for the
+        // Return the cached image when AutofillImageFetcher.getImageIfAvailable is called for the
         // above url.
-        when(mMockPersonalDataManager.getCustomImageForAutofillSuggestionIfAvailable(any(), any()))
+        when(mMockImageFetcher.getImageIfAvailable(any(), any()))
                 .thenReturn(Optional.of(TEST_CARD_ART_IMAGE));
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -253,7 +247,7 @@ public class CreditCardAccessorySheetViewTest {
         assertThat(getChipText(R.id.exp_year), is("2034"));
         assertThat(getChipText(R.id.cardholder), is("Kirby Puckett"));
         // Verify that the icon is set to the cached image returned by
-        // PersonalDataManager.getCustomImageForAutofillSuggestionIfAvailable.
+        // AutofillImageFetcher.getImageIfAvailable.
         ImageView iconImageView = (ImageView) mView.get().getChildAt(0).findViewById(R.id.icon);
         assertTrue(
                 ((BitmapDrawable) iconImageView.getDrawable())
@@ -263,15 +257,14 @@ public class CreditCardAccessorySheetViewTest {
 
     @Test
     @MediumTest
-    public void testAddingUserInfoWithIconUrl_iconNotCachedInPersonalDataManager()
+    public void testAddingUserInfoWithIconUrl_iconNotCachedInAutofillImageFetcher()
             throws ExecutionException {
         GURL iconUrl = mock(GURL.class);
         when(iconUrl.isValid()).thenReturn(true);
         when(iconUrl.getSpec()).thenReturn(CUSTOM_ICON_URL);
-        // Return null when PersonalDataManager.getCustomImageForAutofillSuggestionIfAvailable is
-        // called for the above url.
-        when(mMockPersonalDataManager.getCustomImageForAutofillSuggestionIfAvailable(any(), any()))
-                .thenReturn(Optional.empty());
+        // Return null to AutofillImageFetcher.getImageIfAvailable to indicate that the image is not
+        // present in the cache.
+        when(mMockImageFetcher.getImageIfAvailable(any(), any())).thenReturn(Optional.empty());
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -303,10 +296,7 @@ public class CreditCardAccessorySheetViewTest {
         // Verify that the icon is set to the drawable corresponding to `visaCC`.
         ImageView iconImageView = (ImageView) mView.get().getChildAt(0).findViewById(R.id.icon);
         Drawable expectedIcon =
-                ChromeFeatureList.isEnabled(
-                                ChromeFeatureList.AUTOFILL_ENABLE_NEW_CARD_ART_AND_NETWORK_IMAGES)
-                        ? mActivityTestRule.getActivity().getDrawable(R.drawable.visa_metadata_card)
-                        : mActivityTestRule.getActivity().getDrawable(R.drawable.visa_card);
+                mActivityTestRule.getActivity().getDrawable(R.drawable.visa_metadata_card);
         assertTrue(getBitmap(expectedIcon).sameAs(getBitmap(iconImageView.getDrawable())));
     }
 
@@ -441,14 +431,15 @@ public class CreditCardAccessorySheetViewTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     PromoCodeInfo info = new PromoCodeInfo();
-                    info.setPromoCode(
-                            new UserInfoField.Builder()
+
+                    info.initialize(
+                            /* promoCode= */ new UserInfoField.Builder()
                                     .setSuggestionType(AccessorySuggestionType.PROMO_CODE)
                                     .setDisplayText(kPromoCode)
                                     .setA11yDescription("Promo code for test store")
                                     .setCallback(item -> clicked.set(true))
-                                    .build());
-                    info.setDetailsText(kDetailsText);
+                                    .build(),
+                            /* detailsText= */ kDetailsText);
                     mModel.add(
                             new AccessorySheetDataPiece(
                                     info, AccessorySheetDataPiece.Type.PROMO_CODE_INFO));
@@ -484,6 +475,114 @@ public class CreditCardAccessorySheetViewTest {
         assertTrue(getBitmap(expectedIcon).sameAs(getBitmap(iconImageView.getDrawable())));
         // Chips are clickable:
         ThreadUtils.runOnUiThreadBlocking(findChipView(R.id.promo_code)::performClick);
+        assertThat(clicked.get(), is(true));
+    }
+
+    @Test
+    @MediumTest
+    public void testAddingLoyaltyCardInfo_ProgramLogoIsCached() throws ExecutionException {
+        final String kMerchantName = "CVS Pharmacy";
+        final String kLoyaltyCardNumber = "987654321";
+        final GURL kProgramLogo = new GURL("https:://image.server.com/image.png");
+        final AtomicBoolean clicked = new AtomicBoolean();
+        assertThat(mView.get().getChildCount(), is(0));
+
+        // Return the cached image when AutofillImageFetcher.getImageIfAvailable is called for the
+        // above url.
+        when(mMockImageFetcher.getImageIfAvailable(eq(kProgramLogo), any()))
+                .thenReturn(Optional.of(TEST_CARD_ART_IMAGE));
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    LoyaltyCardInfo info =
+                            new LoyaltyCardInfo(
+                                    kMerchantName,
+                                    kProgramLogo,
+                                    new UserInfoField.Builder()
+                                            .setSuggestionType(AccessorySuggestionType.LOYALTY_CARD)
+                                            .setDisplayText(kLoyaltyCardNumber)
+                                            .setA11yDescription(kLoyaltyCardNumber)
+                                            .setCallback(item -> clicked.set(true))
+                                            .build());
+
+                    mModel.add(
+                            new AccessorySheetDataPiece(
+                                    "No payment methods", AccessorySheetDataPiece.Type.TITLE));
+                    mModel.add(
+                            new AccessorySheetDataPiece(
+                                    info, AccessorySheetDataPiece.Type.LOYALTY_CARD_INFO));
+                    mModel.add(
+                            new AccessorySheetDataPiece(
+                                    new KeyboardAccessoryData.FooterCommand(
+                                            "Manage loyalty cards", null),
+                                    AccessorySheetDataPiece.Type.FOOTER_COMMAND));
+                });
+
+        // mView's child count should be 3: no payment methods message, loyalty card field, and
+        // footer command.
+        CriteriaHelper.pollUiThread(() -> Criteria.checkThat(mView.get().getChildCount(), is(3)));
+
+        // Check that the titles are correct:
+        LoyaltyCardInfoView loyaltyCardView = (LoyaltyCardInfoView) mView.get().getChildAt(1);
+        assertThat(loyaltyCardView.getMerchantName().isShown(), is(true));
+        assertThat(loyaltyCardView.getMerchantName().getText(), is(kMerchantName));
+        // The icon must be visible since the image is cached.
+        assertThat(loyaltyCardView.findViewById(R.id.loyalty_card_icon).isShown(), is(true));
+        assertThat(
+                loyaltyCardView.getLoyaltyCardNumber().getPrimaryTextView().getText(),
+                is(kLoyaltyCardNumber));
+
+        // Chips are clickable:
+        ThreadUtils.runOnUiThreadBlocking(loyaltyCardView.getLoyaltyCardNumber()::performClick);
+        assertThat(clicked.get(), is(true));
+    }
+
+    @Test
+    @MediumTest
+    public void testAddingLoyaltyCardInfo_ProgramLogoIsNotCached() throws ExecutionException {
+        final String kMerchantName = "CVS Pharmacy";
+        final String kLoyaltyCardNumber = "987654321";
+        final AtomicBoolean clicked = new AtomicBoolean();
+        assertThat(mView.get().getChildCount(), is(0));
+
+        // Return the cached image when AutofillImageFetcher.getImageIfAvailable is called for the
+        // above url.
+        when(mMockImageFetcher.getImageIfAvailable(any(), any())).thenReturn(Optional.empty());
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    LoyaltyCardInfo info =
+                            new LoyaltyCardInfo(
+                                    kMerchantName,
+                                    new GURL("https:://image.server.com/image.png"),
+                                    new UserInfoField.Builder()
+                                            .setSuggestionType(AccessorySuggestionType.LOYALTY_CARD)
+                                            .setDisplayText(kLoyaltyCardNumber)
+                                            .setA11yDescription(kLoyaltyCardNumber)
+                                            .setCallback(item -> clicked.set(true))
+                                            .build());
+
+                    mModel.add(
+                            new AccessorySheetDataPiece(
+                                    info, AccessorySheetDataPiece.Type.LOYALTY_CARD_INFO));
+                });
+
+        // mView's child count should be 3: no payment methods message, loyalty card field, and
+        // footer command.
+        CriteriaHelper.pollUiThread(() -> Criteria.checkThat(mView.get().getChildCount(), is(1)));
+
+        // Check that the titles are correct:
+        LoyaltyCardInfoView loyaltyCardView = (LoyaltyCardInfoView) mView.get().getChildAt(0);
+        assertThat(loyaltyCardView.getMerchantName().isShown(), is(true));
+        assertThat(loyaltyCardView.getMerchantName().getText(), is(kMerchantName));
+        // The icon should be hidden since the image is not cached.
+        assertThat(loyaltyCardView.findViewById(R.id.loyalty_card_icon).isShown(), is(false));
+        assertThat(
+                loyaltyCardView.getLoyaltyCardNumber().getPrimaryTextView().getText(),
+                is(kLoyaltyCardNumber));
+
+        // Chips are clickable:
+        ThreadUtils.runOnUiThreadBlocking(loyaltyCardView.getLoyaltyCardNumber()::performClick);
         assertThat(clicked.get(), is(true));
     }
 

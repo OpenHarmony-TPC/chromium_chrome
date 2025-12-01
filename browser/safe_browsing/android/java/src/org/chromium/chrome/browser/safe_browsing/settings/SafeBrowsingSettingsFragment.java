@@ -13,6 +13,9 @@ import androidx.preference.Preference;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.safe_browsing.SafeBrowsingBridge;
 import org.chromium.chrome.browser.safe_browsing.SafeBrowsingState;
@@ -23,6 +26,7 @@ import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.components.browser_ui.settings.ManagedPreferenceDelegate;
 
 /** Fragment containing Safe Browsing settings. */
+@NullMarked
 public class SafeBrowsingSettingsFragment extends SafeBrowsingSettingsFragmentBase
         implements RadioButtonGroupSafeBrowsingPreference.OnSafeBrowsingModeDetailsRequested,
                 Preference.OnPreferenceChangeListener {
@@ -31,6 +35,7 @@ public class SafeBrowsingSettingsFragment extends SafeBrowsingSettingsFragmentBa
     public static final String ACCESS_POINT = "SafeBrowsingSettingsFragment.AccessPoint";
 
     private RadioButtonGroupSafeBrowsingPreference mSafeBrowsingPreference;
+
     private @SettingsAccessPoint int mAccessPoint;
 
     /**
@@ -64,8 +69,9 @@ public class SafeBrowsingSettingsFragment extends SafeBrowsingSettingsFragmentBa
         return result;
     }
 
+    @Initializer
     @Override
-    protected void onCreatePreferencesInternal(Bundle bundle, String s) {
+    protected void onCreatePreferencesInternal(@Nullable Bundle bundle, @Nullable String s) {
         mAccessPoint =
                 IntentUtils.safeGetInt(getArguments(), ACCESS_POINT, SettingsAccessPoint.DEFAULT);
 
@@ -155,6 +161,19 @@ public class SafeBrowsingSettingsFragment extends SafeBrowsingSettingsFragmentBa
         } else {
             getSafeBrowsingBridge().setSafeBrowsingState(newState);
         }
+        // This function is called when the user manually modifies their safe browsing settings via
+        // the security settings page. This action indicates that the user has seen and interacted
+        // with the notification that informed them of the synced settings.
+        //
+        // The notification is displayed when safe browsing settings are synced across devices.
+        // This function prevents the notification from being shown again for settings explicitly
+        // configured locally, ensuring that users are not repeatedly notified about settings
+        // they've deliberately chosen on this device.
+        //
+        // By marking the notification as "shown" locally, we differentiate between settings applied
+        // via sync and those directly configured by the user on this device, thus avoiding
+        // redundant or misleading notifications.
+        getSafeBrowsingBridge().enableSafeBrowsingSettingSetLocallyPref();
         return true;
     }
 
@@ -229,7 +248,7 @@ public class SafeBrowsingSettingsFragment extends SafeBrowsingSettingsFragmentBa
         RecordHistogram.recordEnumeratedHistogram(
                 "SafeBrowsing.Settings.UserAction." + metricsSuffix,
                 userAction,
-                UserAction.MAX_VALUE + 1);
+                UserAction.MAX_VALUE);
 
         String userActionSuffix;
         switch (userAction) {
@@ -262,5 +281,10 @@ public class SafeBrowsingSettingsFragment extends SafeBrowsingSettingsFragmentBa
                 userActionSuffix = "";
         }
         RecordUserAction.record("SafeBrowsing.Settings." + userActionSuffix);
+    }
+
+    @Override
+    public @AnimationType int getAnimationType() {
+        return AnimationType.PROPERTY;
     }
 }

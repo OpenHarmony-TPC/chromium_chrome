@@ -115,7 +115,8 @@ void DBusSchedQOSStateHandler::InitializeProcessPriority(
   main_task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&DBusSchedQOSStateHandler::SetThreadTypeOnThread,
-                     weak_ptr_factory_.GetWeakPtr(), process_id, process_id,
+                     weak_ptr_factory_.GetWeakPtr(), process_id,
+                     base::PlatformThreadId(process_id),
                      base::ThreadType::kDefault));
 }
 
@@ -360,9 +361,6 @@ void DBusSchedQOSStateHandler::SetThreadTypeOnThread(
     case base::ThreadType::kUtility:
       state = resource_manager::ThreadState::kUtility;
       break;
-    case base::ThreadType::kResourceEfficient:
-      state = resource_manager::ThreadState::kEco;
-      break;
     case base::ThreadType::kDefault:
       state = resource_manager::ThreadState::kBalanced;
       break;
@@ -379,7 +377,7 @@ void DBusSchedQOSStateHandler::SetThreadTypeOnThread(
       base::BindOnce(&DBusSchedQOSStateHandler::OnSetThreadTypeFinish,
                      weak_ptr_factory_.GetWeakPtr(), process_id, thread_id,
                      thread_type, std::move(elapsed_timer),
-                     system::ProcStatFile(thread_id)));
+                     system::ProcStatFile(thread_id.raw())));
 }
 
 void DBusSchedQOSStateHandler::OnSetThreadTypeFinish(
@@ -393,7 +391,7 @@ void DBusSchedQOSStateHandler::OnSetThreadTypeFinish(
 
   const bool success = result == dbus::DBusResult::kSuccess;
   const bool is_pid_reused =
-      IsPidReused(std::move(stat_file), thread_id, success);
+      IsPidReused(std::move(stat_file), thread_id.raw(), success);
   LOG_IF(ERROR, is_pid_reused)
       << "PID reuse detected for thread id " << thread_id;
   base::UmaHistogramEnumeration(

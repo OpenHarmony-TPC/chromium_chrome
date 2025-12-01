@@ -16,7 +16,7 @@ public final class GestureNavigationTestUtils {
     private final ChromeTabbedActivityTestRule mActivityTestRule;
     private final NavigationHandler mNavigationHandler;
     private final HistoryNavigationLayout mNavigationLayout;
-    private float mEdgeWidthPx;
+    private final float mEdgeWidthPx;
 
     public GestureNavigationTestUtils(ChromeTabbedActivityTestRule rule) {
         mActivityTestRule = rule;
@@ -81,8 +81,8 @@ public final class GestureNavigationTestUtils {
      * Enables gestural navigation for use in tests. Tests are responsible for manually injecting
      * simulated "back" gesture progress events.
      */
-    public void enableGestureNavigationForTesting() {
-        getNavigationCoordinator().forceFeatureEnabledForTesting();
+    public void enableGestureNavigationForTesting(boolean enable) {
+        getNavigationCoordinator().forceFeatureEnabledForTesting(enable);
     }
 
     private void swipe(boolean leftEdge, float startx, float endx, float y) {

@@ -4,6 +4,9 @@
 
 package org.chromium.chrome.browser.data_sharing;
 
+import static org.chromium.chrome.browser.data_sharing.DataSharingIntentUtils.ACTION_EXTRA;
+import static org.chromium.chrome.browser.data_sharing.DataSharingIntentUtils.TAB_GROUP_SYNC_ID_EXTRA;
+
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -12,8 +15,9 @@ import android.content.Intent;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.IntentUtils;
-import org.chromium.base.Token;
-import org.chromium.chrome.browser.intents.BrowserIntentUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.data_sharing.DataSharingIntentUtils.Action;
 import org.chromium.chrome.browser.notifications.NotificationUmaTracker;
 import org.chromium.chrome.browser.notifications.NotificationWrapperBuilderFactory;
 import org.chromium.chrome.browser.notifications.channels.ChromeChannelDefinitions;
@@ -26,57 +30,44 @@ import org.chromium.components.browser_ui.notifications.PendingIntentProvider;
 import org.chromium.url.GURL;
 
 /** Sends notification for information update of Data Sharing service to user. */
+@NullMarked
 public class DataSharingNotificationManager {
     private final Context mContext;
     private final BaseNotificationManagerProxy mNotificationManagerProxy;
     private static final String TAG = "data_sharing";
     // TODO(b/329155961): Use the collaboration_id given by data sharing service.
     private static final int NOTIFICATION_ID = 5000;
-    public static final String DATA_SHARING_EXTRA = "org.chromium.chrome.browser.data_sharing";
 
     /** Receive data sharing notification click event. */
     public static final class Receiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            // Launch tab switcher view.
-            // TODO(b/329155961): Introduce a custom action for all notifications launching from
-            // Data Sharing Service.
-            Intent invitationIntent = createInvitationIntent(context, GURL.emptyGURL());
-            IntentUtils.safeStartActivity(context, invitationIntent);
+            @Action int action = IntentUtils.safeGetIntExtra(intent, ACTION_EXTRA, Action.UNKNOWN);
+            if (action == Action.INVITATION_FLOW) {
+                Intent invitationIntent =
+                        DataSharingIntentUtils.createInvitationIntent(context, GURL.emptyGURL());
+                IntentUtils.safeStartActivity(context, invitationIntent);
+            } else if (action == Action.MANAGE_TAB_GROUP) {
+                String syncId = IntentUtils.safeGetStringExtra(intent, TAB_GROUP_SYNC_ID_EXTRA);
+                Intent manageIntent = DataSharingIntentUtils.createManageIntent(context, syncId);
+                IntentUtils.safeStartActivity(context, manageIntent);
+            }
         }
-    }
-
-    /**
-     * Create an intent to launch the invitation flow.
-     *
-     * @param context The {@link Context} to use.
-     * @param url The URL associated with the invitation.
-     * @return The {@link Intent} to launch the invitation flow.
-     */
-    public static Intent createInvitationIntent(Context context, GURL url) {
-        Intent launchIntent = new Intent(Intent.ACTION_VIEW);
-        launchIntent.addCategory(Intent.CATEGORY_DEFAULT);
-        launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-        launchIntent.setClassName(context, BrowserIntentUtils.CHROME_LAUNCHER_ACTIVITY_CLASS_NAME);
-        launchIntent.putExtra(DATA_SHARING_EXTRA, url.getSpec());
-        IntentUtils.addTrustedIntentExtras(launchIntent);
-        return launchIntent;
     }
 
     public DataSharingNotificationManager(Context context) {
         mContext = context;
-        mNotificationManagerProxy =
-                BaseNotificationManagerProxyFactory.create(context.getApplicationContext());
+        mNotificationManagerProxy = BaseNotificationManagerProxyFactory.create();
     }
 
     @VisibleForTesting
-    protected NotificationWrapperBuilder getNotificationBuilder() {
+    protected NotificationWrapperBuilder notificationBuilder(int notificationId) {
         return NotificationWrapperBuilderFactory.createNotificationWrapperBuilder(
-                ChromeChannelDefinitions.ChannelId.BROWSER,
+                ChromeChannelDefinitions.ChannelId.COLLABORATION,
                 new NotificationMetadata(
                         NotificationUmaTracker.SystemNotificationType.DATA_SHARING,
                         TAG,
-                        NOTIFICATION_ID));
+                        notificationId));
     }
 
     /**
@@ -88,29 +79,40 @@ public class DataSharingNotificationManager {
         String contentTitle =
                 mContext.getString(
                         R.string.data_sharing_invitation_notification_title, displayName);
-        buildAndNotify(contentTitle, /* showWhen= */ false);
+        Intent pendingIntent = createPendingIntent(Action.INVITATION_FLOW);
+        buildAndNotify(contentTitle, /* showWhen= */ false, NOTIFICATION_ID, pendingIntent);
     }
 
     /**
      * Shows a notification that another user joined a collaboration.
      *
      * @param contentTitle The text to display.
-     * @param tabGroupId The id of the tab group that should be opened upon action interaction.
+     * @param syncId The sync id of the tab group that should be opened upon action interaction.
      */
-    public void showOtherJoinedNotification(String contentTitle, Token tabGroupId) {
-        // TODO(https://crbug.com/369186228): Add tabGroupId as an extra.
-        buildAndNotify(contentTitle, /* showWhen= */ true);
+    public void showOtherJoinedNotification(
+            String contentTitle, @Nullable String syncId, int notificationId) {
+        Intent pendingIntent = createPendingIntent(Action.MANAGE_TAB_GROUP);
+        pendingIntent.putExtra(TAB_GROUP_SYNC_ID_EXTRA, syncId);
+        buildAndNotify(contentTitle, /* showWhen= */ true, notificationId, pendingIntent);
     }
 
-    private void buildAndNotify(String contentTitle, boolean showWhen) {
+    private void buildAndNotify(
+            String contentTitle, boolean showWhen, int notificationId, Intent pendingIntent) {
+        PendingIntentProvider pendingIntentProvider =
+                PendingIntentProvider.getBroadcast(
+                        mContext,
+                        /* requestCode= */ 0,
+                        pendingIntent,
+                        PendingIntent.FLAG_IMMUTABLE);
+
         NotificationWrapper notification =
-                getNotificationBuilder()
+                notificationBuilder(notificationId)
                         .setSmallIcon(R.drawable.ic_chrome)
                         .setShowWhen(showWhen)
                         .setAutoCancel(true)
                         .setLocalOnly(true)
                         .setContentTitle(contentTitle)
-                        .setContentIntent(createIntent(mContext))
+                        .setContentIntent(pendingIntentProvider)
                         .buildNotificationWrapper();
 
         mNotificationManagerProxy.notify(notification);
@@ -121,10 +123,10 @@ public class DataSharingNotificationManager {
                         notification.getNotification());
     }
 
-    private static PendingIntentProvider createIntent(Context context) {
-        Intent intent = new Intent(context, DataSharingNotificationManager.Receiver.class);
+    private Intent createPendingIntent(@Action int action) {
+        Intent intent = new Intent(mContext, DataSharingNotificationManager.Receiver.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        return PendingIntentProvider.getBroadcast(
-                context, /* requestCode= */ 0, intent, PendingIntent.FLAG_IMMUTABLE);
+        intent.putExtra(ACTION_EXTRA, action);
+        return intent;
     }
 }

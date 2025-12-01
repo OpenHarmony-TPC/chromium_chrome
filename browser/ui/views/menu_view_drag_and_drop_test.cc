@@ -50,11 +50,9 @@ class TestDragView : public views::View {
                      ui::OSExchangeData* data) override;
 };
 
-TestDragView::TestDragView() {
-}
+TestDragView::TestDragView() = default;
 
-TestDragView::~TestDragView() {
-}
+TestDragView::~TestDragView() = default;
 
 int TestDragView::GetDragOperations(const gfx::Point& point) {
   return ui::DragDropTypes::DRAG_MOVE;
@@ -116,11 +114,11 @@ void TestTargetView::Init() {
 
   // Then add two draggable views, each 10x5.
   views::View* first = new TestDragView();
-  AddChildView(first);
+  AddChildViewRaw(first);
   first->SetBounds(2, 2, 10, 5);
 
   views::View* second = new TestDragView();
-  AddChildView(second);
+  AddChildViewRaw(second);
   second->SetBounds(15, 2, 10, 5);
 }
 
@@ -244,7 +242,7 @@ void MenuViewDragAndDropTest::BuildMenu(views::MenuItemView* menu) {
   // drop...
   views::MenuItemView* menu_item_view = menu->AppendMenuItem(1, u"item 1");
   target_view_ = new TestTargetView();
-  menu_item_view->AddChildView(target_view_.get());
+  menu_item_view->AddChildViewRaw(target_view_.get());
   // ... as well as two other, normal items.
   menu->AppendMenuItem(2, u"item 2");
   menu->AppendMenuItem(3, u"item 3");
@@ -282,7 +280,7 @@ void MenuViewDragAndDropTest::OnDragEntered() {
       FROM_HERE,
       base::BindOnce(base::IgnoreResult(&ui_controls::SendMouseEvents),
                      ui_controls::LEFT, ui_controls::UP,
-                     ui_controls::kNoAccelerator, ui_controls::kNoWindowHint));
+                     ui_controls::kNoAccelerator, gfx::NativeWindow()));
 }
 
 bool MenuViewDragAndDropTest::GetDropFormats(
@@ -322,8 +320,8 @@ bool MenuViewDragAndDropTest::CanDrag(views::MenuItemView* menu) {
   return true;
 }
 
-void MenuViewDragAndDropTest::WriteDragData(
-    views::MenuItemView* sender, ui::OSExchangeData* data) {
+void MenuViewDragAndDropTest::WriteDragData(views::MenuItemView* sender,
+                                            ui::OSExchangeData* data) {
   data->SetString(kTestTopLevelDragData);
 }
 
@@ -369,9 +367,8 @@ void MenuViewDragAndDropTestTestInMenuDrag::OnWidgetDragWillStart(
   const gfx::Point target =
       ui_test_utils::GetCenterInScreenCoordinates(drop_target_view);
   GetDragTaskRunner()->PostTask(
-      FROM_HERE,
-      base::BindOnce(base::IgnoreResult(&ui_controls::SendMouseMove),
-                     target.x(), target.y(), ui_controls::kNoWindowHint));
+      FROM_HERE, base::BindOnce(base::IgnoreResult(&ui_controls::SendMouseMove),
+                                target.x(), target.y(), gfx::NativeWindow()));
 }
 
 void MenuViewDragAndDropTestTestInMenuDrag::OnWidgetDragComplete(
@@ -381,7 +378,12 @@ void MenuViewDragAndDropTestTestInMenuDrag::OnWidgetDragComplete(
   EXPECT_TRUE(performed_in_menu_drop());
   EXPECT_FALSE(target_view()->dropped());
   EXPECT_TRUE(asked_to_close());
-  EXPECT_FALSE(menu()->GetSubmenu()->IsShowing());
+
+// TODO(crbug.com/375959961): For X11, the menu is always closed on drag
+// completion because the native widget's state is not properly updated.
+#if !BUILDFLAG(IS_OZONE_X11)
+  EXPECT_TRUE(menu()->GetSubmenu()->IsShowing());
+#endif
 
   Done();
 }
@@ -456,7 +458,7 @@ void MenuViewDragAndDropTestTestInMenuDragNoDrop::OnWidgetDragWillStart(
       FROM_HERE,
       base::BindOnce(base::IgnoreResult(&ui_controls::SendMouseEvents),
                      ui_controls::LEFT, ui_controls::UP,
-                     ui_controls::kNoAccelerator, ui_controls::kNoWindowHint));
+                     ui_controls::kNoAccelerator, gfx::NativeWindow()));
 }
 
 void MenuViewDragAndDropTestTestInMenuDragNoDrop::OnWidgetDragComplete(
@@ -535,9 +537,8 @@ void MenuViewDragAndDropTestNestedDrag::OnWidgetDragWillStart(
   const gfx::Point target =
       ui_test_utils::GetCenterInScreenCoordinates(drop_target_view);
   GetDragTaskRunner()->PostTask(
-      FROM_HERE,
-      base::BindOnce(base::IgnoreResult(&ui_controls::SendMouseMove),
-                     target.x(), target.y(), ui_controls::kNoWindowHint));
+      FROM_HERE, base::BindOnce(base::IgnoreResult(&ui_controls::SendMouseMove),
+                                target.x(), target.y(), gfx::NativeWindow()));
 }
 
 void MenuViewDragAndDropTestNestedDrag::OnWidgetDragComplete(
@@ -613,8 +614,8 @@ VIEW_TEST(MenuViewDragAndDropTestNestedDrag,
 
 class MenuViewDragAndDropForDropStayOpen : public MenuViewDragAndDropTest {
  public:
-  MenuViewDragAndDropForDropStayOpen() {}
-  ~MenuViewDragAndDropForDropStayOpen() override {}
+  MenuViewDragAndDropForDropStayOpen() = default;
+  ~MenuViewDragAndDropForDropStayOpen() override = default;
 
  private:
   // MenuViewDragAndDropTest:
@@ -644,8 +645,8 @@ VIEW_TEST(MenuViewDragAndDropForDropStayOpen, MenuViewStaysOpenForNestedDrag)
 
 class MenuViewDragAndDropForDropCancel : public MenuViewDragAndDropTest {
  public:
-  MenuViewDragAndDropForDropCancel() {}
-  ~MenuViewDragAndDropForDropCancel() override {}
+  MenuViewDragAndDropForDropCancel() = default;
+  ~MenuViewDragAndDropForDropCancel() override = default;
 
  private:
   // MenuViewDragAndDropTest:

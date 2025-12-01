@@ -39,7 +39,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
-import org.chromium.chrome.browser.toolbar.ButtonDataProvider;
+import org.chromium.chrome.browser.toolbar.optional_button.ButtonDataProvider;
 import org.chromium.chrome.browser.toolbar.top.OptionalBrowsingModeButtonController;
 import org.chromium.chrome.browser.toolbar.top.TopToolbarCoordinator;
 import org.chromium.chrome.test.util.browser.tabmodel.MockTabCreatorManager;
@@ -101,7 +101,7 @@ public class OptionalNewTabButtonControllerActivityTest {
         when(originalProfile.getOriginalProfile()).thenReturn(originalProfile);
         when(incognitoProfile.isOffTheRecord()).thenReturn(true);
 
-        PriceTrackingFeatures.setPriceTrackingEnabledForTesting(false);
+        PriceTrackingFeatures.setPriceAnnotationsEnabledForTesting(false);
 
         // Avoid leaking state from the previous test.
         AdaptiveToolbarStatePredictor.setToolbarStateForTesting(

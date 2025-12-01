@@ -4,14 +4,15 @@
 
 #include "chrome/browser/lifetime/browser_close_manager.h"
 
+#include <algorithm>
 #include <iterator>
+#include <ranges>
 #include <vector>
 
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "build/build_config.h"
-#include "chrome/browser/background/background_mode_manager.h"
+#include "chrome/browser/background/extensions/background_mode_manager.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
@@ -29,6 +30,14 @@
 
 #if BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
 #include "chrome/browser/notifications/notification_ui_manager.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/ohos/browser_exit_monitor_ohos.h"
+#endif
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/background/glic/glic_background_mode_manager.h"
 #endif
 
 namespace {
@@ -56,6 +65,12 @@ void BrowserCloseManager::StartClosingBrowsers() {
   if (browser_shutdown::ShouldIgnoreUnloadHandlers()) {
     // Tell everyone that we are shutting down.
     browser_shutdown::SetTryingToQuit(true);
+#if BUILDFLAG(IS_OHOS)
+    chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+        chrome::ExitTaskOhos::DOWNLOAD, chrome::ExitStateOhos::CLOSE, false);
+    chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+        chrome::ExitTaskOhos::BEFOREUNLOAD, chrome::ExitStateOhos::CLOSE);
+#endif
     CloseBrowsers();
     return;
   }
@@ -83,6 +98,10 @@ void BrowserCloseManager::TryToCloseBrowsers() {
       return;
     }
   }
+#if BUILDFLAG(IS_OHOS)
+  chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+      chrome::ExitTaskOhos::BEFOREUNLOAD, chrome::ExitStateOhos::CLOSE);
+#endif
   CheckForDownloadsInProgress();
 }
 
@@ -107,9 +126,17 @@ void BrowserCloseManager::CheckForDownloadsInProgress() {
 #else
   int download_count = DownloadCoreService::BlockingShutdownCountAllProfiles();
   if (download_count == 0) {
+#if BUILDFLAG(IS_OHOS)
+    chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+        chrome::ExitTaskOhos::DOWNLOAD, chrome::ExitStateOhos::CLOSE);
+#endif
     CloseBrowsers();
     return;
   }
+#if BUILDFLAG(IS_OHOS)
+  chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
+      chrome::ExitTaskOhos::DOWNLOAD, chrome::ExitStateOhos::BLOCK);
+#endif
 
   ConfirmCloseWithPendingDownloads(
       download_count,
@@ -168,15 +195,18 @@ void BrowserCloseManager::CloseBrowsers() {
   }
 #endif
 
-  // Make a copy of the BrowserList to simplify the case where we need to
-  // destroy a Browser during the loop.
-  std::vector<Browser*> browser_list_copy;
-  base::ranges::copy(*BrowserList::GetInstance(),
-                     std::back_inserter(browser_list_copy));
+#if BUILDFLAG(ENABLE_GLIC)
+  auto* glic_background_mode_manager =
+      glic::GlicBackgroundModeManager::GetInstance();
+  if (glic_background_mode_manager) {
+    glic_background_mode_manager->ExitBackgroundMode();
+  }
+#endif
 
-  bool ignore_unload_handlers = browser_shutdown::ShouldIgnoreUnloadHandlers();
-
-  for (auto* browser : browser_list_copy) {
+  BrowserList::GetInstance()->ForEachCurrentAndNewBrowser([](Browser* browser) {
+    bool ignore_unload_handlers =
+        browser_shutdown::ShouldIgnoreUnloadHandlers();
+    browser->set_force_skip_warning_user_on_close(ignore_unload_handlers);
     browser->window()->Close();
     if (ignore_unload_handlers) {
       // This path is hit during logoff/power-down. It could be the case that
@@ -185,13 +215,12 @@ void BrowserCloseManager::CloseBrowsers() {
       // current site). Since we are attempting to end the session, we will
       // force skip these warnings and manually close all the tabs to make sure
       // the browser is destroyed and cleanup can happen.
-      browser->set_force_skip_warning_user_on_close(true);
       browser->tab_strip_model()->CloseAllTabs();
       browser->window()->DestroyBrowser();
       // Destroying the browser should have removed it from the browser list.
       DCHECK(!base::Contains(*BrowserList::GetInstance(), browser));
     }
-  }
+  });
 
 #if BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
   NotificationUIManager* notification_manager =

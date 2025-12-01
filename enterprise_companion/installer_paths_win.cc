@@ -22,11 +22,11 @@ const char kExecutableName[] = "enterprise_companion.exe";
 std::optional<base::FilePath> GetInstallDirectory() {
   base::FilePath program_files_dir;
   if (!base::PathService::Get(base::DIR_PROGRAM_FILESX86, &program_files_dir)) {
-    LOG(ERROR) << "Can't retrieve app data directory.";
+    VLOG(1) << "Can't retrieve app data directory.";
     return {};
   }
-  return program_files_dir.AppendASCII(COMPANY_SHORTNAME_STRING)
-      .AppendASCII(PRODUCT_FULLNAME_STRING);
+  return program_files_dir.Append(FILE_PATH_LITERAL(COMPANY_SHORTNAME_STRING))
+      .Append(FILE_PATH_LITERAL(PRODUCT_FULLNAME_STRING));
 }
 
 std::optional<base::FilePath> FindExistingInstall() {
@@ -34,7 +34,7 @@ std::optional<base::FilePath> FindExistingInstall() {
   if (!install_dir) {
     return {};
   }
-  install_dir = install_dir->AppendASCII(kExecutableName);
+  install_dir = install_dir->AppendUTF8(kExecutableName);
   return base::PathExists(*install_dir) ? install_dir : std::nullopt;
 }
 

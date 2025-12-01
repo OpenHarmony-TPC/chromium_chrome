@@ -28,11 +28,11 @@
 #include "chrome/browser/ui/views/toolbar/chrome_labs/chrome_labs_item_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/buildflags.h"
-#include "components/flags_ui/feature_entry.h"
-#include "components/flags_ui/flags_state.h"
-#include "components/flags_ui/flags_storage.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/user_education/common/new_badge/new_badge_controller.h"
+#include "components/webui/flags/feature_entry.h"
+#include "components/webui/flags/flags_state.h"
+#include "components/webui/flags/flags_storage.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 
@@ -51,10 +51,10 @@ enum class ChromeLabsSelectedLab {
   kUnspecifiedSelected = 0,
   // kReadLaterSelected = 1,
   // kTabSearchSelected = 2,
-  kTabScrollingSelected = 3,
+  // kTabScrollingSelected = 3,
   // kSidePanelSelected = 4,
   // kLensRegionSearchSelected = 5,
-  kWebUITabStripSelected = 6,
+  // kWebUITabStripSelected = 6,
   // kTabSearchMediaTabsSelected = 7,
   // kChromeRefresh2023Selected = 8,
   // kTabGroupsSaveSelected = 9,
@@ -82,20 +82,13 @@ void EmitToHistogram(const std::u16string& selected_lab_state,
   };
 
   const auto get_enum = [](const std::string& internal_name) {
-    if (internal_name == flag_descriptions::kScrollableTabStripFlagId)
-      return ChromeLabsSelectedLab::kTabScrollingSelected;
-#if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP) && \
-    (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS))
-    if (internal_name == flag_descriptions::kWebUITabStripFlagId)
-      return ChromeLabsSelectedLab::kWebUITabStripSelected;
-#endif
-
     return ChromeLabsSelectedLab::kUnspecifiedSelected;
   };
 
   const std::string histogram_name = get_histogram_name(selected_lab_state);
-  if (!histogram_name.empty())
+  if (!histogram_name.empty()) {
     base::UmaHistogramEnumeration(histogram_name, get_enum(internal_name));
+  }
 }
 
 // Returns the number of days since epoch (1970-01-01) in the local timezone.
@@ -129,8 +122,9 @@ int ChromeLabsViewController::GetIndexOfEnabledLabState(
   flags_state->GetSanitizedEnabledFlags(flags_storage, &enabled_entries);
   for (int i = 0; i < entry->NumOptions(); i++) {
     const std::string name = entry->NameForOption(i);
-    if (base::Contains(enabled_entries, name))
+    if (base::Contains(enabled_entries, name)) {
       return i;
+    }
   }
   return 0;
 }
@@ -202,11 +196,6 @@ void ChromeLabsViewController::SetRestartCallback() {
 user_education::DisplayNewBadge ChromeLabsViewController::ShouldLabShowNewBadge(
     Profile* profile,
     const LabInfo& lab) {
-  // This experiment was added before adding the new badge and is not new.
-  if (lab.internal_name == flag_descriptions::kScrollableTabStripFlagId) {
-    return user_education::DisplayNewBadge();
-  }
-
 #if BUILDFLAG(IS_CHROMEOS)
   ScopedDictPrefUpdate update(
       profile->GetPrefs(), chrome_labs_prefs::kChromeLabsNewBadgeDictAshChrome);

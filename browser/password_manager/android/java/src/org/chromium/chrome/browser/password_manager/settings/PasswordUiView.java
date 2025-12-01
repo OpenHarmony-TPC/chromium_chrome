@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser.password_manager.settings;
 
-import android.app.Activity;
 import android.content.Context;
 
 import org.jni_zero.CalledByNative;
@@ -13,13 +12,14 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
 import org.chromium.base.IntStringCallback;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 
 /**
  * Production implementation of PasswordManagerHandler, making calls to native C++ code to retrieve
  * the data.
  */
+@NullMarked
 public final class PasswordUiView implements PasswordManagerHandler {
     @CalledByNative
     private static SavedPasswordEntry createSavedPasswordEntry(
@@ -125,15 +125,6 @@ public final class PasswordUiView implements PasswordManagerHandler {
                         mNativePasswordUiViewAndroid, context, index, PasswordUiView.this);
     }
 
-    @Override
-    public void showMigrationWarning(
-            Activity activity, BottomSheetController bottomSheetController) {
-        if (mNativePasswordUiViewAndroid == 0) return;
-        PasswordUiViewJni.get()
-                .showMigrationWarning(
-                        mNativePasswordUiViewAndroid, activity, bottomSheetController);
-    }
-
     /**
      * Returns the URL for the website for managing one's passwords without the need to use Chrome
      * with the user's profile signed in.
@@ -220,10 +211,5 @@ public final class PasswordUiView implements PasswordManagerHandler {
                 Context context,
                 int index,
                 PasswordUiView caller);
-
-        void showMigrationWarning(
-                long nativePasswordUiViewAndroid,
-                Activity activity,
-                BottomSheetController bottomSheetController);
     }
 }

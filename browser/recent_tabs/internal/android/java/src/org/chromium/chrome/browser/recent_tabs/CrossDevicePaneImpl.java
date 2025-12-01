@@ -4,15 +4,16 @@
 
 package org.chromium.chrome.browser.recent_tabs;
 
+import static org.chromium.chrome.browser.hub.HubAnimationConstants.HUB_LAYOUT_FADE_DURATION_MS;
+
 import android.content.Context;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.hub.DisplayButtonData;
 import org.chromium.chrome.browser.hub.FadeHubLayoutAnimationFactory;
 import org.chromium.chrome.browser.hub.FullButtonData;
@@ -20,7 +21,6 @@ import org.chromium.chrome.browser.hub.HubColorScheme;
 import org.chromium.chrome.browser.hub.HubContainerView;
 import org.chromium.chrome.browser.hub.HubLayoutAnimationListener;
 import org.chromium.chrome.browser.hub.HubLayoutAnimatorProvider;
-import org.chromium.chrome.browser.hub.HubLayoutConstants;
 import org.chromium.chrome.browser.hub.LoadHint;
 import org.chromium.chrome.browser.hub.Pane;
 import org.chromium.chrome.browser.hub.PaneHubController;
@@ -35,6 +35,7 @@ import java.util.function.DoubleConsumer;
  * A {@link Pane} representing tabs from other devices. This feature is being migrated here from the
  * Recent Tabs page and used to exist under the foreign session tabs section.
  */
+@NullMarked
 public class CrossDevicePaneImpl implements CrossDevicePane {
     private final Context mContext;
     private final DoubleConsumer mOnToolbarAlphaChange;
@@ -46,8 +47,10 @@ public class CrossDevicePaneImpl implements CrossDevicePane {
             new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<Boolean> mHairlineVisibilitySupplier =
             new ObservableSupplierImpl<>();
+    private final ObservableSupplierImpl<Boolean> mHubSearchEnabledStateSupplier =
+            new ObservableSupplierImpl<>();
 
-    private CrossDeviceListCoordinator mCrossDeviceListCoordinator;
+    private @Nullable CrossDeviceListCoordinator mCrossDeviceListCoordinator;
 
     /**
      * @param context Used to inflate UI.
@@ -55,9 +58,9 @@ public class CrossDevicePaneImpl implements CrossDevicePane {
      * @param edgeToEdgeSupplier Supplier to the {@link EdgeToEdgeController} instance.
      */
     CrossDevicePaneImpl(
-            @NonNull Context context,
-            @NonNull DoubleConsumer onToolbarAlphaChange,
-            @NonNull ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier) {
+            Context context,
+            DoubleConsumer onToolbarAlphaChange,
+            ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier) {
         mContext = context;
         mOnToolbarAlphaChange = onToolbarAlphaChange;
         mEdgeToEdgeController = edgeToEdgeSupplier;
@@ -75,15 +78,13 @@ public class CrossDevicePaneImpl implements CrossDevicePane {
         return PaneId.CROSS_DEVICE;
     }
 
-    @NonNull
     @Override
     public ViewGroup getRootView() {
         return mRootView;
     }
 
-    @Nullable
     @Override
-    public MenuOrKeyboardActionHandler getMenuOrKeyboardActionHandler() {
+    public @Nullable MenuOrKeyboardActionHandler getMenuOrKeyboardActionHandler() {
         return null;
     }
 
@@ -126,43 +127,42 @@ public class CrossDevicePaneImpl implements CrossDevicePane {
         }
     }
 
-    @NonNull
     @Override
     public ObservableSupplier<FullButtonData> getActionButtonDataSupplier() {
         return mEmptyActionButtonSupplier;
     }
 
-    @NonNull
     @Override
     public ObservableSupplier<DisplayButtonData> getReferenceButtonDataSupplier() {
         return mReferenceButtonSupplier;
     }
 
-    @NonNull
     @Override
     public ObservableSupplier<Boolean> getHairlineVisibilitySupplier() {
         return mHairlineVisibilitySupplier;
     }
 
-    @Nullable
     @Override
-    public HubLayoutAnimationListener getHubLayoutAnimationListener() {
+    public @Nullable HubLayoutAnimationListener getHubLayoutAnimationListener() {
         return null;
     }
 
-    @NonNull
     @Override
     public HubLayoutAnimatorProvider createShowHubLayoutAnimatorProvider(
-            @NonNull HubContainerView hubContainerView) {
+            HubContainerView hubContainerView) {
         return FadeHubLayoutAnimationFactory.createFadeInAnimatorProvider(
-                hubContainerView, HubLayoutConstants.FADE_DURATION_MS, mOnToolbarAlphaChange);
+                hubContainerView, HUB_LAYOUT_FADE_DURATION_MS, mOnToolbarAlphaChange);
     }
 
-    @NonNull
     @Override
     public HubLayoutAnimatorProvider createHideHubLayoutAnimatorProvider(
-            @NonNull HubContainerView hubContainerView) {
+            HubContainerView hubContainerView) {
         return FadeHubLayoutAnimationFactory.createFadeOutAnimatorProvider(
-                hubContainerView, HubLayoutConstants.FADE_DURATION_MS, mOnToolbarAlphaChange);
+                hubContainerView, HUB_LAYOUT_FADE_DURATION_MS, mOnToolbarAlphaChange);
+    }
+
+    @Override
+    public ObservableSupplier<Boolean> getHubSearchEnabledStateSupplier() {
+        return mHubSearchEnabledStateSupplier;
     }
 }

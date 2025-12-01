@@ -15,16 +15,15 @@ import org.junit.runner.RunWith;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.Features;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.verification.ChromeVerificationResultStore;
 import org.chromium.chrome.browser.browsing_data.BrowsingDataBridge.OnClearBrowsingDataListener;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.webapps.TestFetchStorageCallback;
 import org.chromium.chrome.browser.webapps.WebappRegistry;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.util.browser.webapps.WebappTestHelper;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.net.test.EmbeddedTestServer;
@@ -50,11 +49,12 @@ public class BrowsingDataRemoverIntegrationTest {
     private static final String TEST_PATH = "/chrome/test/data/android/about.html";
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Before
     public void setUp() throws InterruptedException {
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mActivityTestRule.startOnBlankPage();
     }
 
     private void registerWebapp(final String webappId, final String webappUrl) throws Exception {
@@ -164,7 +164,6 @@ public class BrowsingDataRemoverIntegrationTest {
 
     @Test
     @MediumTest
-    @Features.DisableFeatures(ChromeFeatureList.QUICK_DELETE_ANDROID_FOLLOWUP)
     public void testClearingTabs() throws TimeoutException {
         EmbeddedTestServer testServer = mActivityTestRule.getTestServer();
         String testUrl = testServer.getURL(TEST_PATH);
@@ -172,34 +171,6 @@ public class BrowsingDataRemoverIntegrationTest {
         CallbackHelper callbackHelper = new CallbackHelper();
         mActivityTestRule.loadUrlInNewTab(testUrl, /* incognito= */ false);
         mActivityTestRule.loadUrlInNewTab(testUrl, /* incognito= */ false);
-        mActivityTestRule.loadUrlInNewTab(testUrl, /* incognito= */ true);
-
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    BrowsingDataBridge.getForProfile(mActivityTestRule.getProfile(false))
-                            .clearBrowsingData(
-                                    callbackHelper::notifyCalled,
-                                    new int[] {BrowsingDataType.TABS},
-                                    TimePeriod.ALL_TIME);
-                });
-
-        callbackHelper.waitForCallback(0);
-
-        Assert.assertEquals(0, mActivityTestRule.tabsCount(/* incognito= */ false));
-        Assert.assertEquals(1, mActivityTestRule.tabsCount(/* incognito= */ true));
-
-        Assert.assertEquals(new GURL(testUrl), mActivityTestRule.getWebContents().getVisibleUrl());
-    }
-
-    @Test
-    @MediumTest
-    @Features.EnableFeatures(ChromeFeatureList.QUICK_DELETE_ANDROID_FOLLOWUP)
-    public void testClearingAllTabsOpensNtp() throws TimeoutException {
-        EmbeddedTestServer testServer = mActivityTestRule.getTestServer();
-        String testUrl = testServer.getURL(TEST_PATH);
-
-        CallbackHelper callbackHelper = new CallbackHelper();
-        mActivityTestRule.loadUrlInNewTab(testUrl, /* incognito= */ false);
         mActivityTestRule.loadUrlInNewTab(testUrl, /* incognito= */ false);
         mActivityTestRule.loadUrlInNewTab(testUrl, /* incognito= */ true);
 
@@ -214,6 +185,7 @@ public class BrowsingDataRemoverIntegrationTest {
 
         callbackHelper.waitForCallback(0);
 
+        // Clearing all tabs should open a new NTP in the regular tab model.
         Assert.assertEquals(1, mActivityTestRule.tabsCount(/* incognito= */ false));
         Assert.assertEquals(1, mActivityTestRule.tabsCount(/* incognito= */ true));
 

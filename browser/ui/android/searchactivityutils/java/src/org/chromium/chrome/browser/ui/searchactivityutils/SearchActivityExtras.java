@@ -6,10 +6,13 @@ package org.chromium.chrome.browser.ui.searchactivityutils;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /** Definitions of SearchActivity extras and values. */
+@NullMarked
 public @interface SearchActivityExtras {
     /** The {@link IntentOrigin} specifies the origin of an Intent. */
     String EXTRA_ORIGIN = "org.chromium.chrome.browser.ui.searchactivityutils.origin";
@@ -43,6 +46,7 @@ public @interface SearchActivityExtras {
         IntentOrigin.CUSTOM_TAB,
         IntentOrigin.HUB,
         IntentOrigin.LAUNCHER,
+        IntentOrigin.WEB_SEARCH,
         IntentOrigin.COUNT
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -65,8 +69,11 @@ public @interface SearchActivityExtras {
         /** User redirected from Launcher MAIN intent (Jump-Start Omnibox). */
         int LAUNCHER = 5;
 
+        /** Intent.ACTION_WEB_SEARCH. */
+        int WEB_SEARCH = 6;
+
         /** Total count of items, used for histogram recording. */
-        int COUNT = 6;
+        int COUNT = 7;
     }
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:IntentOrigin)

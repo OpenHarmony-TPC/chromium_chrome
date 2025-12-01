@@ -25,7 +25,7 @@ FencedFrameTask::FencedFrameTask(content::RenderFrameHost* render_frame_host,
   set_title(GetTitle());
 }
 
-FencedFrameTask::~FencedFrameTask() {}
+FencedFrameTask::~FencedFrameTask() = default;
 
 void FencedFrameTask::Activate() {
   embedder_task_->Activate();
@@ -40,9 +40,9 @@ void FencedFrameTask::UpdateTitle() {
 }
 
 std::u16string FencedFrameTask::GetTitle() const {
-  const auto message_id = site_instance_->GetBrowserContext()->IsOffTheRecord()
-                              ? IDS_TASK_MANAGER_FENCED_FRAME_INCOGNITO_PREFIX
-                              : IDS_TASK_MANAGER_FENCED_FRAME_PREFIX;
+  const int message_id = site_instance_->GetBrowserContext()->IsOffTheRecord()
+                             ? IDS_TASK_MANAGER_FENCED_FRAME_INCOGNITO_PREFIX
+                             : IDS_TASK_MANAGER_FENCED_FRAME_PREFIX;
   const auto title = base::UTF8ToUTF16(site_instance_->GetSiteURL().spec());
   return l10n_util::GetStringFUTF16(message_id, title);
 }

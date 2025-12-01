@@ -426,18 +426,29 @@ def PrepareSetupExec(options, current_version, prev_version):
         CompressUsingLZMA(options.build_dir, setup_file_path, patch_file,
                           options.verbose, options.fast_archive_compression)
     else:
-        # Use makecab.py instead of makecab.exe so that this works when building
-        # on non-Windows hosts too.
+        setup_file_path = os.path.join(options.build_dir, SETUP_EXEC)
+        # The mtime of the setup file gets baked into makecab's output,
+        # so if build_time is specified, then apply it here too.
+        mtimestamp = os.path.getmtime(setup_file_path)
+        if options.build_time:
+            mtimestamp = int(options.build_time)
+        # Use makecab.py instead of makecab.exe so that this works when
+        # building on non-Windows hosts too. makecab.py is a Python scripts
+        # that acts like Microsoft makecab.exe, and use InputMtime as
+        # a custom option that we invented to make the output of makcab.py
+        # deterministic, which is not supported by makecab.exe.
         makecab_py = os.path.join(os.path.dirname(__file__), 'makecab.py')
         cmd = [
             sys.executable,
             makecab_py,
             '/D',
             'CompressionType=LZX',
+            '/D',
+            'InputMtime=%d' % mtimestamp,
             '/V1',
             '/L',
             options.output_dir,
-            os.path.join(options.build_dir, SETUP_EXEC),
+            setup_file_path,
         ]
         RunSystemCommand(cmd, options.verbose)
         setup_file = SETUP_EXEC[:-1] + "_"

@@ -8,8 +8,8 @@ import android.content.Context;
 import android.view.View;
 
 import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.chrome.browser.autofill.AutofillImageFetcherFactory;
 import org.chromium.chrome.browser.autofill.AutofillUiUtils;
-import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
 import org.chromium.chrome.browser.autofill.vcn.AutofillVcnEnrollBottomSheetProperties.IssuerIcon;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -62,11 +62,11 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
                                                 ? null
                                                 : AutofillUiUtils.getCardIcon(
                                                         context,
-                                                        PersonalDataManagerFactory.getForProfile(
+                                                        AutofillImageFetcherFactory.getForProfile(
                                                                 profile),
                                                         issuerIcon.mIconUrl,
                                                         issuerIcon.mIconResource,
-                                                        /* imageSize= */ ImageSize.LARGE,
+                                                        /* cardIconSize= */ ImageSize.LARGE,
                                                         /* showCustomIcon= */ true))
                         .build();
         mView = new AutofillVcnEnrollBottomSheetView(context);

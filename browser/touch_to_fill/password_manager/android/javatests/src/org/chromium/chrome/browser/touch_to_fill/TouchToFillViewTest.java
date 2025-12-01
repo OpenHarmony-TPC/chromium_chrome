@@ -21,7 +21,6 @@ import static org.mockito.Mockito.verify;
 import static org.chromium.base.test.util.CriteriaHelper.pollUiThread;
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createClickActionWithFlags;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.CREDENTIAL;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.FORMATTED_ORIGIN;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.ITEM_COLLECTION_INFO;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.ON_CLICK_LISTENER;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.SHOW_SUBMIT_BUTTON;
@@ -213,7 +212,7 @@ public class TouchToFillViewTest {
                                                             .with(
                                                                     IMAGE_DRAWABLE_ID,
                                                                     R.drawable
-                                                                            .touch_to_fill_header_image)
+                                                                            .touch_to_fill_default_header_image)
                                                             .build()),
                                             buildFooterItem(false)));
                     mModel.set(VISIBLE, true);
@@ -255,7 +254,7 @@ public class TouchToFillViewTest {
                                                             .with(
                                                                     IMAGE_DRAWABLE_ID,
                                                                     R.drawable
-                                                                            .touch_to_fill_header_image)
+                                                                            .touch_to_fill_default_header_image)
                                                             .build()),
                                             buildFooterItem(false)));
                     mModel.set(VISIBLE, true);
@@ -287,7 +286,7 @@ public class TouchToFillViewTest {
                                                             .with(
                                                                     IMAGE_DRAWABLE_ID,
                                                                     R.drawable
-                                                                            .touch_to_fill_header_image)
+                                                                            .touch_to_fill_default_header_image)
                                                             .build()),
                                             buildFooterItem(false)));
                     mModel.set(VISIBLE, true);
@@ -321,7 +320,7 @@ public class TouchToFillViewTest {
                                                             .with(
                                                                     IMAGE_DRAWABLE_ID,
                                                                     R.drawable
-                                                                            .touch_to_fill_header_image)
+                                                                            .touch_to_fill_default_header_image)
                                                             .build()),
                                             buildFooterItem(false)));
                     mModel.set(VISIBLE, true);
@@ -355,7 +354,7 @@ public class TouchToFillViewTest {
                                                             .with(
                                                                     IMAGE_DRAWABLE_ID,
                                                                     R.drawable
-                                                                            .touch_to_fill_header_image)
+                                                                            .touch_to_fill_default_header_image)
                                                             .build()),
                                             buildFooterItem(false)));
                     mModel.set(VISIBLE, true);
@@ -389,7 +388,7 @@ public class TouchToFillViewTest {
                                                             .with(
                                                                     IMAGE_DRAWABLE_ID,
                                                                     R.drawable
-                                                                            .touch_to_fill_header_image)
+                                                                            .touch_to_fill_default_header_image)
                                                             .build()),
                                             buildFooterItem(false)));
                     mModel.set(VISIBLE, true);
@@ -682,8 +681,9 @@ public class TouchToFillViewTest {
                 getActivity()
                         .getString(
                                 R.string
-                                        .touch_to_fill_password_credential_accessibility_description,
-                                ANA.getFormattedUsername());
+                                        .touch_to_fill_password_credential_accessibility_description_with_url,
+                                ANA.getFormattedUsername(),
+                                ANA.getDisplayName());
         assertEquals(
                 getCredentials().getChildAt(0).getContentDescription(),
                 getActivity()
@@ -740,8 +740,9 @@ public class TouchToFillViewTest {
                 getActivity()
                         .getString(
                                 R.string
-                                        .touch_to_fill_password_credential_accessibility_description,
-                                ANA.getFormattedUsername()));
+                                        .touch_to_fill_password_credential_accessibility_description_with_url,
+                                ANA.getFormattedUsername(),
+                                ANA.getDisplayName()));
 
         assertNotNull(getCredentials().getChildAt(1));
         assertEquals(
@@ -850,7 +851,7 @@ public class TouchToFillViewTest {
                                                             .with(
                                                                     IMAGE_DRAWABLE_ID,
                                                                     R.drawable
-                                                                            .touch_to_fill_header_image)
+                                                                            .touch_to_fill_default_header_image)
                                                             .build()),
                                             buildFooterItem(true)));
                     mModel.set(VISIBLE, true);
@@ -942,7 +943,8 @@ public class TouchToFillViewTest {
                                 .getString(
                                         R.string.touch_to_fill_sheet_passkey_credential_context)));
 
-        CredManSupportProvider.setupForTesting(/*override*/ false);
+        CredManSupportProvider.setupForTesting(
+                /* overrideAndroidVersion= */ null, /* overrideForcesGpm= */ null);
     }
 
     private ChromeActivity getActivity() {
@@ -982,7 +984,6 @@ public class TouchToFillViewTest {
                 new PropertyModel.Builder(TouchToFillProperties.CredentialProperties.ALL_KEYS)
                         .with(CREDENTIAL, credential)
                         .with(ON_CLICK_LISTENER, mCredentialCallback)
-                        .with(FORMATTED_ORIGIN, credential.getDisplayName())
                         .with(SHOW_SUBMIT_BUTTON, false)
                         .with(ITEM_COLLECTION_INFO, collectionInfo)
                         .build());
@@ -1006,7 +1007,6 @@ public class TouchToFillViewTest {
                 new PropertyModel.Builder(TouchToFillProperties.CredentialProperties.ALL_KEYS)
                         .with(CREDENTIAL, credential)
                         .with(ON_CLICK_LISTENER, mCredentialCallback)
-                        .with(FORMATTED_ORIGIN, credential.getDisplayName())
                         .with(SHOW_SUBMIT_BUTTON, showSubmitButton)
                         .build());
     }

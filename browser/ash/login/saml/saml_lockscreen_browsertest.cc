@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <array>
 #include <memory>
 #include <optional>
@@ -15,7 +16,6 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
-#include "base/ranges/algorithm.h"
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/test/bind.h"
@@ -72,6 +72,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_utils.h"
 #include "dbus/object_path.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_constants.h"
@@ -167,7 +168,7 @@ class LockscreenWebUiTest : public MixinBasedInProcessBrowserTest {
         FakeGaiaMixin::kEnterpriseUser1, kTestAuthSIDCookie1,
         kTestAuthLSIDCookie1);
     fake_gaia_mixin()->SetupFakeGaiaForLogin(FakeGaiaMixin::kEnterpriseUser1,
-                                             "", kTestRefreshToken);
+                                             GaiaId(), kTestRefreshToken);
 
     // Set up fake networks.
     network_state_test_helper_ = std::make_unique<NetworkStateTestHelper>(
@@ -553,6 +554,30 @@ IN_PROC_BROWSER_TEST_F(AutoReloadLockscreenWebUiTest,
   reauth_dialog_helper()->ExpectAutoReloadEnabled();
 }
 
+IN_PROC_BROWSER_TEST_F(AutoReloadLockscreenWebUiTest,
+                       NoReactivationOnNetworkPropertiesChanged) {
+  SetAutoReloadInterval(/*reload_interval_in_minutes=*/10);
+
+  ShowLockScreenDialog();
+
+  AdvanceTime(base::Minutes(5));
+  reauth_dialog_helper()->ExpectAutoReloadEnabled();
+
+  // The time by which the reload should be triggered.
+  base::Time desired_run_time_before =
+      reauth_dialog_helper()->GetAutoReloadTimer()->desired_run_time();
+
+  reauth_dialog_helper()->TriggerNetworkUpdateState();
+
+  // The `desired_run_time` should remain the same since autoreload is not
+  // expected to be reactivated, unless `TriggerNetworkUpdateState` causes the
+  // state to change.
+  base::Time desired_run_time_after =
+      reauth_dialog_helper()->GetAutoReloadTimer()->desired_run_time();
+
+  EXPECT_EQ(desired_run_time_before, desired_run_time_after);
+}
+
 // Sets up proxy server which requires authentication.
 class ProxyAuthLockscreenWebUiTest : public LockscreenWebUiTest {
  public:
@@ -565,10 +590,6 @@ class ProxyAuthLockscreenWebUiTest : public LockscreenWebUiTest {
       delete;
 
   ~ProxyAuthLockscreenWebUiTest() override = default;
-
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    LockscreenWebUiTest::SetUpCommandLine(command_line);
-  }
 
   void SetUpOnMainThread() override {
     LockscreenWebUiTest::SetUpOnMainThread();
@@ -644,9 +665,9 @@ IN_PROC_BROWSER_TEST_F(ProxyAuthLockscreenWebUiTest,
       u"foo", u"bar");
 
   reauth_dialog_helper->WaitForPrimaryGaiaButtonToBeEnabled();
+  auto saml_waiter = reauth_dialog_helper->CreateSamlPageLoadWaiter();
   reauth_dialog_helper->ClickPrimaryGaiaButton();
-
-  reauth_dialog_helper->WaitForSamlIdpPageLoad();
+  saml_waiter->Wait();
 
   // Fill-in the SAML IdP form and submit.
   test::JSChecker signin_frame_js = reauth_dialog_helper->SigninFrameJS();
@@ -738,8 +759,9 @@ class AutoStartTest : public LockscreenWebUiTest {
     EXPECT_TRUE(reauth_dialog_helper);
 
     // Wait for the webview and SAML IdP page to load.
+    auto saml_waiter = reauth_dialog_helper->CreateSamlPageLoadWaiter();
     reauth_dialog_helper->WaitForSigninWebview();
-    reauth_dialog_helper->WaitForSamlIdpPageLoad();
+    saml_waiter->Wait();
   }
 
   testing::NiceMock<policy::MockConfigurationPolicyProvider> provider;
@@ -781,8 +803,9 @@ IN_PROC_BROWSER_TEST_F(AutoStartTest, ChangeIdPButtonPresence) {
   EXPECT_TRUE(reauth_dialog_helper);
 
   // Wait for the webview and SAML IdP page to load.
+  auto saml_waiter = reauth_dialog_helper->CreateSamlPageLoadWaiter();
   reauth_dialog_helper->WaitForSigninWebview();
-  reauth_dialog_helper->WaitForSamlIdpPageLoad();
+  saml_waiter->Wait();
 
   // EGAI button should be visible during the AutoStart flow,
   // but not during normal reauth.
@@ -792,9 +815,10 @@ IN_PROC_BROWSER_TEST_F(AutoStartTest, ChangeIdPButtonPresence) {
   // With reauth endpoint we start on a Gaia page where user needs to click
   // "Next" before being redirected to SAML IdP page.
   reauth_dialog_helper->WaitForPrimaryGaiaButtonToBeEnabled();
+  auto new_saml_waiter = reauth_dialog_helper->CreateSamlPageLoadWaiter();
   reauth_dialog_helper->ClickPrimaryGaiaButton();
 
-  reauth_dialog_helper->WaitForSamlIdpPageLoad();
+  new_saml_waiter->Wait();
   reauth_dialog_helper->ExpectChangeIdPButtonHidden();
 }
 
@@ -1238,7 +1262,7 @@ class SAMLCookieTransferTest : public SamlUnlockTest {
     run_loop.Run();
     EXPECT_GT(cookie_list_.size(), 0u);
 
-    const auto saml_cookie_iterator = base::ranges::find(
+    const auto saml_cookie_iterator = std::ranges::find(
         cookie_list_, cookie_name,
         [](const net::CanonicalCookie& cookie) { return cookie.Name(); });
     EXPECT_NE(saml_cookie_iterator, cookie_list_.end());

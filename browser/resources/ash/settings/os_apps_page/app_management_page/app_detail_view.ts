@@ -47,6 +47,7 @@ export class AppManagementAppDetailViewElement extends
         type: Object,
         notify: true,
       },
+
       app_: {
         type: Object,
       },
@@ -115,10 +116,6 @@ export class AppManagementAppDetailViewElement extends
       case (AppType.kWeb):
         return 'pwa-detail-view';
       case (AppType.kChromeApp):
-      case (AppType.kStandaloneBrowser):
-      case (AppType.kStandaloneBrowserChromeApp):
-        // TODO(crbug.com/40188614): Figure out appropriate behavior for
-        // Lacros-hosted chrome-apps.
         return 'chrome-app-detail-view';
       case (AppType.kArc):
         return 'arc-detail-view';

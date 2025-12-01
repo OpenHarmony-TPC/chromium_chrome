@@ -8,7 +8,6 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Build;
-import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
@@ -74,7 +73,7 @@ public class HistoryManager
     private final InfoHeaderPref mHeaderPref;
     private final String mAppId;
 
-    private ViewGroup mRootView;
+    private final ViewGroup mRootView;
     private ViewGroup mContentView;
     @Nullable private final SelectableListLayout<HistoryItem> mSelectableListLayout;
     private HistoryContentManager mContentManager;
@@ -118,6 +117,8 @@ public class HistoryManager
      * @param shouldShowClearData Whether the 'Clear browsing data' button should be shown.
      * @param launchedForApp Whether history UI is launched for app-specific history.
      * @param showAppFilter Whether history page will show app filter UI.
+     * @param openHistoryItemCallback Optional callback which is run when a history item is opened
+     *     (not called when history manager is in a separate activity).
      */
     @SuppressWarnings("unchecked") // mSelectableListLayout
     public HistoryManager(
@@ -132,7 +133,8 @@ public class HistoryManager
             @Nullable String clientPackageName,
             boolean shouldShowClearData,
             boolean launchedForApp,
-            boolean showAppFilter) {
+            boolean showAppFilter,
+            @Nullable Runnable openHistoryItemCallback) {
         mActivity = activity;
         mIsSeparateActivity = isSeparateActivity;
         mSnackbarManager = snackbarManager;
@@ -189,13 +191,14 @@ public class HistoryManager
                         historyProvider,
                         clientPackageName,
                         launchedForApp,
-                        showAppFilter);
+                        showAppFilter,
+                        openHistoryItemCallback);
         mSelectableListLayout.initializeRecyclerView(
                 mContentManager.getAdapter(), mContentManager.getRecyclerView());
         if (mContentManager.showAppFilter()) {
             // Now the search mode can have a header. Let the layout ignore it to
             // return the right item count.
-            mSelectableListLayout.ignoreItemTypeForEmptyState(ItemViewType.HEADER);
+            mSelectableListLayout.ignoreItemTypeForEmptyState(ItemViewType.STANDARD_HEADER);
         }
 
         mShouldShowPrivacyDisclaimerSupplier.set(
@@ -238,16 +241,6 @@ public class HistoryManager
         // the toolbar to the neighboring delete button, and automatically to other items on the
         // HistoryPage such as the list of HistoryItem(s).
         mToolbar.setFocusable(true);
-        mToolbar.setNextFocusForwardId(R.id.clear_browsing_data_button);
-        mToolbar.setOnKeyListener(
-                (View view, int keyCode, KeyEvent event) -> {
-                    if ((keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_DPAD_DOWN)
-                            && event.getAction() == KeyEvent.ACTION_UP) {
-                        mToolbar.getMenu().performIdentifierAction(R.id.search_menu_id, 0);
-                        return true;
-                    }
-                    return false;
-                });
 
         // 4. Width constrain the SelectableListLayout.
         mSelectableListLayout.configureWideDisplayStyle();
@@ -325,27 +318,12 @@ public class HistoryManager
         } else if (item.getItemId() == R.id.selection_mode_delete_menu_id) {
             mUmaRecorder.recordRemoveSelected(mIsSearching);
 
-            int numItemsRemoved = 0;
-            HistoryItem lastItemRemoved = null;
             for (HistoryItem historyItem : mSelectionDelegate.getSelectedItems()) {
                 mContentManager.markItemForRemoval(historyItem);
-                numItemsRemoved++;
-                lastItemRemoved = historyItem;
             }
 
             mContentManager.removeItems();
             mSelectionDelegate.clearSelection();
-
-            if (numItemsRemoved == 1) {
-                assert lastItemRemoved != null;
-                mContentManager.announceItemRemoved(lastItemRemoved);
-            } else if (numItemsRemoved > 1) {
-                mContentManager
-                        .getRecyclerView()
-                        .announceForAccessibility(
-                                mActivity.getString(
-                                        R.string.multiple_history_items_deleted, numItemsRemoved));
-            }
 
             return true;
         } else if (item.getItemId() == R.id.search_menu_id) {
@@ -394,6 +372,13 @@ public class HistoryManager
      */
     public ViewGroup getView() {
         return mRootView;
+    }
+
+    /**
+     * @return The view that shows the list content below toolbar.
+     */
+    View getListContentView() {
+        return mActivity.findViewById(R.id.list_content);
     }
 
     /**
@@ -576,7 +561,7 @@ public class HistoryManager
         SettingsNavigation settingsNavigation =
                 SettingsNavigationFactory.createSettingsNavigation();
         settingsNavigation.startSettings(
-                mActivity, SettingsNavigation.SettingsFragment.CLEAR_BROWSING_DATA_ADVANCED_PAGE);
+                mActivity, SettingsNavigation.SettingsFragment.CLEAR_BROWSING_DATA);
     }
 
     // HistoryContentManager.Observer

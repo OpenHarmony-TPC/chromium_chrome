@@ -18,9 +18,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
@@ -28,14 +28,12 @@ import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.DeviceFormFactor;
-import org.chromium.ui.test.util.DeviceRestriction;
 
 /** Tests the Contextual Search Manager using instrumentation tests. */
 // NOTE: Disable online detection so we we'll default to online on test bots with no network.
@@ -45,22 +43,17 @@ import org.chromium.ui.test.util.DeviceRestriction;
 @Restriction(RESTRICTION_TYPE_NON_LOW_END_DEVICE)
 @Batch(Batch.PER_CLASS)
 public class ContextualSearchCriticalTest extends ContextualSearchInstrumentationBase {
-    @Rule public JniMocker mocker = new JniMocker();
 
-    // Needed to avoid issues on Release builds where Natives is made final and can not be Spy'd
-    // below.
-    @Mock ContextualSearchManagerJni mUnusedContextualSearchManagerJni;
-
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     private ContextualSearchManager.Natives mContextualSearchManagerNatives;
 
     @Override
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
 
         mTestPage = "/chrome/test/data/android/contextualsearch/tap_test.html";
         mContextualSearchManagerNatives = Mockito.spy(new ContextualSearchManagerJni());
-        mocker.mock(ContextualSearchManagerJni.TEST_HOOKS, mContextualSearchManagerNatives);
+        ContextualSearchManagerJni.setInstanceForTesting(mContextualSearchManagerNatives);
         super.setUp();
     }
 
@@ -99,6 +92,7 @@ public class ContextualSearchCriticalTest extends ContextualSearchInstrumentatio
     @Test
     @SmallTest
     @Feature({"ContextualSearch"})
+    @DisabledTest(message = "Flaky, crbug.com/40757167")
     public void testPrefetchFailoverRequestMadeAfterOpen() throws Exception {
         simulateSlowResolveSearch("states");
 
@@ -124,6 +118,7 @@ public class ContextualSearchCriticalTest extends ContextualSearchInstrumentatio
     @Test
     @SmallTest
     @Feature({"ContextualSearch"})
+    @DisabledTest(message = "Flaky, crbug.com/40757167")
     // Previously flaky and disabled 4/2021.  https://crbug.com/1192285
     public void testResolveDisablePreload() throws Exception {
         simulateSlowResolveSearch("intelligence");
@@ -366,6 +361,7 @@ public class ContextualSearchCriticalTest extends ContextualSearchInstrumentatio
     @Test
     @SmallTest
     @Feature({"ContextualSearch"})
+    @DisabledTest(message = "Flaky, crbug.com/40757167")
     public void testChainedSearchContentVisibility() throws Exception {
         // Chained searches are tap-triggered very close to existing tap-triggered searches, which
         // we refer to as tap-near.
@@ -401,6 +397,7 @@ public class ContextualSearchCriticalTest extends ContextualSearchInstrumentatio
     @Test
     @SmallTest
     @Feature({"ContextualSearch"})
+    @DisabledTest(message = "Flaky, crbug.com/40757167")
     public void testSeparateSearchContentVisibility() throws Exception {
         // Chained searches are tap-triggered very close to existing tap-triggered searches, which
         // we refer to as tap-near.
@@ -438,6 +435,7 @@ public class ContextualSearchCriticalTest extends ContextualSearchInstrumentatio
     @Test
     @SmallTest
     @Feature({"ContextualSearch"})
+    @DisabledTest(message = "Flaky, crbug.com/40757167")
     public void testTapCloseRemovedFromHistory() throws Exception {
         // Simulate a resolving search and make sure a URL was loaded.
         simulateResolveSearch("search");
@@ -486,8 +484,7 @@ public class ContextualSearchCriticalTest extends ContextualSearchInstrumentatio
     @Test
     @SmallTest
     @Feature({"ContextualSearch"})
-    // TODO(crbug.com/369556626): Flaky on automotive.
-    @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
+    @DisabledTest(message = "Flaky, crbug.com/40757167")
     public void testChainedTapsRemovedFromHistory() throws Exception {
         // Make sure we use tap for the simulateResolveSearch since only tap chains.
         // Simulate a resolving search and make sure a URL was loaded.

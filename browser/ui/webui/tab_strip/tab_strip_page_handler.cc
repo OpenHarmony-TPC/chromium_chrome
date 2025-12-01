@@ -14,7 +14,6 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/trace_event/trace_event.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/favicon/favicon_utils.h"
@@ -25,8 +24,9 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
-#include "chrome/browser/ui/tabs/tab_group.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_group_theme.h"
 #include "chrome/browser/ui/tabs/tab_menu_model.h"
@@ -41,9 +41,11 @@
 #include "chrome/browser/ui/webui/util/image_util.h"
 #include "chrome/browser/ui/webui/webui_util_desktop.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
+#include "components/tabs/public/tab_group.h"
 #include "content/public/common/drop_data.h"
 #include "third_party/blink/public/common/input/web_gesture_event.h"
 #include "ui/aura/window_delegate.h"
@@ -61,10 +63,7 @@
 #include "ui/menus/simple_menu_model.h"
 #include "url/gurl.h"
 
-// This should be after all other #includes.
-#if defined(_WINDOWS_)  // Detect whether windows.h was included.
 #include "base/win/windows_h_disallowed.h"
-#endif  // defined(_WINDOWS_)
 
 namespace {
 
@@ -95,6 +94,10 @@ class WebUIBackgroundContextMenu : public ui::SimpleMenuModel::Delegate,
         accelerator_provider_(accelerator_provider) {}
   ~WebUIBackgroundContextMenu() override = default;
 
+  bool IsCommandIdEnabled(int command_id) const override {
+    return chrome::IsCommandEnabled(browser_, command_id);
+  }
+
   void ExecuteCommand(int command_id, int event_flags) override {
     chrome::ExecuteCommand(browser_, command_id);
   }
@@ -117,7 +120,7 @@ class WebUITabContextMenu : public ui::SimpleMenuModel::Delegate,
                       const ui::AcceleratorProvider* accelerator_provider,
                       int tab_index)
       : TabMenuModel(this,
-                     browser->tab_menu_model_delegate(),
+                     browser->GetFeatures().tab_menu_model_delegate(),
                      browser->tab_strip_model(),
                      tab_index),
         browser_(browser),
@@ -211,30 +214,46 @@ void TabStripPageHandler::NotifyContextMenuClosed() {
 // TabStripModelObserver:
 void TabStripPageHandler::OnTabGroupChanged(const TabGroupChange& change) {
   TRACE_EVENT0("browser", "TabStripPageHandler:OnTabGroupChanged");
-  switch (change.type) {
-    case TabGroupChange::kCreated:
-    case TabGroupChange::kEditorOpened:
-    case TabGroupChange::kContentsChanged: {
-      // TabGroupChange::kCreated events are unnecessary as the front-end will
-      // assume a group was created if there is a tab-group-state-changed event
-      // with a new group ID. TabGroupChange::kContentsChanged events are
-      // handled by TabGroupStateChanged.
-      break;
-    }
+  DCHECK(browser_->tab_strip_model()->SupportsTabGroups());
+  TabGroupModel* group_model = browser_->tab_strip_model()->group_model();
 
-    case TabGroupChange::kVisualsChanged: {
-      TabGroupModel* group_model = browser_->tab_strip_model()->group_model();
-      if (group_model) {
+  if (!group_model) {
+    return;
+  }
+
+  switch (change.type) {
+    case TabGroupChange::kCreated: {
+      if (change.GetCreateChange()->reason() ==
+          TabGroupChange::TabGroupCreationReason::
+              kInsertedFromAnotherTabstrip) {
+        // Set the group information of all the tabs and create group webUI
+        // object.
+        for (tabs::TabInterface* tab :
+             change.GetCreateChange()->GetDetachedTabs()) {
+          const SessionID::id_type tab_id =
+              extensions::ExtensionTabUtil::GetTabId(tab->GetContents());
+          page_->TabGroupStateChanged(tab_id, change.model->GetIndexOfTab(tab),
+                                      change.group.ToString());
+        }
+
+        // Notify webUI of initial visual information.
         page_->TabGroupVisualsChanged(
             change.group.ToString(),
             GetTabGroupData(group_model->GetTabGroup(change.group)));
       }
       break;
     }
+    case TabGroupChange::kEditorOpened:
+      break;
+    case TabGroupChange::kVisualsChanged: {
+        page_->TabGroupVisualsChanged(
+            change.group.ToString(),
+            GetTabGroupData(group_model->GetTabGroup(change.group)));
+      break;
+    }
 
     case TabGroupChange::kMoved: {
       DCHECK(browser_->tab_strip_model()->SupportsTabGroups());
-      TabGroupModel* group_model = browser_->tab_strip_model()->group_model();
       const int start_tab =
           group_model->GetTabGroup(change.group)->ListTabs().start();
       page_->TabGroupMoved(change.group.ToString(), start_tab);
@@ -250,14 +269,16 @@ void TabStripPageHandler::OnTabGroupChanged(const TabGroupChange& change) {
 }
 
 void TabStripPageHandler::TabGroupedStateChanged(
-    std::optional<tab_groups::TabGroupId> group,
+    TabStripModel* tab_strip_model,
+    std::optional<tab_groups::TabGroupId> old_group,
+    std::optional<tab_groups::TabGroupId> new_group,
     tabs::TabInterface* tab,
     int index) {
   TRACE_EVENT0("browser", "TabStripPageHandler:TabGroupedStateChanged");
   const SessionID::id_type tab_id =
       extensions::ExtensionTabUtil::GetTabId(tab->GetContents());
-  if (group.has_value()) {
-    page_->TabGroupStateChanged(tab_id, index, group.value().ToString());
+  if (new_group.has_value()) {
+    page_->TabGroupStateChanged(tab_id, index, new_group.value().ToString());
   } else {
     page_->TabGroupStateChanged(tab_id, index, std::optional<std::string>());
   }
@@ -268,8 +289,9 @@ void TabStripPageHandler::OnTabStripModelChanged(
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
   TRACE_EVENT0("browser", "TabStripPageHandler:OnTabStripModelChanged");
-  if (tab_strip_model->empty())
+  if (tab_strip_model->empty()) {
     return;
+  }
 
   // The context menu model is created when the menu is first shown. However, if
   // the tab strip model changes, the context menu model may not longer reflect
@@ -403,15 +425,17 @@ bool TabStripPageHandler::PreHandleGestureEvent(
         should_drag_on_gesture_scroll_ = false;
         return false;
       }
-      if (!context_menu_after_tap_)
+      if (!context_menu_after_tap_) {
         page_->ShowContextMenu();
+      }
       return true;
     case blink::WebInputEvent::Type::kGestureTwoFingerTap:
       page_->ShowContextMenu();
       return true;
     case blink::WebInputEvent::Type::kGestureLongTap:
-      if (context_menu_after_tap_)
+      if (context_menu_after_tap_) {
         page_->ShowContextMenu();
+      }
 
       should_drag_on_gesture_scroll_ = false;
       long_press_timer_->Stop();
@@ -797,10 +821,11 @@ void TabStripPageHandler::SetThumbnailTracked(int32_t tab_id,
     return;
   }
 
-  if (thumbnail_tracked)
+  if (thumbnail_tracked) {
     thumbnail_tracker_.AddTab(tab);
-  else
+  } else {
     thumbnail_tracker_.RemoveTab(tab);
+  }
 }
 
 void TabStripPageHandler::ReportTabActivationDuration(uint32_t duration_ms) {
@@ -831,8 +856,9 @@ void TabStripPageHandler::HandleThumbnailUpdate(
   // there is no data), send a blank URI.
   TRACE_EVENT0("browser", "TabStripPageHandler:HandleThumbnailUpdate");
   std::string data_uri;
-  if (image)
-    data_uri = webui::MakeDataURIForImage(base::make_span(image->data), "jpeg");
+  if (image) {
+    data_uri = webui::MakeDataURIForImage(base::span(image->data), "jpeg");
+  }
 
   const SessionID::id_type tab_id = extensions::ExtensionTabUtil::GetTabId(tab);
   page_->TabThumbnailUpdated(tab_id, data_uri);
@@ -850,8 +876,9 @@ void TabStripPageHandler::ReportTabDurationHistogram(
     const char* histogram_fragment,
     int tab_count,
     base::TimeDelta duration) {
-  if (tab_count <= 0)
+  if (tab_count <= 0) {
     return;
+  }
 
   // It isn't possible to report both a number of tabs and duration datapoint
   // together in a histogram or to correlate two histograms together. As a

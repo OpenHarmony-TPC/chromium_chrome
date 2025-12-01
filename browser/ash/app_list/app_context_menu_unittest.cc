@@ -8,7 +8,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ash/components/arc/test/fake_app_instance.h"
 #include "ash/public/cpp/app_menu_constants.h"
 #include "base/functional/bind.h"
 #include "base/json/json_file_value_serializer.h"
@@ -30,22 +29,21 @@
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_test.h"
 #include "chrome/browser/ash/app_list/chrome_app_list_item.h"
-#include "chrome/browser/ash/app_list/internal_app/internal_app_metadata.h"
 #include "chrome/browser/ash/app_list/test/fake_app_list_model_updater.h"
 #include "chrome/browser/ash/app_list/test/test_app_list_controller_delegate.h"
 #include "chrome/browser/ash/arc/icon_decode_request.h"
-#include "chrome/browser/ash/crosapi/browser_util.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/menu_manager_factory.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/experiences/arc/test/fake_app_instance.h"
 #include "components/app_constants/constants.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/services/app_service/public/cpp/app_update.h"
 #include "components/user_manager/scoped_user_manager.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/common/manifest_constants.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -215,6 +213,7 @@ class AppContextMenuTest : public AppListTestBase {
     menu_delegate_.reset();
     controller_.reset();
     menu_manager_.reset();
+    AppListTestBase::TearDown();
   }
 
  protected:
@@ -298,8 +297,8 @@ class AppContextMenuTest : public AppListTestBase {
     app_service_test_.SetUp(profile());
 
     scoped_refptr<extensions::Extension> store = MakeApp(app_id, platform_app);
-    service_->AddExtension(store.get());
-    service_->EnableExtension(app_id);
+    registrar()->AddExtension(store.get());
+    registrar()->EnableExtension(app_id);
 
     controller_ = std::make_unique<FakeAppListControllerDelegate>();
     controller_->SetAppPinnable(app_id, pinnable);
@@ -347,7 +346,7 @@ class AppContextMenuTest : public AppListTestBase {
     app_service_test_.SetUp(profile());
 
     scoped_refptr<extensions::Extension> store = MakeChromeApp();
-    service_->AddExtension(store.get());
+    registrar()->AddExtension(store.get());
 
     controller_ = std::make_unique<FakeAppListControllerDelegate>();
     AppServiceContextMenu menu(menu_delegate(), profile(),
@@ -406,7 +405,7 @@ TEST_F(AppContextMenuTest, ChromeAppInRecentAppsList) {
   app_service_test().SetUp(profile());
 
   scoped_refptr<extensions::Extension> app = MakeChromeApp();
-  service_->AddExtension(app.get());
+  registrar()->AddExtension(app.get());
 
   // Simulate a context menu in the recent apps row.
   AppServiceContextMenu menu(menu_delegate(), profile(),
@@ -703,21 +702,6 @@ TEST_F(AppContextMenuTest, CommandIdsMatchEnumsForHistograms) {
   EXPECT_EQ(202, ash::DEPRECATED_USE_LAUNCH_TYPE_FULLSCREEN);
   EXPECT_EQ(203, ash::USE_LAUNCH_TYPE_WINDOW);
   EXPECT_EQ(204, ash::USE_LAUNCH_TYPE_TABBED_WINDOW);
-}
-
-// Tests that internal app's context menu is correct.
-TEST_F(AppContextMenuTest, InternalAppMenu) {
-  for (const auto& internal_app : GetInternalAppList(profile())) {
-    controller()->SetAppPinnable(internal_app.app_id,
-                                 AppListControllerDelegate::PIN_EDITABLE);
-
-    std::unique_ptr<AppServiceAppItem> item =
-        GetAppListItem(profile(), internal_app.app_id);
-    std::unique_ptr<ui::MenuModel> menu = GetContextMenuModel(item.get());
-    ASSERT_NE(nullptr, menu);
-    EXPECT_EQ(1u, menu->GetItemCount());
-    ValidateItemState(menu.get(), 0, MenuState(ash::TOGGLE_PIN));
-  }
 }
 
 }  // namespace app_list

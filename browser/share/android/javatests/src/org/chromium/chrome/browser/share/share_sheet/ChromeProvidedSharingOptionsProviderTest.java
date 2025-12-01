@@ -36,7 +36,6 @@ import org.mockito.junit.MockitoRule;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.base.test.util.UserActionTester;
 import org.chromium.build.BuildConfig;
 import org.chromium.chrome.R;
@@ -77,7 +76,6 @@ public class ChromeProvidedSharingOptionsProviderTest {
     public ActivityScenarioRule<TestActivity> mActivityScenarioRule =
             new ActivityScenarioRule<>(TestActivity.class);
 
-    @Rule public JniMocker mJniMocker = new JniMocker();
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Rule
@@ -108,9 +106,8 @@ public class ChromeProvidedSharingOptionsProviderTest {
     public void setUp() {
         mActivityScenarioRule.getScenario().onActivity(activity -> mActivity = activity);
 
-        mJniMocker.mock(UserPrefsJni.TEST_HOOKS, mUserPrefsNatives);
-        mJniMocker.mock(
-                SendTabToSelfAndroidBridgeJni.TEST_HOOKS, mSendTabToSelfAndroidBridgeNatives);
+        UserPrefsJni.setInstanceForTesting(mUserPrefsNatives);
+        SendTabToSelfAndroidBridgeJni.setInstanceForTesting(mSendTabToSelfAndroidBridgeNatives);
         when(mUserPrefsNatives.get(mProfile)).thenReturn(mPrefService);
         when(mSendTabToSelfAndroidBridgeNatives.getEntryPointDisplayReason(any(), anyString()))
                 .thenReturn(null);
@@ -178,7 +175,7 @@ public class ChromeProvidedSharingOptionsProviderTest {
     }
 
     @Test
-    public void getPropertyModels_printingEnabledPdfTab_excludesPrinting() {
+    public void getPropertyModels_printingEnabledPdfTab_includesPrintingIfNotDesktop() {
         when(mTab.isNativePage()).thenReturn(true);
         when(mTab.getNativePage()).thenReturn(mNativePage);
         when(mNativePage.isPdf()).thenReturn(true);
@@ -190,9 +187,15 @@ public class ChromeProvidedSharingOptionsProviderTest {
                         DetailedContentType.NOT_SPECIFIED,
                         /* isMultiWindow= */ false);
 
-        assertFalse(
-                "Property models should not contain printing.",
-                propertyModelsContain(propertyModels, R.string.print_share_activity_title));
+        if (BuildConfig.IS_DESKTOP_ANDROID) {
+            assertFalse(
+                    "Property models should not contain printing for desktop.",
+                    propertyModelsContain(propertyModels, R.string.print_share_activity_title));
+        } else {
+            assertTrue(
+                    "Property models should contain printing.",
+                    propertyModelsContain(propertyModels, R.string.print_share_activity_title));
+        }
     }
 
     @Test
@@ -491,10 +494,10 @@ public class ChromeProvidedSharingOptionsProviderTest {
                                 mProfile,
                                 null,
                                 mShareSheetCoordinator,
-                                /* featureEngagementTracker= */ shareParams,
+                                /* params= */ shareParams,
                                 null),
                         shareParams,
-                        /* TabPrinterDelegate= */ null,
+                        /* printTab= */ null,
                         isIncognito,
                         /* shareStartTime= */ 0,
                         mShareSheetCoordinator,

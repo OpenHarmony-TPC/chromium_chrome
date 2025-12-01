@@ -4,25 +4,26 @@
 
 package org.chromium.chrome.browser.omnibox;
 
+import android.os.Build;
 import android.util.Pair;
 
 import androidx.test.filters.LargeTest;
 
 import org.junit.AfterClass;
-import org.junit.ClassRule;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.chromium.base.test.transit.BatchedPublicTransitRule;
 import org.chromium.base.test.transit.TransitAsserts;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.JniMocker;
+import org.chromium.base.test.util.DisableIf;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.chrome.test.transit.ChromeTabbedActivityPublicTransitEntryPoints;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.ReusedCtaTransitTestRule;
 import org.chromium.chrome.test.transit.SoftKeyboardFacility;
 import org.chromium.chrome.test.transit.ntp.IncognitoNewTabPageStation;
 import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
@@ -36,21 +37,16 @@ import org.chromium.chrome.test.transit.page.WebPageStation;
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
 public class OmniboxPTTest {
-    @ClassRule
-    public static ChromeTabbedActivityTestRule sChromeTabbedActivityTestRule =
-            new ChromeTabbedActivityTestRule();
-
-    @ClassRule public static JniMocker sJniMocker = new JniMocker();
-
     @Rule
-    public BatchedPublicTransitRule<WebPageStation> mBatchedRule =
-            new BatchedPublicTransitRule<>(WebPageStation.class, /* expectResetByTest= */ true);
+    public ReusedCtaTransitTestRule<WebPageStation> mCtaTestRule =
+            ChromeTransitTestRules.blankPageStartReusedActivityRule();
 
-    private static final FakeOmniboxSuggestions sFakeSuggestions =
-            new FakeOmniboxSuggestions(sJniMocker);
+    private static final FakeOmniboxSuggestions sFakeSuggestions = new FakeOmniboxSuggestions();
 
-    ChromeTabbedActivityPublicTransitEntryPoints mEntryPoints =
-            new ChromeTabbedActivityPublicTransitEntryPoints(sChromeTabbedActivityTestRule);
+    @BeforeClass
+    public static void setUpClass() {
+        sFakeSuggestions.initMocks();
+    }
 
     @AfterClass
     public static void tearDownClass() {
@@ -59,8 +55,12 @@ public class OmniboxPTTest {
 
     @LargeTest
     @Test
+    @DisableIf.Build(
+            sdk_is_greater_than = Build.VERSION_CODES.R,
+            sdk_is_less_than = Build.VERSION_CODES.TIRAMISU,
+            message = "Flaky in S, crbug.com/372709072")
     public void testOpenTypeDelete_fromWebPage() {
-        WebPageStation blankPage = mEntryPoints.startOnBlankPage(mBatchedRule);
+        WebPageStation blankPage = mCtaTestRule.start();
         var omniboxAndKeyboard = blankPage.openOmnibox(sFakeSuggestions);
 
         doOpenTypeDelete(omniboxAndKeyboard);
@@ -71,7 +71,7 @@ public class OmniboxPTTest {
     @LargeTest
     @Test
     public void testOpenTypeDelete_fromNtp() {
-        WebPageStation blankPage = mEntryPoints.startOnBlankPage(mBatchedRule);
+        WebPageStation blankPage = mCtaTestRule.start();
         RegularNewTabPageStation ntp = blankPage.openNewTabFast();
         var omniboxAndKeyboard = ntp.openOmnibox(sFakeSuggestions);
 
@@ -85,8 +85,9 @@ public class OmniboxPTTest {
 
     @LargeTest
     @Test
+    @DisabledTest(message = "crbug.com/415805917")
     public void testOpenTypeDelete_fromIncognitoNtp() {
-        WebPageStation blankPage = mEntryPoints.startOnBlankPage(mBatchedRule);
+        WebPageStation blankPage = mCtaTestRule.start();
         IncognitoNewTabPageStation incognitoNtp = blankPage.openNewIncognitoTabFast();
         var omniboxAndKeyboard = incognitoNtp.openOmnibox(sFakeSuggestions);
 

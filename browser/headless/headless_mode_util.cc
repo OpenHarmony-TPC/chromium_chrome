@@ -98,7 +98,8 @@ class HeadlessModeHandleImpl : public HeadlessModeHandle {
   // Headless mode on Linux relies on ozone/headless platform.
   command_line->AppendSwitchASCII(::switches::kOzonePlatform,
                                   switches::kHeadless);
-  if (!command_line->HasSwitch(switches::kOzoneOverrideScreenSize)) {
+  if (!command_line->HasSwitch(switches::kScreenInfo) &&
+      !command_line->HasSwitch(switches::kOzoneOverrideScreenSize)) {
     command_line->AppendSwitchASCII(switches::kOzoneOverrideScreenSize,
                                     "800,600");
   }

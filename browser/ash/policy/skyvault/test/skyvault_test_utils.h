@@ -14,7 +14,7 @@
 
 namespace policy::local_user_files {
 namespace {
-constexpr char kEmail[] = "stub-user@example.com";
+inline constexpr char kEmail[] = "stub-user@example.com";
 }
 
 // Matcher for `SetUserDataStorageWriteEnabledRequest`.
@@ -48,13 +48,15 @@ class MockMigrationNotificationManager : public MigrationNotificationManager {
 
   MOCK_METHOD(void,
               ShowMigrationInfoDialog,
-              (CloudProvider, base::Time, base::OnceClosure),
+              (MigrationDestination, base::Time, base::OnceClosure),
               (override));
 
   MOCK_METHOD(void,
               ShowConfigurationErrorNotification,
-              (CloudProvider),
+              (MigrationDestination),
               (override));
+
+  MOCK_METHOD(void, ShowDeletionCompletedNotification, (), (override));
 };
 
 // Mock implementation of MigrationCoordinator, with the default behavior to
@@ -74,7 +76,7 @@ class MockMigrationCoordinator : public MigrationCoordinator {
   // By default waits some minutes and completes the upload successfully.
   MOCK_METHOD(void,
               Run,
-              (CloudProvider,
+              (MigrationDestination,
                std::vector<base::FilePath>,
                const std::string&,
                MigrationDoneCallback),
@@ -90,6 +92,27 @@ class MockMigrationCoordinator : public MigrationCoordinator {
   base::RepeatingClosure run_cb_;
 
   base::WeakPtrFactory<MockMigrationCoordinator> weak_ptr_factory_{this};
+};
+
+// Mock implementation of FilesCleanupHandler. By default, cleanup succeeds
+// immediately.
+class MockCleanupHandler : public chromeos::FilesCleanupHandler {
+ public:
+  MockCleanupHandler();
+
+  MockCleanupHandler(const MockCleanupHandler&) = delete;
+  MockCleanupHandler& operator=(const MockCleanupHandler&) = delete;
+
+  ~MockCleanupHandler() override;
+
+  base::WeakPtr<MockCleanupHandler> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+  MOCK_METHOD(void, Cleanup, (CleanupHandlerCallback callback), (override));
+
+ private:
+  base::WeakPtrFactory<MockCleanupHandler> weak_ptr_factory_{this};
 };
 
 }  // namespace policy::local_user_files

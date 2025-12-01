@@ -40,7 +40,7 @@
         justify-content: center;
         margin-inline-end: var(--cr-icon-ripple-margin);
         margin-inline-start: var(--cr-icon-button-margin-start);
-        position: relative;  /* Needed for paper-ripple. */
+        position: relative;  /* Needed for cr-ripple. */
         width: var(--cr-icon-ripple-size);
       }
 
@@ -59,6 +59,14 @@
         /* Centers the ripple on the icon with appropriate margin on right. */
         margin-inline-end: 10px;
         margin-inline-start: -10px;
+      }
+
+      .cr-title-text {
+        /* Title should stay on one line. */
+        white-space: nowrap;
+        /* Show ellipsis if title would overflow. */
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       h1 {

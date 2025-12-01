@@ -64,7 +64,7 @@ namespace {
 class TestRecentTabsMenuModelDelegate : public ui::MenuModelDelegate {
  public:
   explicit TestRecentTabsMenuModelDelegate(ui::MenuModel* model)
-      : model_(model), got_changes_(false) {
+      : model_(model) {
     model_->SetMenuModelDelegate(this);
   }
 
@@ -87,7 +87,7 @@ class TestRecentTabsMenuModelDelegate : public ui::MenuModelDelegate {
 
  private:
   raw_ptr<ui::MenuModel> model_;
-  bool got_changes_;
+  bool got_changes_ = false;
 };
 
 struct ModelData {
@@ -124,7 +124,7 @@ class RecentTabsSubMenuModelTest : public InProcessBrowserTest {
   void WaitForLoadFromLastSession() { content::RunAllTasksUntilIdle(); }
 
   virtual void Init() {
-    session_sync_service_ =
+    auto* session_sync_service =
         SessionSyncServiceFactory::GetForProfile(browser()->profile());
 
     syncer::DataTypeActivationRequest activation_request;
@@ -133,7 +133,7 @@ class RecentTabsSubMenuModelTest : public InProcessBrowserTest {
 
     std::unique_ptr<syncer::DataTypeActivationResponse> activation_response;
     base::RunLoop loop;
-    session_sync_service_->GetControllerDelegate()->OnSyncStarting(
+    session_sync_service->GetControllerDelegate()->OnSyncStarting(
         activation_request,
         base::BindLambdaForTesting(
             [&](std::unique_ptr<syncer::DataTypeActivationResponse> response) {
@@ -167,7 +167,9 @@ class RecentTabsSubMenuModelTest : public InProcessBrowserTest {
 
   void RegisterRecentTabs(RecentTabsBuilderTestHelper* helper) {
     helper->ExportToSessionSync(sync_processor_.get());
-    helper->VerifyExport(session_sync_service_->GetOpenTabsUIDelegate());
+    helper->VerifyExport(
+        SessionSyncServiceFactory::GetForProfile(browser()->profile())
+            ->GetOpenTabsUIDelegate());
   }
 
   void AddTabToBrowser(const GURL& tab_url) {
@@ -188,8 +190,6 @@ class RecentTabsSubMenuModelTest : public InProcessBrowserTest {
   }
 
  private:
-  raw_ptr<sync_sessions::SessionSyncService, DanglingUntriaged>
-      session_sync_service_;
   std::unique_ptr<syncer::DataTypeProcessor> sync_processor_;
 };
 

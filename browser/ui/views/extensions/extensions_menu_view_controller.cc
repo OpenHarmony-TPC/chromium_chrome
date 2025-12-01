@@ -13,6 +13,7 @@
 #include "base/notreached.h"
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
+#include "chrome/browser/extensions/permissions/active_tab_permission_granter.h"
 #include "chrome/browser/extensions/permissions/site_permissions_helper.h"
 #include "chrome/browser/extensions/tab_helper.h"
 #include "chrome/browser/profiles/profile.h"
@@ -108,11 +109,11 @@ size_t FindIndex(ToolbarActionsModel& toolbar_model,
       base::i18n::ToLower(toolbar_model.GetExtensionName(action_id));
   auto sorted_action_ids = SortExtensionsByName(toolbar_model);
   return static_cast<size_t>(
-      base::ranges::lower_bound(sorted_action_ids, extension_name, {},
-                                [&toolbar_model](std::string id) {
-                                  return base::i18n::ToLower(
-                                      toolbar_model.GetExtensionName(id));
-                                }) -
+      std::ranges::lower_bound(sorted_action_ids, extension_name, {},
+                               [&toolbar_model](std::string id) {
+                                 return base::i18n::ToLower(
+                                     toolbar_model.GetExtensionName(id));
+                               }) -
       sorted_action_ids.begin());
 }
 
@@ -314,10 +315,9 @@ ExtensionsMenuViewController::ExtensionsMenuViewController(
       PermissionsManager::Get(browser_->profile()));
 }
 
-ExtensionsMenuViewController::~ExtensionsMenuViewController() {
-  // Note: No need to call TabStripModel::RemoveObserver(), because it's handled
-  // directly within TabStripModelObserver::~TabStripModelObserver().
-}
+// Note: No need to call TabStripModel::RemoveObserver(), because it's handled
+// directly within TabStripModelObserver::~TabStripModelObserver().
+ExtensionsMenuViewController::~ExtensionsMenuViewController() = default;
 
 void ExtensionsMenuViewController::OpenMainPage() {
   auto main_page = std::make_unique<ExtensionsMenuMainPageView>(browser_, this);
@@ -445,8 +445,7 @@ void ExtensionsMenuViewController::OnExtensionToggleSelected(
   // Otherwise, extension has one-time access and we need to clear tab
   // permissions (e.g extension with activeTab was granted one-time access).
   DCHECK_EQ(current_site_access, PermissionsManager::UserSiteAccess::kOnClick);
-  extensions::TabHelper::FromWebContents(web_contents)
-      ->active_tab_permission_granter()
+  extensions::ActiveTabPermissionGranter::FromWebContents(web_contents)
       ->ClearActiveExtensionAndNotify(extension_id);
 
   auto* action_runner =
@@ -486,7 +485,7 @@ void ExtensionsMenuViewController::OnDismissExtensionClicked(
   CHECK(permissions_manager);
   content::WebContents* web_contents = GetActiveWebContents();
   int tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
-  permissions_manager->UserDismissedSiteAccessRequest(web_contents, tab_id,
+  permissions_manager->UserDismissedHostAccessRequest(web_contents, tab_id,
                                                       extension_id);
 
   base::RecordAction(base::UserMetricsAction(
@@ -642,7 +641,7 @@ void ExtensionsMenuViewController::UpdateMainPage(
         SortExtensionsByName(*toolbar_model_);
 
     for (const auto& extension_id : extension_ids) {
-      if (permissions_manager->HasActiveSiteAccessRequest(tab_id,
+      if (permissions_manager->HasActiveHostAccessRequest(tab_id,
                                                           extension_id)) {
         AddOrUpdateExtensionRequestingAccess(main_page, extension_id, index,
                                              web_contents);
@@ -831,7 +830,7 @@ void ExtensionsMenuViewController::OnShowAccessRequestsInToolbarChanged(
   }
 }
 
-void ExtensionsMenuViewController::OnSiteAccessRequestDismissedByUser(
+void ExtensionsMenuViewController::OnHostAccessRequestDismissedByUser(
     const extensions::ExtensionId& extension_id,
     const url::Origin& origin) {
   DCHECK(current_page_);
@@ -850,7 +849,7 @@ void ExtensionsMenuViewController::OnSiteAccessRequestDismissedByUser(
   main_page->MaybeShowRequestsSection();
 }
 
-void ExtensionsMenuViewController::OnSiteAccessRequestAdded(
+void ExtensionsMenuViewController::OnHostAccessRequestAdded(
     const extensions::ExtensionId& extension_id,
     int tab_id) {
   DCHECK(current_page_);
@@ -871,7 +870,7 @@ void ExtensionsMenuViewController::OnSiteAccessRequestAdded(
   // Add the request iff it's an active one.
   auto* permissions_manager =
       extensions::PermissionsManager::Get(browser_->profile());
-  if (permissions_manager->HasActiveSiteAccessRequest(tab_id, extension_id)) {
+  if (permissions_manager->HasActiveHostAccessRequest(tab_id, extension_id)) {
     // TODO(crbug.com/330588494): Add to correct index based on alphabetic
     // order.
     int index = 0;
@@ -881,7 +880,7 @@ void ExtensionsMenuViewController::OnSiteAccessRequestAdded(
   }
 }
 
-void ExtensionsMenuViewController::OnSiteAccessRequestUpdated(
+void ExtensionsMenuViewController::OnHostAccessRequestUpdated(
     const extensions::ExtensionId& extension_id,
     int tab_id) {
   DCHECK(current_page_);
@@ -902,7 +901,7 @@ void ExtensionsMenuViewController::OnSiteAccessRequestUpdated(
   // Update the request iff it's an active one.
   auto* permissions_manager =
       extensions::PermissionsManager::Get(browser_->profile());
-  if (permissions_manager->HasActiveSiteAccessRequest(tab_id, extension_id)) {
+  if (permissions_manager->HasActiveHostAccessRequest(tab_id, extension_id)) {
     // TODO(crbug.com/330588494): Add to correct index based on alphabetic
     // order.
     int index = 0;
@@ -917,7 +916,7 @@ void ExtensionsMenuViewController::OnSiteAccessRequestUpdated(
   main_page->MaybeShowRequestsSection();
 }
 
-void ExtensionsMenuViewController::OnSiteAccessRequestRemoved(
+void ExtensionsMenuViewController::OnHostAccessRequestRemoved(
     const extensions::ExtensionId& extension_id,
     int tab_id) {
   DCHECK(current_page_);
@@ -939,7 +938,7 @@ void ExtensionsMenuViewController::OnSiteAccessRequestRemoved(
   main_page->MaybeShowRequestsSection();
 }
 
-void ExtensionsMenuViewController::OnSiteAccessRequestsCleared(int tab_id) {
+void ExtensionsMenuViewController::OnHostAccessRequestsCleared(int tab_id) {
   DCHECK(current_page_);
 
   // Ignore requests for other tabs.
@@ -984,7 +983,7 @@ void ExtensionsMenuViewController::SwitchToPage(
 void ExtensionsMenuViewController::PopulateMainPage(
     ExtensionsMenuMainPageView* main_page) {
   // TODO(crbug.com/40879945): We should update the subheader here since it
-  // despends in `toolbar_model_`.
+  // depends on `toolbar_model_`.
   std::vector<std::string> sorted_ids = SortExtensionsByName(*toolbar_model_);
   for (size_t i = 0; i < sorted_ids.size(); ++i) {
     InsertMenuItemMainPage(main_page, sorted_ids[i], i);

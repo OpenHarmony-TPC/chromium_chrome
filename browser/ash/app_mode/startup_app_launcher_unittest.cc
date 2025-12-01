@@ -23,7 +23,6 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/repeating_test_future.h"
 #include "base/test/scoped_command_line.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/version.h"
@@ -34,12 +33,6 @@
 #include "chrome/browser/ash/app_mode/kiosk_app_launcher.h"
 #include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
 #include "chrome/browser/ash/app_mode/test_kiosk_extension_builder.h"
-#include "chrome/browser/ash/crosapi/browser_util.h"
-#include "chrome/browser/ash/crosapi/chrome_app_kiosk_service_ash.h"
-#include "chrome/browser/ash/crosapi/crosapi_ash.h"
-#include "chrome/browser/ash/crosapi/crosapi_manager.h"
-#include "chrome/browser/ash/crosapi/fake_browser_manager.h"
-#include "chrome/browser/ash/crosapi/idle_service_ash.h"
 #include "chrome/browser/ash/extensions/external_cache.h"
 #include "chrome/browser/ash/extensions/test_external_cache.h"
 #include "chrome/browser/ash/login/users/avatar/user_image_manager_impl.h"
@@ -51,20 +44,15 @@
 #include "chrome/browser/extensions/extension_service_test_base.h"
 #include "chrome/browser/extensions/external_provider_impl.h"
 #include "chrome/browser/extensions/install_tracker.h"
-#include "chrome/browser/extensions/pending_extension_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/apps/chrome_app_delegate.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
+#include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
-#include "chromeos/ash/components/standalone_browser/feature_refs.h"
-#include "chromeos/ash/components/standalone_browser/standalone_browser_features.h"
-#include "chromeos/crosapi/mojom/chrome_app_kiosk_service.mojom-forward.h"
-#include "chromeos/crosapi/mojom/chrome_app_kiosk_service.mojom-shared.h"
 #include "components/account_id/account_id.h"
-#include "components/policy/core/common/device_local_account_type.h"
 #include "components/sync/model/string_ordinal.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "content/public/browser/browser_context.h"
@@ -75,10 +63,12 @@
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/extension_prefs.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/external_install_info.h"
 #include "extensions/browser/external_provider_interface.h"
 #include "extensions/browser/install_flag.h"
+#include "extensions/browser/pending_extension_manager.h"
 #include "extensions/browser/test_event_router.h"
 #include "extensions/browser/uninstall_reason.h"
 #include "extensions/browser/updater/extension_downloader_delegate.h"
@@ -232,9 +222,11 @@ class TestKioskLoaderVisitor
  public:
   TestKioskLoaderVisitor(content::BrowserContext* browser_context,
                          extensions::ExtensionRegistry* extension_registry,
+                         extensions::ExtensionRegistrar* extension_registrar,
                          extensions::ExtensionService* extension_service)
       : browser_context_(browser_context),
         extension_registry_(extension_registry),
+        extension_registrar_(extension_registrar),
         extension_service_(extension_service) {}
   TestKioskLoaderVisitor(const TestKioskLoaderVisitor&) = delete;
   TestKioskLoaderVisitor& operator=(const TestKioskLoaderVisitor&) = delete;
@@ -253,19 +245,19 @@ class TestKioskLoaderVisitor
       return false;
     }
 
-    if (!extension_service_->pending_extension_manager()->IsIdPending(
-            extension->id())) {
+    if (!extensions::PendingExtensionManager::Get(browser_context_)
+             ->IsIdPending(extension->id())) {
       return false;
     }
 
     pending_crx_files_.erase(extension->id());
     pending_update_urls_.erase(extension->id());
-    extension_service_->OnExtensionInstalled(
+    extension_registrar_->OnExtensionInstalled(
         extension, syncer::StringOrdinal::CreateInitialOrdinal(),
         extensions::kInstallFlagInstallImmediately);
-    auto installer = extensions::CrxInstaller::CreateSilent(extension_service_);
     extensions::InstallTracker::Get(browser_context_)
-        ->OnFinishCrxInstall(*installer, extension->id(), true);
+        ->OnFinishCrxInstall(base::FilePath(), extension->id(), extension,
+                             true);
     return true;
   }
 
@@ -275,17 +267,17 @@ class TestKioskLoaderVisitor
       return false;
     }
 
-    if (!extension_service_->pending_extension_manager()->IsIdPending(
-            extension_id)) {
+    extensions::PendingExtensionManager* pending_extension_manager =
+        extensions::PendingExtensionManager::Get(browser_context_);
+    if (!pending_extension_manager->IsIdPending(extension_id)) {
       return false;
     }
 
     pending_crx_files_.erase(extension_id);
     pending_update_urls_.erase(extension_id);
-    auto installer = extensions::CrxInstaller::CreateSilent(extension_service_);
     extensions::InstallTracker::Get(browser_context_)
-        ->OnFinishCrxInstall(*installer, extension_id, false);
-    extension_service_->pending_extension_manager()->Remove(extension_id);
+        ->OnFinishCrxInstall(base::FilePath(), extension_id, nullptr, false);
+    pending_extension_manager->Remove(extension_id);
     return true;
   }
 
@@ -300,16 +292,16 @@ class TestKioskLoaderVisitor
       return false;
     }
 
-    if (!extension_service_->pending_extension_manager()->AddFromExternalFile(
-            info.extension_id, info.crx_location, info.version,
-            info.creation_flags, info.mark_acknowledged)) {
+    if (!extensions::PendingExtensionManager::Get(browser_context_)
+             ->AddFromExternalFile(info.extension_id, info.crx_location,
+                                   info.version, info.creation_flags,
+                                   info.mark_acknowledged)) {
       return false;
     }
 
     pending_crx_files_.insert(info.extension_id);
-    auto installer = extensions::CrxInstaller::CreateSilent(extension_service_);
     extensions::InstallTracker::Get(browser_context_)
-        ->OnBeginCrxInstall(*installer, info.extension_id);
+        ->OnBeginCrxInstall(info.extension_id);
     return true;
   }
   bool OnExternalExtensionUpdateUrlFound(
@@ -320,7 +312,7 @@ class TestKioskLoaderVisitor
       return false;
     }
 
-    if (!extension_service_->pending_extension_manager()
+    if (!extensions::PendingExtensionManager::Get(browser_context_)
              ->AddFromExternalUpdateUrl(
                  info.extension_id, info.install_parameter, info.update_url,
                  info.download_location, info.creation_flags,
@@ -329,9 +321,8 @@ class TestKioskLoaderVisitor
     }
 
     pending_update_urls_.insert(info.extension_id);
-    auto installer = extensions::CrxInstaller::CreateSilent(extension_service_);
     extensions::InstallTracker::Get(browser_context_)
-        ->OnBeginCrxInstall(*installer, info.extension_id);
+        ->OnBeginCrxInstall(info.extension_id);
     return true;
   }
   void OnExternalProviderReady(
@@ -350,7 +341,7 @@ class TestKioskLoaderVisitor
     }
 
     for (const auto& extension_id : removed_extensions) {
-      extension_service_->UninstallExtension(
+      extension_registrar_->UninstallExtension(
           extension_id,
           extensions::UNINSTALL_REASON_ORPHANED_EXTERNAL_EXTENSION, nullptr);
     }
@@ -359,6 +350,7 @@ class TestKioskLoaderVisitor
  private:
   const raw_ptr<content::BrowserContext> browser_context_;
   const raw_ptr<extensions::ExtensionRegistry> extension_registry_;
+  const raw_ptr<extensions::ExtensionRegistrar> extension_registrar_;
   const raw_ptr<extensions::ExtensionService> extension_service_;
 
   std::set<std::string> pending_crx_files_;
@@ -564,7 +556,7 @@ class StartupAppLauncherNoCreateTest
 
     InitializeEmptyExtensionService();
     external_apps_loader_handler_ = std::make_unique<TestKioskLoaderVisitor>(
-        browser_context(), registry(), service());
+        browser_context(), registry(), registrar(), service());
     CreateAndInitializeKioskAppsProviders(external_apps_loader_handler_.get());
 
     extensions::TestEventRouter* event_router =
@@ -677,7 +669,7 @@ class StartupAppLauncherNoCreateTest
     return CreateStartupAppLauncherInternal(/*should_skip_install=*/true);
   }
 
-  void PreinstallApp(const Extension& app) { service()->AddExtension(&app); }
+  void PreinstallApp(const Extension& app) { registrar()->AddExtension(&app); }
 
   TestAppLaunchDelegate startup_launch_delegate_;
 
@@ -983,9 +975,10 @@ TEST_F(StartupAppLauncherTest, LaunchWithSecondaryApps) {
   EXPECT_TRUE(registry()->enabled_extensions().Contains(kTestPrimaryAppId));
   EXPECT_TRUE(registry()->enabled_extensions().Contains(kSecondaryAppId));
   EXPECT_TRUE(registry()->disabled_extensions().Contains(kExtraSecondaryAppId));
-  EXPECT_EQ(extensions::disable_reason::DISABLE_USER_ACTION,
-            extensions::ExtensionPrefs::Get(browser_context())
-                ->GetDisableReasons(kExtraSecondaryAppId));
+  EXPECT_THAT(extensions::ExtensionPrefs::Get(browser_context())
+                  ->GetDisableReasons(kExtraSecondaryAppId),
+              testing::UnorderedElementsAre(
+                  extensions::disable_reason::DISABLE_USER_ACTION));
 
   EXPECT_EQ(startup_launch_delegate_.WaitForNextLaunchState(),
             LaunchState::kLaunchSucceeded);
@@ -994,9 +987,10 @@ TEST_F(StartupAppLauncherTest, LaunchWithSecondaryApps) {
   EXPECT_TRUE(registry()->enabled_extensions().Contains(kTestPrimaryAppId));
   EXPECT_TRUE(registry()->enabled_extensions().Contains(kSecondaryAppId));
   EXPECT_TRUE(registry()->disabled_extensions().Contains(kExtraSecondaryAppId));
-  EXPECT_EQ(extensions::disable_reason::DISABLE_USER_ACTION,
-            extensions::ExtensionPrefs::Get(browser_context())
-                ->GetDisableReasons(kExtraSecondaryAppId));
+  EXPECT_THAT(extensions::ExtensionPrefs::Get(browser_context())
+                  ->GetDisableReasons(kExtraSecondaryAppId),
+              testing::UnorderedElementsAre(
+                  extensions::disable_reason::DISABLE_USER_ACTION));
 }
 
 TEST_F(StartupAppLauncherTest, LaunchWithSecondaryExtension) {
@@ -1300,8 +1294,8 @@ TEST_F(StartupAppLauncherTest,
   // initially, so the test can verify the app gets enabled regardless of the
   // initial state.
   PreinstallApp(*SecondaryAppBuilder(kExtraSecondaryAppId).Build());
-  service()->DisableExtension(kExtraSecondaryAppId,
-                              extensions::disable_reason::DISABLE_USER_ACTION);
+  registrar()->DisableExtension(
+      kExtraSecondaryAppId, {extensions::disable_reason::DISABLE_USER_ACTION});
 
   InitializeLauncherWithNetworkReady();
   ASSERT_TRUE(DownloadAndInstallPrimaryApp(*primary_app));
@@ -1332,8 +1326,8 @@ TEST_F(StartupAppLauncherTest,
   PreinstallApp(*SecondaryAppBuilder(kSecondaryAppId).Build());
 
   PreinstallApp(*SecondaryAppBuilder(kExtraSecondaryAppId).Build());
-  service()->DisableExtension(kExtraSecondaryAppId,
-                              extensions::disable_reason::DISABLE_USER_ACTION);
+  registrar()->DisableExtension(
+      kExtraSecondaryAppId, {extensions::disable_reason::DISABLE_USER_ACTION});
 
   InitializeLauncherWithNetworkReady();
   ASSERT_TRUE(DownloadAndInstallPrimaryApp(*primary_app));
@@ -1364,12 +1358,11 @@ TEST_F(StartupAppLauncherTest,
   // initially, so the test can verify the app gets enabled regardless of the
   // initial state.
   PreinstallApp(*SecondaryAppBuilder(kSecondaryAppId).Build());
-  // Disable the secodnary app for a reason different than user action - that
+  // Disable the secondary app for a reason different than user action - that
   // disable reason should not be overriden during the kiosk launch.
-  service()->DisableExtension(
-      kSecondaryAppId,
-      extensions::disable_reason::DISABLE_USER_ACTION |
-          extensions::disable_reason::DISABLE_BLOCKED_BY_POLICY);
+  registrar()->DisableExtension(
+      kSecondaryAppId, {extensions::disable_reason::DISABLE_USER_ACTION,
+                        extensions::disable_reason::DISABLE_BLOCKED_BY_POLICY});
 
   InitializeLauncherWithNetworkReady();
   ASSERT_TRUE(DownloadAndInstallPrimaryApp(*primary_app));
@@ -1386,9 +1379,10 @@ TEST_F(StartupAppLauncherTest,
 
   EXPECT_TRUE(registry()->enabled_extensions().Contains(kTestPrimaryAppId));
   EXPECT_TRUE(registry()->disabled_extensions().Contains(kSecondaryAppId));
-  EXPECT_EQ(extensions::disable_reason::DISABLE_BLOCKED_BY_POLICY,
-            extensions::ExtensionPrefs::Get(browser_context())
-                ->GetDisableReasons(kSecondaryAppId));
+  EXPECT_THAT(extensions::ExtensionPrefs::Get(browser_context())
+                  ->GetDisableReasons(kSecondaryAppId),
+              testing::UnorderedElementsAre(
+                  extensions::disable_reason::DISABLE_BLOCKED_BY_POLICY));
 }
 
 TEST_F(StartupAppLauncherTest, PrimaryAppUpdatesToDisabledOnLaunch) {
@@ -1417,9 +1411,10 @@ TEST_F(StartupAppLauncherTest, PrimaryAppUpdatesToDisabledOnLaunch) {
 
   EXPECT_TRUE(registry()->enabled_extensions().Contains(kTestPrimaryAppId));
   EXPECT_TRUE(registry()->disabled_extensions().Contains(kSecondaryAppId));
-  EXPECT_EQ(extensions::disable_reason::DISABLE_USER_ACTION,
-            extensions::ExtensionPrefs::Get(browser_context())
-                ->GetDisableReasons(kSecondaryAppId));
+  EXPECT_THAT(extensions::ExtensionPrefs::Get(browser_context())
+                  ->GetDisableReasons(kSecondaryAppId),
+              testing::UnorderedElementsAre(
+                  extensions::disable_reason::DISABLE_USER_ACTION));
 }
 
 TEST_F(StartupAppLauncherTest, PrimaryAppUpdatesToEnabledOnLaunch) {
@@ -1430,8 +1425,8 @@ TEST_F(StartupAppLauncherTest, PrimaryAppUpdatesToEnabledOnLaunch) {
            .set_offline_enabled(false)
            .Build());
   PreinstallApp(*SecondaryAppBuilder(kSecondaryAppId).Build());
-  service()->DisableExtension(kSecondaryAppId,
-                              extensions::disable_reason::DISABLE_USER_ACTION);
+  registrar()->DisableExtension(
+      kSecondaryAppId, {extensions::disable_reason::DISABLE_USER_ACTION});
 
   scoped_refptr<const Extension> primary_app_update =
       PrimaryAppBuilder()
@@ -1467,8 +1462,8 @@ TEST_F(StartupAppLauncherTest, SecondaryExtensionStateOnSessionRestore) {
   // Add the secondary app that should be enabled on launch - make it disabled
   // initially, and let test verify the app remains disabled during the launch.
   PreinstallApp(*SecondaryAppBuilder(kExtraSecondaryAppId).Build());
-  service()->DisableExtension(kExtraSecondaryAppId,
-                              extensions::disable_reason::DISABLE_USER_ACTION);
+  registrar()->DisableExtension(
+      kExtraSecondaryAppId, {extensions::disable_reason::DISABLE_USER_ACTION});
 
   startup_app_launcher_ = CreateStartupAppLauncherForSessionRestore();
 
