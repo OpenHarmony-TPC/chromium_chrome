@@ -5,13 +5,14 @@
 #ifndef CHROME_BROWSER_ASH_POLICY_SKYVAULT_HISTOGRAM_HELPER_H_
 #define CHROME_BROWSER_ASH_POLICY_SKYVAULT_HISTOGRAM_HELPER_H_
 
+#include "base/time/time.h"
 #include "chrome/browser/ash/policy/skyvault/policy_utils.h"
 
 namespace policy::local_user_files {
 
 // Helper functions to log UMA stats related to the file upload flow.
 void SkyVaultDeleteErrorHistogram(UploadTrigger trigger,
-                                  CloudProvider provider,
+                                  MigrationDestination destination,
                                   bool value);
 void SkyVaultOneDriveSignInErrorHistogram(UploadTrigger trigger, bool value);
 
@@ -20,24 +21,45 @@ void SkyVaultLocalStorageEnabledHistogram(bool value);
 void SkyVaultLocalStorageMisconfiguredHistogram(bool value);
 
 // Helper functions to log UMA stats specific for the migration flow.
-void SkyVaultMigrationEnabledHistogram(CloudProvider provider, bool value);
-void SkyVaultMigrationMisconfiguredHistogram(CloudProvider provider,
+void SkyVaultMigrationEnabledHistogram(MigrationDestination destination,
+                                       bool value);
+void SkyVaultMigrationMisconfiguredHistogram(MigrationDestination destination,
                                              bool value);
 void SkyVaultMigrationResetHistogram(bool value);
 void SkyVaultMigrationRetryHistogram(int count);
-void SkyVaultMigrationStoppedHistogram(CloudProvider provider, bool value);
-void SkyVaultMigrationWrongStateHistogram(CloudProvider provider,
+void SkyVaultDeletionRetryHistogram(int count);
+void SkyVaultMigrationStoppedHistogram(MigrationDestination destination,
+                                       bool value);
+void SkyVaultMigrationWrongStateHistogram(MigrationDestination destination,
                                           StateErrorContext context,
                                           State state);
-void SkyVaultMigrationFailedHistogram(CloudProvider provider, bool value);
+void SkyVaultDeletionDoneHistogram(bool success);
+void SkyVaultMigrationDoneHistograms(MigrationDestination destination,
+                                     bool success,
+                                     base::TimeDelta duration);
 void SkyVaultMigrationWriteAccessErrorHistogram(bool value);
-void SkyVaultMigrationUploadErrorHistogram(CloudProvider provider,
+void SkyVaultMigrationUploadErrorHistogram(MigrationDestination destination,
                                            MigrationUploadError error);
+void SkyVaultMigrationWaitForConnectionHistogram(
+    MigrationDestination destination,
+    bool waiting_for_connection);
+void SkyVaultMigrationReconnectionDurationHistogram(
+    MigrationDestination destination,
+    base::TimeDelta duration);
+void SkyVaultMigrationCleanupErrorHistogram(MigrationDestination destination,
+                                            bool value);
+void SkyVaultMigrationScheduledTimeInPastInformUser(
+    MigrationDestination destination,
+    bool value);
+void SkyVaultMigrationScheduledTimeInPastScheduleMigration(
+    MigrationDestination destination,
+    bool value);
 
 // Helper functions to log UMA stats on migration dialog interactions.
-void SkyVaultMigrationDialogActionHistogram(CloudProvider provider,
+void SkyVaultMigrationDialogActionHistogram(MigrationDestination destination,
                                             DialogAction action);
-void SkyVaultMigrationDialogShownHistogram(CloudProvider provider, bool value);
+void SkyVaultMigrationDialogShownHistogram(MigrationDestination destination,
+                                           bool value);
 
 }  // namespace policy::local_user_files
 

@@ -8,11 +8,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.when;
 
-import static org.chromium.chrome.browser.flags.ChromeFeatureList.UNIFIED_PASSWORD_MANAGER_LOCAL_PASSWORDS_ANDROID_ACCESS_LOSS_WARNING;
-
 import android.content.Context;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -25,7 +22,6 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.UnownedUserDataHost;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.ui.base.WindowAndroid;
@@ -54,13 +50,7 @@ public class PostPasswordMigrationSheetCoordinatorFactoryTest {
                         context, mBottomSheetController, mProfile);
     }
 
-    @After
-    public void tearDown() {
-        PostPasswordMigrationSheetCoordinatorFactory.setCoordinatorInstanceForTesting(null);
-    }
-
     @Test
-    @DisableFeatures(UNIFIED_PASSWORD_MANAGER_LOCAL_PASSWORDS_ANDROID_ACCESS_LOSS_WARNING)
     public void testmaybeGetOrCreateReturnsNullWhenBottomSheetControllerIsNull() {
         when(mWindowAndroid.getUnownedUserDataHost()).thenReturn(new UnownedUserDataHost());
         assertNull(
@@ -70,7 +60,6 @@ public class PostPasswordMigrationSheetCoordinatorFactoryTest {
     }
 
     @Test
-    @DisableFeatures(UNIFIED_PASSWORD_MANAGER_LOCAL_PASSWORDS_ANDROID_ACCESS_LOSS_WARNING)
     public void testmaybeGetOrCreateReturnsNullWhenContextIsNull() {
         when(mWindowAndroid.getContext()).thenReturn(new WeakReference<Context>(null));
         assertNull(
@@ -80,7 +69,6 @@ public class PostPasswordMigrationSheetCoordinatorFactoryTest {
     }
 
     @Test
-    @DisableFeatures(UNIFIED_PASSWORD_MANAGER_LOCAL_PASSWORDS_ANDROID_ACCESS_LOSS_WARNING)
     public void testSetCoordinatorInstanceForTestingUsesTheTestingFactory() {
         PostPasswordMigrationSheetCoordinatorFactory.setCoordinatorInstanceForTesting(
                 mPostPasswordMigrationSheetCoordinator);

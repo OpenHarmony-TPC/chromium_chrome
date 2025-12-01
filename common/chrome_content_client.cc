@@ -25,7 +25,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_paths.h"
@@ -34,7 +33,6 @@
 #include "chrome/common/media/cdm_registration.h"
 #include "chrome/common/ppapi_utils.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/common_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/crash/core/common/crash_key.h"
@@ -42,7 +40,6 @@
 #include "components/embedder_support/origin_trials/origin_trial_policy_impl.h"
 #include "components/heap_profiling/in_process/child_process_snapshot_controller.h"
 #include "components/heap_profiling/in_process/heap_profiler_controller.h"
-#include "components/heap_profiling/in_process/heap_profiler_parameters.h"
 #include "components/heap_profiling/in_process/mojom/snapshot_controller.mojom.h"
 #include "components/services/heap_profiling/public/cpp/profiling_client.h"
 #include "components/strings/grit/components_strings.h"
@@ -90,6 +87,7 @@
 
 #if BUILDFLAG(ENABLE_PDF)
 #include "components/pdf/common/constants.h"
+#include "components/pdf/common/pdf_util.h"
 #endif
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -100,6 +98,10 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/common/media/chrome_media_drm_bridge_client.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/common/media/ohos_chrome_media_drm_bridge_client.h"
 #endif
 
 namespace {
@@ -191,11 +193,6 @@ void ChromeContentClient::AddPlugins(
     plugins->push_back(nacl);
   }
 #endif  // BUILDFLAG(ENABLE_NACL)
-}
-
-std::vector<url::Origin>
-ChromeContentClient::GetPdfInternalPluginAllowedOrigins() {
-  return {url::Origin::Create(GURL(chrome::kChromeUIPrintURL))};
 }
 
 void ChromeContentClient::AddContentDecryptionModules(
@@ -295,7 +292,7 @@ void ChromeContentClient::AddAdditionalSchemes(Schemes* schemes) {
   schemes->csp_bypassing_schemes.push_back(extensions::kExtensionScheme);
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
   schemes->predefined_handler_schemes.emplace_back(
       url::kMailToScheme, chrome::kChromeOSDefaultMailtoHandler);
   schemes->predefined_handler_schemes.emplace_back(
@@ -307,7 +304,7 @@ void ChromeContentClient::AddAdditionalSchemes(Schemes* schemes) {
   schemes->service_worker_schemes.push_back(chrome::kIsolatedAppScheme);
   url::AddWebStorageScheme(chrome::kIsolatedAppScheme);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   schemes->local_schemes.push_back(content::kExternalFileScheme);
 #endif
 
@@ -383,6 +380,12 @@ media::MediaDrmBridgeClient* ChromeContentClient::GetMediaDrmBridgeClient() {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(ENABLE_WISEPLAY)
+media::OhosMediaDrmBridgeClient* ChromeContentClient::GetOhosMediaDrmBridgeClient() {
+  return new OhosChromeMediaDrmBridgeClient();
+}
+#endif  // BUILDFLAG(ENABLE_WISEPLAY)
+
 void ChromeContentClient::ExposeInterfacesToBrowser(
     scoped_refptr<base::SequencedTaskRunner> io_task_runner,
     mojo::BinderMap* binders) {
@@ -402,9 +405,7 @@ void ChromeContentClient::ExposeInterfacesToBrowser(
   // Sets up the simplified in-process heap profiler, if it's enabled.
   const auto* heap_profiler_controller =
       heap_profiling::HeapProfilerController::GetInstance();
-  if (heap_profiler_controller && heap_profiler_controller->IsEnabled() &&
-      base::FeatureList::IsEnabled(
-          heap_profiling::kHeapProfilerCentralControl)) {
+  if (heap_profiler_controller && heap_profiler_controller->IsEnabled()) {
     binders->Add<heap_profiling::mojom::SnapshotController>(
         base::BindRepeating(&heap_profiling::ChildProcessSnapshotController::
                                 CreateSelfOwnedReceiver),
@@ -412,4 +413,13 @@ void ChromeContentClient::ExposeInterfacesToBrowser(
         // which can only be accessed on this sequence.
         base::SequencedTaskRunner::GetCurrentDefault());
   }
+}
+
+bool ChromeContentClient::IsFilePickerAllowedForCrossOriginSubframe(
+    const url::Origin& origin) {
+#if BUILDFLAG(ENABLE_PDF)
+  return IsPdfExtensionOrigin(origin);
+#else
+  return false;
+#endif
 }

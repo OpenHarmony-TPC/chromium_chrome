@@ -25,6 +25,7 @@
 #include "chrome/browser/webauthn/gpm_enclave_transaction.h"
 #include "components/trusted_vault/trusted_vault_connection.h"
 #include "content/public/browser/global_routing_id.h"
+#include "google_apis/gaia/gaia_id.h"
 
 namespace base {
 class TickClock;
@@ -42,13 +43,16 @@ enum class FidoRequestType : uint8_t;
 enum class UserVerificationRequirement;
 namespace enclave {
 struct CredentialRequest;
-class ICloudRecoveryKey;
 }  // namespace enclave
 }  // namespace device
 
 namespace sync_pb {
 class WebauthnCredentialSpecifics;
 }  // namespace sync_pb
+
+namespace trusted_vault {
+class ICloudRecoveryKey;
+}  // namespace trusted_vault
 
 enum class EnclaveEnabledStatus;
 class Profile;
@@ -59,6 +63,7 @@ class GPMEnclaveController : public AuthenticatorRequestDialogModel::Observer,
  public:
   static constexpr base::TimeDelta kDownloadAccountStateTimeout =
       base::Seconds(1);
+  static constexpr base::TimeDelta kLoadingTimeout = base::Milliseconds(500);
 
   enum class AccountState {
     // There isn't a primary account, or enclave support is disabled.
@@ -95,6 +100,12 @@ class GPMEnclaveController : public AuthenticatorRequestDialogModel::Observer,
   GPMEnclaveController& operator=(GPMEnclaveController&&) = delete;
   ~GPMEnclaveController() override;
 
+  // Determines the enclave user verification early depending on the enclave
+  // state and UV requirements. Can return `std::nullopt` if the enclave is not
+  // ready. This is used for immediate mode requests.
+  std::optional<EnclaveUserVerificationMethod>
+  GetEnclaveUserVerificationMethod();
+
   // Returns true if the enclave is active for this request. Crashes the address
   // space if this hasn't yet been resolved.
   bool is_active() const;
@@ -112,6 +123,8 @@ class GPMEnclaveController : public AuthenticatorRequestDialogModel::Observer,
   const std::vector<sync_pb::WebauthnCredentialSpecifics>& creds() const;
 
   AccountState account_state_for_testing() const;
+  // Returns true if the account is ready to use.
+  bool is_account_ready() const;
 
  private:
   // GPMEnclaveTransaction::Delegate:
@@ -143,7 +156,7 @@ class GPMEnclaveController : public AuthenticatorRequestDialogModel::Observer,
 
   // Called when the account state has finished downloading.
   void OnAccountStateDownloaded(
-      std::string gaia_id,
+      GaiaId gaia_id,
       std::unique_ptr<trusted_vault::TrustedVaultConnection> unused,
       trusted_vault::DownloadAuthenticationFactorsRegistrationStateResult
           result);
@@ -169,27 +182,27 @@ class GPMEnclaveController : public AuthenticatorRequestDialogModel::Observer,
   // Called when Chrome has retrieved the iCloud recovery keys present in the
   // current device.
   void OnICloudKeysRetrievedForEnrollment(
-      std::vector<std::unique_ptr<device::enclave::ICloudRecoveryKey>>
+      std::vector<std::unique_ptr<trusted_vault::ICloudRecoveryKey>>
           local_icloud_keys);
 
   // Enrolls a specific iCloud keychain recovery key. |key| may be null, in
   // which case we skip to the next step.
   void EnrollICloudRecoveryKey(
-      std::unique_ptr<device::enclave::ICloudRecoveryKey> key);
+      std::unique_ptr<trusted_vault::ICloudRecoveryKey> key);
 
   // Called when Chrome has retrieved the iCloud recovery keys present in the
   // current device.
   void OnICloudKeysRetrievedForRecovery(
-      std::vector<std::unique_ptr<device::enclave::ICloudRecoveryKey>>
+      std::vector<std::unique_ptr<trusted_vault::ICloudRecoveryKey>>
           local_icloud_keys);
 #endif  // BUILDFLAG(IS_MAC)
 
   // Called when the enclave enrollment is complete.
   void OnEnclaveAccountSetUpComplete();
 
-  // Called when the EnclaveManager is ready. Sets `account_state_` to the
-  // correct value for the level of user verification required.
-  void SetAccountStateReady();
+  // Called when the EnclaveManager has finished loading. Sets `account_state_`
+  // and progresses the flow if waiting.
+  void SetAccountState(AccountState account_state);
 
   // Called when the user selects Google Password Manager from the list of
   // mechanisms. (Or when it's the priority mechanism.)
@@ -204,6 +217,14 @@ class GPMEnclaveController : public AuthenticatorRequestDialogModel::Observer,
   // Called when the user completes forgot pin flow.
   void OnGpmPinChanged(bool success);
 
+  // Called when the user selects a GPM option, but the enclave is still loading
+  // or the account data hasn't finished downloading yet.
+  void OnGpmSelectedWhileLoading();
+
+  // Called when the enclave is still loading and |loading_timeout_| is
+  // triggered.
+  void OnLoadingTimeout();
+
   // AuthenticatorRequestDialogModel::Observer:
   void OnTrustThisComputer() override;
   void OnGPMPinOptionChanged(bool is_arbitrary) override;
@@ -217,16 +238,6 @@ class GPMEnclaveController : public AuthenticatorRequestDialogModel::Observer,
 
   // Starts a create() or get() action with the enclave.
   void StartTransaction();
-
-  // Called when the UI has reached a state where it needs to do an enclave
-  // operation, and an OAuth token for the enclave has been fetched.
-  void MaybeHashPinAndStartEnclaveTransaction(std::optional<std::string> token);
-
-  // Called when the UI has reached a state where it needs to do an enclave
-  // operation, an OAuth token for the enclave has been fetched, and any PIN
-  // hashing has been completed.
-  void StartEnclaveTransaction(std::optional<std::string> token,
-                               std::unique_ptr<device::enclave::ClaimedPIN>);
 
   // Accessors for the profile pref that counts the number of consecutive failed
   // PIN attempts to know when a lockout will happen.
@@ -280,7 +291,7 @@ class GPMEnclaveController : public AuthenticatorRequestDialogModel::Observer,
   std::optional<std::vector<uint8_t>> selected_cred_id_;
 
   // Contains the bytes of a WrappedPIN structure, downloaded from the security
-  // domain service.
+  // domain service. This is only set if the PIN is usable for recovery.
   std::optional<trusted_vault::GpmPinMetadata> pin_metadata_;
 
   // The list of iCloud recovery key members known to the security domain
@@ -320,6 +331,11 @@ class GPMEnclaveController : public AuthenticatorRequestDialogModel::Observer,
   // A timeout to prevent waiting for the security domain service forever.
   std::unique_ptr<base::OneShotTimer> account_state_timeout_;
 
+  // A timeout to prevent waiting for the enclave to load forever. If triggered
+  // while still loading, the user is sent to the mechanism selection screen.
+  // Loading the enclave and downloading account data are not interrupted.
+  base::OneShotTimer loading_timeout_;
+
   // Set to true when the user initiates reset GPM pin flow during UV.
   bool changing_gpm_pin_ = false;
 
@@ -331,7 +347,7 @@ class GPMEnclaveController : public AuthenticatorRequestDialogModel::Observer,
   bool gpm_pin_creation_confirmed_ = false;
 
   // The gaia id of the user at the time the account state was downloaded.
-  std::string user_gaia_id_;
+  GaiaId user_gaia_id_;
 
   raw_ptr<const base::TickClock> tick_clock_ = nullptr;
 

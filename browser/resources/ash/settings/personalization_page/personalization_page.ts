@@ -19,10 +19,8 @@ import {I18nMixin} from 'chrome://resources/ash/common/cr_elements/i18n_mixin.js
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {DeepLinkingMixin} from '../common/deep_linking_mixin.js';
-import {isRevampWayfindingEnabled, shouldShowMultitaskingInPersonalization} from '../common/load_time_booleans.js';
 import {RouteObserverMixin} from '../common/route_observer_mixin.js';
 import {Section} from '../mojom-webui/routes.mojom-webui.js';
-import {Setting} from '../mojom-webui/setting.mojom-webui.js';
 import type {Route} from '../router.js';
 import {routes} from '../router.js';
 
@@ -50,35 +48,9 @@ export class SettingsPersonalizationPageElement extends
         value: Section.kPersonalization,
         readOnly: true,
       },
-
-      isRevampWayfindingEnabled_: {
-        type: Boolean,
-        value() {
-          return isRevampWayfindingEnabled();
-        },
-      },
-
-      shouldShowMultitaskingInPersonalization_: {
-        type: Boolean,
-        value() {
-          return shouldShowMultitaskingInPersonalization();
-        },
-      },
-
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kSnapWindowSuggestions,
-        ]),
-      },
     };
   }
 
-  private isRevampWayfindingEnabled_: boolean;
-  private readonly shouldShowMultitaskingInPersonalization_: boolean;
   private personalizationHubBrowserProxy_: PersonalizationHubBrowserProxy;
   private section_: Section;
 
@@ -87,12 +59,6 @@ export class SettingsPersonalizationPageElement extends
 
     this.personalizationHubBrowserProxy_ =
         PersonalizationHubBrowserProxyImpl.getInstance();
-  }
-
-  private getPersonalizationRowIcon_(): string {
-    return this.isRevampWayfindingEnabled_ ?
-        'os-settings:personalization-revamp' :
-        '';
   }
 
   private openPersonalizationHub_(): void {

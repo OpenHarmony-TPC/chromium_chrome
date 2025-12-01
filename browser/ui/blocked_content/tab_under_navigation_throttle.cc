@@ -63,28 +63,30 @@ void LogTabUnderAttempt(content::NavigationHandle* handle) {
 }  // namespace
 
 // static
-std::unique_ptr<content::NavigationThrottle>
-TabUnderNavigationThrottle::MaybeCreate(content::NavigationHandle* handle) {
+void TabUnderNavigationThrottle::MaybeCreateAndAdd(
+    content::NavigationThrottleRegistry& registry) {
   // TODO(crbug.com/40187173): TabUnderNavigationThrottle doesn't block
   // prerendering activations. However, currently prerender is same-origin only
   // so a prerendered activation could never be classified as a tab-under.
   // Otherwise, it should be safe to avoid creating a throttle in non primary
   // pages because prerendered pages should not be able to open popups. A
   // tab-under could therefore never occur within the non-primary page.
-  if (handle->IsInPrimaryMainFrame())
-    return base::WrapUnique(new TabUnderNavigationThrottle(handle));
-  return nullptr;
+  if (registry.GetNavigationHandle().IsInPrimaryMainFrame()) {
+    registry.AddThrottle(
+        base::WrapUnique(new TabUnderNavigationThrottle(registry)));
+  }
 }
 
 TabUnderNavigationThrottle::~TabUnderNavigationThrottle() = default;
 
 TabUnderNavigationThrottle::TabUnderNavigationThrottle(
-    content::NavigationHandle* handle)
-    : content::NavigationThrottle(handle),
+    content::NavigationThrottleRegistry& registry)
+    : content::NavigationThrottle(registry),
       has_opened_popup_since_last_user_gesture_at_start_(
           HasOpenedPopupSinceLastUserGesture()),
-      started_in_foreground_(handle->GetWebContents()->GetVisibility() ==
-                             content::Visibility::VISIBLE) {}
+      started_in_foreground_(
+          registry.GetNavigationHandle().GetWebContents()->GetVisibility() ==
+          content::Visibility::VISIBLE) {}
 
 bool TabUnderNavigationThrottle::IsSuspiciousClientRedirect() const {
   // This throttle is only created for primary main frame navigations. See
@@ -105,8 +107,9 @@ bool TabUnderNavigationThrottle::IsSuspiciousClientRedirect() const {
   // away while in the background.
   content::WebContents* contents = navigation_handle()->GetWebContents();
   const GURL& previous_main_frame_url = contents->GetLastCommittedURL();
-  if (previous_main_frame_url.is_empty())
+  if (previous_main_frame_url.is_empty()) {
     return false;
+  }
 
   // Same-site navigations are exempt from tab-under protection.
   const GURL& target_url = navigation_handle()->GetURL();

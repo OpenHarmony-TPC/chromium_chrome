@@ -32,6 +32,16 @@ std::string GetToastName(ToastId toast_id) {
       return "SyncEsbOnWithoutActionButton";
     case ToastId::kSyncEsbOff:
       return "SyncEsbOff";
+    case ToastId::kTabGroupSyncTabRemoved:
+      return "TabGroupSyncTabRemoved";
+    case ToastId::kTabGroupSyncUserJoined:
+      return "TabGroupSyncUserJoined";
+    case ToastId::kTabGroupSyncRemovedFromGroup:
+      return "TabGroupSyncRemovedFromGroup";
+    case ToastId::kVideoFrameCopied:
+      return "VideoFrameCopied";
+    case ToastId::kClosePinnedTab:
+      return "ClosePinnedTab";
   }
 
   NOTREACHED();

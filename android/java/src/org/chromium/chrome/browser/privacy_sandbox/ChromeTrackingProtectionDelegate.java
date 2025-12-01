@@ -17,9 +17,11 @@ import org.chromium.content_public.browser.BrowserContextHandle;
 
 public class ChromeTrackingProtectionDelegate implements TrackingProtectionDelegate {
     private final Profile mProfile;
+    private final TrackingProtectionSettingsBridge mTrackingProtectionSettingsBridge;
 
     public ChromeTrackingProtectionDelegate(Profile profile) {
         mProfile = profile;
+        mTrackingProtectionSettingsBridge = new TrackingProtectionSettingsBridge(profile);
     }
 
     @Override
@@ -43,12 +45,7 @@ public class ChromeTrackingProtectionDelegate implements TrackingProtectionDeleg
     }
 
     @Override
-    public boolean shouldShowTrackingProtectionBrandedUi() {
-        return ChromeFeatureList.isEnabled(ChromeFeatureList.TRACKING_PROTECTION_3PCD_UX);
-    }
-
-    @Override
-    public boolean shouldDisplayIpProtection() {
+    public boolean isIpProtectionUxEnabled() {
         return ChromeFeatureList.isEnabled(ChromeFeatureList.IP_PROTECTION_UX);
     }
 
@@ -58,12 +55,27 @@ public class ChromeTrackingProtectionDelegate implements TrackingProtectionDeleg
     }
 
     @Override
+    public boolean isIpProtectionManaged() {
+        return UserPrefs.get(mProfile).isManagedPreference(Pref.IP_PROTECTION_ENABLED);
+    }
+
+    @Override
+    public boolean isFingerprintingProtectionManaged() {
+        return UserPrefs.get(mProfile).isManagedPreference(Pref.FINGERPRINTING_PROTECTION_ENABLED);
+    }
+
+    @Override
     public void setIpProtection(boolean enabled) {
         UserPrefs.get(mProfile).setBoolean(Pref.IP_PROTECTION_ENABLED, enabled);
     }
 
     @Override
-    public boolean shouldDisplayFingerprintingProtection() {
+    public boolean isIpProtectionDisabledForEnterprise() {
+        return mTrackingProtectionSettingsBridge.isIpProtectionDisabledForEnterprise();
+    }
+
+    @Override
+    public boolean isFingerprintingProtectionUxEnabled() {
         return ChromeFeatureList.isEnabled(ChromeFeatureList.FINGERPRINTING_PROTECTION_UX);
     }
 

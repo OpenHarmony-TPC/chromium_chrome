@@ -4,6 +4,7 @@
 
 #include "chrome/browser/supervised_user/supervised_user_extensions_manager.h"
 
+#include <optional>
 #include <string>
 
 #include "base/containers/contains.h"
@@ -24,7 +25,9 @@
 #include "components/supervised_user/core/common/features.h"
 #include "components/supervised_user/core/common/pref_names.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
+#include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_prefs.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/pref_names.h"
@@ -158,13 +161,9 @@ bool SupervisedUserExtensionsManager::IsExtensionAllowed(
 bool SupervisedUserExtensionsManager::CanInstallExtensions() const {
   supervised_user::SupervisedUserService* supervised_user_service =
       SupervisedUserServiceFactory::GetForBrowserContext(context_);
-  if (supervised_user::
-          IsSupervisedUserSkipParentApprovalToInstallExtensionsEnabled()) {
-    return supervised_user_service->HasACustodian();
-  }
-  return supervised_user_service->HasACustodian() &&
-         user_prefs_->GetBoolean(
-             prefs::kSupervisedUserExtensionsMayRequestPermissions);
+  bool has_custodian = supervised_user_service->GetCustodian() ||
+                       supervised_user_service->GetSecondCustodian();
+    return has_custodian;
 }
 
 void SupervisedUserExtensionsManager::RecordExtensionEnablementUmaMetrics(
@@ -272,7 +271,7 @@ SupervisedUserExtensionsManager::ExtensionState
 SupervisedUserExtensionsManager::GetExtensionState(
     const extensions::Extension& extension) const {
   bool was_installed_by_default = extension.was_installed_by_default();
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // On Chrome OS all external sources are controlled by us so it means that
   // they are "default". Method was_installed_by_default returns false because
   // extensions creation flags are ignored in case of default extensions with
@@ -305,9 +304,7 @@ SupervisedUserExtensionsManager::GetExtensionState(
   if (base::Contains(approved_extensions_set_, extension.id())) {
     return SupervisedUserExtensionsManager::ExtensionState::ALLOWED;
   }
-  if (IsLocallyParentApprovedExtension(extension.id()) &&
-      supervised_user::
-          IsSupervisedUserSkipParentApprovalToInstallExtensionsEnabled()) {
+  if (IsLocallyParentApprovedExtension(extension.id())) {
     return SupervisedUserExtensionsManager::ExtensionState::ALLOWED;
   }
   return SupervisedUserExtensionsManager::ExtensionState::REQUIRE_APPROVAL;
@@ -398,9 +395,11 @@ std::u16string SupervisedUserExtensionsManager::GetExtensionsLockedMessage()
     const {
   supervised_user::SupervisedUserService* supervised_user_service =
       SupervisedUserServiceFactory::GetForBrowserContext(context_);
+  std::optional<supervised_user::Custodian> custodian =
+      supervised_user_service->GetCustodian();
   return l10n_util::GetStringFUTF16(
       IDS_EXTENSIONS_LOCKED_SUPERVISED_USER,
-      base::UTF8ToUTF16(supervised_user_service->GetCustodianName()));
+      base::UTF8ToUTF16(custodian ? custodian->GetName() : ""));
 }
 
 void SupervisedUserExtensionsManager::ChangeExtensionStateIfNecessary(
@@ -420,8 +419,7 @@ void SupervisedUserExtensionsManager::ChangeExtensionStateIfNecessary(
     return;
   }
 
-  extensions::ExtensionService* service =
-      extension_system_->extension_service();
+  auto* registrar = extensions::ExtensionRegistrar::Get(context_);
   ExtensionState state = GetExtensionState(*extension);
   switch (state) {
     // BLOCKED extensions should be already disabled and we don't need to change
@@ -429,18 +427,17 @@ void SupervisedUserExtensionsManager::ChangeExtensionStateIfNecessary(
     case ExtensionState::BLOCKED:
       break;
     case ExtensionState::REQUIRE_APPROVAL:
-      service->DisableExtension(
+      registrar->DisableExtension(
           extension_id,
-          extensions::disable_reason::DISABLE_CUSTODIAN_APPROVAL_REQUIRED);
+          {extensions::disable_reason::DISABLE_CUSTODIAN_APPROVAL_REQUIRED});
       break;
     case ExtensionState::ALLOWED:
       extension_prefs_->RemoveDisableReason(
           extension_id,
           extensions::disable_reason::DISABLE_CUSTODIAN_APPROVAL_REQUIRED);
       // If not disabled for other reasons, enable it.
-      if (extension_prefs_->GetDisableReasons(extension_id) ==
-          extensions::disable_reason::DISABLE_NONE) {
-        service->EnableExtension(extension_id);
+      if (extension_prefs_->GetDisableReasons(extension_id).empty()) {
+        registrar->EnableExtension(extension_id);
       }
       break;
   }
@@ -448,26 +445,7 @@ void SupervisedUserExtensionsManager::ChangeExtensionStateIfNecessary(
 
 bool SupervisedUserExtensionsManager::ShouldBlockExtension(
     const std::string& extension_id) const {
-  if (supervised_user::
-          IsSupervisedUserSkipParentApprovalToInstallExtensionsEnabled()) {
-    // On this extension handling mode, the user is never blocked from
-    // installing extensions.
-    return false;
-  }
-  if (user_prefs_->GetBoolean(
-          prefs::kSupervisedUserExtensionsMayRequestPermissions)) {
-    return false;
-  }
-  if (!extension_registry_->GetInstalledExtension(extension_id)) {
-    // Block child users from installing new extensions. Already installed
-    // extensions should not be affected.
-    return true;
-  }
-  if (extension_prefs_->DidExtensionEscalatePermissions(extension_id)) {
-    // Block child users from approving existing extensions asking for
-    // additional permissions.
-    return true;
-  }
+  // Users can always install extensions.
   return false;
 }
 
@@ -482,11 +460,6 @@ void SupervisedUserExtensionsManager::
   if (migration_state ==
       supervised_user::LocallyParentApprovedExtensionsMigrationState::
           kComplete) {
-    return;
-  }
-
-  if (!supervised_user::
-          IsSupervisedUserSkipParentApprovalToInstallExtensionsEnabled()) {
     return;
   }
 
@@ -508,9 +481,6 @@ void SupervisedUserExtensionsManager::
 }
 
 void SupervisedUserExtensionsManager::DoExtensionsMigrationToParentApproved() {
-  CHECK(supervised_user::
-            IsSupervisedUserSkipParentApprovalToInstallExtensionsEnabled());
-
   base::Value::Dict unapproved_extensions_dict =
       GetExtensionsMissingApproval(*user_prefs_);
   user_prefs_->SetDict(prefs::kSupervisedUserLocallyParentApprovedExtensions,
@@ -534,10 +504,6 @@ void SupervisedUserExtensionsManager::DoExtensionsMigrationToParentApproved() {
 
 bool SupervisedUserExtensionsManager::IsLocallyParentApprovedExtension(
     const std::string& extension_id) const {
-  if (!supervised_user::
-          IsSupervisedUserSkipParentApprovalToInstallExtensionsEnabled()) {
-    return false;
-  }
   const base::Value::Dict& current_locally_approved_dict = user_prefs_->GetDict(
       prefs::kSupervisedUserLocallyParentApprovedExtensions);
   return base::Contains(current_locally_approved_dict, extension_id);

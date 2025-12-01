@@ -8,8 +8,10 @@
 #include "base/functional/callback_forward.h"
 #include "base/i18n/base_i18n_switches.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -26,6 +28,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/interaction/interaction_test_util_browser.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
+#include "components/prefs/pref_service.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "components/user_education/common/help_bubble/help_bubble.h"
 #include "components/user_education/common/help_bubble/help_bubble_factory_registry.h"
@@ -34,6 +37,7 @@
 #include "components/user_education/views/help_bubble_view.h"
 #include "components/user_education/webui/help_bubble_handler.h"
 #include "components/user_education/webui/tracked_element_webui.h"
+#include "components/webui/chrome_urls/pref_names.h"
 #include "content/public/test/browser_test.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
@@ -76,9 +80,14 @@ DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ViewSizeObserver, kSidePanelSize);
 
 class HelpBubbleFactoryWebUIInteractiveUiTest : public InteractiveBrowserTest {
  public:
-  HelpBubbleFactoryWebUIInteractiveUiTest() {
-  }
+  HelpBubbleFactoryWebUIInteractiveUiTest() = default;
   ~HelpBubbleFactoryWebUIInteractiveUiTest() override = default;
+
+  void SetUpOnMainThread() override {
+    InteractiveBrowserTest::SetUpOnMainThread();
+    g_browser_process->local_state()->SetBoolean(
+        chrome_urls::kInternalOnlyUisEnabled, true);
+  }
 
   // Opens the side panel and instruments the Read Later WebContents as
   // kReadLaterWebContentsElementId.
@@ -86,8 +95,17 @@ class HelpBubbleFactoryWebUIInteractiveUiTest : public InteractiveBrowserTest {
     return Steps(
         PressButton(kToolbarAppMenuButtonElementId),
         SelectMenuItem(AppMenuModel::kBookmarksMenuItem),
-        SelectMenuItem(BookmarkSubMenuModel::kReadingListMenuItem),
-        SelectMenuItem(ReadingListSubMenuModel::kReadingListMenuShowUI),
+    // TODO(https://crbug.com/359252812): On Linux and ChromeOS, sometimes
+    // the bookmarks submenu randomly loses focus causing it to close.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+        WithoutDelay(
+#endif
+            SelectMenuItem(BookmarkSubMenuModel::kReadingListMenuItem),
+            SelectMenuItem(ReadingListSubMenuModel::kReadingListMenuShowUI)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+                )
+#endif
+            ,
         AfterShow(kSidePanelElementId,
                   [this](ui::TrackedElement* el) {
                     side_panel_ = AsView(el);
@@ -104,13 +122,22 @@ class HelpBubbleFactoryWebUIInteractiveUiTest : public InteractiveBrowserTest {
   auto OpenBookmarksSidePanel() {
     return Steps(
         PressButton(kToolbarAppMenuButtonElementId),
-        SelectMenuItem(AppMenuModel::kBookmarksMenuItem),
-        SelectMenuItem(BookmarkSubMenuModel::kShowBookmarkSidePanelItem),
+    // TODO(https://crbug.com/359252812): On Linux and ChromeOS, sometimes
+    // the bookmarks submenu randomly loses focus causing it to close.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+        WithoutDelay(
+#endif
+            SelectMenuItem(AppMenuModel::kBookmarksMenuItem),
+            SelectMenuItem(BookmarkSubMenuModel::kShowBookmarkSidePanelItem)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+                )
+#endif
+            ,
         WaitForShow(kSidePanelElementId));
   }
 
   auto ShowHelpBubble(ElementSpecifier element) {
-    return InAnyContext(std::move(
+    return InAnyContext(
         AfterShow(
             element,
             base::BindLambdaForTesting(
@@ -122,7 +149,7 @@ class HelpBubbleFactoryWebUIInteractiveUiTest : public InteractiveBrowserTest {
                     seq->FailForTesting();
                   }
                 }))
-            .SetDescription("ShowHelpBubble")));
+            .SetDescription("ShowHelpBubble"));
   }
 
   auto CloseHelpBubble() {
@@ -132,17 +159,17 @@ class HelpBubbleFactoryWebUIInteractiveUiTest : public InteractiveBrowserTest {
   auto CheckHandlerHasHelpBubble(ElementSpecifier anchor,
                                  bool has_help_bubble) {
     return InAnyContext(
-        std::move(CheckElement(
-                      anchor,
-                      [](ui::TrackedElement* el) {
-                        return el->AsA<user_education::TrackedElementWebUI>()
-                            ->handler()
-                            ->IsHelpBubbleShowingForTesting(el->identifier());
-                      },
-                      has_help_bubble)
-                      .SetDescription(base::StringPrintf(
-                          "CheckHandlerHasHelpBubble(%s)",
-                          has_help_bubble ? "true" : "false"))));
+        CheckElement(
+            anchor,
+            [](ui::TrackedElement* el) {
+              return el->AsA<user_education::TrackedElementWebUI>()
+                  ->handler()
+                  ->IsHelpBubbleShowingForTesting(el->identifier());
+            },
+            has_help_bubble)
+            .SetDescription(
+                base::StringPrintf("CheckHandlerHasHelpBubble(%s)",
+                                   base::ToString(has_help_bubble))));
   }
 
   auto Cleanup() {
@@ -236,7 +263,7 @@ IN_PROC_BROWSER_TEST_F(HelpBubbleFactoryWebUIInteractiveUiTest,
   RunTestSequence(
       InstrumentTab(kBrowserTabId),
       NavigateWebContents(kBrowserTabId,
-                          GURL("chrome://internals/user-education")),
+                          GURL(chrome::kChromeUIUserEducationInternalsURL)),
       ShowHelpBubble(kWebUIIPHDemoElementIdentifier),
 
       // Verify that the handler believes that the anchor has a help bubble.
@@ -268,7 +295,7 @@ IN_PROC_BROWSER_TEST_F(HelpBubbleFactoryWebUIInteractiveUiTest,
   RunTestSequence(
       InstrumentTab(kBrowserTabId),
       NavigateWebContents(kBrowserTabId,
-                          GURL("chrome://internals/user-education")),
+                          GURL(chrome::kChromeUIUserEducationInternalsURL)),
       ShowHelpBubble(kWebUIIPHDemoElementIdentifier),
 
       ExecuteJsAt(kBrowserTabId, kPathToHelpBubbleCloseButton,

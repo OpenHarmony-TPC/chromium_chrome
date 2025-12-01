@@ -130,13 +130,16 @@ std::string TranslateKitComponentInstallerPolicy::GetName() const {
 
 update_client::InstallerAttributes
 TranslateKitComponentInstallerPolicy::GetInstallerAttributes() const {
-  return update_client::InstallerAttributes();
+  update_client::InstallerAttributes installer_attributes;
+#if defined(MEMORY_SANITIZER)
+  installer_attributes["is_msan"] = "true";
+#endif  // defined(MEMORY_SANITIZER)
+  return installer_attributes;
 }
 
 // static
 void TranslateKitComponentInstallerPolicy::UpdateComponentOnDemand() {
-  auto crx_id =
-      crx_file::id_util::GenerateIdFromHash(kTranslateKitPublicKeySHA256);
+  auto crx_id = GetExtensionId();
   g_browser_process->component_updater()->GetOnDemandUpdater().OnDemandUpdate(
       crx_id, component_updater::OnDemandUpdater::Priority::FOREGROUND,
       base::BindOnce([](update_client::Error error) {
@@ -146,6 +149,10 @@ void TranslateKitComponentInstallerPolicy::UpdateComponentOnDemand() {
                      << static_cast<int>(error);
         }
       }));
+}
+// static
+const std::string TranslateKitComponentInstallerPolicy::GetExtensionId() {
+  return crx_file::id_util::GenerateIdFromHash(kTranslateKitPublicKeySHA256);
 }
 
 void RegisterTranslateKitComponent(ComponentUpdateService* cus,
@@ -162,8 +169,8 @@ void RegisterTranslateKitComponent(ComponentUpdateService* cus,
   // If the component is already installed, do nothing.
   const std::vector<std::string> component_ids = cus->GetComponentIDs();
   if (std::find(component_ids.begin(), component_ids.end(),
-                crx_file::id_util::GenerateIdFromHash(
-                    kTranslateKitPublicKeySHA256)) != component_ids.end()) {
+                TranslateKitComponentInstallerPolicy::GetExtensionId()) !=
+      component_ids.end()) {
     return;
   }
 

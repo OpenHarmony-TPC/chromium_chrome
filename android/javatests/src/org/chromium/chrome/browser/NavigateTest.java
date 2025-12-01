@@ -28,6 +28,7 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.FakeTimeTestRule;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
@@ -38,9 +39,8 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.base.test.util.UrlUtils;
-import org.chromium.chrome.browser.back_press.BackPressManager;
+import org.chromium.chrome.browser.back_press.BackPressMetrics;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
-import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
@@ -49,16 +49,15 @@ import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tab.TabUtils.UseDesktopUserAgentCaller;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
-import org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.chrome.test.util.OmniboxTestUtils;
 import org.chromium.chrome.test.util.browser.TabLoadObserver;
-import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
-import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.test.util.DOMUtils;
 import org.chromium.content_public.browser.test.util.JavaScriptUtils;
@@ -81,16 +80,20 @@ import java.util.concurrent.TimeUnit;
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class NavigateTest {
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
+
+    @Rule public FakeTimeTestRule mFakeTime = new FakeTimeTestRule();
 
     private static final String HTTPS_SCHEME = "https://";
 
     private OmniboxTestUtils mOmnibox;
     private EmbeddedTestServer mTestServer;
+    private RegularNewTabPageStation mStartingNtp;
 
     @Before
     public void setUp() {
-        mActivityTestRule.startMainActivityWithURL(UrlConstants.NTP_URL);
+        mStartingNtp = mActivityTestRule.startOnNtp();
         mTestServer =
                 EmbeddedTestServer.createAndStartHTTPSServer(
                         ApplicationProvider.getApplicationContext(), ServerCertificate.CERT_OK);
@@ -162,6 +165,7 @@ public class NavigateTest {
     @Restriction(DeviceFormFactor.TABLET)
     @MediumTest
     @Feature({"Navigation"})
+    @DisabledTest(message = "Flaky. See crbug.com/380238040")
     public void testNavigateMany() throws Exception {
         final String[] urls =
                 mTestServer.getURLs(
@@ -561,63 +565,138 @@ public class NavigateTest {
         onView(withId(R.id.back_button)).check(matches(Matchers.not(isEnabled())));
     }
 
-    /** Test back with tab switcher. */
+    /** Test the basic scenario in which the first navigation is triggered by gesture. */
     @Test
     @MediumTest
     @Feature({"Navigation"})
-    @DisabledTest(message = "https://crbug.com/1410635")
-    public void testNavigateBackWithTabSwitcher() throws Exception {
-        // Disable iph
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    BackPressManager backPressManager =
-                            mActivityTestRule.getActivity().getBackPressManagerForTesting();
-                    backPressManager.removeHandler(BackPressHandler.Type.TEXT_BUBBLE);
-                });
+    public void testBackFalsing_basic() throws Exception {
         final String[] urls = {
             mTestServer.getURL("/chrome/test/data/android/navigate/one.html"),
             mTestServer.getURL("/chrome/test/data/android/navigate/two.html"),
-            mTestServer.getURL("/chrome/test/data/android/navigate/three.html")
         };
+        navigateAndObserve(urls[0]);
 
-        for (String url : urls) {
-            navigateAndObserve(url);
-        }
-
-        String histogram = BackPressManager.getHistogramForTesting();
-
-        HistogramWatcher startSurfaceHistogram =
+        Tab tab = mActivityTestRule.getActivity().getActivityTab();
+        // Record FORWARD if the first gesture triggered by gesture and second gesture is FORWARD.
+        navigateAndObserve(urls[1]);
+        ThreadUtils.runOnUiThreadBlocking(tab::goBack);
+        ChromeTabUtils.waitForTabPageLoaded(tab, urls[0]);
+        HistogramWatcher watcher =
                 HistogramWatcher.newSingleRecordWatcher(
-                        histogram,
-                        BackPressManager.getHistogramValue(BackPressHandler.Type.START_SURFACE));
-        HistogramWatcher tabSwitcherHistogram =
+                        "Android.BackPress.Backfalsing2",
+                        BackPressMetrics.NavigationDirection.FORWARD);
+        ThreadUtils.runOnUiThreadBlocking(tab::goForward);
+        ChromeTabUtils.waitForTabPageLoaded(tab, urls[1]);
+
+        watcher.assertExpected("Should record backfalsing histogram");
+
+        ThreadUtils.runOnUiThreadBlocking(tab::goBack);
+        ChromeTabUtils.waitForTabPageLoaded(tab, urls[0]);
+
+        // Record BACKWARD if the first gesture triggered by gesture and second gesture is BACKWARD.
+        ThreadUtils.runOnUiThreadBlocking(tab::goForward);
+        ChromeTabUtils.waitForTabPageLoaded(tab, urls[1]);
+        watcher =
                 HistogramWatcher.newSingleRecordWatcher(
-                        histogram,
-                        BackPressManager.getHistogramValue(BackPressHandler.Type.TAB_SWITCHER));
+                        "Android.BackPress.Backfalsing2",
+                        BackPressMetrics.NavigationDirection.BACKWARD);
+        ThreadUtils.runOnUiThreadBlocking(tab::goBack);
+        ChromeTabUtils.waitForTabPageLoaded(tab, urls[0]);
 
-        ChromeTabbedActivity cta = mActivityTestRule.getActivity();
-        TabUiTestHelper.enterTabSwitcher(cta);
-        Assert.assertTrue(cta.getLayoutManager().isLayoutVisible(LayoutType.TAB_SWITCHER));
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mActivityTestRule.getActivity().getOnBackPressedDispatcher().onBackPressed();
-                });
-        CriteriaHelper.pollInstrumentationThread(
-                () -> {
-                    int type =
-                            mActivityTestRule
-                                    .getActivity()
-                                    .getLayoutManager()
-                                    .getActiveLayoutType();
-                    Assert.assertEquals(LayoutType.BROWSING, type);
-                });
+        watcher.assertExpected("Should record backfalsing histogram");
+    }
 
-        try {
-            startSurfaceHistogram.assertExpected();
-        } catch (AssertionError e) {
-            tabSwitcherHistogram.assertExpected(
-                    "Either start surface or tab switcher handles back press.");
-        }
+    /**
+     * Test that the histogram is not recorded when two consecutive navigations happen over 3
+     * seconds.
+     */
+    @Test
+    @MediumTest
+    @Feature("Navigation")
+    public void testBackFalsing_timeOut() throws Exception {
+        final String[] urls = {
+            mTestServer.getURL("/chrome/test/data/android/navigate/one.html"),
+            mTestServer.getURL("/chrome/test/data/android/navigate/two.html"),
+        };
+        navigateAndObserve(urls[0]);
+
+        Tab tab = mActivityTestRule.getActivity().getActivityTab();
+        // Record FORWARD if the first gesture triggered by gesture and second gesture is FORWARD.
+        navigateAndObserve(urls[1]);
+        ThreadUtils.runOnUiThreadBlocking(tab::goBack);
+        ChromeTabUtils.waitForTabPageLoaded(tab, urls[0]);
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Android.BackPress.Backfalsing2",
+                                BackPressMetrics.NavigationDirection.FORWARD)
+                        .expectIntRecord(
+                                "Android.BackPress.StrictBackfalsing",
+                                BackPressMetrics.NavigationDirection.FORWARD)
+                        .build();
+        ThreadUtils.runOnUiThreadBlocking(tab::goForward);
+        ChromeTabUtils.waitForTabPageLoaded(tab, urls[1]);
+
+        watcher.assertExpected("Should record backfalsing histogram");
+
+        ThreadUtils.runOnUiThreadBlocking(tab::goBack);
+        ChromeTabUtils.waitForTabPageLoaded(tab, urls[0]);
+
+        // Record BACKWARD if the first gesture triggered by gesture and second gesture is BACKWARD.
+        ThreadUtils.runOnUiThreadBlocking(tab::goForward);
+        ChromeTabUtils.waitForTabPageLoaded(tab, urls[1]);
+        watcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Android.BackPress.Backfalsing2",
+                                BackPressMetrics.NavigationDirection.BACKWARD)
+                        .expectNoRecords("Android.BackPress.StrictBackfalsing")
+                        .build();
+        mFakeTime.advanceMillis(4 * 1000);
+        ThreadUtils.runOnUiThreadBlocking(tab::goBack);
+        ChromeTabUtils.waitForTabPageLoaded(tab, urls[0]);
+
+        watcher.assertExpected(
+                "Should not record strict backfalsing histogram if navigations are over 3 seconds");
+    }
+
+    /** Test the histogram should not be recorded if the url does not change when navigating. */
+    @Test
+    @MediumTest
+    @Feature({"Navigation"})
+    public void testBackFalsing_allSameUrls() throws Exception {
+        String url = mTestServer.getURL("/chrome/test/data/android/navigate/one.html");
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectNoRecords("Android.BackPress.Backfalsing2")
+                        .build();
+        navigateAndObserve(url);
+        navigateAndObserve(url);
+        navigateAndObserve(url);
+        watcher.assertExpected("No record if visiting the same urls");
+    }
+
+    /** Test the histogram should not recorded if the navigation is not triggered by gesture. */
+    @Test
+    @MediumTest
+    @Feature({"Navigation"})
+    public void testBackFalsing_clickOnLinks() throws Exception {
+        final String[] urls = {
+            mTestServer.getURL("/chrome/test/data/android/navigate/one.html"),
+            mTestServer.getURL("/chrome/test/data/android/navigate/two.html"),
+        };
+        navigateAndObserve(urls[0]);
+        Tab tab = mActivityTestRule.getActivity().getActivityTab();
+
+        // Not record when the first navigation is not triggered by gesture.
+        HistogramWatcher watcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.BackPress.Backfalsing2",
+                        BackPressMetrics.NavigationDirection.NEITHER);
+        navigateAndObserve(urls[1]);
+        ThreadUtils.runOnUiThreadBlocking(tab::goBack);
+        ChromeTabUtils.waitForTabPageLoaded(tab, urls[0]);
+        watcher.assertExpected("Neither if first transition is not triggered by gesture.");
     }
 
     @Test
@@ -657,7 +736,7 @@ public class NavigateTest {
                             checkAction);
 
             // Navigate to the spoofable URL
-            mActivityTestRule.loadUrl(
+            mStartingNtp.loadWebPageProgrammatically(
                     UrlUtils.encodeHtmlDataUri(
                             "<head>  <meta name=\"viewport\"     "
                                 + " content=\"initial-scale=0.5,maximum-scale=0.5,user-scalable=no\"></head><script>"

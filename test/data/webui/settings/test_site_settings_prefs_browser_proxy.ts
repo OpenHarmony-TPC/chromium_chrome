@@ -5,7 +5,7 @@
 // clang-format off
 import {assert} from 'chrome://resources/js/assert.js';
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
-import type {StorageAccessSiteException, AppProtocolEntry, ChooserType, HandlerEntry, OriginFileSystemGrants, SmartCardReaderGrants, ProtocolEntry, RawChooserException, RawSiteException, RecentSitePermissions, SiteGroup, SiteSettingsPrefsBrowserProxy, ZoomLevelEntry} from 'chrome://settings/lazy_load.js';
+import type {StorageAccessSiteException, AppProtocolEntry, ChooserType, HandlerEntry, OriginFileSystemGrants, ProtocolEntry, RawChooserException, RawSiteException, RecentSitePermissions, SiteGroup, SiteSettingsPrefsBrowserProxy, ZoomLevelEntry} from 'chrome://settings/lazy_load.js';
 import {ContentSetting, ContentSettingsTypes, SiteSettingSource} from 'chrome://settings/lazy_load.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -33,7 +33,6 @@ export class TestSiteSettingsPrefsBrowserProxy extends TestBrowserProxy
   private isPatternValidForType_: boolean = true;
   private recentSitePermissions_: RecentSitePermissions[] = [];
   private fileSystemGrantsList_: OriginFileSystemGrants[] = [];
-  private smartCardReadersGrants_: SmartCardReaderGrants[] = [];
   private storageAccessExceptionList_: StorageAccessSiteException[] = [];
 
   constructor() {
@@ -79,9 +78,6 @@ export class TestSiteSettingsPrefsBrowserProxy extends TestBrowserProxy
       'getFileSystemGrants',
       'revokeFileSystemGrant',
       'revokeFileSystemGrants',
-      'getSmartCardReaderGrants',
-      'revokeAllSmartCardReadersGrants',
-      'revokeSmartCardReaderGrant',
     ]);
 
 
@@ -134,10 +130,15 @@ export class TestSiteSettingsPrefsBrowserProxy extends TestBrowserProxy
     if (loadTimeData.getBoolean('enableHandTrackingContentSetting')) {
       this.categoryList_.push(ContentSettingsTypes.HAND_TRACKING);
     }
-    if (loadTimeData.getBoolean('enableKeyboardAndPointerLockPrompt')) {
+    if (loadTimeData.getBoolean('enableKeyboardLockPrompt')) {
       this.categoryList_.push(ContentSettingsTypes.KEYBOARD_LOCK);
-      this.categoryList_.push(ContentSettingsTypes.POINTER_LOCK);
     }
+
+    // <if expr="is_chromeos">
+    if (loadTimeData.getBoolean('enableSmartCardReadersContentSetting')) {
+      this.categoryList_.push(ContentSettingsTypes.SMART_CARD_READERS);
+    }
+    // </if>
 
     this.prefs_ = createSiteSettingsPrefs([], [], []);
   }
@@ -390,7 +391,7 @@ export class TestSiteSettingsPrefsBrowserProxy extends TestBrowserProxy
     // Create a deep copy of the pref so that the chooser-exception-list element
     // is able update the UI appropriately when incognito mode is toggled.
     const pref = /** @type {!Array<!RawChooserException>} */ (
-        structuredClone(this.prefs_.chooserExceptions[setting!]));
+        structuredClone(this.prefs_.chooserExceptions[setting]));
     assert(pref !== undefined, 'Pref is missing for ' + chooserType);
 
     if (this.hasIncognito_) {
@@ -504,7 +505,7 @@ export class TestSiteSettingsPrefsBrowserProxy extends TestBrowserProxy
         incognito: false,
         origin: origin,
         displayName: '',
-        setting: setting!,
+        setting: setting,
         source: source!,
         isEmbargoed: false,
         type: '',
@@ -688,22 +689,5 @@ export class TestSiteSettingsPrefsBrowserProxy extends TestBrowserProxy
 
   revokeFileSystemGrants(origin: string): void {
     this.methodCalled('revokeFileSystemGrants', origin);
-  }
-
-  setSmartCardReaderGrants(grants: SmartCardReaderGrants[]): void {
-    this.smartCardReadersGrants_ = grants;
-  }
-
-  getSmartCardReaderGrants(): Promise<SmartCardReaderGrants[]> {
-    this.methodCalled('getSmartCardReaderGrants');
-    return Promise.resolve(this.smartCardReadersGrants_);
-  }
-
-  revokeAllSmartCardReadersGrants(): void {
-    this.methodCalled('revokeAllSmartCardReadersGrants');
-  }
-
-  revokeSmartCardReaderGrant(reader: string, origin: string): void {
-    this.methodCalled('revokeSmartCardReaderGrant', reader, origin);
   }
 }

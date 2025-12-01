@@ -61,7 +61,8 @@ constexpr DataType DATA_TYPE_SITE_DATA =
     DATA_TYPE_SITE_USAGE_DATA | DATA_TYPE_DURABLE_PERMISSION |
     DATA_TYPE_EXTERNAL_PROTOCOL_DATA | DATA_TYPE_ISOLATED_ORIGINS |
     DATA_TYPE_ISOLATED_WEB_APP_COOKIES |
-    content::BrowsingDataRemover::DATA_TYPE_PRIVACY_SANDBOX;
+    content::BrowsingDataRemover::DATA_TYPE_PRIVACY_SANDBOX |
+    content::BrowsingDataRemover::DATA_TYPE_DEVICE_BOUND_SESSIONS;
 
 // Datatypes protected by Important Sites.
 constexpr DataType IMPORTANT_SITES_DATA_TYPES =
@@ -72,7 +73,9 @@ constexpr DataType IMPORTANT_SITES_DATA_TYPES =
 constexpr DataType FILTERABLE_DATA_TYPES =
     DATA_TYPE_SITE_DATA | content::BrowsingDataRemover::DATA_TYPE_CACHE |
     content::BrowsingDataRemover::DATA_TYPE_DOWNLOADS |
-    content::BrowsingDataRemover::DATA_TYPE_RELATED_WEBSITE_SETS_PERMISSIONS;
+    content::BrowsingDataRemover::DATA_TYPE_RELATED_WEBSITE_SETS_PERMISSIONS |
+    content::BrowsingDataRemover::DATA_TYPE_PREFETCH_CACHE |
+    content::BrowsingDataRemover::DATA_TYPE_PRERENDER_CACHE;
 
 // Datatypes with account-scoped data that needs to be removed
 // before Google cookies are deleted.
@@ -112,7 +115,7 @@ using OriginType = uint64_t;
 constexpr OriginType ORIGIN_TYPE_EMBEDDER_BEGIN =
     content::BrowsingDataRemover::ORIGIN_TYPE_CONTENT_END << 1;
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 // Packaged apps and extensions (chrome-extension://*).
 constexpr OriginType ORIGIN_TYPE_EXTENSION = ORIGIN_TYPE_EMBEDDER_BEGIN;
 #endif
@@ -120,7 +123,7 @@ constexpr OriginType ORIGIN_TYPE_EXTENSION = ORIGIN_TYPE_EMBEDDER_BEGIN;
   // All origin types.
 constexpr OriginType ALL_ORIGIN_TYPES =
     content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB |
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
     ORIGIN_TYPE_EXTENSION |
 #endif
     content::BrowsingDataRemover::ORIGIN_TYPE_PROTECTED_WEB;

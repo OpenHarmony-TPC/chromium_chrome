@@ -99,11 +99,6 @@ bool IsBalancedModeUniquelyEnabled(const HttpInterstitialState& state) {
          IsBalancedModeInterstitialEnabledByHeuristics(state);
 }
 
-bool IsNewHttpsFirstModeInterstitialEnabled() {
-  return base::FeatureList::IsEnabled(
-      features::kHttpsFirstModeInterstitialAugust2024Refresh);
-}
-
 bool IsInterstitialEnabled(const HttpInterstitialState& state) {
   // Interstitials are enabled when "strict" interstitials are enabled...
   if (IsStrictInterstitialEnabled(state)) {
@@ -155,6 +150,20 @@ bool MustDisableTypicallySecureUserHeuristic(Profile* profile) {
              features::kHttpsFirstModeV2ForTypicallySecureUsers) ||
          !IsBalancedModeAvailable() ||
          ChromeSecurityBlockingPageFactory::IsEnterpriseManaged(profile);
+}
+
+void RecordHttpsFirstModeUKM(
+    ukm::SourceId source_id,
+    security_interstitials::https_only_mode::BlockingResult result) {
+  if (source_id == ukm::kInvalidSourceId) {
+    return;
+  }
+
+  ukm::UkmRecorder* ukm_recorder = ukm::UkmRecorder::Get();
+  CHECK(ukm_recorder);
+  ukm::builders::HttpsFirstMode_Event(source_id)
+      .SetResult(static_cast<int>(result))
+      .Record(ukm_recorder);
 }
 
 ScopedAllowHttpForHostnamesForTesting::ScopedAllowHttpForHostnamesForTesting(

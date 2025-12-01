@@ -35,7 +35,7 @@ public class StripStackerUnitTest {
     private static final float STRIP_WIDTH = 200;
     private static final float BUTTON_WIDTH = 10;
 
-    private StripStacker mTarget = new TestStacker();
+    private final StripStacker mTarget = new TestStacker();
 
     @Mock private StripLayoutTab mTab1;
     @Mock private StripLayoutTab mTab2;
@@ -93,12 +93,13 @@ public class StripStackerUnitTest {
     }
 
     static class TestStacker extends StripStacker {
-        @Override
-        public void setViewOffsets(
-                StripLayoutView[] indexOrderedViews, boolean tabCreating, float cachedTabWidth) {}
 
         @Override
-        public void performOcclusionPass(
-                StripLayoutView[] indexOrderedViews, float xOffset, float visibleWidth) {}
+        public void pushDrawPropertiesToViews(
+                StripLayoutView[] indexOrderedViews,
+                float xOffset,
+                float visibleWidth,
+                boolean mMultiStepTabCloseAnimRunning,
+                float mCachedTabWidth) {}
     }
 }

@@ -17,6 +17,7 @@
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
@@ -53,7 +54,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
 #include "chrome/browser/resource_coordinator/tab_manager.h"
-#include "chrome/browser/safe_browsing/extension_telemetry/extension_telemetry_service.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/tabs_api_signal.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/browser.h"
@@ -65,7 +65,6 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
-#include "chrome/browser/ui/tabs/tab_group.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -82,11 +81,14 @@
 #include "chrome/common/url_constants.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
-#include "components/safe_browsing/core/common/features.h"
+#include "components/safe_browsing/buildflags.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
+#include "components/tabs/public/split_tab_data.h"
+#include "components/tabs/public/split_tab_id.h"
+#include "components/tabs/public/tab_group.h"
 #include "components/translate/core/browser/language_state.h"
 #include "components/translate/core/common/language_detection_details.h"
 #include "components/webapps/common/web_app_id.h"
@@ -131,6 +133,10 @@
 #include "ash/wm/window_pin_util.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+#include "chrome/browser/safe_browsing/extension_telemetry/extension_telemetry_service.h"
+#endif
 
 using content::BrowserThread;
 using content::NavigationController;
@@ -427,6 +433,12 @@ void SetLockedFullscreenState(Browser* browser, bool pinned) {
 // Returns whether the given `bounds` intersect with at least 50% of all the
 // displays.
 bool WindowBoundsIntersectDisplays(const gfx::Rect& bounds) {
+  // Bail if `bounds` has an overflown area.
+  auto checked_area = bounds.size().GetCheckedArea();
+  if (!checked_area.IsValid()) {
+    return false;
+  }
+
   int intersect_area = 0;
   for (const auto& display : display::Screen::GetScreen()->GetAllDisplays()) {
     gfx::Rect display_bounds = display.bounds();
@@ -442,6 +454,7 @@ void NotifyExtensionTelemetry(Profile* profile,
                               const std::string& current_url,
                               const std::string& new_url,
                               const std::optional<StackTrace>& js_callstack) {
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   // Ignore API calls that are not invoked by extensions.
   if (!extension) {
     return;
@@ -450,15 +463,7 @@ void NotifyExtensionTelemetry(Profile* profile,
   auto* extension_telemetry_service =
       safe_browsing::ExtensionTelemetryService::Get(profile);
 
-  if (!extension_telemetry_service || !extension_telemetry_service->enabled() ||
-      !base::FeatureList::IsEnabled(
-          safe_browsing::kExtensionTelemetryTabsApiSignal)) {
-    return;
-  }
-
-  if (api_method == safe_browsing::TabsApiInfo::CAPTURE_VISIBLE_TAB &&
-      !base::FeatureList::IsEnabled(
-          safe_browsing::kExtensionTelemetryTabsApiSignalCaptureVisibleTab)) {
+  if (!extension_telemetry_service || !extension_telemetry_service->enabled()) {
     return;
   }
 
@@ -466,7 +471,27 @@ void NotifyExtensionTelemetry(Profile* profile,
       extension->id(), api_method, current_url, new_url,
       js_callstack.value_or(StackTrace()));
   extension_telemetry_service->AddSignal(std::move(tabs_api_signal));
+#endif
 }
+
+class ScopedPinBrowserAtFront {
+ public:
+  explicit ScopedPinBrowserAtFront(Browser* browser)
+      : browser_(browser->AsWeakPtr()) {
+    old_z_order_level_ = browser_->window()->GetZOrderLevel();
+    browser_->window()->SetZOrderLevel(ui::ZOrderLevel::kFloatingWindow);
+  }
+
+  ~ScopedPinBrowserAtFront() {
+    if (browser_) {
+      browser_->window()->SetZOrderLevel(old_z_order_level_);
+    }
+  }
+
+ private:
+  base::WeakPtr<Browser> browser_;
+  ui::ZOrderLevel old_z_order_level_;
+};
 
 }  // namespace
 
@@ -900,26 +925,18 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
   if (focused) {
     new_window->window()->Show();
   } else {
-    // The new window isn't supposed to be focused. Here, instead of showing an
-    // unfocused window on top (possible on some operating systems), we show
-    // the window and then bring the old focused window back on top.
-    // We still use ShowInactive() (instead of doing a Show() followed
-    // immediately by Deactivate()) because the process of showing the window is
-    // somewhat asynchronous. This causes the immediate Deactivate() call to not
-    // work.
+    // Show an unfocused new window.
     BrowserList* const browser_list = BrowserList::GetInstance();
-    Browser* active_browser = browser_list->GetLastActive();
-    // Check if there's a currently-active window that should re-take focus.
-    new_window->window()->ShowInactive();
-    // Unconditionally activate the last active window, if it is still alive.
-    // It's possible that showing the new browser synchronously caused the old
-    // one to close.
-    // Ideally, we should only activate the old window if it was previously
-    // active, so that we don't interrupt the user's workflow.
-    // However, `active_browser->window()->IsActive()` is not reliable for this
-    // purpose, since it returns false if the activation is on a child window.
-    if (base::Contains(*browser_list, active_browser)) {
-      active_browser->window()->Activate();
+    Browser* last_active_browser = browser_list->GetLastActive();
+
+    // On some OSes the new unfocused window is shown on top by default.
+    // ScopedPinBrowserAtFront prevents the new browser from being shown above
+    // the old active browser.
+    if (last_active_browser && last_active_browser->IsActive()) {
+      ScopedPinBrowserAtFront scoper(last_active_browser);
+      new_window->window()->ShowInactive();
+    } else {
+      new_window->window()->ShowInactive();
     }
   }
 
@@ -1587,6 +1604,20 @@ ExtensionFunction::ResponseAction TabsHighlightFunction::Run() {
     return RespondNow(Error(kNoHighlightedTabError));
   }
 
+  // Extend selection for any split tabs.
+  for (const auto& index : selection.selected_indices()) {
+    std::optional<split_tabs::SplitTabId> split_id =
+        tab_strip_model->GetSplitForTab(index);
+    if (!split_id.has_value()) {
+      continue;
+    }
+    // All the tabs in a split should be contiguous.
+    std::vector<::tabs::TabInterface*> split_tabs =
+        tab_strip_model->GetSplitData(split_id.value())->ListTabs();
+    size_t start = tab_strip_model->GetIndexOfTab(split_tabs[0]);
+    selection.AddIndexRangeToSelection(start, start + split_tabs.size() - 1);
+  }
+
   selection.set_active(active_index);
   tab_strip_model->SetSelectionFromModel(std::move(selection));
   return RespondNow(
@@ -1696,9 +1727,10 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
       return RespondNow(Error(ExtensionTabUtil::kTabStripNotEditableError));
     }
 
-    bool highlighted = *params->update_properties.highlighted;
-    if (highlighted != tab_strip->IsTabSelected(tab_index)) {
-      tab_strip->ToggleSelectionAt(tab_index);
+    if (*params->update_properties.highlighted) {
+      tab_strip->SelectTabAt(tab_index);
+    } else {
+      tab_strip->DeselectTabAt(tab_index);
     }
   }
 
@@ -1816,7 +1848,16 @@ bool TabsUpdateFunction::UpdateURL(const std::string& url_string,
   // will stay in the omnibox - see https://crbug.com/1085779.
   load_params.transition_type = ui::PAGE_TRANSITION_FROM_API;
 
-  web_contents_->GetController().LoadURLWithParams(load_params);
+  base::WeakPtr<content::NavigationHandle> navigation_handle =
+      web_contents_->GetController().LoadURLWithParams(load_params);
+  // Navigation can fail for any number of reasons at the content layer.
+  // Unfortunately, we can't provide a detailed error message here, because
+  // there are too many possible triggers. At least notify the extension that
+  // the update failed.
+  if (!navigation_handle) {
+    *error = "Navigation rejected.";
+    return false;
+  }
 
   DCHECK_EQ(*url,
             web_contents_->GetController().GetPendingEntry()->GetVirtualURL());
@@ -2585,7 +2626,7 @@ void TabsDetectLanguageFunction::RespondWithLanguage(
 ExecuteCodeInTabFunction::ExecuteCodeInTabFunction()
     : chrome_details_(this), execute_tab_id_(-1) {}
 
-ExecuteCodeInTabFunction::~ExecuteCodeInTabFunction() {}
+ExecuteCodeInTabFunction::~ExecuteCodeInTabFunction() = default;
 
 ExecuteCodeFunction::InitResult ExecuteCodeInTabFunction::Init() {
   if (init_result_) {
@@ -2920,8 +2961,8 @@ ExtensionFunction::ResponseAction TabsDiscardFunction::Run() {
           contents, extension(), source_context_type(), nullptr, -1))));
 }
 
-TabsDiscardFunction::TabsDiscardFunction() {}
-TabsDiscardFunction::~TabsDiscardFunction() {}
+TabsDiscardFunction::TabsDiscardFunction() = default;
+TabsDiscardFunction::~TabsDiscardFunction() = default;
 
 ExtensionFunction::ResponseAction TabsGoForwardFunction::Run() {
   std::optional<tabs::GoForward::Params> params =

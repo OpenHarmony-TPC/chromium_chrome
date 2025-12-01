@@ -5,36 +5,53 @@
 #include "chrome/browser/ai/ai_create_on_device_session_task.h"
 
 #include "base/containers/fixed_flat_set.h"
-#include "chrome/browser/ai/ai_manager_keyed_service.h"
-#include "chrome/browser/ai/ai_manager_keyed_service_factory.h"
+#include "base/strings/to_string.h"
+#include "chrome/browser/ai/ai_context_bound_object.h"
+#include "chrome/browser/ai/ai_manager.h"
+#include "chrome/browser/ai/built_in_ai_logger.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
-#include "third_party/blink/public/mojom/ai/ai_assistant.mojom.h"
+#include "components/optimization_guide/public/mojom/model_broker.mojom-data-view.h"
 
 namespace {
 
-// Currently, the following errors, which are used when a model is being
-// downloaded or have been installed but not yet loaded, are treated as
-// waitable.
-static constexpr auto kWaitableReasons =
-    base::MakeFixedFlatSet<optimization_guide::OnDeviceModelEligibilityReason>({
-        optimization_guide::OnDeviceModelEligibilityReason::
-            kConfigNotAvailableForFeature,
-        optimization_guide::OnDeviceModelEligibilityReason::
-            kSafetyModelNotAvailable,
-        optimization_guide::OnDeviceModelEligibilityReason::
-            kLanguageDetectionModelNotAvailable,
-        optimization_guide::OnDeviceModelEligibilityReason::kModelToBeInstalled,
-    });
+bool IsWaitableReason(
+    optimization_guide::OnDeviceModelEligibilityReason reason) {
+  auto availability =
+      optimization_guide::AvailabilityFromEligibilityReason(reason);
+  if (!availability.has_value()) {
+    // The model should be available (reason == kSuccess), so we shouldn't wait.
+    return false;
+  }
+  using optimization_guide::mojom::ModelUnavailableReason;
+  switch (availability.value()) {
+    case ModelUnavailableReason::kNotSupported:
+      return false;
+    case ModelUnavailableReason::kPendingAssets:
+      // Model / lora / config needs to finish downloading / verifying etc.
+      return true;
+    case ModelUnavailableReason::kPendingUsage:
+      // This doesn't resolve by waiting, the model would need to be requested.
+      // We shouldn't hit this once we've requested the model though.
+      return false;
+    case ModelUnavailableReason::kUnknown:
+      // We don't expect to hit this, since we've waited for the controller to
+      // initialize. It would resolve by waiting though.
+      return true;
+  }
+}
 
 }  // namespace
 
 CreateOnDeviceSessionTask::CreateOnDeviceSessionTask(
+    AIContextBoundObjectSet& context_bound_object_set,
     content::BrowserContext* browser_context,
     optimization_guide::ModelBasedCapabilityKey feature)
-    : browser_context_(browser_context), feature_(feature) {}
+    : AIContextBoundObject(context_bound_object_set),
+      browser_context_(browser_context),
+      feature_(feature) {}
 
 CreateOnDeviceSessionTask::~CreateOnDeviceSessionTask() {
   OptimizationGuideKeyedService* service = GetOptimizationGuideService();
@@ -46,13 +63,26 @@ CreateOnDeviceSessionTask::~CreateOnDeviceSessionTask() {
 void CreateOnDeviceSessionTask::Finish(
     std::unique_ptr<optimization_guide::OptimizationGuideModelExecutor::Session>
         session) {
-  CHECK(state_ != State::kCancelled && state_ != State::kFinished);
   SetState(State::kFinished);
   OnFinish(std::move(session));
 }
 
 void CreateOnDeviceSessionTask::Start() {
-  CHECK(state_ == State::kNotStarted);
+  OptimizationGuideKeyedService* service = GetOptimizationGuideService();
+  if (!service) {
+    Finish(nullptr);
+    return;
+  }
+
+  SetState(State::kPending);
+  service->GetOnDeviceModelEligibilityAsync(
+      feature_, /*capabilities=*/{},
+      base::BindOnce(&CreateOnDeviceSessionTask::OnGetEligibility,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void CreateOnDeviceSessionTask::OnGetEligibility(
+    optimization_guide::OnDeviceModelEligibilityReason eligibility) {
   OptimizationGuideKeyedService* service = GetOptimizationGuideService();
   if (!service) {
     Finish(nullptr);
@@ -63,40 +93,36 @@ void CreateOnDeviceSessionTask::Start() {
     Finish(std::move(session));
     return;
   }
-  optimization_guide::OnDeviceModelEligibilityReason reason;
-  bool can_create = service->CanCreateOnDeviceSession(feature_, &reason);
-  CHECK(!can_create);
-  if (!kWaitableReasons.contains(reason)) {
+  CHECK_NE(eligibility,
+           optimization_guide::OnDeviceModelEligibilityReason::kSuccess);
+
+  if (!IsWaitableReason(eligibility)) {
+    BUILT_IN_AI_LOGGER() << "Cannot create session for feature '" << feature_
+                         << "'. " << "Reason: " << eligibility;
     Finish(nullptr);
     return;
   }
-  SetState(State::kPending);
   service->AddOnDeviceModelAvailabilityChangeObserver(feature_, this);
 }
 
 void CreateOnDeviceSessionTask::Cancel() {
   SetState(State::kCancelled);
-  if (deletion_callback_) {
-    std::move(deletion_callback_).Run();
-  }
+  RemoveFromSet();
 }
 
 void CreateOnDeviceSessionTask::OnDeviceModelAvailabilityChanged(
     optimization_guide::ModelBasedCapabilityKey feature,
     optimization_guide::OnDeviceModelEligibilityReason reason) {
+  bool waitable = IsWaitableReason(reason);
+  BUILT_IN_AI_LOGGER() << "Feature '" << feature << "' "
+                       << "availability changed due to '" << reason << "'. "
+                       << "Waitable: " << base::ToString(waitable);
   CHECK(state_ == State::kPending);
-  if (kWaitableReasons.contains(reason)) {
+  if (waitable) {
     return;
   }
   Finish(StartSession());
-  if (deletion_callback_) {
-    std::move(deletion_callback_).Run();
-  }
-}
-
-void CreateOnDeviceSessionTask::SetDeletionCallback(
-    base::OnceClosure deletion_callback) {
-  deletion_callback_ = std::move(deletion_callback);
+  RemoveFromSet();
 }
 
 std::unique_ptr<optimization_guide::OptimizationGuideModelExecutor::Session>
@@ -152,41 +178,4 @@ void CreateOnDeviceSessionTask::SetState(State state) {
 
   DCHECK_STATE_TRANSITION(transitions, state_, state);
   state_ = state;
-}
-
-CreateAssistantOnDeviceSessionTask::CreateAssistantOnDeviceSessionTask(
-    content::BrowserContext* browser_context,
-    const blink::mojom::AIAssistantSamplingParamsPtr& sampling_params,
-    base::OnceCallback<
-        void(std::unique_ptr<
-             optimization_guide::OptimizationGuideModelExecutor::Session>)>
-        completion_callback)
-    : CreateOnDeviceSessionTask(
-          browser_context,
-          optimization_guide::ModelBasedCapabilityKey::kPromptApi),
-      completion_callback_(std::move(completion_callback)) {
-  AIManagerKeyedService* service =
-      AIManagerKeyedServiceFactory::GetAIManagerKeyedService(browser_context);
-  if (sampling_params) {
-    sampling_params_ = optimization_guide::SamplingParams{
-        .top_k = std::min(sampling_params->top_k,
-                          service->GetAssistantModelMaxTopK()),
-        .temperature = sampling_params->temperature};
-  } else {
-    sampling_params_ = service->GetAssistantDefaultSamplingParams();
-  }
-}
-
-CreateAssistantOnDeviceSessionTask::~CreateAssistantOnDeviceSessionTask() =
-    default;
-
-void CreateAssistantOnDeviceSessionTask::OnFinish(
-    std::unique_ptr<optimization_guide::OptimizationGuideModelExecutor::Session>
-        session) {
-  std::move(completion_callback_).Run(std::move(session));
-}
-
-void CreateAssistantOnDeviceSessionTask::UpdateSessionConfigParams(
-    optimization_guide::SessionConfigParams* config_params) {
-  config_params->sampling_params = sampling_params_;
 }

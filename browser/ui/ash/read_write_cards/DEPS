@@ -1,8 +1,7 @@
 include_rules = [
-  "+chrome/browser/browser_process.h",
   "+chrome/browser/ui/ash/quick_answers",
-  "+chrome/browser/ui/chromeos/magic_boost",
   "+chrome/browser/ui/ash/editor_menu",
+  "+chrome/browser/ui/ash/magic_boost",
   "+chrome/browser/ui/views/mahi",
 ]
 
@@ -15,6 +14,8 @@ specific_include_rules = {
     # TODO(crbug.com/374896328): Remove references to croapi.
     "+chrome/browser/ash/crosapi",
     "+chrome/browser/ash/magic_boost",
+    "+chrome/browser/global_features.h",
+    "+chrome/browser/profiles/profile.h",
     "+chrome/common/chrome_constants.h",
   ],
 }

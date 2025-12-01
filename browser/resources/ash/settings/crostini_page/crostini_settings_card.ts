@@ -21,7 +21,7 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {DeepLinkingMixin} from '../common/deep_linking_mixin.js';
-import {isCrostiniAllowed, isCrostiniSupported, isRevampWayfindingEnabled} from '../common/load_time_booleans.js';
+import {isCrostiniAllowed, isCrostiniSupported} from '../common/load_time_booleans.js';
 import {RouteOriginMixin} from '../common/route_origin_mixin.js';
 import {recordSettingChange} from '../metrics_recorder.js';
 import {Setting} from '../mojom-webui/setting.mojom-webui.js';
@@ -66,43 +66,31 @@ export class CrostiniSettingsCardElement extends
         },
       },
 
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([Setting.kSetUpCrostini]),
-      },
-
       showBruschetta_: {
         type: Boolean,
         value() {
           return loadTimeData.getBoolean('showBruschetta');
         },
       },
-
-      isRevampWayfindingEnabled_: {
-        type: Boolean,
-        value: () => {
-          return isRevampWayfindingEnabled();
-        },
-      },
     };
   }
+
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kSetUpCrostini,
+  ]);
 
   private browserProxy_: CrostiniBrowserProxy;
   private disableCrostiniInstall_: boolean;
   private isCrostiniAllowed_: boolean;
   private isCrostiniSupported_: boolean;
-  private readonly isRevampWayfindingEnabled_: boolean;
   private readonly showBruschetta_: boolean;
 
   constructor() {
     super();
 
     /** RouteOriginMixin override */
-    this.route =
-        this.isRevampWayfindingEnabled_ ? routes.ABOUT : routes.CROSTINI;
+    this.route = routes.ABOUT;
 
     this.browserProxy_ = CrostiniBrowserProxyImpl.getInstance();
   }

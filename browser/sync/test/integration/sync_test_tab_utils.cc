@@ -20,9 +20,9 @@
 #else
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
-#include "chrome/browser/ui/tabs/tab_group.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "components/tabs/public/tab_group.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 using sync_datatype_helper::test;
@@ -74,7 +74,8 @@ std::optional<size_t> OpenNewTab(const GURL& url) {
   size_t tab_index = 0;
 #if BUILDFLAG(IS_ANDROID)
   tab_index = GetActiveTabModel()->GetTabCount();
-  web_contents = GetActiveTabModel()->CreateNewTabForDevTools(url);
+  web_contents =
+      GetActiveTabModel()->CreateNewTabForDevTools(url, /*new_window=*/false);
 #else
   TabStripModel* tab_strip = GetBrowserOrDie()->tab_strip_model();
   tab_index = tab_strip->count();
@@ -124,7 +125,8 @@ void UpdateTabGroupVisualData(const tab_groups::LocalTabGroupID& local_group_id,
   TabGroup* model_tab_group =
       tab_strip->group_model()->GetTabGroup(local_group_id);
   CHECK(model_tab_group);
-  model_tab_group->SetVisualData(
+  tab_strip->ChangeTabGroupVisuals(
+      local_group_id,
       tab_groups::TabGroupVisualData(base::UTF8ToUTF16(title), color),
       /*is_customized=*/true);
 #endif  // BUILDFLAG(IS_ANDROID)

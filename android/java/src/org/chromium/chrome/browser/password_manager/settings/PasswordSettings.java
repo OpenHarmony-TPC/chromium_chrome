@@ -19,7 +19,6 @@ import android.view.MenuItem;
 import android.view.View;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.FragmentManager;
@@ -31,7 +30,7 @@ import org.chromium.base.BuildInfo;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.access_loss.PasswordAccessLossWarningType;
 import org.chromium.chrome.browser.password_check.PasswordCheck;
@@ -45,7 +44,6 @@ import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.ChromeManagedPreferenceDelegate;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.sync.settings.SyncSettingsUtils;
-import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.settings.ChromeBasePreference;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.SearchUtils;
@@ -135,18 +133,17 @@ public class PasswordSettings extends ChromeBaseSettingsFragment
 
     private @Nullable PasswordCheck mPasswordCheck;
     private @ManagePasswordsReferrer int mManagePasswordsReferrer;
-    private OneshotSupplier<BottomSheetController> mBottomSheetControllerSupplier;
     private final ObservableSupplierImpl<String> mPageTitle = new ObservableSupplierImpl<>();
 
     /** For controlling the UX flow of exporting passwords. */
-    private ExportFlow mExportFlow = new ExportFlow(PasswordAccessLossWarningType.NONE);
+    private final ExportFlow mExportFlow = new ExportFlow(PasswordAccessLossWarningType.NONE);
 
     public ExportFlow getExportFlowForTesting() {
         return mExportFlow;
     }
 
     @Override
-    public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
+    public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
         mExportFlow.onCreate(
                 savedInstanceState,
                 new ExportFlow.Delegate() {
@@ -222,7 +219,7 @@ public class PasswordSettings extends ChromeBaseSettingsFragment
     }
 
     @Override
-    public void onViewCreated(View view, Bundle savedInstanceState) {
+    public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
         // Disable animations of preference changes.
@@ -430,12 +427,6 @@ public class PasswordSettings extends ChromeBaseSettingsFragment
                                 getString(R.string.accessible_find_in_page_no_results));
             }
         }
-
-        if (!mNoPasswords) {
-            PasswordManagerHandlerProvider.getForProfile(getProfile())
-                    .getPasswordManagerHandler()
-                    .showMigrationWarning(getActivity(), mBottomSheetControllerSupplier.get());
-        }
     }
 
     /**
@@ -489,10 +480,15 @@ public class PasswordSettings extends ChromeBaseSettingsFragment
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        rebuildPasswordLists();
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
         mExportFlow.onResume();
-        rebuildPasswordLists();
     }
 
     @Override
@@ -751,16 +747,16 @@ public class PasswordSettings extends ChromeBaseSettingsFragment
         return true;
     }
 
-    public void setBottomSheetControllerSupplier(
-            OneshotSupplier<BottomSheetController> bottomSheetControllerSupplier) {
-        mBottomSheetControllerSupplier = bottomSheetControllerSupplier;
-    }
-
     Menu getMenuForTesting() {
         return mMenu;
     }
 
     Toolbar getToolbarForTesting() {
         return getActivity().findViewById(R.id.action_bar);
+    }
+
+    @Override
+    public @AnimationType int getAnimationType() {
+        return AnimationType.PROPERTY;
     }
 }

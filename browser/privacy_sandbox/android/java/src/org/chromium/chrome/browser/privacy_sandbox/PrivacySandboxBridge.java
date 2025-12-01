@@ -9,6 +9,7 @@ import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.profiles.Profile;
 
 import java.util.Arrays;
@@ -16,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 
 /** Bridge, providing access to the native-side Privacy Sandbox configuration. */
+@NullMarked
 public class PrivacySandboxBridge {
 
     private final Profile mProfile;
@@ -137,6 +139,18 @@ public class PrivacySandboxBridge {
                 .privacySandboxPrivacyGuideShouldShowAdTopicsCard(mProfile);
     }
 
+    public boolean shouldUsePrivacyPolicyChinaDomain() {
+        return PrivacySandboxBridgeJni.get().shouldUsePrivacyPolicyChinaDomain(mProfile);
+    }
+
+    public String getEmbeddedPrivacyPolicyURL(
+            @PrivacyPolicyDomainType int domainType,
+            @PrivacyPolicyColorScheme int colorScheme,
+            String locale) {
+        return PrivacySandboxBridgeJni.get()
+                .getEmbeddedPrivacyPolicyURL(domainType, colorScheme, locale);
+    }
+
     @NativeMethods
     public interface Natives {
         boolean isPrivacySandboxRestricted(Profile profile);
@@ -186,5 +200,9 @@ public class PrivacySandboxBridge {
         void recordActivityType(Profile profile, int activityType);
 
         boolean privacySandboxPrivacyGuideShouldShowAdTopicsCard(Profile profile);
+
+        boolean shouldUsePrivacyPolicyChinaDomain(Profile profile);
+
+        String getEmbeddedPrivacyPolicyURL(int domainType, int colorScheme, String locale);
     }
 }

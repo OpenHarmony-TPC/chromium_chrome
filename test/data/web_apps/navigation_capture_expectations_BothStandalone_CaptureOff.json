@@ -39,7 +39,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithOpener_TargetFrame": {
@@ -73,7 +75,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithOpener_TargetNoFrame": {
@@ -116,7 +120,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithOpener_TargetSelf": {
@@ -149,7 +155,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -190,7 +198,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetFrame": {
@@ -224,7 +234,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetNoFrame": {
@@ -266,7 +278,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
@@ -299,7 +313,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_MiddleClick_WithOpener_TargetBlank": {
@@ -341,7 +357,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_MiddleClick_WithOpener_TargetFrame": {
@@ -375,7 +393,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_MiddleClick_WithOpener_TargetNoFrame": {
@@ -418,7 +438,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_MiddleClick_WithOpener_TargetSelf": {
@@ -451,7 +473,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_MiddleClick_WithoutOpener_TargetBlank": {
@@ -492,7 +516,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_MiddleClick_WithoutOpener_TargetFrame": {
@@ -526,7 +552,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_MiddleClick_WithoutOpener_TargetNoFrame": {
@@ -568,7 +596,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_MiddleClick_WithoutOpener_TargetSelf": {
@@ -601,7 +631,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_ShiftClick_WithOpener_TargetBlank": {
@@ -647,7 +679,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_ShiftClick_WithOpener_TargetFrame": {
@@ -681,7 +715,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_ShiftClick_WithOpener_TargetNoFrame": {
@@ -728,7 +764,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_ShiftClick_WithOpener_TargetSelf": {
@@ -761,7 +799,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_ShiftClick_WithoutOpener_TargetBlank": {
@@ -806,7 +846,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_ShiftClick_WithoutOpener_TargetFrame": {
@@ -840,7 +882,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_ShiftClick_WithoutOpener_TargetNoFrame": {
@@ -886,7 +930,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaButton_ShiftClick_WithoutOpener_TargetSelf": {
@@ -919,7 +965,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithOpener_TargetBlank": {
@@ -961,7 +1009,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithOpener_TargetFrame": {
@@ -995,7 +1045,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithOpener_TargetNoFrame": {
@@ -1038,7 +1090,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithOpener_TargetSelf": {
@@ -1071,7 +1125,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -1112,7 +1168,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetFrame": {
@@ -1146,7 +1204,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetNoFrame": {
@@ -1188,7 +1248,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
@@ -1221,7 +1283,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_MiddleClick_WithOpener_TargetBlank": {
@@ -1262,7 +1326,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_MiddleClick_WithOpener_TargetFrame": {
@@ -1303,7 +1369,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_MiddleClick_WithOpener_TargetNoFrame": {
@@ -1344,7 +1412,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_MiddleClick_WithOpener_TargetSelf": {
@@ -1385,7 +1455,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_MiddleClick_WithoutOpener_TargetBlank": {
@@ -1426,7 +1498,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_MiddleClick_WithoutOpener_TargetFrame": {
@@ -1467,7 +1541,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_MiddleClick_WithoutOpener_TargetNoFrame": {
@@ -1508,7 +1584,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_MiddleClick_WithoutOpener_TargetSelf": {
@@ -1549,7 +1627,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_ShiftClick_WithOpener_TargetBlank": {
@@ -1594,7 +1674,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_ShiftClick_WithOpener_TargetFrame": {
@@ -1639,7 +1721,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_ShiftClick_WithOpener_TargetNoFrame": {
@@ -1684,7 +1768,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_ShiftClick_WithOpener_TargetSelf": {
@@ -1729,7 +1815,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_ShiftClick_WithoutOpener_TargetBlank": {
@@ -1774,7 +1862,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_ShiftClick_WithoutOpener_TargetFrame": {
@@ -1819,7 +1909,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_ShiftClick_WithoutOpener_TargetNoFrame": {
@@ -1864,7 +1956,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaLink_ShiftClick_WithoutOpener_TargetSelf": {
@@ -1909,7 +2003,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2A_Direct_ViaServiceWorkerButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -1950,7 +2046,99 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "AppWnd_ScopeA2A_ServerSideViaX_ViaLink_MiddleClick_WithOpener_TargetBlank": {
+         "_params": "BothStandalone_CaptureOff_AppWnd_ScopeA2A_ServerSideViaX_ViaLink_MiddleClick_WithOpener_TargetBlank",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "current_url": "blank",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  } ]
+               }, {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/destination.html?id-LINK-A_TO_X-BLANK-OPENER&click=Middle&did_redirect",
+                  "history": [ {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_a/destination.html?id-LINK-A_TO_X-BLANK-OPENER&click=Middle&did_redirect"
+                  } ]
+               } ]
+            }, {
+               "app_scope": "/banners/link_capturing/scope_a/",
+               "browser_type": "TYPE_APP",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/start.html",
+                  "frames": [ {
+                     "current_url": "blank",
+                     "frame_name": "iframe"
+                  } ],
+                  "history": [ {
+                     "transition": "auto_bookmark",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  } ],
+                  "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "SameContext" ]
+         }
+      },
+      "AppWnd_ScopeA2A_ServerSideViaX_ViaLink_ShiftClick_WithOpener_TargetBlank": {
+         "_params": "BothStandalone_CaptureOff_AppWnd_ScopeA2A_ServerSideViaX_ViaLink_ShiftClick_WithOpener_TargetBlank",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "blank",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  } ]
+               } ]
+            }, {
+               "app_scope": "/banners/link_capturing/scope_a/",
+               "browser_type": "TYPE_APP",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/start.html",
+                  "frames": [ {
+                     "current_url": "blank",
+                     "frame_name": "iframe"
+                  } ],
+                  "history": [ {
+                     "transition": "auto_bookmark",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  } ],
+                  "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
+               } ]
+            }, {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/destination.html?id-LINK-A_TO_X-BLANK-OPENER&click=Shift%20Left&did_redirect",
+                  "history": [ {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_a/destination.html?id-LINK-A_TO_X-BLANK-OPENER&click=Shift%20Left&did_redirect"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "SameContext" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithOpener_TargetBlank": {
@@ -1997,7 +2185,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithOpener_TargetFrame": {
@@ -2031,7 +2221,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithOpener_TargetNoFrame": {
@@ -2079,7 +2271,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithOpener_TargetSelf": {
@@ -2112,7 +2306,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -2153,7 +2349,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetFrame": {
@@ -2187,7 +2385,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetNoFrame": {
@@ -2229,7 +2429,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
@@ -2262,7 +2464,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_MiddleClick_WithOpener_TargetBlank": {
@@ -2304,7 +2508,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_MiddleClick_WithOpener_TargetFrame": {
@@ -2338,7 +2544,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_MiddleClick_WithOpener_TargetNoFrame": {
@@ -2381,7 +2589,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_MiddleClick_WithOpener_TargetSelf": {
@@ -2414,7 +2624,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_MiddleClick_WithoutOpener_TargetBlank": {
@@ -2455,7 +2667,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_MiddleClick_WithoutOpener_TargetFrame": {
@@ -2489,7 +2703,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_MiddleClick_WithoutOpener_TargetNoFrame": {
@@ -2531,7 +2747,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_MiddleClick_WithoutOpener_TargetSelf": {
@@ -2564,7 +2782,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_ShiftClick_WithOpener_TargetBlank": {
@@ -2611,7 +2831,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_ShiftClick_WithOpener_TargetFrame": {
@@ -2645,7 +2867,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_ShiftClick_WithOpener_TargetNoFrame": {
@@ -2693,7 +2917,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_ShiftClick_WithOpener_TargetSelf": {
@@ -2726,7 +2952,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_ShiftClick_WithoutOpener_TargetBlank": {
@@ -2771,7 +2999,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_ShiftClick_WithoutOpener_TargetFrame": {
@@ -2805,7 +3035,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_ShiftClick_WithoutOpener_TargetNoFrame": {
@@ -2851,7 +3083,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaButton_ShiftClick_WithoutOpener_TargetSelf": {
@@ -2884,7 +3118,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithOpener_TargetBlank": {
@@ -2926,7 +3162,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithOpener_TargetFrame": {
@@ -2960,7 +3198,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithOpener_TargetNoFrame": {
@@ -3003,7 +3243,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithOpener_TargetSelf": {
@@ -3036,7 +3278,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -3077,7 +3321,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetFrame": {
@@ -3111,7 +3357,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetNoFrame": {
@@ -3153,7 +3401,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
@@ -3186,7 +3436,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_MiddleClick_WithOpener_TargetBlank": {
@@ -3227,7 +3479,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_MiddleClick_WithOpener_TargetFrame": {
@@ -3268,7 +3522,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_MiddleClick_WithOpener_TargetNoFrame": {
@@ -3309,7 +3565,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_MiddleClick_WithOpener_TargetSelf": {
@@ -3350,7 +3608,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_MiddleClick_WithoutOpener_TargetBlank": {
@@ -3391,7 +3651,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_MiddleClick_WithoutOpener_TargetFrame": {
@@ -3432,7 +3694,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_MiddleClick_WithoutOpener_TargetNoFrame": {
@@ -3473,7 +3737,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_MiddleClick_WithoutOpener_TargetSelf": {
@@ -3514,7 +3780,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_ShiftClick_WithOpener_TargetBlank": {
@@ -3559,7 +3827,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_ShiftClick_WithOpener_TargetFrame": {
@@ -3604,7 +3874,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_ShiftClick_WithOpener_TargetNoFrame": {
@@ -3649,7 +3921,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_ShiftClick_WithOpener_TargetSelf": {
@@ -3694,7 +3968,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_ShiftClick_WithoutOpener_TargetBlank": {
@@ -3739,7 +4015,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_ShiftClick_WithoutOpener_TargetFrame": {
@@ -3784,7 +4062,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_ShiftClick_WithoutOpener_TargetNoFrame": {
@@ -3829,7 +4109,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaLink_ShiftClick_WithoutOpener_TargetSelf": {
@@ -3874,7 +4156,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2B_Direct_ViaServiceWorkerButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -3915,7 +4199,99 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "AppWnd_ScopeA2B_ServerSideViaX_ViaLink_MiddleClick_WithOpener_TargetBlank": {
+         "_params": "BothStandalone_CaptureOff_AppWnd_ScopeA2B_ServerSideViaX_ViaLink_MiddleClick_WithOpener_TargetBlank",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "current_url": "blank",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  } ]
+               }, {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_b/destination.html?id-LINK-A_TO_X-BLANK-OPENER&click=Middle&did_redirect",
+                  "history": [ {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_b/destination.html?id-LINK-A_TO_X-BLANK-OPENER&click=Middle&did_redirect"
+                  } ]
+               } ]
+            }, {
+               "app_scope": "/banners/link_capturing/scope_a/",
+               "browser_type": "TYPE_APP",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/start.html",
+                  "frames": [ {
+                     "current_url": "blank",
+                     "frame_name": "iframe"
+                  } ],
+                  "history": [ {
+                     "transition": "auto_bookmark",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  } ],
+                  "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "SameContext" ]
+         }
+      },
+      "AppWnd_ScopeA2B_ServerSideViaX_ViaLink_ShiftClick_WithOpener_TargetBlank": {
+         "_params": "BothStandalone_CaptureOff_AppWnd_ScopeA2B_ServerSideViaX_ViaLink_ShiftClick_WithOpener_TargetBlank",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "blank",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  } ]
+               } ]
+            }, {
+               "app_scope": "/banners/link_capturing/scope_a/",
+               "browser_type": "TYPE_APP",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/start.html",
+                  "frames": [ {
+                     "current_url": "blank",
+                     "frame_name": "iframe"
+                  } ],
+                  "history": [ {
+                     "transition": "auto_bookmark",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  } ],
+                  "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
+               } ]
+            }, {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_b/destination.html?id-LINK-A_TO_X-BLANK-OPENER&click=Shift%20Left&did_redirect",
+                  "history": [ {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_b/destination.html?id-LINK-A_TO_X-BLANK-OPENER&click=Shift%20Left&did_redirect"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "SameContext" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_LeftClick_WithOpener_TargetBlank": {
@@ -3962,7 +4338,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_LeftClick_WithOpener_TargetFrame": {
@@ -3996,7 +4374,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_LeftClick_WithOpener_TargetNoFrame": {
@@ -4044,7 +4424,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_LeftClick_WithOpener_TargetSelf": {
@@ -4077,7 +4459,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -4118,7 +4502,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_LeftClick_WithoutOpener_TargetFrame": {
@@ -4152,7 +4538,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_LeftClick_WithoutOpener_TargetNoFrame": {
@@ -4194,7 +4582,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
@@ -4227,7 +4617,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_MiddleClick_WithOpener_TargetBlank": {
@@ -4269,7 +4661,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_MiddleClick_WithOpener_TargetFrame": {
@@ -4303,7 +4697,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_MiddleClick_WithOpener_TargetNoFrame": {
@@ -4346,7 +4742,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_MiddleClick_WithOpener_TargetSelf": {
@@ -4379,7 +4777,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_MiddleClick_WithoutOpener_TargetBlank": {
@@ -4420,7 +4820,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_MiddleClick_WithoutOpener_TargetFrame": {
@@ -4454,7 +4856,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_MiddleClick_WithoutOpener_TargetNoFrame": {
@@ -4496,7 +4900,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_MiddleClick_WithoutOpener_TargetSelf": {
@@ -4529,7 +4935,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_ShiftClick_WithOpener_TargetBlank": {
@@ -4576,7 +4984,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_ShiftClick_WithOpener_TargetFrame": {
@@ -4610,7 +5020,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_ShiftClick_WithOpener_TargetNoFrame": {
@@ -4658,7 +5070,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_ShiftClick_WithOpener_TargetSelf": {
@@ -4691,7 +5105,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_ShiftClick_WithoutOpener_TargetBlank": {
@@ -4736,7 +5152,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_ShiftClick_WithoutOpener_TargetFrame": {
@@ -4770,7 +5188,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_ShiftClick_WithoutOpener_TargetNoFrame": {
@@ -4816,7 +5236,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaButton_ShiftClick_WithoutOpener_TargetSelf": {
@@ -4849,7 +5271,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_LeftClick_WithOpener_TargetBlank": {
@@ -4891,7 +5315,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_LeftClick_WithOpener_TargetFrame": {
@@ -4925,7 +5351,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_LeftClick_WithOpener_TargetNoFrame": {
@@ -4968,7 +5396,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_LeftClick_WithOpener_TargetSelf": {
@@ -5001,7 +5431,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -5042,7 +5474,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_LeftClick_WithoutOpener_TargetFrame": {
@@ -5076,7 +5510,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_LeftClick_WithoutOpener_TargetNoFrame": {
@@ -5118,7 +5554,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
@@ -5151,7 +5589,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_MiddleClick_WithOpener_TargetBlank": {
@@ -5192,7 +5632,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_MiddleClick_WithOpener_TargetFrame": {
@@ -5233,7 +5675,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_MiddleClick_WithOpener_TargetNoFrame": {
@@ -5274,7 +5718,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_MiddleClick_WithOpener_TargetSelf": {
@@ -5315,7 +5761,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_MiddleClick_WithoutOpener_TargetBlank": {
@@ -5356,7 +5804,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_MiddleClick_WithoutOpener_TargetFrame": {
@@ -5397,7 +5847,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_MiddleClick_WithoutOpener_TargetNoFrame": {
@@ -5438,7 +5890,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_MiddleClick_WithoutOpener_TargetSelf": {
@@ -5479,7 +5933,9 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_ShiftClick_WithOpener_TargetBlank": {
@@ -5524,7 +5980,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_ShiftClick_WithOpener_TargetFrame": {
@@ -5569,7 +6027,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_ShiftClick_WithOpener_TargetNoFrame": {
@@ -5614,7 +6074,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_ShiftClick_WithOpener_TargetSelf": {
@@ -5659,7 +6121,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_ShiftClick_WithoutOpener_TargetBlank": {
@@ -5704,7 +6168,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_ShiftClick_WithoutOpener_TargetFrame": {
@@ -5749,7 +6215,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_ShiftClick_WithoutOpener_TargetNoFrame": {
@@ -5794,7 +6262,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "AppWnd_ScopeA2X_Direct_ViaLink_ShiftClick_WithoutOpener_TargetSelf": {
@@ -5839,7 +6309,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "FocusExisting_AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -5880,7 +6352,44 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "FocusExisting_AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "FocusExisting_BothStandalone_CaptureOff_AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "blank",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  } ]
+               } ]
+            }, {
+               "app_scope": "/banners/link_capturing/scope_a/",
+               "browser_type": "TYPE_APP",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/destination.html?id-BTN-A_TO_A-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_bookmark",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_a/destination.html?id-BTN-A_TO_A-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "FocusExisting_AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -5921,7 +6430,44 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "FocusExisting_AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "FocusExisting_BothStandalone_CaptureOff_AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "blank",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  } ]
+               } ]
+            }, {
+               "app_scope": "/banners/link_capturing/scope_a/",
+               "browser_type": "TYPE_APP",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/destination.html?id-LINK-A_TO_A-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_bookmark",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_a/destination.html?id-LINK-A_TO_A-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "FocusExisting_AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -5962,7 +6508,44 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "FocusExisting_AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "FocusExisting_BothStandalone_CaptureOff_AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "blank",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  } ]
+               } ]
+            }, {
+               "app_scope": "/banners/link_capturing/scope_a/",
+               "browser_type": "TYPE_APP",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_b/destination.html?id-BTN-A_TO_B-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_bookmark",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_b/destination.html?id-BTN-A_TO_B-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "FocusExisting_AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -6003,7 +6586,44 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "FocusExisting_AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "FocusExisting_BothStandalone_CaptureOff_AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "blank",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  } ]
+               } ]
+            }, {
+               "app_scope": "/banners/link_capturing/scope_a/",
+               "browser_type": "TYPE_APP",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_b/destination.html?id-LINK-A_TO_B-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_bookmark",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_b/destination.html?id-LINK-A_TO_B-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "FocusExisting_Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -6035,7 +6655,36 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "FocusExisting_Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "FocusExisting_BothStandalone_CaptureOff_Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/destination.html?id-BTN-A_TO_A-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  }, {
+                     "transition": "typed",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_a/destination.html?id-BTN-A_TO_A-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "FocusExisting_Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -6067,7 +6716,36 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "FocusExisting_Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "FocusExisting_BothStandalone_CaptureOff_Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/destination.html?id-LINK-A_TO_A-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  }, {
+                     "transition": "typed",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_a/destination.html?id-LINK-A_TO_A-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "FocusExisting_Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -6099,7 +6777,36 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "FocusExisting_Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "FocusExisting_BothStandalone_CaptureOff_Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_b/destination.html?id-BTN-A_TO_B-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  }, {
+                     "transition": "typed",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_b/destination.html?id-BTN-A_TO_B-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "FocusExisting_Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -6131,7 +6838,36 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "FocusExisting_Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "FocusExisting_BothStandalone_CaptureOff_Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_b/destination.html?id-LINK-A_TO_B-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  }, {
+                     "transition": "typed",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_b/destination.html?id-LINK-A_TO_B-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "NavigateExisting_AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -6172,7 +6908,44 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "NavigateExisting_AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "NavigateExisting_BothStandalone_CaptureOff_AppWnd_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "blank",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  } ]
+               } ]
+            }, {
+               "app_scope": "/banners/link_capturing/scope_a/",
+               "browser_type": "TYPE_APP",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/destination.html?id-BTN-A_TO_A-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_bookmark",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_a/destination.html?id-BTN-A_TO_A-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "NavigateExisting_AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -6213,7 +6986,44 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "NavigateExisting_AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "NavigateExisting_BothStandalone_CaptureOff_AppWnd_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "blank",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  } ]
+               } ]
+            }, {
+               "app_scope": "/banners/link_capturing/scope_a/",
+               "browser_type": "TYPE_APP",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/destination.html?id-LINK-A_TO_A-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_bookmark",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_a/destination.html?id-LINK-A_TO_A-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "NavigateExisting_AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -6254,7 +7064,44 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "NavigateExisting_AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "NavigateExisting_BothStandalone_CaptureOff_AppWnd_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "blank",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  } ]
+               } ]
+            }, {
+               "app_scope": "/banners/link_capturing/scope_a/",
+               "browser_type": "TYPE_APP",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_b/destination.html?id-BTN-A_TO_B-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_bookmark",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_b/destination.html?id-BTN-A_TO_B-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "NavigateExisting_AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -6295,7 +7142,44 @@
                   "launchParams": [ "/banners/link_capturing/scope_a/start.html" ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "NavigateExisting_AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "NavigateExisting_BothStandalone_CaptureOff_AppWnd_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "blank",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  } ]
+               } ]
+            }, {
+               "app_scope": "/banners/link_capturing/scope_a/",
+               "browser_type": "TYPE_APP",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_b/destination.html?id-LINK-A_TO_B-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_bookmark",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_b/destination.html?id-LINK-A_TO_B-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "NavigateExisting_Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -6327,7 +7211,36 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "NavigateExisting_Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "NavigateExisting_BothStandalone_CaptureOff_Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/destination.html?id-BTN-A_TO_A-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  }, {
+                     "transition": "typed",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_a/destination.html?id-BTN-A_TO_A-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "NavigateExisting_Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -6359,7 +7272,36 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "NavigateExisting_Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "NavigateExisting_BothStandalone_CaptureOff_Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_a/destination.html?id-LINK-A_TO_A-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  }, {
+                     "transition": "typed",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_a/destination.html?id-LINK-A_TO_A-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "NavigateExisting_Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -6391,7 +7333,36 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "NavigateExisting_Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "NavigateExisting_BothStandalone_CaptureOff_Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_b/destination.html?id-BTN-A_TO_B-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  }, {
+                     "transition": "typed",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_b/destination.html?id-BTN-A_TO_B-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "NavigateExisting_Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -6423,7 +7394,36 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
+         }
+      },
+      "NavigateExisting_Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
+         "_params": "NavigateExisting_BothStandalone_CaptureOff_Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf",
+         "disabled": false,
+         "expected_state": {
+            "browsers": [ {
+               "browser_type": "TYPE_NORMAL",
+               "tabs": [ {
+                  "active": true,
+                  "current_url": "/banners/link_capturing/scope_b/destination.html?id-LINK-A_TO_B-SELF-NO_OPENER&click=Left",
+                  "history": [ {
+                     "transition": "auto_toplevel",
+                     "url": "blank"
+                  }, {
+                     "transition": "typed",
+                     "url": "/banners/link_capturing/scope_a/start.html"
+                  }, {
+                     "referrer": "/banners/link_capturing/scope_a/start.html",
+                     "transition": "link",
+                     "url": "/banners/link_capturing/scope_b/destination.html?id-LINK-A_TO_B-SELF-NO_OPENER&click=Left"
+                  } ]
+               } ]
+            } ],
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithOpener_TargetBlank": {
@@ -6456,7 +7456,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithOpener_TargetFrame": {
@@ -6481,7 +7483,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithOpener_TargetNoFrame": {
@@ -6515,7 +7519,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithOpener_TargetSelf": {
@@ -6540,7 +7546,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -6572,7 +7580,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetFrame": {
@@ -6597,7 +7607,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetNoFrame": {
@@ -6630,7 +7642,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
@@ -6655,7 +7669,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_MiddleClick_WithOpener_TargetBlank": {
@@ -6688,7 +7704,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_MiddleClick_WithOpener_TargetFrame": {
@@ -6713,7 +7731,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_MiddleClick_WithOpener_TargetNoFrame": {
@@ -6747,7 +7767,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_MiddleClick_WithOpener_TargetSelf": {
@@ -6772,7 +7794,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_MiddleClick_WithoutOpener_TargetBlank": {
@@ -6804,7 +7828,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_MiddleClick_WithoutOpener_TargetFrame": {
@@ -6829,7 +7855,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_MiddleClick_WithoutOpener_TargetNoFrame": {
@@ -6862,7 +7890,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_MiddleClick_WithoutOpener_TargetSelf": {
@@ -6887,7 +7917,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_ShiftClick_WithOpener_TargetBlank": {
@@ -6924,7 +7956,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_ShiftClick_WithOpener_TargetFrame": {
@@ -6949,7 +7983,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_ShiftClick_WithOpener_TargetNoFrame": {
@@ -6987,7 +8023,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_ShiftClick_WithOpener_TargetSelf": {
@@ -7012,7 +8050,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_ShiftClick_WithoutOpener_TargetBlank": {
@@ -7048,7 +8088,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_ShiftClick_WithoutOpener_TargetFrame": {
@@ -7073,7 +8115,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_ShiftClick_WithoutOpener_TargetNoFrame": {
@@ -7110,7 +8154,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaButton_ShiftClick_WithoutOpener_TargetSelf": {
@@ -7135,7 +8181,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithOpener_TargetBlank": {
@@ -7168,7 +8216,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithOpener_TargetFrame": {
@@ -7193,7 +8243,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithOpener_TargetNoFrame": {
@@ -7227,7 +8279,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithOpener_TargetSelf": {
@@ -7252,7 +8306,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -7284,7 +8340,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetFrame": {
@@ -7309,7 +8367,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetNoFrame": {
@@ -7342,7 +8402,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
@@ -7367,7 +8429,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_MiddleClick_WithOpener_TargetBlank": {
@@ -7399,7 +8463,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_MiddleClick_WithOpener_TargetFrame": {
@@ -7431,7 +8497,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_MiddleClick_WithOpener_TargetNoFrame": {
@@ -7463,7 +8531,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_MiddleClick_WithOpener_TargetSelf": {
@@ -7495,7 +8565,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_MiddleClick_WithoutOpener_TargetBlank": {
@@ -7527,7 +8599,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_MiddleClick_WithoutOpener_TargetFrame": {
@@ -7559,7 +8633,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_MiddleClick_WithoutOpener_TargetNoFrame": {
@@ -7591,7 +8667,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_MiddleClick_WithoutOpener_TargetSelf": {
@@ -7623,7 +8701,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_ShiftClick_WithOpener_TargetBlank": {
@@ -7659,7 +8739,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_ShiftClick_WithOpener_TargetFrame": {
@@ -7695,7 +8777,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_ShiftClick_WithOpener_TargetNoFrame": {
@@ -7731,7 +8815,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_ShiftClick_WithOpener_TargetSelf": {
@@ -7767,7 +8853,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_ShiftClick_WithoutOpener_TargetBlank": {
@@ -7803,7 +8891,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_ShiftClick_WithoutOpener_TargetFrame": {
@@ -7839,7 +8929,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_ShiftClick_WithoutOpener_TargetNoFrame": {
@@ -7875,7 +8967,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaLink_ShiftClick_WithoutOpener_TargetSelf": {
@@ -7911,7 +9005,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2A_Direct_ViaServiceWorkerButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -7943,7 +9039,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithOpener_TargetBlank": {
@@ -7980,7 +9078,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithOpener_TargetFrame": {
@@ -8005,7 +9105,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithOpener_TargetNoFrame": {
@@ -8043,7 +9145,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithOpener_TargetSelf": {
@@ -8068,7 +9172,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -8100,7 +9206,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetFrame": {
@@ -8125,7 +9233,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetNoFrame": {
@@ -8158,7 +9268,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
@@ -8183,7 +9295,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_MiddleClick_WithOpener_TargetBlank": {
@@ -8216,7 +9330,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_MiddleClick_WithOpener_TargetFrame": {
@@ -8241,7 +9357,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_MiddleClick_WithOpener_TargetNoFrame": {
@@ -8275,7 +9393,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_MiddleClick_WithOpener_TargetSelf": {
@@ -8300,7 +9420,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_MiddleClick_WithoutOpener_TargetBlank": {
@@ -8332,7 +9454,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_MiddleClick_WithoutOpener_TargetFrame": {
@@ -8357,7 +9481,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_MiddleClick_WithoutOpener_TargetNoFrame": {
@@ -8390,7 +9516,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_MiddleClick_WithoutOpener_TargetSelf": {
@@ -8415,7 +9543,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_ShiftClick_WithOpener_TargetBlank": {
@@ -8452,7 +9582,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_ShiftClick_WithOpener_TargetFrame": {
@@ -8477,7 +9609,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_ShiftClick_WithOpener_TargetNoFrame": {
@@ -8515,7 +9649,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_ShiftClick_WithOpener_TargetSelf": {
@@ -8540,7 +9676,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_ShiftClick_WithoutOpener_TargetBlank": {
@@ -8576,7 +9714,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_ShiftClick_WithoutOpener_TargetFrame": {
@@ -8601,7 +9741,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_ShiftClick_WithoutOpener_TargetNoFrame": {
@@ -8638,7 +9780,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaButton_ShiftClick_WithoutOpener_TargetSelf": {
@@ -8663,7 +9807,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithOpener_TargetBlank": {
@@ -8696,7 +9842,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithOpener_TargetFrame": {
@@ -8721,7 +9869,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithOpener_TargetNoFrame": {
@@ -8755,7 +9905,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithOpener_TargetSelf": {
@@ -8780,7 +9932,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -8812,7 +9966,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetFrame": {
@@ -8837,7 +9993,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetNoFrame": {
@@ -8870,7 +10028,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
@@ -8895,7 +10055,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_MiddleClick_WithOpener_TargetBlank": {
@@ -8927,7 +10089,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_MiddleClick_WithOpener_TargetFrame": {
@@ -8959,7 +10123,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_MiddleClick_WithOpener_TargetNoFrame": {
@@ -8991,7 +10157,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_MiddleClick_WithOpener_TargetSelf": {
@@ -9023,7 +10191,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_MiddleClick_WithoutOpener_TargetBlank": {
@@ -9055,7 +10225,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_MiddleClick_WithoutOpener_TargetFrame": {
@@ -9087,7 +10259,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_MiddleClick_WithoutOpener_TargetNoFrame": {
@@ -9119,7 +10293,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_MiddleClick_WithoutOpener_TargetSelf": {
@@ -9151,7 +10327,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_ShiftClick_WithOpener_TargetBlank": {
@@ -9187,7 +10365,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_ShiftClick_WithOpener_TargetFrame": {
@@ -9223,7 +10403,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_ShiftClick_WithOpener_TargetNoFrame": {
@@ -9259,7 +10441,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_ShiftClick_WithOpener_TargetSelf": {
@@ -9295,7 +10479,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_ShiftClick_WithoutOpener_TargetBlank": {
@@ -9331,7 +10517,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_ShiftClick_WithoutOpener_TargetFrame": {
@@ -9367,7 +10555,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_ShiftClick_WithoutOpener_TargetNoFrame": {
@@ -9403,7 +10593,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaLink_ShiftClick_WithoutOpener_TargetSelf": {
@@ -9439,7 +10631,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2B_Direct_ViaServiceWorkerButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -9471,7 +10665,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_LeftClick_WithOpener_TargetBlank": {
@@ -9508,7 +10704,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_LeftClick_WithOpener_TargetFrame": {
@@ -9533,7 +10731,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_LeftClick_WithOpener_TargetNoFrame": {
@@ -9571,7 +10771,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_LeftClick_WithOpener_TargetSelf": {
@@ -9596,7 +10798,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_LeftClick_WithoutOpener_TargetBlank": {
@@ -9628,7 +10832,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_LeftClick_WithoutOpener_TargetFrame": {
@@ -9653,7 +10859,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_LeftClick_WithoutOpener_TargetNoFrame": {
@@ -9686,7 +10894,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_LeftClick_WithoutOpener_TargetSelf": {
@@ -9711,7 +10921,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_MiddleClick_WithOpener_TargetBlank": {
@@ -9744,7 +10956,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_MiddleClick_WithOpener_TargetFrame": {
@@ -9769,7 +10983,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_MiddleClick_WithOpener_TargetNoFrame": {
@@ -9803,7 +11019,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_MiddleClick_WithOpener_TargetSelf": {
@@ -9828,7 +11046,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_MiddleClick_WithoutOpener_TargetBlank": {
@@ -9860,7 +11080,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_MiddleClick_WithoutOpener_TargetFrame": {
@@ -9885,7 +11107,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_MiddleClick_WithoutOpener_TargetNoFrame": {
@@ -9918,7 +11142,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_MiddleClick_WithoutOpener_TargetSelf": {
@@ -9943,7 +11169,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_ShiftClick_WithOpener_TargetBlank": {
@@ -9980,7 +11208,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_ShiftClick_WithOpener_TargetFrame": {
@@ -10005,7 +11235,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_ShiftClick_WithOpener_TargetNoFrame": {
@@ -10043,7 +11275,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_ShiftClick_WithOpener_TargetSelf": {
@@ -10068,7 +11302,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_ShiftClick_WithoutOpener_TargetBlank": {
@@ -10104,7 +11340,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_ShiftClick_WithoutOpener_TargetFrame": {
@@ -10129,7 +11367,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_ShiftClick_WithoutOpener_TargetNoFrame": {
@@ -10166,7 +11406,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaButton_ShiftClick_WithoutOpener_TargetSelf": {
@@ -10191,7 +11433,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_LeftClick_WithOpener_TargetBlank": {
@@ -10224,7 +11468,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_LeftClick_WithOpener_TargetFrame": {
@@ -10249,7 +11495,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_LeftClick_WithOpener_TargetNoFrame": {
@@ -10283,7 +11531,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NotHandled" ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_LeftClick_WithOpener_TargetSelf": {
@@ -10308,7 +11558,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_LeftClick_WithoutOpener_TargetBlank": {
@@ -10340,7 +11592,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_LeftClick_WithoutOpener_TargetFrame": {
@@ -10365,7 +11619,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_LeftClick_WithoutOpener_TargetNoFrame": {
@@ -10398,7 +11654,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_LeftClick_WithoutOpener_TargetSelf": {
@@ -10423,7 +11681,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [  ],
+            "redirection_result": [  ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_MiddleClick_WithOpener_TargetBlank": {
@@ -10455,7 +11715,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_MiddleClick_WithOpener_TargetFrame": {
@@ -10487,7 +11749,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_MiddleClick_WithOpener_TargetNoFrame": {
@@ -10519,7 +11783,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_MiddleClick_WithOpener_TargetSelf": {
@@ -10551,7 +11817,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_MiddleClick_WithoutOpener_TargetBlank": {
@@ -10583,7 +11851,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_MiddleClick_WithoutOpener_TargetFrame": {
@@ -10615,7 +11885,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_MiddleClick_WithoutOpener_TargetNoFrame": {
@@ -10647,7 +11919,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_MiddleClick_WithoutOpener_TargetSelf": {
@@ -10679,7 +11953,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_ShiftClick_WithOpener_TargetBlank": {
@@ -10715,7 +11991,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_ShiftClick_WithOpener_TargetFrame": {
@@ -10751,7 +12029,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_ShiftClick_WithOpener_TargetNoFrame": {
@@ -10787,7 +12067,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_ShiftClick_WithOpener_TargetSelf": {
@@ -10823,7 +12105,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_ShiftClick_WithoutOpener_TargetBlank": {
@@ -10859,7 +12143,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_ShiftClick_WithoutOpener_TargetFrame": {
@@ -10895,7 +12181,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_ShiftClick_WithoutOpener_TargetNoFrame": {
@@ -10931,7 +12219,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       },
       "Tab_ScopeA2X_Direct_ViaLink_ShiftClick_WithoutOpener_TargetSelf": {
@@ -10967,7 +12257,9 @@
                   } ]
                } ]
             } ],
-            "launch_metric_buckets": [  ]
+            "launch_metric_buckets": [  ],
+            "navigation_capturing_result": [ "NewTabRedirectionEligible" ],
+            "redirection_result": [ "NotHandled" ]
          }
       }
    }

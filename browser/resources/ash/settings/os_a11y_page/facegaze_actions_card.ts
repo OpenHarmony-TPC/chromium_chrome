@@ -8,11 +8,12 @@
  *  action settings.
  */
 
+import 'chrome://resources/cros_components/chip/chip.js';
 import '../controls/settings_dropdown_menu.js';
 import '../os_settings_page/settings_card.js';
 import '../settings_shared.css.js';
 import '../os_settings_page/os_settings_animated_pages.js';
-import 'chrome://resources/cros_components/chip/chip.js';
+import './facegaze_actions_add_dialog.js';
 import './facegaze_icons.html.js';
 
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
@@ -42,19 +43,7 @@ export interface FaceGazeActionsCardElement {
 }
 
 export class FaceGazeActionsCardElement extends FaceGazeActionsCardElementBase {
-  static readonly FACEGAZE_COMMAND_PAIRS_PROPERTY_NAME =
-      'commandPairs_' as const;
-  disabled: boolean;
-
-  private showAddActionDialog_: boolean;
-  private leftClickGestures_: FacialGesture[] = [];
-  private dialogPageToShow_: AddDialogPage;
-  private commandPairToConfigure_: FaceGazeCommandPair|null = null;
-  private faceGazeActionsAlert_ = '';
-
-  // This field stores the current state of gestures assigned to macros and
-  // custom key combinations.
-  private commandPairs_: FaceGazeCommandPair[] = [];
+  static readonly FACEGAZE_COMMAND_PAIRS_PROPERTY_NAME = 'commandPairs_';
 
   static get is() {
     return 'facegaze-actions-card' as const;
@@ -101,10 +90,10 @@ export class FaceGazeActionsCardElement extends FaceGazeActionsCardElementBase {
 
       shouldAnnounceA11yActionFeedback_: {
         type: Boolean,
-        computed: 'shouldAnnounceAlert_(faceGazeActionsAlert_)',
+        computed: 'shouldAnnounceAlert_(actionsSpokenFeedbackAlert_)',
       },
 
-      faceGazeActionsAlert_: {
+      actionsSpokenFeedbackAlert_: {
         type: String,
       },
     };
@@ -114,8 +103,19 @@ export class FaceGazeActionsCardElement extends FaceGazeActionsCardElementBase {
     return [`initFromPrefs_(prefs.settings.a11y.face_gaze.enabled.value)`];
   }
 
+  disabled: boolean;
+  private actionsSpokenFeedbackAlert_ = '';
+  private commandPairs_: FaceGazeCommandPair[] = [];
+  private commandPairToConfigure_: FaceGazeCommandPair|null = null;
+  private dialogPageToShow_: AddDialogPage;
+  private disableConfigureControls_: boolean;
+  private leftClickGestures_: FacialGesture[] = [];
+  private rowIdToUpdate_: number;
+  private shouldAnnounceA11yActionFeedback_: boolean;
+  private showAddActionDialog_: boolean;
+
   private shouldAnnounceAlert_(): boolean {
-    return this.faceGazeActionsAlert_ !== '';
+    return this.actionsSpokenFeedbackAlert_ !== '';
   }
 
   override ready(): void {
@@ -151,7 +151,7 @@ export class FaceGazeActionsCardElement extends FaceGazeActionsCardElementBase {
     this.dialogPageToShow_ = AddDialogPage.SELECT_ACTION;
     this.leftClickGestures_ = this.computeLeftClickGestures_();
     this.showAddActionDialog_ = true;
-    this.faceGazeActionsAlert_ = '';
+    this.clearAlert_();
   }
 
   private onAddActionDialogClose_(): void {
@@ -164,6 +164,7 @@ export class FaceGazeActionsCardElement extends FaceGazeActionsCardElementBase {
     this.dialogPageToShow_ = AddDialogPage.GESTURE_THRESHOLD;
     this.commandPairToConfigure_ = e.model.item;
     this.showAddActionDialog_ = true;
+    this.rowIdToUpdate_ = e.model.index;
   }
 
   private onAssignGestureButtonClick_(e: DomRepeatEvent<FaceGazeCommandPair>):
@@ -172,7 +173,8 @@ export class FaceGazeActionsCardElement extends FaceGazeActionsCardElementBase {
     this.leftClickGestures_ = this.computeLeftClickGestures_();
     this.commandPairToConfigure_ = e.model.item;
     this.showAddActionDialog_ = true;
-    this.faceGazeActionsAlert_ = '';
+    this.rowIdToUpdate_ = e.model.index;
+    this.clearAlert_();
   }
 
   private getActionDisplayText_(action: MacroName): string {
@@ -218,21 +220,42 @@ export class FaceGazeActionsCardElement extends FaceGazeActionsCardElementBase {
   // the UI accordingly.
   private onRemoveCommandPairButtonClick_(
       e: DomRepeatEvent<FaceGazeCommandPair>): void {
-    this.faceGazeActionsAlert_ = '';
+    this.rowIdToUpdate_ = e.model.index;
+    this.clearAlert_();
     const removedCommandPair: FaceGazeCommandPair = e.model.item;
     this.removeCommandPairFromPref_(removedCommandPair);
 
-    const removeCommandPairIndex = this.commandPairs_.findIndex(
-        (item: FaceGazeCommandPair) => item.equals(removedCommandPair));
     this.splice(
         FaceGazeActionsCardElement.FACEGAZE_COMMAND_PAIRS_PROPERTY_NAME,
-        removeCommandPairIndex, 1);
+        this.rowIdToUpdate_, 1);
 
-    this.faceGazeActionsAlert_ = this.i18n(
-        'faceGazeActionsRemovedActionAlert',
-        this.i18n(
-            FaceGazeUtils.getMacroDisplayTextName(removedCommandPair.action)));
+    this.setRemovedAlertText_(removedCommandPair);
+    this.updateFocusAfterRemove_(this.rowIdToUpdate_);
+  }
 
+  private removeCommandPairFromPref_(removedCommandPair: FaceGazeCommandPair):
+      void {
+    const assignedGestures = this.getCurrentAssignedGestures_();
+
+    for (const [currentGesture, assignedMacro] of Object.entries(
+             assignedGestures)) {
+      if (assignedMacro === removedCommandPair.action &&
+          currentGesture === removedCommandPair.gesture) {
+        delete assignedGestures[currentGesture];
+        break;
+      }
+    }
+
+    this.set(FACE_GAZE_GESTURE_TO_MACROS_PREF, assignedGestures);
+
+    if (removedCommandPair.action === MacroName.CUSTOM_KEY_COMBINATION &&
+        removedCommandPair.gesture) {
+      this.removeKeyComboFromPref_(
+          removedCommandPair.gesture, removedCommandPair.assignedKeyCombo);
+    }
+  }
+
+  private updateFocusAfterRemove_(removeCommandPairIndex: number): void {
     // If there is one, set focus to the remove button of the next command pair.
     // Otherwise, set focus to the action button.
     if (this.commandPairs_[removeCommandPairIndex]) {
@@ -246,28 +269,6 @@ export class FaceGazeActionsCardElement extends FaceGazeActionsCardElementBase {
       const addActionButton =
           this.shadowRoot!.querySelector<CrButtonElement>('#addActionButton');
       addActionButton!.focus();
-    }
-  }
-
-  private removeCommandPairFromPref_(removedCommandPair: FaceGazeCommandPair):
-      void {
-    const assignedGestures = this.getCurrentAssignedGestures_();
-
-    for (const [currentGesture, assignedMacro] of Object.entries(
-             assignedGestures)) {
-      if (assignedMacro === removedCommandPair.action &&
-          currentGesture === removedCommandPair.gesture) {
-        delete assignedGestures[currentGesture as FacialGesture];
-        break;
-      }
-    }
-
-    this.set(FACE_GAZE_GESTURE_TO_MACROS_PREF, assignedGestures);
-
-    if (removedCommandPair.action === MacroName.CUSTOM_KEY_COMBINATION &&
-        removedCommandPair.gesture) {
-      this.removeKeyComboFromPref_(
-          removedCommandPair.gesture, removedCommandPair.assignedKeyCombo);
     }
   }
 
@@ -287,42 +288,27 @@ export class FaceGazeActionsCardElement extends FaceGazeActionsCardElementBase {
     });
 
     if (unassignIndex >= 0) {
-      const unassignGesture = this.commandPairs_[unassignIndex].gesture;
       this.updateCommandPairGesture_(unassignIndex, null);
-
-      // Unassign key combo after gesture is unassigned so FaceGaze does not
-      // attempt to execute macro for gesture.
-      if (this.commandPairs_[unassignIndex].action ===
-              MacroName.CUSTOM_KEY_COMBINATION &&
-          unassignGesture) {
-        this.removeKeyComboFromPref_(
-            unassignGesture,
-            this.commandPairs_[unassignIndex].assignedKeyCombo);
-      }
     }
 
-    if (this.dialogPageToShow_ === AddDialogPage.SELECT_GESTURE) {
+    if (this.dialogPageToShow_ === AddDialogPage.SELECT_ACTION) {
+      // Add new gesture/action pairing if it does not already exist.
+      this.addNewCommandPair_(newCommandPair);
+    } else if (this.dialogPageToShow_ === AddDialogPage.SELECT_GESTURE) {
       // Update an existing row for the action if coming from the Assign a
       // Gesture page.
-      const updateIndex = this.commandPairs_.findIndex(
-          (item: FaceGazeCommandPair) =>
-              item.actionsEqual(newCommandPair) && item.gesture === null);
-      if (updateIndex > -1) {
-        this.updateCommandPairGesture_(updateIndex, newCommandPair.gesture);
-      }
-    } else {
-      const updateIndex = this.commandPairs_.findIndex(
-          (item: FaceGazeCommandPair) => item.equals(newCommandPair));
-      if (updateIndex < 0) {
-        // Add new gesture/action pairing if it does not already exist.
-        this.addNewCommandPair_(newCommandPair);
-      }
+      this.updateCommandPairGesture_(
+          this.rowIdToUpdate_, newCommandPair.gesture);
     }
 
-    this.faceGazeActionsAlert_ = this.getAlertText_(newCommandPair);
+    this.setAssignedAlertText_(newCommandPair);
   }
 
-  private getAlertText_(commandPair: FaceGazeCommandPair): string {
+  private clearAlert_(): void {
+    this.actionsSpokenFeedbackAlert_ = '';
+  }
+
+  private setAssignedAlertText_(commandPair: FaceGazeCommandPair): void {
     let actionDisplayText =
         this.i18n(FaceGazeUtils.getMacroDisplayTextName(commandPair.action));
     if (commandPair.action === MacroName.CUSTOM_KEY_COMBINATION &&
@@ -331,10 +317,16 @@ export class FaceGazeActionsCardElement extends FaceGazeActionsCardElementBase {
       actionDisplayText = keyComboDisplayText!;
     }
 
-    return this.i18n(
+    this.actionsSpokenFeedbackAlert_ = this.i18n(
         'faceGazeActionsAssignedGestureAlert',
         this.i18n(FaceGazeUtils.getGestureDisplayTextName(commandPair.gesture)),
         actionDisplayText);
+  }
+
+  private setRemovedAlertText_(commandPair: FaceGazeCommandPair): void {
+    this.actionsSpokenFeedbackAlert_ = this.i18n(
+        'faceGazeActionsRemovedActionAlert',
+        this.i18n(FaceGazeUtils.getMacroDisplayTextName(commandPair.action)));
   }
 
   private addCommandPairToPref_(newCommandPair: FaceGazeCommandPair): void {
@@ -401,7 +393,7 @@ export class FaceGazeActionsCardElement extends FaceGazeActionsCardElementBase {
              assignedKeyCombos)) {
       if (currentGesture === gesture &&
           keyCombo === removedKeyCombo.prefString) {
-        delete assignedKeyCombos[currentGesture as FacialGesture];
+        delete assignedKeyCombos[currentGesture];
         break;
       }
     }

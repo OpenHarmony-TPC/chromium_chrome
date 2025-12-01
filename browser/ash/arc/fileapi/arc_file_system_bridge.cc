@@ -12,13 +12,9 @@
 #include <utility>
 #include <vector>
 
-#include "ash/components/arc/arc_browser_context_keyed_service_factory_base.h"
-#include "ash/components/arc/arc_util.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
-#include "base/not_fatal_until.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/strings/escape.h"
 #include "base/system/sys_info.h"
@@ -42,6 +38,9 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/dbus/virtual_file_provider/virtual_file_provider_client.h"
 #include "chromeos/ash/components/dbus/vm_concierge/concierge_service.pb.h"
+#include "chromeos/ash/experiences/arc/arc_browser_context_keyed_service_factory_base.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/storage_partition.h"
@@ -447,7 +446,7 @@ void ArcFileSystemBridge::OnMediaStoreUriAdded(
 void ArcFileSystemBridge::CreateMoniker(const GURL& content_uri,
                                         bool read_only,
                                         CreateMonikerCallback callback) {
-  CHECK_CURRENTLY_ON(content::BrowserThread::UI, base::NotFatalUntil::M132);
+  CHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   const GURL url_decoded = DecodeFromChromeContentProviderUrl(content_uri);
   if (url_decoded.is_empty() || !IsUrlAllowed(url_decoded)) {
@@ -526,7 +525,7 @@ void ArcFileSystemBridge::OnShareMonikerPath(
 
 void ArcFileSystemBridge::DestroyMoniker(const fusebox::Moniker& moniker,
                                          DestroyMonikerCallback callback) {
-  CHECK_CURRENTLY_ON(content::BrowserThread::UI, base::NotFatalUntil::M132);
+  CHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   const auto iter = shared_monikers_.find(moniker);
   if (iter == shared_monikers_.end()) {

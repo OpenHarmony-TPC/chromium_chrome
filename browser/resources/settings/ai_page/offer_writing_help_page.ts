@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import './ai_policy_indicator.js';
 import '../controls/settings_toggle_button.js';
 
 import {I18nMixin} from '//resources/cr_elements/i18n_mixin.js';
@@ -40,19 +41,11 @@ export class SettingsOfferWritingHelpPageElement extends
     return {
       siteList_: {
         type: Array,
-        value: [],
-      },
-      enableAiSettingsPageRefresh_: {
-        type: Boolean,
-        value: () => loadTimeData.getBoolean('enableAiSettingsPageRefresh'),
+        value: () => [],
       },
       enableComposeProactiveNudge_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('enableComposeProactiveNudge'),
-      },
-      disabledSitesLabel_: {
-        type: String,
-        computed: 'computeDisabledSitesLabel_(enableAiSettingsPageRefresh_)',
       },
       enterprisePref_: {
         type: Object,
@@ -66,11 +59,9 @@ export class SettingsOfferWritingHelpPageElement extends
         prefs.${COMPOSE_PROACTIVE_NUDGE_DISABLED_SITES_PREF}.value.*)`];
   }
 
-  private siteList_: string[];
-  private enableAiSettingsPageRefresh_: boolean;
-  private enableComposeProactiveNudge_: boolean;
-  private disabledSitesLabel_: string;
-  private enterprisePref_: chrome.settingsPrivate.PrefObject;
+  declare private siteList_: string[];
+  declare private enableComposeProactiveNudge_: boolean;
+  declare private enterprisePref_: chrome.settingsPrivate.PrefObject;
 
   private metricsBrowserProxy_: MetricsBrowserProxy =
       MetricsBrowserProxyImpl.getInstance();
@@ -116,17 +107,6 @@ export class SettingsOfferWritingHelpPageElement extends
     const newSites = Object.keys(prefDict);
 
     this.updateList('siteList_', (entry: string) => entry, newSites);
-  }
-
-  private getProactiveNudgeToggleHrCssClass_(): string {
-    return this.enableAiSettingsPageRefresh_ ? 'hr' : '';
-  }
-
-  private computeDisabledSitesLabel_(): string {
-    return loadTimeData.getString(
-        this.enableAiSettingsPageRefresh_ ?
-            'offerWritingHelpDisabledSitesLabelV2' :
-            'offerWritingHelpDisabledSitesLabel');
   }
 
   private getLearnMoreUrl_(): string {

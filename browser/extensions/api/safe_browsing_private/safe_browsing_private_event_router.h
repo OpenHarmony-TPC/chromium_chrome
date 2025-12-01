@@ -16,12 +16,11 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/enterprise/connectors/reporting/realtime_reporting_client.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
 #include "components/download/public/common/download_danger_type.h"
 #include "components/enterprise/buildflags/buildflags.h"
+#include "components/enterprise/common/proto/connectors.pb.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/policy/core/common/cloud/cloud_policy_client.h"
-#include "components/policy/core/common/cloud/cloud_policy_core.h"
+#include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
 #include "components/safe_browsing/core/common/proto/realtimeapi.pb.h"
 
 #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
@@ -68,15 +67,13 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
   static const char kKeyThreatType[];
   static const char kKeyContentType[];
   static const char kKeyContentSize[];
+  static const char kKeyReferrers[];
   static const char kKeyTrigger[];
   static const char kKeyEventResult[];
   static const char kKeyScanId[];
   static const char kKeyIsFederated[];
   static const char kKeyFederatedOrigin[];
   static const char kKeyLoginUserName[];
-  static const char kKeyPasswordBreachIdentities[];
-  static const char kKeyPasswordBreachIdentitiesUrl[];
-  static const char kKeyPasswordBreachIdentitiesUsername[];
   static const char kKeyUserJustification[];
   static const char kKeyUrlCategory[];
   static const char kKeyAction[];
@@ -118,14 +115,16 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
   void OnPolicySpecifiedPasswordChanged(const std::string& user_name);
 
   // Notifies listeners that the user just opened a dangerous download.
-  void OnDangerousDownloadOpened(const GURL& download_url,
-                                 const GURL& tab_url,
-                                 const std::string& file_name,
-                                 const std::string& download_digest_sha256,
-                                 const std::string& mime_type,
-                                 const std::string& scan_id,
-                                 const download::DownloadDangerType danger_type,
-                                 const int64_t content_size);
+  void OnDangerousDownloadOpened(
+      const GURL& download_url,
+      const GURL& tab_url,
+      const std::string& file_name,
+      const std::string& download_digest_sha256,
+      const std::string& mime_type,
+      const std::string& scan_id,
+      const download::DownloadDangerType danger_type,
+      const int64_t content_size,
+      const safe_browsing::ReferrerChain& referrer_chain);
 
   // Notifies listeners that the user saw a security interstitial.
   void OnSecurityInterstitialShown(const GURL& url,
@@ -152,7 +151,8 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       safe_browsing::DeepScanAccessPoint access_point,
       const enterprise_connectors::ContentAnalysisResponse::Result& result,
       const int64_t content_size,
-      safe_browsing::EventResult event_result);
+      const safe_browsing::ReferrerChain& referrer_chain,
+      enterprise_connectors::EventResult event_result);
 
   // Notifies listeners that an analysis connector violation was bypassed.
   void OnAnalysisConnectorWarningBypassed(
@@ -167,6 +167,7 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const std::string& scan_id,
       const std::string& content_transfer_method,
       safe_browsing::DeepScanAccessPoint access_point,
+      const safe_browsing::ReferrerChain& referrer_chain,
       const enterprise_connectors::ContentAnalysisResponse::Result& result,
       const int64_t content_size,
       std::optional<std::u16string> user_justification);
@@ -184,31 +185,36 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
                             const std::string& reason,
                             const std::string& content_transfer_method,
                             const int64_t content_size,
-                            safe_browsing::EventResult event_result);
+                            const safe_browsing::ReferrerChain& referrer_chain,
+                            enterprise_connectors::EventResult event_result);
 
   // Notifies listeners that the user saw a download warning.
   // - |url| is the download URL
   // - |file_name| is the path on disk
   // - |download_digest_sha256| is the hex-encoded SHA256
   // - |threat_type| is the danger type of the download.
-  void OnDangerousDownloadEvent(const GURL& url,
-                                const GURL& tab_url,
-                                const std::string& file_name,
-                                const std::string& download_digest_sha256,
-                                const std::string& threat_type,
-                                const std::string& mime_type,
-                                const std::string& scan_id,
-                                const int64_t content_size,
-                                safe_browsing::EventResult event_result);
-  void OnDangerousDownloadEvent(const GURL& url,
-                                const GURL& tab_url,
-                                const std::string& file_name,
-                                const std::string& download_digest_sha256,
-                                const download::DownloadDangerType danger_type,
-                                const std::string& mime_type,
-                                const std::string& scan_id,
-                                const int64_t content_size,
-                                safe_browsing::EventResult event_result);
+  void OnDangerousDownloadEvent(
+      const GURL& url,
+      const GURL& tab_url,
+      const std::string& file_name,
+      const std::string& download_digest_sha256,
+      const std::string& threat_type,
+      const std::string& mime_type,
+      const std::string& scan_id,
+      const int64_t content_size,
+      const safe_browsing::ReferrerChain& referrer_chain,
+      enterprise_connectors::EventResult event_result);
+  void OnDangerousDownloadEvent(
+      const GURL& url,
+      const GURL& tab_url,
+      const std::string& file_name,
+      const std::string& download_digest_sha256,
+      const download::DownloadDangerType danger_type,
+      const std::string& mime_type,
+      const std::string& scan_id,
+      const int64_t content_size,
+      const safe_browsing::ReferrerChain& referrer_chain,
+      enterprise_connectors::EventResult event_result);
 
   // Notifies listeners that the user bypassed a download warning.
   // - |url| is the download URL
@@ -223,7 +229,8 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const std::string& threat_type,
       const std::string& mime_type,
       const std::string& scan_id,
-      const int64_t content_size);
+      const int64_t content_size,
+      const safe_browsing::ReferrerChain& referrer_chain);
   void OnDangerousDownloadWarningBypassed(
       const GURL& url,
       const GURL& tab_url,
@@ -232,23 +239,8 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const download::DownloadDangerType danger_type,
       const std::string& mime_type,
       const std::string& scan_id,
-      const int64_t content_size);
-
-  void OnLoginEvent(const GURL& url,
-                    bool is_federated,
-                    const url::SchemeHostPort& federated_origin,
-                    const std::u16string& username);
-
-  void OnPasswordBreach(
-      const std::string& trigger,
-      const std::vector<std::pair<GURL, std::u16string>>& identities);
-
-  // Notifies listeners that the user saw an enterprise policy related
-  // interstitial.
-  void OnUrlFilteringInterstitial(
-      const GURL& url,
-      const std::string& threat_type,
-      const safe_browsing::RTLookupResponse& response);
+      const int64_t content_size,
+      const safe_browsing::ReferrerChain& referrer_chain);
 
 #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
   // Helper function to report sensitive data event that were caused by
@@ -263,7 +255,7 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const std::string& mime_type,
       const std::string& trigger,
       const data_controls::Verdict::TriggeredRules& triggered_rules,
-      safe_browsing::EventResult event_result,
+      enterprise_connectors::EventResult event_result,
       int64_t content_size);
 #endif  // BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
 
@@ -289,7 +281,8 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const std::string& mime_type,
       const std::string& trigger,
       const int64_t content_size,
-      safe_browsing::EventResult event_result,
+      const safe_browsing::ReferrerChain& referrer_chain,
+      enterprise_connectors::EventResult event_result,
       const std::string& scan_id,
       const std::string& content_transfer_method);
 
@@ -307,17 +300,13 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const std::string& content_transfer_method,
       const enterprise_connectors::ContentAnalysisResponse::Result& result,
       const int64_t content_size,
-      safe_browsing::EventResult event_result);
+      const safe_browsing::ReferrerChain& referrer_chain,
+      enterprise_connectors::EventResult event_result);
 
   raw_ptr<content::BrowserContext> context_;
   raw_ptr<EventRouter> event_router_ = nullptr;
   raw_ptr<enterprise_connectors::RealtimeReportingClient> reporting_client_ =
       nullptr;
-
-  // The private clients are used on platforms where we cannot just get a
-  // client and we create our own (used through the above client pointers).
-  std::unique_ptr<policy::CloudPolicyClient> browser_private_client_;
-  std::unique_ptr<policy::CloudPolicyClient> profile_private_client_;
 
   // When a request is rejected for a given DM token, wait 24 hours before
   // trying again for this specific DM Token.

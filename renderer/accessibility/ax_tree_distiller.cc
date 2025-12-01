@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/containers/contains.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "content/public/renderer/render_frame.h"
@@ -163,16 +164,12 @@ void AXTreeDistiller::Distill(const ui::AXTree& tree,
   base::TimeTicks start_time = base::TimeTicks::Now();
 
   std::vector<ui::AXNodeID> content_node_ids;
-  if (features::IsReadAnythingWithAlgorithmEnabled()) {
-    // Try with the algorithm first.
-    DistillViaAlgorithm(tree, ukm_source_id, &content_node_ids);
-  }
+  // Try with the algorithm first.
+  DistillViaAlgorithm(tree, ukm_source_id, &content_node_ids);
 
-  // If Read Anything with Screen 2x is enabled and Screen AI service is ready,
-  // kick off Screen 2x run, which distills the AXTree in the utility process
-  // using ML.
-  if (features::IsReadAnythingWithScreen2xEnabled() &&
-      screen_ai_service_ready_) {
+  // If Screen AI service is ready, kick off Screen 2x run, which distills the
+  // AXTree in the utility process using ML.
+  if (screen_ai_service_ready_) {
     DistillViaScreen2x(tree, snapshot, ukm_source_id, start_time,
                        &content_node_ids);
     return;
@@ -231,6 +228,8 @@ void AXTreeDistiller::DistillViaScreen2x(
     main_content_extractor_.set_disconnect_handler(
         base::BindOnce(&AXTreeDistiller::OnMainContentExtractorDisconnected,
                        weak_ptr_factory_.GetWeakPtr()));
+    main_content_extractor_->SetClientType(
+        screen_ai::mojom::MceClientType::kReadingMode);
   }
 
   base::TimeTicks screen2x_start_time = base::TimeTicks::Now();
@@ -254,11 +253,29 @@ void AXTreeDistiller::ProcessScreen2xResult(
                         base::TimeTicks::Now() - screen2x_start_time,
                         !content_node_ids_screen2x.empty());
   // Merge the results from the algorithm and from screen2x.
-  for (ui::AXNodeID content_node_id_screen2x : content_node_ids_screen2x) {
-    if (!base::Contains(content_node_ids_algorithm, content_node_id_screen2x)) {
-      content_node_ids_algorithm.push_back(content_node_id_screen2x);
+  for (ui::AXNodeID node_id : content_node_ids_screen2x) {
+    if (!base::Contains(content_node_ids_algorithm, node_id)) {
+      content_node_ids_algorithm.push_back(node_id);
     }
   }
+
+  // Record metrics on how often screen2x merge was helpful.
+  if (content_node_ids_screen2x.empty()) {
+    base::UmaHistogramBoolean(
+        "Accessibility.ReadAnything.Algorithm.HadWhenScreen2xEmpty",
+        !content_node_ids_algorithm.empty());
+  } else {
+    bool added = false;
+    for (ui::AXNodeID node_id : content_node_ids_algorithm) {
+      if (!base::Contains(content_node_ids_screen2x, node_id)) {
+        added = true;
+        break;
+      }
+    }
+    base::UmaHistogramBoolean(
+        "Accessibility.ReadAnything.Algorithm.AddedToScreen2x", added);
+  }
+
   RecordMergedMetrics(ukm_source_id, base::TimeTicks::Now() - merged_start_time,
                       !content_node_ids_algorithm.empty());
   on_ax_tree_distilled_callback_.Run(tree_id, content_node_ids_algorithm);

@@ -127,12 +127,13 @@ BrowserFrame::BrowserFrame(BrowserView* browser_view)
   set_focus_on_creation(false);
 }
 
-BrowserFrame::~BrowserFrame() {}
+BrowserFrame::~BrowserFrame() = default;
 
 void BrowserFrame::InitBrowserFrame() {
   native_browser_frame_ =
       NativeBrowserFrameFactory::CreateNativeBrowserFrame(this, browser_view_);
-  views::Widget::InitParams params = native_browser_frame_->GetWidgetParams();
+  views::Widget::InitParams params = native_browser_frame_->GetWidgetParams(
+      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
   params.name = "BrowserFrame";
   params.delegate = browser_view_;
   params.headless_mode = headless::IsHeadlessMode();
@@ -155,6 +156,8 @@ void BrowserFrame::InitBrowserFrame() {
 #if BUILDFLAG(IS_OZONE)
   params.inhibit_keyboard_shortcuts =
       browser->is_type_app() || browser->is_type_app_popup();
+
+  params.session_data = browser->platform_session_data();
 #endif
 
   if (native_browser_frame_->ShouldRestorePreviousBrowserWidgetState()) {
@@ -313,8 +316,7 @@ void BrowserFrame::UserChangedTheme(BrowserThemeChangeType theme_change_type) {
     // the other Widgets in the frame's hierarchy may inherit this new theme
     // information in their ColorProviderKeys and thus should also be forwarded
     // theme change notifications.
-    Widget::Widgets widgets;
-    GetAllOwnedWidgets(GetNativeView(), &widgets);
+    Widget::Widgets widgets = GetAllOwnedWidgets(GetNativeView());
     for (Widget* widget : widgets) {
       widget->ThemeChanged();
     }
@@ -393,8 +395,9 @@ void BrowserFrame::OnNativeWidgetWorkspaceChanged() {
   // which reorders the browsers such that the ones in the current
   // workspace appear before ones in other workspaces.
   auto workspace = display::Screen::GetScreen()->GetCurrentWorkspace();
-  if (!workspace.empty())
+  if (!workspace.empty()) {
     BrowserList::MoveBrowsersInWorkspaceToFront(workspace);
+  }
 #endif
   Widget::OnNativeWidgetWorkspaceChanged();
 }
@@ -480,16 +483,19 @@ ui::MenuModel* BrowserFrame::GetSystemMenuModel() {
 }
 
 void BrowserFrame::SetTabDragKind(TabDragKind tab_drag_kind) {
-  if (tab_drag_kind_ == tab_drag_kind)
+  if (tab_drag_kind_ == tab_drag_kind) {
     return;
+  }
 
-  if (native_browser_frame_)
+  if (native_browser_frame_) {
     native_browser_frame_->TabDraggingKindChanged(tab_drag_kind);
+  }
 
   bool was_dragging_any = tab_drag_kind_ != TabDragKind::kNone;
   bool is_dragging_any = tab_drag_kind != TabDragKind::kNone;
-  if (was_dragging_any != is_dragging_any)
+  if (was_dragging_any != is_dragging_any) {
     browser_view_->TabDraggingStatusChanged(is_dragging_any);
+  }
 
   tab_drag_kind_ = tab_drag_kind;
 }

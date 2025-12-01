@@ -45,6 +45,7 @@ import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteMatchBuilder;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
+import org.chromium.components.omnibox.SuggestTemplateInfoProto.SuggestTemplateInfo;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
@@ -316,6 +317,19 @@ public class BasicSuggestionProcessorUnitTest {
     }
 
     @Test
+    public void getFallbackIconFromIconType_validIconForEachType() {
+        for (var iconType : SuggestTemplateInfo.IconType.values()) {
+            if (iconType == SuggestTemplateInfo.IconType.ICON_TYPE_UNSPECIFIED) {
+                Assert.assertEquals(
+                        0, mProcessor.getFallbackIconFromIconType(iconType.getNumber()));
+            } else {
+                Assert.assertNotEquals(
+                        0, mProcessor.getFallbackIconFromIconType(iconType.getNumber()));
+            }
+        }
+    }
+
+    @Test
     @SmallTest
     public void refineIconNotShownForWhatYouTypedSuggestions() {
         final String typed = "Typed content";
@@ -347,7 +361,7 @@ public class BasicSuggestionProcessorUnitTest {
 
         final List<BaseSuggestionViewProperties.Action> actions =
                 mModel.get(BaseSuggestionViewProperties.ACTION_BUTTONS);
-        Assert.assertEquals(actions.size(), 1);
+        Assert.assertEquals(1, actions.size());
         final OmniboxDrawableState iconState = actions.get(0).icon;
         Assert.assertEquals(
                 R.drawable.btn_suggestion_refine,
@@ -378,7 +392,7 @@ public class BasicSuggestionProcessorUnitTest {
 
         final List<BaseSuggestionViewProperties.Action> actions =
                 mModel.get(BaseSuggestionViewProperties.ACTION_BUTTONS);
-        Assert.assertEquals(actions.size(), 1);
+        Assert.assertEquals(1, actions.size());
         final OmniboxDrawableState iconState = actions.get(0).icon;
         Assert.assertEquals(
                 R.drawable.switch_to_tab, shadowOf(iconState.drawable).getCreatedFromResId());
@@ -443,10 +457,10 @@ public class BasicSuggestionProcessorUnitTest {
     public void searchSuggestions_searchQueriesCanWrapAroundWithFeatureEnabled() {
         mProcessor.onNativeInitialized();
         createSearchSuggestion(OmniboxSuggestionType.SEARCH_WHAT_YOU_TYPED, "");
-        Assert.assertEquals(mModel.get(SuggestionViewProperties.ALLOW_WRAP_AROUND), true);
+        Assert.assertEquals(true, mModel.get(SuggestionViewProperties.ALLOW_WRAP_AROUND));
 
         createUrlSuggestion(OmniboxSuggestionType.URL_WHAT_YOU_TYPED, "");
-        Assert.assertEquals(mModel.get(SuggestionViewProperties.ALLOW_WRAP_AROUND), false);
+        Assert.assertEquals(false, mModel.get(SuggestionViewProperties.ALLOW_WRAP_AROUND));
     }
 
     @Test

@@ -11,7 +11,6 @@ import 'chrome://resources/ash/common/cr_elements/localized_link/localized_link.
 import 'chrome://resources/ash/common/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/ash/common/cr_elements/policy/cr_policy_indicator.js';
 import 'chrome://resources/ash/common/cr_elements/policy/cr_tooltip_icon.js';
-import '/shared/settings/prefs/prefs.js';
 import '../settings_shared.css.js';
 import './channel_switcher_dialog.js';
 import './consumer_auto_update_toggle_dialog.js';
@@ -85,18 +84,6 @@ export class SettingsDetailedBuildInfoSubpageElement extends
         value: '',
       },
 
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kChangeChromeChannel,
-          Setting.kChangeDeviceName,
-          Setting.kCopyDetailedBuildInfo,
-        ]),
-      },
-
       shouldHideEolInfo_: {
         type: Boolean,
         computed: 'computeShouldHideEolInfo_(eolMessageWithMonthAndYear)',
@@ -158,6 +145,13 @@ export class SettingsDetailedBuildInfoSubpageElement extends
       },
     };
   }
+
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kChangeChromeChannel,
+    Setting.kChangeDeviceName,
+    Setting.kCopyDetailedBuildInfo,
+  ]);
 
   private versionInfo_: VersionInfo;
   private channelInfo_: ChannelInfo;

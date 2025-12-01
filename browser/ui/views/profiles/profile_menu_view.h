@@ -23,15 +23,10 @@
 #include "components/signin/core/browser/signin_header_helper.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_metrics.h"
-#include "ui/base/models/image_model.h"
 #include "ui/views/controls/styled_label.h"
 
 namespace signin_metrics {
 enum class AccessPoint;
-}
-
-namespace ui {
-class ImageModel;
 }
 
 namespace views {
@@ -43,9 +38,16 @@ class Browser;
 
 // This bubble view is displayed when the user clicks on the avatar button.
 // It displays a list of profiles and allows users to switch between profiles.
+//
+// If `explicit_signin_access_point` is provided, it will be used as the access
+// point for the signin (or sync) flow. This is used to track the real source of
+// the signin (or sync), e.g. history sync opt-in identity pill promo.
 class ProfileMenuView : public ProfileMenuViewBase {
  public:
-  ProfileMenuView(views::Button* anchor_button, Browser* browser);
+  ProfileMenuView(views::Button* anchor_button,
+                  Browser* browser,
+                  std::optional<signin_metrics::AccessPoint>
+                      explicit_signin_access_point = std::nullopt);
   ~ProfileMenuView() override;
 
   ProfileMenuView(const ProfileMenuView&) = delete;
@@ -53,7 +55,6 @@ class ProfileMenuView : public ProfileMenuViewBase {
 
   // ProfileMenuViewBase:
   void BuildMenu() override;
-  gfx::ImageSkia GetSyncIcon() const override;
 
  private:
   friend class ProfileMenuViewExtensionsTest;
@@ -62,26 +63,11 @@ class ProfileMenuView : public ProfileMenuViewBase {
   friend class ProfileMenuViewSyncErrorButtonTest;
   friend class ProfileMenuInteractiveUiTest;
 
-  struct IdentitySectionParams {
-    IdentitySectionParams();
-    ~IdentitySectionParams();
-
-    IdentitySectionParams(const IdentitySectionParams&) = delete;
-    IdentitySectionParams& operator=(const IdentitySectionParams&) = delete;
-
-    IdentitySectionParams(IdentitySectionParams&&);
-    IdentitySectionParams& operator=(IdentitySectionParams&&);
-
-    std::u16string description;
-    std::u16string button_text;
-    base::RepeatingClosure button_action;
-    ui::ImageModel button_image;
-  };
-
   // views::BubbleDialogDelegateView:
   std::u16string GetAccessibleWindowTitle() const override;
 
   // Button/link actions.
+  void OnProfileManagementButtonClicked();
   void OnManageGoogleAccountButtonClicked();
   void OnPasswordsButtonClicked();
   void OnCreditCardsButtonClicked();
@@ -107,24 +93,27 @@ class ProfileMenuView : public ProfileMenuViewBase {
   static bool close_on_deactivate_for_testing_;
 
   // Helper methods for building the menu.
+  void SetMenuTitleForAccessibility();
   void BuildGuestIdentity();
+  void BuildHistorySyncOptInButton();
   void BuildAutofillSettingsButton();
-  void MaybeBuildCustomizeProfileButton();
+  void BuildCustomizeProfileButton();
   void MaybeBuildChromeAccountSettingsButton();
   void MaybeBuildManageGoogleAccountButton();
   void MaybeBuildCloseBrowsersButton();
   void MaybeBuildSignoutButton();
   void BuildFeatureButtons();
-  IdentitySectionParams GetIdentitySectionParams();
+  IdentitySectionParams GetIdentitySectionParams(
+      const ProfileAttributesEntry& entry);
   void BuildIdentityWithCallToAction();
 
-  // TODO(crbug.com/370473765): Delete these functions after
-  // `switches::IsImprovedSigninUIOnDesktopEnabled()` is launched.
-  void BuildIdentity();
-  void BuildAutofillButtons();
-  void BuildSyncInfo();
+  // Gets the profiles to be displayed in the "Other profiles" section. Does not
+  // include the current profile.
+  void GetProfilesForOtherProfilesSection(
+      std::vector<ProfileAttributesEntry*>& available_profiles) const;
+  void BuildOtherProfilesSection(
+      const std::vector<ProfileAttributesEntry*>& available_profiles);
 
-  void BuildAvailableProfiles();
   void BuildProfileManagementFeatureButtons();
 
   std::u16string menu_title_;
@@ -133,6 +122,8 @@ class ProfileMenuView : public ProfileMenuViewBase {
   // A profile switcher object needed if the user triggers opening other
   // profile in a web app.
   std::optional<WebAppProfileSwitcher> app_profile_switcher_;
+
+  std::optional<signin_metrics::AccessPoint> explicit_signin_access_point_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_PROFILES_PROFILE_MENU_VIEW_H_

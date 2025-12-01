@@ -5,13 +5,16 @@
 package org.chromium.chrome.browser.mandatory_reauth;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 
-import androidx.annotation.NonNull;
+import androidx.annotation.StringRes;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.autofill.PaymentsUiClosedReason;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 
@@ -20,6 +23,7 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
  * asks users if they want to be challenged with their device login credentials for Autofilling
  * credit cards which do not have any form of user authentication.
  */
+@NullMarked
 class MandatoryReauthOptInBottomSheet implements BottomSheetContent {
     private final View mView;
 
@@ -43,7 +47,7 @@ class MandatoryReauthOptInBottomSheet implements BottomSheetContent {
     }
 
     @Override
-    public View getToolbarView() {
+    public @Nullable View getToolbarView() {
         return null;
     }
 
@@ -73,11 +77,6 @@ class MandatoryReauthOptInBottomSheet implements BottomSheetContent {
     }
 
     @Override
-    public int getPeekHeight() {
-        return HeightMode.DISABLED;
-    }
-
-    @Override
     public float getHalfHeightRatio() {
         return HeightMode.DISABLED;
     }
@@ -88,24 +87,24 @@ class MandatoryReauthOptInBottomSheet implements BottomSheetContent {
     }
 
     @Override
-    public @NonNull String getSheetContentDescription(Context context) {
+    public String getSheetContentDescription(Context context) {
         return context.getString(R.string.autofill_mandatory_reauth_opt_in_content_description);
     }
 
     @Override
-    public int getSheetHalfHeightAccessibilityStringId() {
+    public @StringRes int getSheetHalfHeightAccessibilityStringId() {
         // Half-height is disabled so no need for an accessibility string.
         assert false : "This method should not be called";
-        return 0;
+        return Resources.ID_NULL;
     }
 
     @Override
-    public int getSheetFullHeightAccessibilityStringId() {
+    public @StringRes int getSheetFullHeightAccessibilityStringId() {
         return R.string.autofill_mandatory_reauth_opt_in_opened_full;
     }
 
     @Override
-    public int getSheetClosedAccessibilityStringId() {
+    public @StringRes int getSheetClosedAccessibilityStringId() {
         return R.string.autofill_mandatory_reauth_opt_in_closed;
     }
 }

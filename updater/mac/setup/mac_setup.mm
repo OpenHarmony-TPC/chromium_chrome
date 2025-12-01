@@ -72,11 +72,11 @@ bool CopyBundle(UpdaterScope scope) {
 
   // For system installs, set file permissions to be drwxr-xr-x
   if (IsSystemInstall(scope)) {
-    constexpr int kPermissionsMask = base::FILE_PERMISSION_USER_MASK |
-                                     base::FILE_PERMISSION_READ_BY_GROUP |
-                                     base::FILE_PERMISSION_EXECUTE_BY_GROUP |
-                                     base::FILE_PERMISSION_READ_BY_OTHERS |
-                                     base::FILE_PERMISSION_EXECUTE_BY_OTHERS;
+    static constexpr int kPermissionsMask =
+        base::FILE_PERMISSION_USER_MASK | base::FILE_PERMISSION_READ_BY_GROUP |
+        base::FILE_PERMISSION_EXECUTE_BY_GROUP |
+        base::FILE_PERMISSION_READ_BY_OTHERS |
+        base::FILE_PERMISSION_EXECUTE_BY_OTHERS;
     if (!base::SetPosixFilePermissions(base_install_dir->DirName(),
                                        kPermissionsMask) ||
         !base::SetPosixFilePermissions(*base_install_dir, kPermissionsMask) ||
@@ -371,9 +371,6 @@ int Uninstall(UpdaterScope scope) {
             LEGACY_GOOGLE_UPDATE_APPID ".xpcservice.plist")));
   }
 
-  // Delete the updater's caches. On Mac, this is different from the
-  // install directory.
-  DeleteFolder(GetCacheBaseDirectory(scope));
   // Deleting the install folder is best-effort. Current running processes such
   // as the crash handler process may still write to the updater log file, thus
   // it is not always possible to delete the log file. Additionally, the log

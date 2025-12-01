@@ -44,10 +44,9 @@ class FakeTabSlotController : public TabSlotController {
   void MoveTabLast(Tab* tab) override {}
   void ToggleTabGroupCollapsedState(
       const tab_groups::TabGroupId group,
-      ToggleTabGroupCollapsedStateOrigin origin =
-          ToggleTabGroupCollapsedStateOrigin::kMenuAction) override;
-  void NotifyTabGroupEditorBubbleOpened() override {}
-  void NotifyTabGroupEditorBubbleClosed() override {}
+      ToggleTabGroupCollapsedStateOrigin origin) override;
+  void NotifyTabstripBubbleOpened() override {}
+  void NotifyTabstripBubbleClosed() override {}
 
   void ShowContextMenuForTab(Tab* tab,
                              const gfx::Point& p,
@@ -66,11 +65,14 @@ class FakeTabSlotController : public TabSlotController {
                         const ui::LocatedEvent& event) override;
   bool EndDrag(EndDragReason reason) override;
   Tab* GetTabAt(const gfx::Point& point) override;
-  const Tab* GetAdjacentTab(const Tab* tab, int offset) override;
+  Tab* GetAdjacentTab(const Tab* tab, int offset) override;
+  std::vector<Tab*> GetTabsInSplit(const Tab* tab) override;
   void OnMouseEventInTab(views::View* source,
                          const ui::MouseEvent& event) override {}
   void UpdateHoverCard(Tab* tab, HoverCardUpdateType update_type) override {}
   bool HoverCardIsShowingForTab(Tab* tab) override;
+  void ShowHover(Tab* tab, TabStyle::ShowHoverStyle style) override {}
+  void HideHover(Tab* tab, TabStyle::HideHoverStyle style) override {}
   int GetBackgroundOffset() const override;
   int GetStrokeThickness() const override;
   bool CanPaintThrobberToLayer() const override;
@@ -95,8 +97,8 @@ class FakeTabSlotController : public TabSlotController {
   void ShiftGroupLeft(const tab_groups::TabGroupId& group) override {}
   void ShiftGroupRight(const tab_groups::TabGroupId& group) override {}
   const Browser* GetBrowser() const override;
-  int GetInactiveTabWidth() const override;
   bool IsFrameCondensed() const override;
+  TabGroup* GetTabGroup(const tab_groups::TabGroupId& group_id) const override;
 
 #if BUILDFLAG(IS_CHROMEOS)
   bool IsLockedForOnTask() override;
@@ -111,8 +113,6 @@ class FakeTabSlotController : public TabSlotController {
     tab_fg_color_inactive_ = fg_color_inactive;
   }
 
-  void SetInactiveTabWidth(int width) { inactive_tab_width_ = width; }
-
  private:
   raw_ptr<TabStripController> tab_strip_controller_;
   raw_ptr<TabContainer, DanglingUntriaged> tab_container_;
@@ -125,8 +125,6 @@ class FakeTabSlotController : public TabSlotController {
 
   SkColor tab_fg_color_active_ = gfx::kPlaceholderColor;
   SkColor tab_fg_color_inactive_ = gfx::kPlaceholderColor;
-
-  int inactive_tab_width_ = 0;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_FAKE_TAB_SLOT_CONTROLLER_H_

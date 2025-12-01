@@ -12,14 +12,12 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/not_fatal_until.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/predictors/perform_network_context_prefetch.h"
 #include "chrome/browser/predictors/predictors_features.h"
 #include "chrome/browser/predictors/predictors_switches.h"
 #include "chrome/browser/predictors/prefetch_traffic_annotation.h"
 #include "chrome/browser/predictors/resource_prefetch_predictor.h"
-#include "chrome/browser/prefetch/prefetch_headers.h"
 #include "chrome/browser/profiles/profile.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/global_request_id.h"
@@ -30,6 +28,7 @@
 #include "net/base/load_flags.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/empty_url_loader_client.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
@@ -37,6 +36,7 @@
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/loader/throttling_url_loader.h"
+#include "third_party/blink/public/common/navigation/preloading_headers.h"
 #include "third_party/blink/public/mojom/loader/resource_load_info.mojom-shared.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -133,14 +133,11 @@ struct PrefetchInfo {
 struct PrefetchJob {
   PrefetchJob(PrefetchRequest prefetch_request, PrefetchInfo& info)
       : url(prefetch_request.url),
-        network_anonymization_key(
-            std::move(prefetch_request.network_anonymization_key)),
         destination(prefetch_request.destination),
         creation_time(base::TimeTicks::Now()),
         info(info.weak_factory.GetWeakPtr()) {
     DCHECK(url.is_valid());
     DCHECK(url.SchemeIsHTTPOrHTTPS());
-    DCHECK(network_anonymization_key.IsFullyPopulated());
     info.OnJobCreated();
   }
 
@@ -153,7 +150,6 @@ struct PrefetchJob {
   PrefetchJob& operator=(const PrefetchJob&) = delete;
 
   GURL url;
-  net::NetworkAnonymizationKey network_anonymization_key;
   network::mojom::RequestDestination destination;
   base::TimeTicks creation_time;
 
@@ -250,9 +246,16 @@ void PrefetchManager::PrefetchUrl(
   // conservative one (no-referrer) by default.
   request.referrer_policy = net::ReferrerPolicy::NO_REFERRER;
 
-  request.headers.SetHeader("Purpose", "prefetch");
-  request.headers.SetHeader(prefetch::headers::kSecPurposeHeaderName,
-                            prefetch::headers::kSecPurposePrefetchHeaderValue);
+  // The prefetch can happen before the permissions policy is known, so use a
+  // conservative, all-blocking permissions policy.
+  request.permissions_policy =
+      *network::PermissionsPolicy::CreateFromParsedPolicy(
+          {}, {}, url::Origin::Create(request.url));
+
+  request.headers.SetHeader(blink::kPurposeHeaderName,
+                            blink::kSecPurposePrefetchHeaderValue);
+  request.headers.SetHeader(blink::kSecPurposeHeaderName,
+                            blink::kSecPurposePrefetchHeaderValue);
 
   request.load_flags = net::LOAD_PREFETCH;
   request.destination = job->destination;
@@ -423,7 +426,7 @@ void PrefetchManager::TryToLaunchPrefetchJobs() {
 void PrefetchManager::AllPrefetchJobsForUrlFinished(PrefetchInfo& info) {
   DCHECK(info.is_done());
   auto it = prefetch_info_.find(info.url);
-  CHECK(it != prefetch_info_.end(), base::NotFatalUntil::M130);
+  CHECK(it != prefetch_info_.end());
   DCHECK(&info == it->second.get());
 
   if (delegate_)

@@ -10,10 +10,10 @@
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
-#include "chrome/browser/ui/tabs/public/tab_interface.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "components/tab_groups/tab_group_id.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "url/gurl.h"
 

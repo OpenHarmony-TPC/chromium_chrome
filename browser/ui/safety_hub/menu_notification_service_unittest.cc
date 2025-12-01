@@ -13,16 +13,15 @@
 #include "base/values.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/extensions/cws_info_service_factory.h"
 #include "chrome/browser/password_manager/password_manager_test_util.h"
 #include "chrome/browser/permissions/notifications_engagement_service_factory.h"
 #include "chrome/browser/ui/safety_hub/menu_notification.h"
 #include "chrome/browser/ui/safety_hub/menu_notification_service_factory.h"
 #include "chrome/browser/ui/safety_hub/notification_permission_review_service_factory.h"
+#include "chrome/browser/ui/safety_hub/revoked_permissions_service_factory.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_constants.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_prefs.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_test_util.h"
-#include "chrome/browser/ui/safety_hub/unused_site_permissions_service_factory.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
@@ -37,6 +36,7 @@
 #include "ui/base/l10n/l10n_util.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/extensions/cws_info_service_factory.h"
 #include "chrome/browser/password_manager/password_manager_test_util.h"
 #include "chrome/browser/ui/safety_hub/password_status_check_service.h"
 #include "chrome/browser/ui/safety_hub/password_status_check_service_factory.h"
@@ -67,6 +67,9 @@ class SafetyHubMenuNotificationServiceTest
         {});
     prefs()->SetBoolean(
         safety_hub_prefs::kUnusedSitePermissionsRevocationEnabled, true);
+
+    safety_hub_test_util::CreateRevokedPermissionsService(profile());
+    safety_hub_test_util::CreateNotificationPermissionsReviewService(profile());
   }
 
   void TearDown() override {
@@ -101,14 +104,14 @@ class SafetyHubMenuNotificationServiceTest
     auto dict = base::Value::Dict().Set(
         permissions::kRevokedKey,
         base::Value::List().Append(
-            UnusedSitePermissionsService::ConvertContentSettingsTypeToKey(
+            RevokedPermissionsService::ConvertContentSettingsTypeToKey(
                 ContentSettingsType::GEOLOCATION)));
     hcsm()->SetWebsiteSettingDefaultScope(
         GURL(url), GURL(url),
         ContentSettingsType::REVOKED_UNUSED_SITE_PERMISSIONS,
         base::Value(dict.Clone()));
     safety_hub_test_util::UpdateSafetyHubServiceAsync(
-        unused_site_permissions_service());
+        revoked_permissions_service());
   }
 
   void ShowNotificationEnoughTimes(
@@ -125,8 +128,8 @@ class SafetyHubMenuNotificationServiceTest
     EXPECT_FALSE(notification.has_value());
   }
 
-  UnusedSitePermissionsService* unused_site_permissions_service() {
-    return UnusedSitePermissionsServiceFactory::GetForProfile(profile());
+  RevokedPermissionsService* revoked_permissions_service() {
+    return RevokedPermissionsServiceFactory::GetForProfile(profile());
   }
   NotificationPermissionsReviewService* notification_permissions_service() {
     return NotificationPermissionsReviewServiceFactory::GetForProfile(
@@ -362,9 +365,6 @@ TEST_F(SafetyHubMenuNotificationServiceTest, PasswordOverride) {
   AdvanceClockBy(base::Days(1));
   notification = menu_notification_service()->GetNotificationToShow();
   EXPECT_TRUE(notification.has_value());
-  EXPECT_EQ(
-      menu_notification_service()->GetLastShownNotificationModule().value(),
-      safety_hub::SafetyHubModuleType::SAFE_BROWSING);
 
   // A leaked password warning should override the Safe Browsing notification.
   prefs()->SetInteger(prefs::kBreachedCredentialsCount, 1);
@@ -373,27 +373,12 @@ TEST_F(SafetyHubMenuNotificationServiceTest, PasswordOverride) {
   ExpectPluralString(
       IDS_SETTINGS_SAFETY_HUB_COMPROMISED_PASSWORDS_MENU_NOTIFICATION, 1,
       notification.value().label);
-  EXPECT_TRUE(menu_notification_service()
-                  ->GetLastShownNotificationModule()
-                  .has_value());
-  EXPECT_EQ(
-      menu_notification_service()->GetLastShownNotificationModule().value(),
-      safety_hub::SafetyHubModuleType::PASSWORDS);
 
   // Fixing the leaked password will clear notification. Because the safe
   // browsing notification was dismissed, it will not be shown either.
   prefs()->SetInteger(prefs::kBreachedCredentialsCount, 0);
   notification = menu_notification_service()->GetNotificationToShow();
   EXPECT_FALSE(notification.has_value());
-
-  // The last shown menu notification remains the same even when it has been
-  // dismissed.
-  EXPECT_TRUE(menu_notification_service()
-                  ->GetLastShownNotificationModule()
-                  .has_value());
-  EXPECT_EQ(
-      menu_notification_service()->GetLastShownNotificationModule().value(),
-      safety_hub::SafetyHubModuleType::PASSWORDS);
 }
 
 TEST_F(SafetyHubMenuNotificationServiceTest, PasswordTrigger) {
@@ -417,18 +402,12 @@ TEST_F(SafetyHubMenuNotificationServiceTest, PasswordTrigger) {
       safety_hub::SafetyHubModuleType::PASSWORDS);
   notification = menu_notification_service()->GetNotificationToShow();
   EXPECT_FALSE(notification.has_value());
-  EXPECT_TRUE(menu_notification_service()
-                  ->GetLastShownNotificationModule()
-                  .has_value());
 
   // A leaked password count of lower value should NOT create a new password
   // notification.
   prefs()->SetInteger(prefs::kBreachedCredentialsCount, 1);
   notification = menu_notification_service()->GetNotificationToShow();
   EXPECT_FALSE(notification.has_value());
-  EXPECT_TRUE(menu_notification_service()
-                  ->GetLastShownNotificationModule()
-                  .has_value());
 
   // A leaked password count of higher value should create a new password
   // notification.
@@ -455,24 +434,12 @@ TEST_F(SafetyHubMenuNotificationServiceTest, DismissNotifications) {
   ExpectPluralString(
       IDS_SETTINGS_SAFETY_HUB_REVOKED_PERMISSIONS_MENU_NOTIFICATION, 1,
       notification.value().label);
-  EXPECT_TRUE(menu_notification_service()
-                  ->GetLastShownNotificationModule()
-                  .has_value());
-  EXPECT_EQ(
-      menu_notification_service()->GetLastShownNotificationModule().value(),
-      safety_hub::SafetyHubModuleType::UNUSED_SITE_PERMISSIONS);
 
   // When all notifications are dismissed, there should be no more notification
   // but the last shown notification remains the same.
   menu_notification_service()->DismissActiveNotification();
   EXPECT_FALSE(
       menu_notification_service()->GetNotificationToShow().has_value());
-  EXPECT_TRUE(menu_notification_service()
-                  ->GetLastShownNotificationModule()
-                  .has_value());
-  EXPECT_EQ(
-      menu_notification_service()->GetLastShownNotificationModule().value(),
-      safety_hub::SafetyHubModuleType::UNUSED_SITE_PERMISSIONS);
 }
 
 // TODO(crbug.com/328773301): Remove after
@@ -488,6 +455,9 @@ class
         {safe_browsing::kSafetyHubAbusiveNotificationRevocation});
     prefs()->SetBoolean(
         safety_hub_prefs::kUnusedSitePermissionsRevocationEnabled, true);
+
+    safety_hub_test_util::CreateRevokedPermissionsService(profile());
+    safety_hub_test_util::CreateNotificationPermissionsReviewService(profile());
   }
 
  private:
@@ -532,7 +502,11 @@ class SafetyHubMenuNotificationServiceDesktopOnlyTest
 
     password_store_ = CreateAndUseTestPasswordStore(profile());
     PasswordStatusCheckService* password_service =
-        PasswordStatusCheckServiceFactory::GetForProfile(profile());
+        safety_hub_test_util::CreateAndUsePasswordStatusService(profile());
+
+    safety_hub_test_util::CreateRevokedPermissionsService(profile());
+    safety_hub_test_util::CreateNotificationPermissionsReviewService(profile());
+
     RunUntilIdle();
     EXPECT_EQ(password_service->compromised_credential_count(), 0UL);
   }
@@ -601,7 +575,7 @@ TEST_F(SafetyHubMenuNotificationServiceDesktopOnlyTest,
   // Create a menu notification service with the mocked CWS info service.
   std::unique_ptr<SafetyHubMenuNotificationService> mocked_service =
       std::make_unique<SafetyHubMenuNotificationService>(
-          prefs(), unused_site_permissions_service(),
+          prefs(), revoked_permissions_service(),
           notification_permissions_service(), password_status_check_service(),
           safety_hub_hats_service(), profile());
   std::optional<MenuNotificationEntry> notification =
@@ -620,9 +594,6 @@ TEST_F(SafetyHubMenuNotificationServiceDesktopOnlyTest, PasswordOverride) {
   AdvanceClockBy(base::Days(1));
   notification = menu_notification_service()->GetNotificationToShow();
   EXPECT_TRUE(notification.has_value());
-  EXPECT_EQ(
-      menu_notification_service()->GetLastShownNotificationModule().value(),
-      safety_hub::SafetyHubModuleType::SAFE_BROWSING);
 
   // A leaked password warning should override the safe browsing notification.
   SetMockCredentialEntry(origin, true);
@@ -631,27 +602,12 @@ TEST_F(SafetyHubMenuNotificationServiceDesktopOnlyTest, PasswordOverride) {
   ExpectPluralString(
       IDS_SETTINGS_SAFETY_HUB_COMPROMISED_PASSWORDS_MENU_NOTIFICATION, 1,
       notification.value().label);
-  EXPECT_TRUE(menu_notification_service()
-                  ->GetLastShownNotificationModule()
-                  .has_value());
-  EXPECT_EQ(
-      menu_notification_service()->GetLastShownNotificationModule().value(),
-      safety_hub::SafetyHubModuleType::PASSWORDS);
 
   // Fixing the leaked password will clear notification. Because the safe
   // browsing notification was dismissed, it will not be shown either.
   SetMockCredentialEntry(origin, false, true);
   notification = menu_notification_service()->GetNotificationToShow();
   EXPECT_FALSE(notification.has_value());
-
-  // The last shown menu notification remains the same even when it has been
-  // dismissed.
-  EXPECT_TRUE(menu_notification_service()
-                  ->GetLastShownNotificationModule()
-                  .has_value());
-  EXPECT_EQ(
-      menu_notification_service()->GetLastShownNotificationModule().value(),
-      safety_hub::SafetyHubModuleType::PASSWORDS);
 }
 
 TEST_F(SafetyHubMenuNotificationServiceDesktopOnlyTest, PasswordTrigger) {
@@ -682,24 +638,12 @@ TEST_F(SafetyHubMenuNotificationServiceDesktopOnlyTest,
   ExpectPluralString(
       IDS_SETTINGS_SAFETY_HUB_COMPROMISED_PASSWORDS_MENU_NOTIFICATION, 1,
       notification.value().label);
-  EXPECT_TRUE(menu_notification_service()
-                  ->GetLastShownNotificationModule()
-                  .has_value());
-  EXPECT_EQ(
-      menu_notification_service()->GetLastShownNotificationModule().value(),
-      safety_hub::SafetyHubModuleType::PASSWORDS);
 
   // The notification should no longer appear after it has been dismissed.
   menu_notification_service()->DismissActiveNotificationOfModule(
       safety_hub::SafetyHubModuleType::PASSWORDS);
   notification = menu_notification_service()->GetNotificationToShow();
   EXPECT_FALSE(notification.has_value());
-  EXPECT_TRUE(menu_notification_service()
-                  ->GetLastShownNotificationModule()
-                  .has_value());
-  EXPECT_EQ(
-      menu_notification_service()->GetLastShownNotificationModule().value(),
-      safety_hub::SafetyHubModuleType::PASSWORDS);
 }
 
 TEST_F(SafetyHubMenuNotificationServiceDesktopOnlyTest, PasswordMigration) {

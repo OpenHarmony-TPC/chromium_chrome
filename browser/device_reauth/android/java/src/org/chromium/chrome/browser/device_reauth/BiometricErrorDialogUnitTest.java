@@ -25,13 +25,13 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.test.util.modaldialog.FakeModalDialogManager;
-import org.chromium.ui.text.NoUnderlineClickableSpan;
+import org.chromium.ui.text.ChromeClickableSpan;
 import org.chromium.ui.text.SpanApplier;
 
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class BiometricErrorDialogUnitTest {
-    private FakeModalDialogManager mModalDialogManager =
+    private final FakeModalDialogManager mModalDialogManager =
             new FakeModalDialogManager(ModalDialogManager.ModalDialogType.APP);
     private Activity mActivity;
 
@@ -80,7 +80,7 @@ public class BiometricErrorDialogUnitTest {
                         new SpanApplier.SpanInfo(
                                 "<link>",
                                 "</link>",
-                                new NoUnderlineClickableSpan(mActivity, (unusedView) -> {})));
+                                new ChromeClickableSpan(mActivity, (unusedView) -> {})));
         assertEquals(expected.toString(), moreDetails.getText().toString());
     }
 }

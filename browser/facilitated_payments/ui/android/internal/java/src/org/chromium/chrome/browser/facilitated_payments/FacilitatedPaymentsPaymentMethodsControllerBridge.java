@@ -10,12 +10,14 @@ import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.facilitated_payments.core.ui_utils.UiEvent;
 
 /** JNI wrapper for C++ FacilitatedPaymentsController. */
 @JNINamespace("payments::facilitated")
+@NullMarked
 class FacilitatedPaymentsPaymentMethodsControllerBridge
         implements FacilitatedPaymentsPaymentMethodsComponent.Delegate {
     private long mNativeFacilitatedPaymentsController;
@@ -38,14 +40,6 @@ class FacilitatedPaymentsPaymentMethodsControllerBridge
     }
 
     // FacilitatedPaymentsPaymentMethodsComponent.Delegate
-    @Override
-    public void onDismissed() {
-        if (mNativeFacilitatedPaymentsController != 0) {
-            FacilitatedPaymentsPaymentMethodsControllerBridgeJni.get()
-                    .onDismissed(mNativeFacilitatedPaymentsController);
-        }
-    }
-
     @Override
     public void onUiEvent(@UiEvent int uiEvent) {
         if (mNativeFacilitatedPaymentsController != 0) {
@@ -90,14 +84,32 @@ class FacilitatedPaymentsPaymentMethodsControllerBridge
         return true;
     }
 
+    @Override
+    public void onPixAccountLinkingPromptAccepted() {
+        if (mNativeFacilitatedPaymentsController != 0) {
+            FacilitatedPaymentsPaymentMethodsControllerBridgeJni.get()
+                    .onPixAccountLinkingPromptAccepted(mNativeFacilitatedPaymentsController);
+        }
+    }
+
+    @Override
+    public void onPixAccountLinkingPromptDeclined() {
+        if (mNativeFacilitatedPaymentsController != 0) {
+            FacilitatedPaymentsPaymentMethodsControllerBridgeJni.get()
+                    .onPixAccountLinkingPromptDeclined(mNativeFacilitatedPaymentsController);
+        }
+    }
+
     @NativeMethods
     interface Natives {
-        void onDismissed(long nativeFacilitatedPaymentsController);
-
         void onUiEvent(long nativeFacilitatedPaymentsController, @UiEvent int uiEvent);
 
         void onBankAccountSelected(long nativeFacilitatedPaymentsController, long instrumentId);
 
         void onEwalletSelected(long nativeFacilitatedPaymentsController, long instrumentId);
+
+        void onPixAccountLinkingPromptAccepted(long nativeFacilitatedPaymentsController);
+
+        void onPixAccountLinkingPromptDeclined(long nativeFacilitatedPaymentsController);
     }
 }

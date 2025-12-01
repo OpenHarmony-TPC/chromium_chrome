@@ -24,6 +24,7 @@
 #include "chrome/browser/signin/bound_session_credentials/bound_session_refresh_cookie_fetcher.h"
 #include "chrome/browser/signin/bound_session_credentials/bound_session_registration_fetcher.h"
 #include "chrome/browser/signin/bound_session_credentials/bound_session_registration_fetcher_param.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/storage_partition.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "services/network/public/cpp/network_connection_tracker.h"
@@ -39,7 +40,13 @@ class StoragePartition;
 class GURL;
 class BoundSessionParamsStorage;
 
-BASE_DECLARE_FEATURE(kMultipleBoundSessionsEnabled);
+// Enables bound sessions marked with "wsbeta" flag even when the main
+// `switches::kBoundSessionCredentialsEnabled` feature is disabled.
+BASE_DECLARE_FEATURE(kEnableBoundSessionCredentialsWsbetaBypass);
+
+// Enables the maintenance of bound sessions stored on disk even after the main
+// `switches::kBoundSessionCredentialsEnabled` feature gets disabled.
+BASE_DECLARE_FEATURE(kEnableBoundSessionCredentialsContinuity);
 
 class BoundSessionCookieRefreshServiceImpl
     : public BoundSessionCookieRefreshService,
@@ -61,6 +68,7 @@ class BoundSessionCookieRefreshServiceImpl
       std::unique_ptr<BoundSessionParamsStorage> session_params_storage,
       content::StoragePartition* storage_partition,
       network::NetworkConnectionTracker* network_connection_tracker,
+      const PrefService* profile_prefs,
       bool is_off_the_record_profile);
 
   ~BoundSessionCookieRefreshServiceImpl() override;
@@ -193,6 +201,7 @@ class BoundSessionCookieRefreshServiceImpl
   const std::unique_ptr<BoundSessionParamsStorage> session_params_storage_;
   const raw_ptr<content::StoragePartition> storage_partition_;
   const raw_ptr<network::NetworkConnectionTracker> network_connection_tracker_;
+  const raw_ptr<const PrefService> profile_prefs_;
   // Required to attach X-Client-Data header to session registration and cookie
   // rotation requests for GWS-visible Finch experiment.
   const bool is_off_the_record_profile_;

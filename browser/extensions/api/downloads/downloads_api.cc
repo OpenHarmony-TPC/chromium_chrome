@@ -46,6 +46,7 @@
 #include "chrome/browser/download/download_shelf.h"
 #include "chrome/browser/download/download_stats.h"
 #include "chrome/browser/extensions/chrome_extension_function_details.h"
+#include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/window_controller.h"
 #include "chrome/browser/extensions/window_controller_list.h"
 #include "chrome/browser/icon_loader.h"
@@ -68,6 +69,7 @@
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/extension_function_dispatcher.h"
 #include "extensions/browser/extension_prefs.h"
+#include "extensions/browser/install_prefs_helper.h"
 #include "extensions/browser/warning_service.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/mojom/context_type.mojom.h"
@@ -397,9 +399,9 @@ base::Value::Dict DownloadItemToJSON(DownloadItem* download_item,
 
 class DownloadFileIconExtractorImpl : public DownloadFileIconExtractor {
  public:
-  DownloadFileIconExtractorImpl() {}
+  DownloadFileIconExtractorImpl() = default;
 
-  ~DownloadFileIconExtractorImpl() override {}
+  ~DownloadFileIconExtractorImpl() override = default;
 
   bool ExtractIconURLForPath(const base::FilePath& path,
                              float scale,
@@ -1010,7 +1012,7 @@ ExtensionDownloadsEventRouterData::DeterminerInfo::DeterminerInfo(
 ExtensionDownloadsEventRouterData::DeterminerInfo::DeterminerInfo()
     : reported(false) {}
 
-ExtensionDownloadsEventRouterData::DeterminerInfo::~DeterminerInfo() {}
+ExtensionDownloadsEventRouterData::DeterminerInfo::~DeterminerInfo() = default;
 
 const char ExtensionDownloadsEventRouterData::kKey[] =
     "DownloadItem ExtensionDownloadsEventRouterData";
@@ -1026,7 +1028,7 @@ bool OnDeterminingFilenameWillDispatchCallback(
     mojom::EventFilteringInfoPtr& event_filtering_info_out) {
   *any_determiners = true;
   base::Time installed =
-      ExtensionPrefs::Get(browser_context)->GetLastUpdateTime(extension->id());
+      GetLastUpdateTime(ExtensionPrefs::Get(browser_context), extension->id());
   data->AddPendingDeterminer(extension->id(), installed);
   return true;
 }
@@ -1070,9 +1072,9 @@ DownloadedByExtension::DownloadedByExtension(download::DownloadItem* item,
   item->SetUserData(kKey, base::WrapUnique(this));
 }
 
-DownloadsDownloadFunction::DownloadsDownloadFunction() {}
+DownloadsDownloadFunction::DownloadsDownloadFunction() = default;
 
-DownloadsDownloadFunction::~DownloadsDownloadFunction() {}
+DownloadsDownloadFunction::~DownloadsDownloadFunction() = default;
 
 ExtensionFunction::ResponseAction DownloadsDownloadFunction::Run() {
   std::optional<downloads::Download::Params> params =
@@ -1155,8 +1157,8 @@ ExtensionFunction::ResponseAction DownloadsDownloadFunction::Run() {
     download_params->set_method(method_string);
   if (options.body) {
     download_params->set_post_body(
-        network::ResourceRequestBody::CreateFromBytes(options.body->data(),
-                                                      options.body->size()));
+        network::ResourceRequestBody::CreateFromCopyOfBytes(
+            base::as_byte_span(*options.body)));
   }
 
   download_params->set_callback(
@@ -1201,9 +1203,9 @@ void DownloadsDownloadFunction::OnStarted(
   }
 }
 
-DownloadsSearchFunction::DownloadsSearchFunction() {}
+DownloadsSearchFunction::DownloadsSearchFunction() = default;
 
-DownloadsSearchFunction::~DownloadsSearchFunction() {}
+DownloadsSearchFunction::~DownloadsSearchFunction() = default;
 
 ExtensionFunction::ResponseAction DownloadsSearchFunction::Run() {
   std::optional<downloads::Search::Params> params =
@@ -1250,9 +1252,9 @@ ExtensionFunction::ResponseAction DownloadsSearchFunction::Run() {
   return RespondNow(WithArguments(std::move(json_results)));
 }
 
-DownloadsPauseFunction::DownloadsPauseFunction() {}
+DownloadsPauseFunction::DownloadsPauseFunction() = default;
 
-DownloadsPauseFunction::~DownloadsPauseFunction() {}
+DownloadsPauseFunction::~DownloadsPauseFunction() = default;
 
 ExtensionFunction::ResponseAction DownloadsPauseFunction::Run() {
   std::optional<downloads::Pause::Params> params =
@@ -1273,9 +1275,9 @@ ExtensionFunction::ResponseAction DownloadsPauseFunction::Run() {
   return RespondNow(NoArguments());
 }
 
-DownloadsResumeFunction::DownloadsResumeFunction() {}
+DownloadsResumeFunction::DownloadsResumeFunction() = default;
 
-DownloadsResumeFunction::~DownloadsResumeFunction() {}
+DownloadsResumeFunction::~DownloadsResumeFunction() = default;
 
 ExtensionFunction::ResponseAction DownloadsResumeFunction::Run() {
   std::optional<downloads::Resume::Params> params =
@@ -1285,7 +1287,9 @@ ExtensionFunction::ResponseAction DownloadsResumeFunction::Run() {
       browser_context(), include_incognito_information(), params->download_id);
   std::string error;
   if (InvalidId(download_item, &error) ||
-      Fault(download_item->IsPaused() && !download_item->CanResume(),
+      Fault(download_item->GetState() == DownloadItem::CANCELLED ||
+                (download_item->GetState() == DownloadItem::INTERRUPTED &&
+                 !download_item->CanResume()),
             download_extension_errors::kNotResumable, &error)) {
     return RespondNow(Error(std::move(error)));
   }
@@ -1296,9 +1300,9 @@ ExtensionFunction::ResponseAction DownloadsResumeFunction::Run() {
   return RespondNow(NoArguments());
 }
 
-DownloadsCancelFunction::DownloadsCancelFunction() {}
+DownloadsCancelFunction::DownloadsCancelFunction() = default;
 
-DownloadsCancelFunction::~DownloadsCancelFunction() {}
+DownloadsCancelFunction::~DownloadsCancelFunction() = default;
 
 ExtensionFunction::ResponseAction DownloadsCancelFunction::Run() {
   std::optional<downloads::Resume::Params> params =
@@ -1314,9 +1318,9 @@ ExtensionFunction::ResponseAction DownloadsCancelFunction::Run() {
   return RespondNow(NoArguments());
 }
 
-DownloadsEraseFunction::DownloadsEraseFunction() {}
+DownloadsEraseFunction::DownloadsEraseFunction() = default;
 
-DownloadsEraseFunction::~DownloadsEraseFunction() {}
+DownloadsEraseFunction::~DownloadsEraseFunction() = default;
 
 ExtensionFunction::ResponseAction DownloadsEraseFunction::Run() {
   std::optional<downloads::Erase::Params> params =
@@ -1340,9 +1344,9 @@ ExtensionFunction::ResponseAction DownloadsEraseFunction::Run() {
   return RespondNow(WithArguments(std::move(json_results)));
 }
 
-DownloadsRemoveFileFunction::DownloadsRemoveFileFunction() {}
+DownloadsRemoveFileFunction::DownloadsRemoveFileFunction() = default;
 
-DownloadsRemoveFileFunction::~DownloadsRemoveFileFunction() {}
+DownloadsRemoveFileFunction::~DownloadsRemoveFileFunction() = default;
 
 ExtensionFunction::ResponseAction DownloadsRemoveFileFunction::Run() {
   std::optional<downloads::RemoveFile::Params> params =
@@ -1372,9 +1376,9 @@ void DownloadsRemoveFileFunction::Done(bool success) {
   }
 }
 
-DownloadsAcceptDangerFunction::DownloadsAcceptDangerFunction() {}
+DownloadsAcceptDangerFunction::DownloadsAcceptDangerFunction() = default;
 
-DownloadsAcceptDangerFunction::~DownloadsAcceptDangerFunction() {}
+DownloadsAcceptDangerFunction::~DownloadsAcceptDangerFunction() = default;
 
 DownloadsAcceptDangerFunction::OnPromptCreatedCallback*
     DownloadsAcceptDangerFunction::on_prompt_created_ = nullptr;
@@ -1390,7 +1394,19 @@ ExtensionFunction::ResponseAction DownloadsAcceptDangerFunction::Run() {
 void DownloadsAcceptDangerFunction::PromptOrWait(int download_id, int retries) {
   DownloadItem* download_item = GetDownload(
       browser_context(), include_incognito_information(), download_id);
-  content::WebContents* web_contents = dispatcher()->GetVisibleWebContents();
+  // We have a WeakPtr to the ExtensionFunctionDispatcher, so remove the
+  // download if it's invalid. This indicates the owning WebContents has
+  // been destroyed, so we can't proceed. Additionally, there may not be
+  // a visible WebContents, which also means we can't proceed.
+  const ExtensionFunctionDispatcher* const extension_dispatcher = dispatcher();
+  content::WebContents* web_contents =
+      extension_dispatcher ? extension_dispatcher->GetVisibleWebContents()
+                           : nullptr;
+  if (!extension_dispatcher || !web_contents) {
+    download_item->Remove();
+    Respond(NoArguments());
+    return;
+  }
   std::string error;
   if (InvalidId(download_item, &error) ||
       Fault(download_item->GetState() != DownloadItem::IN_PROGRESS,
@@ -1423,8 +1439,10 @@ void DownloadsAcceptDangerFunction::PromptOrWait(int download_id, int retries) {
       base::BindOnce(&DownloadsAcceptDangerFunction::DangerPromptCallback, this,
                      download_id));
   // DownloadDangerPrompt deletes itself
-  if (on_prompt_created_ && !on_prompt_created_->is_null())
+  if (on_prompt_created_ && !on_prompt_created_->is_null()) {
     std::move(*on_prompt_created_).Run(prompt);
+    on_prompt_created_ = nullptr;
+  }
   // Function finishes in DangerPromptCallback().
 }
 
@@ -1454,9 +1472,9 @@ void DownloadsAcceptDangerFunction::DangerPromptCallback(
   Respond(NoArguments());
 }
 
-DownloadsShowFunction::DownloadsShowFunction() {}
+DownloadsShowFunction::DownloadsShowFunction() = default;
 
-DownloadsShowFunction::~DownloadsShowFunction() {}
+DownloadsShowFunction::~DownloadsShowFunction() = default;
 
 ExtensionFunction::ResponseAction DownloadsShowFunction::Run() {
   std::optional<downloads::Show::Params> params =
@@ -1472,9 +1490,11 @@ ExtensionFunction::ResponseAction DownloadsShowFunction::Run() {
   return RespondNow(NoArguments());
 }
 
-DownloadsShowDefaultFolderFunction::DownloadsShowDefaultFolderFunction() {}
+DownloadsShowDefaultFolderFunction::DownloadsShowDefaultFolderFunction() =
+    default;
 
-DownloadsShowDefaultFolderFunction::~DownloadsShowDefaultFolderFunction() {}
+DownloadsShowDefaultFolderFunction::~DownloadsShowDefaultFolderFunction() =
+    default;
 
 ExtensionFunction::ResponseAction DownloadsShowDefaultFolderFunction::Run() {
   DownloadManager* manager = nullptr;
@@ -1492,9 +1512,9 @@ ExtensionFunction::ResponseAction DownloadsShowDefaultFolderFunction::Run() {
 DownloadsOpenFunction::OnPromptCreatedCallback*
     DownloadsOpenFunction::on_prompt_created_cb_ = nullptr;
 
-DownloadsOpenFunction::DownloadsOpenFunction() {}
+DownloadsOpenFunction::DownloadsOpenFunction() = default;
 
-DownloadsOpenFunction::~DownloadsOpenFunction() {}
+DownloadsOpenFunction::~DownloadsOpenFunction() = default;
 
 ExtensionFunction::ResponseAction DownloadsOpenFunction::Run() {
   std::optional<downloads::Open::Params> params =
@@ -1540,7 +1560,9 @@ ExtensionFunction::ResponseAction DownloadsOpenFunction::Run() {
   // to avoid showing the prompt.
   DownloadOpenPrompt* download_open_prompt =
       DownloadOpenPrompt::CreateDownloadOpenConfirmationDialog(
-          active_contents, extension()->name(), download_item->GetFullPath(),
+          active_contents,
+          util::GetFixupExtensionNameForUIDisplay(extension()->name()),
+          download_item->GetFullPath(),
           base::BindOnce(&DownloadsOpenFunction::OpenPromptDone, this,
                          params->download_id));
   if (on_prompt_created_cb_)
@@ -1567,9 +1589,9 @@ void DownloadsOpenFunction::OpenPromptDone(int download_id, bool accept) {
   Respond(NoArguments());
 }
 
-DownloadsSetShelfEnabledFunction::DownloadsSetShelfEnabledFunction() {}
+DownloadsSetShelfEnabledFunction::DownloadsSetShelfEnabledFunction() = default;
 
-DownloadsSetShelfEnabledFunction::~DownloadsSetShelfEnabledFunction() {}
+DownloadsSetShelfEnabledFunction::~DownloadsSetShelfEnabledFunction() = default;
 
 ExtensionFunction::ResponseAction DownloadsSetShelfEnabledFunction::Run() {
   std::optional<downloads::SetShelfEnabled::Params> params =
@@ -1675,7 +1697,7 @@ ExtensionFunction::ResponseAction DownloadsSetUiOptionsFunction::Run() {
 DownloadsGetFileIconFunction::DownloadsGetFileIconFunction()
     : icon_extractor_(new DownloadFileIconExtractorImpl()) {}
 
-DownloadsGetFileIconFunction::~DownloadsGetFileIconFunction() {}
+DownloadsGetFileIconFunction::~DownloadsGetFileIconFunction() = default;
 
 void DownloadsGetFileIconFunction::SetIconExtractorForTesting(
     DownloadFileIconExtractor* extractor) {
@@ -1710,7 +1732,12 @@ ExtensionFunction::ResponseAction DownloadsGetFileIconFunction::Run() {
   DCHECK(icon_extractor_.get());
   DCHECK(icon_size == 16 || icon_size == 32);
   float scale = 1.0;
-  content::WebContents* web_contents = dispatcher()->GetVisibleWebContents();
+  // We have a WeakPtr to the ExtensionFunctionDispatcher, so validate it
+  // before attempting to use it.
+  const ExtensionFunctionDispatcher* const extension_dispatcher = dispatcher();
+  EXTENSION_FUNCTION_VALIDATE(extension_dispatcher);
+  content::WebContents* web_contents =
+      extension_dispatcher->GetVisibleWebContents();
   if (web_contents && web_contents->GetRenderWidgetHostView())
     scale = web_contents->GetRenderWidgetHostView()->GetDeviceScaleFactor();
   EXTENSION_FUNCTION_VALIDATE(icon_extractor_->ExtractIconURLForPath(

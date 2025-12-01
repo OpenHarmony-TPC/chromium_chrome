@@ -61,8 +61,12 @@ Tab* FakeTabSlotController::GetTabAt(const gfx::Point& point) {
   return nullptr;
 }
 
-const Tab* FakeTabSlotController::GetAdjacentTab(const Tab* tab, int offset) {
+Tab* FakeTabSlotController::GetAdjacentTab(const Tab* tab, int offset) {
   return nullptr;
+}
+
+std::vector<Tab*> FakeTabSlotController::GetTabsInSplit(const Tab* tab) {
+  return {};
 }
 
 bool FakeTabSlotController::HoverCardIsShowingForTab(Tab* tab) {
@@ -142,12 +146,13 @@ const Browser* FakeTabSlotController::GetBrowser() const {
   return nullptr;
 }
 
-int FakeTabSlotController::GetInactiveTabWidth() const {
-  return inactive_tab_width_;
-}
-
 bool FakeTabSlotController::IsFrameCondensed() const {
   return false;
+}
+
+TabGroup* FakeTabSlotController::GetTabGroup(
+    const tab_groups::TabGroupId& group_id) const {
+  return nullptr;
 }
 
 #if BUILDFLAG(IS_CHROMEOS)

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/strings/stringprintf.h"
 #include "chrome/browser/extensions/extension_action_dispatcher.h"
 #include "chrome/browser/extensions/install_verifier.h"
 #include "chrome/browser/extensions/permissions/scripting_permissions_modifier.h"
@@ -45,13 +46,15 @@ class SafeWidgetDestroyedWaiter : public views::WidgetObserver {
   // views::WidgetObserver:
   void OnWidgetDestroyed(views::Widget* widget) override {
     observation_.Reset();
-    if (!quit_closure_.is_null())
+    if (!quit_closure_.is_null()) {
       std::move(quit_closure_).Run();
+    }
   }
 
   void Wait() {
-    if (!observation_.IsObserving())
+    if (!observation_.IsObserving()) {
       return;
+    }
     DCHECK(quit_closure_.is_null());
     quit_closure_ = run_loop_.QuitClosure();
     run_loop_.Run();

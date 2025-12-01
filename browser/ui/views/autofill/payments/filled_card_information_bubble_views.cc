@@ -5,22 +5,24 @@
 #include "chrome/browser/ui/views/autofill/payments/filled_card_information_bubble_views.h"
 
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/strings/strcat.h"
 #include "chrome/browser/ui/views/autofill/payments/payments_view_util.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "components/autofill/core/browser/data_model/credit_card.h"
-#include "components/autofill/core/browser/payments/payments_service_url.h"
+#include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/ui/payments/bubble_show_options.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/color/color_provider.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/bubble/bubble_frame_view.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/separator.h"
 #include "ui/views/controls/styled_label.h"
+#include "ui/views/controls/theme_tracking_image_view.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/style/typography.h"
@@ -110,26 +112,36 @@ void FilledCardInformationBubbleViews::Init() {
     explanation_label->SetDefaultTextStyle(views::style::STYLE_SECONDARY);
     explanation_label->SetText(explanation);
 
-    views::StyledLabel::RangeStyleInfo style_info =
-        views::StyledLabel::RangeStyleInfo::CreateForLink(base::BindRepeating(
-            &FilledCardInformationBubbleViews::LearnMoreLinkClicked,
-            weak_ptr_factory_.GetWeakPtr()));
+    if (controller_->EducationalBodyHasLearnMoreLink()) {
+      views::StyledLabel::RangeStyleInfo style_info =
+          views::StyledLabel::RangeStyleInfo::CreateForLink(base::BindRepeating(
+              &FilledCardInformationBubbleViews::LearnMoreLinkClicked,
+              weak_ptr_factory_.GetWeakPtr()));
 
-    uint32_t offset =
-        explanation.length() - controller_->GetLearnMoreLinkText().length();
-    explanation_label->AddStyleRange(
-        gfx::Range(offset,
-                   offset + controller_->GetLearnMoreLinkText().length()),
-        style_info);
+      uint32_t offset =
+          explanation.length() - controller_->GetLearnMoreLinkText().length();
+      explanation_label->AddStyleRange(
+          gfx::Range(offset,
+                     offset + controller_->GetLearnMoreLinkText().length()),
+          style_info);
+    }
   }
 
   AddCardDetailButtons(this);
 }
 
 void FilledCardInformationBubbleViews::AddedToWidget() {
-  GetBubbleFrameView()->SetTitleView(
-      std::make_unique<TitleWithIconAfterLabelView>(
-          GetWindowTitle(), TitleWithIconAfterLabelView::Icon::GOOGLE_PAY));
+  if (controller_->ShouldShowGooglePayIconInTitle()) {
+    GetBubbleFrameView()->SetTitleView(
+        std::make_unique<TitleWithIconAfterLabelView>(
+            GetWindowTitle(), TitleWithIconAfterLabelView::Icon::GOOGLE_PAY));
+  } else {
+    auto title_view = std::make_unique<views::Label>(
+        GetWindowTitle(), views::style::CONTEXT_DIALOG_TITLE);
+    title_view->SetHorizontalAlignment(gfx::ALIGN_TO_HEAD);
+    title_view->SetMultiLine(true);
+    GetBubbleFrameView()->SetTitleView(std::move(title_view));
+  }
 }
 
 std::u16string FilledCardInformationBubbleViews::GetWindowTitle() const {
@@ -192,8 +204,20 @@ void FilledCardInformationBubbleViews::AddCardDescriptionView(
       layout_provider->GetDistanceMetric(
           views::DISTANCE_RELATED_CONTROL_HORIZONTAL));
 
-  card_information_container->AddChildView(std::make_unique<views::ImageView>(
-      ui::ImageModel::FromImage(options.card_image)));
+  std::pair<ui::ImageModel, std::optional<ui::ImageModel>> card_images =
+      controller_->GetCardImageForDescriptionView();
+  auto* card_image_view = card_information_container->AddChildView(
+      std::make_unique<views::ThemeTrackingImageView>(
+          /*light_image_model=*/card_images.first,
+          /*dark_image_model=*/card_images.second.value_or(card_images.first),
+          /*get_background_color_callback=*/
+          base::BindRepeating(
+              [](views::View* view) {
+                return ui::ColorVariant(view->GetColorProvider()->GetColor(
+                    ui::kColorDialogBackground));
+              },
+              base::Unretained(this))));
+  card_image_view->SetID(kCardImage);
 
   // Add a child container view for the two-line text view.
   auto* card_text_view = card_information_container->AddChildView(
@@ -211,19 +235,25 @@ void FilledCardInformationBubbleViews::AddCardDescriptionView(
       card_text_view->AddChildView(std::make_unique<views::BoxLayoutView>());
   first_line->SetBetweenChildSpacing(layout_provider->GetDistanceMetric(
       DISTANCE_RELATED_LABEL_HORIZONTAL_LIST));
+  // `kEnd` aligns the child views to the end edge of the parent view so that
+  // `card_last_four_view` is positioned first at the end and is never pushed
+  // out.
+  first_line->SetMainAxisAlignment(views::BoxLayout::MainAxisAlignment::kEnd);
   auto* card_name_view =
       first_line->AddChildView(std::make_unique<views::Label>(
-          options.masked_card_name, views::style::CONTEXT_DIALOG_BODY_TEXT,
-          views::style::STYLE_PRIMARY));
-  card_name_view->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-  first_line->SetFlexForView(card_name_view, /*flex=*/1);
-  first_line->AddChildView(std::make_unique<views::Label>(
-      options.masked_card_number_last_four,
-      views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_PRIMARY));
+          controller_->GetMaskedCardNameForDescriptionView(),
+          views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_PRIMARY));
+  card_name_view->SetID(kCardName);
+  auto* card_last_four_view =
+      first_line->AddChildView(std::make_unique<views::Label>(
+          options.masked_card_number_last_four,
+          views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_PRIMARY));
+  // Keep card_last_four_view at its natural size.
+  first_line->SetFlexForView(card_last_four_view, /*flex=*/0);
 
   // Second line of the text content, the "Card" indicator label.
   card_text_view->AddChildView(std::make_unique<views::Label>(
-      controller_->GetVirtualCardIndicatorLabel(),
+      controller_->GetCardIndicatorLabel(),
       views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_SECONDARY));
 }
 
@@ -303,8 +333,7 @@ void FilledCardInformationBubbleViews::
 
 void FilledCardInformationBubbleViews::LearnMoreLinkClicked() {
   if (controller_) {
-    controller_->OnLinkClicked(
-        autofill::payments::GetVirtualCardEnrollmentSupportUrl());
+    controller_->OnLinkClicked();
   }
 }
 

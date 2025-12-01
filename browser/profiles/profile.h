@@ -17,7 +17,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/public/browser/browser_context.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -108,19 +107,13 @@ class Profile : public content::BrowserContext {
     // Creates a unique OTR profile id for tests.
     static OTRProfileID CreateUniqueForTesting();
 
-    bool operator==(const OTRProfileID& other) const {
-      return profile_id_ == other.profile_id_;
-    }
-
-    bool operator!=(const OTRProfileID& other) const {
-      return profile_id_ != other.profile_id_;
-    }
-
-    bool operator<(const OTRProfileID& other) const {
-      return profile_id_ < other.profile_id_;
-    }
+    friend constexpr bool operator==(const OTRProfileID&,
+                                     const OTRProfileID&) = default;
+    friend constexpr auto operator<=>(const OTRProfileID&,
+                                      const OTRProfileID&) = default;
 
     bool AllowsBrowserWindows() const;
+    bool IsDevTools() const;
 
 #if BUILDFLAG(IS_CHROMEOS)
     // Returns true if the OTR Profile was created for captive portal signin.
@@ -292,9 +285,8 @@ class Profile : public content::BrowserContext {
 
   // Returns whether the profile is associated with the account of a child.
   // This method should not be used in new code to gate child-specific
-  // functionality. Prefer a feture specific method
-  // (eg. `SupervisedUserService::IsURLFilteringEnabled()`) or alternatively
-  // use `SupervisedUserService::IsSubjectToParentalControls()`.
+  // functionality.
+  // Use `supervised_user::IsSubjectToParentalControls()` instead.
   virtual bool IsChild() const = 0;
 
   // Returns whether opening browser windows is allowed in this profile. For
@@ -353,7 +345,7 @@ class Profile : public content::BrowserContext {
   // This function combine three Get*CloudPolicyManager functions above and
   // always returns the one that is currently activated.
   //
-  // Returns UserCloudPolicyManagerAsh on Ash.
+  // Returns UserCloudPolicyManagerAsh on ChromeOS.
   // For others, returns UserCloudPolicyManager if it exists, otherwise use
   // ProfileCloudPolicyManager.
   virtual policy::CloudPolicyManager* GetCloudPolicyManager() = 0;
@@ -366,7 +358,7 @@ class Profile : public content::BrowserContext {
   virtual base::FilePath last_selected_directory() = 0;
   virtual void set_last_selected_directory(const base::FilePath& path) = 0;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   enum AppLocaleChangedVia{// Caused by chrome://settings change.
                            APP_LOCALE_CHANGED_VIA_SETTINGS,
                            // Locale has been reverted via LocaleChangeGuard.
@@ -405,7 +397,7 @@ class Profile : public content::BrowserContext {
   // IsRegularProfile(), IsSystemProfile(), IsIncognitoProfile(), and
   // IsGuestSession() are mutually exclusive.
   // Note: IsGuestSession() is not mutually exclusive with the rest of the
-  // methods mentioned above on Ash. TODO(crbug.com/40233408).
+  // methods mentioned above on ChromeOS. TODO(crbug.com/40233408).
   //
   // IsSystemProfile() returns true for both regular and off-the-record profile
   //   of the system profile.
@@ -429,6 +421,10 @@ class Profile : public content::BrowserContext {
 
   // Returns whether it is a system profile.
   bool IsSystemProfile() const;
+
+  // Returns true if this OffTheRecord profile was created via the
+  // "createBrowsingContext" Chrome DevTools Protocol command.
+  bool IsDevToolsOTRProfile() const;
 
   bool CanUseDiskWhenOffTheRecord() override;
 

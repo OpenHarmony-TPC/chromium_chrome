@@ -12,10 +12,10 @@
 #include "chrome/browser/ui/autofill/autofill_popup_controller_impl_test_api.h"
 #include "chrome/browser/ui/autofill/autofill_suggestion_controller_test_base.h"
 #include "chrome/browser/ui/autofill/test_autofill_popup_controller_autofill_client.h"
+#include "components/autofill/core/browser/suggestions/suggestion.h"
+#include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/ui/popup_interaction.h"
-#include "components/autofill/core/browser/ui/suggestion.h"
 #include "components/autofill/core/browser/ui/suggestion_button_action.h"
-#include "components/autofill/core/browser/ui/suggestion_type.h"
 #include "components/autofill/core/common/aliases.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -268,7 +268,7 @@ TEST_F(
   };
 
   ShowSuggestions(manager(), {SuggestionType::kAddressEntry},
-                  AutofillSuggestionTriggerSource::kTextFieldDidChange);
+                  AutofillSuggestionTriggerSource::kTextFieldValueChanged);
   assert_popup_interaction_metrics_are_empty();
 
   ShowSuggestions(
@@ -404,8 +404,9 @@ TEST_F(AutofillPopupControllerImplTest, DoesNotSelectUnacceptableSuggestions) {
 
 TEST_F(AutofillPopupControllerImplTest,
        ManualFallBackTriggerSource_IgnoresClickOutsideCheck) {
-  ShowSuggestions(manager(), {SuggestionType::kAddressEntry},
-                  AutofillSuggestionTriggerSource::kManualFallbackAddress);
+  ShowSuggestions(
+      manager(), {SuggestionType::kAddressEntry},
+      AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess);
 
   // Generate a popup, so it can be hidden later. It doesn't matter what the
   // external_delegate thinks is being shown in the process, since we are just
@@ -493,48 +494,6 @@ TEST_F(AutofillPopupControllerImplTest,
       SuggestionHidingReason::kEndEditing);
 
   Mock::VerifyAndClearExpectations(client().popup_view());
-}
-
-TEST_F(AutofillPopupControllerImplTest, EmitsVisibleDurationMetricsOnHide) {
-  base::HistogramTester histogram_tester;
-  base::TimeDelta hide_delay = base::Milliseconds(500);
-
-  ShowSuggestions(manager(), {SuggestionType::kPasswordEntry});
-  task_environment()->FastForwardBy(hide_delay);
-  client().popup_controller(manager()).Hide(
-      SuggestionHidingReason::kEndEditing);
-
-  histogram_tester.ExpectTimeBucketCount("Autofill.Popup.VisibleDuration",
-                                         hide_delay, 1);
-  histogram_tester.ExpectTimeBucketCount(
-      "Autofill.Popup.VisibleDuration.Password", hide_delay, 1);
-}
-
-TEST_F(AutofillPopupControllerImplTest,
-       DoesntEmitsVisibleDurationMetricsOnHideForSubPopups) {
-  base::HistogramTester histogram_tester;
-  base::TimeDelta hide_delay = base::Milliseconds(500);
-
-  base::WeakPtr<AutofillSuggestionController> sub_controller =
-      client().popup_controller(manager()).OpenSubPopup(
-          {0, 0, 10, 10}, {}, AutoselectFirstSuggestion(false));
-
-  // Setting a view makes the subsequent `Show()` call successful and stores
-  // the visible duration metric start time.
-  test_api(static_cast<AutofillPopupControllerImpl&>(*sub_controller))
-      .SetView(client().sub_popup_view()->GetWeakPtr());
-  sub_controller->Show(AutofillClient::SuggestionUiSessionId(),
-                       {Suggestion(SuggestionType::kPasswordEntry)},
-                       AutofillSuggestionTriggerSource::kPasswordManager,
-                       AutoselectFirstSuggestion(false));
-
-  task_environment()->FastForwardBy(hide_delay);
-  sub_controller->Hide(SuggestionHidingReason::kEndEditing);
-
-  histogram_tester.ExpectTimeBucketCount("Autofill.Popup.VisibleDuration",
-                                         hide_delay, 0);
-  histogram_tester.ExpectTimeBucketCount(
-      "Autofill.Popup.VisibleDuration.Password", hide_delay, 0);
 }
 
 TEST_F(AutofillPopupControllerImplTest,
@@ -819,7 +778,7 @@ TEST_F(AutofillPopupControllerImplTest,
       "Autofill.Autocomplete.SingleEntryRemovalMethod",
       SingleEntryRemovalMethod::kKeyboardShiftDeletePressed, 0);
   histogram_tester.ExpectUniqueSample(
-      "Autocomplete.Events2",
+      "Autocomplete.Events3",
       AutofillMetrics::AutocompleteEvent::AUTOCOMPLETE_SUGGESTION_DELETED, 0);
 }
 
@@ -839,7 +798,7 @@ TEST_F(AutofillPopupControllerImplTest,
       "Autofill.Autocomplete.SingleEntryRemovalMethod",
       SingleEntryRemovalMethod::kKeyboardShiftDeletePressed, 1);
   histogram_tester.ExpectUniqueSample(
-      "Autocomplete.Events2",
+      "Autocomplete.Events3",
       AutofillMetrics::AutocompleteEvent::AUTOCOMPLETE_SUGGESTION_DELETED, 1);
   // Also no autofill metrics are emitted.
   histogram_tester.ExpectUniqueSample("Autofill.ProfileDeleted.Popup", 1, 0);
@@ -893,7 +852,7 @@ TEST_F(AutofillPopupControllerImplTest,
       "Autofill.Autocomplete.SingleEntryRemovalMethod",
       SingleEntryRemovalMethod::kKeyboardShiftDeletePressed, 0);
   histogram_tester.ExpectUniqueSample(
-      "Autocomplete.Events2",
+      "Autocomplete.Events3",
       AutofillMetrics::AutocompleteEvent::AUTOCOMPLETE_SUGGESTION_DELETED, 0);
 }
 
@@ -913,7 +872,7 @@ TEST_F(AutofillPopupControllerImplTest,
       "Autofill.Autocomplete.SingleEntryRemovalMethod",
       SingleEntryRemovalMethod::kKeyboardShiftDeletePressed, 0);
   histogram_tester.ExpectUniqueSample(
-      "Autocomplete.Events2",
+      "Autocomplete.Events3",
       AutofillMetrics::AutocompleteEvent::AUTOCOMPLETE_SUGGESTION_DELETED, 0);
   histogram_tester.ExpectUniqueSample("Autofill.ProfileDeleted.Popup", 1, 0);
   histogram_tester.ExpectUniqueSample(
@@ -993,6 +952,7 @@ class MockAxPlatformNode : public ui::AXPlatformNodeBase {
   MockAxPlatformNode& operator=(MockAxPlatformNode&) = delete;
   ~MockAxPlatformNode() override = default;
 
+  MOCK_METHOD(bool, IsDestroyed, (), (const override));
   MOCK_METHOD(ui::AXPlatformNodeDelegate*, GetDelegate, (), (const override));
 };
 
@@ -1007,7 +967,7 @@ class AutofillPopupControllerImplTestAccessibility
   static constexpr int kAxUniqueId = 123;
 
   AutofillPopupControllerImplTestAccessibility()
-      : accessibility_mode_override_(ui::AXMode::kScreenReader) {}
+      : accessibility_mode_override_(ui::AXMode::kExtendedProperties) {}
   AutofillPopupControllerImplTestAccessibility(
       AutofillPopupControllerImplTestAccessibility&) = delete;
   AutofillPopupControllerImplTestAccessibility& operator=(
@@ -1021,6 +981,7 @@ class AutofillPopupControllerImplTestAccessibility
     ON_CALL(client().popup_controller(manager()),
             GetRootAXPlatformNodeForWebContents)
         .WillByDefault(Return(&mock_ax_platform_node_));
+    ON_CALL(mock_ax_platform_node_, IsDestroyed).WillByDefault(Return(false));
     ON_CALL(mock_ax_platform_node_, GetDelegate)
         .WillByDefault(Return(&mock_ax_platform_node_delegate_));
     ON_CALL(*client().popup_view(), GetAxUniqueId)
@@ -1031,7 +992,7 @@ class AutofillPopupControllerImplTestAccessibility
 
   void TearDown() override {
     // This needs to bo reset explicit because having the mode set to
-    // `kScreenReader` causes mocked functions to get called  with
+    // `kExtendedProperties` causes mocked functions to get called  with
     // `mock_ax_platform_node_delegate` after it has been destroyed.
     accessibility_mode_override_.ResetMode();
     AutofillPopupControllerImplTestAccessibilityBase::TearDown();

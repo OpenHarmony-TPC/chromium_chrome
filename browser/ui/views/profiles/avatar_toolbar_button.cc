@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
@@ -47,6 +48,7 @@
 #include "components/signin/public/identity_manager/tribool.h"
 #include "components/user_education/common/user_education_class_properties.h"
 #include "content/public/common/url_utils.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -68,9 +70,7 @@ namespace {
 
 constexpr int kChromeRefreshImageLabelPadding = 6;
 
-// Value used to enlarge the AvatarIcon to accommodate for DIP scaling. This is
-// used to adapt other related icon modifications, such as the dotted circle
-// icon in SigninPending mode.
+// Value used to enlarge the AvatarIcon to accommodate for DIP scaling.
 constexpr int kAvatarIconEnlargement = 1;
 
 }  // namespace
@@ -128,7 +128,8 @@ void AvatarToolbarButton::UpdateIcon() {
 
   const int icon_size = GetIconSize();
   ui::ImageModel icon = delegate_->GetAvatarIcon(
-      icon_size, GetForegroundColor(ButtonState::STATE_NORMAL));
+      icon_size, GetForegroundColor(ButtonState::STATE_NORMAL),
+      GetColorProvider());
 
   SetImageModel(ButtonState::STATE_NORMAL, icon);
   SetImageModel(ButtonState::STATE_DISABLED,
@@ -220,7 +221,7 @@ void AvatarToolbarButton::UpdateAccessibilityLabel() {
   // accessibility label: the tooltip or no text if the button content has no
   // text initially. All the values needs to be overridden every time in order
   // clear the previous state effect.
-  std::u16string button_content = GetText();
+  std::u16string button_content(GetText());
   if (accessibility_label.has_value()) {
     if (button_content.empty()) {
       name = accessibility_label.value();
@@ -265,44 +266,15 @@ bool AvatarToolbarButton::ShouldPaintBorder() const {
 }
 
 bool AvatarToolbarButton::ShouldBlendHighlightColor() const {
-  return this->GetWidget() && this->GetWidget()->GetCustomTheme();
+  return delegate_->ShouldBlendHighlightColor();
 }
 
-base::ScopedClosureRunner AvatarToolbarButton::ShowExplicitText(
+base::ScopedClosureRunner AvatarToolbarButton::SetExplicitButtonState(
     const std::u16string& text,
-    std::optional<std::u16string> accessibility_label) {
-  return delegate_->ShowExplicitText(text, accessibility_label);
-}
-
-void AvatarToolbarButton::ResetButtonAction() {
-  explicit_button_pressed_action_.Reset();
-  reset_button_action_button_closure_ptr_ = nullptr;
-}
-
-base::ScopedClosureRunner AvatarToolbarButton::SetExplicitButtonAction(
-    base::RepeatingClosure explicit_closure) {
-  // This logic is similar to the one in
-  // `AvatarToolbarButtonDelegate::ShowExplicitText()`.
-  // TODO(b/323516037): look into how to combine those into one struct for
-  // consistency.
-
-  // If an action was already set, enforce resetting it and invalidate the
-  // existing reset closure internally.
-  if (!explicit_button_pressed_action_.is_null()) {
-    // It is safe to run the scoped closure multiple times. It is a no-op after
-    // the first time.
-    reset_button_action_button_closure_ptr_->RunAndReset();
-  }
-
-  explicit_button_pressed_action_ = std::move(explicit_closure);
-
-  base::ScopedClosureRunner closure = base::ScopedClosureRunner(
-      base::BindRepeating(&AvatarToolbarButton::ResetButtonAction,
-                          weak_ptr_factory_.GetWeakPtr()));
-  // Keep a pointer to the current active closure in case the current action was
-  // reset from another call to `SetExplicitButtonAction()`.
-  reset_button_action_button_closure_ptr_ = &closure;
-  return closure;
+    std::optional<std::u16string> accessibility_label,
+    std::optional<base::RepeatingClosure> explicit_action) {
+  return delegate_->SetExplicitButtonState(text, std::move(accessibility_label),
+                                           std::move(explicit_action));
 }
 
 bool AvatarToolbarButton::HasExplicitButtonAction() const {
@@ -345,6 +317,7 @@ void AvatarToolbarButton::MaybeShowProfileSwitchIPH() {
   }
 }
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 void AvatarToolbarButton::MaybeShowSupervisedUserSignInIPH() {
   if (!base::FeatureList::IsEnabled(
           feature_engagement::kIPHSupervisedUserProfileSigninFeature)) {
@@ -387,20 +360,20 @@ void AvatarToolbarButton::MaybeShowSupervisedUserSignInIPH() {
   params.title_params = base::UTF8ToUTF16(account_info.given_name);
   browser_->window()->MaybeShowFeaturePromo(std::move(params));
 }
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 void AvatarToolbarButton::MaybeShowExplicitBrowserSigninPreferenceRememberedIPH(
     const AccountInfo& account_info) {
   user_education::FeaturePromoParams params(
       feature_engagement::kIPHExplicitBrowserSigninPreferenceRememberedFeature,
-      account_info.gaia);
+      account_info.gaia.ToString());
   params.title_params = base::UTF8ToUTF16(account_info.given_name);
   browser_->window()->MaybeShowFeaturePromo(std::move(params));
 }
 
-void AvatarToolbarButton::MaybeShowWebSignoutIPH(const std::string& gaia_id) {
-  CHECK(switches::IsExplicitBrowserSigninUIOnDesktopEnabled());
+void AvatarToolbarButton::MaybeShowWebSignoutIPH(const GaiaId& gaia_id) {
   browser_->window()->MaybeShowFeaturePromo(user_education::FeaturePromoParams(
-      feature_engagement::kIPHSignoutWebInterceptFeature, gaia_id));
+      feature_engagement::kIPHSignoutWebInterceptFeature, gaia_id.ToString()));
 }
 
 void AvatarToolbarButton::OnMouseExited(const ui::MouseEvent& event) {
@@ -436,6 +409,15 @@ void AvatarToolbarButton::ButtonPressed(bool is_source_accelerator) {
   if (button_action_disabled_) {
     return;
   }
+
+#if !BUILDFLAG(IS_CHROMEOS)
+  if (browser_->window()->IsFeaturePromoActive(
+          feature_engagement::kIPHPasswordsSavePrimingPromoFeature)) {
+    browser_->window()->NotifyFeaturePromoFeatureUsed(
+        feature_engagement::kIPHPasswordsSavePrimingPromoFeature,
+        FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+  }
+#endif
 
   if (!explicit_button_pressed_action_.is_null()) {
     explicit_button_pressed_action_.Run();
@@ -484,6 +466,15 @@ bool AvatarToolbarButton::IsLabelPresentAndVisible() const {
   return label()->GetVisible() && !label()->GetText().empty();
 }
 
+void AvatarToolbarButton::UpdateButtonAction() {
+  explicit_button_pressed_action_.Reset();
+  std::optional<base::RepeatingClosure> button_action =
+      delegate_->GetButtonAction();
+  if (button_action.has_value()) {
+    explicit_button_pressed_action_ = *std::move(button_action);
+  }
+}
+
 void AvatarToolbarButton::UpdateLayoutInsets() {
   SetLayoutInsets(::GetLayoutInsets(
       IsLabelPresentAndVisible() ? AVATAR_CHIP_PADDING : TOOLBAR_BUTTON));
@@ -501,30 +492,6 @@ void AvatarToolbarButton::AddObserver(Observer* observer) {
 
 void AvatarToolbarButton::RemoveObserver(Observer* observer) {
   observer_list_.RemoveObserver(observer);
-}
-
-void AvatarToolbarButton::PaintButtonContents(gfx::Canvas* canvas) {
-  int icon_size = GetIconSize();
-  // This ensures that the bounds get are mirror adapted, and will only return
-  // the mirror values if RTL or mirror is enabled.
-  gfx::Rect avatar_image_bounds = image_container_view()->GetMirroredBounds();
-
-  // Override image bounds width and height to match the icon size used.
-  avatar_image_bounds.set_width(icon_size);
-  avatar_image_bounds.set_height(icon_size);
-  // This is needed to adapt the changes done in `AvatarToolbarButton::Layout()`
-  // where the internal image is enlarged. When enlarging an image, the
-  // coordinates are not affected, but the image size is and therefore the
-  // container of the image as well.
-  // This is only needed for the mirrored version since in the regular version
-  // the icon is placed at the beginning which does not take into consideration
-  // the total width (the total width is considered when getting the mirrored
-  // value).
-  if (GetMirrored()) {
-    avatar_image_bounds.set_x(avatar_image_bounds.x() + kAvatarIconEnlargement);
-  }
-
-  delegate_->PaintIcon(canvas, avatar_image_bounds);
 }
 
 // static

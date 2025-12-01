@@ -48,6 +48,7 @@ import org.chromium.chrome.browser.tab.TabState;
 import org.chromium.chrome.browser.tab.TabStateAttributes;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore.TabModelSelectorMetadata;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore.TabRestoreDetails;
+import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.url.GURL;
@@ -76,8 +77,8 @@ public class TabPersistentStoreUnitTest {
 
     @Mock private TabPersistencePolicy mPersistencePolicy;
     @Mock private TabModelSelector mTabModelSelector;
-    @Mock private TabModel mNormalTabModel;
-    @Mock private TabModel mIncognitoTabModel;
+    @Mock private TabModelInternal mNormalTabModel;
+    @Mock private TabModelInternal mIncognitoTabModel;
     @Mock private TabGroupModelFilterProvider mTabGroupModelFilterProvider;
     @Mock private TabCreatorManager mTabCreatorManager;
     @Mock private TabCreator mNormalTabCreator;

@@ -11,7 +11,7 @@ import {getHtml} from './hover_button.html.js';
 
 export interface HoverButtonElement {
   $: {
-    hoverButton: HTMLDivElement,
+    hoverButton: HTMLElement,
   };
 }
 
@@ -36,9 +36,9 @@ export class HoverButtonElement extends CrLitElement {
     };
   }
 
-  ariaButtonLabel: string|null = null;
-  label: string = '';
-  labelDescription: string|null = null;
+  accessor ariaButtonLabel: string|null = null;
+  accessor label: string = '';
+  accessor labelDescription: string|null = null;
 
   constructor() {
     super();

@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.download;
 
 import static org.chromium.chrome.browser.download.DownloadBroadcastManagerImpl.getServiceDelegate;
-import static org.chromium.chrome.browser.download.DownloadSnackbarController.INVALID_NOTIFICATION_ID;
 
 import android.app.Notification;
 import android.content.Context;
@@ -26,6 +25,7 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.notifications.NotificationUmaTracker;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -34,6 +34,7 @@ import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.components.background_task_scheduler.BackgroundTask.TaskFinishedCallback;
 import org.chromium.components.browser_ui.notifications.BaseNotificationManagerProxy;
 import org.chromium.components.browser_ui.notifications.BaseNotificationManagerProxyFactory;
+import org.chromium.components.browser_ui.notifications.NotificationManagerProxyImpl;
 import org.chromium.components.browser_ui.notifications.NotificationMetadata;
 import org.chromium.components.browser_ui.notifications.NotificationWrapper;
 import org.chromium.components.offline_items_collection.ContentId;
@@ -98,11 +99,11 @@ public class DownloadNotificationService {
 
     private static DownloadNotificationService sInstanceForTesting;
 
-    private BaseNotificationManagerProxy mNotificationManager;
+    private final BaseNotificationManagerProxy mNotificationManager;
     private Bitmap mDownloadSuccessLargeIcon;
-    private DownloadSharedPreferenceHelper mDownloadSharedPreferenceHelper;
+    private final DownloadSharedPreferenceHelper mDownloadSharedPreferenceHelper;
     private DownloadForegroundServiceManager mDownloadForegroundServiceManager;
-    private DownloadUserInitiatedTaskManager mDownloadUserInitiatedTaskManager;
+    private final DownloadUserInitiatedTaskManager mDownloadUserInitiatedTaskManager;
 
     private static class LazyHolder {
         private static final DownloadNotificationService INSTANCE =
@@ -122,7 +123,9 @@ public class DownloadNotificationService {
     @VisibleForTesting
     DownloadNotificationService() {
         mNotificationManager =
-                BaseNotificationManagerProxyFactory.create(ContextUtils.getApplicationContext());
+                ChromeFeatureList.sAsyncNotificationManagerForDownload.isEnabled()
+                        ? BaseNotificationManagerProxyFactory.create()
+                        : NotificationManagerProxyImpl.getInstance();
         mDownloadSharedPreferenceHelper = DownloadSharedPreferenceHelper.getInstance();
         mDownloadForegroundServiceManager = new DownloadForegroundServiceManager();
         mDownloadUserInitiatedTaskManager = new DownloadUserInitiatedTaskManager();
@@ -609,7 +612,7 @@ public class DownloadNotificationService {
                         notification,
                         new NotificationMetadata(
                                 NotificationUmaTracker.SystemNotificationType.DOWNLOAD_FILES,
-                                /* tag= */ null,
+                                /* notificationTag= */ null,
                                 id)));
     }
 
@@ -639,14 +642,6 @@ public class DownloadNotificationService {
                                 ? NotificationUmaTracker.SystemNotificationType.DOWNLOAD_PAGES
                                 : NotificationUmaTracker.SystemNotificationType.DOWNLOAD_FILES,
                         notification);
-    }
-
-    private static boolean canResumeDownload(Context context, DownloadSharedPreferenceEntry entry) {
-        if (entry == null) return false;
-        if (!entry.isAutoResumable) return false;
-
-        boolean isNetworkMetered = DownloadManagerService.isActiveNetworkMetered(context);
-        return entry.canDownloadWhileMetered || !isNetworkMetered;
     }
 
     @VisibleForTesting
@@ -721,52 +716,6 @@ public class DownloadNotificationService {
 
     void onForegroundServiceDestroyed() {
         updateNotificationsForShutdown();
-    }
-
-    /**
-     * Given the id of the notification that was pinned to the service when it died, give the
-     * notification a new id in order to rebuild and relaunch the notification.
-     * @param pinnedNotificationId Id of the notification pinned to the service when it died.
-     */
-    private void relaunchPinnedNotification(int pinnedNotificationId) {
-        // If there was no notification pinned to the service, no correction is necessary.
-        if (pinnedNotificationId == INVALID_NOTIFICATION_ID) return;
-
-        List<DownloadSharedPreferenceEntry> entries = mDownloadSharedPreferenceHelper.getEntries();
-        List<DownloadSharedPreferenceEntry> copies =
-                new ArrayList<DownloadSharedPreferenceEntry>(entries);
-        for (DownloadSharedPreferenceEntry entry : copies) {
-            if (entry.notificationId == pinnedNotificationId) {
-                // Get new notification id that is not associated with the service.
-                DownloadSharedPreferenceEntry updatedEntry =
-                        new DownloadSharedPreferenceEntry(
-                                entry.id,
-                                getNextNotificationId(),
-                                entry.otrProfileId,
-                                entry.canDownloadWhileMetered,
-                                entry.fileName,
-                                entry.isAutoResumable,
-                                entry.isTransient);
-                mDownloadSharedPreferenceHelper.addOrReplaceSharedPreferenceEntry(updatedEntry);
-
-                // Right now this only happens in the paused case, so re-build and re-launch the
-                // paused notification, with the updated notification id..
-                notifyDownloadPaused(
-                        updatedEntry.id,
-                        updatedEntry.fileName,
-                        /* isResumable= */ true,
-                        updatedEntry.isAutoResumable,
-                        updatedEntry.otrProfileId,
-                        updatedEntry.isTransient,
-                        /* icon= */ null,
-                        /* originalUrl= */ null,
-                        /* shouldPromoteOrigin= */ false,
-                        /* hasUserGesture= */ true,
-                        /* forceRebuild= */ true,
-                        PendingState.NOT_PENDING);
-                return;
-            }
-        }
     }
 
     private void updateNotificationsForShutdown() {

@@ -17,6 +17,7 @@
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "base/strings/to_string.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -66,6 +67,7 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
+#include "services/network/public/cpp/features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
@@ -82,7 +84,7 @@
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/extension_browsertest.h"
-#include "chrome/browser/extensions/extension_service.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/test/test_extension_dir.h"
 #endif
 
@@ -91,13 +93,6 @@ namespace storage {
 namespace {
 
 using OperationResult = SharedStorageManager::OperationResult;
-
-const auto& SetOperation =
-    content::SharedStorageWriteOperationAndResult::SetOperation;
-const auto& AppendOperation =
-    content::SharedStorageWriteOperationAndResult::AppendOperation;
-const auto& ClearOperation =
-    content::SharedStorageWriteOperationAndResult::ClearOperation;
 
 constexpr char kMainHost[] = "a.test";
 constexpr char kSimplePagePath[] = "/simple.html";
@@ -180,12 +175,6 @@ enum class EnforcementAndEnrollmentStatus {
   kAttestationsEnforcedMainHostUnenrolled = 1,
   kAttestationsEnforcedMainHostEnrolled = 2,
 };
-
-#if BUILDFLAG(IS_ANDROID)
-base::FilePath GetChromeTestDataDir() {
-  return base::FilePath(FILE_PATH_LITERAL("chrome/test/data"));
-}
-#endif
 
 // With `WebContentsConsoleObserver`, we can only wait for the last message in a
 // group.
@@ -411,7 +400,7 @@ class SharedStorageChromeBrowserTestBase : public PlatformBrowserTest {
     base::test::TaskEnvironment task_environment;
 
     scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{blink::features::kSharedStorageAPI,
+        /*enabled_features=*/{network::features::kSharedStorageAPI,
                               features::kPrivacySandboxAdsAPIsOverride,
                               privacy_sandbox::
                                   kOverridePrivacySandboxSettingsLocalTesting},
@@ -538,7 +527,7 @@ class SharedStorageChromeBrowserTestBase : public PlatformBrowserTest {
     main_url_ = https_server()->GetURL(kMainHost, kSimplePagePath);
     SetThirdPartyCookieSetting(main_url_);
     MaybeEnrollMainHost(main_url_);
-    EXPECT_TRUE(NavigateToURL(GetActiveWebContents(), main_url_));
+    EXPECT_TRUE(content::NavigateToURL(GetActiveWebContents(), main_url_));
   }
 
   void
@@ -551,7 +540,7 @@ class SharedStorageChromeBrowserTestBase : public PlatformBrowserTest {
     }
     SetThirdPartyCookieSetting(main_url_);
     SetAttestationsMap(MakeSharedStoragePrivacySandboxAttestationsMap(urls));
-    EXPECT_TRUE(NavigateToURL(GetActiveWebContents(), main_url_));
+    EXPECT_TRUE(content::NavigateToURL(GetActiveWebContents(), main_url_));
   }
 
   void SetSiteException(const GURL& url, ContentSetting content_setting) {
@@ -796,10 +785,6 @@ class SharedStorageChromeBrowserTest
         privacy_sandbox::kEnforcePrivacySandboxAttestations,
         GetEnforcementAndEnrollmentStatus() !=
             EnforcementAndEnrollmentStatus::kAttestationsUnenforced);
-    shared_storage_cross_origin_script_feature_.InitAndEnableFeature(
-        blink::features::kSharedStorageCrossOriginScript);
-    shared_storage_context_origin_feature_.InitAndEnableFeature(
-        blink::features::kSharedStorageCreateWorkletUseContextOriginByDefault);
   }
   ~SharedStorageChromeBrowserTest() override = default;
 
@@ -815,8 +800,6 @@ class SharedStorageChromeBrowserTest
   base::test::ScopedFeatureList fenced_frame_api_change_feature_;
   base::test::ScopedFeatureList fenced_frame_feature_;
   base::test::ScopedFeatureList attestation_feature_;
-  base::test::ScopedFeatureList shared_storage_cross_origin_script_feature_;
-  base::test::ScopedFeatureList shared_storage_context_origin_feature_;
 };
 
 // We skip testing the `enable_debug_messages` parameter on Android due to
@@ -839,9 +822,9 @@ class SharedStoragePrefBrowserTest
   SharedStoragePrefBrowserTest() {
     base::FieldTrialParams params;
     params["ExposeDebugMessageForSettingsStatus"] =
-        EnableDebugMessages() ? "true" : "false";
+        base::ToString(EnableDebugMessages());
     shared_storage_feature_.InitAndEnableFeatureWithParameters(
-        blink::features::kSharedStorageAPI, params);
+        network::features::kSharedStorageAPI, params);
     fenced_frame_api_change_feature_.InitWithFeatureState(
         blink::features::kFencedFramesAPIChanges, ResolveSelectURLToConfig());
     fenced_frame_feature_.InitAndEnableFeature(blink::features::kFencedFrames);
@@ -4101,7 +4084,14 @@ IN_PROC_BROWSER_TEST_P(SharedStorageChromeBrowserTest, WorkletTiming) {
   histogram_tester_.ExpectUniqueSample(kWorkletNumPerPageHistogram, 1, 1);
 }
 
-IN_PROC_BROWSER_TEST_P(SharedStorageChromeBrowserTest, WorkletNumPerPage_Two) {
+// TODO(crbug.com/382530217): Test is flaky on Android.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_WorkletNumPerPage_Two DISABLED_WorkletNumPerPage_Two
+#else
+#define MAYBE_WorkletNumPerPage_Two WorkletNumPerPage_Two
+#endif
+IN_PROC_BROWSER_TEST_P(SharedStorageChromeBrowserTest,
+                       MAYBE_WorkletNumPerPage_Two) {
   base::test::ScopedRunLoopTimeout timeout(FROM_HERE, base::Seconds(60));
 
   // The test assumes pages get deleted after navigation. To ensure this,
@@ -4226,7 +4216,7 @@ class SharedStorageFencedFrameChromeBrowserTest
 
     shared_storage_feature_.InitWithFeaturesAndParameters(
         /*enabled_features=*/
-        {{blink::features::kSharedStorageAPI,
+        {{network::features::kSharedStorageAPI,
           {{"SharedStorageBitBudget", base::NumberToString(kBudgetAllowed)}}}},
         /*disabled_features=*/{});
 
@@ -4261,7 +4251,7 @@ class SharedStorageFencedFrameChromeBrowserTest
     SetAttestationsMap(
         MakeSharedStoragePrivacySandboxAttestationsMap(std::vector<GURL>(
             {main_url_, iframe_url_, new_page_url1_, new_page_url2_})));
-    EXPECT_TRUE(NavigateToURL(GetActiveWebContents(), main_url_));
+    EXPECT_TRUE(content::NavigateToURL(GetActiveWebContents(), main_url_));
   }
 
   content::RenderFrameHost* SelectURLAndCreateFencedFrame(
@@ -4357,9 +4347,14 @@ class SharedStorageFencedFrameChromeBrowserTest
   base::test::ScopedFeatureList fenced_frame_feature_;
   base::test::ScopedFeatureList attestation_feature_;
 };
-
+// TODO(https://crbug.com/396718068): Test is flaky on Android.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_FencedFrameNavigateTop_BudgetWithdrawal DISABLED_FencedFrameNavigateTop_BudgetWithdrawal
+#else
+#define MAYBE_FencedFrameNavigateTop_BudgetWithdrawal FencedFrameNavigateTop_BudgetWithdrawal
+#endif
 IN_PROC_BROWSER_TEST_F(SharedStorageFencedFrameChromeBrowserTest,
-                       FencedFrameNavigateTop_BudgetWithdrawal) {
+                       MAYBE_FencedFrameNavigateTop_BudgetWithdrawal) {
   // The test assumes pages get deleted after navigation. To ensure this,
   // disable back/forward cache.
   content::DisableBackForwardCacheForTesting(
@@ -4411,9 +4406,10 @@ IN_PROC_BROWSER_TEST_F(SharedStorageFencedFrameChromeBrowserTest,
   EXPECT_EQ(2, histogram_tester_.GetTotalSum(kWorkletNumPerPageHistogram));
 }
 
+// See crbug.com/377398196. The test is flaky on multiple builders.
 IN_PROC_BROWSER_TEST_F(
     SharedStorageFencedFrameChromeBrowserTest,
-    TwoFencedFrames_DifferentURNs_EachNavigateOnce_BudgetWithdrawalTwice) {
+    DISABLED_TwoFencedFrames_DifferentURNs_EachNavigateOnce_BudgetWithdrawalTwice) {
   // The test assumes pages get deleted after navigation. To ensure this,
   // disable back/forward cache.
   content::DisableBackForwardCacheForTesting(
@@ -4952,11 +4948,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 class SharedStorageHeaderPrefBrowserTest : public SharedStoragePrefBrowserTest {
  public:
-  SharedStorageHeaderPrefBrowserTest() {
-    shared_storage_m118_feature_.InitAndEnableFeature(
-        blink::features::kSharedStorageAPIM118);
-  }
-
   void FinishSetUp() override {
     observer_ = content::CreateAndOverrideSharedStorageHeaderObserver(
         GetStoragePartition());
@@ -4964,9 +4955,6 @@ class SharedStorageHeaderPrefBrowserTest : public SharedStoragePrefBrowserTest {
 
  protected:
   base::WeakPtr<content::TestSharedStorageHeaderObserver> observer_;
-
- private:
-  base::test::ScopedFeatureList shared_storage_m118_feature_;
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -5028,20 +5016,23 @@ IN_PROC_BROWSER_TEST_P(SharedStorageHeaderPrefBrowserTest, Basic) {
 
   // Shared Storage is enabled.
 
-  observer_->WaitForOperations(3);
+  observer_->WaitForOperations(1);
 
   url::Origin fetch_origin = url::Origin::Create(fetch_url);
   EXPECT_EQ(observer_->header_results().size(), 1u);
-  EXPECT_EQ(observer_->header_results().front().first, fetch_origin);
-  EXPECT_THAT(observer_->header_results().front().second,
-              testing::ElementsAre(true, true, true));
-  EXPECT_THAT(observer_->operations(),
-              testing::ElementsAre(
-                  ClearOperation(fetch_origin, OperationResult::kSuccess),
-                  SetOperation(fetch_origin, "hello", "world", true,
-                               OperationResult::kSet),
-                  AppendOperation(fetch_origin, "hello", "there",
-                                  OperationResult::kSet)));
+  EXPECT_EQ(observer_->header_results().front(), fetch_origin);
+  EXPECT_EQ(observer_->operations().size(), 1u);
+
+  std::vector<content::MethodWithOptionsPtr> methods_with_options;
+  methods_with_options.push_back(content::MojomClearMethod());
+  methods_with_options.push_back(
+      content::MojomSetMethod(/*key=*/u"hello", /*value=*/u"world",
+                              /*ignore_if_present=*/true));
+  methods_with_options.push_back(
+      content::MojomAppendMethod(/*key=*/u"hello", /*value=*/u"there"));
+  EXPECT_EQ(observer_->operations()[0],
+            content::HeaderOperationSuccess(fetch_origin,
+                                            std::move(methods_with_options)));
 
   response.Done();
 
@@ -5077,8 +5068,6 @@ class SharedStorageChromeNoParamsBrowserTest
         privacy_sandbox::kEnforcePrivacySandboxAttestations,
         GetEnforcementAndEnrollmentStatus() !=
             EnforcementAndEnrollmentStatus::kAttestationsUnenforced);
-    m118_feature_.InitAndEnableFeature(blink::features::kSharedStorageAPIM118);
-    m125_feature_.InitAndEnableFeature(blink::features::kSharedStorageAPIM125);
   }
   ~SharedStorageChromeNoParamsBrowserTest() override = default;
 
@@ -5094,311 +5083,7 @@ class SharedStorageChromeNoParamsBrowserTest
   base::test::ScopedFeatureList fenced_frame_api_change_feature_;
   base::test::ScopedFeatureList fenced_frame_feature_;
   base::test::ScopedFeatureList attestation_feature_;
-  base::test::ScopedFeatureList m118_feature_;
-  base::test::ScopedFeatureList m125_feature_;
 };
-
-class SharedStorageChromeCrossOriginScriptDisabledBrowserTest
-    : public SharedStorageChromeNoParamsBrowserTest {
- public:
-  SharedStorageChromeCrossOriginScriptDisabledBrowserTest() {
-    shared_storage_cross_origin_script_feature_.InitAndDisableFeature(
-        blink::features::kSharedStorageCrossOriginScript);
-  }
-  ~SharedStorageChromeCrossOriginScriptDisabledBrowserTest() override = default;
-
- private:
-  base::test::ScopedFeatureList shared_storage_cross_origin_script_feature_;
-};
-
-IN_PROC_BROWSER_TEST_F(SharedStorageChromeCrossOriginScriptDisabledBrowserTest,
-                       AddModule_CrossOriginScriptError) {
-  Set3PCSettingAndAttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage(
-      {kCrossOriginHost});
-
-  GURL script_url = https_server()->GetURL(
-      kCrossOriginHost,
-      net::test_server::GetFilePathWithReplacements(
-          "/shared_storage/module_with_custom_header.js",
-          content::SharedStorageCrossOriginWorkletResponseHeaderReplacement(
-              "Access-Control-Allow-Origin: *", "")));
-
-  content::EvalJsResult result = content::EvalJs(
-      GetActiveWebContents(),
-      content::JsReplace("sharedStorage.worklet.addModule($1)", script_url));
-
-  EXPECT_EQ(
-      base::StrCat({"a JavaScript error: \"DataError: Only same origin module ",
-                    "script is allowed.",
-                    "\n    at __const_std::string&_script__:1:24):\n        ",
-                    "{sharedStorage.worklet.addModule(\"",
-                    script_url.spec().substr(0, 38),
-                    "\n                               ^^^^^\n"}),
-      result.error);
-
-  WaitForHistograms({kErrorTypeHistogram});
-  histogram_tester_.ExpectUniqueSample(
-      kErrorTypeHistogram,
-      blink::SharedStorageWorkletErrorType::kAddModuleWebVisible, 1);
-}
-
-class SharedStorageChromeContextOriginByDefaultDisabledBrowserTest
-    : public SharedStorageChromeNoParamsBrowserTest {
- public:
-  SharedStorageChromeContextOriginByDefaultDisabledBrowserTest() {
-    shared_storage_context_origin_feature_.InitAndDisableFeature(
-        blink::features::kSharedStorageCreateWorkletUseContextOriginByDefault);
-  }
-  ~SharedStorageChromeContextOriginByDefaultDisabledBrowserTest() override =
-      default;
-
- private:
-  base::test::ScopedFeatureList shared_storage_context_origin_feature_;
-};
-
-IN_PROC_BROWSER_TEST_F(
-    SharedStorageChromeContextOriginByDefaultDisabledBrowserTest,
-    CrossOriginWorkletScript_CreateWorklet_PrefsError_PrivacySandbox) {
-  Set3PCSettingAndAttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage(
-      {kCrossOriginHost});
-
-  // Disable Privacy Sandbox.
-  SetPrefs(/*enable_privacy_sandbox=*/false,
-           /*allow_third_party_cookies=*/true);
-
-  GURL script_url = https_server()->GetURL(
-      kCrossOriginHost,
-      net::test_server::GetFilePathWithReplacements(
-          "/shared_storage/module_with_custom_header.js",
-          content::SharedStorageCrossOriginWorkletResponseHeaderReplacement(
-              "Access-Control-Allow-Origin: *",
-              "Shared-Storage-Cross-Origin-Worklet-Allowed: ?1")));
-
-  content::EvalJsResult result = content::EvalJs(
-      GetActiveWebContents(),
-      content::JsReplace("sharedStorage.createWorklet($1)", script_url));
-
-  EXPECT_TRUE(base::StartsWith(
-      result.error, GetSharedStorageAddModuleDisabledErrorMessage()));
-
-  EXPECT_EQ(0u, content::GetAttachedSharedStorageWorkletHostsCount(
-                    GetActiveWebContents()
-                        ->GetPrimaryMainFrame()
-                        ->GetStoragePartition()));
-
-  WaitForHistograms({kErrorTypeHistogram});
-  histogram_tester_.ExpectUniqueSample(
-      kErrorTypeHistogram,
-      blink::SharedStorageWorkletErrorType::kAddModuleWebVisible, 1);
-}
-
-// This test shows that the correct origin is used for the
-// preferences/attestation check for cross-origin worklets.
-IN_PROC_BROWSER_TEST_F(
-    SharedStorageChromeContextOriginByDefaultDisabledBrowserTest,
-    CrossOriginWorkletScript_CreateWorkletDefaultDataOrigin_PrefsError_SiteSettings) {
-  Set3PCSettingAndAttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage(
-      {kCrossOriginHost});
-
-  GURL script_url = https_server()->GetURL(
-      kCrossOriginHost,
-      net::test_server::GetFilePathWithReplacements(
-          "/shared_storage/module_with_custom_header.js",
-          content::SharedStorageCrossOriginWorkletResponseHeaderReplacement(
-              "Access-Control-Allow-Origin: *",
-              "Shared-Storage-Cross-Origin-Worklet-Allowed: ?1")));
-
-  // Set a site exception blocking `script_url`.
-  SetSiteException(script_url, ContentSetting::CONTENT_SETTING_BLOCK);
-
-  // The prefs error for `createWorklet()` won't be revealed to the cross-origin
-  // caller. We verify the error indirectly using the histogram.
-  EXPECT_TRUE(
-      content::ExecJs(GetActiveWebContents(), content::JsReplace(R"(
-        (async function() {
-          await sharedStorage.createWorklet($1);
-        })()
-      )",
-                                                                 script_url)));
-
-  EXPECT_EQ(1u, content::GetAttachedSharedStorageWorkletHostsCount(
-                    GetActiveWebContents()
-                        ->GetPrimaryMainFrame()
-                        ->GetStoragePartition()));
-
-  WaitForHistograms({kErrorTypeHistogram});
-  histogram_tester_.ExpectUniqueSample(
-      kErrorTypeHistogram,
-      blink::SharedStorageWorkletErrorType::
-          kAddModuleNonWebVisibleCrossOriginSharedStorageDisabled,
-      1);
-}
-
-// This test also shows that the correct origin is used for the
-// preferences/attestation check for cross-origin worklets.
-IN_PROC_BROWSER_TEST_F(
-    SharedStorageChromeContextOriginByDefaultDisabledBrowserTest,
-    CrossOriginWorkletScript_CreateWorkletDefaultDataOrigin_AttestationError) {
-  // Only the main frame site will be attested.
-  Set3rdPartyCookieAndMainHostAttestationSettingsThenNavigateToMainHostPage();
-
-  GURL script_url = https_server()->GetURL(
-      kCrossOriginHost,
-      net::test_server::GetFilePathWithReplacements(
-          "/shared_storage/module_with_custom_header.js",
-          content::SharedStorageCrossOriginWorkletResponseHeaderReplacement(
-              "Access-Control-Allow-Origin: *",
-              "Shared-Storage-Cross-Origin-Worklet-Allowed: ?1")));
-
-  content::EvalJsResult result = content::EvalJs(
-      GetActiveWebContents(),
-      content::JsReplace("sharedStorage.createWorklet($1)", script_url));
-
-  EXPECT_TRUE(base::StartsWith(
-      result.error, GetSharedStorageAddModuleDisabledErrorMessage()));
-
-  EXPECT_EQ(0u, content::GetAttachedSharedStorageWorkletHostsCount(
-                    GetActiveWebContents()
-                        ->GetPrimaryMainFrame()
-                        ->GetStoragePartition()));
-
-  WaitForHistograms({kErrorTypeHistogram});
-  histogram_tester_.ExpectUniqueSample(
-      kErrorTypeHistogram,
-      blink::SharedStorageWorkletErrorType::kAddModuleWebVisible, 1);
-}
-
-IN_PROC_BROWSER_TEST_F(
-    SharedStorageChromeContextOriginByDefaultDisabledBrowserTest,
-    CrossOriginWorkletScript_CreateWorkletDefaultDataOrigin_NetworkError__NoAllowOriginResponseHeader) {
-  Set3PCSettingAndAttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage(
-      {kCrossOriginHost});
-
-  // The module does not have the "Access-Control-Allow-Origin" response header.
-  GURL script_url = https_server()->GetURL(
-      kCrossOriginHost,
-      net::test_server::GetFilePathWithReplacements(
-          "/shared_storage/module_with_custom_header.js",
-          content::SharedStorageCrossOriginWorkletResponseHeaderReplacement(
-              "", "Shared-Storage-Cross-Origin-Worklet-Allowed: ?1")));
-
-  content::EvalJsResult result =
-      content::EvalJs(GetActiveWebContents(), content::JsReplace(R"(
-        (async function() {
-          window.testWorklet = await sharedStorage.createWorklet($1);
-        })()
-      )",
-                                                                 script_url));
-
-  EXPECT_THAT(result.error, testing::HasSubstr("Error: Failed to load"));
-
-  WaitForHistograms({kErrorTypeHistogram});
-  histogram_tester_.ExpectUniqueSample(
-      kErrorTypeHistogram,
-      blink::SharedStorageWorkletErrorType::kAddModuleWebVisible, 1);
-}
-
-IN_PROC_BROWSER_TEST_F(
-    SharedStorageChromeContextOriginByDefaultDisabledBrowserTest,
-    CrossOriginWorkletScript_CreateWorkletDefaultDataOrigin_NetworkError__NoCrossOriginWorkletResponseHeader) {
-  Set3PCSettingAndAttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage(
-      {kCrossOriginHost});
-
-  // The module does not have the "Shared-Storage-Cross-Origin-Worklet-Allowed"
-  // response header.
-  GURL script_url = https_server()->GetURL(
-      kCrossOriginHost,
-      net::test_server::GetFilePathWithReplacements(
-          "/shared_storage/module_with_custom_header.js",
-          content::SharedStorageCrossOriginWorkletResponseHeaderReplacement(
-              "Access-Control-Allow-Origin: *", "")));
-
-  content::EvalJsResult result =
-      content::EvalJs(GetActiveWebContents(), content::JsReplace(R"(
-        (async function() {
-          window.testWorklet = await sharedStorage.createWorklet($1);
-        })()
-      )",
-                                                                 script_url));
-
-  EXPECT_THAT(result.error, testing::HasSubstr("Error: Failed to load"));
-
-  WaitForHistograms({kErrorTypeHistogram});
-  histogram_tester_.ExpectUniqueSample(
-      kErrorTypeHistogram,
-      blink::SharedStorageWorkletErrorType::kAddModuleWebVisible, 1);
-}
-
-IN_PROC_BROWSER_TEST_F(
-    SharedStorageChromeContextOriginByDefaultDisabledBrowserTest,
-    CrossOriginWorkletScript_CreateWorkletDefaultDataOrigin_NetworkError_404) {
-  Set3PCSettingAndAttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage(
-      {kCrossOriginHost});
-
-  // nonexistent_module.js does not exist and should produce a 404 network
-  // error.
-  GURL script_url = https_server()->GetURL(
-      kCrossOriginHost, "/shared_storage/nonexistent_module.js");
-
-  content::EvalJsResult result =
-      content::EvalJs(GetActiveWebContents(), content::JsReplace(R"(
-        (async function() {
-          window.testWorklet = await sharedStorage.createWorklet($1);
-        })()
-      )",
-                                                                 script_url));
-
-  EXPECT_THAT(result.error, testing::HasSubstr("Error: Failed to load"));
-
-  WaitForHistograms({kErrorTypeHistogram});
-  histogram_tester_.ExpectUniqueSample(
-      kErrorTypeHistogram,
-      blink::SharedStorageWorkletErrorType::kAddModuleWebVisible, 1);
-}
-
-IN_PROC_BROWSER_TEST_F(
-    SharedStorageChromeContextOriginByDefaultDisabledBrowserTest,
-    CrossOriginWorkletScript_CreateWorkletDefaultDataOrigin_Success) {
-  Set3PCSettingAndAttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage(
-      {kCrossOriginHost});
-
-  GURL script_url = https_server()->GetURL(
-      kCrossOriginHost,
-      net::test_server::GetFilePathWithReplacements(
-          "/shared_storage/module_with_custom_header.js",
-          content::SharedStorageCrossOriginWorkletResponseHeaderReplacement(
-              "Access-Control-Allow-Origin: *",
-              "Shared-Storage-Cross-Origin-Worklet-Allowed: ?1")));
-
-  content::WebContentsConsoleObserver console_observer(GetActiveWebContents());
-  console_observer.SetFilter(
-      MakeFilter({"Finish executing module_with_custom_header.js"}));
-
-  // The success for `createWorklet()` won't be revealed to the cross-origin
-  // caller definitively. But we can verify the success indirectly, by checking
-  // the console.
-  EXPECT_TRUE(
-      content::ExecJs(GetActiveWebContents(), content::JsReplace(R"(
-        (async function() {
-          window.testWorklet = await sharedStorage.createWorklet($1);
-        })()
-      )",
-                                                                 script_url)));
-
-  ASSERT_TRUE(console_observer.Wait());
-  EXPECT_EQ(1u, console_observer.messages().size());
-  EXPECT_EQ("Finish executing module_with_custom_header.js",
-            base::UTF16ToUTF8(console_observer.messages()[0].message));
-
-  EXPECT_EQ(1u, content::GetAttachedSharedStorageWorkletHostsCount(
-                    GetActiveWebContents()
-                        ->GetPrimaryMainFrame()
-                        ->GetStoragePartition()));
-
-  WaitForHistograms({kErrorTypeHistogram});
-  histogram_tester_.ExpectUniqueSample(
-      kErrorTypeHistogram, blink::SharedStorageWorkletErrorType::kSuccess, 1);
-}
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 namespace {
@@ -5439,15 +5124,12 @@ class SharedStorageExtensionBrowserTest
 
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/
-        {blink::features::kSharedStorageAPI,
+        {network::features::kSharedStorageAPI,
          features::kPrivacySandboxAdsAPIsOverride,
          privacy_sandbox::kOverridePrivacySandboxSettingsLocalTesting,
          blink::features::kFencedFrames,
          blink::features::kFencedFramesAPIChanges,
-         privacy_sandbox::kEnforcePrivacySandboxAttestations,
-         blink::features::kSharedStorageAPIM118,
-         blink::features::kSharedStorageAPIM125,
-         blink::features::kSharedStorageCrossOriginScript},
+         privacy_sandbox::kEnforcePrivacySandboxAttestations},
         /*disabled_features=*/{});
   }
 
@@ -5572,7 +5254,7 @@ class SharedStorageExtensionBrowserTest
     privacy_sandbox::PrivacySandboxAttestations::GetInstance()
         ->SetAttestationsForTesting(
             MakeSharedStoragePrivacySandboxAttestationsMap(urls));
-    EXPECT_TRUE(NavigateToURL(GetActiveWebContents(), main_url_));
+    EXPECT_TRUE(content::NavigateToURL(GetActiveWebContents(), main_url_));
   }
 
  protected:
@@ -5596,7 +5278,7 @@ IN_PROC_BROWSER_TEST_F(
   // Install extension that will remove the "Sec-Shared-Storage-Data-Origin"
   // request header.
   ASSERT_TRUE(InstallExtension(/*value_to_set=*/std::nullopt));
-  ASSERT_TRUE(extension_service()->IsExtensionEnabled(extension_->id()));
+  ASSERT_TRUE(extension_registrar()->IsExtensionEnabled(extension_->id()));
 
   AttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage(
       {kCrossOriginHost});
@@ -5661,7 +5343,7 @@ IN_PROC_BROWSER_TEST_F(
   // Install extension that will remove the "Sec-Shared-Storage-Data-Origin"
   // request header.
   ASSERT_TRUE(InstallExtension(/*value_to_set=*/std::nullopt));
-  ASSERT_TRUE(extension_service()->IsExtensionEnabled(extension_->id()));
+  ASSERT_TRUE(extension_registrar()->IsExtensionEnabled(extension_->id()));
 
   AttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage(
       {kCrossOriginHost});
@@ -5729,7 +5411,7 @@ IN_PROC_BROWSER_TEST_F(
   // Install extension that will modify the "Sec-Shared-Storage-Data-Origin"
   // request header value to "https://google.com".
   ASSERT_TRUE(InstallExtension(/*value_to_set=*/"https://google.com"));
-  ASSERT_TRUE(extension_service()->IsExtensionEnabled(extension_->id()));
+  ASSERT_TRUE(extension_registrar()->IsExtensionEnabled(extension_->id()));
 
   AttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage(
       {kCrossOriginHost});
@@ -5801,7 +5483,7 @@ IN_PROC_BROWSER_TEST_F(
   // Install extension that will modify the "Sec-Shared-Storage-Data-Origin"
   // request header value to "https://google.com".
   ASSERT_TRUE(InstallExtension(/*value_to_set=*/"https://google.com"));
-  ASSERT_TRUE(extension_service()->IsExtensionEnabled(extension_->id()));
+  ASSERT_TRUE(extension_registrar()->IsExtensionEnabled(extension_->id()));
 
   AttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage(
       {kCrossOriginHost});
@@ -5877,7 +5559,7 @@ IN_PROC_BROWSER_TEST_F(
   // Install extension that will add the "Sec-Shared-Storage-Data-Origin"
   // request header.
   ASSERT_TRUE(InstallExtension(/*value_to_set=*/origin_str));
-  ASSERT_TRUE(extension_service()->IsExtensionEnabled(extension_->id()));
+  ASSERT_TRUE(extension_registrar()->IsExtensionEnabled(extension_->id()));
 
   AttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage({});
 
@@ -5955,7 +5637,7 @@ IN_PROC_BROWSER_TEST_F(
   // Install extension that will add the "Sec-Shared-Storage-Data-Origin"
   // request header.
   ASSERT_TRUE(InstallExtension(/*value_to_set=*/origin_str));
-  ASSERT_TRUE(extension_service()->IsExtensionEnabled(extension_->id()));
+  ASSERT_TRUE(extension_registrar()->IsExtensionEnabled(extension_->id()));
 
   AttestMainHostPlusAdditionalSitesThenNavigateToMainHostPage({});
 

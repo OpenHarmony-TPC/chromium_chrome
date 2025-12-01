@@ -168,23 +168,34 @@ void ThirdPartyCookieDeprecationMetricsObserver::RecordCookieUseCounters(
         allow_mechanism);
   }
 
-  if (CookieSettingsBase::Is1PDtRelatedAllowMechanism(allow_mechanism)) {
+  if (const CookieSettingsBase::MetadataSourceType metadata_source_type =
+          CookieSettingsBase::AllowMechanismToMetadataSourceType(
+              allow_mechanism);
+      metadata_source_type != CookieSettingsBase::MetadataSourceType::None) {
+    bool is_dt_deployed =
+        allow_mechanism ==
+            ThirdPartyCookieAllowMechanism::kAllowByTopLevel3PCD ||
+        allow_mechanism == ThirdPartyCookieAllowMechanism::kAllowBy3PCD;
     ukm::builders::Tpcd_Mitigations_Dt_FirstParty_Deployment2(
         GetDelegate()
             .GetWebContents()
             ->GetPrimaryMainFrame()
             ->GetPageUkmSourceId())
-        .SetDeployed(allow_mechanism ==
-                     ThirdPartyCookieAllowMechanism::kAllowByTopLevel3PCD)
+        .SetDeployed(is_dt_deployed)
+        .SetSource(static_cast<int32_t>(metadata_source_type))
         .Record(ukm::UkmRecorder::Get());
   }
 
-  // Record the following blink feature usage cookie metrics.
-  std::vector<blink::mojom::WebFeature> third_party_cookie_features;
-  if (is_blocked_by_experiment) {
-    third_party_cookie_features.push_back(
-        blink::mojom::WebFeature::kThirdPartyCookieAccessBlockByExperiment);
+  if (!is_blocked_by_experiment) {
+    return;
   }
+
+  // Record the following blink feature usage cookie metrics when the 3PCD
+  // experiment is actual block third party cookies, which means tracking
+  // protection is onboard.
+  std::vector<blink::mojom::WebFeature> third_party_cookie_features;
+  third_party_cookie_features.push_back(
+      blink::mojom::WebFeature::kThirdPartyCookieAccessBlockByExperiment);
 
   switch (allow_mechanism) {
     case ThirdPartyCookieAllowMechanism::kAllowByExplicitSetting:
@@ -240,6 +251,7 @@ void ThirdPartyCookieDeprecationMetricsObserver::RecordCookieUseCounters(
     case ThirdPartyCookieAllowMechanism::kNone:
     case ThirdPartyCookieAllowMechanism::kAllowByTopLevel3PCD:
     case ThirdPartyCookieAllowMechanism::kAllowByScheme:
+    case ThirdPartyCookieAllowMechanism::kAllowBySandboxValue:
       break;
   }
 

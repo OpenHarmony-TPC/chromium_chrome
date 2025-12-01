@@ -22,8 +22,8 @@
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/fake_autocomplete_provider_client.h"
-#include "components/omnibox/browser/omnibox_feature_configs.h"
 #include "components/omnibox/browser/suggestion_answer.h"
+#include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/variations/scoped_variations_ids_provider.h"
 #include "components/variations/variations_ids_provider.h"
@@ -33,8 +33,6 @@
 
 namespace app_list::test {
 
-// Note that there is necessarily a lot of overlap with unittest in the lacros
-// omnibox provider unittest, since this is testing the same behavior.
 namespace {
 
 // Helper functions to populate search results.

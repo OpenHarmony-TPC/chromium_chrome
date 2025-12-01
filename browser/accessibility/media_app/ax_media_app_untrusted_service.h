@@ -18,10 +18,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
-#include "base/scoped_observation.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/accessibility/media_app/ax_media_app.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
 #include "content/public/browser/browser_accessibility_state.h"
@@ -33,8 +32,8 @@
 #include "ui/accessibility/ax_action_handler_base.h"
 #include "ui/accessibility/ax_action_handler_registry.h"
 #include "ui/accessibility/ax_enums.mojom.h"
+#include "ui/accessibility/ax_event.h"
 #include "ui/accessibility/ax_mode.h"
-#include "ui/accessibility/ax_mode_observer.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/accessibility/ax_node_id_forward.h"
 #include "ui/accessibility/ax_serializable_tree.h"
@@ -44,7 +43,6 @@
 #include "ui/accessibility/ax_tree_serializer.h"
 #include "ui/accessibility/ax_tree_source.h"
 #include "ui/accessibility/ax_tree_update.h"
-#include "ui/accessibility/platform/ax_platform.h"
 #include "ui/gfx/native_widget_types.h"
 
 class SkBitmap;
@@ -81,9 +79,6 @@ struct AXMediaAppPageMetadata : ash::media_app_ui::mojom::PageMetadata {
 
 class AXMediaAppUntrustedService
     : public media_app_ui::mojom::OcrUntrustedService,
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-      public ui::AXModeObserver,
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
       public ui::AXActionHandlerBase,
       public content::WebContentsObserver {
  public:
@@ -117,13 +112,8 @@ class AXMediaAppUntrustedService
 
   void OnOCRServiceInitialized(bool is_successful);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   void OnAshAccessibilityModeChanged(
       const ash::AccessibilityStatusEventDetails& details);
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  //  ui::AXModeObserver:
-  void OnAXModeAdded(ui::AXMode mode) override;
-#endif
 
   // ui::AXActionHandlerBase:
   void PerformAction(const ui::AXActionData& action_data) override;
@@ -162,6 +152,8 @@ class AXMediaAppUntrustedService
       page_serializers_;
   std::unique_ptr<std::vector<ui::AXTreeUpdate>>
       pending_serialized_updates_for_testing_;
+  raw_ptr<ui::AXNode> last_hit_test_node_for_testing_;
+  ui::AXEvent last_hit_test_event_for_testing_;
   scoped_refptr<screen_ai::OpticalCharacterRecognizer> ocr_;
 
  private:
@@ -194,16 +186,12 @@ class AXMediaAppUntrustedService
   void StitchDocumentTree();
   bool HasRendererTerminatedDueToBadPageId(const std::string& method_name,
                                            const std::string& page_id);
+  ui::AXNode* HitTest(const gfx::Point& document_point,
+                      ui::AXNode& starting_node) const;
   std::unique_ptr<gfx::Transform> MakeTransformFromOffsetAndScale() const;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   // Observes whether spoken feedback is enabled in Ash.
   base::CallbackListSubscription accessibility_status_subscription_;
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Observes the presence of any accessibility service in LaCrOS.
-  base::ScopedObservation<ui::AXPlatform, ui::AXModeObserver>
-      ax_mode_observation_{this};
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   // This `BrowserContext` will always outlive the WebUI, so this is safe.
   raw_ref<content::BrowserContext> browser_context_;
   gfx::NativeWindow native_window_;

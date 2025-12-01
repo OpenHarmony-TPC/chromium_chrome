@@ -44,7 +44,7 @@ public class RestoreTabsPromoSheetContentUnitTest {
     @Mock private ScrollView mScrollView;
 
     private RestoreTabsPromoSheetContent mSheetContent;
-    private PropertyModel mModel = RestoreTabsProperties.createDefaultModel();
+    private final PropertyModel mModel = RestoreTabsProperties.createDefaultModel();
 
     @Before
     public void setUp() {
@@ -115,14 +115,14 @@ public class RestoreTabsPromoSheetContentUnitTest {
     public void testSheetContent_handleBackPressDeviceScreen() {
         mModel.set(CURRENT_SCREEN, DEVICE_SCREEN);
         Assert.assertTrue(mSheetContent.handleBackPress());
-        Assert.assertEquals(mModel.get(CURRENT_SCREEN), HOME_SCREEN);
+        Assert.assertEquals(HOME_SCREEN, mModel.get(CURRENT_SCREEN));
     }
 
     @Test
     public void testSheetContent_handleBackPressReviewTabsScreen() {
         mModel.set(CURRENT_SCREEN, REVIEW_TABS_SCREEN);
         Assert.assertTrue(mSheetContent.handleBackPress());
-        Assert.assertEquals(mModel.get(CURRENT_SCREEN), HOME_SCREEN);
+        Assert.assertEquals(HOME_SCREEN, mModel.get(CURRENT_SCREEN));
     }
 
     @Test
@@ -143,14 +143,14 @@ public class RestoreTabsPromoSheetContentUnitTest {
     public void testSheetContent_onBackPressedDeviceScreen() {
         mModel.set(CURRENT_SCREEN, DEVICE_SCREEN);
         mSheetContent.onBackPressed();
-        Assert.assertEquals(mModel.get(CURRENT_SCREEN), HOME_SCREEN);
+        Assert.assertEquals(HOME_SCREEN, mModel.get(CURRENT_SCREEN));
     }
 
     @Test
     public void testSheetContent_onBackPressedReviewTabsScreen() {
         mModel.set(CURRENT_SCREEN, REVIEW_TABS_SCREEN);
         mSheetContent.onBackPressed();
-        Assert.assertEquals(mModel.get(CURRENT_SCREEN), HOME_SCREEN);
+        Assert.assertEquals(HOME_SCREEN, mModel.get(CURRENT_SCREEN));
     }
 
     @Test

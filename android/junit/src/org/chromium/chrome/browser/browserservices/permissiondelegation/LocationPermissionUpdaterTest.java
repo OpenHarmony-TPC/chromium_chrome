@@ -25,7 +25,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.LooperMode;
@@ -33,7 +34,6 @@ import org.robolectric.shadows.ShadowPackageManager;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.browserservices.TrustedWebActivityClient;
 import org.chromium.chrome.browser.webapps.WebappRegistry;
 import org.chromium.components.content_settings.ContentSettingValues;
@@ -52,8 +52,7 @@ public class LocationPermissionUpdaterTest {
     private static final String OTHER_PACKAGE_NAME = "com.other.package.name";
     private static final long CALLBACK = 12;
 
-    @Rule public JniMocker mocker = new JniMocker();
-
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Mock public InstalledWebappPermissionStore mStore;
     @Mock public TrustedWebActivityClient mTrustedWebActivityClient;
 
@@ -65,9 +64,8 @@ public class LocationPermissionUpdaterTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
 
-        mocker.mock(InstalledWebappBridgeJni.TEST_HOOKS, mNativeMock);
+        InstalledWebappBridgeJni.setInstanceForTesting(mNativeMock);
 
         PackageManager pm = RuntimeEnvironment.application.getPackageManager();
         mShadowPackageManager = shadowOf(pm);
@@ -226,10 +224,6 @@ public class LocationPermissionUpdaterTest {
 
     private void verifyPermissionReset() {
         verify(mStore).resetPermission(eq(ORIGIN), eq(ContentSettingsType.GEOLOCATION));
-    }
-
-    private void verifyPermissionNotReset() {
-        verify(mStore, never()).resetPermission(eq(ORIGIN), eq(ContentSettingsType.GEOLOCATION));
     }
 
     @Test

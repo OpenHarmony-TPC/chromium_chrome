@@ -34,9 +34,6 @@ class TabGroupSyncServiceProxyUnitTest
     std::vector<base::test::FeatureRef> enabled_features;
     std::vector<base::test::FeatureRef> disabled_features;
 
-    enabled_features.push_back(tab_groups::kTabGroupsSaveV2);
-    enabled_features.push_back(tab_groups::kTabGroupsSaveUIUpdate);
-
     if (IsMigrationEnabled()) {
       enabled_features.push_back(
           tab_groups::kTabGroupSyncServiceDesktopMigration);
@@ -45,7 +42,7 @@ class TabGroupSyncServiceProxyUnitTest
     feature_list_.InitWithFeatures(enabled_features, disabled_features);
   }
 
-  ~TabGroupSyncServiceProxyUnitTest() = default;
+  ~TabGroupSyncServiceProxyUnitTest() override = default;
   TabGroupSyncServiceProxyUnitTest(const TabGroupSyncServiceProxyUnitTest&) =
       delete;
   TabGroupSyncServiceProxyUnitTest& operator=(
@@ -235,7 +232,7 @@ TEST_P(TabGroupSyncServiceProxyUnitTest, UpdateGroupPositionPinnedState) {
 TEST_P(TabGroupSyncServiceProxyUnitTest, UpdateGroupPositionIndex) {
   auto get_index = [&](const LocalTabGroupID& local_id) -> int {
     std::vector<SavedTabGroup> groups = service()->GetAllGroups();
-    auto it = base::ranges::find_if(groups, [&](const SavedTabGroup& group) {
+    auto it = std::ranges::find_if(groups, [&](const SavedTabGroup& group) {
       return group.local_group_id() == local_id;
     });
 
@@ -583,14 +580,13 @@ TEST_P(TabGroupSyncServiceProxyUnitTest, OpenTabGroupInSameWindow) {
   std::unique_ptr<TabGroupActionContextDesktop> desktop_context =
       std::make_unique<TabGroupActionContextDesktop>(browser,
                                                      OpeningSource::kUnknown);
-  service()->OpenTabGroup(saved_id, std::move(desktop_context));
+  std::optional<LocalTabGroupID> group_id =
+      service()->OpenTabGroup(saved_id, std::move(desktop_context));
 
-  retrieved_group = service()->GetGroup(saved_id);
-  EXPECT_TRUE(retrieved_group.has_value());
-  EXPECT_TRUE(retrieved_group->local_group_id().has_value());
-  EXPECT_NE(local_group_id, retrieved_group->local_group_id());
+  EXPECT_TRUE(group_id.has_value());
+  EXPECT_NE(local_group_id, group_id);
   EXPECT_TRUE(browser->tab_strip_model()->group_model()->ContainsTabGroup(
-      retrieved_group->local_group_id().value()));
+      group_id.value()));
 }
 
 // Verifies that opening a saved group in a different window properly opens it
@@ -624,16 +620,15 @@ TEST_P(TabGroupSyncServiceProxyUnitTest, OpenTabGroupInDifferentWindow) {
   std::unique_ptr<TabGroupActionContextDesktop> desktop_context =
       std::make_unique<TabGroupActionContextDesktop>(browser_2,
                                                      OpeningSource::kUnknown);
-  service()->OpenTabGroup(saved_id, std::move(desktop_context));
+  std::optional<LocalTabGroupID> group_id =
+      service()->OpenTabGroup(saved_id, std::move(desktop_context));
 
-  retrieved_group = service()->GetGroup(saved_id);
-  EXPECT_TRUE(retrieved_group.has_value());
-  EXPECT_TRUE(retrieved_group->local_group_id().has_value());
-  EXPECT_NE(local_group_id, retrieved_group->local_group_id());
+  EXPECT_TRUE(group_id.has_value());
+  EXPECT_NE(local_group_id, group_id);
   EXPECT_FALSE(browser->tab_strip_model()->group_model()->ContainsTabGroup(
-      retrieved_group->local_group_id().value()));
+      group_id.value()));
   EXPECT_TRUE(browser_2->tab_strip_model()->group_model()->ContainsTabGroup(
-      retrieved_group->local_group_id().value()));
+      group_id.value()));
 }
 
 // Verifies that opening a saved group that is already open will focus the
@@ -664,17 +659,16 @@ TEST_P(TabGroupSyncServiceProxyUnitTest,
   std::unique_ptr<TabGroupActionContextDesktop> desktop_context =
       std::make_unique<TabGroupActionContextDesktop>(browser,
                                                      OpeningSource::kUnknown);
-  service()->OpenTabGroup(saved_id, std::move(desktop_context));
+  std::optional<LocalTabGroupID> group_id =
+      service()->OpenTabGroup(saved_id, std::move(desktop_context));
 
   // The tab group should now have the active index.
   EXPECT_EQ(0, browser->tab_strip_model()->active_index());
 
-  retrieved_group = service()->GetGroup(saved_id);
-  EXPECT_TRUE(retrieved_group.has_value());
-  EXPECT_TRUE(retrieved_group->local_group_id().has_value());
-  EXPECT_EQ(local_group_id, retrieved_group->local_group_id());
+  EXPECT_TRUE(group_id.has_value());
+  EXPECT_EQ(local_group_id, group_id);
   EXPECT_TRUE(browser->tab_strip_model()->group_model()->ContainsTabGroup(
-      retrieved_group->local_group_id().value()));
+      group_id.value()));
 }
 
 INSTANTIATE_TEST_SUITE_P(TabGroupSyncServiceProxy,

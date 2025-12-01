@@ -186,7 +186,8 @@ void AndroidTelemetryService::FillReferrerChain(download::DownloadItem* item) {
           : nullptr;
 
   if (web_contents) {
-    GURL intent_url = GetReferringAppInfo(web_contents).target_url;
+    GURL intent_url =
+        GetReferringAppInfo(web_contents, /*get_webapk_info=*/false).target_url;
     referrer_chain_result_[item].triggered_by_intent =
         intent_url == item->GetOriginalUrl();
   }
@@ -280,9 +281,6 @@ void AndroidTelemetryService::IsVerifyAppsEnabled(
     base::OnceCallback<void(std::unique_ptr<ClientSafeBrowsingReportRequest>)>
         callback,
     VerifyAppsEnabledResult result) {
-  base::UmaHistogramEnumeration(
-      "SBClientDownload.AndroidTelemetry.AppVerificationResult", result);
-
   if (result == VerifyAppsEnabledResult::SUCCESS_ENABLED) {
     report->mutable_client_properties()->set_app_verification_enabled(true);
   } else if (result == VerifyAppsEnabledResult::SUCCESS_NOT_ENABLED) {

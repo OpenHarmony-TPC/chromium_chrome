@@ -9,7 +9,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
-#include "components/flags_ui/feature_entry.h"
+#include "components/webui/flags/feature_entry.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
@@ -20,7 +20,7 @@ struct LabInfo;
 namespace views {
 class Button;
 class FlexLayoutView;
-}
+}  // namespace views
 
 // TODO(elainechien): Use composition instead of inheritance.
 class ChromeLabsBubbleView : public views::BubbleDialogDelegateView {
@@ -54,7 +54,7 @@ class ChromeLabsBubbleView : public views::BubbleDialogDelegateView {
  private:
   void NotifyRestartCallback();
 
-  raw_ptr<actions::ActionItem> chrome_labs_action_item_ = nullptr;
+  base::WeakPtr<actions::ActionItem> chrome_labs_action_item_ = nullptr;
 
   raw_ptr<Browser> browser_;
 

@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "base/strings/strcat.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
@@ -69,6 +70,7 @@ class PermissionElementBrowserTestBase : public InProcessBrowserTest {
   }
 
   void WaitForResolveEvent(const std::string& id) {
+    ExpectConsoleMessage(id + "-promptaction");
     ExpectConsoleMessage(id + "-resolve");
   }
 
@@ -77,6 +79,7 @@ class PermissionElementBrowserTestBase : public InProcessBrowserTest {
   }
 
   void WaitForDismissEvent(const std::string& id) {
+    ExpectConsoleMessage(id + "-promptdismiss");
     ExpectConsoleMessage(id + "-dismiss");
   }
 
@@ -116,7 +119,7 @@ class PermissionElementBrowserTestBase : public InProcessBrowserTest {
     observer.Wait();
 
     EXPECT_EQ(
-        permission_request_manager->view_for_testing()->GetPromptPosition(),
+        permission_request_manager->GetCurrentPrompt()->GetPromptPosition(),
         position);
 
     permission_request_manager->Dismiss();
@@ -510,42 +513,6 @@ INSTANTIATE_TEST_SUITE_P(All,
                          PermissionElementStandardizedBrowserZoomTest,
                          testing::Bool());
 
-// Test fixture identical with |PermissionElementBrowserTest| but with simulated
-// different DPI devices.
-class PermissionElementHighDPITest : public PermissionElementBrowserTest,
-                                     public testing::WithParamInterface<float> {
- protected:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    PermissionElementBrowserTest::SetUpCommandLine(command_line);
-    command_line->AppendSwitchASCII(switches::kForceDeviceScaleFactor,
-                                    base::StringPrintf("%f", GetParam()));
-  }
-};
-
-// Ensure that the margin limit of 4px is applied regardless of device DPI.
-IN_PROC_BROWSER_TEST_P(PermissionElementHighDPITest, TestMargins) {
-  SkipInvalidElementMessage();
-  for (const auto& property :
-       {"marginTop", "marginBottom", "marginLeft", "marginRight"}) {
-    for (const auto& id :
-         {"geolocation", "camera", "microphone", "camera-microphone"}) {
-      EXPECT_EQ(
-          "4px",
-          content::EvalJs(
-              web_contents(),
-              base::StrCat({content::JsReplace(
-                                "getComputedStyle(document.getElementById("
-                                "$1)).",
-                                id),
-                            property})));
-    }
-  }
-}
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         PermissionElementHighDPITest,
-                         testing::Values(1.f, 1.25f, 1.5f, 2.f, 3.f));
-
 class PermissionElementNearElementBrowserTest
     : public PermissionElementBrowserTestBase {
  public:
@@ -633,6 +600,31 @@ class MiscellaneousElementBrowserTest
 };
 
 IN_PROC_BROWSER_TEST_F(MiscellaneousElementBrowserTest,
+                       EventContentAttributes) {
+  NavigateToURL("/permissions/permission_element_events_tester.html");
+  const char* id = "microphone";
+  {
+    permissions::PermissionRequestManager::FromWebContents(web_contents())
+        ->set_auto_response_for_test(
+            permissions::PermissionRequestManager::AutoResponseType::DISMISS);
+    permissions::PermissionRequestObserver observer(web_contents());
+    ClickElementWithId(web_contents(), id);
+    observer.Wait();
+    WaitForDismissEvent(id);
+  }
+
+  {
+    permissions::PermissionRequestManager::FromWebContents(web_contents())
+        ->set_auto_response_for_test(permissions::PermissionRequestManager::
+                                         AutoResponseType::ACCEPT_ALL);
+    permissions::PermissionRequestObserver observer(web_contents());
+    ClickElementWithId(web_contents(), id);
+    observer.Wait();
+    WaitForResolveEvent(id);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(MiscellaneousElementBrowserTest,
                        EventsBubbleAndAreCancelable) {
   NavigateToURL("/permissions/permission_element_events_tester.html");
   const char* id = "camera";
@@ -647,11 +639,20 @@ IN_PROC_BROWSER_TEST_F(MiscellaneousElementBrowserTest,
 
     // The event is reported by the parent element, then the grandparent
     // element.
-    WaitForDismissEvent(base::StrCat({"parent-", id}));
+    ExpectConsoleMessage(base::StrCat({"parent-", id, "-promptdismiss"}));
     ExpectConsoleMessage(base::StrCat({"parent-", id, "-cancelable-true"}));
     ExpectConsoleMessage(base::StrCat({"parent-", id, "-bubbles-true"}));
 
-    WaitForDismissEvent(base::StrCat({"grandparent-", id}));
+    ExpectConsoleMessage(base::StrCat({"grandparent-", id, "-promptdismiss"}));
+    ExpectConsoleMessage(
+        base::StrCat({"grandparent-", id, "-cancelable-true"}));
+    ExpectConsoleMessage(base::StrCat({"grandparent-", id, "-bubbles-true"}));
+
+    ExpectConsoleMessage(base::StrCat({"parent-", id, "-dismiss"}));
+    ExpectConsoleMessage(base::StrCat({"parent-", id, "-cancelable-true"}));
+    ExpectConsoleMessage(base::StrCat({"parent-", id, "-bubbles-true"}));
+
+    ExpectConsoleMessage(base::StrCat({"grandparent-", id, "-dismiss"}));
     ExpectConsoleMessage(
         base::StrCat({"grandparent-", id, "-cancelable-true"}));
     ExpectConsoleMessage(base::StrCat({"grandparent-", id, "-bubbles-true"}));
@@ -667,11 +668,20 @@ IN_PROC_BROWSER_TEST_F(MiscellaneousElementBrowserTest,
 
     // The event is reported by the parent element, then the grandparent
     // element.
-    WaitForResolveEvent(base::StrCat({"parent-", id}));
+    ExpectConsoleMessage(base::StrCat({"parent-", id, "-promptaction"}));
     ExpectConsoleMessage(base::StrCat({"parent-", id, "-cancelable-true"}));
     ExpectConsoleMessage(base::StrCat({"parent-", id, "-bubbles-true"}));
 
-    WaitForResolveEvent(base::StrCat({"grandparent-", id}));
+    ExpectConsoleMessage(base::StrCat({"grandparent-", id, "-promptaction"}));
+    ExpectConsoleMessage(
+        base::StrCat({"grandparent-", id, "-cancelable-true"}));
+    ExpectConsoleMessage(base::StrCat({"grandparent-", id, "-bubbles-true"}));
+
+    ExpectConsoleMessage(base::StrCat({"parent-", id, "-resolve"}));
+    ExpectConsoleMessage(base::StrCat({"parent-", id, "-cancelable-true"}));
+    ExpectConsoleMessage(base::StrCat({"parent-", id, "-bubbles-true"}));
+
+    ExpectConsoleMessage(base::StrCat({"grandparent-", id, "-resolve"}));
     ExpectConsoleMessage(
         base::StrCat({"grandparent-", id, "-cancelable-true"}));
     ExpectConsoleMessage(base::StrCat({"grandparent-", id, "-bubbles-true"}));

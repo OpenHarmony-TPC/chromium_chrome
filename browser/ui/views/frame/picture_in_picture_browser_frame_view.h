@@ -9,8 +9,10 @@
 
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/scoped_observation.h"
+#include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/content_settings/content_setting_image_model_states.h"
 #include "chrome/browser/ui/toolbar/chrome_location_bar_model_delegate.h"
@@ -24,25 +26,22 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/animation/multi_animation.h"
 #include "ui/gfx/animation/slide_animation.h"
+#include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/widget/widget_observer.h"
 
-#if BUILDFLAG(IS_LINUX)
-#include "ui/linux/window_frame_provider.h"
-#endif
-
 class BrowserFrameBoundsChangeAnimation;
 
 namespace views {
-class FrameBackground;
 class Label;
 class View;
 }  // namespace views
 
 namespace {
 class WindowEventObserver;
-}
+}  // namespace
 
 class PictureInPictureBrowserFrameView
     : public BrowserNonClientFrameView,
@@ -78,21 +77,13 @@ class PictureInPictureBrowserFrameView
       const gfx::Rect& client_bounds) const override;
   int NonClientHitTest(const gfx::Point& point) override;
   void GetWindowMask(const gfx::Size& size, SkPath* window_mask) override;
-  void ResetWindowControls() override {}
   void UpdateWindowIcon() override;
-  void UpdateWindowTitle() override {}
-  void SizeConstraintsChanged() override {}
   gfx::Size GetMinimumSize() const override;
   gfx::Size GetMaximumSize() const override;
   void OnThemeChanged() override;
   void Layout(PassKey) override;
   void AddedToWidget() override;
   void RemovedFromWidget() override;
-#if BUILDFLAG(IS_LINUX)
-  gfx::Insets RestoredMirroredFrameBorderInsets() const override;
-  gfx::Insets GetInputInsets() const override;
-  SkRRect GetRestoredClipRegion() const override;
-#endif
   void SetFrameBounds(const gfx::Rect& bounds) override;
 
   // ChromeLocationBarModelDelegate:
@@ -134,10 +125,9 @@ class PictureInPictureBrowserFrameView
   void AnimationEnded(const gfx::Animation* animation) override;
   void AnimationProgressed(const gfx::Animation* animation) override;
 
-  // views::View:
-  void OnPaint(gfx::Canvas* canvas) override;
-
   // PictureInPictureBrowserFrameView:
+  virtual gfx::Rect GetHitRegion() const;
+
   // Convert the bounds of a child control view of |top_bar_container_view_| to
   // use the system's coordinate system while we need to know the original
   // container view.
@@ -164,9 +154,6 @@ class PictureInPictureBrowserFrameView
   // - Dialogs are opened in the PiP window
   void UpdateTopBarView(bool render_active);
 
-  // Returns the insets of the window frame borders.
-  gfx::Insets FrameBorderInsets() const;
-
   // Returns the height of the top bar area, including the window top border.
   int GetTopAreaHeight() const;
 
@@ -179,15 +166,6 @@ class PictureInPictureBrowserFrameView
 
   // Returns true if there's an overlay view that's currently shown.
   bool IsOverlayViewVisible() const;
-
-#if BUILDFLAG(IS_LINUX)
-  // Returns whether a client-side shadow should be drawn for the window.
-  bool ShouldDrawFrameShadow() const;
-
-  // Gets the shadow metrics (radius, offset, and number of shadows) even if
-  // shadows are not drawn.
-  static gfx::ShadowValues GetShadowValues();
-#endif
 
 #if BUILDFLAG(IS_WIN)
   gfx::Insets GetClientAreaInsets(HMONITOR monitor) const;
@@ -227,13 +205,29 @@ class PictureInPictureBrowserFrameView
   // size minus whatever padding this function returns.
   gfx::Size ComputeDialogPadding() const;
 
+  // Force any pending child resize to run, rather than waiting for enough
+  // wall-clock time to elapse.
+  void RunPendingChildResizeForTesting() {
+    child_dialog_observer_helper_->RunPendingChildResizeForTesting();
+  }
+
+  bool IsChildResizePendingForTesting() const {
+    return child_dialog_observer_helper_->IsChildResizePendingForTesting();
+  }
+
  protected:
   views::View* top_bar_container_view() { return top_bar_container_view_; }
 
   // Returns the insets of the window frame borders for resizing.
   virtual gfx::Insets ResizeBorderInsets() const;
 
+  // Returns the insets of the window frame borders.
+  virtual gfx::Insets FrameBorderInsets() const;
+
  private:
+  // Show `auto_pip_setting_overlay_` if we have it, and have a widget.
+  void ShowOverlayIfNeeded();
+
   CloseReason close_reason_ = CloseReason::kOther;
 
   // Observe child dialogs so that we can resize to ensure that they fit on
@@ -241,7 +235,8 @@ class PictureInPictureBrowserFrameView
   // small size.
   class ChildDialogObserverHelper : public views::WidgetObserver {
    public:
-    explicit ChildDialogObserverHelper(PictureInPictureBrowserFrameView*);
+    explicit ChildDialogObserverHelper(PictureInPictureBrowserFrameView*,
+                                       BrowserView*);
     ChildDialogObserverHelper(const ChildDialogObserverHelper&) = delete;
     ChildDialogObserverHelper& operator=(const ChildDialogObserverHelper&) =
         delete;
@@ -255,20 +250,41 @@ class PictureInPictureBrowserFrameView
                                    bool visible) override;
     void OnWidgetChildAdded(views::Widget* widget,
                             views::Widget* child_dialog) override;
+    void OnWidgetChildRemoved(views::Widget* widget,
+                              views::Widget* child_dialog) override;
+
+    void RunPendingChildResizeForTesting() {
+      if (resize_timer_.IsRunning()) {
+        resize_timer_.FireNow();
+      }
+    }
+    bool IsChildResizePendingForTesting() const {
+      return resize_timer_.IsRunning();
+    }
 
    private:
     enum class ResizingState {
-      // We are not currently resized for a child dialog.
-      kNormal,
+      // We are not currently resized for a child dialog.  For example, if the
+      // user manually resizes the pip window, then this is the right state.
+      kNotSizedToChildren,
 
-      // We are currently transitioning to a new size to fit a child dialog.
-      kDuringInitialResizeForNewChild,
+      // A resize due to a child widget is pending.  These are not run
+      // immediately because they can happen too quickly.  So, we batch them.
+      // This indicates that there's a delayed task pending.
+      kPendingResizeForChild,
+
+      // We are in the process of resizing to match a child widget.  While in
+      // this state, we will ignore any child resizes to prevent a loop.
+      kResizeForChildInProgress,
 
       // We have finished transitioning to a new size to fit a child dialog and
       // we have not yet returned to the original size (because the child dialog
       // is still open).
       kSizedToChildren,
     };
+
+    void PostResizeForChild(const gfx::Rect& new_bounds);
+    void FinishPendingResizeForChild();
 
     void MaybeResizeForChildDialog(views::Widget* child_dialog);
     void MaybeRevertSizeAfterChildDialogCloses();
@@ -277,7 +293,7 @@ class PictureInPictureBrowserFrameView
     // TODO: replace this with pip_frame->GetWidget()
     const raw_ptr<views::Widget> pip_widget_;
 
-    ResizingState resizing_state_ = ResizingState::kNormal;
+    ResizingState resizing_state_ = ResizingState::kNotSizedToChildren;
 
     base::ScopedObservation<views::Widget, views::WidgetObserver>
         pip_widget_observation_{this};
@@ -296,6 +312,9 @@ class PictureInPictureBrowserFrameView
     // The bounds that the window would ideally be if we did not have to enlarge
     // to fit a child dialog.
     gfx::Rect latest_user_desired_bounds_;
+
+    base::OneShotTimer resize_timer_;
+    gfx::Rect pending_bounds_;
   };
 
   std::unique_ptr<ChildDialogObserverHelper> child_dialog_observer_helper_;
@@ -351,16 +370,6 @@ class PictureInPictureBrowserFrameView
   // `top_bar_color_animation_`.
   std::optional<SkColor> current_foreground_color_;
 
-#if BUILDFLAG(IS_LINUX)
-  // Used to draw window frame borders and shadow on Linux when GTK theme is
-  // enabled.
-  raw_ptr<ui::WindowFrameProvider> window_frame_provider_ = nullptr;
-
-  // Used to draw window frame borders and shadow on Linux when classic theme is
-  // enabled.
-  std::unique_ptr<views::FrameBackground> frame_background_;
-#endif
-
   // Used to monitor key and mouse events from native window.
   std::unique_ptr<WindowEventObserver> window_event_observer_;
 
@@ -370,6 +379,8 @@ class PictureInPictureBrowserFrameView
   // Animates programmatic changes to bounds (e.g. via `resizeTo()` or
   // `resizeBy()` calls).
   std::unique_ptr<BrowserFrameBoundsChangeAnimation> bounds_change_animation_;
+
+  base::WeakPtrFactory<PictureInPictureBrowserFrameView> weak_factory_{this};
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_PICTURE_IN_PICTURE_BROWSER_FRAME_VIEW_H_

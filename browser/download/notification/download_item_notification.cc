@@ -21,7 +21,6 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/download/download_commands.h"
 #include "chrome/browser/download/download_crx_util.h"
@@ -72,12 +71,10 @@
 #include "ui/message_center/public/cpp/message_center_constants.h"
 #include "ui/message_center/public/cpp/notification.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/notifier_catalogs.h"
 #include "chrome/browser/apps/app_service/policy_util.h"
 #include "chrome/browser/ash/file_manager/file_tasks.h"
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/startup/browser_params_proxy.h"
 #endif
 
 using base::UserMetricsAction;
@@ -243,7 +240,7 @@ DownloadItemNotification::DownloadItemNotification(
       l10n_util::GetStringUTF16(
           IDS_DOWNLOAD_NOTIFICATION_DISPLAY_SOURCE),  // display_source
       GURL(kDownloadNotificationOrigin),              // origin_url
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
       message_center::NotifierId(
           message_center::NotifierType::SYSTEM_COMPONENT,
           kDownloadNotificationNotifierId,
@@ -251,10 +248,15 @@ DownloadItemNotification::DownloadItemNotification(
 #else
       message_center::NotifierId(message_center::NotifierType::SYSTEM_COMPONENT,
                                  kDownloadNotificationNotifierId),
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
       rich_notification_data,
       base::MakeRefCounted<message_center::ThunkNotificationDelegate>(
           weak_factory_.GetWeakPtr()));
+  if (item_->GetDownloadItem() == nullptr) {
+    // For background fetches, OfflineItem::original_url is its job's
+    // registration origin.
+    notification_->set_origin_url(item_->GetOriginalURL());
+  }
   notification_->set_progress(0);
   notification_->set_fullscreen_visibility(
       message_center::FullscreenVisibility::OVER_USER);
@@ -300,9 +302,12 @@ void DownloadItemNotification::DisablePopup() {
   CloseNotification();
   notification_->set_priority(message_center::LOW_PRIORITY);
   closed_ = false;
-  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
-      NotificationHandler::Type::TRANSIENT, *notification_,
-      /*metadata=*/nullptr);
+  // If shutting down, the BrowserContext won't be valid.
+  if (profile() && !profile()->ShutdownStarted()) {
+    NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
+        NotificationHandler::Type::TRANSIENT, *notification_,
+        /*metadata=*/nullptr);
+  }
 }
 
 void DownloadItemNotification::Close(bool by_user) {
@@ -487,7 +492,9 @@ void DownloadItemNotification::UpdateNotificationData(bool display,
 
   notification_->set_title(GetTitle());
   notification_->set_message(GetSubStatusString());
-  notification_->set_progress_status(GetStatusString());
+  notification_->set_progress_status((item_->GetDownloadItem() != nullptr)
+                                         ? GetStatusString()
+                                         : std::u16string());
 
   if (item_->IsDangerous()) {
     notification_->set_type(message_center::NOTIFICATION_TYPE_SIMPLE);
@@ -730,6 +737,9 @@ DownloadItemNotification::GetExtraActions() const {
         }
       }
     }
+    if (item_->GetDownloadItem() == nullptr) {
+      actions->push_back(DownloadCommands::CANCEL);
+    }
     return actions;
   }
 
@@ -757,9 +767,9 @@ DownloadItemNotification::GetExtraActions() const {
           download::DOWNLOAD_DANGER_TYPE_ASYNC_SCANNING) {
         if (AllowedToOpenWhileScanning())
           actions->push_back(DownloadCommands::OPEN_WHEN_COMPLETE);
-      } else if (!item_->IsPaused()) {
+      } else if (!item_->IsPaused() && item_->GetUploadedBytes() == 0) {
         actions->push_back(DownloadCommands::PAUSE);
-      } else {
+      } else if (item_->IsPaused() && item_->GetUploadedBytes() == 0) {
         actions->push_back(DownloadCommands::RESUME);
       }
       actions->push_back(DownloadCommands::CANCEL);
@@ -770,7 +780,7 @@ DownloadItemNotification::GetExtraActions() const {
         actions->push_back(DownloadCommands::RESUME);
       break;
     case download::DownloadItem::COMPLETE: {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
       std::optional<DownloadCommands::Command> command =
           item_->MaybeGetMediaAppAction();
       if (command) {
@@ -778,15 +788,17 @@ DownloadItemNotification::GetExtraActions() const {
       }
 #endif
 
-      actions->push_back(DownloadCommands::SHOW_IN_FOLDER);
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
+      // Do not include the Show in folder action for downloads we can't show in
+      // the folder.
+      if (item_->GetDownloadItem() != nullptr) {
+        actions->push_back(DownloadCommands::SHOW_IN_FOLDER);
+      }
       // We disable this functionality for now as the usage is very low, the
       // feature gets re-written at this time and there is currently no secure
       // way to determine the caller on the Ash side as the dialog is still
       // active when |seat::SetSelection| is reached.
       if (!notification_->image().IsEmpty())
         actions->push_back(DownloadCommands::COPY_TO_CLIPBOARD);
-#endif
       break;
     }
     case download::DownloadItem::MAX_DOWNLOAD_STATE:
@@ -902,7 +914,7 @@ std::u16string DownloadItemNotification::GetCommandLabel(
     case DownloadCommands::REVIEW:
       id = IDS_REVIEW_DOWNLOAD;
       break;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     case DownloadCommands::OPEN_WITH_MEDIA_APP:
       id = IDS_DOWNLOAD_NOTIFICATION_LABEL_OPEN;
       break;

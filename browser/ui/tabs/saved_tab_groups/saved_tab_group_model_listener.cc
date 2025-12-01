@@ -4,22 +4,23 @@
 
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_model_listener.h"
 
+#include <algorithm>
+
 #include "base/check.h"
 #include "base/containers/contains.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/tabs/public/tab_interface.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/local_tab_group_listener.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
-#include "chrome/browser/ui/tabs/tab_group.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/saved_tab_groups/internal/saved_tab_group_model.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/tab_groups/tab_group_id.h"
+#include "components/tabs/public/tab_group.h"
+#include "components/tabs/public/tab_interface.h"
 
 namespace content {
 class WebContents;
@@ -53,10 +54,6 @@ SavedTabGroupModelListener::~SavedTabGroupModelListener() {
 void SavedTabGroupModelListener::OnTabGroupAdded(
     const tab_groups::TabGroupId& group_id) {
   if (!tab_groups::IsTabGroupSyncServiceDesktopMigrationEnabled()) {
-    return;
-  }
-
-  if (!tab_groups::IsTabGroupsSaveV2Enabled()) {
     return;
   }
 
@@ -105,20 +102,25 @@ void SavedTabGroupModelListener::OnTabGroupChanged(
     // We should never get close notifications, because we destroy the
     // LocalTabGroupListener when the last tab is closed, which happens before
     // this event is sent out.
-    case TabGroupChange::kClosed:
-    // We should never get created notifications, because we only are connected
-    // to the local group after it has been created and populated.
+    // TODO (dpenning): provide closing information about the local group
+    // only prevent checks here if the group is actually closing.
+    case TabGroupChange::kClosed: {
+      return;
+    }
+    // We should never get created notifications, because we only are
+    // connected to the local group after it has been created and populated.
     case TabGroupChange::kCreated: {
       // The exception to both of these is when the group is being moved between
       // browser windows, as it gets created in the new window and destroyed in
       // the old window. In these cases, tracking must be paused, as otherwise
       // the saved group will get emptied out during the move.
-      CHECK(local_tab_group_listeners_.at(change.group).IsTrackingPaused());
+      if (change.GetCreateChange()->reason() ==
+          TabGroupChange::TabGroupCreationReason::kNewGroupCreated) {
+        CHECK(local_tab_group_listeners_.at(change.group).IsTrackingPaused());
+      }
       return;
     }
 
-    // Ignored because contents changes are handled in TabGroupedStateChanged.
-    case TabGroupChange::kContentsChanged:
     // kEditorOpened doesn't affect the SavedTabGroup.
     case TabGroupChange::kEditorOpened:
     // kMoved doesn't affect the order of the saved tab groups.
@@ -129,6 +131,8 @@ void SavedTabGroupModelListener::OnTabGroupChanged(
 }
 
 void SavedTabGroupModelListener::TabGroupedStateChanged(
+    TabStripModel* tab_strip_model,
+    std::optional<tab_groups::TabGroupId> old_local_group_id,
     std::optional<tab_groups::TabGroupId> new_local_group_id,
     tabs::TabInterface* tab,
     int index) {
@@ -187,7 +191,17 @@ void SavedTabGroupModelListener::OnTabStripModelChanged(
 
       return;
     }
-    case TabStripModelChange::kSelectionOnly:
+    case TabStripModelChange::kSelectionOnly: {
+      if (selection.active_tab_changed()) {
+        CHECK(selection.new_tab)
+            << "Selection change detected but no new tab was selected.";
+        service_->OnTabSelected(
+            /*group_id=*/selection.new_tab->GetGroup(),
+            /*tab_id=*/selection.new_tab->GetHandle().raw_value(),
+            /*title=*/selection.new_tab->GetContents()->GetTitle());
+      }
+      return;
+    }
     case TabStripModelChange::kInserted:
     case TabStripModelChange::kReplaced:
     case TabStripModelChange::kRemoved: {
@@ -221,6 +235,16 @@ void SavedTabGroupModelListener::ConnectToLocalTabGroup(
     std::map<tabs::TabInterface*, base::Uuid> tab_guid_mapping) {
   const tab_groups::TabGroupId local_group_id =
       saved_tab_group.local_group_id().value();
+
+  // in cases like session restore on mac, it may be possible for this saved
+  // group to have connect called on it multiple times. in order to prevent this
+  // from causing check failures verify that the group is listened to correctly,
+  // and early return
+  if (local_tab_group_listeners_.contains(local_group_id)) {
+    CHECK(local_tab_group_listeners_.at(local_group_id).saved_guid() ==
+          saved_tab_group.saved_guid());
+    return;
+  }
 
   // `tab_guid_mapping` should have one entry per tab in the local group. This
   // may not equal the saved group's size, if the saved group contains invalid
@@ -274,12 +298,14 @@ void SavedTabGroupModelListener::DisconnectLocalTabGroup(
 
 void SavedTabGroupModelListener::RemoveLocalGroupFromSync(
     tab_groups::TabGroupId local_group_id) {
-  if (!base::Contains(local_tab_group_listeners_, local_group_id)) {
-    return;
+  if (base::Contains(local_tab_group_listeners_, local_group_id)) {
+    // Prevent further observations for `local_group_id` as we attempt to close
+    // the tab group.
+    DisconnectLocalTabGroup(local_group_id, ClosingSource::kDeletedFromSync);
   }
 
-  local_tab_group_listeners_.at(local_group_id).GroupRemovedFromSync();
-  DisconnectLocalTabGroup(local_group_id, ClosingSource::kDeletedFromSync);
+  SavedTabGroupUtils::RemoveGroupFromTabstrip(/*browser=*/nullptr,
+                                              local_group_id);
 }
 
 void SavedTabGroupModelListener::UpdateLocalGroupFromSync(

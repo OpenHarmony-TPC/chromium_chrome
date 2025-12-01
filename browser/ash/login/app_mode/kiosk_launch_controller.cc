@@ -34,6 +34,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/app_mode/app_launch_utils.h"
+#include "chrome/browser/ash/app_mode/arcvm_app/kiosk_arcvm_app_service.h"
 #include "chrome/browser/ash/app_mode/isolated_web_app/kiosk_iwa_launcher.h"
 #include "chrome/browser/ash/app_mode/kiosk_app.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_launch_error.h"
@@ -51,8 +52,6 @@
 #include "chrome/browser/ash/login/app_mode/network_ui_controller.h"
 #include "chrome/browser/ash/login/enterprise_user_session_metrics.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/ui/ash/keyboard/chrome_keyboard_controller_client.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
@@ -75,25 +74,29 @@ using kiosk::LoadProfileResult;
 
 namespace {
 
-// Enum types for Kiosk.LaunchType UMA so don't change its values.
-// KioskLaunchType in histogram.xml must be updated when making changes here.
+// Must be kept in sync with the `Kiosk.KioskLaunchType` UMA variants in
+// kiosk/histograms.xml and enums.xml.
 enum KioskLaunchType {
   KIOSK_LAUNCH_ENTERPRISE_AUTO_LAUNCH = 0,
   KIOKS_LAUNCH_ENTERPRISE_MANUAL_LAUNCH = 1,
-  KIOSK_LAUNCH_CONSUMER_AUTO_LAUNCH = 2,
-  KIOSK_LAUNCH_CONSUMER_MANUAL_LAUNCH = 3,
+  DEPRECATED_KIOSK_LAUNCH_CONSUMER_AUTO_LAUNCH = 2,
+  DEPRECATED_KIOSK_LAUNCH_CONSUMER_MANUAL_LAUNCH = 3,
   KIOSK_LAUNCH_TYPE_COUNT  // This must be the last entry.
 };
 
 void RecordKioskLaunchUMA(bool is_auto_launch) {
   bool is_enterprise_managed =
       ash::InstallAttributes::Get()->IsEnterpriseManaged();
+
+  // TODO(crbug.com/407487338) Remove or upgrade to CHECK.
+  DUMP_WILL_BE_CHECK(is_enterprise_managed);
+
   const KioskLaunchType launch_type =
       is_enterprise_managed
           ? (is_auto_launch ? KIOSK_LAUNCH_ENTERPRISE_AUTO_LAUNCH
                             : KIOKS_LAUNCH_ENTERPRISE_MANUAL_LAUNCH)
-          : (is_auto_launch ? KIOSK_LAUNCH_CONSUMER_AUTO_LAUNCH
-                            : KIOSK_LAUNCH_CONSUMER_MANUAL_LAUNCH);
+          : (is_auto_launch ? DEPRECATED_KIOSK_LAUNCH_CONSUMER_AUTO_LAUNCH
+                            : DEPRECATED_KIOSK_LAUNCH_CONSUMER_MANUAL_LAUNCH);
 
   UMA_HISTOGRAM_ENUMERATION("Kiosk.LaunchType", launch_type,
                             KIOSK_LAUNCH_TYPE_COUNT);
@@ -115,11 +118,42 @@ void RecordKioskLaunchDuration(KioskAppType type, base::TimeDelta duration) {
       base::UmaHistogramLongTimes("Kiosk.LaunchDuration.Web", duration);
       break;
     case KioskAppType::kIsolatedWebApp:
-      // TODO(crbug.com/361019026): add a separate uma value for IWA.
-      NOTIMPLEMENTED();
+      base::UmaHistogramLongTimes("Kiosk.LaunchDuration.IsolatedWebApp",
+                                  duration);
+      break;
+    case KioskAppType::kArcvmApp:
+      base::UmaHistogramLongTimes("Kiosk.LaunchDuration.ArcvmApp", duration);
       break;
   }
 }
+
+// This is a not-owning wrapper around ArcKioskAppService which allows to be
+// plugged into a unique_ptr safely.
+// TODO(crbug.com/418950275): Remove this wrapper.
+class KioskArcvmAppServiceWrapper : public KioskAppLauncher {
+ public:
+  KioskArcvmAppServiceWrapper(KioskArcvmAppService* service,
+                              KioskAppLauncher::NetworkDelegate* delegate)
+      : service_(service) {}
+
+  // `KioskAppLauncher`:
+  void AddObserver(KioskAppLauncher::Observer* observer) override {
+    service_->AddObserver(observer);
+  }
+  void RemoveObserver(KioskAppLauncher::Observer* observer) override {
+    service_->RemoveObserver(observer);
+  }
+  void Initialize() override { service_->Initialize(); }
+  void ContinueWithNetworkReady() override {
+    service_->ContinueWithNetworkReady();
+  }
+  void LaunchApp() override { service_->LaunchApp(); }
+
+ private:
+  // `service_` is externally owned and it's the caller's responsibility to
+  // ensure that it outlives this wrapper.
+  const raw_ptr<KioskArcvmAppService> service_;
+};
 
 std::unique_ptr<KioskAppLauncher> BuildKioskAppLauncher(
     Profile* profile,
@@ -136,6 +170,11 @@ std::unique_ptr<KioskAppLauncher> BuildKioskAppLauncher(
     case KioskAppType::kIsolatedWebApp:
       return std::make_unique<KioskIwaLauncher>(
           profile, kiosk_app_id.account_id, network_delegate);
+    case KioskAppType::kArcvmApp:
+      // KioskArcvmAppService lifetime is bound to the profile, therefore
+      // wrap it into a separate object.
+      return std::make_unique<KioskArcvmAppServiceWrapper>(
+          KioskArcvmAppService::Get(profile), network_delegate);
   }
 }
 
@@ -258,6 +297,7 @@ std::string ToString(KioskAppLaunchError::Error error) {
     CASE(kExtensionsLoadTimeout);
     CASE(kExtensionsPolicyInvalid);
     CASE(kUserNotAllowlisted);
+    CASE(kChromeAppDeprecated);
   }
   NOTREACHED();
 #undef CASE
@@ -574,6 +614,13 @@ void KioskLaunchController::OnLaunchFailed(KioskAppLaunchError::Error error) {
       // because that prevents re-launch on the next run.
       std::move(attempt_relaunch_).Run();
       break;
+    case Error::kChromeAppDeprecated:
+      // Keep the splash screen with the error message, do not relaunch or exit.
+      splash_screen_->UpdateAppLaunchState(
+          ash::AppLaunchSplashScreenView::AppLaunchState::kChromeAppDeprecated);
+      splash_screen_->HideThrobber();
+      KioskAppLaunchError::Save(error);
+      return;
     case Error::kHasPendingLaunch:
     case Error::kUnableToMount:
     case Error::kUnableToRemove:

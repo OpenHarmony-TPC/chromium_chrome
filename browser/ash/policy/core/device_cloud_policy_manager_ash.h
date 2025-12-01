@@ -70,6 +70,7 @@ class DeviceCloudPolicyManagerAsh : public CloudPolicyManager,
  public:
   class Observer {
    public:
+    virtual ~Observer() = default;
     // Invoked when the device cloud policy manager connects.
     virtual void OnDeviceCloudPolicyManagerConnected() = 0;
     // Invoked when the device cloud policy manager obtains schema registry.
@@ -113,7 +114,7 @@ class DeviceCloudPolicyManagerAsh : public CloudPolicyManager,
   // Called when policy store is ready.
   void OnPolicyStoreReady(ash::InstallAttributes* install_attributes);
 
-  bool IsConnected() const { return core()->service() != nullptr; }
+  bool IsConnected() const { return core()->IsConnected(); }
 
   bool HasSchemaRegistry() const {
     return signin_profile_forwarding_schema_registry_ != nullptr;

@@ -8,19 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "ash/components/arc/arc_features.h"
-#include "ash/components/arc/arc_prefs.h"
-#include "ash/components/arc/metrics/stability_metrics_manager.h"
-#include "ash/components/arc/mojom/power.mojom.h"
-#include "ash/components/arc/power/arc_power_bridge.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
-#include "ash/components/arc/test/arc_util_test_support.h"
-#include "ash/components/arc/test/connection_holder_util.h"
-#include "ash/components/arc/test/fake_app_host.h"
-#include "ash/components/arc/test/fake_app_instance.h"
-#include "ash/components/arc/test/fake_arc_session.h"
-#include "ash/components/arc/test/fake_power_instance.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -37,9 +24,22 @@
 #include "chromeos/ash/components/dbus/concierge/fake_concierge_client.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
 #include "chromeos/ash/components/throttle/throttle_observer.h"
+#include "chromeos/ash/experiences/arc/arc_features.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/experiences/arc/metrics/stability_metrics_manager.h"
+#include "chromeos/ash/experiences/arc/mojom/power.mojom.h"
+#include "chromeos/ash/experiences/arc/power/arc_power_bridge.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
+#include "chromeos/ash/experiences/arc/test/arc_util_test_support.h"
+#include "chromeos/ash/experiences/arc/test/connection_holder_util.h"
+#include "chromeos/ash/experiences/arc/test/fake_app_host.h"
+#include "chromeos/ash/experiences/arc/test/fake_app_instance.h"
+#include "chromeos/ash/experiences/arc/test/fake_arc_session.h"
+#include "chromeos/ash/experiences/arc/test/fake_intent_helper_host.h"
+#include "chromeos/ash/experiences/arc/test/fake_intent_helper_instance.h"
+#include "chromeos/ash/experiences/arc/test/fake_power_instance.h"
 #include "chromeos/dbus/power/power_manager_client.h"
-#include "components/arc/test/fake_intent_helper_host.h"
-#include "components/arc/test/fake_intent_helper_instance.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/test/browser_task_environment.h"
 #include "services/device/public/cpp/test/test_wake_lock_provider.h"
@@ -79,7 +79,7 @@ class ArcInstanceThrottleTest : public testing::Test {
     arc_metrics_service_ = ArcMetricsService::GetForBrowserContextForTesting(
         testing_profile_.get());
     arc_metrics_service_->SetHistogramNamerCallback(base::BindLambdaForTesting(
-        [](const std::string&) -> std::string { return ""; }));
+        [](const std::string& s) -> std::string { return s; }));
 
     arc_instance_throttle_ =
         ArcInstanceThrottle::GetForBrowserContextForTesting(
@@ -497,7 +497,7 @@ class ArcInstanceThrottleVMTest : public testing::Test {
     arc_metrics_service_ = ArcMetricsService::GetForBrowserContextForTesting(
         testing_profile_.get());
     arc_metrics_service_->SetHistogramNamerCallback(base::BindLambdaForTesting(
-        [](const std::string&) -> std::string { return ""; }));
+        [](const std::string& s) -> std::string { return s; }));
 
     arc_instance_throttle_ =
         ArcInstanceThrottle::GetForBrowserContextForTesting(

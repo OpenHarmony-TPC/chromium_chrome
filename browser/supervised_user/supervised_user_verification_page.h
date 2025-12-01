@@ -10,9 +10,9 @@
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/tabs/public/tab_interface.h"
 #include "components/security_interstitials/content/security_interstitial_page.h"
 #include "components/supervised_user/core/browser/child_account_service.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 
 class GURL;
@@ -70,8 +70,6 @@ class SupervisedUserVerificationPage
   void OnInterstitialClosing() override;
   int GetHTMLTemplateId() override;
   virtual void RecordReauthStatusMetrics(Status status) = 0;
-  virtual void RecordSignInTabUmaMetrics(int closed_tab_count,
-                                         int skipped_tab_count) = 0;
   void PopulateCommonStrings(base::Value::Dict& load_time_data);
   bool IsReauthCompleted();
 
@@ -89,7 +87,7 @@ class SupervisedUserVerificationPage
   const GURL reauth_url_;
   raw_ptr<supervised_user::ChildAccountService> child_account_service_;
   // List with unique tab identifiers for spawned sign-in tabs.
-  std::list<uint32_t> signin_tabs_handle_id_list_;
+  std::list<tabs::TabHandle> signin_tabs_handle_list_;
   base::WeakPtrFactory<SupervisedUserVerificationPage> weak_factory_{this};
 };
 

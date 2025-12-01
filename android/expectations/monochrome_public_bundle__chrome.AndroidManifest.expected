@@ -361,12 +361,6 @@
         android:label="@string/settings"
         android:theme="@style/Theme.Chromium.Settings">
     </activity>  # DIFF-ANCHOR: d32b85df
-    <activity  # DIFF-ANCHOR: fbf1ba15
-        android:name="org.chromium.chrome.browser.signin.SyncConsentActivity"
-        android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize"
-        android:exported="false"
-        android:theme="@style/Theme.Chromium.DialogWhenLarge">
-    </activity>  # DIFF-ANCHOR: fbf1ba15
     <activity  # DIFF-ANCHOR: d2967c86
         android:name="org.chromium.chrome.browser.site_settings.ManageSpaceActivity"
         android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize"
@@ -470,16 +464,13 @@
         android:exported="false"
         android:hardwareAccelerated="false"
         android:label="WebXR"
-        android:launchMode="singleTask"
+        android:launchMode="singleInstancePerTask"
         android:noHistory="true"
         android:resizeableActivity="false"
         android:screenOrientation="landscape"
         android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
         android:windowSoftInputMode="adjustResize">
-      <intent-filter>  # DIFF-ANCHOR: 48f4c2ef
-        <category android:name="android.intent.category.XR"/>
-      </intent-filter>  # DIFF-ANCHOR: 48f4c2ef
-      <property android:name="android.window.PROPERTY_ACTIVITY_STARTS_IN_IMMERSIVE_XR" android:value="true"/>
+      <property android:name="android.window.PROPERTY_XR_ACTIVITY_START_MODE" android:value="XR_ACTIVITY_START_MODE_HOME_SPACE"/>
     </activity>  # DIFF-ANCHOR: 5d3091ca
     <activity-alias  # DIFF-ANCHOR: 9da0e5b6
         android:name="com.google.android.apps.chrome.IntentDispatcher"

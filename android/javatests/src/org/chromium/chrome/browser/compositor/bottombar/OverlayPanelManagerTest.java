@@ -75,8 +75,8 @@ public class OverlayPanelManagerTest {
 
     /** Mocks the ContextualSearchPanel, so it doesn't create WebContents. */
     private static class MockOverlayPanel extends OverlayPanel {
-        private @PanelPriority int mPriority;
-        private boolean mCanBeSuppressed;
+        private final @PanelPriority int mPriority;
+        private final boolean mCanBeSuppressed;
         private ViewGroup mContainerView;
         private DynamicResourceLoader mResourceLoader;
 
@@ -101,7 +101,8 @@ public class OverlayPanelManagerTest {
                     compositorViewHolder,
                     MOCK_TOOLBAR_HEIGHT,
                     () -> tab,
-                    /* desktopWindowStateManager= */ null);
+                    /* desktopWindowStateManager= */ null,
+                    /* bottomControlsStacker= */ null);
             mPriority = priority;
             mCanBeSuppressed = canBeSuppressed;
         }
@@ -176,7 +177,8 @@ public class OverlayPanelManagerTest {
                                     mActivity,
                                     /* listenToActivityState= */ true,
                                     IntentRequestTracker.createFromActivity(mActivity),
-                                    mInsetObserver);
+                                    mInsetObserver,
+                                    /* trackOcclusion= */ true);
                         });
     }
 

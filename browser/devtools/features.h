@@ -7,6 +7,7 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "build/build_config.h"
 
 namespace features {
 
@@ -44,14 +45,10 @@ extern const base::FeatureParam<DevToolsFreestylerUserTier>
     kDevToolsFreestylerUserTier;
 extern const base::FeatureParam<DevToolsFreestylerExecutionMode>
     kDevToolsFreestylerExecutionMode;
-
-BASE_DECLARE_FEATURE(kDevToolsExplainThisResourceDogfood);
-extern const base::FeatureParam<std::string>
-    kDevToolsExplainThisResourceDogfoodModelId;
-extern const base::FeatureParam<double>
-    kDevToolsExplainThisResourceDogfoodTemperature;
-extern const base::FeatureParam<DevToolsFreestylerUserTier>
-    kDevToolsExplainThisResourceDogfoodUserTier;
+extern const base::FeatureParam<bool> kDevToolsFreestylerPatching;
+extern const base::FeatureParam<bool> kDevToolsFreestylerMultimodal;
+extern const base::FeatureParam<bool> kDevToolsFreestylerMultimodalUploadInput;
+extern const base::FeatureParam<bool> kDevToolsFreestylerFunctionCalling;
 
 BASE_DECLARE_FEATURE(kDevToolsAiAssistanceNetworkAgent);
 extern const base::FeatureParam<std::string>
@@ -61,14 +58,6 @@ extern const base::FeatureParam<double>
 extern const base::FeatureParam<DevToolsFreestylerUserTier>
     kDevToolsAiAssistanceNetworkAgentUserTier;
 
-BASE_DECLARE_FEATURE(kDevToolsAiAssistancePerformanceAgentDogfood);
-extern const base::FeatureParam<std::string>
-    kDevToolsAiAssistancePerformanceAgentDogfoodModelId;
-extern const base::FeatureParam<double>
-    kDevToolsAiAssistancePerformanceAgentDogfoodTemperature;
-extern const base::FeatureParam<DevToolsFreestylerUserTier>
-    kDevToolsAiAssistancePerformanceAgentDogfoodUserTier;
-
 BASE_DECLARE_FEATURE(kDevToolsAiAssistancePerformanceAgent);
 extern const base::FeatureParam<std::string>
     kDevToolsAiAssistancePerformanceAgentModelId;
@@ -76,14 +65,8 @@ extern const base::FeatureParam<double>
     kDevToolsAiAssistancePerformanceAgentTemperature;
 extern const base::FeatureParam<DevToolsFreestylerUserTier>
     kDevToolsAiAssistancePerformanceAgentUserTier;
-
-BASE_DECLARE_FEATURE(kDevToolsAiAssistanceFileAgentDogfood);
-extern const base::FeatureParam<std::string>
-    kDevToolsAiAssistanceFileAgentDogfoodModelId;
-extern const base::FeatureParam<double>
-    kDevToolsAiAssistanceFileAgentDogfoodTemperature;
-extern const base::FeatureParam<DevToolsFreestylerUserTier>
-    kDevToolsAiAssistanceFileAgentDogfoodUserTier;
+extern const base::FeatureParam<bool>
+    kDevToolsAiAssistancePerformanceAgentInsightsEnabled;
 
 BASE_DECLARE_FEATURE(kDevToolsAiAssistanceFileAgent);
 extern const base::FeatureParam<std::string>
@@ -96,6 +79,24 @@ extern const base::FeatureParam<DevToolsFreestylerUserTier>
 BASE_DECLARE_FEATURE(kDevToolsSharedProcessInfobar);
 BASE_DECLARE_FEATURE(kDevToolsVeLogging);
 extern const base::FeatureParam<bool> kDevToolsVeLoggingTesting;
+
+BASE_DECLARE_FEATURE(kDevToolsAnimationStylesInStylesTab);
+
+BASE_DECLARE_FEATURE(kDevToolsAutomaticFileSystems);
+
+BASE_DECLARE_FEATURE(kDevToolsWellKnown);
+
+BASE_DECLARE_FEATURE(kDevToolsCssValueTracing);
+
+BASE_DECLARE_FEATURE(kDevToolsAiGeneratedTimelineLabels);
+
+BASE_DECLARE_FEATURE(kDevToolsNewPermissionDialog);
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+BASE_DECLARE_FEATURE(kDevToolsDebuggingRestrictions);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+BASE_DECLARE_FEATURE(kDevToolsVerticalDrawer);
 
 }  // namespace features
 

@@ -7,6 +7,7 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "build/build_config.h"
 #include "chrome/browser/engagement/site_engagement_service_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/safe_browsing/test_safe_browsing_service.h"
@@ -24,6 +25,10 @@
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/test/base/scoped_testing_local_state.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace site_protection {
 namespace {
@@ -82,23 +87,14 @@ class SiteProtectionMetricsObserverTest
     safe_browsing_factory_->SetTestDatabaseManager(
         safe_browsing_database_manager_.get());
 
-    auto* global_browser_process = TestingBrowserProcess::GetGlobal();
-    global_browser_process->SetSafeBrowsingService(
+    browser_process_->SetSafeBrowsingService(
         safe_browsing_factory_->CreateSafeBrowsingService());
-    global_browser_process->safe_browsing_service()->Initialize();
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    // Local state is needed to construct ProxyConfigService, which is a
-    // dependency of PingManager on ChromeOS.
-    global_browser_process->SetLocalState(profile()->GetPrefs());
-#endif
+    browser_process_->safe_browsing_service()->Initialize();
   }
 
   void TearDown() override {
-    auto* global_browser_process = TestingBrowserProcess::GetGlobal();
-    global_browser_process->SetLocalState(nullptr);
-    global_browser_process->safe_browsing_service()->ShutDown();
-    global_browser_process->SetSafeBrowsingService(nullptr);
+    browser_process_->safe_browsing_service()->ShutDown();
+    browser_process_->SetSafeBrowsingService(nullptr);
 
     ChromeRenderViewHostTestHarness::TearDown();
   }
@@ -110,11 +106,6 @@ class SiteProtectionMetricsObserverTest
   }
 
   void SetIncognito() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    auto* global_browser_process = TestingBrowserProcess::GetGlobal();
-    global_browser_process->SetLocalState(nullptr);
-#endif
-
     Profile* const otr_profile =
         profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
     EXPECT_TRUE(otr_profile->IsIncognitoProfile());
@@ -124,10 +115,6 @@ class SiteProtectionMetricsObserverTest
         otr_profile, std::move(site_instance)));
 
     SetUpForNewWebContents();
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    global_browser_process->SetLocalState(profile()->GetPrefs());
-#endif
   }
 
   void SetUpForNewWebContents() {
@@ -153,8 +140,8 @@ class SiteProtectionMetricsObserverTest
     base::StatisticsRecorder::ScopedHistogramSampleObserver observer(
         histogram_name,
         base::BindLambdaForTesting(
-            [&](const char* histogram_name, uint64_t name_hash,
-                base::HistogramBase::Sample sample) { run_loop.Quit(); }));
+            [&](std::string_view histogram_name, uint64_t name_hash,
+                base::HistogramBase::Sample32 sample) { run_loop.Quit(); }));
     NavigateAndCommit(url);
     run_loop.Run();
   }
@@ -217,6 +204,14 @@ class SiteProtectionMetricsObserverTest
 
  protected:
   raw_ptr<TestingBrowserProcess> browser_process_;
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Local state is needed to construct ProxyConfigService, which is a
+  // dependency of PingManager on ChromeOS.
+  ScopedTestingLocalState scoped_testing_local_state_{
+      TestingBrowserProcess::GetGlobal()};
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
   scoped_refptr<TestSafeBrowsingDatabaseManager>
       safe_browsing_database_manager_;
   std::unique_ptr<safe_browsing::TestSafeBrowsingServiceFactory>
@@ -336,8 +331,8 @@ TEST_F(SiteProtectionMetricsObserverTest, IgnoreCurrentNavigationEngagement) {
   base::StatisticsRecorder::ScopedHistogramSampleObserver observer(
       "SafeBrowsing.SiteProtection.FamiliarityHeuristic",
       base::BindLambdaForTesting(
-          [&](const char* histogram_name, uint64_t name_hash,
-              base::HistogramBase::Sample sample) { run_loop.Quit(); }));
+          [&](std::string_view histogram_name, uint64_t name_hash,
+              base::HistogramBase::Sample32 sample) { run_loop.Quit(); }));
 
   NavigateAndCommit(kUrl, ui::PAGE_TRANSITION_TYPED);
   run_loop.Run();

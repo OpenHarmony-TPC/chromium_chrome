@@ -12,7 +12,6 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/commerce/mock_commerce_ui_tab_helper.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
-#include "chrome/browser/ui/tabs/public/tab_interface.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
 #include "chrome/browser/ui/toasts/toast_features.h"
 #include "chrome/browser/ui/views/commerce/product_specifications_icon_view.h"
@@ -24,6 +23,7 @@
 #include "components/commerce/core/mock_shopping_service.h"
 #include "components/commerce/core/test_utils.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_context.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
@@ -56,7 +56,6 @@ class ProductSpecificationsIconViewIntegrationTest
     std::vector<base::test::FeatureRef> enabled_features = {
         commerce::kProductSpecifications};
     if (GetParam()) {
-      enabled_features.push_back(toast_features::kToastFramework);
       enabled_features.push_back(commerce::kCompareConfirmationToast);
     }
     test_features_.InitWithFeatures(enabled_features, /*disabled_features*/ {});
@@ -166,7 +165,7 @@ TEST_P(ProductSpecificationsIconViewIntegrationTest, IconExecution) {
                   ->browser_window_features()
                   ->tab_strip_model()
                   ->GetActiveTab()
-                  ->contents()
+                  ->GetContents()
                   ->GetLastCommittedURL(),
               expected_comparison_table_url);
   }

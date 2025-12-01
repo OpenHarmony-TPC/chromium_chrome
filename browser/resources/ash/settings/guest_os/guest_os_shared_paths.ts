@@ -16,6 +16,7 @@ import type {DomRepeatEvent} from 'chrome://resources/polymer/v3_0/polymer/polym
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {castExists} from '../assert_extras.js';
+import type {PrefsState} from '../common/types.js';
 
 import type {GuestOsBrowserProxy, GuestOsType} from './guest_os_browser_proxy.js';
 import {getVMNameForGuestOsType, GuestOsBrowserProxyImpl} from './guest_os_browser_proxy.js';
@@ -36,7 +37,6 @@ export interface SettingsGuestOsSharedPathsElement {
 
 const SettingsGuestOsSharedPathsElementBase = I18nMixin(PolymerElement);
 
-/** @polymer */
 export class SettingsGuestOsSharedPathsElement extends
     SettingsGuestOsSharedPathsElementBase {
   static get is() {
@@ -84,7 +84,7 @@ export class SettingsGuestOsSharedPathsElement extends
     ];
   }
 
-  prefs: {[key: string]: any};
+  prefs: PrefsState;
   guestOsType: GuestOsType;
   private browserProxy_: GuestOsBrowserProxy;
   private sharedPaths_: PathObject[];

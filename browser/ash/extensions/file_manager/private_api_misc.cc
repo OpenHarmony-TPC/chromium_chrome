@@ -6,11 +6,11 @@
 
 #include <stddef.h>
 
+#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
 
-#include "ash/components/arc/arc_prefs.h"
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/multi_user_window_manager.h"
@@ -19,10 +19,12 @@
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/i18n/time_formatting.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/ash/browser_delegate/browser_delegate.h"
 #include "chrome/browser/ash/crostini/crostini_export_import.h"
 #include "chrome/browser/ash/crostini/crostini_export_import_factory.h"
 #include "chrome/browser/ash/crostini/crostini_features.h"
@@ -74,6 +76,7 @@
 #include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/drivefs/drivefs_pinning_manager.h"
 #include "chromeos/ash/components/settings/timezone_settings.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "components/account_id/account_id.h"
 #include "components/drive/drive_pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -252,24 +255,52 @@ api::file_manager_private::DefaultLocation GetDefaultLocation(
 }
 
 // Converts the value of LocalUserFilesMigrationDestination policy to
-// api::file_manager_private::CloudProvider. If SkyVault is misconfigured,
-// e.g. local files are enabled returns kNotSpecified, regardless of the policy
-// value.
-api::file_manager_private::CloudProvider GetSkyVaultMigrationDestination() {
+// api::file_manager_private::MigrationDestination. If SkyVault is
+// misconfigured, e.g. local files are enabled returns kNotSpecified, regardless
+// of the policy value.
+api::file_manager_private::MigrationDestination
+GetSkyVaultMigrationDestination() {
   if (policy::local_user_files::LocalUserFilesAllowed()) {
     // If local files are allowed, just return kNotSpecified.
-    return api::file_manager_private::CloudProvider::kNotSpecified;
+    return api::file_manager_private::MigrationDestination::kNotSpecified;
   }
 
-  auto cloud_provider = policy::local_user_files::GetMigrationDestination();
-  switch (cloud_provider) {
-    case policy::local_user_files::CloudProvider::kNotSpecified:
-      return api::file_manager_private::CloudProvider::kNotSpecified;
-    case policy::local_user_files::CloudProvider::kGoogleDrive:
-      return api::file_manager_private::CloudProvider::kGoogleDrive;
-    case policy::local_user_files::CloudProvider::kOneDrive:
-      return api::file_manager_private::CloudProvider::kOnedrive;
+  const auto migration_destination =
+      policy::local_user_files::GetMigrationDestination();
+  switch (migration_destination) {
+    case policy::local_user_files::MigrationDestination::kNotSpecified:
+      return api::file_manager_private::MigrationDestination::kNotSpecified;
+    case policy::local_user_files::MigrationDestination::kGoogleDrive:
+      return api::file_manager_private::MigrationDestination::kGoogleDrive;
+    case policy::local_user_files::MigrationDestination::kOneDrive:
+      return api::file_manager_private::MigrationDestination::kOnedrive;
+    case policy::local_user_files::MigrationDestination::kDelete:
+      return api::file_manager_private::MigrationDestination::kDelete;
   }
+}
+
+// Returns the SkyVault migration start time as a formatted string if the
+// policies are set to disable local storage and delete existing local files.
+std::optional<std::string> GetSkyVaultMigrationStartTime(Profile* profile) {
+  if (policy::local_user_files::LocalUserFilesAllowed()) {
+    return std::nullopt;
+  }
+
+  const auto migration_destination =
+      policy::local_user_files::GetMigrationDestination();
+  if (migration_destination !=
+      policy::local_user_files::MigrationDestination::kDelete) {
+    return std::nullopt;
+  }
+
+  const std::optional<base::Time> start_time =
+      policy::local_user_files::GetMigrationStartTime(profile);
+  if (start_time->is_null()) {
+    LOG(ERROR) << "Could not retrieve SkyVault Migration Start time";
+    return std::nullopt;
+  }
+  return base::UTF16ToUTF8(
+      base::TimeFormatShortDateAndTimeWithTimeZone(start_time.value()));
 }
 
 }  // namespace
@@ -318,6 +349,8 @@ FileManagerPrivateGetPreferencesFunction::Run() {
   result.default_location =
       GetDefaultLocation(prefs->GetString(prefs::kFilesAppDefaultLocation));
   result.sky_vault_migration_destination = GetSkyVaultMigrationDestination();
+  result.sky_vault_migration_start_time =
+      GetSkyVaultMigrationStartTime(profile);
 
   return RespondNow(WithArguments(result.ToValue()));
 }
@@ -576,10 +609,10 @@ FileManagerPrivateAddProvidedFileSystemFunction::Run() {
       params->provider_id == extension_misc::kODFSExtensionId &&
       first_file_system) {
     // Get Files App window, if it exists.
-    Browser* browser =
-        FindSystemWebAppBrowser(profile, ash::SystemWebAppType::FILE_MANAGER);
+    ash::BrowserDelegate* browser = FindSystemWebAppBrowser(
+        profile, ash::SystemWebAppType::FILE_MANAGER, ash::BrowserType::kApp);
     gfx::NativeWindow modal_parent =
-        browser ? browser->window()->GetNativeWindow() : nullptr;
+        browser ? browser->GetNativeWindow() : nullptr;
 
     // This will call into service->RequestMount() if necessary. This is 'fire
     // and forget' as Files app doesn't do anything if this succeeds or fails.

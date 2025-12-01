@@ -32,6 +32,7 @@
 #include "components/version_info/version_info.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/browser_test.h"
+#include "google_apis/gaia/gaia_id.h"
 
 namespace ash {
 namespace {
@@ -91,8 +92,8 @@ class OobeMetricsTest : public OobeBaseTest {
   LoginManagerMixin login_manager_mixin_{&mixin_host_, {}, &fake_gaia_};
   std::unique_ptr<metrics::structured::TestStructuredMetricsRecorder>
       structured_metrics_recorder_;
-  AccountId user_{
-      AccountId::FromUserEmailGaiaId(test::kTestEmail, test::kTestGaiaId)};
+  AccountId user_{AccountId::FromUserEmailGaiaId(test::kTestEmail,
+                                                 GaiaId(test::kTestGaiaId))};
 
  private:
   FakeGaiaMixin fake_gaia_{&mixin_host_};
@@ -361,8 +362,13 @@ IN_PROC_BROWSER_TEST_F(FirstUserOobeMetricsTest, ClientIdReset) {
   // the stats reporting setting from enabled to disabled to trigger the
   // unexpected switch causing the reset. Later enable the stats reporting
   // controller again to get the histograms to be recorded.
-  StatsReportingController::Get()->SetEnabled(
-      ProfileManager::GetActiveUserProfile(), true);
+  if (!ash::features::IsOobePreConsentMetricsEnabled()) {
+    // If OOBE preconsent metrics feature is enabled, metrics reporting status
+    // is by default enabled so there is no need to manually set it to true for
+    // testing.
+    StatsReportingController::Get()->SetEnabled(
+        ProfileManager::GetActiveUserProfile(), true);
+  }
   WaitForPrefValue(g_browser_process->local_state(),
                    prefs::kOobeMetricsReportedAsEnabled, base::Value(true));
 

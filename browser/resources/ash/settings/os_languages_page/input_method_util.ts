@@ -88,8 +88,6 @@ export enum OptionType {
   JAPANESE_MANAGE_USER_DICTIONARY = 'JapaneseManageUserDictionary',
   JAPANESE_DELETE_PERSONALIZATION_DATA = 'JapaneseClearPersonalizationData',
   JAPANESE_DISABLE_PERSONALIZED_SUGGESTIONS = 'JapaneseDisableSuggestions',
-  JAPANESE_AUTOMATICALLY_SEND_STATISTICS_TO_GOOGLE =
-      'AutomaticallySendStatisticsToGoogle',
   // LINT.ThenChange(/chrome/browser/ash/input_method/japanese/japanese_prefs_constants.h:JpOptionCategories)
   // Options for Korean input method.
   KOREAN_ENABLE_SYLLABLE_INPUT = 'koreanEnableSyllableInput',
@@ -168,9 +166,8 @@ export const OPTION_DEFAULT = {
   [OptionType.JAPANESE_SPACE_INPUT_STYLE]: JapaneseSpaceInputStyle.INPUT_MODE,
   [OptionType.JAPANESE_SECTION_SHORTCUT]:
       JapaneseSectionShortcut.DIGITS_123456789,
-  [OptionType.JAPANESE_KEYMAP_STYLE]: JapaneseKeymapStyle.CUSTOM,
-  [OptionType.JAPANESE_DISABLE_PERSONALIZED_SUGGESTIONS]: true,
-  [OptionType.JAPANESE_AUTOMATICALLY_SEND_STATISTICS_TO_GOOGLE]: true,
+  [OptionType.JAPANESE_KEYMAP_STYLE]: JapaneseKeymapStyle.CHROME_OS,
+  [OptionType.JAPANESE_DISABLE_PERSONALIZED_SUGGESTIONS]: false,
   // LINT.ThenChange(/chrome/browser/ash/input_method/japanese/japanese_settings.cc:JpPrefDefaults)
 
   // Options for Korean input method.
@@ -341,7 +338,6 @@ const Settings = {
       optionNames: [
         {name: OptionType.JAPANESE_DELETE_PERSONALIZATION_DATA},
         {name: OptionType.JAPANESE_DISABLE_PERSONALIZED_SUGGESTIONS},
-        {name: OptionType.JAPANESE_AUTOMATICALLY_SEND_STATISTICS_TO_GOOGLE},
       ],
     },
   ],
@@ -539,7 +535,7 @@ export function generateOptions(
             // `options.length`, and `options` is immediately pushed to, so the
             // values of `pushedOptions` must always be valid indices into
             // `options`.
-            options[optionsIndex]!.optionNames.push(...optionNames);
+            options[optionsIndex].optionNames.push(...optionNames);
           }
         }
       }
@@ -565,7 +561,6 @@ export function getOptionUiType(option: OptionType): UiType {
     case OptionType.JAPANESE_USE_SYSTEM_DICTIONARY:
     case OptionType.JAPANESE_USE_INPUT_HISTORY:
     case OptionType.JAPANESE_DISABLE_PERSONALIZED_SUGGESTIONS:
-    case OptionType.JAPANESE_AUTOMATICALLY_SEND_STATISTICS_TO_GOOGLE:
     case OptionType.PHYSICAL_KEYBOARD_ENABLE_CAPITALIZATION:
     case OptionType.PHYSICAL_KEYBOARD_ENABLE_PREDICTIVE_WRITING:
     case OptionType.VIRTUAL_KEYBOARD_ENABLE_CAPITALIZATION:
@@ -600,9 +595,7 @@ export function getOptionUiType(option: OptionType): UiType {
       return UiType.TOGGLE_BUTTON;
     case OptionType.PHYSICAL_KEYBOARD_AUTO_CORRECTION_LEVEL:
     case OptionType.VIRTUAL_KEYBOARD_AUTO_CORRECTION_LEVEL:
-      return loadTimeData.getBoolean('allowAutocorrectToggle') ?
-          UiType.TOGGLE_BUTTON :
-          UiType.DROPDOWN;
+      return UiType.TOGGLE_BUTTON;
     case OptionType.XKB_LAYOUT:
     case OptionType.JAPANESE_INPUT_MODE:
     case OptionType.JAPANESE_PUNCTUATION_STYLE:
@@ -720,8 +713,6 @@ export function getOptionLabelName(option: OptionType): string {
       return 'inputMethodOptionsJapaneseDeletePersonalizationData';
     case OptionType.JAPANESE_DISABLE_PERSONALIZED_SUGGESTIONS:
       return 'inputMethodOptionsJapaneseDisablePersonalizedSuggestions';
-    case OptionType.JAPANESE_AUTOMATICALLY_SEND_STATISTICS_TO_GOOGLE:
-      return 'inputMethodOptionsJapaneseAutomaticallySendStatisticsToGoogle';
     case OptionType.XKB_LAYOUT:
       return 'inputMethodOptionsXkbLayout';
     case OptionType.EDIT_USER_DICT:
@@ -954,10 +945,6 @@ export function getOptionMenuItems(option: OptionType):
     case OptionType.JAPANESE_KEYMAP_STYLE:
       return [
         {
-          value: JapaneseKeymapStyle.CUSTOM,
-          name: 'inputMethodOptionsJapaneseKeymapStyleCustom',
-        },
-        {
           value: JapaneseKeymapStyle.ATOK,
           name: 'inputMethodOptionsJapaneseKeymapStyleAtok',
         },
@@ -968,10 +955,6 @@ export function getOptionMenuItems(option: OptionType):
         {
           value: JapaneseKeymapStyle.KOTOERI,
           name: 'inputMethodOptionsJapaneseKeymapStyleKotoeri',
-        },
-        {
-          value: JapaneseKeymapStyle.MOBILE,
-          name: 'inputMethodOptionsJapaneseKeymapStyleMobile',
         },
         {
           value: JapaneseKeymapStyle.CHROME_OS,

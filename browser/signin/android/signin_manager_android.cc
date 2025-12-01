@@ -19,6 +19,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_constants.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
+#include "chrome/browser/password_manager/android/password_manager_android_util.h"
 #include "chrome/browser/policy/cloud/user_policy_signin_service_factory.h"
 #include "chrome/browser/policy/cloud/user_policy_signin_service_mobile.h"
 #include "chrome/browser/profiles/profile.h"
@@ -27,6 +28,7 @@
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/common/pref_names.h"
 #include "components/google/core/common/google_util.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/split_stores_and_local_upm.h"
 #include "components/policy/core/common/cloud/user_cloud_policy_manager.h"
 #include "components/policy/core/common/policy_switches.h"
@@ -36,7 +38,6 @@
 #include "components/signin/public/identity_manager/account_managed_status_finder.h"
 #include "components/signin/public/identity_manager/accounts_cookie_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/sync/service/sync_service.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/browsing_data_remover.h"
@@ -74,7 +75,9 @@ class ProfileDataRemover : public content::BrowsingDataRemover::Observer {
     if (all_data) {
       chrome_browsing_data_remover::DataType removed_types =
           chrome_browsing_data_remover::ALL_DATA_TYPES;
-      if (password_manager::UsesSplitStoresAndUPMForLocal(
+      if (base::FeatureList::IsEnabled(
+              password_manager::features::kLoginDbDeprecationAndroid) ||
+          password_manager::UsesSplitStoresAndUPMForLocal(
               profile_->GetPrefs())) {
         // If usesSplitStoresAndUPMForLocal() is true, browser sign-in won't
         // upload existing passwords, so there's no reason to wipe them
@@ -82,6 +85,9 @@ class ProfileDataRemover : public content::BrowsingDataRemover::Observer {
         // should survive (outside of the browser) to be used by other apps,
         // until system-level sign-out. In other words, the browser has no
         // business deleting any passwords here.
+        // After the login db deprecation, all users have split stores which
+        // either store passwords outside the browser or don't store any
+        // passwords.
         removed_types &= ~chrome_browsing_data_remover::DATA_TYPE_PASSWORDS;
       }
       remover_->RemoveAndReply(base::Time(), base::Time::Max(), removed_types,
@@ -110,7 +116,7 @@ class ProfileDataRemover : public content::BrowsingDataRemover::Observer {
   ProfileDataRemover(const ProfileDataRemover&) = delete;
   ProfileDataRemover& operator=(const ProfileDataRemover&) = delete;
 
-  ~ProfileDataRemover() override {}
+  ~ProfileDataRemover() override = default;
 
   void OnBrowsingDataRemoverDone(uint64_t failed_data_types) override {
     remover_->RemoveObserver(this);
@@ -170,9 +176,8 @@ SigninManagerAndroid::SigninManagerAndroid(
 
   java_signin_manager_ = Java_SigninManagerImpl_create(
       base::android::AttachCurrentThread(), reinterpret_cast<intptr_t>(this),
-      profile_->GetJavaObject(), identity_manager_->GetJavaObject(),
-      identity_manager_->GetIdentityMutatorJavaObject(),
-      SyncServiceFactory::GetForProfile(profile_)->GetJavaObject());
+      profile_, identity_manager_,
+      identity_manager_->GetIdentityMutatorJavaObject());
 }
 
 base::android::ScopedJavaLocalRef<jobject>
@@ -180,7 +185,7 @@ SigninManagerAndroid::GetJavaObject() {
   return base::android::ScopedJavaLocalRef<jobject>(java_signin_manager_);
 }
 
-SigninManagerAndroid::~SigninManagerAndroid() {}
+SigninManagerAndroid::~SigninManagerAndroid() = default;
 
 void SigninManagerAndroid::Shutdown() {
   Java_SigninManagerImpl_destroy(base::android::AttachCurrentThread(),
@@ -201,7 +206,7 @@ bool SigninManagerAndroid::IsSigninAllowed() const {
   return signin_allowed_.GetValue();
 }
 
-bool SigninManagerAndroid::IsSigninAllowedByPolicy(JNIEnv* env) const {
+bool SigninManagerAndroid::IsSigninAllowed(JNIEnv* env) const {
   return IsSigninAllowed();
 }
 
@@ -219,7 +224,7 @@ bool SigninManagerAndroid::MatchesCachedIsAccountManagedEntry(
 
 void SigninManagerAndroid::OnSigninAllowedPrefChanged() const {
   VLOG(1) << "::OnSigninAllowedPrefChanged() " << IsSigninAllowed();
-  Java_SigninManagerImpl_onSigninAllowedByPolicyChanged(
+  Java_SigninManagerImpl_onSigninAllowedChanged(
       base::android::AttachCurrentThread(), java_signin_manager_,
       IsSigninAllowed());
 }
@@ -253,9 +258,8 @@ void SigninManagerAndroid::RegisterPolicyWithAccount(
 
 void SigninManagerAndroid::FetchAndApplyCloudPolicy(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& j_account_info,
+    const CoreAccountInfo& account,
     const base::RepeatingClosure& callback) {
-  CoreAccountInfo account = ConvertFromJavaCoreAccountInfo(env, j_account_info);
   RegisterPolicyWithAccount(
       account,
       base::BindOnce(&SigninManagerAndroid::OnPolicyRegisterDone,

@@ -62,7 +62,18 @@ class FloatingSsoService : public KeyedService,
   // progress. This can be called repeatedly but only the latest callback will
   // be executed.
   void RunWhenCookiesAreReady(base::OnceClosure callback);
+  // `callback` will be run once the bridge executes `MergeFullSyncData` method
+  // (which can only happen when Sync is being enabled for the first time on
+  // this client) and once conditions for `RunWhenCookiesAreReady` are also
+  // satisfied.
+  void RunWhenCookiesAreReadyOnFirstSync(base::OnceClosure callback);
   base::WeakPtr<syncer::DataTypeControllerDelegate> GetControllerDelegate();
+
+  // Signal that this cookie shouldn't be overridden with remote
+  // entities on initial Sync cycle.
+  void MarkToNotOverride(const net::CanonicalCookie& cookie);
+
+  bool ShouldSyncCookiesForUrl(const GURL& url) const;
 
   FloatingSsoSyncBridge* GetBridgeForTesting() { return bridge_.get(); }
   bool IsBoundToCookieManagerForTesting() { return receiver_.is_bound(); }
@@ -85,7 +96,7 @@ class FloatingSsoService : public KeyedService,
   void OnCookiesLoaded(const net::CookieList& cookies);
   bool ShouldSyncCookie(const net::CanonicalCookie& cookie) const;
   void OnConnectionError();
-  bool IsDomainAllowed(const net::CanonicalCookie& cookie) const;
+  bool IsDomainAllowed(const GURL& url) const;
   void OnCookieSet(net::CookieAccessResult result);
   void OnCookieDeleted(bool success);
   void DecrementChangesCountAndMaybeNotify();

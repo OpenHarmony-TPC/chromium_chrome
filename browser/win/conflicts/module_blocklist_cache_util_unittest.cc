@@ -4,6 +4,7 @@
 
 #include "chrome/browser/win/conflicts/module_blocklist_cache_util.h"
 
+#include <algorithm>
 #include <memory>
 #include <random>
 #include <set>
@@ -12,11 +13,11 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/hash/md5.h"
-#include "base/ranges/algorithm.h"
 #include "base/time/time.h"
 #include "chrome/browser/win/conflicts/module_list_filter.h"
 #include "chrome/chrome_elf/sha1/sha1.h"
@@ -53,7 +54,7 @@ std::vector<third_party_dlls::PackedListModule> CreateUniqueModuleEntries(
 
   // Sort the entries and make sure each module is unique.
   std::sort(entries.begin(), entries.end(), internal::ModuleLess());
-  CHECK(base::ranges::adjacent_find(entries, internal::ModuleEqual()) ==
+  CHECK(std::ranges::adjacent_find(entries, internal::ModuleEqual()) ==
         entries.end());
 
   return entries;
@@ -175,9 +176,10 @@ TEST_F(ModuleBlocklistCacheUtilTest, WriteAndRead) {
   ASSERT_EQ(read_blocklisted_modules.size(), blocklisted_modules.size());
   // Note: Not using PackedListModuleEquals because the time_date_stamp is also
   // verified.
-  EXPECT_EQ(0, memcmp(&read_blocklisted_modules[0], &blocklisted_modules[0],
-                      read_blocklisted_modules.size() *
-                          sizeof(third_party_dlls::PackedListModule)));
+  EXPECT_EQ(0, UNSAFE_TODO(
+                   memcmp(&read_blocklisted_modules[0], &blocklisted_modules[0],
+                          read_blocklisted_modules.size() *
+                              sizeof(third_party_dlls::PackedListModule))));
 
   for (size_t i = 0; i < sizeof(base::MD5Digest::a); ++i) {
     EXPECT_EQ(md5_digest.a[i], read_md5_digest.a[i]);
@@ -244,7 +246,7 @@ TEST_F(ModuleBlocklistCacheUtilTest, RemoveAllowlistedEntries) {
   EXPECT_EQ(kTestModuleCount - kAllowlistedModulesCount,
             blocklisted_modules.size());
   for (const auto& module : allowlisted_modules) {
-    EXPECT_TRUE(base::ranges::none_of(
+    EXPECT_TRUE(std::ranges::none_of(
         blocklisted_modules, [&module](const auto& element) {
           return internal::ModuleEqual()(module, element);
         }));
@@ -278,7 +280,7 @@ TEST_F(ModuleBlocklistCacheUtilTest, UpdateModuleBlocklistCacheTimestamps) {
   EXPECT_EQ(kTestModuleCount, blocklisted_modules.size());
   // For each entires, make sure they were updated.
   for (const auto& module : updated_modules) {
-    auto iter = base::ranges::find_if(
+    auto iter = std::ranges::find_if(
         blocklisted_modules, [&module](const auto& element) {
           return internal::ModuleEqual()(module, element);
         });
@@ -323,7 +325,7 @@ TEST_F(ModuleBlocklistCacheUtilTest, RemoveExpiredEntries_OnlyExpired) {
   // The 5 elements were removed.
   EXPECT_EQ(kTestModuleCount - kModulesToRemove, blocklisted_modules.size());
   for (const auto& module : expired_modules) {
-    EXPECT_TRUE(base::ranges::none_of(
+    EXPECT_TRUE(std::ranges::none_of(
         blocklisted_modules, [&module](const auto& element) {
           return internal::ModuleEqual()(module, element);
         }));
@@ -362,7 +364,7 @@ TEST_F(ModuleBlocklistCacheUtilTest, RemoveExpiredEntries_NewlyBlocklisted) {
   EXPECT_EQ(kTestModuleCount - kNewlyBlocklistedModuleCount,
             blocklisted_modules.size());
   for (const auto& module : excess_modules) {
-    EXPECT_TRUE(base::ranges::none_of(
+    EXPECT_TRUE(std::ranges::none_of(
         blocklisted_modules, [&module](const auto& element) {
           return internal::ModuleEqual()(module, element);
         }));
@@ -402,7 +404,7 @@ TEST_F(ModuleBlocklistCacheUtilTest, RemoveExpiredEntries_MaxSize) {
   // Enough elements were removed.
   EXPECT_EQ(kMaxModuleBlocklistCacheSize, blocklisted_modules.size());
   for (const auto& module : excess_modules) {
-    EXPECT_TRUE(base::ranges::none_of(
+    EXPECT_TRUE(std::ranges::none_of(
         blocklisted_modules, [&module](const auto& element) {
           return internal::ModuleEqual()(module, element);
         }));
@@ -444,7 +446,7 @@ TEST_F(ModuleBlocklistCacheUtilTest, RemoveDuplicateEntries) {
 
   EXPECT_EQ(kTestModuleCount, blocklisted_modules.size());
   for (const auto& module : duplicated_modules) {
-    EXPECT_TRUE(base::ranges::any_of(
+    EXPECT_TRUE(std::ranges::any_of(
         blocklisted_modules, [&module](const auto& element) {
           return internal::ModuleEqual()(module, element) &&
                  module.time_date_stamp == element.time_date_stamp;

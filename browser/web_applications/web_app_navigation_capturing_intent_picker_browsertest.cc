@@ -4,8 +4,10 @@
 
 #include <vector>
 
+#include "chrome/browser/apps/link_capturing/link_capturing_feature_test_support.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/web_apps/web_app_link_capturing_test_utils.h"
+#include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_navigation_capturing_browsertest_base.h"
@@ -37,8 +39,8 @@ class WebAppNavigationCapturingIntentPickerBrowserTest
   }
 };
 
-// TODO(crbug.com/376641667): Flaky on Mac.
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/376641667): Flaky on Mac & Windows.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 #define MAYBE_FocusExisting DISABLED_FocusExisting
 #else
 #define MAYBE_FocusExisting FocusExisting
@@ -75,8 +77,8 @@ IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingIntentPickerBrowserTest,
   EXPECT_EQ(app_contents->GetPrimaryMainFrame()->GetLastCommittedURL(),
             GetAppUrl());
 
-  std::vector<GURL> launch_params =
-      GetLaunchParams(app_contents, "launchParamsTargetUrls");
+  std::vector<GURL> launch_params = apps::test::GetLaunchParamUrlsInContents(
+      app_contents, "launchParamsTargetUrls");
   // There should be two launch params -- one for the initial launch and one
   // for when the existing app got focus (via the Intent Picker) and launch
   // params were enqueued.
@@ -84,8 +86,15 @@ IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingIntentPickerBrowserTest,
               testing::ElementsAre(GetAppUrl(), GetAppUrlWithQuery()));
 }
 
+// TODO(crbug.com/382315984): Fix this flake.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_NavigateExisting DISABLED_NavigateExisting
+#else
+#define MAYBE_NavigateExisting NavigateExisting
+#endif
+
 IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingIntentPickerBrowserTest,
-                       NavigateExisting) {
+                       MAYBE_NavigateExisting) {
   webapps::AppId app_id = InstallWebApp(WebAppInstallInfo::CreateForTesting(
       GetAppUrl(), blink::mojom::DisplayMode::kMinimalUi,
       mojom::UserDisplayMode::kStandalone,
@@ -112,11 +121,31 @@ IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingIntentPickerBrowserTest,
   EXPECT_EQ(app_contents->GetPrimaryMainFrame()->GetLastCommittedURL(),
             GetAppUrlWithQuery());
 
-  std::vector<GURL> launch_params =
-      GetLaunchParams(app_contents, "launchParamsTargetUrls");
+  std::vector<GURL> launch_params = apps::test::GetLaunchParamUrlsInContents(
+      app_contents, "launchParamsTargetUrls");
   // There should be one launch param -- because the Intent Picker triggers a
   // new navigation in the app (and launch params are then enqueued).
   EXPECT_THAT(launch_params, testing::ElementsAre(GetAppUrlWithQuery()));
+}
+
+// Test that the intent picker shows up for chrome://password-manager, since it
+// is installable.
+IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingIntentPickerBrowserTest,
+                       DoShowIconAndBubbleOnChromePasswordManagerPage) {
+  GURL password_manager_url("chrome://password-manager");
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), password_manager_url, WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+
+  webapps::AppId pwd_manager_app_id =
+      web_app::InstallWebAppFromPageAndCloseAppBrowser(browser(),
+                                                       password_manager_url);
+
+  content::RenderFrameHost* host =
+      ui_test_utils::NavigateToURL(browser(), password_manager_url);
+  ASSERT_NE(nullptr, host);
+
+  ASSERT_TRUE(WaitForIntentPickerToShow(browser()));
 }
 
 }  // namespace web_app

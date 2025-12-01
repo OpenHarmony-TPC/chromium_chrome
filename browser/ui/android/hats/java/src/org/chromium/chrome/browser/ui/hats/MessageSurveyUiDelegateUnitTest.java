@@ -269,54 +269,20 @@ public class MessageSurveyUiDelegateUnitTest {
     }
 
     @Test
-    public void cancelWhenSwitchedIntoIncognito() {
-        mTabModelHelper.tabStateInitialized();
-        showSurveyInvitation();
-
-        mTabModelHelper.switchToIncognito(true);
-        mTabModelHelper.skipToReadyForSurvey();
-        mTestMessageDispatcher.assertMessageEnqueued(false);
-        assertEquals(
-                "Delegate state should end at NOT_PRESENTED since message is never enqueued.",
-                State.NOT_PRESENTED,
-                mMessageSurveyUiDelegate.getStateForTesting());
-        assertEquals(
-                "OnPresentationFailedCallback not called.",
-                1,
-                mOnPresentationFailedCallback.getCallCount());
-    }
-
-    @Test
-    public void noSurveyInvitationInIncognito() {
-        mTabModelHelper.switchToIncognito(true);
-        showSurveyInvitation();
-
-        mTestMessageDispatcher.assertMessageEnqueued(false);
-        assertEquals(
-                "Never show survey invitation in incognito.",
-                State.NOT_PRESENTED,
-                mMessageSurveyUiDelegate.getStateForTesting());
-        assertEquals(
-                "OnPresentationFailedCallback is not called.",
-                1,
-                mOnPresentationFailedCallback.getCallCount());
-    }
-
-    @Test
     public void noStateUpdateAfterAccepted() {
         mTabModelHelper.skipToReadyForSurvey();
         showSurveyInvitation();
         mTestMessageDispatcher.acceptMessage();
         assertEquals(
                 "Delegate state should end as ACCEPTED",
-                mMessageSurveyUiDelegate.getStateForTesting(),
-                State.ACCEPTED);
+                State.ACCEPTED,
+                mMessageSurveyUiDelegate.getStateForTesting());
 
         mMessageSurveyUiDelegate.dismiss();
         assertEquals(
                 "Delegate state should remain unchanged.",
-                mMessageSurveyUiDelegate.getStateForTesting(),
-                State.ACCEPTED);
+                State.ACCEPTED,
+                mMessageSurveyUiDelegate.getStateForTesting());
     }
 
     @Test
@@ -407,11 +373,6 @@ public class MessageSurveyUiDelegateUnitTest {
             MockitoHelper.doCallback(mTabObserverCaptor::removeObserver)
                     .when(mTab)
                     .removeObserver(any(TabObserver.class));
-        }
-
-        SurveyTestTabModelHelper switchToIncognito(boolean isIncognito) {
-            doReturn(isIncognito).when(mTabModelSelector).isIncognitoSelected();
-            return this;
         }
 
         SurveyTestTabModelHelper tabStateInitialized() {

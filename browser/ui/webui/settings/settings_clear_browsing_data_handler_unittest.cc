@@ -16,7 +16,9 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/test_browser_window.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chrome/test/base/testing_profile_manager.h"
 #include "components/browsing_data/core/browsing_data_utils.h"
 #include "components/browsing_data/core/counters/browsing_data_counter.h"
 #include "components/browsing_data/core/pref_names.h"
@@ -108,6 +110,7 @@ class ClearBrowsingDataHandlerUnitTest : public testing::Test {
   content::BrowserTaskEnvironment browser_task_environment_;
   std::unique_ptr<TestBrowserWindow> browser_window_;
   std::unique_ptr<Browser> browser_;
+  std::unique_ptr<TestingProfileManager> testing_profile_manager;
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<content::WebContents> web_contents_;
   content::TestWebUI test_web_ui_;
@@ -124,9 +127,11 @@ class ClearBrowsingDataHandlerUnitTest : public testing::Test {
 };
 
 void ClearBrowsingDataHandlerUnitTest::SetUp() {
-  feature_list_.InitWithFeatures({toast_features::kToastFramework,
-                                  toast_features::kClearBrowsingDataToast},
-                                 {});
+  feature_list_.InitWithFeatures({toast_features::kClearBrowsingDataToast}, {});
+
+  testing_profile_manager = std::make_unique<TestingProfileManager>(
+      TestingBrowserProcess::GetGlobal());
+  ASSERT_TRUE(testing_profile_manager->SetUp());
 
   TestingProfile::Builder builder;
   profile_ = builder.Build();
@@ -184,8 +189,9 @@ void ClearBrowsingDataHandlerUnitTest::VerifySearchHistoryWebUIUpdate(
       continue;
     }
     const std::string* event = data.arg1()->GetIfString();
-    if (!event || *event != "update-sync-state")
+    if (!event || *event != "update-sync-state") {
       continue;
+    }
     const base::Value::Dict* arg2_dict = data.arg2()->GetIfDict();
     if (!arg2_dict) {
       continue;
@@ -217,8 +223,9 @@ TemplateURL* ClearBrowsingDataHandlerUnitTest::AddSearchEngine(
   data.prepopulate_id = prepopulate_id;
   TemplateURL* url =
       template_url_service->Add(std::make_unique<TemplateURL>(data));
-  if (set_default)
+  if (set_default) {
     template_url_service->SetUserSelectedDefaultSearchProvider(url);
+  }
   return url;
 }
 

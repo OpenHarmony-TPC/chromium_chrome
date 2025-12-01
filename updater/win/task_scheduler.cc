@@ -30,6 +30,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/threading/scoped_blocking_call.h"
 #include "base/time/time.h"
 #include "base/win/scoped_bstr.h"
 #include "base/win/scoped_co_mem.h"
@@ -67,7 +68,7 @@ std::wstring GetTimestampString(base::Time timestamp) {
   base::Time::Exploded exploded_time;
   // The Z timezone info at the end of the string means UTC.
   timestamp.UTCExplode(&exploded_time);
-  return base::ASCIIToWide(base::StringPrintf(
+  return base::UTF8ToWide(base::StringPrintf(
       "%04d-%02d-%02dT%02d:%02d:%02dZ", exploded_time.year, exploded_time.month,
       exploded_time.day_of_month, exploded_time.hour, exploded_time.minute,
       exploded_time.second));
@@ -838,6 +839,9 @@ class TaskSchedulerV2 final : public TaskScheduler {
   };
 
   [[nodiscard]] Microsoft::WRL::ComPtr<ITaskService> GetTaskService() const {
+    base::ScopedBlockingCall scoped_blocking_call(
+        FROM_HERE, base::BlockingType::WILL_BLOCK);
+
     Microsoft::WRL::ComPtr<ITaskService> task_service;
     HRESULT hr =
         ::CoCreateInstance(CLSID_TaskScheduler, nullptr, CLSCTX_INPROC_SERVER,
@@ -1308,7 +1312,8 @@ class TaskSchedulerV2 final : public TaskScheduler {
     hr = root_task_folder->DeleteFolder(
         base::win::ScopedBstr(folder_name).Get(), 0);
     if (FAILED(hr)) {
-      LOG(ERROR) << "Failed get delete the sub folder. " << std::hex << hr;
+      LOG(ERROR) << "Failed to delete the sub folder: " << folder_name
+                 << ", error: " << std::hex << hr;
       return false;
     }
 

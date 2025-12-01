@@ -193,7 +193,8 @@ void TabLayer::SetProperties(int id,
       toolbar_resource_id, toolbar_background_color, anonymize_toolbar,
       toolbar_textbox_background_color, toolbar_textbox_resource_id, 0,
       content_offset, false, false, viz::OffsetTag());
-  toolbar_layer_->UpdateProgressBar(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  toolbar_layer_->UpdateProgressBar(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                    0, 0, 0, false);
 
   float toolbar_impact_height = 0;
   if (show_toolbar)
@@ -446,7 +447,6 @@ TabLayer::TabLayer(bool incognito,
   front_border_->SetFillCenter(false);
 }
 
-TabLayer::~TabLayer() {
-}
+TabLayer::~TabLayer() = default;
 
 }  //  namespace android

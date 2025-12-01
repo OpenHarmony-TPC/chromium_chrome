@@ -62,9 +62,10 @@ export class ProductSpecificationsItemElement extends PolymerElement {
     };
   }
 
-  item: ProductSpecificationsSet;
-  checked: boolean;
-  index: number;
+  declare item: ProductSpecificationsSet;
+  declare checked: boolean;
+  declare index: number;
+  declare searchTerm: string;
   private isShiftKeyDown_: boolean = false;
   private productSpecificationsProxy_: ProductSpecificationsBrowserProxy =
       ProductSpecificationsBrowserProxyImpl.getInstance();

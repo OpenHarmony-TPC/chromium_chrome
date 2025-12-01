@@ -49,6 +49,7 @@ import org.robolectric.shadows.ShadowLooper;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -56,7 +57,9 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tabmodel.TabUngrouper;
 import org.chromium.chrome.browser.tasks.tab_management.MessageService.MessageType;
+import org.chromium.chrome.browser.tasks.tab_management.TabGridItemLongPressOrchestrator.OnLongPressTabItemEventListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
@@ -64,6 +67,8 @@ import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter.ViewHolder;
+
+import java.util.List;
 
 /** Tests for {@link TabGridItemTouchHelperCallback}. */
 @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -98,6 +103,7 @@ public class TabGridItemTouchHelperCallbackUnitTest {
     @Mock private TabModel mTabModel;
     @Mock private TabListMediator.TabActionListener mTabClosedListener;
     @Mock private TabGroupModelFilter mTabGroupModelFilter;
+    @Mock private TabUngrouper mTabUngrouper;
     @Mock private TabListMediator.TabGridDialogHandler mTabGridDialogHandler;
     @Mock private Profile mProfile;
     @Mock private Tracker mTracker;
@@ -105,9 +111,8 @@ public class TabGridItemTouchHelperCallbackUnitTest {
     @Mock private TabGroupCreationDialogManager mTabGroupCreationDialogManager;
     @Mock private TabGroupColorViewProvider mTabGroupColorViewProvider;
 
-    @Mock
-    private TabGridItemTouchHelperCallback.OnLongPressTabItemEventListener
-            mOnLongPressTabItemEventListener;
+    @Mock private OnLongPressTabItemEventListener mOnLongPressTabItemEventListener;
+    @Mock private TabGridItemLongPressOrchestrator mTabGridItemLongPressOrchestrator;
 
     private final ObservableSupplierImpl<TabGroupModelFilter> mTabGroupModelFilterSupplier =
             new ObservableSupplierImpl<>();
@@ -150,17 +155,22 @@ public class TabGridItemTouchHelperCallbackUnitTest {
         mItemView4 = prepareItemView(5, 5, 9, 9);
 
         mTabGroupModelFilterSupplier.set(mTabGroupModelFilter);
+        when(mTabGroupModelFilter.getTabUngrouper()).thenReturn(mTabUngrouper);
         doReturn(mProfile).when(mTabModel).getProfile();
         doReturn(mTabModel).when(mTabGroupModelFilter).getTabModel();
         doReturn(tab1).when(mTabModel).getTabAt(POSITION1);
         doReturn(tab2).when(mTabModel).getTabAt(POSITION2);
         doReturn(tab3).when(mTabModel).getTabAt(POSITION3);
         doReturn(tab4).when(mTabModel).getTabAt(POSITION4);
+        doReturn(tab1).when(mTabModel).getTabById(TAB1_ID);
+        doReturn(tab2).when(mTabModel).getTabById(TAB2_ID);
+        doReturn(tab3).when(mTabModel).getTabById(TAB3_ID);
+        doReturn(tab4).when(mTabModel).getTabById(TAB4_ID);
         doReturn(4).when(mTabModel).getCount();
-        doReturn(tab1).when(mTabGroupModelFilter).getTabAt(POSITION1);
-        doReturn(tab2).when(mTabGroupModelFilter).getTabAt(POSITION2);
-        doReturn(tab3).when(mTabGroupModelFilter).getTabAt(POSITION3);
-        doReturn(tab4).when(mTabGroupModelFilter).getTabAt(POSITION4);
+        doReturn(tab1).when(mTabGroupModelFilter).getRepresentativeTabAt(POSITION1);
+        doReturn(tab2).when(mTabGroupModelFilter).getRepresentativeTabAt(POSITION2);
+        doReturn(tab3).when(mTabGroupModelFilter).getRepresentativeTabAt(POSITION3);
+        doReturn(tab4).when(mTabGroupModelFilter).getRepresentativeTabAt(POSITION4);
         doReturn(TAB1_ID).when(tab1).getRootId();
         doReturn(TAB2_ID).when(tab2).getRootId();
         doReturn(TAB3_ID).when(tab3).getRootId();
@@ -209,8 +219,6 @@ public class TabGridItemTouchHelperCallbackUnitTest {
                         "",
                         !isDialog,
                         TabListMode.GRID);
-        mItemTouchHelperCallback.setOnLongPressTabItemEventListener(
-                mOnLongPressTabItemEventListener);
         mItemTouchHelperCallback.setupCallback(THRESHOLD, MERGE_AREA_THRESHOLD, THRESHOLD);
         mItemTouchHelperCallback.getMovementFlags(mRecyclerView, mMockViewHolder1);
     }
@@ -235,7 +243,7 @@ public class TabGridItemTouchHelperCallbackUnitTest {
     public void onSwipeTab_Delete() {
         mItemTouchHelperCallback.onSwiped(mMockViewHolder1, POSITION1);
 
-        verify(mTabClosedListener).run(mItemView1, TAB1_ID);
+        verify(mTabClosedListener).run(mItemView1, TAB1_ID, /* triggeringMotion= */ null);
     }
 
     @Test
@@ -260,6 +268,37 @@ public class TabGridItemTouchHelperCallbackUnitTest {
                 mModel.get(1).model.get(TabProperties.CARD_ANIMATION_STATUS),
                 equalTo(TabGridView.AnimationStatus.CARD_RESTORE));
         assertThat(mModel.get(1).model.get(CARD_ALPHA), equalTo(1f));
+    }
+
+    @Test
+    public void onReleaseTab_NoMergeCollaboration() {
+        // Dragged object is a collaboration.
+        when(mTabGroupColorViewProvider.hasCollaborationId()).thenReturn(true);
+        mMockViewHolder1.model.set(
+                TabProperties.TAB_GROUP_COLOR_VIEW_PROVIDER, mTabGroupColorViewProvider);
+
+        // Simulate the selection of card#1 in TabListModel.
+        mModel.get(0)
+                .model
+                .set(
+                        TabProperties.CARD_ANIMATION_STATUS,
+                        TabGridView.AnimationStatus.SELECTED_CARD_ZOOM_IN);
+        mModel.get(0).model.set(CARD_ALPHA, 0.8f);
+        mItemTouchHelperCallback.setSelectedTabIndexForTesting(POSITION1);
+
+        // Simulate hovering on card#2.
+        mModel.get(1)
+                .model
+                .set(
+                        TabProperties.CARD_ANIMATION_STATUS,
+                        TabGridView.AnimationStatus.HOVERED_CARD_ZOOM_IN);
+        mItemTouchHelperCallback.setHoveredTabIndexForTesting(POSITION2);
+
+        mItemTouchHelperCallback.onSelectedChanged(
+                mMockViewHolder1, ItemTouchHelper.ACTION_STATE_IDLE);
+
+        verify(mTabGroupModelFilter, never()).mergeTabsToGroup(anyInt(), anyInt());
+        verify(mGridLayoutManager, never()).removeView(any());
     }
 
     @Test
@@ -379,7 +418,11 @@ public class TabGridItemTouchHelperCallbackUnitTest {
         mItemTouchHelperCallback.onSelectedChanged(
                 mMockViewHolder1, ItemTouchHelper.ACTION_STATE_IDLE);
 
-        verify(mTabGroupModelFilter).moveTabOutOfGroupInDirection(TAB1_ID, /* trailing= */ true);
+        verify(mTabUngrouper)
+                .ungroupTabs(
+                        List.of(mTabModel.getTabById(TAB1_ID)),
+                        /* trailing= */ true,
+                        /* allowDialog= */ true);
         verify(mTabGridDialogHandler)
                 .updateUngroupBarStatus(TabGridDialogView.UngroupBarStatus.HIDE);
         verify(mGridLayoutManager).removeView(mItemView1);
@@ -396,8 +439,11 @@ public class TabGridItemTouchHelperCallbackUnitTest {
         mItemTouchHelperCallback.onSelectedChanged(
                 mMockViewHolder1, ItemTouchHelper.ACTION_STATE_IDLE);
 
-        verify(mTabGroupModelFilter, never())
-                .moveTabOutOfGroupInDirection(TAB1_ID, /* trailing= */ true);
+        verify(mTabUngrouper, never())
+                .ungroupTabs(
+                        List.of(mTabModel.getTabById(TAB1_ID)),
+                        /* trailing= */ true,
+                        /* allowDialog= */ true);
         verify(mTabGridDialogHandler)
                 .updateUngroupBarStatus(TabGridDialogView.UngroupBarStatus.HIDE);
         verify(mGridLayoutManager, never()).removeView(mItemView1);
@@ -414,8 +460,11 @@ public class TabGridItemTouchHelperCallbackUnitTest {
         mItemTouchHelperCallback.onSelectedChanged(
                 mMockViewHolder1, ItemTouchHelper.ACTION_STATE_IDLE);
 
-        verify(mTabGroupModelFilter, never())
-                .moveTabOutOfGroupInDirection(TAB1_ID, /* trailing= */ true);
+        verify(mTabUngrouper, never())
+                .ungroupTabs(
+                        List.of(mTabModel.getTabById(TAB1_ID)),
+                        /* trailing= */ true,
+                        /* allowDialog= */ true);
         verify(mTabGridDialogHandler)
                 .updateUngroupBarStatus(TabGridDialogView.UngroupBarStatus.HIDE);
         verify(mGridLayoutManager, never()).removeView(mItemView1);
@@ -635,7 +684,7 @@ public class TabGridItemTouchHelperCallbackUnitTest {
                 mRecyclerView,
                 mMockViewHolder1,
                 0,
-                7,
+                10,
                 ItemTouchHelper.ACTION_STATE_DRAG,
                 true);
 
@@ -842,17 +891,6 @@ public class TabGridItemTouchHelperCallbackUnitTest {
                         mRecyclerView, mMockViewHolder2, mMockViewHolder1));
     }
 
-    @Test
-    public void collaborationCurrentIsNotDropable() {
-        setupItemTouchHelperCallback(false);
-        when(mTabGroupColorViewProvider.hasCollaborationId()).thenReturn(true);
-        mMockViewHolder2.model.set(
-                TabProperties.TAB_GROUP_COLOR_VIEW_PROVIDER, mTabGroupColorViewProvider);
-        assertFalse(
-                mItemTouchHelperCallback.canDropOver(
-                        mRecyclerView, mMockViewHolder2, mMockViewHolder1));
-    }
-
     @Test(expected = AssertionError.class)
     public void messageItemOnMoveFail() {
         when(mMockViewHolder1.getItemViewType()).thenReturn(TabProperties.UiType.MESSAGE);
@@ -924,38 +962,6 @@ public class TabGridItemTouchHelperCallbackUnitTest {
     }
 
     @Test
-    public void onLongPress_triggerTabListEditor() {
-        TabUiFeatureUtilities.setTabListEditorLongPressEntryEnabledForTesting(true);
-
-        // Simulate the selection of card#1 in TabListModel.
-        mItemTouchHelperCallback.setSelectedTabIndexForTesting(POSITION1);
-
-        mItemTouchHelperCallback.onSelectedChanged(
-                mMockViewHolder1, ItemTouchHelper.ACTION_STATE_IDLE);
-
-        verify(mOnLongPressTabItemEventListener).onLongPressEvent(TAB1_ID);
-        assertTrue(mItemTouchHelperCallback.shouldBlockAction());
-    }
-
-    @Test
-    public void onLongPress_preventTriggerTabListEditor() {
-        TabUiFeatureUtilities.setTabListEditorLongPressEntryEnabledForTesting(true);
-
-        // Simulate the selection of card#1 in TabListModel.
-        mItemTouchHelperCallback.setSelectedTabIndexForTesting(POSITION1);
-
-        // Simulate hovering on card#2.
-        mItemTouchHelperCallback.setHoveredTabIndexForTesting(POSITION2);
-
-        mItemTouchHelperCallback.onSelectedChanged(
-                mMockViewHolder1, ItemTouchHelper.ACTION_STATE_IDLE);
-
-        verify(mOnLongPressTabItemEventListener, never()).onLongPressEvent(TAB1_ID);
-        assertFalse(mItemTouchHelperCallback.shouldBlockAction());
-    }
-
-    @Test
-    @EnableFeatures({ChromeFeatureList.TAB_GROUP_CREATION_DIALOG_ANDROID})
     public void onTabMergeToGroup_willMergingCreateNewGroup() {
         doReturn(true).when(mTabGroupModelFilter).willMergingCreateNewGroup(any());
 
@@ -969,7 +975,81 @@ public class TabGridItemTouchHelperCallbackUnitTest {
                 mMockViewHolder1, ItemTouchHelper.ACTION_STATE_IDLE);
 
         verify(mTabGroupModelFilter).mergeTabsToGroup(TAB1_ID, TAB2_ID);
-        verify(mTabGroupCreationDialogManager).showDialog(TAB2_ID, mTabGroupModelFilter);
+        verify(mTabGroupCreationDialogManager)
+                .showDialog(mTabModel.getTabById(TAB2_ID).getTabGroupId(), mTabGroupModelFilter);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID)
+    public void orchestratorCreatedOnParityEnabled() {
+        mItemTouchHelperCallback = spy(mItemTouchHelperCallback);
+        mItemTouchHelperCallback.setOnLongPressTabItemEventListener((a, b) -> () -> {});
+        verify(mItemTouchHelperCallback)
+                .setTabGridItemLongPressOrchestrator(any(TabGridItemLongPressOrchestrator.class));
+    }
+
+    @Test(expected = AssertionError.class)
+    @EnableFeatures(ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID)
+    public void orchestratorNotCreatedTwice() {
+        mItemTouchHelperCallback = spy(mItemTouchHelperCallback);
+        mItemTouchHelperCallback.setOnLongPressTabItemEventListener((a, b) -> () -> {});
+        mItemTouchHelperCallback.setOnLongPressTabItemEventListener((a, b) -> () -> {});
+        verify(mItemTouchHelperCallback)
+                .setTabGridItemLongPressOrchestrator(any(TabGridItemLongPressOrchestrator.class));
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID)
+    public void orchestratorNotCreatedOnParityDisabled() {
+        mItemTouchHelperCallback = spy(mItemTouchHelperCallback);
+        mItemTouchHelperCallback.setOnLongPressTabItemEventListener((a, b) -> () -> {});
+        verify(mItemTouchHelperCallback, never())
+                .setTabGridItemLongPressOrchestrator(any(TabGridItemLongPressOrchestrator.class));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID)
+    public void orchestratorTriggeredOnSelectedChanged() {
+        mItemTouchHelperCallback.setTabGridItemLongPressOrchestrator(
+                mTabGridItemLongPressOrchestrator);
+        mItemTouchHelperCallback.onSelectedChanged(
+                mMockViewHolder1, ItemTouchHelper.ACTION_STATE_IDLE);
+        verify(mTabGridItemLongPressOrchestrator)
+                .onSelectedChanged(
+                        mMockViewHolder1.getBindingAdapterPosition(),
+                        ItemTouchHelper.ACTION_STATE_IDLE);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID)
+    public void orchestratorTriggeredOnChildDraw() {
+        mItemTouchHelperCallback.setTabGridItemLongPressOrchestrator(
+                mTabGridItemLongPressOrchestrator);
+        float displacement = 2.f;
+        mItemTouchHelperCallback.onChildDraw(
+                mCanvas,
+                mRecyclerView,
+                mMockViewHolder1,
+                displacement,
+                displacement,
+                ItemTouchHelper.ACTION_STATE_IDLE,
+                true);
+        float displacementSquared = displacement * displacement;
+        verify(mTabGridItemLongPressOrchestrator)
+                .processChildDisplacement(displacementSquared + displacementSquared);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID)
+    public void orchestratorCancelledOnClearView() {
+        mItemTouchHelperCallback.setTabGridItemLongPressOrchestrator(
+                mTabGridItemLongPressOrchestrator);
+        mItemTouchHelperCallback.onSelectedChanged(
+                mMockViewHolder1, ItemTouchHelper.ACTION_STATE_IDLE);
+        verify(mTabGridItemLongPressOrchestrator)
+                .onSelectedChanged(
+                        mMockViewHolder1.getBindingAdapterPosition(),
+                        ItemTouchHelper.ACTION_STATE_IDLE);
     }
 
     private void verifyDrag(
@@ -1052,6 +1132,7 @@ public class TabGridItemTouchHelperCallbackUnitTest {
         ViewHolder viewHolder = spy(new ViewHolder(itemView, /* binder= */ null));
         when(viewHolder.getItemViewType()).thenReturn(TabProperties.UiType.TAB);
         when(viewHolder.getAdapterPosition()).thenReturn(position);
+        when(viewHolder.getBindingAdapterPosition()).thenReturn(position);
         viewHolder.model = model;
         return viewHolder;
     }

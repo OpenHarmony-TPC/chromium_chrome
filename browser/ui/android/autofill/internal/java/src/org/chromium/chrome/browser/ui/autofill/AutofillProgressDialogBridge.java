@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.ui.autofill;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.content.Context;
 import android.os.Handler;
 import android.view.LayoutInflater;
@@ -16,6 +18,8 @@ import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
@@ -24,21 +28,21 @@ import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /**
- * Controller that allows the native autofill code to show a progress bar (spinner).
- * For example: When unmasking a virtual card, we show a progress bar while
- * we contact the bank.
+ * Controller that allows the native autofill code to show a progress bar (spinner). For example:
+ * When unmasking a virtual card, we show a progress bar while we contact the bank.
  *
- * Note: The progress bar dialog only shows a negative button which dismisses the dialog.
+ * <p>Note: The progress bar dialog only shows a negative button which dismisses the dialog.
  */
 @JNINamespace("autofill")
+@NullMarked
 public class AutofillProgressDialogBridge {
     private static final int SUCCESS_VIEW_DURATION_MILLIS = 500;
 
-    private final long mNativeAutofillProgressDialogView;
     private final ModalDialogManager mModalDialogManager;
     private final Context mContext;
-    private PropertyModel mDialogModel;
-    private View mProgressDialogContentView;
+    private long mNativeAutofillProgressDialogView;
+    private @Nullable PropertyModel mDialogModel;
+    private @Nullable View mProgressDialogContentView;
 
     private final ModalDialogProperties.Controller mModalDialogController =
             new ModalDialogProperties.Controller() {
@@ -50,8 +54,10 @@ public class AutofillProgressDialogBridge {
 
                 @Override
                 public void onDismiss(PropertyModel model, int dismissalCause) {
-                    AutofillProgressDialogBridgeJni.get()
-                            .onDismissed(mNativeAutofillProgressDialogView);
+                    if (mNativeAutofillProgressDialogView != 0) {
+                        AutofillProgressDialogBridgeJni.get()
+                                .onDismissed(mNativeAutofillProgressDialogView);
+                    }
                 }
             };
 
@@ -69,8 +75,8 @@ public class AutofillProgressDialogBridge {
             long nativeAutofillProgressDialogView, WindowAndroid windowAndroid) {
         return new AutofillProgressDialogBridge(
                 nativeAutofillProgressDialogView,
-                windowAndroid.getModalDialogManager(),
-                windowAndroid.getActivity().get());
+                assertNonNull(windowAndroid.getModalDialogManager()),
+                assertNonNull(windowAndroid.getActivity().get()));
     }
 
     /**
@@ -88,9 +94,9 @@ public class AutofillProgressDialogBridge {
                 mProgressDialogContentView.findViewById(R.id.title_with_icon_stub);
         title_view_stub.setLayoutResource(R.layout.icon_after_title_view);
         title_view_stub.inflate();
-        TextView titleView = (TextView) mProgressDialogContentView.findViewById(R.id.title);
+        TextView titleView = mProgressDialogContentView.findViewById(R.id.title);
         titleView.setText(title);
-        ImageView iconView = (ImageView) mProgressDialogContentView.findViewById(R.id.title_icon);
+        ImageView iconView = mProgressDialogContentView.findViewById(R.id.title_icon);
         iconView.setImageResource(R.drawable.google_pay);
 
         PropertyModel.Builder builder =
@@ -117,9 +123,11 @@ public class AutofillProgressDialogBridge {
             mProgressDialogContentView
                     .findViewById(R.id.confirmation_icon)
                     .setVisibility(View.VISIBLE);
-            ((TextView) mProgressDialogContentView.findViewById(R.id.message))
-                    .setText(confirmationMessage);
-            mProgressDialogContentView.announceForAccessibility(confirmationMessage);
+            TextView confirmationMessageView =
+                    mProgressDialogContentView.findViewById(R.id.message);
+            confirmationMessageView.setAccessibilityLiveRegion(
+                    View.ACCESSIBILITY_LIVE_REGION_POLITE);
+            confirmationMessageView.setText(confirmationMessage);
             // TODO(crbug.com/40195445): Dismiss the Java View after some delay if confirmation has
             // been shown.
         }
@@ -131,6 +139,11 @@ public class AutofillProgressDialogBridge {
     @CalledByNative
     public void dismiss() {
         mModalDialogManager.dismissDialog(mDialogModel, DialogDismissalCause.DISMISSED_BY_NATIVE);
+    }
+
+    @CalledByNative
+    public void destroy() {
+        mNativeAutofillProgressDialogView = 0;
     }
 
     @NativeMethods

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/policy/chrome_browser_cloud_management_controller_desktop.h"
 
+#include <stdint.h>
+
 #include <set>
 #include <string>
 #include <utility>
@@ -13,6 +15,7 @@
 #include "base/containers/contains.h"
 #include "base/path_service.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/time/default_clock.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
@@ -67,8 +70,14 @@
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+#include "chrome/browser/enterprise/client_certificates/browser_context_delegate.h"
+#include "chrome/browser/enterprise/client_certificates/cert_utils.h"
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/browser/device_trust_key_manager_impl.h"
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/browser/key_rotation_launcher.h"
+#include "components/enterprise/client_certificates/core/browser_cloud_management_delegate.h"
+#include "components/enterprise/client_certificates/core/certificate_provisioning_service.h"
+#include "components/enterprise/client_certificates/core/dm_server_client.h"
+#include "components/enterprise/client_certificates/core/key_upload_client.h"
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 
 namespace policy {
@@ -76,7 +85,7 @@ namespace policy {
 namespace {
 
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-constexpr base::FilePath::StringPieceType kCachedPolicyDirname =
+constexpr base::FilePath::StringViewType kCachedPolicyDirname =
     FILE_PATH_LITERAL("Policies");
 #endif
 
@@ -84,13 +93,13 @@ constexpr char kInvalidationListenerLogPrefix[] =
     "ChromeBrowserCloudManagementControllerDesktop";
 
 // Returns a set of all project numbers that will be used by the browser.
-std::set<std::string> GetAllInvalidationProjectNumbers() {
+std::set<int64_t> GetAllInvalidationProjectNumbers() {
   // Cannot be a static constant because project number is decided by feature,
   // which is not available during static initialization.
-  return {std::string(policy::GetPolicyInvalidationProjectNumber(
-              PolicyInvalidationScope::kCBCM)),
-          std::string(policy::GetRemoteCommandsInvalidationProjectNumber(
-              PolicyInvalidationScope::kCBCM))};
+  return {policy::GetPolicyInvalidationProjectNumber(
+              PolicyInvalidationScope::kCBCM),
+          policy::GetRemoteCommandsInvalidationProjectNumber(
+              PolicyInvalidationScope::kCBCM)};
 }
 }  // namespace
 
@@ -296,6 +305,37 @@ ChromeBrowserCloudManagementControllerDesktop::CreateDeviceTrustKeyManager() {
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 }
 
+std::unique_ptr<client_certificates::CertificateProvisioningService>
+ChromeBrowserCloudManagementControllerDesktop::
+    CreateCertificateProvisioningService() {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+  if (!certificate_store_) {
+    certificate_store_ =
+        std::make_unique<client_certificates::PrefsCertificateStore>(
+            g_browser_process->local_state(),
+            client_certificates::CreatePrivateKeyFactory());
+  }
+
+  auto* device_management_service = GetDeviceManagementService();
+  auto url_loader_factory = GetSharedURLLoaderFactory();
+  if (!url_loader_factory || !device_management_service ||
+      !certificate_store_) {
+    return nullptr;
+  }
+
+  return client_certificates::CertificateProvisioningService::Create(
+      g_browser_process->local_state(), certificate_store_.get(),
+      std::make_unique<client_certificates::BrowserContextDelegate>(),
+      client_certificates::KeyUploadClient::Create(
+          std::make_unique<
+              enterprise_attestation::BrowserCloudManagementDelegate>(
+              enterprise_attestation::DMServerClient::Create(
+                  device_management_service, std::move(url_loader_factory)))));
+#else
+  return nullptr;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+}
+
 void ChromeBrowserCloudManagementControllerDesktop::StartInvalidations() {
   if (IsInvalidationsServiceStarted()) {
     NOTREACHED() << "Trying to start an invalidation service when there's "
@@ -322,8 +362,8 @@ void ChromeBrowserCloudManagementControllerDesktop::StartInvalidations() {
                    ->machine_level_user_cloud_policy_manager()
                    ->core();
 
-  const std::string policy_project_number(
-      GetPolicyInvalidationProjectNumber(PolicyInvalidationScope::kCBCM));
+  const auto policy_project_number =
+      GetPolicyInvalidationProjectNumber(PolicyInvalidationScope::kCBCM);
   CHECK(base::Contains(invalidation_service_or_listener_per_project_,
                        policy_project_number))
       << "Missing invalidation for project: " << policy_project_number;
@@ -339,7 +379,7 @@ void ChromeBrowserCloudManagementControllerDesktop::StartInvalidations() {
       std::make_unique<enterprise_commands::CBCMRemoteCommandsFactory>(),
       PolicyInvalidationScope::kCBCM);
 
-  const std::string remote_commands_project_number(
+  const auto remote_commands_project_number(
       GetRemoteCommandsInvalidationProjectNumber(
           PolicyInvalidationScope::kCBCM));
   CHECK(base::Contains(invalidation_service_or_listener_per_project_,

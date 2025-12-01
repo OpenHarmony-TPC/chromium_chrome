@@ -4,6 +4,8 @@
 
 #include "chrome/test/base/ash/interactive/settings/interactive_uitest_elements.h"
 
+#include "base/strings/stringprintf.h"
+
 namespace ash::settings {
 
 WebContentsInteractionTestUtil::DeepQuery InternetPage() {
@@ -299,6 +301,12 @@ CellularDetailsSubpageAutoConnectToggle() {
 WebContentsInteractionTestUtil::DeepQuery
 CellularDetailsAllowDataRoamingToggle() {
   return InternetDetailsSubpage() + "cellular-roaming-toggle-button";
+}
+
+WebContentsInteractionTestUtil::DeepQuery
+CellularDetailsAllowDataRoamingTogglePolicyIcon() {
+  return InternetDetailsSubpage() + "cellular-roaming-toggle-button" +
+         "network-config-toggle" + "cr-policy-network-indicator-mojo";
 }
 
 WebContentsInteractionTestUtil::DeepQuery CellularDetailsNetworkOperator() {

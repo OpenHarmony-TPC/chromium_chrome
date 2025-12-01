@@ -23,7 +23,6 @@ import '../os_settings_icons.css.js';
 import './cellular_networks_list.js';
 import './network_always_on_vpn.js';
 import './internet_subpage_menu.js';
-import '/shared/settings/prefs/prefs.js';
 
 import type {PrefsMixinInterface} from '/shared/settings/prefs/prefs_mixin.js';
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
@@ -235,20 +234,6 @@ export class SettingsInternetSubpageElement extends
         type: Number,
         value: null,
       },
-
-      /**
-       * Used by DeepLinkingMixin to focus this page's deep links.
-       */
-      supportedSettingIds: {
-        type: Object,
-        value: () => new Set<Setting>([
-          Setting.kWifiOnOff,
-          Setting.kWifiAddNetwork,
-          Setting.kMobileOnOff,
-          Setting.kInstantTetheringOnOff,
-          Setting.kAddESimNetwork,
-        ]),
-      },
     };
   }
 
@@ -268,6 +253,16 @@ export class SettingsInternetSubpageElement extends
   showSpinner: boolean;
   tetherDeviceState: OncMojo.DeviceStateProperties|undefined;
   vpnProviders: VpnProvider[];
+
+  // DeepLinkingMixin override
+  override supportedSettingIds = new Set<Setting>([
+    Setting.kWifiOnOff,
+    Setting.kWifiAddNetwork,
+    Setting.kMobileOnOff,
+    Setting.kInstantTetheringOnOff,
+    Setting.kAddESimNetwork,
+  ]);
+
   private alwaysOnVpnMode_: AlwaysOnVpnMode|undefined;
   private alwaysOnVpnService_: string|undefined;
   private browserProxy_: InternetPageBrowserProxy;
