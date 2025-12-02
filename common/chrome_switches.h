@@ -193,7 +193,6 @@ extern const char kTrustedDownloadSources[];
 extern const char kUnlimitedStorage[];
 extern const char kUnsafelyDisableDevToolsSelfXssWarnings[];
 extern const char kUserDataDir[];
-extern const char kUserCacheDir[];
 extern const char kUseSystemProxyResolver[];
 extern const char kValidateCrx[];
 extern const char kVersion[];
