@@ -632,7 +632,7 @@ void InitializeUserDataDir(base::CommandLine* command_line) {
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_ARKWEB)
-  const bool specified_directory_was_invalid = SetUserDataDirForArkweb(user_data_dir);
+  const bool specified_directory_was_invalid = SetUserDataDirForArkweb(command_line);
 #else
   const bool specified_directory_was_invalid =
       !user_data_dir.empty() &&
@@ -643,6 +643,7 @@ void InitializeUserDataDir(base::CommandLine* command_line) {
   // Save inaccessible or invalid paths so the user may be prompted later.
   if (specified_directory_was_invalid)
     chrome::SetInvalidSpecifiedUserDataDir(user_data_dir);
+  
 
   // Warn and fail early if the process fails to get a user data directory.
   if (!base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir)) {
