@@ -7346,6 +7346,7 @@
 <translation id="6196640612572343990">阻止第三方 Cookie</translation>
 <translation id="6196854373336333322">“<ph name="EXTENSION_NAME" />”扩展程序控制了您的代理设置，也就是说，它可以更改、中断或窃听您在网上执行的任何操作。如果您不确定出现这种变化的原因，那么这种变化可能并不是您所希望的。</translation>
 <translation id="6197128521826316819">为此页面创建二维码</translation>
+<translation id="6197650466935889999">窗口或屏幕</translation>
 <translation id="6198223452299275399">滑动浏览各个页面</translation>
 <translation id="6198252989419008588">更改 PIN</translation>
 <translation id="61988015556954366">屏幕闪烁</translation>
@@ -7567,6 +7568,7 @@
 <translation id="6349101878882523185">安装“<ph name="APP_NAME" />”</translation>
 <translation id="6350821834561350243">请清楚描述问题及其重现步骤（如果可能）</translation>
 <translation id="6351178441572658285">应用语言</translation>
+<translation id="6353523629736414346">选择需要分享的窗口或屏幕</translation>
 <translation id="6354918092619878358">SECG 椭圆曲线 secp256r1（又称 ANSI X9.62 prime256v1 或 NIST P-256）</translation>
 <translation id="635609604405270300">请勿关闭设备</translation>
 <translation id="6356537493253478650">平静</translation>

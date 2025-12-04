@@ -97,6 +97,10 @@ const DesktopMediaSourceViewStyle& GetSingleScreenStyle() {
 
 namespace {
 
+#if BUILDFLAG(IS_OHOS)
+constexpr int kSelectedTabCategory = 0;
+#endif
+
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
 enum class AudioToggleStatus {
@@ -336,6 +340,18 @@ bool DesktopMediaPickerDialogView::AudioRequestedForType(
   }
 }
 
+#if BUILDFLAG(IS_OHOS)
+void DesktopMediaPickerDialogView::UpdateShareButtonText() {
+  if (previously_selected_category_ == kSelectedTabCategory) {
+    SetButtonLabel(ui::mojom::DialogButton::kOk,
+                   l10n_util::GetStringUTF16(IDS_DESKTOP_MEDIA_PICKER_SHARE));
+  } else {
+    SetButtonLabel(ui::mojom::DialogButton::kOk,
+                   l10n_util::GetStringUTF16(IDS_DESKTOP_MEDIA_PICKER_SYSTEM));
+  }
+#endif
+}
+
 DesktopMediaPickerDialogView::DisplaySurfaceCategory::DisplaySurfaceCategory(
     DesktopMediaList::Type type,
     std::unique_ptr<DesktopMediaListController> controller,
@@ -443,8 +459,15 @@ DesktopMediaPickerDialogView::DesktopMediaPickerDialogView(
         std::unique_ptr<views::ScrollView> screen_scroll_view =
             CreateScrollView(audio_requested_);
         screen_scroll_view->SetID(VIEW_ID_MEDIA_PICKER_SCREEN_SCROLL_VIEW);
+
+#if BUILDFLAG(IS_OHOS)
+        std::u16string screen_title_text = l10n_util::GetStringUTF16(
+            IDS_DESKTOP_MEDIA_PICKER_SOURCE_TYPE_SCREEN_OR_WINDOW);
+#else
         std::u16string screen_title_text = l10n_util::GetStringUTF16(
             IDS_DESKTOP_MEDIA_PICKER_SOURCE_TYPE_SCREEN);
+#endif
+
         auto list_controller = std::make_unique<DesktopMediaListController>(
             this, std::move(source_list));
         const bool supports_reselect_button =
@@ -578,6 +601,10 @@ DesktopMediaPickerDialogView::DesktopMediaPickerDialogView(
   previously_selected_category_ = GetSelectedTabIndex();
   ConfigureUIForNewPane(previously_selected_category_);
 
+#if BUILDFLAG(IS_OHOS)
+  UpdateShareButtonText();
+#endif
+
   bool modal_dialog = MediaPickerCanShowAsWebModal(params.web_contents);
   views::Widget* widget = CreateMediaPickerDialogWidget(
       modal_dialog ? chrome::FindBrowserWithTab(params.web_contents) : nullptr,
@@ -639,6 +666,10 @@ void DesktopMediaPickerDialogView::TabSelectedAt(int index) {
   categories_[index].controller->FocusView();
   DialogModelChanged();
   previously_selected_category_ = index;
+
+#if BUILDFLAG(IS_OHOS)
+  UpdateShareButtonText();
+#endif
 }
 
 void DesktopMediaPickerDialogView::ConfigureUIForNewPane(int index) {
