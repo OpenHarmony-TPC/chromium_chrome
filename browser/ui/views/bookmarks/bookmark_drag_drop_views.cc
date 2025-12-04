@@ -49,6 +49,14 @@
 #include "ui/views/style/typography_provider.h"
 #include "ui/views/widget/widget.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "skia/ext/image_operations.h"
+#include "ui/display/display.h"
+#include "ui/display/screen.h"
+#include "ui/display/screen_ohos.h"
+#include "ui/gfx/image/image_skia_rep.h"
+#endif
+
 using bookmarks::BookmarkModel;
 using bookmarks::BookmarkNode;
 
@@ -278,11 +286,40 @@ class BookmarkDragHelper : public bookmarks::BaseBookmarkModelObserver {
                   : icon.Rasterize(&color_provider),
               count_),
           BookmarkDragImageSource::kBookmarkDragImageSize);
+#if BUILDFLAG(IS_OHOS)
+      const auto* screen = display::Screen::GetScreen();
+      display::Display current_display =
+          screen->GetDisplayNearestView(web_contents_->GetNativeView());
+      const float device_scale_factor = current_display.device_scale_factor();
 
+      // Redraw the bitmap image for drag_image based on device_scale_factor.
+      const gfx::ImageSkiaRep& skia_rep = drag_image.GetRepresentation(1.0f);
+      gfx::Size scaled_size =
+          gfx::ScaleToCeiledSize(skia_rep.pixel_size(),
+                                 device_scale_factor / skia_rep.scale());
+      gfx::ImageSkiaRep skia_rep_scaled = gfx::ImageSkiaRep(
+          skia::ImageOperations::Resize(skia_rep.GetBitmap(),
+                                        skia::ImageOperations::RESIZE_LANCZOS3,
+                                        scaled_size.width(),
+                                        scaled_size.height()),
+          device_scale_factor);
+
+      // Recalculate based on device_scale_factor for drag_image and
+      // drag_offset.
+      gfx::ImageSkia image_skia_scaled = gfx::ImageSkia::CreateFromBitmap(
+          skia_rep_scaled.GetBitmap(), device_scale_factor);
+      gfx::PointF point_dip(BookmarkDragImageSource::kDragImageOffsetX,
+                            BookmarkDragImageSource::kDragImageOffsetY);
+      gfx::PointF point_pixel = display::ohos::ScreenOhos::ConvertDipToPixel(
+          current_display, point_dip);
+      drag_data_->provider().SetDragImage(
+          image_skia_scaled, gfx::Vector2d(point_pixel.x(), point_pixel.y()));
+#else
       drag_data_->provider().SetDragImage(
           drag_image,
           gfx::Vector2d(BookmarkDragImageSource::kDragImageOffsetX,
                         BookmarkDragImageSource::kDragImageOffsetY));
+#endif
 
       std::move(do_drag_callback_)
           .Run(std::move(drag_data_), web_contents_->GetNativeView(), source_,
