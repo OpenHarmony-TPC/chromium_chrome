@@ -61,6 +61,8 @@ class DownloadTargetDeterminerDelegate {
       base::OnceCallback<void(bool /*accepted*/)>;
 #if BUILDFLAG(IS_OHOS)
   virtual void CheckIsInstallationPackage(
+      const std::string& file_name_,
+      const std::string& file_size_,
       std::function<void(bool)> callback) = 0;
 #endif
   // Callback to be invoked after CheckDownloadUrl() completes. The parameter to

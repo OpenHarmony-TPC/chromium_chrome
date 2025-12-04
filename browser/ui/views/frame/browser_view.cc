@@ -342,10 +342,6 @@
 #include "chrome/browser/ui/views/frame/webui_tab_strip_container_view.h"
 #endif  // BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
 
-#if BUILDFLAG(IS_OHOS)
-#include "ui/base/layout.h"
-#endif
-
 using base::UserMetricsAction;
 using content::WebContents;
 using input::NativeWebKeyboardEvent;
@@ -368,11 +364,6 @@ constexpr base::FeatureParam<base::TimeDelta> kLoadingTabAnimationFrameDelay = {
 // The name of a key to store on the window handle so that other code can
 // locate this object using just the handle.
 const char* const kBrowserViewKey = "__BROWSER_VIEW__";
-
-#if BUILDFLAG(IS_OHOS)
-// Width of the window control button in the upper right corner
-const int kWindowControlButtonsWidth = 100;
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 // UMA histograms that record animation smoothness for tab loading animation.
@@ -736,12 +727,6 @@ class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegate {
         tabstrip_minimum_size));
     views::View::ConvertRectToTarget(browser_view_->parent(), browser_view_,
                                      &bounds_f);
-#if BUILDFLAG(IS_OHOS)
-    float device_scale_factor =
-        ui::GetScaleFactorForNativeView(browser_view_->GetNativeWindow());
-    bounds_f.set_width(bounds_f.width() -
-                       kWindowControlButtonsWidth * device_scale_factor);
-#endif
     return gfx::ToEnclosingRect(bounds_f);
   }
 

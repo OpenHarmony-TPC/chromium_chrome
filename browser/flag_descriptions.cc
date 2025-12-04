@@ -8385,6 +8385,10 @@ const char kNetworkPreloadName[] = "Network Preload";
 const char kNetworkPreloadDescription[] = "Enable network preload";
 const char kOmniboxPreName[] = "Omnibox Prerender-Prefetch-Preconnect";
 const char kOmniboxPreDescription[] = "Enable(Default) Omnibox Prerender-Prefetch-Preconnect";
+const char kParallelBeforeUnloadName [] = "Parallel processing of beforeunload";
+const char kParallelBeforeUnloadDescription [] = "Controls whether to enable "
+    "parallel processing of the beforeunload event during rendering. "
+    "Enabled by default.";
 #endif  // BUILDFLAG(IS_OHOS)
 
 // ============================================================================

@@ -25,6 +25,10 @@
 #include "ui/linux/nav_button_provider.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/views/frame/browser_frame_view_ohos.h"
+#endif
+
 namespace chrome {
 
 namespace {
@@ -70,6 +74,9 @@ std::unique_ptr<OpaqueBrowserFrameView> CreateOpaqueBrowserFrameView(
   }
   return std::make_unique<BrowserFrameViewLinux>(
       frame, browser_view, new BrowserFrameViewLayoutLinux());
+#elif BUILDFLAG(IS_OHOS)
+  return std::make_unique<BrowserFrameViewOhos>(
+      frame, browser_view, new OpaqueBrowserFrameViewLayout());
 #else
   return std::make_unique<OpaqueBrowserFrameView>(
       frame, browser_view, new OpaqueBrowserFrameViewLayout());

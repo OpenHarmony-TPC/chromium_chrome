@@ -231,14 +231,10 @@ LoggingDestination LoggingDestFromCommandLine(
 #endif
   }
 #if BUILDFLAG(IS_OHOS)
-  // Logs are printed only for the beta version
-  std::string osReleaseType =
-      device_info::DeviceInfo::GetInstance().Get(device_info::kOsReleaseType);
-  if (osReleaseType.find("Release") == std::string::npos) {
-    return kDefaultLoggingMode | LOG_TO_SYSTEM_DEBUG_LOG;
-  }
-#endif
+  return kDefaultLoggingMode | LOG_TO_SYSTEM_DEBUG_LOG;
+#else
   return kDefaultLoggingMode;
+#endif
 }
 
 }  // anonymous namespace

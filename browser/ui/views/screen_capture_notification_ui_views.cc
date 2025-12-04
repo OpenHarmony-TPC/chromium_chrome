@@ -369,6 +369,11 @@ gfx::NativeViewId ScreenCaptureNotificationUIImpl::OnStarted(
   gfx::Size min_window_size =
       gfx::Size(window_limits.min_width, window_limits.min_height);
   size.SetToMax(min_window_size);
+  if (widget_->GetNativeWindow()) {
+    display::Display current_display =
+        screen->GetDisplayNearestWindow(widget_->GetNativeWindow());
+    work_area = current_display.work_area();
+  }
 #endif
   gfx::Rect bounds(work_area.x() + work_area.width() / 2 - size.width() / 2,
                    work_area.y() + work_area.height() - size.height(),
