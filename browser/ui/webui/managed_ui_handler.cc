@@ -114,7 +114,9 @@ base::Value::Dict ManagedUIHandler::GetDataSourceUpdate() const {
   base::Value::Dict update;
   update.Set("managedByIcon", chrome::GetManagedUiWebUIIcon(profile_));
   update.Set("managementPageUrl", chrome::GetManagedUiUrl(profile_).spec());
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   update.Set("browserManagedByOrg", chrome::GetManagedUiWebUILabel(profile_));
+#endif
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   update.Set("deviceManagedByOrg", chrome::GetDeviceManagedUiWebUILabel());
 #endif
