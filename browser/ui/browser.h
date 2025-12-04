@@ -656,6 +656,9 @@ class Browser : public TabStripModelObserver,
 #if BUILDFLAG(IS_OHOS)
   gfx::AcceleratedWidget GetAcceleratedWidget();
   void NotifyShowBeforeUnloadConfirmDialog() override;
+  void SetPrivacyMode(bool use_privacy_mode) override;
+  void CloseContentJavaScriptDialog(
+      content::WebContents* source, bool reset_state);
 #endif
 
   // Invoked when the window containing us is closing. Performs the necessary

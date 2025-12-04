@@ -5184,6 +5184,8 @@ static_library("ui") {
         "views/frame/desktop_browser_frame_aura_ohos.h",
         "views/frame/browser_desktop_window_tree_host_ohos.cc",
         "views/frame/browser_desktop_window_tree_host_ohos.h",
+        "views/frame/browser_frame_view_ohos.cc",
+        "views/frame/browser_frame_view_ohos.h",
         "webui/help/version_updater_basic.cc",
         "webui/help/version_updater_basic.h",
         "views/status_icons/status_tray_ohos.cc",

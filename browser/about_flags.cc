@@ -11981,6 +11981,9 @@ const FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kOmniboxPreName,
      flag_descriptions::kOmniboxPreDescription, kOsOhOS,
      FEATURE_VALUE_TYPE(net::features::kEnableOmniboxPre)},
+    {"parallel-before-unload", flag_descriptions::kParallelBeforeUnloadName,
+     flag_descriptions::kParallelBeforeUnloadDescription, kOsOhOS,
+     FEATURE_VALUE_TYPE(features::kParallelBeforeUnload)},
 #endif  // BUILDFLAG(IS_OHOS)
 
     // NOTE: Adding a new flag requires adding a corresponding entry to enum

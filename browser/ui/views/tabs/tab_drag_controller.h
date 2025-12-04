@@ -238,6 +238,7 @@ class TabDragController : public views::WidgetObserver,
   
 #if BUILDFLAG(IS_OHOS)
   void Drag(const gfx::Point& point_in_screen, const int32_t display_id);
+  void SetTouchFingerId(int32_t finger_id);
 #endif
 
  private:
@@ -852,15 +853,18 @@ class TabDragController : public views::WidgetObserver,
 #if BUILDFLAG(IS_OHOS)
   gfx::Rect drag_window_bounds_;
   raw_ptr<TabDragContext> dragging_tab_context_;
-  int32_t display_id_;
+  int32_t display_id_ = display::kInvalidDisplayId;
+  int32_t touch_finger_id_ = -1;
   // When you drag a tab across a window, the tab is sucked into the corresponding tab bar
-  // and the mouse simulation lift to end the dragging.
+  // and the touch simulation lift to end the dragging.
   void EndAcrossWindowTabDrag();
   // When a window is created or destroyed during tab dragging,
   // the mouse event or touch event needs to be transferred to the target window.
   void ShiftWindowEvent(TabDragContext* target_tab_context);
   gfx::AcceleratedWidget GetWidgetIdFromTabContext(TabDragContext* tab_context);
   gfx::Vector2d CalculateWindowDragOffset(std::vector<gfx::Rect> drag_bounds);
+  bool CanShiftEventWhenTabDrag();
+  bool StartTabDragging();
 #endif
 };
 

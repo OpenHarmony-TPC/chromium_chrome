@@ -297,6 +297,7 @@
 #if BUILDFLAG(IS_OHOS)
 #include "chrome/browser/ui/ohos/browser_exit_monitor_ohos.h"
 #include "ohos/adapter/browser/browser_adapter.h"
+#include "ohos/adapter/xcomponent/adapter/window_adapter.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_tree_host.h"
 #endif
@@ -1367,6 +1368,19 @@ void Browser::NotifyShowBeforeUnloadConfirmDialog() {
   chrome::BrowserExitMonitorOhos::GetInstance().UpdateAppExitState(
       chrome::ExitTaskOhos::BEFOREUNLOAD,
       chrome::ExitStateOhos::BLOCK);
+}
+
+void Browser::SetPrivacyMode(bool use_privacy_mode) {
+  gfx::AcceleratedWidget widget = GetAcceleratedWidget();
+  ohos::adapter::xcomponent::WindowAdapter::GetInstance().SetWindowPrivacyMode(widget, use_privacy_mode);
+}
+
+void Browser::CloseContentJavaScriptDialog(content::WebContents* source,
+                                           bool reset_state) {
+  content::JavaScriptDialogManager* mng = GetJavaScriptDialogManager(source);
+  if (mng != nullptr) {
+    mng->CancelDialogs(source, reset_state);
+  }
 }
 #endif // IS_OHOS
 
@@ -2924,6 +2938,15 @@ void Browser::OnActiveTabChanged(WebContents* old_contents,
 
   SearchTabHelper::FromWebContents(new_contents)->OnTabActivated();
   did_active_tab_change_callback_list_.Notify(this);
+
+#if BUILDFLAG(IS_OHOS)
+  if (old_contents && new_contents->HaveEncryptedMedia() != old_contents->HaveEncryptedMedia()) {
+    LOG(INFO) << __func__
+              << " [WiseplayDRM] set current browser privacy mode due to active tab change. new privacy mode: "
+              << new_contents->HaveEncryptedMedia();
+    SetPrivacyMode(new_contents->HaveEncryptedMedia());
+  }
+#endif
 }
 
 void Browser::OnTabMoved(int from_index, int to_index) {

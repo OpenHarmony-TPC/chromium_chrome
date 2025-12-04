@@ -25,6 +25,12 @@
 #include "chrome/browser/ash/file_manager/path_util.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "net/base/filename_util.h"
+#include "ohos/adapter/permission_manager/permission_manager_adapter.h"
+namespace ohos_permission = ohos::adapter::permission;
+#endif
+
 using base::UserMetricsAction;
 
 namespace settings {
@@ -122,6 +128,12 @@ void DownloadsHandler::FileSelected(const ui::SelectedFileInfo& file,
   PrefService* pref_service = profile_->GetPrefs();
   pref_service->SetFilePath(prefs::kDownloadDefaultDirectory, file.path());
   pref_service->SetFilePath(prefs::kSaveFileDefaultDirectory, file.path());
+#if BUILDFLAG(IS_OHOS)
+  std::vector<std::string> download_path_;
+  GURL file_url = net::FilePathToFileURL(file.path());
+  download_path_.push_back(file_url.spec());
+  ohos_permission::PermissionManagerAdapter::SaveUris(download_path_);
+#endif
 }
 
 void DownloadsHandler::FileSelectionCanceled() {
