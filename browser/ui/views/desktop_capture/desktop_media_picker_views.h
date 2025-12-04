@@ -106,6 +106,10 @@ class DesktopMediaPickerDialogView : public views::DialogDelegateView,
   // Whether audio-capture is supported for display surfaces of type `type`.
   bool AudioSupported(DesktopMediaList::Type type) const;
 
+#if BUILDFLAG(IS_OHOS)
+  void UpdateShareButtonText();
+#endif
+
   // Whether audio-capture is requested for display surfaces of type `type`.
   //
   // While getDisplayMedia({audio: true}) would normally ask for audio for

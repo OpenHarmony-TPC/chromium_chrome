@@ -98,7 +98,14 @@ DesktopMediaPickerFactoryImpl::CreateMediaList(
   // Keep same order as the input |sources| and avoid duplicates.
   std::vector<std::unique_ptr<DesktopMediaList>> source_lists;
   bool have_screen_list = false;
+
+#if BUILDFLAG(IS_OHOS)
+  //Shared windows and shared screens share the same list.
+  bool have_window_list = true;
+#else
   bool have_window_list = false;
+#endif
+
   bool have_tab_list = false;
   bool have_current_tab = false;
 
