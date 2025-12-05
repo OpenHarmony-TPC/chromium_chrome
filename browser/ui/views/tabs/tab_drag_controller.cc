@@ -107,6 +107,7 @@
 
 #if BUILDFLAG(IS_OHOS)
 #include "ohos/adapter/context/context_adapter.h"
+#include "ohos/adapter/xcomponent/event/window_event_filter_adapter.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/ozone/platform/ohos/host/ohos_event_source.h"
 #endif
@@ -559,19 +560,12 @@ TabDragController::Liveness TabDragController::Init(
   }
 
 #if BUILDFLAG(IS_OHOS)
-  if (event_source_ == ui::mojom::DragEventSource::kMouse) {
-    can_release_capture_ = false;
-    gfx::AcceleratedWidget source_context_widget_id =
-        GetWidgetIdFromTabContext(source_context);
-    auto* platform_event_source = ui::PlatformEventSource::GetInstance();
-    if (platform_event_source == nullptr) {
-      LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
-                 << ", platform_event_source is null";
+  if (CanShiftEventWhenTabDrag()) {
+    if (!StartTabDragging()) {
       return Liveness::DELETED;
     }
-    reinterpret_cast<ui::OhosEventSource*>(platform_event_source)
-        ->StartTabDragging(source_context_widget_id);
-    dragging_tab_context_ = source_context_;
+    ref->can_release_capture_ = false;
+    ref->dragging_tab_context_ = source_context_;
   }
 #endif
 
@@ -1057,8 +1051,8 @@ TabDragController::DragBrowserToNewTabStrip(TabDragContext* target_context,
 
 #if BUILDFLAG(IS_OHOS)
     // After the tab window is dragged to the target window,
-    // the mouse event is transferred to the target window.
-    if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+    // the mouse or touch event is transferred to the target window.
+    if (CanShiftEventWhenTabDrag()) {
       ShiftWindowEvent(target_context);
       dragging_tab_context_ = target_context;
     }
@@ -1712,8 +1706,9 @@ void TabDragController::DetachIntoNewBrowserAndRunMoveLoop(
   }
 
 #if BUILDFLAG(IS_OHOS)
-  // Move the mouse event to the new window after dragging the tab to a new window.
-  if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+  // Move the mouse or touch event to the new window
+  // after dragging the tab to a new window.
+  if (CanShiftEventWhenTabDrag()) {
     ShiftWindowEvent(attached_context_);
     dragging_tab_context_ = attached_context_.get();
     // Set capture for the new window
@@ -1796,13 +1791,8 @@ void TabDragController::RunMoveLoop(const gfx::Vector2d& drag_offset) {
     // Move the tabs into position.
     MoveAttached(point_in_screen, true);
     attached_context_->GetWidget()->Activate();
-  #if BUILDFLAG(IS_OHOS)
-    // When you drag a tab across a window to the
-    // other window, the dragging operation ends
-    if (source_context_ != attached_context_ &&
-        event_source_ == ui::mojom::DragEventSource::kTouch) {
-      EndAcrossWindowTabDrag();
-    }
+#if BUILDFLAG(IS_OHOS)
+    EndAcrossWindowTabDrag();
 #endif
     // Activate may trigger a focus loss, destroying us.
     if (!ref)
@@ -2114,7 +2104,7 @@ void TabDragController::RevertDragAt(size_t drag_index) {
 #if BUILDFLAG(IS_OHOS)
       // After the dragged tab window is restored to the original window,
       // the event needs to be transferred.
-      if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+      if (CanShiftEventWhenTabDrag()) {
         ShiftWindowEvent(source_context_);
         dragging_tab_context_ = source_context_;
       }
@@ -2590,6 +2580,8 @@ gfx::Point TabDragController::GetCursorScreenPoint() {
   DCHECK(widget_window->GetRootWindow());
   return aura::Env::GetInstance()->GetLastPointerPoint(
       event_source_, widget_window, /*fallback=*/last_point_in_screen_);
+#elif BUILDFLAG(IS_OHOS)
+  return display::Screen::GetScreen()->GetCursorScreenPoint(display_id_);
 #else
   return display::Screen::GetScreen()->GetCursorScreenPoint();
 #endif
@@ -2631,7 +2623,9 @@ TabDragController::Liveness TabDragController::GetLocalProcessWindow(
 #endif
   base::WeakPtr<TabDragController> ref(weak_factory_.GetWeakPtr());
 #if BUILDFLAG(IS_OHOS)
-  if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+  // display id need be contained
+  // when a window is queried based on coordinates
+  if (display_id_ > display::kInvalidDisplayId) {
     *window = window_finder_->GetLocalProcessWindowAtPoint(
         screen_point, exclude, display_id_);
   } else {
@@ -2963,15 +2957,20 @@ void TabDragController::OnDragDropClientDestroying() {
 
 #if BUILDFLAG(IS_OHOS)
 void TabDragController::EndAcrossWindowTabDrag() {
-  auto* event_source = ui::PlatformEventSource::GetInstance();
-  if (event_source == nullptr) {
-    LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
-               << ", event_source is null";
-    return;
+  if (source_context_ != attached_context_ && !CanShiftEventWhenTabDrag()) {
+    auto* event_source = ui::PlatformEventSource::GetInstance();
+    if (event_source == nullptr) {
+      LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+                 << ", event_source is null";
+      return;
+    }
+    gfx::AcceleratedWidget widget_id =
+        GetWidgetIdFromTabContext(attached_context_);
+    LOG(INFO) << "[OhosTabDrag] " << __FUNCTION__
+              << ", widget_id:" << widget_id;
+    reinterpret_cast<ui::OhosEventSource*>(event_source)
+        ->SimulateTouchUp(widget_id);
   }
-  gfx::AcceleratedWidget widget_id = GetWidgetIdFromTabContext(attached_context_);
-  LOG(INFO) << "[OhosTabDrag] " << __FUNCTION__ << ", widget_id:" << widget_id;
-  reinterpret_cast<ui::OhosEventSource*>(event_source)->SimulateTouchUp(widget_id);
 }
 
 gfx::AcceleratedWidget TabDragController::GetWidgetIdFromTabContext(
@@ -3040,5 +3039,43 @@ gfx::Vector2d TabDragController::CalculateWindowDragOffset(
   views::View::ConvertPointToWidget(attached_context_,
                                     &desired_cursor_pos_in_widget);
   return desired_cursor_pos_in_widget.OffsetFromOrigin();
+}
+
+void TabDragController::SetTouchFingerId(int32_t finger_id) {
+  LOG(INFO) << "[OhosTabDrag] " << __FUNCTION__ << ",finger_id:" << finger_id;
+  touch_finger_id_ = finger_id;
+}
+
+bool TabDragController::CanShiftEventWhenTabDrag() {
+  if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+    return true;
+  } else if (event_source_ == ui::mojom::DragEventSource::kTouch) {
+    return ohos::adapter::window::WindowEventFilterAdapter::GetInstance()
+        .CanShiftTouchEvent();
+  } else {
+    LOG(WARNING) << "[OhosTabDrag] " << __FUNCTION__
+                 << ", event_source_ is not support:"
+                 << static_cast<int>(event_source_);
+  }
+  return false;
+}
+
+bool TabDragController::StartTabDragging() {
+  gfx::AcceleratedWidget source_context_widget_id =
+      GetWidgetIdFromTabContext(source_context_);
+  auto* platform_event_source = ui::PlatformEventSource::GetInstance();
+  if (platform_event_source == nullptr) {
+    LOG(ERROR) << "[OhosTabDrag] " << __FUNCTION__
+                << ", platform_event_source is null";
+    return false;
+  }
+  if (event_source_ == ui::mojom::DragEventSource::kMouse) {
+    reinterpret_cast<ui::OhosEventSource*>(platform_event_source)
+        ->StartTabDragging(source_context_widget_id);
+  } else if (event_source_ == ui::mojom::DragEventSource::kTouch) {
+    reinterpret_cast<ui::OhosEventSource*>(platform_event_source)
+        ->StartTabDraggingByTouch(source_context_widget_id, touch_finger_id_);
+  }
+  return true;
 }
 #endif

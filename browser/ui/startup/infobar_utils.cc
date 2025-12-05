@@ -170,9 +170,13 @@ void AddInfoBarsIfNecessary(Browser* browser,
     if (!is_web_app &&
         !startup_command_line.HasSwitch(switches::kNoDefaultBrowserCheck)) {
       // The default browser prompt should only be shown after the first run.
+#if !BUILDFLAG(IS_OHOS)
       if (is_first_run == chrome::startup::IsFirstRun::kNo) {
         ShowDefaultBrowserPrompt(profile);
       }
+#else
+      ShowDefaultBrowserPrompt(profile);
+#endif
     }
 #endif
   }

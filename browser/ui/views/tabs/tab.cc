@@ -227,6 +227,12 @@ Tab::Tab(TabSlotController* controller)
   // inside the tab shape, rather than to its extents.
   SetBorder(views::CreateEmptyBorder(tab_style_views()->GetContentsInsets()));
 
+#if BUILDFLAG(IS_OHOS)
+  // Increase the font size of the tab title by 2 points to enhance user
+  // experience.
+  gfx::FontList adjusted_font_list = title_->font_list().DeriveWithSizeDelta(2);
+  title_->SetFontList(adjusted_font_list);
+#endif
   title_->SetHorizontalAlignment(gfx::ALIGN_TO_HEAD);
   title_->SetElideBehavior(gfx::FADE_TAIL);
   title_->SetHandlesTooltips(false);

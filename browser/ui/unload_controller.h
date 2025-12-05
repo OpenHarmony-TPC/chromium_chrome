@@ -132,6 +132,14 @@ class UnloadController : public WebContentsCollection::Observer,
 
   bool IsUnclosableApp() const;
 
+#if BUILDFLAG(IS_OHOS)
+  // Deliver all the beforeunload events that need to be dispatched
+  // together to the corresponding renderer,
+  // instead of using Chromium's default implementation.
+  void OhosProcessParallelTabs();
+  void OhosProcessUnload();
+#endif
+
   bool is_calling_before_unload_handlers() {
     return !on_close_confirmed_.is_null();
   }
@@ -143,6 +151,17 @@ class UnloadController : public WebContentsCollection::Observer,
   // Tracks tabs that need their beforeunload event fired before we can
   // close the browser. Only gets populated when we try to close the browser.
   UnloadListenerSet tabs_needing_before_unload_fired_;
+  
+#if BUILDFLAG(IS_OHOS)
+  // Whether the browser enables parallel processing of the beforeunload event.
+  // true indicates that it is enabled, and false indicates that it is disabled.
+  // By default, it is enabled.
+  bool is_parallel_processing_of_before_unload_;
+
+  // Web pages that have already been processed by ProcessPendingTabs
+  UnloadListenerSet tabs_already_dispatch_before_unload_;
+  UnloadListenerSet tabs_already_unload_;
+#endif
 
   // Tracks tabs that need their unload event fired before we can
   // close the browser. Only gets populated when we try to close the browser.

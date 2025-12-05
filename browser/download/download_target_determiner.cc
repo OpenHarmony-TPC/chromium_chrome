@@ -50,6 +50,7 @@
 #include "ppapi/buildflags/buildflags.h"
 #include "third_party/blink/public/common/mime_util/mime_util.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/text/bytes_formatting.h"
 #include "url/origin.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -503,10 +504,13 @@ void DownloadTargetDeterminer::ReserveVirtualPathDone(
         return;
       case download::PathValidationResult::SUCCESS:
       case download::PathValidationResult::SUCCESS_RESOLVED_CONFLICT:
-      case download::PathValidationResult::SAME_AS_SOURCE:
         DCHECK(virtual_path_ == path ||
                conflict_action_ == DownloadPathReservationTracker::UNIQUIFY);
         break;
+      case download::PathValidationResult::SAME_AS_SOURCE:
+        ScheduleCallbackAndDeleteSelf(
+            download::DOWNLOAD_INTERRUPT_REASON_FILE_SAME_AS_SOURCE);
+        return;
       case download::PathValidationResult::COUNT:
         NOTREACHED();
     }
@@ -515,8 +519,12 @@ void DownloadTargetDeterminer::ReserveVirtualPathDone(
 
     switch (result) {
       case download::PathValidationResult::SUCCESS:
-      case download::PathValidationResult::SAME_AS_SOURCE:
         break;
+
+      case download::PathValidationResult::SAME_AS_SOURCE:
+        ScheduleCallbackAndDeleteSelf(
+            download::DOWNLOAD_INTERRUPT_REASON_FILE_SAME_AS_SOURCE);
+        return;
 
       // TODO(crbug.com/40863725): This should trigger a duplicate download
       // prompt.
@@ -756,7 +764,7 @@ DownloadTargetDeterminer::Result
 
 #if BUILDFLAG(IS_OHOS)
 const static std::vector<std::string> installation_package_extensions = {
-    ".exe", ".msi", ".msix", ".dmg", ".pkg", ".deb"};
+    ".apk", ".exe", ".msi", ".msix", ".dmg", ".pkg", ".deb"};
 bool isInstallerFile(const std::string& filename) {
   for (const auto& ext : installation_package_extensions) {
     if (base::EndsWith(filename, ext)) {
@@ -765,22 +773,26 @@ bool isInstallerFile(const std::string& filename) {
   }
   return false;
 }
- 
+
 DownloadTargetDeterminer::Result
 DownloadTargetDeterminer::DoDetermineInstallationPackage() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(!local_path_.empty());
   LOG(INFO) << "DoDetermineInstallationPackage in";
   next_state_ = STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER;
+  base::FilePath file_name_ = local_path_.BaseName();
+  std::u16string file_size_ =
+      ui::FormatBytes(download_->GetTotalBytes());
   if (isInstallerFile(local_path_.value())) {
     delegate_->CheckIsInstallationPackage(
+        file_name_.value(), base::UTF16ToUTF8(file_size_),
         std::bind(&DownloadTargetDeterminer::DetermineInstallationPackageDone,
                   weak_ptr_factory_.GetWeakPtr(), std::placeholders::_1));
     return QUIT_DOLOOP;
   }
   return CONTINUE;
 }
- 
+
 void DownloadTargetDeterminer::DetermineInstallationPackageDone(
     bool continue_download) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);

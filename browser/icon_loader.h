@@ -107,6 +107,11 @@ class IconLoader {
 #endif  // !BUILDFLAG(IS_ANDROID)
   const float scale_;
   IconLoadedCallback callback_;
+
+#if BUILDFLAG(IS_OHOS)
+  static constexpr const IconGroup kDefaultFileTypeId = "general.object";
+  void OnIconReady(std::optional<std::vector<uint8_t>> icon);
+#endif
 };
 
 #endif  // CHROME_BROWSER_ICON_LOADER_H_

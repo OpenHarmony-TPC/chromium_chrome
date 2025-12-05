@@ -7,10 +7,6 @@
 // This doesn't matter for aura, which has different tiling.
 // static
 #if BUILDFLAG(IS_OHOS)
-const int WindowSizer::kWorkAreaTopOffset = 125;
-const int WindowSizer::kWorkAreaBottomOffset = 60;
-const int WindowSizer::kWorkAreaSideOffset = 20;
-
 const int WindowSizer::kWindowTilePixels = 50;
 #else
 const int WindowSizer::kWindowTilePixels = 10;

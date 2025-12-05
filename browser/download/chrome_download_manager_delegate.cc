@@ -1297,6 +1297,8 @@ void ChromeDownloadManagerDelegate::ReserveVirtualPath(
 
 #if BUILDFLAG(IS_OHOS)
 void ChromeDownloadManagerDelegate::CheckIsInstallationPackage(
+    const std::string& file_name_,
+    const std::string& file_size_,
     std::function<void(bool)> confirm_callback) {
   LOG(INFO) << "CheckIsInstallationPackage in";
   // The callback needs to be executed in the UI thread.
@@ -1312,7 +1314,8 @@ void ChromeDownloadManagerDelegate::CheckIsInstallationPackage(
                            },
                            confirm_callback, continue_download));
       };
-  FileSelectPicker::GetInstance().ShowInstallationPackageDialog(callback);
+  FileSelectPicker::GetInstance().ShowInstallationPackageDialog(
+      file_name_, file_size_, callback);
 }
 #endif
 
