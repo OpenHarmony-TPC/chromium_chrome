@@ -1,5 +1,5 @@
     <style include="cr-shared-style settings-shared"></style>
-<if expr="not is_macosx">
+<if expr="not is_macosx and not is_ohos">
     <settings-toggle-button
         pref="{{prefs.background_mode.enabled}}"
         label="$i18n{backgroundAppsLabel}">
