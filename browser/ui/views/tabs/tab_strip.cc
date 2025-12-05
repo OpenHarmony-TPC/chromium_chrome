@@ -125,6 +125,10 @@
 #include "ui/aura/window.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ui/display/screen.h"
+#endif
+
 namespace {
 
 ui::mojom::DragEventSource EventSourceFromEvent(const ui::LocatedEvent& event) {
@@ -332,6 +336,12 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
 
     drag_controller_ = std::make_unique<TabDragController>();
 
+#if BUILDFLAG(IS_OHOS)
+    if (event.IsGestureEvent()) {
+      drag_controller_->SetTouchFingerId(event.AsGestureEvent()->pointer_id());
+    }
+#endif
+
     // !!! Init may delete `drag_controller_` on some platforms. !!!
     // Init takes capture, which on some platforms may reenter Chrome, the
     // TabStrip, and the TabDragController, and may end the drag and destroy
@@ -358,8 +368,14 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
       return Liveness::kAlive;
     }
 
+#if BUILDFLAG(IS_OHOS)
+    display::Screen* screen = display::Screen::GetScreen();
+    gfx::Point screen_location =
+        screen->GetCursorScreenPoint(event.display_id());
+#else
     gfx::Point screen_location(event.location());
     views::View::ConvertPointToScreen(view, &screen_location);
+#endif
 
     // Note: `tab_strip_` can be destroyed during drag, also destroying `this`.
     base::WeakPtr<TabDragContext> weak_ptr(weak_factory_.GetWeakPtr());

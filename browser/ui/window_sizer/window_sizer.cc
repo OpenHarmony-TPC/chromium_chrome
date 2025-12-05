@@ -34,7 +34,8 @@
 #include "base/logging.h"
 #include "ohos/adapter/xcomponent/adapter/window_adapter.h"
 #include "ui/display/screen_ohos.h"
- 
+#include "ui/views/widget_util_ohos.h"
+
 using WindowAdapter = ohos::adapter::xcomponent::WindowAdapter;
 using WindowStatusType = ohos::adapter::xcomponent::WindowStatusType;
 #endif
@@ -231,7 +232,9 @@ class OhosStateProvider : public DefaultStateProvider {
         auto window_rect = WindowAdapter::GetInstance().GetInitialBounds();
         gfx::Rect rect_in_pixels = {window_rect.left, window_rect.top,
                                     window_rect.width, window_rect.height};
-        *bounds = display::ohos::ScreenOhos::ConvertPixelToDIP(rect_in_pixels);
+        int64_t display_id = WindowAdapter::GetInstance().GetInitialDisplayId();
+        *bounds = display::ohos::ScreenOhos::ConvertPixelToDIP(display_id,
+                                                               rect_in_pixels);
         return true;
       }
       case WindowStatusType::MAXIMIZE:
@@ -354,17 +357,31 @@ bool WindowSizer::GetLastActiveWindowBounds(
       display::Screen::GetScreen()->GetDisplayMatching(*bounds), gfx::Rect(),
       bounds);
 #else
-  display::Display display = display::Screen::GetScreen()->GetDisplayMatching(*bounds);
+  gfx::AcceleratedWidget last_active_widget_id = gfx::kNullAcceleratedWidget;
+  for (Browser* last_active :
+       BrowserList::GetInstance()->OrderedByActivation()) {
+    if (last_active && last_active->is_type_normal()) {
+      last_active_widget_id = last_active->GetAcceleratedWidget();
+      break;
+    }
+  }
+  display::Display display;
+  if (last_active_widget_id > 0) {
+    display = views::GetDisplayForWidget(last_active_widget_id);
+  }
+  if (!display.is_valid()) {
+    display = display::Screen::GetScreen()->GetDisplayMatching(*bounds);
+  }
   AdjustBoundsToBeVisibleOnDisplay(display, gfx::Rect(), bounds);
 
   // Make the window position within the work area.
   // Remove WorkAreaXXXOffset when the correct work area can be obtained from the system.
   gfx::Rect work_area = display.work_area();
-  if (bounds->y() + bounds->height() > work_area.y() + work_area.height() - kWorkAreaBottomOffset) {
-    bounds->set_y(work_area.y() + kWorkAreaTopOffset);
+  if (bounds->y() + bounds->height() > work_area.y() + work_area.height()) {
+    bounds->set_y(work_area.y());
   }
-  if (bounds->x() + bounds->width() > work_area.x() + work_area.width() - kWorkAreaSideOffset) {
-    bounds->set_x(work_area.x() + kWorkAreaSideOffset);
+  if (bounds->x() + bounds->width() > work_area.x() + work_area.width()) {
+    bounds->set_x(work_area.x());
   }
 #endif
   return true;
