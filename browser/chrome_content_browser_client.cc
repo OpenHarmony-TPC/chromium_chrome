@@ -860,6 +860,10 @@ using web_apps::ChromeContentBrowserClientIsolatedWebAppsPart;
 #include "components/dom_distiller/content/browser/distillability_driver.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_RENDER_PROCESS_MODE)
+#include "arkweb/chromium_ext/base/ohos/sys_info_utils_ext.h"
+#endif
+
 namespace {
 
 BASE_FEATURE(kSkipPagehideInCommitForDSENavigation,
@@ -2516,6 +2520,11 @@ bool ChromeContentBrowserClient::IsSuitableHost(
 
 bool ChromeContentBrowserClient::MayReuseHost(
     content::RenderProcessHost* process_host) {
+#if BUILDFLAG(ARKWEB_RENDER_PROCESS_MODE)
+  if (base::ohos::IsWearableDevice())
+    return true;
+#endif
+
   // If there is currently a no-state prefetcher in progress for the host
   // provided, it may not be shared. We require prefetchers to be by themselves
   // in a separate process so that we can monitor their resource usage.
