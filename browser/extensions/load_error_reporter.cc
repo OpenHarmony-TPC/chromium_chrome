@@ -19,6 +19,10 @@
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/l10n/l10n_util.h"
 
+#if BUILDFLAG(IS_ARKWEB_EXT)
+#include "arkweb/chromium_ext/chrome/browser/extensions/extension_load_error_reporter_for_include.cc"
+#endif
+
 namespace extensions {
 
 LoadErrorReporter* LoadErrorReporter::instance_ = nullptr;
@@ -54,7 +58,11 @@ void LoadErrorReporter::ReportLoadError(
       "%s %s. %s",
       l10n_util::GetStringUTF8(IDS_EXTENSIONS_LOAD_ERROR_MESSAGE).c_str(),
       path_str.c_str(), error.c_str()));
+#if BUILDFLAG(IS_ARKWEB_EXT)
+  ReportError(message, be_noisy, browser_context);
+#else
   ReportError(message, be_noisy);
+#endif
   for (auto& observer : observers_)
     observer.OnLoadFailure(browser_context, extension_path, error);
 }
@@ -72,16 +80,10 @@ void LoadErrorReporter::ReportError(const std::u16string& message,
   LOG(WARNING) << "Extension error: " << message;
 
   if (enable_noisy_errors_ && be_noisy) {
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-    LOG(WARNING) 
-        << "Extension error dialog disabled on OHOS platform. Error details:"
-        << message;
-#else
     chrome::ShowWarningMessageBox(
         nullptr,
         l10n_util::GetStringUTF16(IDS_EXTENSIONS_LOAD_ERROR_ALERT_HEADING),
         message);
-#endif
   }
 }
 
