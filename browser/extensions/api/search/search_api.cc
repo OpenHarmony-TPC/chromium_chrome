@@ -32,8 +32,8 @@ void NavigateToURL(WindowOpenDisposition disposition,
 
 using extensions::api::search::Disposition;
 
-ExtensionFunction::ResponseAction SearchQueryFunction::Run() {
 #if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+ExtensionFunction::ResponseAction SearchQueryFunction::Run() {
   std::optional<api::search::Query::Params> params =
       api::search::Query::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -121,9 +121,7 @@ ExtensionFunction::ResponseAction SearchQueryFunction::Run() {
   }
 
   return RespondNow(NoArguments());
-#else
-  return RespondNow(NoArguments());
-#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 
 }  // namespace extensions
