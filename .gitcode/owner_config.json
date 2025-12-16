@@ -2,11 +2,17 @@
     "groups": {
         "yuzhouhang1": [
             "yuzhouhang1"
+        ],
+        "zhang-yinglie": [
+            "zhang-yinglie"
         ]
     },
     "userInfos": {
         "yuzhouhang1": {
             "info": "[存储]"
+        },
+        "zhang-yinglie": {
+            "info": "[外设服务]"
         }
     }
 }
