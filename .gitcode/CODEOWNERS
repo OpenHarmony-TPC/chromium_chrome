@@ -7,3 +7,10 @@
 /browser/profiles/keep_alive/ @yuzhouhang1
 /browser/profile_resetter/ @yuzhouhang1
 /browser/notifications/*notification_channels_provider_android* @yuzhouhang1
+
+# peripherals
+/tools/service_discovery_sniffer/ @zhang-yinglie
+/browser/ui/webui/settings/settings_security_key_handler* @zhang-yinglie
+/browser/sync/test/integration/*webauthn* @zhang-yinglie
+/browser/resources/ash/settings/os_settings_icons.html @zhang-yinglie
+/browser/battery/ @zhang-yinglie
