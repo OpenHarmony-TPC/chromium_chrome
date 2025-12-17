@@ -1194,8 +1194,7 @@ DownloadTargetDeterminer::Result
                          base::RandInt(0, kUnconfirmedUniquifierRange));
 #if BUILDFLAG(IS_OHOS)
   intermediate_path_ =
-      base::FilePath(::ohos::adapter::ContextPathAdapter::GetTempDir())
-          .DirName()
+      base::FilePath(::ohos::adapter::ContextPathAdapter::GetAppDownloadDir())
           .Append(base::FilePath::FromUTF8Unsafe(file_name));
 #else
   intermediate_path_ =
