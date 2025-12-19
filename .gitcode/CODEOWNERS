@@ -14,3 +14,129 @@
 /browser/sync/test/integration/*webauthn* @zhang-yinglie
 /browser/resources/ash/settings/os_settings_icons.html @zhang-yinglie
 /browser/battery/ @zhang-yinglie
+
+# CCS
+/app/certificate_manager.grdp @chenjiadong @fredranking @aohui
+/app/nearby_share_strings.grdp @chenjiadong @fredranking @aohui
+/app/support_tool_strings.grdp @chenjiadong @fredranking @aohui
+/browser/background/ @chenjiadong @fredranking @aohui
+/browser/bitmap_fetcher/ @chenjiadong @fredranking @aohui
+/browser/browser_controls/android/ @chenjiadong @fredranking @aohui
+/browser/cart/ @zhangyanchuan
+/browser/certificate_provider/ @chenjiadong @fredranking @aohui
+/browser/chooser_controller/ @chenjiadong @fredranking @aohui
+/browser/chrome_back_forward_cache_browsertest.cc @chenjiadong @fredranking @aohui
+/browser/chrome_service_worker_browsertest.cc @chenjiadong @fredranking @aohui
+/browser/complex_tasks/ @chenjiadong @fredranking @aohui
+/browser/data_saver/ @chenjiadong @fredranking @aohui
+/browser/dev_ui/ @shawshank
+/browser/devtools/ @shawshank
+/browser/dips/ @chenjiadong @fredranking @aohui
+/browser/downgrade/ @chenjiadong @fredranking @aohui
+/browser/download/ @chenjiadong @fredranking @aohui
+/browser/download/bubble/ @chenjiadong @fredranking @aohui
+/browser/enterprise/connectors/ @zhangyanchuan
+/browser/enterprise/data_controls/ @zhangyanchuan
+/browser/enterprise/data_protection/ @zhangyanchuan
+/browser/enterprise/platform_auth/ @zhangyanchuan
+/browser/enterprise/profile_management/ @zhangyanchuan
+/browser/enterprise/remote_commands/ @zhangyanchuan
+/browser/enterprise/signin/ @zhangyanchuan
+/browser/enterprise/watermark/ @zhangyanchuan
+/browser/extensions/ @zhangyanchuan
+/browser/extensions/api/browsing_data/ @zhangyanchuan
+/browser/extensions/api/enterprise_networking_attributes/ @chenjiadong @fredranking @aohui
+/browser/external_protocol/ @chenjiadong @fredranking @aohui
+/browser/facilitated_payments/ @zhangyanchuan
+/browser/fast_checkout/ @chenjiadong @fredranking @aohui
+/browser/favicon/ @chenjiadong @fredranking @aohui
+/browser/feed/ @chenjiadong @fredranking @aohui
+/browser/first_party_sets/ @chenjiadong @fredranking @aohui
+/browser/history_clusters/ @zhangyanchuan
+/browser/hub/ @chenjiadong @fredranking @aohui
+/browser/icon_transcoder/ @chenjiadong @fredranking @aohui
+/browser/image_descriptions/ @chenjiadong @fredranking @aohui
+/browser/importer/ @chenjiadong @fredranking @aohui
+/browser/incognito/ @chenjiadong @fredranking @aohui
+/browser/infobars/ @chenjiadong @fredranking @aohui
+/browser/interstitials/ @chenjiadong @fredranking @aohui
+/browser/interstitials/ @chenjiadong @fredranking @aohui
+/browser/login_detection/ @chenjiadong @fredranking @aohui
+/browser/lookalikes/ @chenjiadong @fredranking @aohui
+/browser/magic_stack/ @chenjiadong @fredranking @aohui
+/browser/nacl_host/ @chenjiadong @fredranking @aohui
+/browser/navigation_predictor/ @chenjiadong @fredranking @aohui
+/browser/nearby_sharing/ @chenjiadong @fredranking @aohui
+/browser/net/network_annotation_monitor* @chenjiadong @fredranking @aohui
+/browser/notifications/ @zhangyanchuan
+/browser/obsolete_system/ @chenjiadong @fredranking @aohui
+/browser/page_load_metrics/protocol_util.cc @chenjiadong @fredranking @aohui
+/browser/plugins/ @zhangyanchuan
+/browser/policy/annotations/ @chenjiadong @fredranking @aohui
+/browser/predictors/ @chenjiadong @fredranking @aohui
+/browser/preferences/ @chenjiadong @fredranking @aohui
+/browser/preloading/prefetch/no_state_prefetch/tools/prerender_test_server/ @chenjiadong @fredranking @aohui
+/browser/preloading/prefetch/prefetch_service/ @chenjiadong @fredranking @aohui
+/browser/preloading/prefetch/zero_suggest_prefetch/ @chenjiadong @fredranking @aohui
+/browser/preloading/preview/ @chenjiadong @fredranking @aohui
+/browser/privacy/traffic_annotation.proto @chenjiadong @fredranking @aohui
+/browser/private_network_access/ @chenjiadong @fredranking @aohui
+/browser/readaloud/ @chenjiadong @fredranking @aohui
+/browser/reading_list/ @chenjiadong @fredranking @aohui
+/browser/recovery/ @chenjiadong @fredranking @aohui
+/browser/request_header_integrity/ @chenjiadong @fredranking @aohui
+/browser/resource_coordinator/ @chenjiadong @fredranking @aohui
+/browser/resources/extensions/ @zhangyanchuan
+/browser/resources/inspect/ @shawshank
+/browser/resources/net_internals/ @chenjiadong @fredranking @aohui
+/browser/resources/side_panel/ @zhangyanchuan
+/browser/safe_browsing/ @chenjiadong @fredranking @aohui
+/browser/security_events/ @chenjiadong @fredranking @aohui
+/browser/site_isolation/ @chenjiadong @fredranking @aohui
+/browser/site_protection/ @chenjiadong @fredranking @aohui
+/browser/speech/ @chenjiadong @fredranking @aohui
+/browser/speech/extension_api/ @zhangyanchuan
+/browser/ssl/ @chenjiadong @fredranking @aohui
+/browser/status_icons/ @chenjiadong @fredranking @aohui
+/browser/support_tool/ @chenjiadong @fredranking @aohui
+/browser/sync_file_system/ @chenjiadong @fredranking @aohui
+/browser/tab_contents/ @zhangyanchuan
+/browser/tab_resumption/ @zhangyanchuan
+/browser/tab_ui/ @zhangyanchuan
+/browser/tab/ @zhangyanchuan
+/browser/tabmodel/ @zhangyanchuan
+/browser/task_manager/ @chenjiadong @fredranking @aohui
+/browser/test_dummy/ @chenjiadong @fredranking @aohui
+/browser/themes/ @chenjiadong @fredranking @aohui
+/browser/thumbnail/ @chenjiadong @fredranking @aohui
+/browser/tpcd/ @chenjiadong @fredranking @aohui
+/browser/transition_manager/ @chenjiadong @fredranking @aohui
+/browser/ui/startup/credential_provider* @chenjiadong @fredranking @aohui
+/browser/ui/views/incognito_clear_browsing_data_dialog* @chenjiadong @fredranking @aohui
+/browser/ui/views/sync/inline_login_ui_browsertest* @chenjiadong @fredranking @aohui
+/browser/ui/views/webauthn/ @shawshank
+/browser/ui/webauthn/ @shawshank
+/browser/ui/webui/certificate_manager_localized_strings_provider* @chenjiadong @fredranking @aohui
+/browser/ui/webui/certificates* @chenjiadong @fredranking @aohui
+/browser/ui/webui/devtools/ @shawshank
+/browser/ui/webui/extensions/ @zhangyanchuan
+/browser/ui/webui/net_export_ui.* @chenjiadong @fredranking @aohui
+/browser/ui/webui/ntp_tiles_internals_ui.* @chenjiadong @fredranking @aohui
+/browser/ui/webui/util/ @chenjiadong @fredranking @aohui
+/browser/url_param_filter/ @chenjiadong @fredranking @aohui
+/chrome_proxy/ @chenjiadong @fredranking @aohui
+/common/conflicts/ @chenjiadong @fredranking @aohui
+/common/controlled_frame/ @chenjiadong @fredranking @aohui
+/common/extensions/api/devtools/ @shawshank
+/common/importer/ @chenjiadong @fredranking @aohui
+/common/themes/ @chenjiadong @fredranking @aohui
+/credential_provider/ @chenjiadong @fredranking @aohui
+/credential_provider/gaiacp/mojom/ @chenjiadong @fredranking @aohui
+/enterprise_companion/ @zhangyanchuan
+/notification_helper/ @zhangyanchuan
+/renderer/commerce/ @chenjiadong @fredranking @aohui
+/renderer/net/ @chenjiadong @fredranking @aohui
+/renderer/resources/extensions/enterprise_platform_keys/ @zhangyanchuan
+/renderer/resources/extensions/remote_apps/ @zhangyanchuan
+/test/data/extensions/api_test/enterprise_networking_attributes/ @chenjiadong @fredranking @aohui
+/third_party/mozilla_security_manager/ @chenjiadong @fredranking @aohui
