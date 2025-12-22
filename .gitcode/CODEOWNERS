@@ -1,142 +1,142 @@
 # Storage
-/test/base/profile_deletion_observer.cc/ @yuzhouhang1
-/browser/ui/views/content_setting* @yuzhouhang1
-/browser/ui/profile_* @yuzhouhang1
-/browser/ui/file_system_access* @yuzhouhang1
-/browser/profiles/ @yuzhouhang1
-/browser/profiles/keep_alive/ @yuzhouhang1
-/browser/profile_resetter/ @yuzhouhang1
-/browser/notifications/*notification_channels_provider_android* @yuzhouhang1
+/test/base/profile_deletion_observer.cc/ @arkweb-storage
+/browser/ui/views/content_setting* @arkweb-storage
+/browser/ui/profile_* @arkweb-storage
+/browser/ui/file_system_access* @arkweb-storage
+/browser/profiles/ @arkweb-storage
+/browser/profiles/keep_alive/ @arkweb-storage
+/browser/profile_resetter/ @arkweb-storage
+/browser/notifications/*notification_channels_provider_android* @arkweb-storage
 
 # peripherals
-/tools/service_discovery_sniffer/ @zhang-yinglie
-/browser/ui/webui/settings/settings_security_key_handler* @zhang-yinglie
-/browser/sync/test/integration/*webauthn* @zhang-yinglie
-/browser/resources/ash/settings/os_settings_icons.html @zhang-yinglie
-/browser/battery/ @zhang-yinglie
+/tools/service_discovery_sniffer/ @arkweb-peripherals
+/browser/ui/webui/settings/settings_security_key_handler* @arkweb-peripherals
+/browser/sync/test/integration/*webauthn* @arkweb-peripherals
+/browser/resources/ash/settings/os_settings_icons.html @arkweb-peripherals
+/browser/battery/ @arkweb-peripherals
 
 # CCS
-/app/certificate_manager.grdp @chenjiadong @fredranking @aohui
-/app/nearby_share_strings.grdp @chenjiadong @fredranking @aohui
-/app/support_tool_strings.grdp @chenjiadong @fredranking @aohui
-/browser/background/ @chenjiadong @fredranking @aohui
-/browser/bitmap_fetcher/ @chenjiadong @fredranking @aohui
-/browser/browser_controls/android/ @chenjiadong @fredranking @aohui
-/browser/cart/ @zhangyanchuan
-/browser/certificate_provider/ @chenjiadong @fredranking @aohui
-/browser/chooser_controller/ @chenjiadong @fredranking @aohui
-/browser/chrome_back_forward_cache_browsertest.cc @chenjiadong @fredranking @aohui
-/browser/chrome_service_worker_browsertest.cc @chenjiadong @fredranking @aohui
-/browser/complex_tasks/ @chenjiadong @fredranking @aohui
-/browser/data_saver/ @chenjiadong @fredranking @aohui
-/browser/dev_ui/ @shawshank
-/browser/devtools/ @shawshank
-/browser/dips/ @chenjiadong @fredranking @aohui
-/browser/downgrade/ @chenjiadong @fredranking @aohui
-/browser/download/ @chenjiadong @fredranking @aohui
-/browser/download/bubble/ @chenjiadong @fredranking @aohui
-/browser/enterprise/connectors/ @zhangyanchuan
-/browser/enterprise/data_controls/ @zhangyanchuan
-/browser/enterprise/data_protection/ @zhangyanchuan
-/browser/enterprise/platform_auth/ @zhangyanchuan
-/browser/enterprise/profile_management/ @zhangyanchuan
-/browser/enterprise/remote_commands/ @zhangyanchuan
-/browser/enterprise/signin/ @zhangyanchuan
-/browser/enterprise/watermark/ @zhangyanchuan
-/browser/extensions/ @zhangyanchuan
-/browser/extensions/api/browsing_data/ @zhangyanchuan
-/browser/extensions/api/enterprise_networking_attributes/ @chenjiadong @fredranking @aohui
-/browser/external_protocol/ @chenjiadong @fredranking @aohui
-/browser/facilitated_payments/ @zhangyanchuan
-/browser/fast_checkout/ @chenjiadong @fredranking @aohui
-/browser/favicon/ @chenjiadong @fredranking @aohui
-/browser/feed/ @chenjiadong @fredranking @aohui
-/browser/first_party_sets/ @chenjiadong @fredranking @aohui
-/browser/history_clusters/ @zhangyanchuan
-/browser/hub/ @chenjiadong @fredranking @aohui
-/browser/icon_transcoder/ @chenjiadong @fredranking @aohui
-/browser/image_descriptions/ @chenjiadong @fredranking @aohui
-/browser/importer/ @chenjiadong @fredranking @aohui
-/browser/incognito/ @chenjiadong @fredranking @aohui
-/browser/infobars/ @chenjiadong @fredranking @aohui
-/browser/interstitials/ @chenjiadong @fredranking @aohui
-/browser/interstitials/ @chenjiadong @fredranking @aohui
-/browser/login_detection/ @chenjiadong @fredranking @aohui
-/browser/lookalikes/ @chenjiadong @fredranking @aohui
-/browser/magic_stack/ @chenjiadong @fredranking @aohui
-/browser/nacl_host/ @chenjiadong @fredranking @aohui
-/browser/navigation_predictor/ @chenjiadong @fredranking @aohui
-/browser/nearby_sharing/ @chenjiadong @fredranking @aohui
-/browser/net/network_annotation_monitor* @chenjiadong @fredranking @aohui
-/browser/notifications/ @zhangyanchuan
-/browser/obsolete_system/ @chenjiadong @fredranking @aohui
-/browser/page_load_metrics/protocol_util.cc @chenjiadong @fredranking @aohui
-/browser/plugins/ @zhangyanchuan
-/browser/policy/annotations/ @chenjiadong @fredranking @aohui
-/browser/predictors/ @chenjiadong @fredranking @aohui
-/browser/preferences/ @chenjiadong @fredranking @aohui
-/browser/preloading/prefetch/no_state_prefetch/tools/prerender_test_server/ @chenjiadong @fredranking @aohui
-/browser/preloading/prefetch/prefetch_service/ @chenjiadong @fredranking @aohui
-/browser/preloading/prefetch/zero_suggest_prefetch/ @chenjiadong @fredranking @aohui
-/browser/preloading/preview/ @chenjiadong @fredranking @aohui
-/browser/privacy/traffic_annotation.proto @chenjiadong @fredranking @aohui
-/browser/private_network_access/ @chenjiadong @fredranking @aohui
-/browser/readaloud/ @chenjiadong @fredranking @aohui
-/browser/reading_list/ @chenjiadong @fredranking @aohui
-/browser/recovery/ @chenjiadong @fredranking @aohui
-/browser/request_header_integrity/ @chenjiadong @fredranking @aohui
-/browser/resource_coordinator/ @chenjiadong @fredranking @aohui
-/browser/resources/extensions/ @zhangyanchuan
-/browser/resources/inspect/ @shawshank
-/browser/resources/net_internals/ @chenjiadong @fredranking @aohui
-/browser/resources/side_panel/ @zhangyanchuan
-/browser/safe_browsing/ @chenjiadong @fredranking @aohui
-/browser/security_events/ @chenjiadong @fredranking @aohui
-/browser/site_isolation/ @chenjiadong @fredranking @aohui
-/browser/site_protection/ @chenjiadong @fredranking @aohui
-/browser/speech/ @chenjiadong @fredranking @aohui
-/browser/speech/extension_api/ @zhangyanchuan
-/browser/ssl/ @chenjiadong @fredranking @aohui
-/browser/status_icons/ @chenjiadong @fredranking @aohui
-/browser/support_tool/ @chenjiadong @fredranking @aohui
-/browser/sync_file_system/ @chenjiadong @fredranking @aohui
-/browser/tab_contents/ @zhangyanchuan
-/browser/tab_resumption/ @zhangyanchuan
-/browser/tab_ui/ @zhangyanchuan
-/browser/tab/ @zhangyanchuan
-/browser/tabmodel/ @zhangyanchuan
-/browser/task_manager/ @chenjiadong @fredranking @aohui
-/browser/test_dummy/ @chenjiadong @fredranking @aohui
-/browser/themes/ @chenjiadong @fredranking @aohui
-/browser/thumbnail/ @chenjiadong @fredranking @aohui
-/browser/tpcd/ @chenjiadong @fredranking @aohui
-/browser/transition_manager/ @chenjiadong @fredranking @aohui
-/browser/ui/startup/credential_provider* @chenjiadong @fredranking @aohui
-/browser/ui/views/incognito_clear_browsing_data_dialog* @chenjiadong @fredranking @aohui
-/browser/ui/views/sync/inline_login_ui_browsertest* @chenjiadong @fredranking @aohui
-/browser/ui/views/webauthn/ @shawshank
-/browser/ui/webauthn/ @shawshank
-/browser/ui/webui/certificate_manager_localized_strings_provider* @chenjiadong @fredranking @aohui
-/browser/ui/webui/certificates* @chenjiadong @fredranking @aohui
-/browser/ui/webui/devtools/ @shawshank
-/browser/ui/webui/extensions/ @zhangyanchuan
-/browser/ui/webui/net_export_ui.* @chenjiadong @fredranking @aohui
-/browser/ui/webui/ntp_tiles_internals_ui.* @chenjiadong @fredranking @aohui
-/browser/ui/webui/util/ @chenjiadong @fredranking @aohui
-/browser/url_param_filter/ @chenjiadong @fredranking @aohui
-/chrome_proxy/ @chenjiadong @fredranking @aohui
-/common/conflicts/ @chenjiadong @fredranking @aohui
-/common/controlled_frame/ @chenjiadong @fredranking @aohui
-/common/extensions/api/devtools/ @shawshank
-/common/importer/ @chenjiadong @fredranking @aohui
-/common/themes/ @chenjiadong @fredranking @aohui
-/credential_provider/ @chenjiadong @fredranking @aohui
-/credential_provider/gaiacp/mojom/ @chenjiadong @fredranking @aohui
-/enterprise_companion/ @zhangyanchuan
-/notification_helper/ @zhangyanchuan
-/renderer/commerce/ @chenjiadong @fredranking @aohui
-/renderer/net/ @chenjiadong @fredranking @aohui
-/renderer/resources/extensions/enterprise_platform_keys/ @zhangyanchuan
-/renderer/resources/extensions/remote_apps/ @zhangyanchuan
-/test/data/extensions/api_test/enterprise_networking_attributes/ @chenjiadong @fredranking @aohui
-/third_party/mozilla_security_manager/ @chenjiadong @fredranking @aohui
+/app/certificate_manager.grdp @arkweb-CCS
+/app/nearby_share_strings.grdp @arkweb-CCS
+/app/support_tool_strings.grdp @arkweb-CCS
+/browser/background/ @arkweb-CCS
+/browser/bitmap_fetcher/ @arkweb-CCS
+/browser/browser_controls/android/ @arkweb-CCS
+/browser/cart/ @arkweb-CCS
+/browser/certificate_provider/ @arkweb-CCS
+/browser/chooser_controller/ @arkweb-CCS
+/browser/chrome_back_forward_cache_browsertest.cc @arkweb-CCS
+/browser/chrome_service_worker_browsertest.cc @arkweb-CCS
+/browser/complex_tasks/ @arkweb-CCS
+/browser/data_saver/ @arkweb-CCS
+/browser/dev_ui/ @arkweb-CCS
+/browser/devtools/ @arkweb-CCS
+/browser/dips/ @arkweb-CCS
+/browser/downgrade/ @arkweb-CCS
+/browser/download/ @arkweb-CCS
+/browser/download/bubble/ @arkweb-CCS
+/browser/enterprise/connectors/ @arkweb-CCS
+/browser/enterprise/data_controls/ @arkweb-CCS
+/browser/enterprise/data_protection/ @arkweb-CCS
+/browser/enterprise/platform_auth/ @arkweb-CCS
+/browser/enterprise/profile_management/ @arkweb-CCS
+/browser/enterprise/remote_commands/ @arkweb-CCS
+/browser/enterprise/signin/ @arkweb-CCS
+/browser/enterprise/watermark/ @arkweb-CCS
+/browser/extensions/ @arkweb-CCS
+/browser/extensions/api/browsing_data/ @arkweb-CCS
+/browser/extensions/api/enterprise_networking_attributes/ @arkweb-CCS
+/browser/external_protocol/ @arkweb-CCS
+/browser/facilitated_payments/ @arkweb-CCS
+/browser/fast_checkout/ @arkweb-CCS
+/browser/favicon/ @arkweb-CCS
+/browser/feed/ @arkweb-CCS
+/browser/first_party_sets/ @arkweb-CCS
+/browser/history_clusters/ @arkweb-CCS
+/browser/hub/ @arkweb-CCS
+/browser/icon_transcoder/ @arkweb-CCS
+/browser/image_descriptions/ @arkweb-CCS
+/browser/importer/ @arkweb-CCS
+/browser/incognito/ @arkweb-CCS
+/browser/infobars/ @arkweb-CCS
+/browser/interstitials/ @arkweb-CCS
+/browser/interstitials/ @arkweb-CCS
+/browser/login_detection/ @arkweb-CCS
+/browser/lookalikes/ @arkweb-CCS
+/browser/magic_stack/ @arkweb-CCS
+/browser/nacl_host/ @arkweb-CCS
+/browser/navigation_predictor/ @arkweb-CCS
+/browser/nearby_sharing/ @arkweb-CCS
+/browser/net/network_annotation_monitor* @arkweb-CCS
+/browser/notifications/ @arkweb-CCS
+/browser/obsolete_system/ @arkweb-CCS
+/browser/page_load_metrics/protocol_util.cc @arkweb-CCS
+/browser/plugins/ @arkweb-CCS
+/browser/policy/annotations/ @arkweb-CCS
+/browser/predictors/ @arkweb-CCS
+/browser/preferences/ @arkweb-CCS
+/browser/preloading/prefetch/no_state_prefetch/tools/prerender_test_server/ @arkweb-CCS
+/browser/preloading/prefetch/prefetch_service/ @arkweb-CCS
+/browser/preloading/prefetch/zero_suggest_prefetch/ @arkweb-CCS
+/browser/preloading/preview/ @arkweb-CCS
+/browser/privacy/traffic_annotation.proto @arkweb-CCS
+/browser/private_network_access/ @arkweb-CCS
+/browser/readaloud/ @arkweb-CCS
+/browser/reading_list/ @arkweb-CCS
+/browser/recovery/ @arkweb-CCS
+/browser/request_header_integrity/ @arkweb-CCS
+/browser/resource_coordinator/ @arkweb-CCS
+/browser/resources/extensions/ @arkweb-CCS
+/browser/resources/inspect/ @arkweb-CCS
+/browser/resources/net_internals/ @arkweb-CCS
+/browser/resources/side_panel/ @arkweb-CCS
+/browser/safe_browsing/ @arkweb-CCS
+/browser/security_events/ @arkweb-CCS
+/browser/site_isolation/ @arkweb-CCS
+/browser/site_protection/ @arkweb-CCS
+/browser/speech/ @arkweb-CCS
+/browser/speech/extension_api/ @arkweb-CCS
+/browser/ssl/ @arkweb-CCS
+/browser/status_icons/ @arkweb-CCS
+/browser/support_tool/ @arkweb-CCS
+/browser/sync_file_system/ @arkweb-CCS
+/browser/tab_contents/ @arkweb-CCS
+/browser/tab_resumption/ @arkweb-CCS
+/browser/tab_ui/ @arkweb-CCS
+/browser/tab/ @arkweb-CCS
+/browser/tabmodel/ @arkweb-CCS
+/browser/task_manager/ @arkweb-CCS
+/browser/test_dummy/ @arkweb-CCS
+/browser/themes/ @arkweb-CCS
+/browser/thumbnail/ @arkweb-CCS
+/browser/tpcd/ @arkweb-CCS
+/browser/transition_manager/ @arkweb-CCS
+/browser/ui/startup/credential_provider* @arkweb-CCS
+/browser/ui/views/incognito_clear_browsing_data_dialog* @arkweb-CCS
+/browser/ui/views/sync/inline_login_ui_browsertest* @arkweb-CCS
+/browser/ui/views/webauthn/ @arkweb-CCS
+/browser/ui/webauthn/ @arkweb-CCS
+/browser/ui/webui/certificate_manager_localized_strings_provider* @arkweb-CCS
+/browser/ui/webui/certificates* @arkweb-CCS
+/browser/ui/webui/devtools/ @arkweb-CCS
+/browser/ui/webui/extensions/ @arkweb-CCS
+/browser/ui/webui/net_export_ui.* @arkweb-CCS
+/browser/ui/webui/ntp_tiles_internals_ui.* @arkweb-CCS
+/browser/ui/webui/util/ @arkweb-CCS
+/browser/url_param_filter/ @arkweb-CCS
+/chrome_proxy/ @arkweb-CCS
+/common/conflicts/ @arkweb-CCS
+/common/controlled_frame/ @arkweb-CCS
+/common/extensions/api/devtools/ @arkweb-CCS
+/common/importer/ @arkweb-CCS
+/common/themes/ @arkweb-CCS
+/credential_provider/ @arkweb-CCS
+/credential_provider/gaiacp/mojom/ @arkweb-CCS
+/enterprise_companion/ @arkweb-CCS
+/notification_helper/ @arkweb-CCS
+/renderer/commerce/ @arkweb-CCS
+/renderer/net/ @arkweb-CCS
+/renderer/resources/extensions/enterprise_platform_keys/ @arkweb-CCS
+/renderer/resources/extensions/remote_apps/ @arkweb-CCS
+/test/data/extensions/api_test/enterprise_networking_attributes/ @arkweb-CCS
+/third_party/mozilla_security_manager/ @arkweb-CCS

@@ -1,10 +1,17 @@
 {
     "groups": {
-        "yuzhouhang1": [
+        "arkweb-storage": [
             "yuzhouhang1"
         ],
-        "zhang-yinglie": [
+        "arkweb-peripherals": [
             "zhang-yinglie"
+        ],
+        "arkweb-CCS": [
+            "fredranking",
+            "aohui",
+            "shawshank",
+            "chenjiadong",
+            "zhangyanchuan"
         ]
     },
     "userInfos": {
@@ -13,6 +20,21 @@
         },
         "zhang-yinglie": {
             "info": "[外设服务]"
+        },
+        "fredranking": {
+            "info": "[云服务]"
+        },
+        "aohui": {
+            "info": "[云服务]"
+        },
+        "shawshank": {
+            "info": "[云服务]"
+        },
+        "chenjiadong": {
+            "info": "[云服务]"
+        },
+        "zhangyanchuan": {
+            "info": "[云服务]"
         }
     }
 }
