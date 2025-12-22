@@ -2999,6 +2999,10 @@ static_library("ui") {
         "webui/signin/sync_confirmation_ui.cc",
         "webui/signin/sync_confirmation_ui.h",
       ]
+      sources += [
+        "tab_process_logger_ohos.cc",
+        "tab_process_logger_ohos.h",
+      ]
     }
 
     deps += [
