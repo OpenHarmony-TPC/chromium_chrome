@@ -63,9 +63,12 @@ ExecuteCommandSingleton* ExecuteCommandSingleton::GetInstance() {
 void ExecuteCommandSingleton::CreateNewWindow(const std::string& url,
                                               const bool& is_webapp,
                                               Browser* browser) {
-  LOG(INFO) << "ExecuteCommandSingleton::CreateNewWindow begin, url is empty: " << url.empty();
+  LOG(INFO) << "[ohoswindow]"
+            << "ExecuteCommandSingleton::CreateNewWindow begin, url is empty: "
+            << url.empty();
   if (url.empty()) {
-    LOG(INFO) << "ExecuteCommandSingleton::CreateNewWindow, url is empty, execute command with disposition";
+    LOG(INFO) << "[ohoswindow] ExecuteCommandSingleton::CreateNewWindow, url is empty, "
+              << "execute command with disposition";
     browser->command_controller()->ExecuteCommandWithDisposition(
         IDC_NEW_WINDOW, WindowOpenDisposition::NEW_WINDOW,
         base::TimeTicks::Now());
@@ -76,7 +79,8 @@ void ExecuteCommandSingleton::CreateNewWindow(const std::string& url,
         FROM_HERE, base::BindOnce(&ProcessSingletonNotificationCallbackImpl,
                                   std::move(command_line), base::FilePath()));
   } else {
-    LOG(INFO) << "ExecuteCommandSingleton::CreateNewWindow, url is not empty, add tab";
+    LOG(INFO) << "[ohoswindow] ExecuteCommandSingleton::CreateNewWindow, "
+              << "url is not empty, add tab";
     const GURL gurl(url);
     if (gurl.SchemeIsFile()) {
       std::string file_path_str;
@@ -87,7 +91,7 @@ void ExecuteCommandSingleton::CreateNewWindow(const std::string& url,
         const GURL file_url = net::FilePathToFileURL(file_path);
         chrome::AddTabAt(browser, file_url, -1, true);
       } else {
-        LOG(ERROR) << "CreateNewWindow GetPathForUri failed!";
+        LOG(ERROR) << "[ohoswindow] CreateNewWindow GetPathForUri failed!";
         chrome::AddTabAt(browser, gurl, -1, true);
       }
     } else {
@@ -98,14 +102,17 @@ void ExecuteCommandSingleton::CreateNewWindow(const std::string& url,
 
 void ExecuteCommandSingleton::OnExecute(CommandParameter& param,
                                         std::shared_ptr<CommandResult> result) {
+  LOG(INFO) << "[ohoswindow] in ExecuteCommandSingleton OnExecute, "
+            << "param is " << param.ToString();
   auto task = [](base::WeakPtr<ExecuteCommandSingleton> executor,
                  const CommandParameter param,
                  std::shared_ptr<CommandResult> result) {
     do {
-      LOG(INFO) << "ExecuteCommandSingleton::OnExecute, param: " << param.ToString();
+      LOG(INFO) << "[ohoswindow] ExecuteCommandSingleton::OnExecute, param: "
+                << param.ToString();
       Browser* browser = BrowserList::GetInstance()->GetLastActive();
       if (browser == nullptr) {
-        LOG(ERROR) << "Browser::OnExecute no active browser";
+        LOG(ERROR) << "[ohoswindow] Browser::OnExecute no active browser";
         break;
       }
 
@@ -124,7 +131,8 @@ void ExecuteCommandSingleton::OnExecute(CommandParameter& param,
           result->ret_code = 0;
           break;
         default:
-          LOG(ERROR) << "unsupported Operator type:" << (int)param.type;
+          LOG(ERROR) << "[ohoswindow] unsupported Operator type:"
+                     << (int)param.type;
           break;
       }
     } while (0);
@@ -140,7 +148,7 @@ void ExecuteCommandSingleton::OnExecute(CommandParameter& param,
 
 void ExecuteCommandSingleton::Register() {
   if (init_for_register_) {
-    LOG(WARNING) << "Browser command executor is registered";
+    LOG(WARNING) << "[ohoswindow] Browser command executor is registered";
     return;
   }
 
