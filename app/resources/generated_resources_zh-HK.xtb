@@ -1517,7 +1517,7 @@
 <translation id="202352106777823113">下載時間太長，已被網絡停止。</translation>
 <translation id="2024195579772565064">刪除搜尋引擎</translation>
 <translation id="202500043506723828">EID</translation>
-<translation id="2025632980034333559"><ph name="APP_NAME" /> 當機了，請按一下這個提示框來重新載入擴充功能。</translation>
+<translation id="2025632980034333559">「<ph name="APP_NAME" />」當機了。輕觸此資訊框，以重新載入該擴展程式</translation>
 <translation id="2026377162111110983">區域語音</translation>
 <translation id="2028449514182362831">需要動作感應器的功能將無法運作</translation>
 <translation id="2028479214883337535">從 MacOS 匯入</translation>
@@ -6677,7 +6677,7 @@
 <translation id="5704875434923668958">同步至</translation>
 <translation id="5705005699929844214">一律顯示無障礙功能選項</translation>
 <translation id="5705882733397021510">返回</translation>
-<translation id="5707185214361380026">無法載入下列來源的擴充功能：</translation>
+<translation id="5707185214361380026">無法載入以下來源的擴展程式：</translation>
 <translation id="5708171344853220004">Microsoft 主要名稱</translation>
 <translation id="5709557627224531708">將 Chrome 設為預設瀏覽器</translation>
 <translation id="5711010025974903573">服務紀錄</translation>
@@ -10365,6 +10365,7 @@
 <translation id="8351316842353540018">一律顯示無障礙功能選項</translation>
 <translation id="8351419472474436977">您的 Proxy 設定已受到這個擴充功能控制，該擴充功能可變更、中斷、或監視您在網上的行為。如果您不確定這項變更為何發生，建議您停用該擴充功能。</translation>
 <translation id="8351630282875799764">電池無法充電</translation>
+<translation id="8351835748080111909">擴展程式</translation>
 <translation id="8352287103893778223">分頁群組標題</translation>
 <translation id="835238322900896202">解除安裝時發生錯誤，請透過終端機解除安裝。</translation>
 <translation id="8353420862507374944">投放、儲存和分享</translation>
