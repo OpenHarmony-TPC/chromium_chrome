@@ -763,7 +763,8 @@ void BackgroundContentsService::NotificationImageReady(
   // the same origin when OnExtensionUnloaded() is called.
   std::string id = kCrashedNotificationPrefix + extension_id;
 #if BUILDFLAG(ARKWEB_NOTIFICATION) && BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  const std::u16string title = l10n_util::GetStringUTF16(IDS_EXTENSIONS_TOOLBAR_TITLE);
+  const std::u16string title =
+      l10n_util::GetStringUTF16(IDS_BACKGROUND_CRASHED_EXTENSION_BALLOON_TITLE);
   message_center::Notification notification(
       message_center::NOTIFICATION_TYPE_SIMPLE, id, title, message,
 #else
