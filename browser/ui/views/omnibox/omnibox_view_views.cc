@@ -1182,8 +1182,13 @@ std::u16string OmniboxViewViews::GetLabelForCommandId(int command_id) const {
   )
     return l10n_util::GetStringUTF16(IDS_PASTE_AND_GO_EMPTY);
 
+#if BUILDFLAG(IS_OHOS)
+  const std::u16string clipboard_text =
+      GetClipboardText(false, false);
+#else
   const std::u16string clipboard_text =
       GetClipboardText(/*notify_if_restricted=*/false);
+#endif
 
   if (clipboard_text.empty()) {
     return l10n_util::GetStringUTF16(IDS_PASTE_AND_GO_EMPTY);
@@ -1606,8 +1611,13 @@ bool OmniboxViewViews::IsCommandIdEnabled(int command_id) const {
     }
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+    return model()->CanPasteAndGo(
+        GetClipboardText(false, false));
+#else
     return model()->CanPasteAndGo(
         GetClipboardText(/*notify_if_restricted=*/false));
+#endif
   }
 
   // These menu items are only shown when they are valid.
