@@ -41,12 +41,23 @@ bool CanGetClipboardText() {
   return false;
 }
 
+#if BUILDFLAG(IS_OHOS)
+std::u16string GetClipboardText(bool notify_if_restricted, bool truely_transfer) {
+#else
 std::u16string GetClipboardText(bool notify_if_restricted) {
+#endif
   // Try text format.
   ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
+#if BUILDFLAG(IS_OHOS)
+  ui::DataTransferEndpoint data_dst =
+      ui::DataTransferEndpoint(ui::EndpointType::kDefault,
+                               {.notify_if_restricted = notify_if_restricted,
+                                .truely_transfer = truely_transfer});
+#else
   ui::DataTransferEndpoint data_dst =
       ui::DataTransferEndpoint(ui::EndpointType::kDefault,
                                {.notify_if_restricted = notify_if_restricted});
+#endif
   if (clipboard->IsFormatAvailable(ui::ClipboardFormatType::PlainTextType(),
                                    ui::ClipboardBuffer::kCopyPaste,
                                    &data_dst)) {

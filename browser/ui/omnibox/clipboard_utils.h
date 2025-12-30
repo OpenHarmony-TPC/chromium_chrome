@@ -9,6 +9,8 @@
 
 #include <string>
 
+#include "build/build_config.h"
+
 // Truncates the clipboard text returned in order to improve performance and
 // prevent unresponsiveness. For reference, a book is about ~500k characters and
 // data URLs served by google images are usually 30k characters or less.
@@ -36,6 +38,10 @@ bool CanGetClipboardText();
 //
 // If `notify_if_restricted` is set to true, a notification will be shown to the
 // user if the clipboard contents can't be accessed.
+#if BUILDFLAG(IS_OHOS)
+std::u16string GetClipboardText(bool notify_if_restricted, bool truely_transfer = true);
+#else
 std::u16string GetClipboardText(bool notify_if_restricted);
+#endif
 
 #endif  // CHROME_BROWSER_UI_OMNIBOX_CLIPBOARD_UTILS_H_
