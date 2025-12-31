@@ -1747,6 +1747,8 @@ static_library("browser") {
       "performance_manager/policies/page_discarding_policy_ohos.h",
       "safe_browsing/generated_advanced_security_mode_pref.cc",
       "safe_browsing/generated_advanced_security_mode_pref.h",
+      "ui/ohos/browser_list_observer_ohos.cc",
+      "ui/ohos/browser_list_observer_ohos.h",
     ]
   }
 

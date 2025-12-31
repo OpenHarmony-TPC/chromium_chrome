@@ -99,6 +99,10 @@ void GlobalFeatures::Init() {
             &ChromeMetricsServiceAccessor::IsMetricsAndCrashReportingEnabled)));
   }
 #endif
+
+#if BUILDFLAG(IS_OHOS)
+  browser_list_observer_ = std::make_unique<chrome::BrowserListObserverOhos>();
+#endif
 }
 
 void GlobalFeatures::Shutdown() {
@@ -112,6 +116,10 @@ void GlobalFeatures::Shutdown() {
     glic_profile_manager_.reset();
   }
   synthetic_trial_manager_.reset();
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  browser_list_observer_.reset();
 #endif
 }
 
