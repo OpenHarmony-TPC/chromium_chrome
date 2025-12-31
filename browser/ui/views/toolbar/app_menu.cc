@@ -114,6 +114,10 @@
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/context/context_adapter.h"
+#endif
+
 using base::UserMetricsAction;
 using content::WebContents;
 using ui::ButtonMenuItemModel;
@@ -714,6 +718,10 @@ class AppMenu::ZoomView : public AppMenuView, public views::WidgetObserver {
         /*use_accessible_name_as_tooltip_text=*/true,
         /*image_model=*/image_model);
 
+#if BUILDFLAG(IS_OHOS)
+    if (ohos::adapter::ContextAdapter::GetInstance().IsPcMode()) {
+#endif
+
     auto fullscreen_button = std::make_unique<FullscreenButton>(
         base::BindRepeating(
             [](AppMenu* menu, ButtonMenuItemModel* menu_model, size_t index) {
@@ -739,6 +747,10 @@ class AppMenu::ZoomView : public AppMenuView, public views::WidgetObserver {
     DCHECK(views::IsViewClass<views::Button>(fullscreen_button.get()));
     fullscreen_button_ = AddChildView(std::move(fullscreen_button));
 
+#if BUILDFLAG(IS_OHOS)
+    }
+#endif
+
     // The max width for `zoom_label_` should not be valid until the calls into
     // UpdateZoomControls().
     DCHECK(!zoom_label_max_width_.has_value());
@@ -755,8 +767,19 @@ class AppMenu::ZoomView : public AppMenuView, public views::WidgetObserver {
     // The increment/decrement button are forced to the same width.
     int button_width = std::max(increment_button_->GetPreferredSize().width(),
                                 decrement_button_->GetPreferredSize().width());
-    int fullscreen_width =
+    int fullscreen_width = 0;
+
+#if BUILDFLAG(IS_OHOS)
+    if (ohos::adapter::ContextAdapter::GetInstance().IsPcMode()) {
+#endif
+
+    fullscreen_width =
         fullscreen_button_->GetPreferredSize().width() + kFullscreenPadding;
+
+#if BUILDFLAG(IS_OHOS)
+    }
+#endif
+
     // Returned height doesn't matter as MenuItemView forces everything to the
     // height of the menuitemview. Note that we have overridden the height when
     // constructing the menu.
@@ -783,11 +806,19 @@ class AppMenu::ZoomView : public AppMenuView, public views::WidgetObserver {
     bounds.set_width(button_width);
     increment_button_->SetBoundsRect(bounds);
 
+#if BUILDFLAG(IS_OHOS)
+    if (ohos::adapter::ContextAdapter::GetInstance().IsPcMode()) {
+#endif
+
     x += bounds.width();
     bounds.set_x(x);
     bounds.set_width(fullscreen_button_->GetPreferredSize().width() +
                      kFullscreenPadding);
     fullscreen_button_->SetBoundsRect(bounds);
+
+#if BUILDFLAG(IS_OHOS)
+    }
+#endif
   }
 
   // views::WidgetObserver
@@ -836,6 +867,12 @@ class AppMenu::ZoomView : public AppMenuView, public views::WidgetObserver {
   }
 
   void UpdateFullScreenButton() {
+#if BUILDFLAG(IS_OHOS)
+    if (!fullscreen_button_) {
+      return;
+    }
+#endif
+
     bool can_fullscreen =
         menu()->browser_->GetBrowserView().CanUserEnterFullscreen();
     const int accname_string_id = can_fullscreen
