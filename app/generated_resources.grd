@@ -387,6 +387,9 @@ are declared in tools/grit/grit_rule.gni.
       <message name="IDS_BACKGROUND_CRASHED_EXTENSION_BALLOON_MESSAGE" desc="The contents of the balloon that is displayed when an extension crashes">
         <ph name="APP_NAME">$1<ex>Extension</ex></ph> has crashed. Click this balloon to reload the extension.
       </message>
+      <message name="IDS_BACKGROUND_CRASHED_EXTENSION_BALLOON_TITLE" desc="The title of the balloon that is displayed when an extension crashes" meaning="Title for the extension crash notification balloon">
+        Extensions
+      </message>
       <if expr="use_titlecase">
         <message name="IDS_BACKGROUND_APP_NOT_INSTALLED" desc="In Title Case: Label displayed in the status icon context menu when a profile does not have any background apps running.">
           No Background Apps Running

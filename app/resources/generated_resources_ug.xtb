@@ -6,6 +6,7 @@
 <translation id="1407865659932107504">ئېكراندىن مەزمۇن تۇتۇش</translation>
 <translation id="1600857548979126453">بەت تەڭشەم ئارقا تېرمىنالىنى زىيارەت قىلىش</translation>
 <translation id="1942128823046546853">بارلىق توربېكەتتىكى بارلىق مەلۇماتلىرىڭىزنى ئوقۇش ۋە ئۆزگەرتىش</translation>
+<translation id="2025632980034333559">كەچۈرۈڭ، <ph name="APP_NAME" /> ئىشلىمىدى، بۇ ئۇچۇر رامكىسىنى چېكىپ قايتا يۈكلەڭ.</translation>
 <translation id="2079825939263178885">كۆرۈش خاتىرىسى، چۈشۈرۈش خاتىرىسى، ساقلانما (Cookie)، رامكا مەلۇماتى ۋە پارول قاتارلىق كۆرۈش مەلۇماتىنى زىيارەت قىلىدۇ ۋە تىزگىنلەيدۇ.	</translation>
 <translation id="2180620921879609685">خالىغان بەتتە مەزمۇن توسۇش</translation>
 <translation id="2480868415629598489">كۆچۈرۈپ چاپلىغان مەلۇماتلارنى ئۆزگەرتىش</translation>
@@ -26,6 +27,7 @@
 <translation id="5235750401727657667">يېڭى بەتكۈچ ئاچقاندا كۆرۈنىدىغان بەتنى ئالماشتۇرۇش</translation>
 <translation id="5299558715747014286">بەتكۈچ گۇرۇپپىسى كۆرۈش ۋە باشقۇرۇش</translation>
 <translation id="5414566801737831689">سىز كۆرگەن توربېكەت سىنبەلگىسىنى ئوقۇش</translation>
+<translation id="5707185214361380026">تۆۋەندىكى مەنبەلىك كېڭەيتمە يۈكلەنمەيدۇ:</translation>
 <translation id="6341850831632289108">سىز تۇرۇشلۇق جۇغراپىيەلىك ئورۇننى ئېنىقلاش</translation>
 <translation id="6384275966486438344">ئىزدەش تەڭشىكىنى <ph name="SEARCH_HOST" /> قىلىپ ئۆزگەرتىش</translation>
 <translation id="6408118934673775994">سىزنىڭ <ph name="WEBSITE_1" /> / <ph name="WEBSITE_2" /> / <ph name="WEBSITE_3" /> دىكى مەلۇماتلىرىڭىزنى ئوقۇش ۋە ئۆزگەرتىش</translation>
@@ -47,6 +49,7 @@
 <translation id="8241868517363889229">خەتكۈچ ئوقۇش ۋە ئۆزگەرتىش</translation>
 <translation id="8284279544186306258">بارلىق <ph name="WEBSITE_1" /> بېكىتى</translation>
 <translation id="8294282569826134620">سىز تىزىملاپ كىرگەن بارلىق ئۈسكۈنىدىكى كۆرۈش خاتىرىسىنى ئوقۇش</translation>
+<translation id="8351835748080111909">كېڭەيتمە</translation>
 <translation id="8353683614194668312">بۇ ئەپ</translation>
 <translation id="8662911384982557515">باشبەتنى <ph name="HOME_PAGE" /> قىلىپ ئۆزگەرتىش	</translation>
 </translationbundle>
