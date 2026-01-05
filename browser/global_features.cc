@@ -54,6 +54,10 @@ void GlobalFeatures::Init() {
     whats_new_registry_ = CreateWhatsNewRegistry();
   }
 #endif
+
+#if BUILDFLAG(IS_OHOS)
+  browser_list_observer_ = std::make_unique<chrome::BrowserListObserverOhos>();
+#endif
 }
 
 std::unique_ptr<system_permission_settings::PlatformHandle>
