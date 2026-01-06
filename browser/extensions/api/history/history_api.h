@@ -20,6 +20,7 @@
 #include "extensions/browser/extension_function.h"
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "ohos_nweb/src/capi/browser_service/nweb_extension_history_types.h"
+#include "ohos_nweb/src/cef_delegate/nweb_extension_history_cef_delegate.h"
 #endif  // ARKWEB_ARKWEB_EXTENSIONS
 
 class Profile;

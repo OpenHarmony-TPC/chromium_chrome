@@ -284,7 +284,6 @@ void BrowserContextKeyedAPIFactory<OmniboxAPI>::DeclareFactoryDependencies() {
 OmniboxSendSuggestionsFunction::OmniboxSendSuggestionsFunction() = default;
 OmniboxSendSuggestionsFunction::~OmniboxSendSuggestionsFunction() = default;
 
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 ExtensionFunction::ResponseAction OmniboxSendSuggestionsFunction::Run() {
   params_ = SendSuggestions::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params_);
@@ -306,7 +305,6 @@ ExtensionFunction::ResponseAction OmniboxSendSuggestionsFunction::Run() {
   NotifySuggestionsReady();
   return RespondNow(NoArguments());
 }
-#endif  // ARKWEB_ARKWEB_EXTENSIONS
 
 void OmniboxSendSuggestionsFunction::OnParsedDescriptionsAndStyles(
     DescriptionAndStylesResult result) {
@@ -344,15 +342,16 @@ void OmniboxSendSuggestionsFunction::OnParsedDescriptionsAndStyles(
   Respond(NoArguments());
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 void OmniboxSendSuggestionsFunction::NotifySuggestionsReady() {
   Profile* profile =
       Profile::FromBrowserContext(browser_context())->GetOriginalProfile();
   OmniboxSuggestionsWatcherFactory::GetForBrowserContext(profile)
       ->NotifySuggestionsReady(&*params_);
 }
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 
 ExtensionFunction::ResponseAction OmniboxSetDefaultSuggestionFunction::Run() {
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   std::optional<SetDefaultSuggestion::Params> params =
       SetDefaultSuggestion::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -368,9 +367,6 @@ ExtensionFunction::ResponseAction OmniboxSetDefaultSuggestionFunction::Run() {
 
   SetDefaultSuggestion(params->suggestion);
   return RespondNow(NoArguments());
-#else
-  return RespondNow(NoArguments());
-#endif  // ARKWEB_ARKWEB_EXTENSIONS
 }
 
 void OmniboxSetDefaultSuggestionFunction::OnParsedDescriptionAndStyles(
@@ -391,6 +387,7 @@ void OmniboxSetDefaultSuggestionFunction::OnParsedDescriptionAndStyles(
   Respond(NoArguments());
 }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 void OmniboxSetDefaultSuggestionFunction::SetDefaultSuggestion(
     const omnibox::DefaultSuggestResult& suggestion) {
   Profile* profile = Profile::FromBrowserContext(browser_context());
@@ -400,6 +397,7 @@ void OmniboxSetDefaultSuggestionFunction::SetDefaultSuggestion(
         ->NotifyDefaultSuggestionChanged();
   }
 }
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 
 // This function converts style information populated by the JSON schema
 // compiler into an ACMatchClassifications object.
