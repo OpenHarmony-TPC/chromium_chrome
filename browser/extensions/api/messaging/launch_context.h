@@ -82,6 +82,10 @@ class LaunchContext
   static base::FilePath FindManifest(const std::string& host_name,
                                      bool allow_user_level_hosts,
                                      std::string& error_message);
+#if BUILDFLAG(IS_OHOS)
+  static std::string FindManifestConfig(const std::string& host_name,
+                                        std::string& error_message);
+#endif
 
   struct ProcessState {
     ProcessState();

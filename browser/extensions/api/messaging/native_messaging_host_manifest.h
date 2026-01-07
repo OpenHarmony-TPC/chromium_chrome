@@ -34,6 +34,14 @@ class NativeMessagingHostManifest {
   static std::unique_ptr<NativeMessagingHostManifest> Load(
       const base::FilePath& file_path,
       std::string* error_message);
+#if BUILDFLAG(IS_OHOS)
+  // Load manifest file from `shared_config`.
+  static std::unique_ptr<NativeMessagingHostManifest> LoadConfig(
+      const std::string& shared_config,
+      std::string* error_message);
+ 
+  const std::string& ability_name() const { return ability_name_; }
+#endif
 
   const std::string& name() const { return name_; }
   const std::string& description() const { return description_; }
@@ -51,6 +59,9 @@ class NativeMessagingHostManifest {
   // returns false.
   bool Parse(const base::Value::Dict& dict, std::string* error_message);
 
+#if BUILDFLAG(IS_OHOS)
+  std::string ability_name_;
+#endif
   std::string name_;
   std::string description_;
   HostInterface interface_;
