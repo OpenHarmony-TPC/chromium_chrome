@@ -28,6 +28,7 @@ GetDatabaseManagerFromSafeBrowsingService() {
 
 void CreateSubresourceFilterWebContentsHelper(
     content::WebContents* web_contents) {
+#if !BUILDFLAG(ARKWEB_ADBLOCK)
   subresource_filter::RulesetService* ruleset_service =
       g_browser_process->subresource_filter_ruleset_service();
   subresource_filter::VerifiedRulesetDealer::Handle* dealer =
@@ -38,4 +39,5 @@ void CreateSubresourceFilterWebContentsHelper(
           SubresourceFilterProfileContextFactory::GetForProfile(
               Profile::FromBrowserContext(web_contents->GetBrowserContext())),
           GetDatabaseManagerFromSafeBrowsingService(), dealer);
+#endif
 }
