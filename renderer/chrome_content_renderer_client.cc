@@ -766,15 +766,9 @@ void ChromeContentRendererClient::RenderFrameCreated(
         render_frame, password_autofill_agent.get(), associated_interfaces);
 #if BUILDFLAG(ARKWEB_AUTOFILL)
     new AutofillAgentExt(
-      render_frame,
-      {ExtractAllDatalists(false), FocusRequiresScroll(false),
-       QueryPasswordSuggestions(false), SecureContextRequired(false),
-       UserGestureRequired(false),
-       UsesKeyboardAccessoryForSuggestions(BUILDFLAG(IS_ANDROID))},
-      std::move(password_autofill_agent),
-      std::move(password_generation_agent), associated_interfaces);
 #else
     new AutofillAgent(
+#endif
       render_frame,
       {ExtractAllDatalists(false), FocusRequiresScroll(true),
         QueryPasswordSuggestions(false), SecureContextRequired(false),
@@ -782,8 +776,7 @@ void ChromeContentRendererClient::RenderFrameCreated(
         UsesKeyboardAccessoryForSuggestions(BUILDFLAG(IS_ANDROID))},
         std::move(password_autofill_agent),
         std::move(password_generation_agent), associated_interfaces);
-#endif
-        
+
 #if BUILDFLAG(IS_ANDROID)
     if (render_frame->IsMainFrame() &&
         base::FeatureList::IsEnabled(
