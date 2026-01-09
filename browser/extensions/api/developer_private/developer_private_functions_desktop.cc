@@ -392,6 +392,9 @@ void DeveloperPrivateLoadUnpackedFunction::ShowSelectFileDialog() {
   const base::FilePath last_directory =
       DeveloperPrivateAPI::Get(browser_context())->last_unpacked_directory();
   auto file_type_info = ui::SelectFileDialog::FileTypeInfo();
+#if BUILDFLAG(IS_OHOS)
+  file_type_info.file_access_persist = true;
+#endif
   int file_type_index = 0;
   gfx::NativeWindow owning_window =
       platform_util::GetTopLevel(web_contents->GetNativeView());
