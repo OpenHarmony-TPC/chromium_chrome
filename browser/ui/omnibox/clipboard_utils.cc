@@ -11,12 +11,44 @@
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
 
+#if BUILDFLAG(IS_OHOS)
+bool CanGetClipboardText() {
+  ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
+  ui::DataTransferEndpoint data_dst = ui::DataTransferEndpoint(
+      ui::EndpointType::kDefault, {.notify_if_restricted = false});
+  if (clipboard->IsFormatAvailable(ui::ClipboardFormatType::PlainTextType(),
+                                   ui::ClipboardBuffer::kCopyPaste,
+                                   &data_dst)) {
+    return true;
+  }
+ 
+  // Try bookmark format.
+  if (clipboard->IsFormatAvailable(ui::ClipboardFormatType::UrlType(),
+                                   ui::ClipboardBuffer::kCopyPaste,
+                                   &data_dst)) {
+    // Reasonable assumption: The URL is valid.
+    return true;
+  }
+ 
+  return false;
+}
+ 
+std::u16string GetClipboardText(bool notify_if_restricted, bool truely_transfer) {
+#else
 std::u16string GetClipboardText(bool notify_if_restricted) {
+#endif
   // Try text format.
   ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
+#if BUILDFLAG(IS_OHOS)
+  ui::DataTransferEndpoint data_dst =
+      ui::DataTransferEndpoint(ui::EndpointType::kDefault,
+                               {.notify_if_restricted = notify_if_restricted,
+                                .truely_transfer = truely_transfer});
+#else
   ui::DataTransferEndpoint data_dst =
       ui::DataTransferEndpoint(ui::EndpointType::kDefault,
                                {.notify_if_restricted = notify_if_restricted});
+#endif
   if (clipboard->IsFormatAvailable(ui::ClipboardFormatType::PlainTextType(),
                                    ui::ClipboardBuffer::kCopyPaste,
                                    &data_dst)) {
