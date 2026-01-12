@@ -1075,10 +1075,17 @@ std::u16string OmniboxViewViews::GetLabelForCommandId(int command_id) const {
 
   // Don't paste-and-go data that was marked by its originator as confidential.
   constexpr size_t kMaxSelectionTextLength = 50;
+#if BUILDFLAG(IS_OHOS)
+  const std::u16string clipboard_text =
+      IsClipboardDataMarkedAsConfidential()
+          ? std::u16string()
+          : GetClipboardText(false, false);
+#else
   const std::u16string clipboard_text =
       IsClipboardDataMarkedAsConfidential()
           ? std::u16string()
           : GetClipboardText(/*notify_if_restricted=*/false);
+#endif
 
   if (clipboard_text.empty())
     return l10n_util::GetStringUTF16(IDS_PASTE_AND_GO_EMPTY);
@@ -1455,12 +1462,22 @@ void OmniboxViewViews::OnBlur() {
 
 bool OmniboxViewViews::IsCommandIdEnabled(int command_id) const {
   if (command_id == Textfield::kPaste)
+#if BUILDFLAG(IS_OHOS)
+    return !GetReadOnly() && CanGetClipboardText();
+#else
     return !GetReadOnly() &&
            !GetClipboardText(/*notify_if_restricted=*/false).empty();
+#endif
   if (command_id == IDC_PASTE_AND_GO) {
+#if BUILDFLAG(IS_OHOS)
+    return !GetReadOnly() && !IsClipboardDataMarkedAsConfidential() &&
+           model()->CanPasteAndGo(
+               GetClipboardText(false, false));
+#else
     return !GetReadOnly() && !IsClipboardDataMarkedAsConfidential() &&
            model()->CanPasteAndGo(
                GetClipboardText(/*notify_if_restricted=*/false));
+#endif
   }
 
   // These menu items are only shown when they are valid.

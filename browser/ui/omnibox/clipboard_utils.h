@@ -9,6 +9,7 @@
 
 #include <string>
 
+#include "build/build_config.h"
 
 // Truncates the clipboard text returned in order to improve performance and
 // prevent unresponsiveness. For reference, a book is about ~500k characters and
@@ -22,11 +23,22 @@
 // because classifying text longer than 500k adds a ~1s delays.
 static const size_t kMaxClipboardTextLength = 500 * 1024;
 
+#if BUILDFLAG(IS_OHOS)
+// Returns whether the current clipboard contents are a string that can be
+// pasted in (with the intent that it generally match the behavior of
+// GetClipboardText(), below).
+bool CanGetClipboardText();
+#endif
+
 // Returns the current clipboard contents as a string that can be pasted in.
 // In addition to just getting CF_UNICODETEXT out, this can also extract URLs
 // from bookmarks on the clipboard.
 // If `notify_if_restricted` is set to true, a notification will be shown to
 // the user if the clipboard contents can't be accessed.
+#if BUILDFLAG(IS_OHOS)
+std::u16string GetClipboardText(bool notify_if_restricted, bool truely_transfer = true);
+#else
 std::u16string GetClipboardText(bool notify_if_restricted);
+#endif
 
 #endif  // CHROME_BROWSER_UI_OMNIBOX_CLIPBOARD_UTILS_H_
