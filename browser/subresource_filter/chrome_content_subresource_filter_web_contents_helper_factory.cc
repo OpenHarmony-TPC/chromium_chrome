@@ -37,10 +37,12 @@ void CreateSubresourceFilterWebContentsHelper(
   subresource_filter::VerifiedRulesetDealer::Handle* dealer =
       ruleset_service ? ruleset_service->GetRulesetDealer() : nullptr;
 
+#if BUILDFLAG(ARKWEB_ADBLOCK)
   subresource_filter::UserRulesetService* user_ruleset_service =
       g_browser_process->AsBrowserProcessImplExt()->subresource_filter_user_ruleset_service();
   subresource_filter::VerifiedRulesetDealer::Handle* user_dealer =
       user_ruleset_service ? user_ruleset_service->GetRulesetDealer() : nullptr;
+#endif
 
   subresource_filter::ContentSubresourceFilterWebContentsHelper::
       CreateForWebContents(
