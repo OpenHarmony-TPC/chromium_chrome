@@ -136,7 +136,7 @@ std::string LoadLocalState(
   base::FilePath user_data_dir;
   if (!base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir)) {
 #if BUILDFLAG(IS_ARKWEB)
-  LOG(ERROR) << "LoadLocalState, get DIR_USER_DATA failed";
+    LOG(ERROR) << "LoadLocalState, get DIR_USER_DATA failed";
 #endif
     return std::string();
   }
