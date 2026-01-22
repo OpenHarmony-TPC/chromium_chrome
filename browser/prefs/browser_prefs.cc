@@ -2057,7 +2057,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableNwebExUa)) {
     nweb_ex::AlloyBrowserUAConfig::RegisterProfilePrefs(registry);
-    registry->RegisterDictionaryPref(nweb_ex::kUACloudConfigInfo);
   }
 #endif
 #if BUILDFLAG(ARKWEB_USERAGENT)
@@ -2065,7 +2064,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
 #endif
 #if BUILDFLAG(ARKWEB_CLOUD_CONTROL) && BUILDFLAG(IS_ARKWEB_EXT)
   nweb_ex::AlloyBrowserEngineGlobalConfig::RegisterProfilePrefs(registry);
-  registry->RegisterDictionaryPref(nweb_ex::kBrowserEngineGlobalConfigInfo);
 #endif
 
 #if BUILDFLAG(ENABLE_SESSION_SERVICE)
