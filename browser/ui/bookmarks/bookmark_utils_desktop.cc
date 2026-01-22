@@ -183,9 +183,8 @@ OpenedWebContentsSet OpenAllHelper(
               url_and_id_it->url.spec());
       if (activate_result !=
           ohos_permission::PermissionActivationResult::SUCCESS) {
-        LOG(ERROR) << "Failed to activate file url: "
-                   << url_and_id_it->url.spec()
-                   << "error code: " << static_cast<int32_t>(activate_result);
+         LOG(ERROR) << "Failed to activate error code: "
+                    << static_cast<int32_t>(activate_result);
       }
     }
 #endif

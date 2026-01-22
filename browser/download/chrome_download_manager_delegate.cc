@@ -1127,8 +1127,6 @@ void ChromeDownloadManagerDelegate::OpenDownload(DownloadItem* download) {
     if (activate_result !=
         ohos_permission::PermissionActivationResult::SUCCESS) {
       LOG(ERROR) << "The file exists, but activating file permissions failed, "
-                    "file url: "
-                 << file_url.spec()
                  << "error code: " << static_cast<int32_t>(activate_result);
     }
   }
