@@ -14,6 +14,12 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/view_class_properties.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
+#include "ohos/adapter/permission_manager/permission_manager_adapter.h"
+#endif
+
 ShareAudioView::ShareAudioView(const std::u16string& label_text,
                                bool audio_offered) {
   SetProperty(views::kMarginsKey, gfx::Insets::TLBR(8, 16, 16, 16));
@@ -34,6 +40,11 @@ ShareAudioView::ShareAudioView(const std::u16string& label_text,
     audio_toggle_button_ =
         AddChildView(std::make_unique<views::ToggleButton>());
     audio_toggle_button_->GetViewAccessibility().SetName(label_text);
+
+#if BUILDFLAG(IS_OHOS)
+    audio_toggle_button_->SetCallback(base::BindRepeating(
+        &ShareAudioView::OnAudioToggled, weak_ptr_factory_.GetWeakPtr()));
+#endif
   } else {
     audio_toggle_label_->SetTextStyle(views::style::TextStyle::STYLE_DISABLED);
   }
@@ -61,6 +72,30 @@ void ShareAudioView::SetAudioSharingApprovedByUser(bool is_on) {
   CHECK(audio_toggle_button_);
   audio_toggle_button_->SetIsOn(is_on);
 }
+
+#if BUILDFLAG(IS_OHOS)
+void ShareAudioView::OnAudioToggled() {
+  if (audio_toggle_button_->GetIsOn() &&
+      !ohos::adapter::permission::PermissionManagerAdapter::CheckPermission(
+          ohos::adapter::permission::OHOSPermissionType::MICROPHONE)) {
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::MayBlock()},
+        base::BindOnce(
+            &ohos::adapter::permission::PermissionManagerAdapter::
+                RequestPermission,
+            ohos::adapter::permission::OHOSPermissionType::MICROPHONE),
+        base::BindOnce(&ShareAudioView::OnPermissionRequestResult,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
+}
+
+void ShareAudioView::OnPermissionRequestResult(bool granted) {
+  if (!granted) {
+    LOG(WARNING) << "Microphone permission request denied";
+    audio_toggle_button_->SetIsOn(false);
+  }
+}
+#endif
 
 std::u16string ShareAudioView::GetAudioLabelText() const {
   return audio_toggle_label_ ? audio_toggle_label_->GetText()

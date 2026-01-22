@@ -103,6 +103,10 @@ class DesktopMediaPickerDialogView : public views::DialogDelegateView,
 
   bool AudioSupported(DesktopMediaList::Type type);
 
+#if BUILDFLAG(IS_OHOS)
+  void UpdateShareButtonText();
+#endif
+
   void ConfigureUIForNewPane(int index);
   void StoreAudioCheckboxState();
   void RemoveCurrentPaneUI();
