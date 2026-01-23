@@ -589,8 +589,7 @@ void ChromeContentBrowserClient::
                 std::move(receiver), render_frame_host);
           },
           &render_frame_host));
-#endif  // BUILDFLAG(ARKWEB_PRINT)
-
+#else
 #if BUILDFLAG(ENABLE_PRINTING)
   associated_registry.AddInterface<printing::mojom::PrintManagerHost>(
       base::BindRepeating(
@@ -626,6 +625,7 @@ void ChromeContentBrowserClient::
           },
           &render_frame_host));
 #endif  // BUILDFLAG(ENABLE_PRINTING)
+#endif  // BUILDFLAG(ARKWEB_PRINT)
   associated_registry.AddInterface<
       security_interstitials::mojom::InterstitialCommands>(base::BindRepeating(
       [](content::RenderFrameHost* render_frame_host,
