@@ -11,6 +11,10 @@
 #include "components/safe_browsing/core/browser/db/database_manager.h"
 #include "components/subresource_filter/content/browser/content_subresource_filter_web_contents_helper.h"
 #include "components/subresource_filter/content/shared/browser/ruleset_service.h"
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+#include "arkweb/chromium_ext/chrome/browser/browser_process_impl_ext.h"
+#include "components/subresource_filter/content/shared/browser/user_ruleset_service.h"
+#endif
 
 namespace {
 
@@ -28,16 +32,26 @@ GetDatabaseManagerFromSafeBrowsingService() {
 
 void CreateSubresourceFilterWebContentsHelper(
     content::WebContents* web_contents) {
-#if !BUILDFLAG(ARKWEB_ADBLOCK)
   subresource_filter::RulesetService* ruleset_service =
       g_browser_process->subresource_filter_ruleset_service();
   subresource_filter::VerifiedRulesetDealer::Handle* dealer =
       ruleset_service ? ruleset_service->GetRulesetDealer() : nullptr;
+
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+  subresource_filter::UserRulesetService* user_ruleset_service =
+      g_browser_process->AsBrowserProcessImplExt()->subresource_filter_user_ruleset_service();
+  subresource_filter::VerifiedRulesetDealer::Handle* user_dealer =
+      user_ruleset_service ? user_ruleset_service->GetRulesetDealer() : nullptr;
+#endif
+
   subresource_filter::ContentSubresourceFilterWebContentsHelper::
       CreateForWebContents(
           web_contents,
           SubresourceFilterProfileContextFactory::GetForProfile(
               Profile::FromBrowserContext(web_contents->GetBrowserContext())),
-          GetDatabaseManagerFromSafeBrowsingService(), dealer);
+          GetDatabaseManagerFromSafeBrowsingService(), dealer
+#if BUILDFLAG(ARKWEB_ADBLOCK)
+          , user_dealer
 #endif
+          );
 }

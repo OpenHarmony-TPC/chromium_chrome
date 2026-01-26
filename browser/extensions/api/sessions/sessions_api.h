@@ -51,7 +51,6 @@ class SessionsGetRecentlyClosedFunction : public ExtensionFunction {
   api::sessions::Session CreateSessionModel(
       const sessions::tab_restore::Entry& entry);
 };
-#endif
 
 class SessionsGetDevicesFunction : public ExtensionFunction {
  protected:
@@ -74,7 +73,6 @@ class SessionsGetDevicesFunction : public ExtensionFunction {
       const sync_sessions::SyncedSession* session);
 };
 
-#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 class SessionsRestoreFunction : public ExtensionFunction {
  protected:
   ~SessionsRestoreFunction() override {}
