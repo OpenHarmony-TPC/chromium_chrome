@@ -10,6 +10,10 @@
 #include "base/functional/callback.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/ohos/browser_list_observer_ohos.h"
+#endif
+
 namespace system_permission_settings {
 class PlatformHandle;
 }  // namespace system_permission_settings
@@ -72,6 +76,10 @@ class GlobalFeatures {
       system_permissions_platform_handle_;
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   std::unique_ptr<whats_new::WhatsNewRegistry> whats_new_registry_;
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  std::unique_ptr<chrome::BrowserListObserverOhos> browser_list_observer_;
 #endif
 };
 

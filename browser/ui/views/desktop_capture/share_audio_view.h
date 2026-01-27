@@ -29,9 +29,18 @@ class ShareAudioView : public views::View {
   // returns the empty string otherwise.
   std::u16string GetAudioLabelText() const;
 
+#if BUILDFLAG(IS_OHOS)
+  void OnAudioToggled();
+  void OnPermissionRequestResult(bool granted);
+#endif
+
  private:
   raw_ptr<views::Label> audio_toggle_label_ = nullptr;
   raw_ptr<views::ToggleButton> audio_toggle_button_ = nullptr;
+
+#if BUILDFLAG(IS_OHOS)
+  base::WeakPtrFactory<ShareAudioView> weak_ptr_factory_{this};
+#endif
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_DESKTOP_CAPTURE_SHARE_AUDIO_VIEW_H_

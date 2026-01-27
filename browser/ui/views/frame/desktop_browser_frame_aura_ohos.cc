@@ -110,6 +110,16 @@ bool DesktopBrowserFrameAuraOhos::ShouldSaveWindowPlacement() const {
          !IsMinimized();
 }
 
+void DesktopBrowserFrameAuraOhos::GetWindowPlacement(
+    gfx::Rect* bounds,
+    ui::mojom::WindowShowState* show_state) const {
+  *bounds = GetWidget()->GetRestoredBounds();
+  if (IsMaximized())
+    *show_state = ui::mojom::WindowShowState::kMaximized;
+  else
+    *show_state = ui::mojom::WindowShowState::kNormal;
+}
+
 NativeBrowserFrame* NativeBrowserFrameFactory::Create(
     BrowserFrame* browser_frame,
     BrowserView* browser_view) {
