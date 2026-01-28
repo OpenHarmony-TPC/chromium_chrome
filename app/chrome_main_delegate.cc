@@ -632,7 +632,7 @@ void InitializeUserDataDir(base::CommandLine* command_line) {
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_ARKWEB)
-  const bool specified_directory_was_invalid = SetUserDataDirForArkweb(command_line);
+  const bool specified_directory_was_invalid = SetUserDataDirForArkweb(user_data_dir);
 #else
   const bool specified_directory_was_invalid =
       !user_data_dir.empty() &&
