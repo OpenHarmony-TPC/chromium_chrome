@@ -229,8 +229,12 @@ bool DownloadProtectionService::MaybeCheckClientDownload(
   }
 
   if (safe_browsing_enabled) {
+#if BUILDFLAG(IS_OHOS)
+    return false;
+#else
     CheckClientDownload(item, std::move(callback), /*password=*/std::nullopt);
     return true;
+#endif
   }
 
   if (settings.has_value()) {
