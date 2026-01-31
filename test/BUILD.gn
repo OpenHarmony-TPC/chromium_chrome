@@ -5358,6 +5358,7 @@ if (!is_android) {
       "//arkweb/chromium_ext/chrome/browser/shell_integration_ohos_unittest.cc",
       "//arkweb/chromium_ext/chrome/common/chrome_paths_ohos_unittest.cc",
       "//arkweb/chromium_ext/content/browser/renderer_host/ark_web_back_forward_cache_impl_unittest.cc",
+      "//arkweb/chromium_ext/content/browser/media/ohos/ohos_video_experience_reporter_unittest.cc"
     ]
 
     if (!is_chromeos) {
