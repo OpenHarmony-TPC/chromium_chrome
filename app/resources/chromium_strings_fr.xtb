@@ -93,6 +93,7 @@ Les autorisations que vous avez déjà accordées aux sites Web et aux applis pe
 <translation id="2199210295479376551">Retirer le compte de Chromium</translation>
 <translation id="2210682093923538346">Site dangereux. Chromium a supprimé l'autorisation de notification.</translation>
 <translation id="2236949375853147973">Mon activité</translation>
+<translation id="2238104961394611930">Activé • La source de l'extension ne peut être vérifiée</translation>
 <translation id="2240214816234246077">Vous n'avez pas consulté le site récemment. Chromium a supprimé les autorisations de <ph name="PERMISSION_2" /> et d'accéder à la <ph name="PERMISSION_1" />.</translation>
 <translation id="2241627712206172106">Si vous partagez un ordinateur avec vos proches, ceux-ci peuvent configurer Chromium comme bon leur semble et naviguer sur le Web à leur manière.</translation>
 <translation id="2313870531055795960">Il vérifie les URL d'après une liste de sites dangereux stockée dans Chromium. Si un site tente de voler votre mot de passe ou si vous téléchargez un fichier dangereux, Chromium peut également envoyer les URL concernées, y compris des extraits du contenu de pages, à la fonctionnalité de navigation sécurisée.</translation>
@@ -447,6 +448,7 @@ Certaines fonctionnalités seront peut-être indisponibles. Veuillez spécifier 
 <translation id="685279860330610299">Chromium peut comprendre davantage de types d'informations et remplir automatiquement vos formulaires plus rapidement. En savoir plus sur la <ph name="BEGIN_LINK" />saisie automatique de Chrome<ph name="END_LINK" /></translation>
 <translation id="6857782730669500492">Chromium – <ph name="PAGE_TITLE" /></translation>
 <translation id="6873893289264747459">Chromium a détecté que <ph name="EXTENSION_NAME" /> contient un logiciel malveillant</translation>
+<translation id="6885534934768077023">Remarque : Navigateur ne peut pas empêcher les extensions d'enregistrer votre historique de navigation. Pour désactiver cette extension en Mode privé, veuillez désactiver cette option.</translation>
 <translation id="6896758677409633944">Copier</translation>
 <translation id="6929417474050522668">Pendant les essais, Ad Measurement autorise les sites que vous visitez à demander à Chromium des informations pour les aider à mesurer les performances de leurs annonces. Cette API limite le suivi intersites en transférant le minimum d'informations entre les sites.</translation>
 <translation id="6940431691900807093">Ensuite, un site que vous consultez pourra demander à Chromium de voir vos centres d'intérêt pour personnaliser les annonces qui vous sont présentées. Chromium peut partager jusqu'à trois centres d'intérêt.</translation>
@@ -497,6 +499,7 @@ Chromium ne peut pas récupérer vos paramètres.</translation>
 <translation id="7582945390259497898">Chromium peut estimer quels sont vos centres d'intérêt. Ensuite, un site que vous consultez pourra demander à Chromium de voir vos centres d'intérêt pour personnaliser les annonces qui vous sont présentées.</translation>
 <translation id="7583399374488819119">Programme d'installation de <ph name="COMPANY_NAME" /></translation>
 <translation id="7585391435984513350">Vous n'avez pas consulté le site récemment. Chromium a supprimé l'autorisation d'accès à la <ph name="PERMISSION" />.</translation>
+<translation id="7597668698051545254">Désactivé • La source de l'extension ne peut être vérifiée</translation>
 <translation id="761356813943268536">Votre webcam et votre micro sont en cours d'utilisation dans Chromium.</translation>
 <translation id="7617377681829253106">Chromium s'est amélioré</translation>
 <translation id="7649070708921625228">Aide</translation>
