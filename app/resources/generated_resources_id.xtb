@@ -904,7 +904,7 @@ Izin yang telah Anda berikan ke aplikasi dapat berlaku untuk akun ini. Anda dapa
 <translation id="161460670679785907">Tidak dapat mendeteksi ponsel Anda</translation>
 <translation id="1614890968027287789">Pisahkan penjelajahan?</translation>
 <translation id="1615433306336820465">Mengelola data login yang disimpan di kunci keamanan Anda</translation>
-<translation id="1616206807336925449">Ekstensi ini tidak membutuhkan izin khusus.</translation>
+<translation id="1616206807336925449">Ekstensi ini tidak memerlukan izin khusus.</translation>
 <translation id="1616298854599875024">Tidak dapat mengimpor ekstensi "<ph name="IMPORT_NAME" />" karena bukan modul yang dibagikan</translation>
 <translation id="1617765145568323981">{NUM_FILES,plural, =0{Memeriksa data ini dengan kebijakan keamanan organisasi Anda ...}=1{Memeriksa file ini dengan kebijakan keamanan organisasi Anda ...}other{Memeriksa file ini dengan kebijakan keamanan organisasi Anda ...}}</translation>
 <translation id="1618102204889321535"><ph name="CURRENT_CHARACTER_COUNT" />/<ph name="MAX_CHARACTER_COUNT" /></translation>
@@ -1794,6 +1794,7 @@ Anda dapat mengelola setelan akun ini dengan menginstal aplikasi Family Link di 
 <translation id="2220572644011485463">PIN atau sandi</translation>
 <translation id="222115440608612541">Beralih tema saat matahari terbit dan terbenam</translation>
 <translation id="2221261048068091179"><ph name="FIRST_SWITCH" />, <ph name="SECOND_SWITCH" /></translation>
+<translation id="2221474331696610163">URL tidak valid</translation>
 <translation id="222201875806112242">Sumber media tidak bernama</translation>
 <translation id="2224337661447660594">Tidak ada internet</translation>
 <translation id="2224444042887712269">Setelan ini adalah milik <ph name="OWNER_EMAIL" />.</translation>
@@ -3671,6 +3672,7 @@ Anda dapat mengelola setelan akun ini dengan menginstal aplikasi Family Link di 
 <translation id="3559079791149580653">Hentikan transmisi layar ke <ph name="DEVICE_NAME" /></translation>
 <translation id="3559262020195162408">Gagal menginstal kebijakan di perangkat.</translation>
 <translation id="3559533181353831840">Sekitar <ph name="TIME_LEFT" /> lagi</translation>
+<translation id="3559702738171272112">Tambah situs</translation>
 <translation id="3560034655160545939">&amp;Periksa ejaan</translation>
 <translation id="3561201631376780358">Buka Panel Samping untuk melihat Semua Bookmark</translation>
 <translation id="3562423906127931518">Proses ini dapat memerlukan waktu beberapa menit. Menyiapkan container Linux.</translation>
@@ -5222,6 +5224,7 @@ Informasi ini dapat mencakup informasi tentang software yang diinstal, file, bro
 <translation id="4642587497923912728">Steam untuk Chromebook (Beta) hanya tersedia untuk akun yang digunakan untuk login pertama kali di Chromebook ini.</translation>
 <translation id="4643612240819915418">Buka Vide&amp;o di Tab Baru</translation>
 <translation id="4643833688073835173">Chromebook menggunakan sensor bawaan untuk mendeteksi orang di depan perangkat Anda. Semua data langsung diproses di perangkat lalu dihapus. Data sensor tidak pernah dikirim ke Google.</translation>
+<translation id="4644205769234414680">Izinkan dalam mode Samaran</translation>
 <translation id="4645322559577140968">{GROUP_COUNT,plural, =1{Hapus Grup Tab?}other{Hapus Grup Tab?}}</translation>
 <translation id="4645575059429386691">Dikelola oleh orang tua Anda</translation>
 <translation id="4645676300727003670">&amp;Pertahankan</translation>
@@ -5565,6 +5568,7 @@ Gunakan Ctrl + Alt + Kurangi kecerahan untuk memperkecil.</translation>
 <translation id="48838266408104654">Pengelola &amp;Tugas</translation>
 <translation id="4884937942297374058">Perlindungan yang ditingkatkan nonaktif</translation>
 <translation id="4884987973312178454">6x</translation>
+<translation id="4885692421645694729">Ekstensi ini tidak memiliki akses situs tambahan</translation>
 <translation id="4887424188275796356">Buka Dengan Penampil Sistem</translation>
 <translation id="488785315393301722">Tampilkan Detail</translation>
 <translation id="488862352499217187">Buat Folder Baru</translation>
@@ -6151,7 +6155,7 @@ Gunakan Ctrl + Alt + Kurangi kecerahan untuk memperkecil.</translation>
 <translation id="5309641450810523897">ID Kasus Dukungan</translation>
 <translation id="5311304534597152726">Login sebagai</translation>
 <translation id="5312746996236433535">pencerminan layar</translation>
-<translation id="5313967007315987356">Tambah situs</translation>
+<translation id="5313967007315987356">Tambahkan situs</translation>
 <translation id="5315738755890845852">Kurung kurawal tambahan: <ph name="ERROR_LINE" /></translation>
 <translation id="5317780077021120954">Simpan</translation>
 <translation id="5319712128756744240">Sambungkan perangkat baru</translation>
@@ -7404,6 +7408,7 @@ Izin yang telah Anda berikan ke situs dan aplikasi dapat berlaku untuk akun ini.
 <translation id="6234474535228214774">Penginstalan menunggu antrean</translation>
 <translation id="6235208551686043831">Kamera perangkat telah diaktifkan. Letakkan Kode QR eSIM Anda di depan kamera.</translation>
 <translation id="6237297174664969437">Anda dapat memilih jenis data browser yang akan disinkronkan di setelan Chrome kapan saja. Di <ph name="LINK_BEGIN" />setelan perangkat<ph name="LINK_END" />, Anda dapat mengontrol sinkronisasi untuk aplikasi web yang diinstal dari browser Chrome. Google dapat mempersonalisasi Penelusuran dan layanan lainnya berdasarkan histori Anda.</translation>
+<translation id="623736835601262897">Ekstensi ini tidak membutuhkan izin khusus.</translation>
 <translation id="6237474966939441970">Aplikasi mencatat dengan stilus</translation>
 <translation id="6237481151388361546">Ubah koneksi internet Anda, lalu pilih "Coba lagi", atau pilih "Buka di editor dasar" untuk menggunakan opsi pengeditan dan tampilan terbatas.</translation>
 <translation id="623755660902014047">Mode baca</translation>
@@ -7650,6 +7655,7 @@ Izin yang telah Anda berikan ke situs dan aplikasi dapat berlaku untuk akun ini.
 <translation id="641867537956679916">Administrator Anda telah login untuk memeriksa masalah. Anda dapat menggunakan perangkat lagi setelah administrator mengembalikan kontrol kepada Anda.</translation>
 <translation id="641899100123938294">Pindai perangkat baru</translation>
 <translation id="6419524191360800346">Upgrade ke versi Debian 11 (Bullseye) sudah tersedia</translation>
+<translation id="6419546358665792306">Muat yang belum dibuka</translation>
 <translation id="642469772702851743">Perangkat ini (NS: <ph name="SERIAL_NUMBER" />) dikunci oleh pemilik.</translation>
 <translation id="6425556984042222041">Kecepatan text-to-speech</translation>
 <translation id="642729974267661262">Tidak diizinkan memutar suara</translation>
@@ -9286,6 +9292,7 @@ Anda memiliki # sandi lainnya yang telah dibobol. Pengelola Sandi Google merekom
 <translation id="7609148976235050828">Sambungkan ke internet dan coba lagi.</translation>
 <translation id="7610337976012700501">Untuk menggunakan <ph name="FEATURE_NAME" /> dengan kontak ini, tambahkan alamat email yang ditautkan dengan Akun Google mereka ke kontak Anda.</translation>
 <translation id="7611713099524036757">meta</translation>
+<translation id="7612050744024016345">Semua Ekstensi</translation>
 <translation id="7612401678989660900">Mengizinkan akses untuk aplikasi dan situs yang memiliki izin mikrofon</translation>
 <translation id="7612497353238585898">Situs aktif</translation>
 <translation id="7612655942094160088">Fitur telepon yang terhubung aktif.</translation>
@@ -10427,6 +10434,7 @@ Simpan file kunci Anda di tempat yang aman. Anda akan membutuhkannya untuk membu
 <translation id="8387361103813440603">Tidak diizinkan melihat lokasi Anda</translation>
 <translation id="8387617938027387193">Verifikasi diri Anda</translation>
 <translation id="8388770971141403598">Profil sekunder tidak didukung</translation>
+<translation id="8389492867173948260">Mengizinkan ekstensi ini membaca dan mengubah semua data Anda di situs yang dibuka:</translation>
 <translation id="8390392581097975659">Menginstal software pemindai</translation>
 <translation id="8390449457866780408">Server tidak tersedia.</translation>
 <translation id="8391218455464584335">Piringan hitam</translation>
@@ -10894,6 +10902,7 @@ Simpan file kunci Anda di tempat yang aman. Anda akan membutuhkannya untuk membu
 <translation id="8720200012906404956">Mencari jaringan seluler. <ph name="BEGIN_LINK" />Pelajari lebih lanjut<ph name="END_LINK" /></translation>
 <translation id="8720816553731218127">Waktu inisialisasi atribut waktu penginstalan telah habis.</translation>
 <translation id="8721093493695533465">Tindakan ini akan menghapus <ph name="TOTAL_USAGE" /> data yang disimpan oleh situs yang ditampilkan dan aplikasi yang terinstal di dalamnya</translation>
+<translation id="8722605400356471529">Pemeriksaan keamanan</translation>
 <translation id="8724405322205516354">Saat melihat ikon ini, gunakan sidik jari untuk identifikasi atau menyetujui pembelian.</translation>
 <translation id="8724409975248965964">Sidik jari ditambahkan</translation>
 <translation id="8724859055372736596">&amp;Tampilkan dalam Folder</translation>

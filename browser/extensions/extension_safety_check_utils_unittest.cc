@@ -149,8 +149,8 @@ void CheckSafetyCheckDisplayString(
       break;
     case api::developer_private::SafetyCheckWarningReason::kOffstore:
       detail_page_string = IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE;
-      panel_string = extension_state ? IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_ON
-                                     : IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_OFF;
+      panel_string = extension_state ? IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_ON_V2
+                                     : IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_OFF_V2;
       break;
     case api::developer_private::SafetyCheckWarningReason::kUnwanted:
       detail_page_string = IDS_SAFETY_CHECK_EXTENSIONS_POLICY_VIOLATION;

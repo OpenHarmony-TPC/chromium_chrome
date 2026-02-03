@@ -1784,6 +1784,7 @@ Puedes gestionar la configuración de esta cuenta instalando la aplicación Fami
 <translation id="2220572644011485463">PIN o contraseña</translation>
 <translation id="222115440608612541">Cambia de tema al amanecer y al atardecer</translation>
 <translation id="2221261048068091179"><ph name="FIRST_SWITCH" />, <ph name="SECOND_SWITCH" /></translation>
+<translation id="2221474331696610163">URL no válida</translation>
 <translation id="222201875806112242">Fuente multimedia sin nombre</translation>
 <translation id="2224337661447660594">Sin conexión a Internet</translation>
 <translation id="2224444042887712269">Esta opción pertenece a <ph name="OWNER_EMAIL" />.</translation>
@@ -3659,6 +3660,7 @@ Puedes gestionar la configuración de esta cuenta instalando la aplicación Fami
 <translation id="3559079791149580653">Detener envío de pantalla a <ph name="DEVICE_NAME" /></translation>
 <translation id="3559262020195162408">Se ha producido un error al instalar la política en el dispositivo.</translation>
 <translation id="3559533181353831840">Tiempo restante aproximado: <ph name="TIME_LEFT" /></translation>
+<translation id="3559702738171272112">Añadir sitio</translation>
 <translation id="3560034655160545939">Revi&amp;sión ortográfica</translation>
 <translation id="3561201631376780358">Abrir panel lateral para ver todos los marcadores</translation>
 <translation id="3562423906127931518">Este proceso puede tardar unos minutos. Iniciando el contenedor de Linux.</translation>
@@ -5209,6 +5211,7 @@ Puede tratarse de información sobre el software instalado, los archivos, tu nav
 <translation id="4642587497923912728">Steam para Chromebook (beta) solo está disponible en la cuenta que haya iniciado sesión primero en este Chromebook.</translation>
 <translation id="4643612240819915418">&amp;Abrir vídeo en una pestaña nueva</translation>
 <translation id="4643833688073835173">Tu Chromebook usa un sensor integrado para detectar si hay alguien frente a tu dispositivo. Todos los datos se procesan inmediatamente en tu dispositivo y después se eliminan. Los datos del sensor nunca se envían a Google.</translation>
+<translation id="4644205769234414680">Permitir en incógnito</translation>
 <translation id="4645322559577140968">{GROUP_COUNT,plural, =1{¿Eliminar grupo de pestañas?}other{¿Eliminar grupos de pestañas?}}</translation>
 <translation id="4645575059429386691">Administrado por uno de tus padres</translation>
 <translation id="4645676300727003670">&amp;Guardar</translation>
@@ -5551,6 +5554,7 @@ Usa Ctrl + Alt + Reducir el brillo para reducir la pantalla.</translation>
 <translation id="48838266408104654">&amp;Administrador de tareas</translation>
 <translation id="4884937942297374058">La protección mejorada está desactivada</translation>
 <translation id="4884987973312178454">6x</translation>
+<translation id="4885692421645694729">Esta extensión no tiene acceso adicional al sitio</translation>
 <translation id="4887424188275796356">Abrir con el visor del sistema</translation>
 <translation id="488785315393301722">Mostrar detalles</translation>
 <translation id="488862352499217187">Crear carpeta nueva</translation>
@@ -7389,6 +7393,7 @@ Exponente público (<ph name="PUBLIC_EXPONENT_NUM_BITS" /> bits):
 <translation id="6234474535228214774">Instalación pendiente</translation>
 <translation id="6235208551686043831">La cámara del dispositivo se ha encendido. Coloca el código QR de tu eSIM frente a la cámara.</translation>
 <translation id="6237297174664969437">En la configuración de Chrome, puedes elegir en cualquier momento qué datos del navegador quieres sincronizar. En la <ph name="LINK_BEGIN" />configuración del dispositivo<ph name="LINK_END" />, puedes controlar la sincronización de las aplicaciones web instaladas desde el navegador Chrome. Google puede personalizar la Búsqueda y otros servicios en función de tu historial.</translation>
+<translation id="623736835601262897">Esta extensión no requiere permisos especiales.</translation>
 <translation id="6237474966939441970">Aplicación para tomar notas con lápiz óptico</translation>
 <translation id="6237481151388361546">Cambia tu conexión a Internet y elige Reintentar, o bien, para usar opciones limitadas de edición y visualización, selecciona Abrir en el editor básico.</translation>
 <translation id="623755660902014047">Modo Lectura</translation>
@@ -7635,6 +7640,7 @@ Exponente público (<ph name="PUBLIC_EXPONENT_NUM_BITS" /> bits):
 <translation id="641867537956679916">El administrador ha iniciado sesión para investigar un problema. Podrás seguir usando el dispositivo después de que el administrador te devuelva el control.</translation>
 <translation id="641899100123938294">Buscar dispositivos nuevos</translation>
 <translation id="6419524191360800346">Hay una actualización a Debian 11 (Bullseye) disponible</translation>
+<translation id="6419546358665792306">Cargar descomprimida</translation>
 <translation id="642469772702851743">El propietario ha bloqueado este dispositivo (número de serie: <ph name="SERIAL_NUMBER" />).</translation>
 <translation id="6425556984042222041">Velocidad de conversión de texto a voz</translation>
 <translation id="642729974267661262">No puede reproducir sonido</translation>
@@ -9272,6 +9278,7 @@ Tienes # contraseñas vulneradas más. El Gestor de contraseñas de Google te re
 <translation id="7609148976235050828">Conéctate a Internet y vuelve a intentarlo.</translation>
 <translation id="7610337976012700501">Para usar <ph name="FEATURE_NAME" /> con estos contactos, añade a tus contactos las direcciones de correo electrónico vinculadas a sus cuentas de Google.</translation>
 <translation id="7611713099524036757">meta</translation>
+<translation id="7612050744024016345">Todas las extensiones</translation>
 <translation id="7612401678989660900">Permite que accedan los sitios web y aplicaciones con el permiso de micrófono</translation>
 <translation id="7612497353238585898">Sitio activo</translation>
 <translation id="7612655942094160088">Habilitar funciones de teléfono conectado.</translation>
@@ -10413,6 +10420,7 @@ Guarda tu archivo de clave en un lugar seguro, ya que lo necesitarás para crear
 <translation id="8387361103813440603">No puede ver tu ubicación</translation>
 <translation id="8387617938027387193">Verifica que eres tú</translation>
 <translation id="8388770971141403598">No se admiten perfiles secundarios</translation>
+<translation id="8389492867173948260">Permitir que esta extensión lea y cambie todos los datos de los sitios web que visites:</translation>
 <translation id="8390392581097975659">Instalando software del escáner</translation>
 <translation id="8390449457866780408">Servidor no disponible</translation>
 <translation id="8391218455464584335">Vinilo</translation>
@@ -10880,6 +10888,7 @@ Guarda tu archivo de clave en un lugar seguro, ya que lo necesitarás para crear
 <translation id="8720200012906404956">Se está buscando una red móvil. <ph name="BEGIN_LINK" />Más información<ph name="END_LINK" /></translation>
 <translation id="8720816553731218127">Se ha agotado el tiempo de la inicialización de los atributos de tiempo de instalación.</translation>
 <translation id="8721093493695533465">Esta acción eliminará <ph name="TOTAL_USAGE" /> de datos almacenados por sitios mostrados y aplicaciones instaladas</translation>
+<translation id="8722605400356471529">Comprobación de seguridad</translation>
 <translation id="8724405322205516354">Cuando veas este icono, utiliza tu huella digital para identificarte o aprobar compras.</translation>
 <translation id="8724409975248965964">Huella digital añadida</translation>
 <translation id="8724859055372736596">&amp;Mostrar en carpeta</translation>
@@ -10955,7 +10964,7 @@ Guarda tu archivo de clave en un lugar seguro, ya que lo necesitarás para crear
 <translation id="8773535891252326047">Enlace copiado al texto destacado</translation>
 <translation id="8774379074441005279">Confirmar restauración</translation>
 <translation id="8774934320277480003">Margen superior</translation>
-<translation id="8775144690796719618">URL no válida</translation>
+<translation id="8775144690796719618">La URL no es válida</translation>
 <translation id="8775653927968399786">{0,plural, =1{Tu <ph name="DEVICE_TYPE" /> se bloqueará automáticamente dentro de # segundo.
 <ph name="DOMAIN" /> requiere que mantengas insertada tu tarjeta inteligente.}other{Tu <ph name="DEVICE_TYPE" /> se bloqueará automáticamente dentro de # segundos.
 <ph name="DOMAIN" /> requiere que mantengas insertada tu tarjeta inteligente.}}</translation>

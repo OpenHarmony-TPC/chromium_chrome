@@ -903,7 +903,7 @@
 <translation id="161460670679785907">ไม่พบโทรศัพท์ของคุณ</translation>
 <translation id="1614890968027287789">แยกการท่องเว็บไหม</translation>
 <translation id="1615433306336820465">จัดการข้อมูลการลงชื่อเข้าใช้ที่เก็บไว้ในคีย์ความปลอดภัย</translation>
-<translation id="1616206807336925449">ส่วนขยายนี้ไม่ต้องการการอนุญาตพิเศษใด ๆ</translation>
+<translation id="1616206807336925449">ส่วนขยายนี้ไม่จำเป็นต้องมีสิทธิ์พิเศษ</translation>
 <translation id="1616298854599875024">นำเข้าส่วนขยาย "<ph name="IMPORT_NAME" />" ไม่ได้เนื่องจากไม่ใช่โมดูลที่แชร์</translation>
 <translation id="1617765145568323981">{NUM_FILES,plural, =0{กำลังตรวจสอบข้อมูลนี้กับนโยบายความปลอดภัยขององค์กร...}=1{กำลังตรวจสอบไฟล์นี้กับนโยบายความปลอดภัยขององค์กร...}other{กำลังตรวจสอบไฟล์นี้กับนโยบายความปลอดภัยขององค์กร...}}</translation>
 <translation id="1618102204889321535"><ph name="CURRENT_CHARACTER_COUNT" />/<ph name="MAX_CHARACTER_COUNT" /></translation>
@@ -1784,6 +1784,7 @@
 <translation id="2220572644011485463">PIN หรือรหัสผ่าน</translation>
 <translation id="222115440608612541">เปลี่ยนธีมตอนพระอาทิตย์ขึ้นและพระอาทิตย์ตก</translation>
 <translation id="2221261048068091179"><ph name="FIRST_SWITCH" />, <ph name="SECOND_SWITCH" /></translation>
+<translation id="2221474331696610163">URL ไม่ถูกต้อง</translation>
 <translation id="222201875806112242">แหล่งที่มาของสื่อซึ่งไม่มีชื่อ</translation>
 <translation id="2224337661447660594">ไม่มีอินเทอร์เน็ต</translation>
 <translation id="2224444042887712269">การตั้งค่านี้เป็นของ <ph name="OWNER_EMAIL" /></translation>
@@ -3656,6 +3657,7 @@
 <translation id="3559079791149580653">หยุดแคสต์หน้าจอไปยัง <ph name="DEVICE_NAME" /></translation>
 <translation id="3559262020195162408">ติดตั้งนโยบายในอุปกรณ์นี้ไม่สำเร็จ</translation>
 <translation id="3559533181353831840">ใช้เวลาอีก <ph name="TIME_LEFT" /></translation>
+<translation id="3559702738171272112">เพิ่มไซต์</translation>
 <translation id="3560034655160545939">&amp;ตรวจตัวสะกด</translation>
 <translation id="3561201631376780358">เปิดแผงด้านข้างเพื่อดูบุ๊กมาร์กทั้งหมด</translation>
 <translation id="3562423906127931518">ขั้นตอนนี้อาจใช้เวลาสักครู่ กำลังตั้งค่าคอนเทนเนอร์ Linux</translation>
@@ -5207,6 +5209,7 @@
 <translation id="4642587497923912728">Steam สำหรับ Chromebook (เบต้า) จะใช้ได้เฉพาะกับบัญชีที่ลงชื่อเข้าใช้เป็นบัญชีแรกใน Chromebook เครื่องนี้</translation>
 <translation id="4643612240819915418">เ&amp;ปิดวิดีโอในแท็บใหม่</translation>
 <translation id="4643833688073835173">Chromebook ใช้เซ็นเซอร์ในตัวเพื่อตรวจหาผู้คนที่อยู่ด้านหน้าอุปกรณ์ของคุณ อุปกรณ์จะประมวลผลข้อมูลทั้งหมดในทันที จากนั้นจะลบข้อมูลออก และจะไม่มีการส่งข้อมูลเซ็นเซอร์ให้ Google</translation>
+<translation id="4644205769234414680">อนุญาตให้ใช้ในโหมดไม่ระบุตัวตน</translation>
 <translation id="4645322559577140968">{GROUP_COUNT,plural, =1{ลบกลุ่มแท็บใช่ไหม}other{ลบกลุ่มแท็บใช่ไหม}}</translation>
 <translation id="4645575059429386691">จัดการโดยผู้ปกครอง</translation>
 <translation id="4645676300727003670">&amp;เก็บไว้</translation>
@@ -5549,6 +5552,7 @@
 <translation id="48838266408104654">&amp;ตัวจัดการงาน</translation>
 <translation id="4884937942297374058">การปกป้องที่ดียิ่งขึ้นปิดอยู่</translation>
 <translation id="4884987973312178454">6x</translation>
+<translation id="4885692421645694729">ส่วนขยายนี้ไม่มีการเข้าถึงเว็บไซต์เพิ่มเติม</translation>
 <translation id="4887424188275796356">เปิดด้วยเครื่องมือดูระบบ</translation>
 <translation id="488785315393301722">แสดงรายละเอียด</translation>
 <translation id="488862352499217187">สร้างโฟลเดอร์ใหม่</translation>
@@ -6134,7 +6138,7 @@
 <translation id="5309641450810523897">รหัสเคสขอรับความช่วยเหลือ</translation>
 <translation id="5311304534597152726">กำลังลงชื่อเข้าใช้ในชื่อ</translation>
 <translation id="5312746996236433535">มิเรอร์หน้าจอ</translation>
-<translation id="5313967007315987356">เพิ่มไซต์</translation>
+<translation id="5313967007315987356">เพิ่มเว็บไซต์</translation>
 <translation id="5315738755890845852">เครื่องหมายวงเล็บปีกกาที่เกินมา: <ph name="ERROR_LINE" /></translation>
 <translation id="5317780077021120954">บันทึก</translation>
 <translation id="5319712128756744240">จับคู่อุปกรณ์ใหม่</translation>
@@ -7384,6 +7388,7 @@
 <translation id="6234474535228214774">กำลังรอการติดตั้ง</translation>
 <translation id="6235208551686043831">เปิดกล้องของอุปกรณ์แล้ว โปรดวางคิวอาร์โค้ด eSIM ตรงหน้ากล้อง</translation>
 <translation id="6237297174664969437">คุณเลือกข้อมูลเบราว์เซอร์ที่จะซิงค์ได้เสมอในการตั้งค่า Chrome ใน<ph name="LINK_BEGIN" />การตั้งค่าอุปกรณ์<ph name="LINK_END" /> คุณสามารถควบคุมการซิงค์สำหรับเว็บแอปที่ติดตั้งจากเบราว์เซอร์ Chrome Google อาจปรับเปลี่ยน Search และบริการอื่นๆ ให้เหมาะกับคุณโดยอิงจากประวัติการเข้าชม</translation>
+<translation id="623736835601262897">ส่วนขยายนี้ไม่ต้องการการอนุญาตพิเศษใด ๆ</translation>
 <translation id="6237474966939441970">แอปการจดบันทึกด้วยสไตลัส</translation>
 <translation id="6237481151388361546">เปลี่ยนการเชื่อมต่ออินเทอร์เน็ตแล้วเลือก "ลองอีกครั้ง" หรือเลือก "เปิดในเครื่องมือแก้ไขพื้นฐาน" เพื่อใช้ตัวเลือกการดูและการแก้ไขแบบจำกัด</translation>
 <translation id="623755660902014047">โหมดการอ่าน</translation>
@@ -7630,6 +7635,7 @@
 <translation id="641867537956679916">ผู้ดูแลระบบได้เข้าสู่ระบบเพื่อตรวจสอบปัญหาแล้ว คุณจะใช้อุปกรณ์ต่อได้หลังจากที่ผู้ดูแลระบบคืนสิทธิ์การควบคุมให้คุณ</translation>
 <translation id="641899100123938294">สแกนหาอุปกรณ์ใหม่</translation>
 <translation id="6419524191360800346">มีการอัปเกรดเป็น Debian 11 (Bullseye) พร้อมใช้งาน</translation>
+<translation id="6419546358665792306">โหลดส่วนขยายที่แตกไฟล์แล้ว</translation>
 <translation id="642469772702851743">เจ้าของล็อกอุปกรณ์นี้ไว้ (หมายเลขประจำเครื่อง: <ph name="SERIAL_NUMBER" />)</translation>
 <translation id="6425556984042222041">อัตราของการอ่านออกเสียงข้อความ</translation>
 <translation id="642729974267661262">ไม่ได้รับอนุญาตให้เล่นเสียง</translation>
@@ -9266,6 +9272,7 @@
 <translation id="7609148976235050828">โปรดเชื่อมต่ออินเทอร์เน็ตและลองอีกครั้ง</translation>
 <translation id="7610337976012700501">หากต้องการใช้<ph name="FEATURE_NAME" />กับรายชื่อติดต่อเหล่านี้ ให้เพิ่มอีเมลที่ลิงก์กับบัญชี Google ของรายชื่อติดต่อนั้นลงในรายชื่อติดต่อของคุณ</translation>
 <translation id="7611713099524036757">Meta</translation>
+<translation id="7612050744024016345">ส่วนขยายทั้งหมด</translation>
 <translation id="7612401678989660900">อนุญาตให้เข้าถึงสำหรับแอปและเว็บไซต์ที่มีสิทธิ์เข้าถึงไมโครโฟน</translation>
 <translation id="7612497353238585898">เว็บไซต์ที่ใช้งานอยู่</translation>
 <translation id="7612655942094160088">เปิดใช้ฟีเจอร์ของโทรศัพท์ที่เชื่อมต่ออยู่</translation>
@@ -10407,6 +10414,7 @@
 <translation id="8387361103813440603">ไม่ได้รับอนุญาตให้ดูตำแหน่งของคุณ</translation>
 <translation id="8387617938027387193">ยืนยันว่าเป็นคุณ</translation>
 <translation id="8388770971141403598">ไม่รองรับโปรไฟล์รอง</translation>
+<translation id="8389492867173948260">อนุญาตให้ส่วนขยายนี้อ่านและเปลี่ยนแปลงข้อมูลทั้งหมดในเว็บไซต์ที่คุณเข้าชม</translation>
 <translation id="8390392581097975659">กำลังติดตั้งซอฟต์แวร์เครื่องสแกน</translation>
 <translation id="8390449457866780408">เซิร์ฟเวอร์ไม่พร้อมใช้งาน</translation>
 <translation id="8391218455464584335">แผ่นเสียง</translation>
@@ -10874,6 +10882,7 @@
 <translation id="8720200012906404956">กำลังมองหาเครือข่ายมือถือ <ph name="BEGIN_LINK" />ดูข้อมูลเพิ่มเติม<ph name="END_LINK" /></translation>
 <translation id="8720816553731218127">การเริ่มต้นแอตทริบิวต์เวลาการติดตั้งหมดเวลาแล้ว</translation>
 <translation id="8721093493695533465">การดำเนินการนี้จะลบข้อมูลซึ่งจัดเก็บโดยเว็บไซต์ที่แสดงและแอปที่ติดตั้งไว้รวมทั้งสิ้น <ph name="TOTAL_USAGE" /></translation>
+<translation id="8722605400356471529">การตรวจสอบความปลอดภัย</translation>
 <translation id="8724405322205516354">เมื่อเห็นไอคอนนี้ ให้ใช้ลายนิ้วมือเพื่อระบุตัวตนหรือเพื่ออนุมัติการซื้อ</translation>
 <translation id="8724409975248965964">เพิ่มลายนิ้วมือแล้ว</translation>
 <translation id="8724859055372736596">&amp;แสดงในโฟลเดอร์</translation>

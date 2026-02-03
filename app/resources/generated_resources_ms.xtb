@@ -1794,6 +1794,7 @@ Anda boleh mengurus tetapan akaun ini dengan memasang apl Family Link pada peran
 <translation id="2220572644011485463">PIN atau kata laluan</translation>
 <translation id="222115440608612541">Tukar tema pada waktu matahari terbit dan terbenam</translation>
 <translation id="2221261048068091179"><ph name="FIRST_SWITCH" />, <ph name="SECOND_SWITCH" /></translation>
+<translation id="2221474331696610163">URL tidak sah</translation>
 <translation id="222201875806112242">Sumber media tidak bernama.</translation>
 <translation id="2224337661447660594">Tiada Internet</translation>
 <translation id="2224444042887712269">Tetapan ini milik <ph name="OWNER_EMAIL" />.</translation>
@@ -3671,6 +3672,7 @@ Anda boleh mengurus tetapan akaun ini dengan memasang apl Family Link pada peran
 <translation id="3559079791149580653">Hentikan penghantaran skrin pada <ph name="DEVICE_NAME" /></translation>
 <translation id="3559262020195162408">Gagal memasang dasar pada peranti.</translation>
 <translation id="3559533181353831840">Kira-kira <ph name="TIME_LEFT" /> lagi</translation>
+<translation id="3559702738171272112">Tambahkan tapak</translation>
 <translation id="3560034655160545939">&amp;Semak ejaan</translation>
 <translation id="3561201631376780358">Buka Panel Sisi untuk melihat Semua Penanda Halaman</translation>
 <translation id="3562423906127931518">Proses ini mungkin mengambil masa beberapa minit. Menyediakan bekas Linux.</translation>
@@ -5222,6 +5224,7 @@ Maklumat ini termasuk maklumat tentang perisian yang dipasang, fail, penyemak im
 <translation id="4642587497923912728">Steam untuk Chromebook (Beta) hanya tersedia untuk akaun yang telah log masuk pada Chromebook ini.</translation>
 <translation id="4643612240819915418">&amp;Buka Video dalam Tab Baharu</translation>
 <translation id="4643833688073835173">Chromebook anda menggunakan penderia terbina dalam untuk mengesan orang di hadapan peranti anda. Semua data diproses pada peranti anda serta-merta, kemudian dipadamkan. Data penderia tidak sekali-kali dihantar kepada Google.</translation>
+<translation id="4644205769234414680">Benarkan dalam Inkognito</translation>
 <translation id="4645322559577140968">{GROUP_COUNT,plural, =1{Padamkan Kumpulan Tab?}other{Padamkan Kumpulan Tab?}}</translation>
 <translation id="4645575059429386691">Diurus oleh ibu bapa anda</translation>
 <translation id="4645676300727003670">&amp;Simpan</translation>
@@ -5565,6 +5568,7 @@ Gunakan Ctrl + Alt + Kurangkan kecerahan untuk zum keluar.</translation>
 <translation id="48838266408104654">&amp;Pengurus Tugas</translation>
 <translation id="4884937942297374058">Perlindungan dipertingkat dimatikan</translation>
 <translation id="4884987973312178454">6x</translation>
+<translation id="4885692421645694729">Sambungan ini tiada akses laman tambahan</translation>
 <translation id="4887424188275796356">Buka Dengan Pemapar Sistem</translation>
 <translation id="488785315393301722">Tunjukkan Butiran</translation>
 <translation id="488862352499217187">Buat Folder Baharu</translation>
@@ -6468,7 +6472,7 @@ Kebenaran yang telah anda berikan kepada laman web dan apl mungkin dikenakan pad
 <translation id="5546865291508181392">Cari</translation>
 <translation id="5548075230008247516">Semua item dinyahpilih, anda telah keluar daripada mod pemilihan.</translation>
 <translation id="5548159762883465903">{NUM_OTHER_TABS,plural, =0{"<ph name="TAB_TITLE" />"}=1{"<ph name="TAB_TITLE" />" dan 1 Tab Lain}other{"<ph name="TAB_TITLE" />" dan # Tab Lain}}</translation>
-<translation id="5548606607480005320">Pemeriksaan keselamatan</translation>
+<translation id="5548606607480005320">Semakan keselamatan</translation>
 <translation id="5548644592758170183">Tunjukkan di sebelah kiri</translation>
 <translation id="554903022911579950">Kerberos</translation>
 <translation id="5549511085333906441">Pilih persediaan anda</translation>
@@ -7404,6 +7408,7 @@ Kebenaran yang telah anda berikan kepada laman web dan apl mungkin dikenakan pad
 <translation id="6234474535228214774">Pemasangan belum selesai</translation>
 <translation id="6235208551686043831">Kamera peranti telah dihidupkan. Sila letakkan Kod QR eSIM anda di hadapan kamera.</translation>
 <translation id="6237297174664969437">Anda boleh memilih data penyemak imbas yang mahu disegerakkan dalam tetapan Chrome pada bila-bila masa. Dalam <ph name="LINK_BEGIN" />tetapan peranti<ph name="LINK_END" />, anda boleh mengawal penyegerakkan untuk apl web yang dipasang daripada penyemak imbas Chrome. Google mungkin memeribadikan Search dan perkhidmatan lain berdasarkan sejarah anda.</translation>
+<translation id="623736835601262897">Sambungan ini tidak memerlukan kebenaran khas.</translation>
 <translation id="6237474966939441970">Apl pengambilan nota stilus</translation>
 <translation id="6237481151388361546">Ubah sambungan Internet anda dan pilih "Cuba lagi" atau pilih "Buka dalam editor asas" untuk menggunakan pilihan paparan dan pengeditan terhad.</translation>
 <translation id="623755660902014047">Mod membaca</translation>
@@ -7650,6 +7655,7 @@ Kebenaran yang telah anda berikan kepada laman web dan apl mungkin dikenakan pad
 <translation id="641867537956679916">Pentadbir anda telah log masuk untuk meneliti isu. Anda boleh terus menggunakan peranti selepas pentadbir memberikan kawalan kembali kepada anda.</translation>
 <translation id="641899100123938294">Imbas untuk mengesan peranti baharu</translation>
 <translation id="6419524191360800346">Peningkatan kepada Debian 11 (Bullseye) tersedia</translation>
+<translation id="6419546358665792306">Muatkan sambungan dinyahpek</translation>
 <translation id="642469772702851743">Peranti ini (SN: <ph name="SERIAL_NUMBER" />) telah dikunci oleh pemiliknya.</translation>
 <translation id="6425556984042222041">Kadar teks ke pertuturan</translation>
 <translation id="642729974267661262">Tidak dibenarkan untuk memainkan bunyi</translation>
@@ -9288,6 +9294,7 @@ Anda mempunyai # lagi kata laluan yang terjejas. Google Password Manager mengesy
 <translation id="7609148976235050828">Sila sambung ke Internet dan cuba lagi.</translation>
 <translation id="7610337976012700501">Untuk menggunakan <ph name="FEATURE_NAME" /> dengan kenalan ini, tambahkan alamat e-mel yang dipautkan dengan Google Account mereka pada kenalan anda.</translation>
 <translation id="7611713099524036757">meta</translation>
+<translation id="7612050744024016345">Semua Sambungan</translation>
 <translation id="7612401678989660900">Benarkan akses untuk semua apl dan laman web dengan kebenaran mikrofon</translation>
 <translation id="7612497353238585898">Laman aktif</translation>
 <translation id="7612655942094160088">Dayakan ciri telefon yang disambungkan.</translation>
@@ -10430,6 +10437,7 @@ perubahan ini berlaku, anda mungkin tidak mahukannya.</translation>
 <translation id="8387361103813440603">Tidak dibenarkan untuk melihat lokasi anda</translation>
 <translation id="8387617938027387193">Sahkan itu anda</translation>
 <translation id="8388770971141403598">Profil sekunder tidak disokong</translation>
+<translation id="8389492867173948260">Benarkan sambungan ini membaca dan mengubah semua data anda di laman web yang anda lawati:</translation>
 <translation id="8390392581097975659">Memasang perisian pengimbas</translation>
 <translation id="8390449457866780408">Pelayan tidak tersedia.</translation>
 <translation id="8391218455464584335">Vinil</translation>
@@ -10897,6 +10905,7 @@ perubahan ini berlaku, anda mungkin tidak mahukannya.</translation>
 <translation id="8720200012906404956">Mencari rangkaian mudah alih. <ph name="BEGIN_LINK" />Ketahui lebih lanjut<ph name="END_LINK" /></translation>
 <translation id="8720816553731218127">Pemulaan atribut masa pemasangan telah tamat masa.</translation>
 <translation id="8721093493695533465">Tindakan ini akan memadamkan <ph name="TOTAL_USAGE" /> daripada data yang disimpan oleh laman yang dipaparkan dan apl yang dipasang</translation>
+<translation id="8722605400356471529">Pemeriksaan keselamatan</translation>
 <translation id="8724405322205516354">Apabila anda melihat ikon ini, gunakan cap jari anda untuk pengenalan atau untuk membenarkan pembelian.</translation>
 <translation id="8724409975248965964">Cap jari ditambahkan</translation>
 <translation id="8724859055372736596">&amp;Paparkan dalam Folder</translation>

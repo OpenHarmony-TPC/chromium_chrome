@@ -9,7 +9,6 @@
 <translation id="119944043368869598">ھەممىنى تازىلاش</translation>
 <translation id="1407865659932107504">ئېكراندىن مەزمۇن تۇتۇش</translation>
 <translation id="1600857548979126453">بەت تەڭشەم ئارقا تېرمىنالىنى زىيارەت قىلىش</translation>
-<translation id="1616206807336925449">بۇ كېڭەيتمىگە ئالاھىدە ئىجازەت كېرەك ئەمەس.</translation>
 <translation id="1838374766361614909">ئىزدەش سۆزىنى تازىلاش</translation>
 <translation id="1928696683969751773">يېڭىلانما</translation>
 <translation id="1942128823046546853">بارلىق توربېكەتتىكى بارلىق مەلۇماتلىرىڭىزنى ئوقۇش ۋە ئۆزگەرتىش</translation>
@@ -18,6 +17,7 @@
 <translation id="2101982145804934852">بۇ كېڭەيتمىنىڭ سىز ئاچقان توربېكەتتىن مەلۇمات ئوقۇش ۋە ئۆزگەرتىش ئىجازىتى</translation>
 <translation id="2180620921879609685">خالىغان بەتتە مەزمۇن توسۇش</translation>
 <translation id="2207116775853792104">بۇ كېڭەيتمىنى ساقلاپ قېلىش</translation>
+<translation id="2221474331696610163">بۇ تور ئادرېسى ئىناۋەتسىز.</translation>
 <translation id="2350133097354918058">قايتا يۈكلەندى</translation>
 <translation id="2480868415629598489">كۆچۈرۈپ چاپلىغان مەلۇماتلارنى ئۆزگەرتىش</translation>
 <translation id="2616366145935564096">سىزنىڭ <ph name="WEBSITE_1" /> دىكى مەلۇماتلىرىڭىزنى ئوقۇش ۋە ئۆزگەرتىش</translation>
@@ -31,6 +31,7 @@
 <translation id="330270904988027475">ھەمكارلاشقان ساپ ئەپ تەلەپ قىلغاندا ئارقا سۇپىدا يۈرۈش</translation>
 <translation id="3341703758641437857">ھۆججەت ئادرېسىنى زىيارەت قىلىش</translation>
 <translation id="3555812735919707620">كېڭەيتمە ئۆچۈرۈش</translation>
+<translation id="3559702738171272112">توربېكەت قوشۇش</translation>
 <translation id="3654045516529121250">توسالغۇسىزلىق تەڭشىكىنى ئوقۇش</translation>
 <translation id="3798449238516105146">نەشرى</translation>
 <translation id="3838085852053358637">كېڭەيتمە يۈكلەنمىدى</translation>
@@ -55,13 +56,12 @@
 <translation id="5235750401727657667">يېڭى بەتكۈچ ئاچقاندا كۆرۈنىدىغان بەتنى ئالماشتۇرۇش</translation>
 <translation id="5244466461749935369">ھازىرچە ساقلاپ قېلىش</translation>
 <translation id="5299558715747014286">بەتكۈچ گۇرۇپپىسى كۆرۈش ۋە باشقۇرۇش</translation>
-<translation id="5313967007315987356">توربېكەت قوشۇش</translation>
 <translation id="5414566801737831689">سىز كۆرگەن توربېكەت سىنبەلگىسىنى ئوقۇش</translation>
-<translation id="5548606607480005320">بىخەتەرلىك تەكشۈرۈش</translation>
 <translation id="5556459405103347317">قايتا يۈكلەش</translation>
 <translation id="5707185214361380026">تۆۋەندىكى مەنبەلىك كېڭەيتمە يۈكلەنمەيدۇ:</translation>
 <translation id="5804241973901381774">ئىجازەت</translation>
 <translation id="5916664084637901428">ئوچۇق</translation>
+<translation id="623736835601262897">بۇ كېڭەيتمىگە ئالاھىدە ئىجازەت كېرەك ئەمەس.</translation>
 <translation id="6341850831632289108">سىز تۇرۇشلۇق جۇغراپىيەلىك ئورۇننى ئېنىقلاش</translation>
 <translation id="6370021412472292592">تىزىملىك يۈكلەنمىدى.</translation>
 <translation id="6384275966486438344">ئىزدەش تەڭشىكىنى <ph name="SEARCH_HOST" /> قىلىپ ئۆزگەرتىش</translation>
@@ -99,6 +99,6 @@
 <translation id="8353683614194668312">بۇ ئەپ</translation>
 <translation id="8662911384982557515">باشبەتنى <ph name="HOME_PAGE" /> قىلىپ ئۆزگەرتىش	</translation>
 <translation id="8712637175834984815">بىلدىم</translation>
-<translation id="8775144690796719618">بۇ تور ئادرېسى ئىناۋەتسىز.</translation>
+<translation id="8722605400356471529">بىخەتەرلىك تەكشۈرۈش</translation>
 <translation id="9065203028668620118">ئۆزگەرتىش</translation>
 </translationbundle>

@@ -1798,6 +1798,7 @@ You can manage this account’s settings by installing the Family Link app on yo
 <translation id="2220572644011485463">PIN or password</translation>
 <translation id="222115440608612541">Switch themes at sunrise and sunset</translation>
 <translation id="2221261048068091179"><ph name="FIRST_SWITCH" />, <ph name="SECOND_SWITCH" /></translation>
+<translation id="2221474331696610163">Invalid URL</translation>
 <translation id="222201875806112242">Unnamed media source</translation>
 <translation id="2224337661447660594">No Internet</translation>
 <translation id="2224444042887712269">This setting belongs to <ph name="OWNER_EMAIL" />.</translation>
@@ -3677,6 +3678,7 @@ You can manage this account’s settings by installing the Family Link app on yo
 <translation id="3559079791149580653">Stop casting screen to <ph name="DEVICE_NAME" /></translation>
 <translation id="3559262020195162408">Failed to install policy on the device.</translation>
 <translation id="3559533181353831840">About <ph name="TIME_LEFT" /> left</translation>
+<translation id="3559702738171272112">Add site</translation>
 <translation id="3560034655160545939">&amp;Spell check</translation>
 <translation id="3561201631376780358">Open side panel to see all Bookmarks</translation>
 <translation id="3562423906127931518">This process may take a few minutes. Setting up the Linux container.</translation>
@@ -5231,6 +5233,7 @@ This can include information about installed software, files, your browser and t
 <translation id="4642587497923912728">Steam for Chromebook (Beta) is only available for the account that signed in first on this Chromebook.</translation>
 <translation id="4643612240819915418">&amp;Open video in new tab</translation>
 <translation id="4643833688073835173">Your Chromebook uses a built-in sensor to detect people in front of your device. All data is processed on your device immediately and then deleted. Sensor data is never sent to Google.</translation>
+<translation id="4644205769234414680">Allow in Incognito</translation>
 <translation id="4645322559577140968">{GROUP_COUNT,plural, =1{Delete tab group?}other{Delete tab groups?}}</translation>
 <translation id="4645575059429386691">Managed by your parent</translation>
 <translation id="4645676300727003670">&amp;Keep</translation>
@@ -5575,6 +5578,7 @@ Use Ctrl + Alt + Brightness down to zoom out.</translation>
 <translation id="48838266408104654">&amp;Task Manager</translation>
 <translation id="4884937942297374058">Enhanced protection is off</translation>
 <translation id="4884987973312178454">6x</translation>
+<translation id="4885692421645694729">This extension has no additional site access</translation>
 <translation id="4887424188275796356">Open With System Viewer</translation>
 <translation id="488785315393301722">Show details</translation>
 <translation id="488862352499217187">Create new folder</translation>
@@ -6478,7 +6482,7 @@ Permissions that you've already given to websites and apps may apply to this acc
 <translation id="5546865291508181392">Find</translation>
 <translation id="5548075230008247516">All items unselected, selection mode exited.</translation>
 <translation id="5548159762883465903">{NUM_OTHER_TABS,plural, =0{"<ph name="TAB_TITLE" />"}=1{"<ph name="TAB_TITLE" />" and 1 other tab}other{"<ph name="TAB_TITLE" />" and # other tabs}}</translation>
-<translation id="5548606607480005320">Safety check</translation>
+<translation id="5548606607480005320">Safety Check</translation>
 <translation id="5548644592758170183">Show on left</translation>
 <translation id="554903022911579950">Kerberos</translation>
 <translation id="5549511085333906441">Choose your setup</translation>
@@ -7414,6 +7418,7 @@ Permissions that you've already given to websites and apps may apply to this acc
 <translation id="6234474535228214774">Install pending</translation>
 <translation id="6235208551686043831">Device camera has turned on. Please place your eSIM QR code in front of the camera.</translation>
 <translation id="6237297174664969437">You can always choose what browser data to sync in Chrome settings. In <ph name="LINK_BEGIN" />device settings<ph name="LINK_END" />, you can control sync for web apps installed from Chrome browser. Google may personalise Search and other services based on your history.</translation>
+<translation id="623736835601262897">This extension requires no special permissions.</translation>
 <translation id="6237474966939441970">Stylus note-taking app</translation>
 <translation id="6237481151388361546">Change your Internet connection and choose 'Try again', or choose 'Open in basic editor' to use limited view and editing options.</translation>
 <translation id="623755660902014047">Reading mode</translation>
@@ -7660,6 +7665,7 @@ Permissions that you've already given to websites and apps may apply to this acc
 <translation id="641867537956679916">Your administrator has logged in to look into an issue. You can continue to use the device after the administrator gives the control back to you.</translation>
 <translation id="641899100123938294">Scan for new devices</translation>
 <translation id="6419524191360800346">An upgrade to Debian 11 (Bullseye) is available</translation>
+<translation id="6419546358665792306">Load unpacked</translation>
 <translation id="642469772702851743">This device (SN: <ph name="SERIAL_NUMBER" />) was locked by the owner.</translation>
 <translation id="6425556984042222041">Text-to-speech rate</translation>
 <translation id="642729974267661262">Not allowed to play sound</translation>
@@ -9299,6 +9305,7 @@ You have # more compromised passwords. Google Password Manager recommends checki
 <translation id="7609148976235050828">Please connect to the Internet and try again.</translation>
 <translation id="7610337976012700501">To use <ph name="FEATURE_NAME" /> with these contacts, add the email address linked with their Google Account to your contacts.</translation>
 <translation id="7611713099524036757">meta</translation>
+<translation id="7612050744024016345">All extensions</translation>
 <translation id="7612401678989660900">Allow access for apps and websites with the microphone permission</translation>
 <translation id="7612497353238585898">Active site</translation>
 <translation id="7612655942094160088">Connected phone features enable.</translation>
@@ -10444,6 +10451,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
 <translation id="8387361103813440603">Not allowed to see your location</translation>
 <translation id="8387617938027387193">Verify that it’s you</translation>
 <translation id="8388770971141403598">Secondary profiles are not supported</translation>
+<translation id="8389492867173948260">Allow this extension to read and change all your data on websites that you visit:</translation>
 <translation id="8390392581097975659">Installing scanner software</translation>
 <translation id="8390449457866780408">Server unavailable.</translation>
 <translation id="8391218455464584335">Vinyl</translation>
@@ -10911,6 +10919,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
 <translation id="8720200012906404956">Looking for a mobile network. <ph name="BEGIN_LINK" />Find out more<ph name="END_LINK" /></translation>
 <translation id="8720816553731218127">The initialisation of the installation-time attributes has timed out.</translation>
 <translation id="8721093493695533465">This will delete <ph name="TOTAL_USAGE" /> of data stored by displayed sites and installed apps</translation>
+<translation id="8722605400356471529">Safety check</translation>
 <translation id="8724405322205516354">When you see this icon, use your fingerprint for identification or to approve purchases.</translation>
 <translation id="8724409975248965964">Fingerprint added</translation>
 <translation id="8724859055372736596">&amp;Show in Folder</translation>

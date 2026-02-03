@@ -484,7 +484,7 @@ TEST_F(ExtensionInfoGeneratorUnitTest, ExtensionInfoGenerateSafetyHubData) {
         GenerateExtensionInfo(extension->id());
     EXPECT_EQ(l10n_util::GetStringUTF8(IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE),
               info->safety_check_text->detail_string);
-    EXPECT_EQ(l10n_util::GetStringUTF8(IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_ON),
+    EXPECT_EQ(l10n_util::GetStringUTF8(IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_ON_V2),
               info->safety_check_text->panel_string);
     EXPECT_EQ(developer::SafetyCheckWarningReason::kOffstore,
               info->safety_check_warning_reason);

@@ -900,7 +900,7 @@ Berechtigungen, die du Apps bereits gewährt hast, gelten möglicherweise für d
 <translation id="161460670679785907">Dein Smartphone wurde nicht erkannt</translation>
 <translation id="1614890968027287789">Getrenntes Surfen?</translation>
 <translation id="1615433306336820465">Auf deinem Sicherheitsschlüssel gespeicherte Anmeldedaten verwalten</translation>
-<translation id="1616206807336925449">Diese Erweiterung erfordert keine besonderen Berechtigungen.</translation>
+<translation id="1616206807336925449">Diese Erweiterung erfordert keine speziellen Berechtigungen.</translation>
 <translation id="1616298854599875024">Die Erweiterung "<ph name="IMPORT_NAME" />" konnte nicht importiert werden, da es sich nicht um ein freigegebenes Modul handelt</translation>
 <translation id="1617765145568323981">{NUM_FILES,plural, =0{Diese Daten werden auf die Einhaltung der Sicherheitsrichtlinien deines Unternehmens geprüft…}=1{Diese Datei wird auf die Einhaltung der Sicherheitsrichtlinien deines Unternehmens geprüft…}other{Diese Dateien werden auf die Einhaltung der Sicherheitsrichtlinien deines Unternehmens geprüft…}}</translation>
 <translation id="1618102204889321535"><ph name="CURRENT_CHARACTER_COUNT" />/<ph name="MAX_CHARACTER_COUNT" /></translation>
@@ -1781,6 +1781,7 @@ Wenn du die Family Link App auf deinem Gerät installierst, kannst du die Einste
 <translation id="2220572644011485463">PIN oder Passwort</translation>
 <translation id="222115440608612541">Designs bei Sonnenauf- und -untergang wechseln</translation>
 <translation id="2221261048068091179"><ph name="FIRST_SWITCH" />, <ph name="SECOND_SWITCH" /></translation>
+<translation id="2221474331696610163">Ungültige URL</translation>
 <translation id="222201875806112242">Unbenannte Medienquelle</translation>
 <translation id="2224337661447660594">Kein Internet</translation>
 <translation id="2224444042887712269">Inhaber dieser Einstellung ist <ph name="OWNER_EMAIL" />.</translation>
@@ -3269,6 +3270,7 @@ Servernachricht: <ph name="SERVER_MSG" /></translation>
 <translation id="3278001907972365362">Deine Google-Konten erfordern Aufmerksamkeit</translation>
 <translation id="3279092821516760512">Ausgewählte Kontakte können Daten mit dir teilen, wenn du in der Nähe bist. Die Übertragung beginnt erst, nachdem du die Einladung angenommen hast.</translation>
 <translation id="3279230909244266691">Der Vorgang kann einige Minuten dauern. Virtuelle Maschine wird gestartet.</translation>
+<translation id="3280172912113104877">Diese Erweiterung kann nicht auf andere Websites zugreifen.</translation>
 <translation id="3280237271814976245">Speichern &amp;unter...</translation>
 <translation id="3280243678470289153">In Chrome bleiben</translation>
 <translation id="3282210178675490297">Tab wird mit <ph name="APP_NAME" /> geteilt</translation>
@@ -3652,6 +3654,7 @@ Servernachricht: <ph name="SERVER_MSG" /></translation>
 <translation id="3559079791149580653">Streamen des Bildschirms an „<ph name="DEVICE_NAME" />“ beenden</translation>
 <translation id="3559262020195162408">Fehler beim Installieren der Richtlinie auf dem Gerät.</translation>
 <translation id="3559533181353831840">Noch <ph name="TIME_LEFT" /></translation>
+<translation id="3559702738171272112">Website hinzufügen</translation>
 <translation id="3560034655160545939">&amp;Rechtschreibprüfung</translation>
 <translation id="3561201631376780358">Seitenleiste öffnen, um alle Lesezeichen zu sehen</translation>
 <translation id="3562423906127931518">Der Vorgang kann einige Minuten dauern. Linux-Container wird eingerichtet.</translation>
@@ -5203,6 +5206,7 @@ Dazu gehören beispielsweise installierte Software, Dateien, dein Browser und da
 <translation id="4642587497923912728">Steam für Chromebook (Beta) ist nur für das Konto verfügbar, das sich zuerst auf diesem Chromebook angemeldet hat.</translation>
 <translation id="4643612240819915418">&amp;Video in neuem Tab öffnen</translation>
 <translation id="4643833688073835173">Chromebook verwendet einen integrierten Sensor, um Personen vor dem Gerät zu erkennen. Alle Daten werden direkt auf deinem Gerät verarbeitet und anschließend gelöscht. Sensordaten werden nie an Google gesendet.</translation>
+<translation id="4644205769234414680">Im Inkognitomodus zulassen</translation>
 <translation id="4645322559577140968">{GROUP_COUNT,plural, =1{Tabgruppe löschen?}other{Tabgruppen löschen?}}</translation>
 <translation id="4645575059429386691">Von deinen Eltern verwaltet</translation>
 <translation id="4645676300727003670">&amp;Beibehalten</translation>
@@ -5545,7 +5549,7 @@ Zum Herauszoomen drücke Strg + Alt + „Helligkeit verringern“.</translatio
 <translation id="48838266408104654">&amp;Taskmanager</translation>
 <translation id="4884937942297374058">Erweiterter Schutz ist deaktiviert</translation>
 <translation id="4884987973312178454">6-fach</translation>
-<translation id="3280172912113104877">Diese Erweiterung kann nicht auf andere Websites zugreifen.</translation>
+<translation id="4885692421645694729">Diese Erweiterung ermöglicht keinen zusätzlichen Websitezugriff.</translation>
 <translation id="4887424188275796356">Mit System Viewer öffnen</translation>
 <translation id="488785315393301722">Details ansehen</translation>
 <translation id="488862352499217187">Neuen Ordner erstellen</translation>
@@ -6448,7 +6452,7 @@ Berechtigungen, die du Websites und Apps bereits gewährt hast, gelten mögliche
 <translation id="5546865291508181392">Suchen</translation>
 <translation id="5548075230008247516">Auswahl für alle Elemente aufgehoben. Auswahlmodus beendet.</translation>
 <translation id="5548159762883465903">{NUM_OTHER_TABS,plural, =0{"<ph name="TAB_TITLE" />"}=1{"<ph name="TAB_TITLE" />" und 1 weiterer Tab}other{"<ph name="TAB_TITLE" />" und # weitere Tabs}}</translation>
-<translation id="5548606607480005320">Sicherheitsüberprüfung</translation>
+<translation id="5548606607480005320">Sicherheitscheck</translation>
 <translation id="5548644592758170183">Links anzeigen</translation>
 <translation id="554903022911579950">Kerberos</translation>
 <translation id="5549511085333906441">Einrichtung auswählen</translation>
@@ -7381,6 +7385,7 @@ Berechtigungen, die du Websites und Apps bereits gewährt hast, gelten mögliche
 <translation id="6234474535228214774">Installation ausstehend</translation>
 <translation id="6235208551686043831">Die Gerätekamera wurde aktiviert. Bitte halte deinen eSIM-QR-Code in die Kamera.</translation>
 <translation id="6237297174664969437">In den Chrome-Einstellungen kannst du jederzeit festlegen, welche Browserdaten synchronisiert werden sollen. In den <ph name="LINK_BEGIN" />Geräteeinstellungen<ph name="LINK_END" /> kannst du die Synchronisierung von Web-Apps steuern, die über den Chrome-Browser installiert werden. Google kann die Google Suche und andere Dienste auf der Grundlage deines Verlaufs personalisieren.</translation>
+<translation id="623736835601262897">Diese Erweiterung erfordert keine besonderen Berechtigungen.</translation>
 <translation id="6237474966939441970">Notizen-App für Eingabestift</translation>
 <translation id="6237481151388361546">Verbinde dich mit einem anderen Netzwerk und wähle „Noch einmal versuchen“ aus. Du kannst auch „Im Basiseditor öffnen“ auswählen, um eingeschränkte Optionen zum Ansehen und Bearbeiten zu verwenden.</translation>
 <translation id="623755660902014047">Lesemodus</translation>
@@ -7627,6 +7632,7 @@ Berechtigungen, die du Websites und Apps bereits gewährt hast, gelten mögliche
 <translation id="641867537956679916">Dein Administrator hat sich angemeldet, um ein Problem zu untersuchen. Du kannst das Gerät wieder verwenden, nachdem dir der Administrator die Kontrolle zurückgegeben hat.</translation>
 <translation id="641899100123938294">Nach neuen Geräten suchen</translation>
 <translation id="6419524191360800346">Ein Upgrade auf Debian 11 (Bullseye) ist verfügbar</translation>
+<translation id="6419546358665792306">Entpackte Erweiterung laden</translation>
 <translation id="642469772702851743">Dieses Gerät (SN: <ph name="SERIAL_NUMBER" />) wurde vom Eigentümer gesperrt.</translation>
 <translation id="6425556984042222041">Tempo der Sprachausgabe</translation>
 <translation id="642729974267661262">Dürfen keinen Ton abspielen</translation>
@@ -9264,6 +9270,7 @@ Du hast # weitere kompromittierte Passwörter. Der Google Passwortmanager empfi
 <translation id="7609148976235050828">Stelle eine Internetverbindung her und versuche es dann noch einmal.</translation>
 <translation id="7610337976012700501">Wenn du <ph name="FEATURE_NAME" /> mit diesen Kontakten verwenden möchtest, musst du deinen Kontakten die mit ihren Google-Konten verknüpften E‑Mail-Adressen hinzufügen.</translation>
 <translation id="7611713099524036757">Meta</translation>
+<translation id="7612050744024016345">Alle Erweiterungen</translation>
 <translation id="7612401678989660900">Zugriff für Apps und Websites mit der Mikrofonberechtigung erlauben</translation>
 <translation id="7612497353238585898">Aktive Website</translation>
 <translation id="7612655942094160088">Funktionen für verbundenes Smartphone aktivieren.</translation>
@@ -10405,6 +10412,7 @@ Speichere deine Schlüsseldatei an einem sicheren Ort. Du benötigst die Datei, 
 <translation id="8387361103813440603">Dürfen meine Standortdaten nicht abrufen</translation>
 <translation id="8387617938027387193">Deine Identität bestätigen</translation>
 <translation id="8388770971141403598">Sekundäre Profile werden nicht unterstützt</translation>
+<translation id="8389492867173948260">Dieser Erweiterung erlauben, alle meine Daten auf von mir besuchten Websites zu lesen und zu ändern:</translation>
 <translation id="8390392581097975659">Scanner-Software wird installiert</translation>
 <translation id="8390449457866780408">Der Server ist nicht verfügbar.</translation>
 <translation id="8391218455464584335">Schallplatte</translation>
@@ -10872,6 +10880,7 @@ Speichere deine Schlüsseldatei an einem sicheren Ort. Du benötigst die Datei, 
 <translation id="8720200012906404956">Suche nach einem mobilen Netzwerk läuft. <ph name="BEGIN_LINK" />Weitere Informationen<ph name="END_LINK" /></translation>
 <translation id="8720816553731218127">Zeitüberschreitung bei der Initialisierung der Attribute für die Installationszeit.</translation>
 <translation id="8721093493695533465">Dadurch werden <ph name="TOTAL_USAGE" /> an von angezeigten Websites oder installierten Apps gespeicherten Daten gelöscht</translation>
+<translation id="8722605400356471529">Sicherheitsüberprüfung</translation>
 <translation id="8724405322205516354">Wenn du dieses Symbol siehst, kannst du deinen Fingerabdruck zur Identifizierung oder zur Autorisierung eines Kaufs verwenden.</translation>
 <translation id="8724409975248965964">Fingerabdruck hinzugefügt</translation>
 <translation id="8724859055372736596">&amp;In Ordner anzeigen</translation>
