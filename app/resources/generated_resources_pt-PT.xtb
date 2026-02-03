@@ -903,7 +903,7 @@ As autorizações que já concedeu às apps podem aplicar-se a esta conta. Pode 
 <translation id="161460670679785907">Não é possível detetar o telemóvel.</translation>
 <translation id="1614890968027287789">Separar a navegação?</translation>
 <translation id="1615433306336820465">Faça a gestão dos dados de início de sessão armazenados na sua chave de segurança</translation>
-<translation id="1616206807336925449">Esta extensão não necessita de permissões especiais.</translation>
+<translation id="1616206807336925449">Esta extensão não requer autorizações especiais.</translation>
 <translation id="1616298854599875024">Não é possível importar a extensão "<ph name="IMPORT_NAME" />" porque não é um módulo partilhado.</translation>
 <translation id="1617765145568323981">{NUM_FILES,plural, =0{A verificar estes dados com as políticas de segurança da sua entidade…}=1{A verificar este ficheiro com as políticas de segurança da sua entidade…}other{A verificar estes ficheiros com as políticas de segurança da sua entidade…}}</translation>
 <translation id="1618102204889321535"><ph name="CURRENT_CHARACTER_COUNT" />/<ph name="MAX_CHARACTER_COUNT" /></translation>
@@ -1784,6 +1784,7 @@ Pode gerir as definições desta conta ao instalar a aplicação Family Link no 
 <translation id="2220572644011485463">PIN ou palavra-passe</translation>
 <translation id="222115440608612541">Mude de tema ao nascer e pôr do sol</translation>
 <translation id="2221261048068091179"><ph name="FIRST_SWITCH" />, <ph name="SECOND_SWITCH" /></translation>
+<translation id="2221474331696610163">URL inválido</translation>
 <translation id="222201875806112242">Origem multimédia sem nome</translation>
 <translation id="2224337661447660594">Sem Internet</translation>
 <translation id="2224444042887712269">Esta definição pertence a <ph name="OWNER_EMAIL" />.</translation>
@@ -3659,6 +3660,7 @@ Quer pará-lo?</translation>
 <translation id="3559079791149580653">Parar transmissão do ecrã para <ph name="DEVICE_NAME" /></translation>
 <translation id="3559262020195162408">Falha ao instalar a política no dispositivo.</translation>
 <translation id="3559533181353831840">Resta(m) cerca de <ph name="TIME_LEFT" /></translation>
+<translation id="3559702738171272112">Adicionar página de Internet</translation>
 <translation id="3560034655160545939">&amp;Verificação ortográfica</translation>
 <translation id="3561201631376780358">Abrir painel lateral para ver todos os marcadores</translation>
 <translation id="3562423906127931518">Este processo pode demorar alguns minutos. A configurar o contentor do Linux…</translation>
@@ -5210,6 +5212,7 @@ Pode incluir informações sobre o software instalado, os ficheiros, o navegador
 <translation id="4642587497923912728">O Steam para o Chromebook (beta) só está disponível para a conta que iniciou sessão primeiro neste Chromebook.</translation>
 <translation id="4643612240819915418">Abrir víde&amp;o num novo separador</translation>
 <translation id="4643833688073835173">O Chromebook utiliza um sensor incorporado para detetar pessoas à frente do dispositivo. Todos os dados são processados imediatamente no seu dispositivo e, em seguida, eliminados. Os dados de sensores nunca são enviados para a Google.</translation>
+<translation id="4644205769234414680">Permitir na Navegação anónima</translation>
 <translation id="4645322559577140968">{GROUP_COUNT,plural, =1{Eliminar o grupo de separadores?}other{Eliminar os grupos de separadores?}}</translation>
 <translation id="4645575059429386691">Gerido pelos teus pais</translation>
 <translation id="4645676300727003670">&amp;Manter</translation>
@@ -5553,6 +5556,7 @@ Use Ctrl + Alt + Diminuir o brilho para diminuir o zoom.</translation>
 <translation id="48838266408104654">Gestor de &amp;Tarefas</translation>
 <translation id="4884937942297374058">A Proteção melhorada está desativada</translation>
 <translation id="4884987973312178454">6x</translation>
+<translation id="4885692421645694729">Esta extensão não tem acesso adicional a sites</translation>
 <translation id="4887424188275796356">Abrir com o System Viewer</translation>
 <translation id="488785315393301722">Mostrar Detalhes</translation>
 <translation id="488862352499217187">Criar nova pasta</translation>
@@ -6139,7 +6143,7 @@ Use Ctrl + Alt + Diminuir o brilho para diminuir o zoom.</translation>
 <translation id="5309641450810523897">ID do registo de apoio ao cliente</translation>
 <translation id="5311304534597152726">A iniciar sessão como…</translation>
 <translation id="5312746996236433535">espelhamento do ecrã</translation>
-<translation id="5313967007315987356">Adicionar página de Internet</translation>
+<translation id="5313967007315987356">Adicionar site</translation>
 <translation id="5315738755890845852">Chaveta adicional: <ph name="ERROR_LINE" />.</translation>
 <translation id="5317780077021120954">Guardar</translation>
 <translation id="5319712128756744240">Sincronizar novo dispositivo</translation>
@@ -7393,6 +7397,7 @@ Certifique-se de que não revela informações confidenciais.</translation>
 <translation id="6234474535228214774">Instalação pendente</translation>
 <translation id="6235208551686043831">A câmara do dispositivo foi ativada. Coloque o código QR do seu eSIM à frente da câmara.</translation>
 <translation id="6237297174664969437">Pode escolher os dados do navegador que quer sincronizar nas definições do Chrome. Nas <ph name="LINK_BEGIN" />definições do dispositivo<ph name="LINK_END" />, pode controlar a sincronização de apps Web instaladas a partir do navegador Chrome. A Google pode personalizar a Pesquisa e outros serviços com base no seu histórico.</translation>
+<translation id="623736835601262897">Esta extensão não necessita de permissões especiais.</translation>
 <translation id="6237474966939441970">App para tirar notas com a caneta stylus</translation>
 <translation id="6237481151388361546">Altere a sua ligação à Internet e escolha "Tentar novamente" ou "Abrir no editor básico" para usar as opções de visualização e edição limitadas.</translation>
 <translation id="623755660902014047">Modo de leitura</translation>
@@ -7639,6 +7644,7 @@ Certifique-se de que não revela informações confidenciais.</translation>
 <translation id="641867537956679916">O administrador iniciou sessão para analisar um problema. Pode continuar a usar o dispositivo após o administrador lhe voltar a dar o controlo.</translation>
 <translation id="641899100123938294">Procurar novos dispositivos</translation>
 <translation id="6419524191360800346">Está disponível uma atualização para a versão Debian 11 (Bullseye).</translation>
+<translation id="6419546358665792306">Carregar expandida</translation>
 <translation id="642469772702851743">Este dispositivo (SN: <ph name="SERIAL_NUMBER" />) foi bloqueado pelo proprietário.</translation>
 <translation id="6425556984042222041">Taxa da conversão de texto em voz</translation>
 <translation id="642729974267661262">Sem autorização para reproduzir som</translation>
@@ -9276,6 +9282,7 @@ Tem mais # palavras-passe comprometidas. O Gestor de Palavras-passe da Google re
 <translation id="7609148976235050828">Ligue-se à Internet e tente novamente.</translation>
 <translation id="7610337976012700501">Para usar a funcionalidade <ph name="FEATURE_NAME" /> com estes contactos, adicione o endereço de email associado às respetivas Contas Google aos seus contactos.</translation>
 <translation id="7611713099524036757">meta</translation>
+<translation id="7612050744024016345">Todas as extensões</translation>
 <translation id="7612401678989660900">Permitir acesso a apps e Websites com a autorização do microfone</translation>
 <translation id="7612497353238585898">Site ativo</translation>
 <translation id="7612655942094160088">Ativar funcionalidades do telemóvel associado.</translation>
@@ -10417,6 +10424,7 @@ Mantenha o seu ficheiro de chave num local seguro, pois irá precisar dele para 
 <translation id="8387361103813440603">Sem autorização para ver a sua localização</translation>
 <translation id="8387617938027387193">Valide a sua identidade</translation>
 <translation id="8388770971141403598">Os perfis secundários não são suportados</translation>
+<translation id="8389492867173948260">Permitir que esta extensão leia e altere todos os dados nos Websites que visita:</translation>
 <translation id="8390392581097975659">A instalar software de leitor</translation>
 <translation id="8390449457866780408">O servidor não se encontra disponível.</translation>
 <translation id="8391218455464584335">Vinil</translation>
@@ -10884,6 +10892,7 @@ Mantenha o seu ficheiro de chave num local seguro, pois irá precisar dele para 
 <translation id="8720200012906404956">À procura de uma rede móvel… <ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /></translation>
 <translation id="8720816553731218127">A inicialização dos atributos de tempo de instalação expirou.</translation>
 <translation id="8721093493695533465">Esta ação vai eliminar <ph name="TOTAL_USAGE" /> de dados armazenados pelos sites apresentados e pelas apps instaladas</translation>
+<translation id="8722605400356471529">Verificação de segurança</translation>
 <translation id="8724405322205516354">Quando vir este ícone, utilize a sua impressão digital para identificação ou para autorizar compras.</translation>
 <translation id="8724409975248965964">Impressão digital adicionada</translation>
 <translation id="8724859055372736596">Mo&amp;strar numa Pasta</translation>

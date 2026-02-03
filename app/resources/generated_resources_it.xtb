@@ -1784,6 +1784,7 @@ Puoi gestire le impostazioni dell'account installando l'app Family Link su quest
 <translation id="2220572644011485463">PIN o password</translation>
 <translation id="222115440608612541">Cambia tema all'alba e al tramonto</translation>
 <translation id="2221261048068091179"><ph name="FIRST_SWITCH" /> e <ph name="SECOND_SWITCH" /></translation>
+<translation id="2221474331696610163">URL non valido</translation>
 <translation id="222201875806112242">Origine di contenuti multimediali senza nome</translation>
 <translation id="2224337661447660594">Nessuna connessione a Internet</translation>
 <translation id="2224444042887712269">Questa impostazione appartiene a <ph name="OWNER_EMAIL" />.</translation>
@@ -3658,6 +3659,7 @@ Puoi gestire le impostazioni dell'account installando l'app Family Link su quest
 <translation id="3559079791149580653">Interrompi la trasmissione dello schermo su <ph name="DEVICE_NAME" /></translation>
 <translation id="3559262020195162408">Impossibile installare le norme sul dispositivo.</translation>
 <translation id="3559533181353831840">Ancora <ph name="TIME_LEFT" /> circa</translation>
+<translation id="3559702738171272112">Aggiungi sito</translation>
 <translation id="3560034655160545939">&amp;Controllo ortografico</translation>
 <translation id="3561201631376780358">Apri il riquadro laterale per vedere tutti i preferiti</translation>
 <translation id="3562423906127931518">Questa procedura potrebbe richiedere alcuni minuti. Configurazione del container Linux in corso.</translation>
@@ -5209,6 +5211,7 @@ Potrebbero essere incluse informazioni su software installati, file, browser e s
 <translation id="4642587497923912728">Steam per Chromebook (beta) è disponibile soltanto per il primo account a cui è stato eseguito l'accesso su questo Chromebook.</translation>
 <translation id="4643612240819915418">&amp;Apri video in un'altra scheda</translation>
 <translation id="4643833688073835173">Il tuo dispositivo Chromebook usa un sensore integrato per rilevare la presenza di persone davanti allo schermo. Tutti i dati vengono subito elaborati sul dispositivo e poi eliminati. I dati del sensore non vengono mai inviati a Google.</translation>
+<translation id="4644205769234414680">Consenti modalità di navigazione in incognito</translation>
 <translation id="4645322559577140968">{GROUP_COUNT,plural, =1{Vuoi eliminare il gruppo di schede?}other{Vuoi eliminare i gruppi di schede?}}</translation>
 <translation id="4645575059429386691">Gestito da un genitore</translation>
 <translation id="4645676300727003670">&amp;Conserva</translation>
@@ -5551,6 +5554,7 @@ Premi Ctrl + Alt + Diminuisci luminosità per diminuire lo zoom.</translation>
 <translation id="48838266408104654">&amp;Task Manager</translation>
 <translation id="4884937942297374058">La Protezione avanzata è disattivata</translation>
 <translation id="4884987973312178454">6x</translation>
+<translation id="4885692421645694729">L'estensione non ha accesso a siti aggiuntivi</translation>
 <translation id="4887424188275796356">Apri con visualizzatore di sistema</translation>
 <translation id="488785315393301722">Mostra dettagli</translation>
 <translation id="488862352499217187">Crea nuova cartella</translation>
@@ -6454,7 +6458,7 @@ A questo account potrebbero essere applicate le autorizzazioni già concesse a s
 <translation id="5546865291508181392">Trova</translation>
 <translation id="5548075230008247516">Tutti gli elementi deselezionati, modalità di selezione disattivata.</translation>
 <translation id="5548159762883465903">{NUM_OTHER_TABS,plural, =0{"<ph name="TAB_TITLE" />"}=1{"<ph name="TAB_TITLE" />" e 1 altra scheda}other{"<ph name="TAB_TITLE" />" e altre # schede}}</translation>
-<translation id="5548606607480005320">Verifica di sicurezza</translation>
+<translation id="5548606607480005320">Controllo di sicurezza</translation>
 <translation id="5548644592758170183">Mostra a sinistra</translation>
 <translation id="554903022911579950">Kerberos</translation>
 <translation id="5549511085333906441">Scegli la tua configurazione</translation>
@@ -7387,6 +7391,7 @@ A questo account potrebbero essere applicate le autorizzazioni già concesse a s
 <translation id="6234474535228214774">Installazione in attesa</translation>
 <translation id="6235208551686043831">Videocamera del dispositivo accesa. Posiziona il codice QR della eSIM di fronte alla videocamera.</translation>
 <translation id="6237297174664969437">Puoi scegliere in qualsiasi momento i dati del browser da sincronizzare nelle impostazioni di Chrome. Nelle <ph name="LINK_BEGIN" />impostazioni del dispositivo<ph name="LINK_END" />, puoi controllare la sincronizzazione delle app web installate dal browser Chrome. Google potrebbe personalizzare la Ricerca e altri servizi in base alla tua cronologia.</translation>
+<translation id="623736835601262897">Questa estensione non richiede autorizzazioni speciali.</translation>
 <translation id="6237474966939441970">App per scrivere note con lo stilo</translation>
 <translation id="6237481151388361546">Modifica la connessione a internet e scegli "Riprova" oppure seleziona "Apri nell'editor di base" per utilizzare opzioni di visualizzazione e modifica limitate.</translation>
 <translation id="623755660902014047">Modalità Lettura</translation>
@@ -7633,6 +7638,7 @@ A questo account potrebbero essere applicate le autorizzazioni già concesse a s
 <translation id="641867537956679916">L'amministratore ha eseguito l'accesso per esaminare un problema. Potrai continuare a usare il dispositivo una volta che l'amministratore ti avrà restituito il controllo.</translation>
 <translation id="641899100123938294">Cerca nuovi dispositivi</translation>
 <translation id="6419524191360800346">È disponibile un upgrade a Debian 11 (Bullseye)</translation>
+<translation id="6419546358665792306">Carica estensione non pacchettizzata</translation>
 <translation id="642469772702851743">Questo dispositivo (numero di serie <ph name="SERIAL_NUMBER" />) è stato bloccato dal proprietario.</translation>
 <translation id="6425556984042222041">Velocità sintesi vocale</translation>
 <translation id="642729974267661262">Non possono riprodurre suoni</translation>
@@ -9270,6 +9276,7 @@ Hai altre # password compromesse. Gestore delle password di Google consiglia di 
 <translation id="7609148976235050828">Connettiti a Internet e riprova.</translation>
 <translation id="7610337976012700501">Per usare la funzionalità <ph name="FEATURE_NAME" /> con questi contatti, aggiungi ai tuoi contatti l'indirizzo email collegato al loro Account Google.</translation>
 <translation id="7611713099524036757">Meta</translation>
+<translation id="7612050744024016345">Tutte le estensioni</translation>
 <translation id="7612401678989660900">Consenti l'accesso per siti web e app che hanno l'autorizzazione di accesso al microfono</translation>
 <translation id="7612497353238585898">Sito attivo</translation>
 <translation id="7612655942094160088">Attiva le funzionalità collegate al telefono.</translation>
@@ -10411,6 +10418,7 @@ Conserva il file di chiave in un luogo sicuro. Ti servirà per creare nuove vers
 <translation id="8387361103813440603">Non possono accedere alla tua posizione</translation>
 <translation id="8387617938027387193">Verifica la tua identità</translation>
 <translation id="8388770971141403598">I profili secondari non sono supportati</translation>
+<translation id="8389492867173948260">Permetti a questa estensione di leggere e modificare tutti i dati relativi ai siti web che visiti:</translation>
 <translation id="8390392581097975659">Installazione del software dello scanner in corso…</translation>
 <translation id="8390449457866780408">Server non disponibile.</translation>
 <translation id="8391218455464584335">Vinile</translation>
@@ -10878,6 +10886,7 @@ Conserva il file di chiave in un luogo sicuro. Ti servirà per creare nuove vers
 <translation id="8720200012906404956">Ricerca di una rete mobile in corso. <ph name="BEGIN_LINK" />Ulteriori informazioni<ph name="END_LINK" /></translation>
 <translation id="8720816553731218127">L'inizializzazione degli attributi installation-time è scaduta.</translation>
 <translation id="8721093493695533465">Questa operazione comporterà l'eliminazione di <ph name="TOTAL_USAGE" /> di dati memorizzati dai siti visualizzati e dalle app installate</translation>
+<translation id="8722605400356471529">Verifica di sicurezza</translation>
 <translation id="8724405322205516354">Quando vedi questa icona, usa l'impronta per identificarti o approvare gli acquisti.</translation>
 <translation id="8724409975248965964">Impronta aggiunta</translation>
 <translation id="8724859055372736596">Mo&amp;stra nella cartella</translation>

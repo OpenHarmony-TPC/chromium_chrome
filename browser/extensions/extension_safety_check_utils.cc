@@ -315,8 +315,8 @@ api::developer_private::SafetyCheckStrings GetSafetyCheckWarningStrings(
     case developer::SafetyCheckWarningReason::kOffstore:
       detail_string_id = IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE;
       panel_string_id = state == developer::ExtensionState::kEnabled
-                            ? IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_ON
-                            : IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_OFF;
+                            ? IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_ON_V2
+                            : IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_OFF_V2;
       break;
     case developer::SafetyCheckWarningReason::kUnpublished:
       detail_string_id = IDS_SAFETY_CHECK_EXTENSIONS_UNPUBLISHED;

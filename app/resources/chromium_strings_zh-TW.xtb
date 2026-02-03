@@ -96,6 +96,7 @@
 <translation id="2240214816234246077">由於近期沒有造訪記錄，Chromium 已移除「<ph name="PERMISSION_1" />」和「<ph name="PERMISSION_2" />」權限</translation>
 <translation id="2241627712206172106">如果你與親朋好友共用電腦，人人皆可享有獨立的瀏覽空間，依照自己的偏好設定 Chromium。</translation>
 <translation id="2313870531055795960">可使用儲存在 Chromium 中的不安全網站清單檢查網址。如果有網站試圖竊取你的密碼，或當你下載有害檔案時，Chromium 可能也會將網址 (包括部分網頁內容) 傳送給安全瀏覽功能。</translation>
+<translation id="2340553376566028509">已開啟 • 無法驗證此擴展程式的來源</translation>
 <translation id="2343156876103232566">如要將號碼從這裡傳送到 Android 手機，請在這兩部裝置上登入 Chromium。</translation>
 <translation id="2359808026110333948">繼續</translation>
 <translation id="2361918034042471035">擴充功能「<ph name="EXTENSION_NAME" />」要求你登入 Chromium</translation>
@@ -184,6 +185,7 @@
 <translation id="3406848076815591792">要切換至現有的 Chromium 設定檔嗎？</translation>
 <translation id="3412460710772753638">在這部裝置的密碼管理工具中更新</translation>
 <translation id="3430503420100763906">你可以運用 Chromium 設定檔區隔各種 Chromium 資料，例如建立親朋好友的專屬設定檔，或是依工作和娛樂需要建立不同設定檔。</translation>
+<translation id="3467729044755133349">已關閉 • 無法驗證此擴展程式的來源</translation>
 <translation id="347328004046849135">如果你使用遭外洩的密碼登入帳戶，Chromium 會通知你</translation>
 <translation id="3474745554856756813">登出後，系統會將 <ph name="ITEMS_COUNT" /> 個項目從這個裝置上刪除。日後如要重新取得你的資料，請以 <ph name="USER_EMAIL" /> 身分登入 Chromium。</translation>
 <translation id="3497319089134299931"><ph name="SHORTCUT" /> 可以切換不同的 Chromium 設定檔</translation>
@@ -540,7 +542,7 @@ Chromium 無法復原你的設定。</translation>
 <translation id="813913629614996137">正在初始化...</translation>
 <translation id="8166782796394721554">開啟 Chromium 的 JavaScript 和 WebAssembly 引擎額外防護</translation>
 <translation id="81770708095080097">這個檔案並不安全，因此遭到 Chromium 封鎖。</translation>
-<translation id="8203309434113072810">警告：瀏覽器無法阻止擴充程式記錄您的瀏覽活動。如要在無痕模式中停用這個擴充程式，請取消選取這個選項。</translation>
+<translation id="8203309434113072810">警告：瀏覽器無法禁止擴充功能記錄你的瀏覽記錄。如要在無痕模式中停用這個擴充功能，請取消選取這個選項。</translation>
 <translation id="8221491193165283816">你通常會封鎖通知。如要允許這個網站傳送通知給你，請按這裡。</translation>
 <translation id="8223363452568144035">如要使用攝影機，請在<ph name="BEGIN_LINK" />系統設定<ph name="END_LINK" />中授予 Chromium 存取權</translation>
 <translation id="8232193495299001329">Chromium 無法驗證擴充功能的來源，因此可能不安全。請從 Chromium 中移除這項擴充功能，使其無法再查看及變更你瀏覽網站時留下的資料，包括個人資訊。</translation>

@@ -1785,6 +1785,7 @@ Vous pouvez gérer les paramètres de ce compte en installant l'application Fami
 <translation id="2220572644011485463">Code ou mot de passe</translation>
 <translation id="222115440608612541">Permet de changer le thème au lever et au coucher du soleil</translation>
 <translation id="2221261048068091179"><ph name="FIRST_SWITCH" />, <ph name="SECOND_SWITCH" /></translation>
+<translation id="2221474331696610163">URL non valide.</translation>
 <translation id="222201875806112242">Source multimédia sans nom</translation>
 <translation id="2224337661447660594">Aucun accès à Internet</translation>
 <translation id="2224444042887712269">Ce paramètre appartient à <ph name="OWNER_EMAIL" />.</translation>
@@ -3273,6 +3274,7 @@ Vous pouvez gérer les paramètres de ce compte en installant l'application Fami
 <translation id="3278001907972365362">Vos comptes Google nécessitent votre attention</translation>
 <translation id="3279092821516760512">Certains contacts peuvent partager du contenu avec vous lorsqu'ils sont à proximité. Les transferts ne démarreront pas tant que vous ne les aurez pas acceptés.</translation>
 <translation id="3279230909244266691">Cette opération peut prendre quelques minutes. Démarrage de la machine virtuelle…</translation>
+<translation id="3280172912113104877">Cette extension ne peut pas accéder à d'autres sites.</translation>
 <translation id="3280237271814976245">Enregistrer &amp;sous...</translation>
 <translation id="3280243678470289153">Rester dans Chrome</translation>
 <translation id="3282210178675490297">Partage d'un onglet avec <ph name="APP_NAME" />…</translation>
@@ -3656,6 +3658,7 @@ Vous pouvez gérer les paramètres de ce compte en installant l'application Fami
 <translation id="3559079791149580653">Arrêter de caster l'écran sur <ph name="DEVICE_NAME" /></translation>
 <translation id="3559262020195162408">Échec de l'installation de la règle sur l'appareil.</translation>
 <translation id="3559533181353831840">Il reste environ <ph name="TIME_LEFT" /></translation>
+<translation id="3559702738171272112">Ajouter un site Internet</translation>
 <translation id="3560034655160545939">&amp;Correcteur orthographique</translation>
 <translation id="3561201631376780358">Ouvrir le panneau latéral pour voir tous les favoris</translation>
 <translation id="3562423906127931518">Cette opération peut prendre quelques minutes. Configuration du conteneur Linux…</translation>
@@ -5207,6 +5210,7 @@ Cela peut inclure des informations sur les logiciels installés, les fichiers, v
 <translation id="4642587497923912728">Steam pour Chromebook (bêta) n'est accessible qu'avec le premier compte qui s'est connecté à ce Chromebook.</translation>
 <translation id="4643612240819915418">Ou&amp;vrir la vidéo dans un nouvel onglet</translation>
 <translation id="4643833688073835173">Votre Chromebook utilise un capteur intégré pour détecter si une personne se trouve devant votre appareil. Toutes les données sont traitées sur votre appareil immédiatement, puis supprimées. Les données du capteur ne sont jamais transmises à Google.</translation>
+<translation id="4644205769234414680">Autoriser en navigation privée</translation>
 <translation id="4645322559577140968">{GROUP_COUNT,plural, =1{Supprimer le groupe d'onglets ?}one{Supprimer le groupe d'onglets ?}other{Supprimer les groupes d'onglets ?}}</translation>
 <translation id="4645575059429386691">Géré par ton parent</translation>
 <translation id="4645676300727003670">&amp;Conserver</translation>
@@ -5549,7 +5553,7 @@ Appuyez sur Ctrl+Alt+Baisser la luminosité pour faire un zoom arrière.</transl
 <translation id="48838266408104654">&amp;Gestionnaire de tâches</translation>
 <translation id="4884937942297374058">Protection renforcée désactivée</translation>
 <translation id="4884987973312178454">6x</translation>
-<translation id="3280172912113104877">Cette extension ne peut pas accéder à d'autres sites.</translation>
+<translation id="4885692421645694729">Cette extension n'a aucun accès supplémentaire au site</translation>
 <translation id="4887424188275796356">Ouvrir avec le lecteur système</translation>
 <translation id="488785315393301722">Afficher les détails</translation>
 <translation id="488862352499217187">Créer un dossier</translation>
@@ -6135,7 +6139,7 @@ Appuyez sur Ctrl+Alt+Baisser la luminosité pour faire un zoom arrière.</transl
 <translation id="5309641450810523897">Numéro de la demande d'assistance</translation>
 <translation id="5311304534597152726">Connexion en tant que</translation>
 <translation id="5312746996236433535">duplication d'écran</translation>
-<translation id="5313967007315987356">Ajouter un site Internet</translation>
+<translation id="5313967007315987356">Ajouter un site</translation>
 <translation id="5315738755890845852">Accolade supplémentaire : <ph name="ERROR_LINE" /></translation>
 <translation id="5317780077021120954">Enregistrer</translation>
 <translation id="5319712128756744240">Associer un nouvel appareil</translation>
@@ -7389,6 +7393,7 @@ Assurez-vous de ne pas dévoiler d'informations sensibles.</translation>
 <translation id="6234474535228214774">Installation en attente</translation>
 <translation id="6235208551686043831">La caméra de l'appareil est activée. Veuillez placer le QR code de votre eSIM face à la caméra.</translation>
 <translation id="6237297174664969437">Vous pouvez toujours choisir quelles données de navigateur seront synchronisées dans les paramètres de Chrome. Dans les <ph name="LINK_BEGIN" />paramètres des appareils<ph name="LINK_END" />, vous pouvez contrôler la synchronisation des applis Web installées à partir du navigateur Chrome. Google peut personnaliser la recherche et d'autres services en fonction de votre historique.</translation>
+<translation id="623736835601262897">Cette extension ne nécessite aucune autorisation spéciale.</translation>
 <translation id="6237474966939441970">Application de prise de notes avec le stylet</translation>
 <translation id="6237481151388361546">Modifiez votre connexion Internet et sélectionnez "Réessayer", ou choisissez "Ouvrir dans l'éditeur de base" pour utiliser des options d'affichage et de modification limitées.</translation>
 <translation id="623755660902014047">Mode Lecture</translation>
@@ -7635,6 +7640,7 @@ Assurez-vous de ne pas dévoiler d'informations sensibles.</translation>
 <translation id="641867537956679916">Votre administrateur s'est connecté pour examiner un problème. Vous pourrez continuer à utiliser l'appareil une fois que l'administrateur vous aura redonné le contrôle.</translation>
 <translation id="641899100123938294">Rechercher de nouveaux appareils</translation>
 <translation id="6419524191360800346">Une mise à niveau vers Debian 11 (Bullseye) est disponible</translation>
+<translation id="6419546358665792306">Charger l'extension non empaquetée</translation>
 <translation id="642469772702851743">Le propriétaire de cet appareil (n° de série : <ph name="SERIAL_NUMBER" />) l'a verrouillé.</translation>
 <translation id="6425556984042222041">Débit de parole de la synthèse vocale</translation>
 <translation id="642729974267661262">Non autorisé à lire des sons</translation>
@@ -9274,6 +9280,7 @@ Vous avez # autres mots de passe compromis. Le Gestionnaire de mots de passe Go
 <translation id="7609148976235050828">Veuillez vous connecter à Internet, puis réessayer.</translation>
 <translation id="7610337976012700501">Pour utiliser le <ph name="FEATURE_NAME" /> avec ces contacts, ajoutez à ceux-ci l'adresse e-mail associée à leur compte Google.</translation>
 <translation id="7611713099524036757">méta</translation>
+<translation id="7612050744024016345">Toutes les extensions</translation>
 <translation id="7612401678989660900">Autoriser l'accès pour les applis et sites Web avec l'autorisation d'accès au micro</translation>
 <translation id="7612497353238585898">Site actif</translation>
 <translation id="7612655942094160088">Activation des fonctionnalités connectées du téléphone.</translation>
@@ -10415,6 +10422,7 @@ Conservez votre fichier de clé en lieu sûr. Vous en aurez besoin lors de la cr
 <translation id="8387361103813440603">Non autorisé à connaître votre position</translation>
 <translation id="8387617938027387193">Confirmez votre identité</translation>
 <translation id="8388770971141403598">Profils secondaires non acceptés</translation>
+<translation id="8389492867173948260">Autorisez cette extension à lire et à modifier toutes vos données sur les sites Web que vous consultez :</translation>
 <translation id="8390392581097975659">Installation du logiciel du scanner…</translation>
 <translation id="8390449457866780408">Serveur indisponible.</translation>
 <translation id="8391218455464584335">Vinyle</translation>
@@ -10882,6 +10890,7 @@ Conservez votre fichier de clé en lieu sûr. Vous en aurez besoin lors de la cr
 <translation id="8720200012906404956">Recherche d'un réseau mobile… <ph name="BEGIN_LINK" />En savoir plus<ph name="END_LINK" /></translation>
 <translation id="8720816553731218127">Le délai alloué à l'initialisation des attributs de temps d'installation a expiré.</translation>
 <translation id="8721093493695533465">Cela effacera <ph name="TOTAL_USAGE" /> des données stockées par les sites affichés et les applis installées</translation>
+<translation id="8722605400356471529">Contrôle de sécurité</translation>
 <translation id="8724405322205516354">Quand vous verrez cette icône, utilisez votre empreinte pour vous identifier ou approuver des achats.</translation>
 <translation id="8724409975248965964">Empreinte digitale ajoutée</translation>
 <translation id="8724859055372736596">&amp;Afficher dans le dossier</translation>
