@@ -321,9 +321,8 @@ api::developer_private::SafetyCheckStrings GetSafetyCheckWarningStrings(
       break;
     case developer::SafetyCheckWarningReason::kUnpublished:
       detail_string_id = IDS_SAFETY_CHECK_EXTENSIONS_UNPUBLISHED;
-      panel_string_id = state == developer::ExtensionState::kEnabled
-                            ? IDS_EXTENSIONS_SC_UNPUBLISHED_ON
-                            : IDS_EXTENSIONS_SC_UNPUBLISHED_OFF;
+      panel_string_id = state == developer::ExtensionState::kEnabled ? IDS_EXTENSIONS_SC_UNPUBLISHED_ON
+                                                                     : IDS_EXTENSIONS_SC_UNPUBLISHED_OFF;
       break;
     case developer::SafetyCheckWarningReason::kNone:
       break;
