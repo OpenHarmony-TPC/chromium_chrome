@@ -92,6 +92,7 @@
 <translation id="2199210295479376551">从 Chromium 中移除账号</translation>
 <translation id="2210682093923538346">危险网站。Chromium 移除了通知权限。</translation>
 <translation id="2236949375853147973">我的活动记录</translation>
+<translation id="2238104961394611930">已开启 • 无法验证此扩展程序的来源</translation>
 <translation id="2240214816234246077">您近期未访问过该网站。Chromium 移除了<ph name="PERMISSION_1" />和<ph name="PERMISSION_2" />权限</translation>
 <translation id="2241627712206172106">如果您与亲朋好友共用计算机，他们将能够使用单独的账号进行浏览，并可随心所欲地设置Chromium。</translation>
 <translation id="2313870531055795960">将网址与存储在 Chromium 中的不安全网站列表进行比对。如果某个网站企图窃取您的密码，或者您下载了有害的文件，Chromium 可能还会将相应网址连同少量网页内容发送给“安全浏览”功能。</translation>
@@ -449,6 +450,7 @@
 <translation id="685279860330610299">Chromium 可以理解更多类型的信息，并更快地自动填充表单。详细了解 <ph name="BEGIN_LINK" />Chrome 自动填充功能<ph name="END_LINK" /></translation>
 <translation id="6857782730669500492">Chromium - <ph name="PAGE_TITLE" /></translation>
 <translation id="6873893289264747459">Chromium 发现“<ph name="EXTENSION_NAME" />”包含恶意软件</translation>
+<translation id="6885534934768077023">警告：浏览器无法阻止扩展程序记录您的浏览活动。若要在无痕模式下停用该扩展程序，请取消选中此项。</translation>
 <translation id="6896758677409633944">复制</translation>
 <translation id="6929417474050522668">在试用期间，Ad measurement 允许您访问的网站向 Chromium 请求信息来对网站上的广告进行效果衡量。Ad measurement 会在网站间传输尽可能少的信息，从而限制跨网站跟踪。</translation>
 <translation id="6940431691900807093">之后，您访问的网站可向 Chromium 请求查看您的兴趣，以便向您展示个性化广告。Chromium 最多可共享 3 项兴趣信息。</translation>
@@ -499,6 +501,7 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="7582945390259497898">Chromium 可以推测出您的兴趣。之后，您访问的网站可向 Chromium 请求查看您的兴趣，以便向您展示个性化广告。</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> 安装程序</translation>
 <translation id="7585391435984513350">您近期未访问过该网站。Chromium 移除了<ph name="PERMISSION" />权限</translation>
+<translation id="7597668698051545254">已关闭 • 无法验证此扩展程序的来源</translation>
 <translation id="761356813943268536">Chromium 正在使用您的摄像头和麦克风。</translation>
 <translation id="7617377681829253106">Chromium现在更好用了</translation>
 <translation id="7649070708921625228">帮助</translation>
