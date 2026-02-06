@@ -295,34 +295,40 @@ api::developer_private::SafetyCheckStrings GetSafetyCheckWarningStrings(
       break;
     case developer::SafetyCheckWarningReason::kPolicy:
       detail_string_id = IDS_SAFETY_CHECK_EXTENSIONS_POLICY_VIOLATION;
-      panel_string_id = state == developer::ExtensionState::kEnabled ? IDS_EXTENSIONS_SC_POLICY_VIOLATION_ON
-                                                                     : IDS_EXTENSIONS_SC_POLICY_VIOLATION_OFF;
+      panel_string_id = state == developer::ExtensionState::kEnabled
+                            ? IDS_EXTENSIONS_SC_POLICY_VIOLATION_ON
+                            : IDS_EXTENSIONS_SC_POLICY_VIOLATION_OFF;
       break;
     case developer::SafetyCheckWarningReason::kUnwanted:
       detail_string_id = IDS_SAFETY_CHECK_EXTENSIONS_POLICY_VIOLATION;
-      panel_string_id = state == developer::ExtensionState::kEnabled ? IDS_EXTENSIONS_SC_POLICY_VIOLATION_ON
-                                                                     : IDS_EXTENSIONS_SC_POLICY_VIOLATION_OFF;
+      panel_string_id = state == developer::ExtensionState::kEnabled
+                            ? IDS_EXTENSIONS_SC_POLICY_VIOLATION_ON
+                            : IDS_EXTENSIONS_SC_POLICY_VIOLATION_OFF;
       break;
     case developer::SafetyCheckWarningReason::kNoPrivacyPractice:
       detail_string_id = IDS_EXTENSIONS_SAFETY_CHECK_NO_PRIVACY_PRACTICES;
-      panel_string_id = state == developer::ExtensionState::kEnabled
-                            ? IDS_EXTENSIONS_SAFETY_CHECK_NO_PRIVACY_PRACTICES_ON
-                            : IDS_EXTENSIONS_SAFETY_CHECK_NO_PRIVACY_PRACTICES_OFF;
+      panel_string_id =
+          state == developer::ExtensionState::kEnabled
+              ? IDS_EXTENSIONS_SAFETY_CHECK_NO_PRIVACY_PRACTICES_ON
+              : IDS_EXTENSIONS_SAFETY_CHECK_NO_PRIVACY_PRACTICES_OFF;
       break;
     case developer::SafetyCheckWarningReason::kOffstore:
       detail_string_id = IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE;
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-      panel_string_id = state == developer::ExtensionState::kEnabled ? IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_ON_V2
-                                                                     : IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_OFF_V2;
+      panel_string_id = state == developer::ExtensionState::kEnabled
+                            ? IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_ON_V2
+                            : IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_OFF_V2;
 #else
-      panel_string_id = state == developer::ExtensionState::kEnabled ? IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_ON
-                                                                     : IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_OFF;
+      panel_string_id = state == developer::ExtensionState::kEnabled
+                            ? IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_ON
+                            : IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_OFF;
 #endif
       break;
     case developer::SafetyCheckWarningReason::kUnpublished:
       detail_string_id = IDS_SAFETY_CHECK_EXTENSIONS_UNPUBLISHED;
-      panel_string_id = state == developer::ExtensionState::kEnabled ? IDS_EXTENSIONS_SC_UNPUBLISHED_ON
-                                                                     : IDS_EXTENSIONS_SC_UNPUBLISHED_OFF;
+      panel_string_id = state == developer::ExtensionState::kEnabled
+                            ? IDS_EXTENSIONS_SC_UNPUBLISHED_ON
+                            : IDS_EXTENSIONS_SC_UNPUBLISHED_OFF;
       break;
     case developer::SafetyCheckWarningReason::kNone:
       break;
