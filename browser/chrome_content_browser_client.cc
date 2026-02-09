@@ -7919,6 +7919,13 @@ bool ChromeContentBrowserClient::ShouldBlockRendererDebugURL(
   }
 #endif
 
+#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
+  if (render_frame_host &&
+      ChromeContentBrowserClientUtils::BlockIfNotTrustUrl(url, render_frame_host)) {
+    return true;
+  }
+#endif
+
   // If the debug URL being visited is listed in the URLBlocklist policy it
   // should be blocked.
   PolicyBlocklistService* service =
