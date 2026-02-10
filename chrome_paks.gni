@@ -181,6 +181,10 @@ template("chrome_extra_paks") {
       sources += [ "$root_gen_dir/arkweb/ohos_autolayout/autolayout_resources.pak" ]
       deps += [ "//arkweb/ohos_autolayout:autolayout_resources" ]
     }
+    if (arkweb_ai) {
+      sources += [ "$root_gen_dir/ohos_resources/content_change_detection/content_change_detection_resources.pak" ]
+      deps += [ "//ohos_resources/content_change_detection:content_change_detection_resources" ]
+    }
     if (!is_android) {
       # New paks should be added here by default.
       sources += [
