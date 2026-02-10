@@ -7250,6 +7250,9 @@ content::BluetoothDelegate* ChromeContentBrowserClient::GetBluetoothDelegate() {
 }
 
 content::UsbDelegate* ChromeContentBrowserClient::GetUsbDelegate() {
+#if BUILDFLAG(IS_ARKWEB)
+  return nullptr;
+#endif
   if (!usb_delegate_)
     usb_delegate_ = std::make_unique<ChromeUsbDelegate>();
   return usb_delegate_.get();
