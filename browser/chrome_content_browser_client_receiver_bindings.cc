@@ -144,6 +144,10 @@
 #include "arkweb/chromium_ext/components/subresource_filter/content/browser/arkweb_content_subresource_filter_throttle_manager_ext.h"
 #endif  // ARKWEB_ADBLOCK
 
+#if BUILDFLAG(ARKWEB_MEDIA_CAPABILITIES_ENHANCE)
+#include "arkweb/chromium_ext/content/browser/media/ohos/ohos_video_experience_reporter.h"
+#endif // ARKWEB_MEDIA_CAPABILITIES_ENHANCE
+
 namespace {
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
@@ -361,6 +365,11 @@ void ChromeContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   map->Add<dom_distiller::mojom::DistillabilityService>(
       base::BindRepeating(&BindDistillabilityService));
 #endif
+
+#if BUILDFLAG(ARKWEB_MEDIA_CAPABILITIES_ENHANCE)
+  map->Add<blink::mojom::VideoExperienceReporter>(base::BindRepeating(
+      &content::OHOSVideoExperienceReporter::CreateForFrameHost));
+#endif // ARKWEB_MEDIA_CAPABILITIES_ENHANCE
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   const GURL& site = render_frame_host->GetSiteInstance()->GetSiteURL();
