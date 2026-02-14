@@ -255,6 +255,7 @@
 <translation id="116896278675803795">Dili, seçilen içerikle eşleşecek şekilde otomatik olarak değiştir</translation>
 <translation id="1169266963600477608">Oyun denetimleri</translation>
 <translation id="1169435433292653700"><ph name="FILE_NAME" /> adlı dosya, hassas veya tehlikeli veriler içeriyor. Yöneticinizin mesajı: "<ph name="CUSTOM_MESSAGE" />"</translation>
+<translation id="1171126916421636890">Açıklama yok</translation>
 <translation id="1171515578268894665"><ph name="ORIGIN" /> bir HID cihazına bağlanmak istiyor</translation>
 <translation id="1172750555846831341">Kısa kenardan çevir</translation>
 <translation id="1173036203040243666">Bu sekme bir Bluetooth Cihazına bağlı</translation>
@@ -1392,7 +1393,7 @@ Uygulamalara vermiş olduğunuz izinler bu hesap için geçerli olabilir. Androi
 <translation id="1949849604471335579">Duvar kağıdı, ekran koruyucu, vurgu rengi ve diğer özellikleri kişiselleştirin</translation>
 <translation id="1949980990364952348">Uygulama adı</translation>
 <translation id="1951012854035635156">Asistan</translation>
-<translation id="1951823516285577843">Alternatif uzantı bul</translation>
+<translation id="1951823516285577843">Alternatif bul</translation>
 <translation id="1953796913175502363">İş profilinizi oluşturun</translation>
 <translation id="1954597385941141174">Siteler USB cihazlara bağlanmak isteyebilir</translation>
 <translation id="1954813140452229842">Paylaşım eklenirken hata oluştu. Lütfen kimlik bilgilerinizi kontrol edin ve tekrar deneyin.</translation>
@@ -3026,7 +3027,7 @@ Sunucunun mesajı: <ph name="SERVER_MSG" /></translation>
 <translation id="3083899879156272923">Fareyi ekranın ortasında tutarak ekranı taşı</translation>
 <translation id="3083998949001524405">Üçüncü taraf çerezlerini kullanmasına izin verilen siteler</translation>
 <translation id="3084121729444215602"><ph name="EXTENSION_NAME" />, yöneticiniz tarafından sabitlendi</translation>
-<translation id="3084548735795614657">Yükleme hedefi</translation>
+<translation id="3084548735795614657">Yüklemek için bırakın</translation>
 <translation id="3084771660770137092">Ya Chrome'da bellek kalmadı ya da web sayfasına ait işlem başka bir nedenden dolayı sonlandırıldı. Devam etmek için yeniden yükleyin veya başka bir sayfaya gidin.</translation>
 <translation id="3085412380278336437">Site, kameranızı kullanabilir</translation>
 <translation id="3085431803365340433">Chrome tarayıcı güncellenemedi</translation>
@@ -5746,7 +5747,7 @@ Uzaklaştırmak için Ctrl + Alt + Parlaklığı Azalt tuşlarını kullanın.</
 <translation id="5038621320029329200">Güvenilen Sertifikalar</translation>
 <translation id="5038818366306248416">Daha önce <ph name="ORIGIN" /> adresinde uzantılara izin vermemeyi seçtiniz</translation>
 <translation id="5039071832298038564">Cihaz ağ bilgileri</translation>
-<translation id="5039804452771397117">İzin ver</translation>
+<translation id="5039804452771397117">İzin veriyorum</translation>
 <translation id="5040262127954254034">Gizlilik</translation>
 <translation id="5040823038948176460">Ek içerik ayarları</translation>
 <translation id="5041509233170835229">Chrome Uygulaması</translation>
@@ -5787,6 +5788,7 @@ Uzaklaştırmak için Ctrl + Alt + Parlaklığı Azalt tuşlarını kullanın.</
 <translation id="5068553687099139861">şifreleri göstermek</translation>
 <translation id="506886127401228110">Yalıtılmış web uygulamalarını etkinleştir</translation>
 <translation id="5068919226082848014">Pizza</translation>
+<translation id="5068995096404904646">İçerik yok</translation>
 <translation id="5071295820492622726">Son indirilenlere geri dönün</translation>
 <translation id="5071892329440114717">Standart koruma ayrıntılarını göster</translation>
 <translation id="5072303130033714629">İçerik Aktarımı aracı</translation>
@@ -8432,7 +8434,7 @@ Sızdırılmış # şifreniz daha var. Google Şifre Yöneticisi bu şifreleri h
 <translation id="6983890893900549383">escape</translation>
 <translation id="698428203349952091">Siteyi izin verilmeyenler listesine ekle</translation>
 <translation id="6985235333261347343">Microsoft Anahtar Kurtarma Aracısı</translation>
-<translation id="698524779381350301">Aşağıdaki sitelerde erişime otomatik olarak izin ver</translation>
+<translation id="698524779381350301">Aşağıdaki sitelere erişime otomatik olarak izin ver</translation>
 <translation id="6985607387932385770">Yazıcılar</translation>
 <translation id="6988094684494323731">Linux kapsayıcısı başlatılıyor</translation>
 <translation id="6988403677482707277">Sekme, sekme şeridinin başına taşındı</translation>
@@ -8917,6 +8919,7 @@ Sızdırılmış # şifreniz daha var. Google Şifre Yöneticisi bu şifreleri h
 <translation id="7348920948593871738">Kamera, Mac Sistem Ayarları'nda kapatıldı</translation>
 <translation id="7349010927677336670">Videonun Düzgün Oynatılması</translation>
 <translation id="7350327333026851413">{COUNT,plural, =1{{COUNT} şifre yalnızca bu cihaza kaydedilir}other{{COUNT} şifre yalnızca bu cihaza kaydedilir}}</translation>
+<translation id="7351036311845404642">Yığın izi</translation>
 <translation id="7352651011704765696">Bir şeyler ters gitti</translation>
 <translation id="7352664183151911163">Uygulamalarınızda ve Chrome tarayıcıda</translation>
 <translation id="7353261921908507769">Kişileriniz yakındayken sizinle içerik paylaşabilirler. Siz kabul edene kadar aktarım başlamaz.</translation>
@@ -9870,6 +9873,7 @@ Anahtar dosyanızı güvenli bir yerde saklayın. Uzantınızın yeni sürümler
 <translation id="8005600846065423578"><ph name="HOST" /> sitesinin panoyu görmesine her zaman izin ver</translation>
 <translation id="8006630792898017994">Boşluk veya Sekme tuşu</translation>
 <translation id="8006906484704059308">Bu sitenin, MIDI cihazlarımı kontrol etmesini ve yeniden programlamasını engellemeye devam et</translation>
+<translation id="8008098599765575085">Bu uzantı site bilgilerini okuyabilir ve değiştirebilir veya arka planda çalışabilir</translation>
 <translation id="8008356846765065031">İnternet bağlantısı kesildi. Lütfen İnternet bağlantınızı kontrol edin.</translation>
 <translation id="8008704580256716350">Şüpheli dosya engellendi</translation>
 <translation id="8009196983040865987">Sekme Düzenleyici'yi kullandığınızda açık sekmelerinizin başlıkları ve URL'leri, önerilen sekme grupları oluşturmak için Google'a gönderilir.</translation>
@@ -10053,7 +10057,7 @@ Anahtar dosyanızı güvenli bir yerde saklayın. Uzantınızın yeni sürümler
 <translation id="8135557862853121765"><ph name="NUM_KILOBYTES" />K</translation>
 <translation id="8136269678443988272">Girdiğiniz PIN'ler eşleşmiyor</translation>
 <translation id="8137559199583651773">Uzantıları yönet</translation>
-<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Güvenli olmayabilecek 1 uzantıyı inceleyin}other{Güvenli olmayabilecek {NUM_EXTENSIONS} uzantıyı inceleyin}}</translation>
+<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Güvenli olmayabilecek {NUM_EXTENSIONS} uzantıyı gözden geçirin}other{Güvenli olmayabilecek {NUM_EXTENSIONS} uzantıyı gözden geçirin}}</translation>
 <translation id="8138217203226449454">Arama sağlayıcınızı değiştirmek mi istediniz?</translation>
 <translation id="8138997515734480534"><ph name="VM_NAME" /> durumu</translation>
 <translation id="8139440916039659819">İmleç hızlandırması</translation>
@@ -11384,6 +11388,7 @@ Web sitelerine ve uygulamalara verdiğiniz izinler, bu hesap için geçerli olab
 <translation id="9062468308252555888">14x</translation>
 <translation id="9063208415146866933"><ph name="ERROR_LINE_START" />. ila <ph name="ERROR_LINE_END" />. satır arasında hata</translation>
 <translation id="9064275926664971810">Formları tek bir tıklamayla doldurmak için Otomatik Doldur özelliğini etkinleştirir</translation>
+<translation id="9064735624474258556">Bu uzantı site bilgilerini okuyamaz ve değiştiremez veya arka planda çalışamaz</translation>
 <translation id="9065203028668620118">Düzenle</translation>
 <translation id="9066394310994446814">Bunu, daha önce Google hizmetlerini kullandığınız için görüyorsunuz. Verilerinizi <ph name="BEGIN_LINK1" />myactivity.google.com<ph name="END_LINK1" /> adresinde görebilir, silebilir ve değiştirebilirsiniz.
         <ph name="BREAK" />

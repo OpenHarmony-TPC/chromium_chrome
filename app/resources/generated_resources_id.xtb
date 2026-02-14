@@ -255,6 +255,7 @@ Periksa sandi Anda kapan saja di <ph name="GOOGLE_PASSWORD_MANAGER" />.</transla
 <translation id="116896278675803795">Ubah bahasa secara otomatis agar cocok dengan konten yang dipilih</translation>
 <translation id="1169266963600477608">Kontrol game</translation>
 <translation id="1169435433292653700"><ph name="FILE_NAME" /> berisi data sensitif atau berbahaya. Administrator Anda menyatakan: "<ph name="CUSTOM_MESSAGE" />"</translation>
+<translation id="1171126916421636890">Tidak ada deskripsi yang tersedia</translation>
 <translation id="1171515578268894665"><ph name="ORIGIN" /> ingin terhubung ke perangkat HID</translation>
 <translation id="1172750555846831341">Balik di sisi pendek</translation>
 <translation id="1173036203040243666">Tab ini terhubung ke perangkat Bluetooth</translation>
@@ -1402,7 +1403,7 @@ Izin yang telah Anda berikan ke aplikasi dapat berlaku untuk akun ini. Anda dapa
 <translation id="1949849604471335579">Personalisasi wallpaper, screensaver, warna aksen, dan lainnya</translation>
 <translation id="1949980990364952348">Nama aplikasi</translation>
 <translation id="1951012854035635156">Asisten</translation>
-<translation id="1951823516285577843">Cari alternatif</translation>
+<translation id="1951823516285577843">Temukan alternatif</translation>
 <translation id="1953796913175502363">Siapkan profil kerja Anda</translation>
 <translation id="1954597385941141174">Situs dapat meminta untuk terhubung ke perangkat USB</translation>
 <translation id="1954813140452229842">Error saat memasang URL berbagi. Periksa kredensial Anda dan coba lagi.</translation>
@@ -3041,7 +3042,7 @@ Anda dapat mengelola setelan akun ini dengan menginstal aplikasi Family Link di 
 <translation id="3083899879156272923">Pindahkan layar sambil mempertahankan mouse di tengah layar</translation>
 <translation id="3083998949001524405">Diizinkan menggunakan cookie pihak ketiga</translation>
 <translation id="3084121729444215602"><ph name="EXTENSION_NAME" /> disematkan oleh Administrator</translation>
-<translation id="3084548735795614657">Lepaskan untuk memasang</translation>
+<translation id="3084548735795614657">Letakkan untuk memasang</translation>
 <translation id="3084771660770137092">Chrome kehabisan memori atau proses untuk halaman web dihentikan karena beberapa alasan lain. Untuk melanjutkan, muat ulang atau buka halaman lain.</translation>
 <translation id="3085412380278336437">Situs dapat menggunakan kamera Anda</translation>
 <translation id="3085431803365340433">Browser Chrome tidak dapat diupdate</translation>
@@ -5751,7 +5752,7 @@ Gunakan Ctrl + Alt + Kurangi kecerahan untuk memperkecil.</translation>
 <translation id="5026806129670917316">Aktifkan Wi-Fi</translation>
 <translation id="5026874946691314267">Jangan tampilkan pemberitahuan ini lagi</translation>
 <translation id="5027550639139316293">Sertifikat Email</translation>
-<translation id="5027562294707732951">Tambahkan ekstensi</translation>
+<translation id="5027562294707732951">Tambah ekstensi</translation>
 <translation id="5029287942302939687">Sandi Anda telah disetel</translation>
 <translation id="5029873138381728058">Gagal memeriksa VM</translation>
 <translation id="503155457707535043">Aplikasi sedang didownload</translation>
@@ -5804,6 +5805,7 @@ Gunakan Ctrl + Alt + Kurangi kecerahan untuk memperkecil.</translation>
 <translation id="5068553687099139861">menampilkan sandi</translation>
 <translation id="506886127401228110">Aktifkan aplikasi web terisolasi</translation>
 <translation id="5068919226082848014">Pizza</translation>
+<translation id="5068995096404904646">Tidak ada apa pun di sini</translation>
 <translation id="5071295820492622726">Kembali ke download terbaru</translation>
 <translation id="5071892329440114717">Tampilkan detail perlindungan standar</translation>
 <translation id="5072303130033714629">Alat Transfer Konten</translation>
@@ -6891,7 +6893,7 @@ Izin yang telah Anda berikan ke situs dan aplikasi dapat berlaku untuk akun ini.
 <translation id="5857693745746757503">Hemat $50 atau lebih untuk Chromebook baru, jika Anda melakukan upgrade hari ini</translation>
 <translation id="5858490737742085133">Terminal</translation>
 <translation id="585979798156957858">Meta Eksternal</translation>
-<translation id="5860033963881614850">Nonaktif</translation>
+<translation id="5860033963881614850">Mati</translation>
 <translation id="5860254591544742609">Tampilkan panel judul</translation>
 <translation id="5860335608673904825">penelusuran + ctrl + shift + <ph name="TOP_ROW_KEY" /></translation>
 <translation id="5860491529813859533">Aktifkan</translation>
@@ -8449,7 +8451,7 @@ Anda memiliki # sandi lainnya yang telah dibobol. Pengelola Sandi Google merekom
 <translation id="6983890893900549383">escape</translation>
 <translation id="698428203349952091">Tambahkan situs ke daftar yang tidak diizinkan</translation>
 <translation id="6985235333261347343">Microsoft Key Recovery Agent</translation>
-<translation id="698524779381350301">Otomatis izinkan akses pada situs berikut</translation>
+<translation id="698524779381350301">Otomatis izinkan akses di situs berikut</translation>
 <translation id="6985607387932385770">Printer</translation>
 <translation id="6988094684494323731">Memulai container Linux</translation>
 <translation id="6988403677482707277">Tab dipindahkan ke awal tabstrip</translation>
@@ -8934,6 +8936,7 @@ Anda memiliki # sandi lainnya yang telah dibobol. Pengelola Sandi Google merekom
 <translation id="7348920948593871738">Kamera dinonaktifkan di Setelan Sistem Mac</translation>
 <translation id="7349010927677336670">Kelancaran Video</translation>
 <translation id="7350327333026851413">{COUNT,plural, =1{{COUNT} sandi hanya disimpan ke perangkat ini}other{{COUNT} sandi hanya disimpan ke perangkat ini}}</translation>
+<translation id="7351036311845404642">Jejak tumpukan</translation>
 <translation id="7352651011704765696">Terjadi error</translation>
 <translation id="7352664183151911163">Di seluruh aplikasi dan browser Chrome Anda</translation>
 <translation id="7353261921908507769">Kontak dapat berbagi dengan Anda saat mereka berada di sekitar. Transfer tidak akan dimulai sampai Anda menerimanya.</translation>
@@ -9887,6 +9890,7 @@ Simpan file kunci Anda di tempat yang aman. Anda akan membutuhkannya untuk membu
 <translation id="8005600846065423578">Selalu izinkan <ph name="HOST" /> melihat papan klip</translation>
 <translation id="8006630792898017994">Spasi atau Tab</translation>
 <translation id="8006906484704059308">Terus blokir situs ini agar tidak mengontrol dan memprogram ulang perangkat MIDI Anda</translation>
+<translation id="8008098599765575085">Ekstensi ini dapat membaca dan mengubah informasi situs atau berjalan di latar belakang</translation>
 <translation id="8008356846765065031">Internet terputus. Periksa koneksi internet Anda.</translation>
 <translation id="8008704580256716350">File mencurigakan diblokir</translation>
 <translation id="8009196983040865987">Saat Anda menggunakan fitur Pengelola tab, judul dan URL tab yang terbuka akan dikirim ke Google untuk membuat grup tab yang disarankan</translation>
@@ -10070,7 +10074,7 @@ Simpan file kunci Anda di tempat yang aman. Anda akan membutuhkannya untuk membu
 <translation id="8135557862853121765"><ph name="NUM_KILOBYTES" />ribu</translation>
 <translation id="8136269678443988272">PIN yang Anda masukkan tidak cocok</translation>
 <translation id="8137559199583651773">Kelola ekstensi</translation>
-<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Tinjau 1 ekstensi yang mungkin tidak aman}other{Tinjau {NUM_EXTENSIONS} ekstensi yang mungkin tidak aman}}</translation>
+<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, other{Tinjau {NUM_EXTENSIONS} ekstensi yang mungkin tidak aman}}</translation>
 <translation id="8138217203226449454">Apakah Anda bermaksud mengubah penyedia penelusuran?</translation>
 <translation id="8138997515734480534">Status <ph name="VM_NAME" /></translation>
 <translation id="8139440916039659819">Akselerasi kursor</translation>
@@ -11401,6 +11405,7 @@ Izin yang telah Anda berikan ke situs dan aplikasi dapat berlaku untuk akun ini.
 <translation id="9062468308252555888">14x</translation>
 <translation id="9063208415146866933">Error dari baris <ph name="ERROR_LINE_START" /> ke <ph name="ERROR_LINE_END" /></translation>
 <translation id="9064275926664971810">Aktifkan IsiOtomatis untuk mengisi formulir dengan sekali klik</translation>
+<translation id="9064735624474258556">Ekstensi ini tidak dapat membaca dan mengubah informasi situs atau berjalan di latar belakang</translation>
 <translation id="9065203028668620118">Edit</translation>
 <translation id="9066394310994446814">Item ini ditampilkan berdasarkan aktivitas Anda sebelumnya saat menggunakan layanan Google. Anda dapat melihat atau menghapus data dan mengubah setelan di <ph name="BEGIN_LINK1" />myactivity.google.com<ph name="END_LINK1" />.
         <ph name="BREAK" />
