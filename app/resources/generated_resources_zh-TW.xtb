@@ -256,6 +256,7 @@
 <translation id="116896278675803795">根據所選內容自動變更為相符的語言</translation>
 <translation id="1169266963600477608">遊戲控制項</translation>
 <translation id="1169435433292653700">「<ph name="FILE_NAME" />」含有機密或危險的資料。管理員訊息：「<ph name="CUSTOM_MESSAGE" />」</translation>
+<translation id="1171126916421636890">未提供說明</translation>
 <translation id="1171515578268894665"><ph name="ORIGIN" /> 要求與 HID 裝置連線</translation>
 <translation id="1172750555846831341">短邊翻頁</translation>
 <translation id="1173036203040243666">這個分頁已連線至藍牙裝置</translation>
@@ -1395,7 +1396,7 @@
 <translation id="1949849604471335579">根據個人喜好設定桌布、螢幕保護程式、強調色等項目</translation>
 <translation id="1949980990364952348">應用程式名稱</translation>
 <translation id="1951012854035635156">小幫手</translation>
-<translation id="1951823516285577843">尋找替代擴充功能</translation>
+<translation id="1951823516285577843">尋找替代擴充程式</translation>
 <translation id="1953796913175502363">設定工作資料夾</translation>
 <translation id="1954597385941141174">網站可以要求連線至 USB 裝置</translation>
 <translation id="1954813140452229842">掛接共用裝置時發生錯誤。請檢查你的憑證，然後再試一次。</translation>
@@ -3255,7 +3256,7 @@
 <translation id="3262336253311870293">這是由 <ph name="DOMAIN" /> 管理的帳戶，因此你將不會登出自己的 Google 帳戶。系統將不再同步書籤、歷史記錄、密碼和其他設定，但先前已同步的資料仍儲存在 Google 帳戶，你可以前往 <ph name="BEGIN_LINK" />Google 資訊主頁<ph name="END_LINK" />管理。</translation>
 <translation id="3262986719682892278">檔案過大</translation>
 <translation id="3264544094376351444">Sans-serif 字型</translation>
-<translation id="3264582393905923483">內容</translation>
+<translation id="3264582393905923483">上下文</translation>
 <translation id="3265459715026181080">關閉視窗</translation>
 <translation id="3266022278425892773">Linux 開發環境</translation>
 <translation id="3266030505377585301">如果只要刪除這部裝置上的瀏覽資料，但保留 Google 帳戶中的資料，請先<ph name="BEGIN_LINK" />登出<ph name="END_LINK" />。</translation>
@@ -5742,7 +5743,7 @@
 <translation id="5026806129670917316">開啟 Wi-Fi</translation>
 <translation id="5026874946691314267">不要再顯示這則通知</translation>
 <translation id="5027550639139316293">電子郵件憑證</translation>
-<translation id="5027562294707732951">新增擴充功能</translation>
+<translation id="5027562294707732951">新增擴充程式</translation>
 <translation id="5029287942302939687">密碼已設定完成</translation>
 <translation id="5029873138381728058">無法檢查 VM</translation>
 <translation id="503155457707535043">正在下載應用程式</translation>
@@ -5795,6 +5796,7 @@
 <translation id="5068553687099139861">顯示密碼</translation>
 <translation id="506886127401228110">開啟隔離網頁應用程式</translation>
 <translation id="5068919226082848014">披薩</translation>
+<translation id="5068995096404904646">此處沒有任何通知，繼續往下進行。</translation>
 <translation id="5071295820492622726">返回近期下載內容</translation>
 <translation id="5071892329440114717">顯示標準保護措施詳細資料</translation>
 <translation id="5072303130033714629">內容轉移應用程式工具</translation>
@@ -8435,7 +8437,7 @@
 <translation id="6983890893900549383">Escape 鍵</translation>
 <translation id="698428203349952091">將網站加入封鎖清單</translation>
 <translation id="6985235333261347343">Microsoft 金鑰修復代理程式</translation>
-<translation id="698524779381350301">自動授予下列網站的存取權限</translation>
+<translation id="698524779381350301">自動允許存取以下網站</translation>
 <translation id="6985607387932385770">印表機</translation>
 <translation id="6988094684494323731">正在啟動 Linux 容器</translation>
 <translation id="6988403677482707277">分頁已移動到分頁列開頭</translation>
@@ -8920,6 +8922,7 @@
 <translation id="7348920948593871738">Mac 系統設定中已關閉攝影機</translation>
 <translation id="7349010927677336670">視訊流暢度</translation>
 <translation id="7350327333026851413">{COUNT,plural, =1{這 {COUNT} 個密碼只會儲存到這部裝置}other{這 {COUNT} 個密碼只會儲存到這部裝置}}</translation>
+<translation id="7351036311845404642">堆疊追蹤</translation>
 <translation id="7352651011704765696">發生錯誤</translation>
 <translation id="7352664183151911163">涵蓋所有應用程式和 Chrome 瀏覽器</translation>
 <translation id="7353261921908507769">聯絡人在附近時可與你分享內容。系統會先確認你是否同意，然後才會開始進行資料傳輸作業。</translation>
@@ -9875,6 +9878,7 @@
 <translation id="8005600846065423578">一律允許 <ph name="HOST" /> 讀取剪貼簿</translation>
 <translation id="8006630792898017994">空格鍵或 Tab 鍵</translation>
 <translation id="8006906484704059308">繼續禁止這個網站控制 MIDI 裝置及重設程式</translation>
+<translation id="8008098599765575085">此擴充程式可能會讀取和變更網站資訊，或者在背景執行</translation>
 <translation id="8008356846765065031">網路連線中斷，請檢查你的網際網路連線。</translation>
 <translation id="8008704580256716350">已封鎖可疑檔案</translation>
 <translation id="8009196983040865987">使用分頁整理工具時，系統會將開啟的分頁標題和網址傳送給 Google，以產生建議的分頁群組</translation>
@@ -10058,7 +10062,7 @@
 <translation id="8135557862853121765"><ph name="NUM_KILOBYTES" />K</translation>
 <translation id="8136269678443988272">你輸入的 PIN 碼不相符</translation>
 <translation id="8137559199583651773">管理擴充功能</translation>
-<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{檢查 1 個可能不安全的擴充功能}other{檢查 {NUM_EXTENSIONS} 個可能不安全的擴充功能}}</translation>
+<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, other{查看 {NUM_EXTENSIONS} 個可能不安全的擴充程式}}</translation>
 <translation id="8138217203226449454">你要變更搜尋引擎嗎？</translation>
 <translation id="8138997515734480534">「<ph name="VM_NAME" />」狀態</translation>
 <translation id="8139440916039659819">游標加速</translation>
@@ -11018,7 +11022,7 @@
 <translation id="8808686172382650546">貓咪</translation>
 <translation id="8809147117840417135">淺藍綠色</translation>
 <translation id="8811862054141704416">Crostini 麥克風存取權</translation>
-<translation id="8811923271770626905">這項擴充功能可能會在背景執行</translation>
+<translation id="8811923271770626905">此擴充程式可能會在背景執行</translation>
 <translation id="8813199641941291474">已禁止控制及重設 MIDI 裝置的程式</translation>
 <translation id="8813698869395535039">無法登入 <ph name="USERNAME" /></translation>
 <translation id="8813872945700551674">要求家長核准安裝「<ph name="EXTENSION_NAME" />」</translation>
@@ -11392,6 +11396,7 @@
 <translation id="9062468308252555888">14 倍</translation>
 <translation id="9063208415146866933">第 <ph name="ERROR_LINE_START" /> 至第 <ph name="ERROR_LINE_END" /> 行有錯誤</translation>
 <translation id="9064275926664971810">啟用自動填入功能，輕鬆一按即可填妥表單</translation>
+<translation id="9064735624474258556">此擴充程式無法讀取和變更網站資訊，也無法在背景執行</translation>
 <translation id="9065203028668620118">修改</translation>
 <translation id="9066394310994446814">這是根據你使用 Google 服務的活動記錄而顯示的項目。你可以前往 <ph name="BEGIN_LINK1" />myactivity.google.com<ph name="END_LINK1" /> 查看或刪除自己的資料，也可以變更設定。
         <ph name="BREAK" />

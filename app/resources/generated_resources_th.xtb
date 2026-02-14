@@ -255,6 +255,7 @@
 <translation id="116896278675803795">เปลี่ยนภาษาโดยอัตโนมัติให้ตรงกับเนื้อหาที่เลือก</translation>
 <translation id="1169266963600477608">การควบคุมเกม</translation>
 <translation id="1169435433292653700"><ph name="FILE_NAME" /> มีข้อมูลที่ละเอียดอ่อนหรือเป็นอันตราย ผู้ดูแลระบบบอกว่า "<ph name="CUSTOM_MESSAGE" />"</translation>
+<translation id="1171126916421636890">ไม่มีคำอธิบาย</translation>
 <translation id="1171515578268894665"><ph name="ORIGIN" /> ต้องการเชื่อมต่อกับอุปกรณ์ HID</translation>
 <translation id="1172750555846831341">กลับด้านตามแนวกว้าง</translation>
 <translation id="1173036203040243666">แท็บนี้เชื่อมต่ออยู่กับอุปกรณ์บลูทูธ</translation>
@@ -1392,7 +1393,7 @@
 <translation id="1949849604471335579">ปรับเปลี่ยนวอลเปเปอร์ โปรแกรมรักษาหน้าจอ สีเฉพาะจุด และอื่นๆ ในแบบของคุณ</translation>
 <translation id="1949980990364952348">ชื่อแอป</translation>
 <translation id="1951012854035635156">ผู้ช่วย</translation>
-<translation id="1951823516285577843">ค้นหาทางเลือก</translation>
+<translation id="1951823516285577843">หาทางเลือกอื่น</translation>
 <translation id="1953796913175502363">ตั้งค่าโปรไฟล์งาน</translation>
 <translation id="1954597385941141174">เว็บไซต์ขอเชื่อมต่อกับอุปกรณ์ USB ได้</translation>
 <translation id="1954813140452229842">เกิดข้อผิดพลาดขณะต่อเชื่อมพื้นที่แชร์ โปรดตรวจสอบข้อมูลรับรองแล้วลองอีกครั้ง</translation>
@@ -5788,6 +5789,7 @@
 <translation id="5068553687099139861">แสดงรหัสผ่าน</translation>
 <translation id="506886127401228110">เปิด Isolated Web App</translation>
 <translation id="5068919226082848014">พิซซ่า</translation>
+<translation id="5068995096404904646">ไม่มีข้อมูลใด ๆ</translation>
 <translation id="5071295820492622726">กลับไปที่การดาวน์โหลดล่าสุด</translation>
 <translation id="5071892329440114717">แสดงรายละเอียดการปกป้องแบบมาตรฐาน</translation>
 <translation id="5072303130033714629">เครื่องมือ Content Transfer</translation>
@@ -8429,7 +8431,7 @@
 <translation id="6983890893900549383">Escape</translation>
 <translation id="698428203349952091">เพิ่มเว็บไซต์ลงในรายการที่ไม่อนุญาต</translation>
 <translation id="6985235333261347343">เอเจนต์การกู้คืนคีย์ของ Microsoft</translation>
-<translation id="698524779381350301">อนุญาตให้เข้าถึงโดยอัตโนมัติสำหรับเว็บไซต์ต่อไปนี้</translation>
+<translation id="698524779381350301">อนุญาตการเข้าถึงโดยอัตโนมัติบนไซต์ต่อไปนี้</translation>
 <translation id="6985607387932385770">เครื่องพิมพ์</translation>
 <translation id="6988094684494323731">กำลังเริ่มคอนเทนเนอร์ Linux</translation>
 <translation id="6988403677482707277">แท็บถูกย้ายไปยังจุดเริ่มต้นของแถบแท็บ</translation>
@@ -8914,6 +8916,7 @@
 <translation id="7348920948593871738">กล้องปิดอยู่ในการตั้งค่าระบบ Mac</translation>
 <translation id="7349010927677336670">ความลื่นไหลของวิดีโอ</translation>
 <translation id="7350327333026851413">{COUNT,plural, =1{รหัสผ่าน {COUNT} รายการจะบันทึกไว้ในอุปกรณ์นี้เท่านั้น}other{รหัสผ่าน {COUNT} รายการจะบันทึกไว้ในอุปกรณ์นี้เท่านั้น}}</translation>
+<translation id="7351036311845404642">การติดตามลำดับการทำงาน</translation>
 <translation id="7352651011704765696">มีข้อผิดพลาดเกิดขึ้น</translation>
 <translation id="7352664183151911163">ในแอปและเบราว์เซอร์ Chrome</translation>
 <translation id="7353261921908507769">รายชื่อติดต่อจะแชร์เนื้อหากับคุณได้เมื่ออยู่ใกล้เคียง การโอนจะไม่เริ่มจนกว่าคุณจะยอมรับ</translation>
@@ -9867,6 +9870,7 @@
 <translation id="8005600846065423578">อนุญาตให้ <ph name="HOST" /> ดูคลิปบอร์ดได้เสมอ</translation>
 <translation id="8006630792898017994">Space หรือ Tab</translation>
 <translation id="8006906484704059308">บล็อกเว็บไซต์นี้ไม่ให้ควบคุมและตั้งโปรแกรมอุปกรณ์ MIDI ใหม่ต่อไป</translation>
+<translation id="8008098599765575085">ส่วนขยายนี้อาจอ่านและแก้ไขข้อมูลไซต์หรือทำงานในพื้นหลังได้</translation>
 <translation id="8008356846765065031">อินเทอร์เน็ตถูกตัด โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต</translation>
 <translation id="8008704580256716350">บล็อกไฟล์ที่น่าสงสัยแล้ว</translation>
 <translation id="8009196983040865987">เมื่อคุณใช้การจัดระเบียบแท็บ ระบบจะส่งชื่อและ URL ของแท็บที่เปิดอยู่ไปยัง Google เพื่อสร้างกลุ่มแท็บที่แนะนำ</translation>
@@ -10050,7 +10054,7 @@
 <translation id="8135557862853121765"><ph name="NUM_KILOBYTES" />K</translation>
 <translation id="8136269678443988272">PIN ที่คุณป้อนไม่ตรงกัน</translation>
 <translation id="8137559199583651773">จัดการส่วนขยาย</translation>
-<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{ตรวจสอบส่วนขยาย 1 รายการที่อาจไม่ปลอดภัย}other{ตรวจสอบส่วนขยาย {NUM_EXTENSIONS} รายการที่อาจไม่ปลอดภัย}}</translation>
+<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, other{ตรวจสอบ {NUM_EXTENSIONS} ส่วนขยายที่อาจไม่ปลอดภัย}}</translation>
 <translation id="8138217203226449454">คุณตั้งใจที่จะเปลี่ยนผู้ให้บริการการค้นหาใช่ไหม</translation>
 <translation id="8138997515734480534">สถานะ <ph name="VM_NAME" /></translation>
 <translation id="8139440916039659819">การเร่งความเร็วของเคอร์เซอร์</translation>
@@ -11007,7 +11011,7 @@
 <translation id="8808686172382650546">แมว</translation>
 <translation id="8809147117840417135">สีน้ำเงินอมเขียวอ่อน</translation>
 <translation id="8811862054141704416">การเข้าถึงไมโครโฟนใน Crostini</translation>
-<translation id="8811923271770626905">ส่วนขยายนี้อาจทํางานอยู่เบื้องหลัง</translation>
+<translation id="8811923271770626905">ส่วนขยายนี้อาจทำงานในพื้นหลัง</translation>
 <translation id="8813199641941291474">บล็อกการควบคุมและการตั้งโปรแกรมใหม่ในอุปกรณ์ MIDI แล้ว</translation>
 <translation id="8813698869395535039">ไม่สามารถลงชื่อเข้าใช้ <ph name="USERNAME" /></translation>
 <translation id="8813872945700551674">ต้องขอให้ผู้ปกครองอนุมัติ "<ph name="EXTENSION_NAME" />"</translation>
@@ -11381,6 +11385,7 @@
 <translation id="9062468308252555888">14x</translation>
 <translation id="9063208415146866933">เกิดข้อผิดพลาดในบรรทัดที่ <ph name="ERROR_LINE_START" /> ถึง <ph name="ERROR_LINE_END" /></translation>
 <translation id="9064275926664971810">เปิดใช้การป้อนอัตโนมัติเพื่อกรอกฟอร์มด้วยการคลิกเพียงครั้งเดียว</translation>
+<translation id="9064735624474258556">ส่วนขยายนี้ไม่สามารถอ่านและแก้ไขข้อมูลไซต์หรือทำงานในพื้นหลังได้</translation>
 <translation id="9065203028668620118">แก้ไข</translation>
 <translation id="9066394310994446814">คุณเห็นรายการนี้เนื่องจากระบบอิงตามกิจกรรมที่คุณทำก่อนหน้านี้ขณะใช้บริการของ Google คุณดูหรือลบข้อมูลดังกล่าวและเปลี่ยนการตั้งค่าได้ที่ <ph name="BEGIN_LINK1" />myactivity.google.com<ph name="END_LINK1" />
         <ph name="BREAK" />
