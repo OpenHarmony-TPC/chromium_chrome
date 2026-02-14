@@ -550,7 +550,7 @@
 #include "chrome/browser/net/server_certificate_database_service_factory.h"
 #endif  // BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
 
-#if defined(OHOS_EX_EXCEPTION_LIST)
+#if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
 #include "cef/ohos_cef_ext/libcef/browser/content_settings/oh_host_content_settings_observer_factory.h"
 #endif
 
@@ -1342,8 +1342,8 @@ void ChromeBrowserMainExtraPartsProfiles::
   WebDataServiceFactory::GetInstance();
   webrtc_event_logging::WebRtcEventLogManagerKeyedServiceFactory::GetInstance();
 
-#if defined(OHOS_EX_EXCEPTION_LIST)
-  OhHostContentSettingsObserverFactory::GetInstance()
+#if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
+  OhHostContentSettingsObserverFactory::GetInstance();
 #endif
 }
 
