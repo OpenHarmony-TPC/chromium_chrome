@@ -892,6 +892,12 @@ Permissions you've already given to websites and apps may apply to this account.
       <message name="IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_OFF" desc="Alerts the user that the extension is not from the Chrome web store.">
         Off • The source of this extension could not be verified
       </message>
+      <message name="IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_ON_V2" desc="Alerts the user that the extension is not from the web store.">
+        On • Extension source cannot be verified
+      </message>
+      <message name="IDS_EXTENSIONS_SAFETY_CHECK_OFFSTORE_OFF_V2" desc="Alerts the user that the extension is not from the web store.">
+        Off • Extension source cannot be verified
+      </message>
       <message name="IDS_EXTENSIONS_SAFETY_CHECK_NO_PRIVACY_PRACTICES" desc="Alerts the user that the extension has not disclosed its privacy practices.">
         This extension hasn't published privacy practices, such as how it collects and uses data. Chromium recommends that you remove it.
       </message>
@@ -907,6 +913,9 @@ Permissions you've already given to websites and apps may apply to this account.
       </message>
       <message name="IDS_EXTENSIONS_INCOGNITO_WARNING" desc="Warns the user that Chromium cannot prevent extensions from recording history in Incognito mode. Displayed in extensions management UI after an extension is selected to be run in Incognito mode.">
         Warning: Browser cannot prevent extensions from recording your browsing history. To disable this extension in Incognito mode, unselect this option.
+      </message>
+      <message name="IDS_EXTENSIONS_INCOGNITO_WARNING_V2" desc="Warns the user that Chromium cannot prevent extensions from recording history in Incognito mode. Displayed in extensions management UI after an extension is selected to be run in Incognito mode.">
+        Note: Browser cannot prevent extensions from recording your browsing history. To disable this extension in Private mode, toggle off this option.
       </message>
       <message name="IDS_EXTENSIONS_UNINSTALL" desc="The label for a control that triggers an extension uninstall.">
         Remove from Chromium

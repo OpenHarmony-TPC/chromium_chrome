@@ -4210,6 +4210,13 @@ static_library("browser") {
         "//components/cdm/browser",
       ]
     }
+    if (is_arkweb && defined(arkweb_media_capabilities_enhance) && arkweb_media_capabilities_enhance) {
+      import("//arkweb/chromium_ext/content/browser/media/ohos/arkweb_content_browser_media_ohos_ext.gni")
+      sources += arkweb_content_browser_media_ohos_video_experience
+      deps += [
+        "//arkweb/chromium_ext/third_party/blink/public/mojom/media:mojom"
+      ]
+    }
     deps += [
       "//chrome/app:command_ids",
       "//chrome/app/theme:chrome_unscaled_resources_grit",

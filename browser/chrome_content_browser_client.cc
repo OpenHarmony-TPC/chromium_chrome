@@ -7250,6 +7250,9 @@ content::BluetoothDelegate* ChromeContentBrowserClient::GetBluetoothDelegate() {
 }
 
 content::UsbDelegate* ChromeContentBrowserClient::GetUsbDelegate() {
+#if BUILDFLAG(IS_ARKWEB)
+  return nullptr;
+#endif
   if (!usb_delegate_)
     usb_delegate_ = std::make_unique<ChromeUsbDelegate>();
   return usb_delegate_.get();
@@ -7915,6 +7918,13 @@ bool ChromeContentBrowserClient::ShouldBlockRendererDebugURL(
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(render_frame_host);
   if (!DevToolsWindow::AllowDevToolsFor(profile, web_contents)) {
+    return true;
+  }
+#endif
+
+#if BUILDFLAG(ARKWEB_NETWORK_LOAD)
+  if (render_frame_host &&
+      ChromeContentBrowserClientUtils::BlockIfNotTrustUrl(url, render_frame_host)) {
     return true;
   }
 #endif
