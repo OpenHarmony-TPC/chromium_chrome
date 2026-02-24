@@ -155,13 +155,21 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       // TODO(dpapad): Unify with Settings' IDS_SETTINGS_WEB_STORE.
       {"sidebarDiscoverMore", IDS_EXTENSIONS_SIDEBAR_DISCOVER_MORE},
       {"keyboardShortcuts", IDS_EXTENSIONS_SIDEBAR_KEYBOARD_SHORTCUTS},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"incognitoInfoWarning", IDS_EXTENSIONS_INCOGNITO_WARNING_V2},
+#else
       {"incognitoInfoWarning", IDS_EXTENSIONS_INCOGNITO_WARNING},
+#endif
       {"hostPermissionsDescription",
        IDS_EXTENSIONS_HOST_PERMISSIONS_DESCRIPTION},
       {"permissionsLearnMoreLabel",
        IDS_EXTENSIONS_PERMISSIONS_LEARN_MORE_A11Y_LABEL},
       {"hostPermissionsEdit", IDS_EXTENSIONS_HOST_PERMISSIONS_EDIT},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"hostPermissionsHeading", IDS_EXTENSIONS_ITEM_HOST_PERMISSIONS_HEADING_V2},
+#else
       {"hostPermissionsHeading", IDS_EXTENSIONS_ITEM_HOST_PERMISSIONS_HEADING},
+#endif
       {"newHostPermissionsHeading",
        IDS_EXTENSIONS_NEW_HOST_PERMISSIONS_HEADING},
       {"hostPermissionsSubHeading",
@@ -185,7 +193,11 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       // problem, use a simple placeholder for now.
       {"itemInspectViewsExtra", IDS_EXTENSIONS_ITEM_INSPECT_VIEWS_EXTRA},
       {"noActiveViews", IDS_EXTENSIONS_ITEM_NO_ACTIVE_VIEWS},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"itemAllowIncognito", IDS_EXTENSIONS_ITEM_ALLOW_INCOGNITO_V2},
+#else
       {"itemAllowIncognito", IDS_EXTENSIONS_ITEM_ALLOW_INCOGNITO},
+#endif
       {"itemDescriptionLabel", IDS_EXTENSIONS_ITEM_DESCRIPTION},
       {"itemDependencies", IDS_EXTENSIONS_ITEM_DEPENDENCIES},
       {"itemDependentEntry", IDS_EXTENSIONS_DEPENDENT_ENTRY},
@@ -223,7 +235,11 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       {"appIcon", IDS_EXTENSIONS_APP_ICON},
       {"extensionIcon", IDS_EXTENSIONS_EXTENSION_ICON},
       {"extensionA11yAssociation", IDS_EXTENSIONS_EXTENSION_A11Y_ASSOCIATION},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"extensionsSectionHeader", IDS_EXTENSIONS_SECTION_HEADER_V2},
+#else
       {"extensionsSectionHeader", IDS_EXTENSIONS_SECTION_HEADER},
+#endif
       {"itemIdHeading", IDS_EXTENSIONS_ITEM_ID_HEADING},
       {"extensionEnabled", IDS_EXTENSIONS_EXTENSION_ENABLED},
       {"appEnabled", IDS_EXTENSIONS_APP_ENABLED},
@@ -233,7 +249,11 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       {"itemOn", IDS_EXTENSIONS_ITEM_ON},
       {"itemOptions", IDS_EXTENSIONS_ITEM_OPTIONS},
       {"itemPermissions", IDS_EXTENSIONS_ITEM_PERMISSIONS},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"itemPermissionsEmpty", IDS_EXTENSIONS_ITEM_PERMISSIONS_EMPTY_V2},
+#else
       {"itemPermissionsEmpty", IDS_EXTENSIONS_ITEM_PERMISSIONS_EMPTY},
+#endif
       {"itemPermissionsAndSiteAccessEmpty",
        IDS_EXTENSIONS_ITEM_PERMISSIONS_AND_SITE_ACCESS_EMPTY},
       {"itemPinToToolbar", IDS_EXTENSIONS_ITEM_PIN_TO_TOOLBAR},
@@ -244,7 +264,11 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
        IDS_EXTENSIONS_ACCESS_REQUESTS_LEARN_MORE},
       {"itemSiteAccess", IDS_EXTENSIONS_ITEM_SITE_ACCESS},
       {"itemSiteAccessAddHost", IDS_EXTENSIONS_ITEM_SITE_ACCESS_ADD_HOST},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"itemSiteAccessEmpty", IDS_EXTENSIONS_ITEM_SITE_ACCESS_EMPTY_V2},
+#else
       {"itemSiteAccessEmpty", IDS_EXTENSIONS_ITEM_SITE_ACCESS_EMPTY},
+#endif
       {"itemSource", IDS_EXTENSIONS_ITEM_SOURCE},
       {"itemSourceInstalledByDefault",
        IDS_EXTENSIONS_ITEM_SOURCE_INSTALLED_BY_DEFAULT},
@@ -286,11 +310,20 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       {"noErrorsToShow", IDS_EXTENSIONS_ERROR_NO_ERRORS_CODE_MESSAGE},
       {"opensInNewTab", IDS_EXTENSIONS_OPENS_IN_NEW_TAB},
       {"removeSitesDialogTitle", IDS_EXTENSIONS_REMOVE_SITES_DIALOG_TITLE},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"runtimeHostsDialogInputError",
+       IDS_EXTENSIONS_RUNTIME_HOSTS_DIALOG_INPUT_ERROR_V2},
+#else
       {"runtimeHostsDialogInputError",
        IDS_EXTENSIONS_RUNTIME_HOSTS_DIALOG_INPUT_ERROR},
+#endif
       {"runtimeHostsDialogInputLabel",
        IDS_EXTENSIONS_RUNTIME_HOSTS_DIALOG_INPUT_LABEL},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"runtimeHostsDialogTitle", IDS_EXTENSIONS_RUNTIME_HOSTS_DIALOG_TITLE_V2},
+#else
       {"runtimeHostsDialogTitle", IDS_EXTENSIONS_RUNTIME_HOSTS_DIALOG_TITLE},
+#endif
       {"packDialogTitle", IDS_EXTENSIONS_PACK_DIALOG_TITLE},
       {"packDialogWarningTitle", IDS_EXTENSIONS_PACK_DIALOG_WARNING_TITLE},
       {"packDialogErrorTitle", IDS_EXTENSIONS_PACK_DIALOG_ERROR_TITLE},
@@ -381,7 +414,11 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       {"itemSuspiciousInstallLearnMore",
        IDS_EXTENSIONS_ADDED_WITHOUT_KNOWLEDGE_LEARN_MORE},
       {"toolbarDevMode", IDS_EXTENSIONS_DEVELOPER_MODE},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"toolbarLoadUnpacked", IDS_EXTENSIONS_TOOLBAR_LOAD_UNPACKED_V2},
+#else
       {"toolbarLoadUnpacked", IDS_EXTENSIONS_TOOLBAR_LOAD_UNPACKED},
+#endif
       {"toolbarLoadUnpackedDone", IDS_EXTENSIONS_TOOLBAR_LOAD_UNPACKED_DONE},
       {"toolbarPack", IDS_EXTENSIONS_TOOLBAR_PACK},
       {"toolbarUpdateNow", IDS_EXTENSIONS_TOOLBAR_UPDATE_NOW},
@@ -398,7 +435,11 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       {"viewServiceWorker", IDS_EXTENSIONS_SERVICE_WORKER_BACKGROUND},
       {"safetyCheckKeepExtension", IDS_EXTENSIONS_SC_KEEP_EXT},
       {"safetyCheckRemoveAll", IDS_EXTENSIONS_SC_REMOVE_ALL},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"safetyHubHeader", IDS_SETTINGS_SAFETY_HUB_V2},
+#else
       {"safetyHubHeader", IDS_SETTINGS_SAFETY_HUB},
+#endif
       {"safetyCheckRemoveButtonA11yLabel",
        IDS_EXTENSIONS_SC_REMOVE_BUTTON_A11Y_LABEL},
       {"safetyCheckOptionMenuA11yLabel",

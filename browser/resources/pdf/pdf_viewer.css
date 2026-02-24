@@ -50,8 +50,12 @@ viewer-toolbar {
 
 @media(max-width: 200px),
 (max-height: 250px) {
-  viewer-toolbar {
+  viewer-toolbar:not(:focus-within):not(:active) {
     display: none;
+  }
+  viewer-toolbar:focus-within,
+  viewer-toolbar:active {
+    display: block !important;
   }
 }
 
