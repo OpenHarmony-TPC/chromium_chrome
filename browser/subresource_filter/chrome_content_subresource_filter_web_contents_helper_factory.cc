@@ -11,10 +11,6 @@
 #include "components/safe_browsing/core/browser/db/database_manager.h"
 #include "components/subresource_filter/content/browser/content_subresource_filter_web_contents_helper.h"
 #include "components/subresource_filter/content/shared/browser/ruleset_service.h"
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-#include "arkweb/chromium_ext/chrome/browser/browser_process_impl_ext.h"
-#include "components/subresource_filter/content/shared/browser/user_ruleset_service.h"
-#endif
 
 namespace {
 
@@ -47,9 +43,5 @@ void CreateSubresourceFilterWebContentsHelper(
           web_contents,
           SubresourceFilterProfileContextFactory::GetForProfile(
               Profile::FromBrowserContext(web_contents->GetBrowserContext())),
-          GetDatabaseManagerFromSafeBrowsingService(), dealer
-#if BUILDFLAG(ARKWEB_ADBLOCK)
-          , user_dealer
-#endif
-          );
+          GetDatabaseManagerFromSafeBrowsingService(), dealer);
 }
