@@ -255,6 +255,7 @@ Verifique as suas palavras-passe em qualquer altura no <ph name="GOOGLE_PASSWORD
 <translation id="116896278675803795">Alterar automaticamente o idioma para corresponder ao conteúdo selecionado</translation>
 <translation id="1169266963600477608">Controlos do jogo</translation>
 <translation id="1169435433292653700">O ficheiro <ph name="FILE_NAME" /> tem dados confidenciais ou perigosos. O administrador diz "<ph name="CUSTOM_MESSAGE" />"</translation>
+<translation id="1171126916421636890">Sem descrição disponível</translation>
 <translation id="1171515578268894665"><ph name="ORIGIN" /> quer estabelecer ligação a um dispositivo HID</translation>
 <translation id="1172750555846831341">Virar pela margem mais estreita</translation>
 <translation id="1173036203040243666">Este separador está associado a um dispositivo Bluetooth</translation>
@@ -4235,7 +4236,7 @@ Pode incluir informações sobre o software instalado, os ficheiros, o navegador
 <translation id="3925926055063465902">Os outros utilizadores deste dispositivo também podem usar esta rede</translation>
 <translation id="3926002189479431949">Telemóvel Smart Lock alterado</translation>
 <translation id="3926410220776569451">O acesso à câmara está bloqueado</translation>
-<translation id="3927932062596804919">Recusar</translation>
+<translation id="3927932062596804919">Negar</translation>
 <translation id="3928570707778085600">Quer guardar as alterações a <ph name="FILE_OR_FOLDER_NAME" />?</translation>
 <translation id="3928659086758780856">Pouca tinta.</translation>
 <translation id="3929426037718431833">Estas extensões podem ver e alterar as informações neste site.</translation>
@@ -5792,6 +5793,7 @@ Use Ctrl + Alt + Diminuir o brilho para diminuir o zoom.</translation>
 <translation id="5068553687099139861">mostrar palavras-passe</translation>
 <translation id="506886127401228110">Ativar apps Web isoladas</translation>
 <translation id="5068919226082848014">Piza</translation>
+<translation id="5068995096404904646">Sem conteúdo</translation>
 <translation id="5071295820492622726">Voltar às transferências recentes</translation>
 <translation id="5071892329440114717">Mostrar detalhes de proteção padrão</translation>
 <translation id="5072303130033714629">Ferramenta Transferência de conteúdo</translation>
@@ -8438,7 +8440,7 @@ Tem mais # palavras-passe comprometidas. O Gestor de Palavras-passe da Google re
 <translation id="6983890893900549383">escape</translation>
 <translation id="698428203349952091">Adicionar site à lista de não permitidos</translation>
 <translation id="6985235333261347343">Microsoft Key Recovery Agent</translation>
-<translation id="698524779381350301">Autorizar automaticamente o acesso aos sites seguintes</translation>
+<translation id="698524779381350301">Permitir automaticamente o acesso às seguintes páginas</translation>
 <translation id="6985607387932385770">Impressoras</translation>
 <translation id="6988094684494323731">A iniciar o contentor do Linux…</translation>
 <translation id="6988403677482707277">Separador movido para o início da faixa de separadores</translation>
@@ -8923,6 +8925,7 @@ Tem mais # palavras-passe comprometidas. O Gestor de Palavras-passe da Google re
 <translation id="7348920948593871738">A câmara está desativada nas Definições do sistema no Mac</translation>
 <translation id="7349010927677336670">Fluidez de vídeo</translation>
 <translation id="7350327333026851413">{COUNT,plural, =1{{COUNT} palavra-passe está guardada apenas neste dispositivo}other{{COUNT} palavras-passe estão guardadas apenas neste dispositivo}}</translation>
+<translation id="7351036311845404642">Stack trace</translation>
 <translation id="7352651011704765696">Algo correu mal</translation>
 <translation id="7352664183151911163">Nas apps e no navegador Chrome</translation>
 <translation id="7353261921908507769">Os seus contactos podem partilhar consigo quando estiver nas proximidades. As transferências só irão começar quando aceitar.</translation>
@@ -9877,6 +9880,7 @@ Mantenha o seu ficheiro de chave num local seguro, pois irá precisar dele para 
 <translation id="8005600846065423578">Permitir sempre que <ph name="HOST" /> veja a área de transferência</translation>
 <translation id="8006630792898017994">Espaço ou separador</translation>
 <translation id="8006906484704059308">Continuar a impedir que este site controle e reprograme os seus dispositivos MIDI</translation>
+<translation id="8008098599765575085">Esta extensão pode ler nem modificar as informações da página nem ser executada em segundo plano</translation>
 <translation id="8008356846765065031">A Internet está desligada. Verifique a ligação à Internet.</translation>
 <translation id="8008704580256716350">Ficheiro suspeito bloqueado</translation>
 <translation id="8009196983040865987">Quando usa o organizador de separadores, os títulos e os URLs dos separadores abertos são enviados para a Google para gerar grupos de separadores sugeridos</translation>
@@ -10060,7 +10064,7 @@ Mantenha o seu ficheiro de chave num local seguro, pois irá precisar dele para 
 <translation id="8135557862853121765"><ph name="NUM_KILOBYTES" />K</translation>
 <translation id="8136269678443988272">Os PINs introduzidos não coincidem.</translation>
 <translation id="8137559199583651773">Gerir extensões</translation>
-<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Reveja 1 extensão que pode não ser segura}other{Reveja {NUM_EXTENSIONS} extensões que pode( não ser seguras}}</translation>
+<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Rever {NUM_EXTENSIONS} extensão que pode não ser segura}other{Rever {NUM_EXTENSIONS} extensões que podem não ser seguras}}</translation>
 <translation id="8138217203226449454">Pretendia alterar o seu fornecedor de pesquisas?</translation>
 <translation id="8138997515734480534">Estado: <ph name="VM_NAME" /></translation>
 <translation id="8139440916039659819">Aceleração do cursor</translation>
@@ -11391,6 +11395,7 @@ As autorizações que já concedeu aos Websites e apps podem aplicar-se a esta c
 <translation id="9062468308252555888">14x</translation>
 <translation id="9063208415146866933">Erro da linha <ph name="ERROR_LINE_START" /> até <ph name="ERROR_LINE_END" />.</translation>
 <translation id="9064275926664971810">Ativar a funcionalidade de Preenchimento Automático para preencher formulários Web com um único clique</translation>
+<translation id="9064735624474258556">Esta extensão não pode ler nem modificar as informações da página nem ser executada em segundo plano</translation>
 <translation id="9065203028668620118">Editar</translation>
 <translation id="9066394310994446814">Está a ver este item com base na sua atividade anterior de utilização dos serviços Google. Pode ver os seus dados, eliminá-los e alterar as suas definições em <ph name="BEGIN_LINK1" />myactivity.google.com<ph name="END_LINK1" />.
         <ph name="BREAK" />

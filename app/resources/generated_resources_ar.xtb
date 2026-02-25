@@ -255,6 +255,7 @@
 <translation id="116896278675803795">تغيير اللغة تلقائيًا للتوافق مع المحتوى المحدَّد</translation>
 <translation id="1169266963600477608">عناصر التحكم في اللعبة</translation>
 <translation id="1169435433292653700">يتضمّن الملف <ph name="FILE_NAME" /> بيانات حساسة أو خطيرة. أرسَل المشرف الرسالة "<ph name="CUSTOM_MESSAGE" />".</translation>
+<translation id="1171126916421636890">لا يتوفر وصف</translation>
 <translation id="1171515578268894665">‏يريد <ph name="ORIGIN" /> الاتصال بجهاز HID</translation>
 <translation id="1172750555846831341">القلب عند الحافة القصيرة</translation>
 <translation id="1173036203040243666">علامة التبويب هذه متصلة بجهاز يتضمّن بلوتوث.</translation>
@@ -1396,7 +1397,7 @@
 <translation id="1949849604471335579">يمكنك تخصيص الخلفية وشاشة الاستراحة وألوان التمييز وغير ذلك.</translation>
 <translation id="1949980990364952348">اسم التطبيق</translation>
 <translation id="1951012854035635156">المساعد</translation>
-<translation id="1951823516285577843">بحث عن بديل</translation>
+<translation id="1951823516285577843">البحث عن بديل</translation>
 <translation id="1953796913175502363">إعداد ملف العمل</translation>
 <translation id="1954597385941141174">‏السماح للمواقع الإلكترونية بطلب الاتصال بأجهزة USB</translation>
 <translation id="1954813140452229842">حدث خطأ في تحميل المشاركة. يُرجى التحقُّق من بيانات الاعتماد وإعادة المحاولة.</translation>
@@ -3033,7 +3034,7 @@
 <translation id="3083899879156272923">تحريك الشاشة مع الإبقاء على مؤشر الماوس في منتصف الشاشة</translation>
 <translation id="3083998949001524405">المواقع الإلكترونية التي يُسمح لها باستخدام ملفات تعريف الارتباط التابعة لجهات خارجية</translation>
 <translation id="3084121729444215602">تم تثبيت <ph name="EXTENSION_NAME" /> بواسطة المشرف.</translation>
-<translation id="3084548735795614657">إسقاط للتثبيت</translation>
+<translation id="3084548735795614657">أفلت هنا للتثبيت</translation>
 <translation id="3084771660770137092">‏ربما نفدت الذاكرة لدى Chrome أو تم إنهاء العملية لصفحة الويب لسبب آخر. للمتابعة، أعد التحميل أو انتقل إلى صفحة أخرى.</translation>
 <translation id="3085412380278336437">يمكن للموقع الإلكتروني استخدام الكاميرا.</translation>
 <translation id="3085431803365340433">‏تعذّر تحديث متصفّح Chrome.</translation>
@@ -5741,7 +5742,7 @@
 <translation id="5026806129670917316">‏تفعيل شبكة Wi-Fi</translation>
 <translation id="5026874946691314267">عدم إظهار هذه الإشعارات مرة أخرى</translation>
 <translation id="5027550639139316293">شهادة البريد الإلكتروني</translation>
-<translation id="5027562294707732951">تثبيت الإضافة</translation>
+<translation id="5027562294707732951">إضافة الملحق</translation>
 <translation id="5029287942302939687">تم ضبط كلمة المرور</translation>
 <translation id="5029873138381728058">‏تعذّر التحقّق من الأجهزة الافتراضية (VM).</translation>
 <translation id="503155457707535043">تنزيل التطبيقات</translation>
@@ -5794,6 +5795,7 @@
 <translation id="5068553687099139861">عرض كلمات المرور</translation>
 <translation id="506886127401228110">تفعيل تطبيقات الويب المعزولة</translation>
 <translation id="5068919226082848014">بيتزا</translation>
+<translation id="5068995096404904646">لا يوجد محتوى هنا</translation>
 <translation id="5071295820492622726">الرجوع إلى عمليات التنزيل الأخيرة</translation>
 <translation id="5071892329440114717">عرض تفاصيل الحماية العادية</translation>
 <translation id="5072303130033714629">أداة "نقل المحتوى"</translation>
@@ -6881,7 +6883,7 @@
 <translation id="5857693745746757503">‏يمكنك توفير 50 دولار أمريكي أو أكثر عند شراء جهاز Chromebook جديد اليوم.</translation>
 <translation id="5858490737742085133">Terminal</translation>
 <translation id="585979798156957858">‏مفتاح Meta الخارجي</translation>
-<translation id="5860033963881614850">غير مفعّلة</translation>
+<translation id="5860033963881614850">موقوف</translation>
 <translation id="5860254591544742609">إظهار شريط العناوين</translation>
 <translation id="5860335608673904825">‏مفتاح البحث + ctrl + Shift + <ph name="TOP_ROW_KEY" /></translation>
 <translation id="5860491529813859533">تفعيل</translation>
@@ -8447,7 +8449,7 @@
 <translation id="6983890893900549383">Escape</translation>
 <translation id="698428203349952091">إضافة الموقع الإلكتروني إلى قائمة المواقع الإلكترونية غير المسموح بها</translation>
 <translation id="6985235333261347343">‏عامل استرداد مفتاح Microsoft</translation>
-<translation id="698524779381350301">السماح بالوصول إلى المواقع التالية تلقائيًا</translation>
+<translation id="698524779381350301">السماح تلقائيًا بالوصول على المواقع التالية</translation>
 <translation id="6985607387932385770">الطابعات</translation>
 <translation id="6988094684494323731">‏جارٍ بدء تشغيل حاوية نظام التشغيل Linux</translation>
 <translation id="6988403677482707277">تم نقل علامة التبويب إلى بداية شريط علامات التبويب.</translation>
@@ -8933,6 +8935,7 @@
 <translation id="7348920948593871738">‏تم إيقاف الكاميرا في إعدادات نظام Mac</translation>
 <translation id="7349010927677336670">سلاسة الفيديو</translation>
 <translation id="7350327333026851413">{COUNT,plural, =1{تم حفظ كلمة مرور واحدة ({COUNT}) على هذا الجهاز فقط.}zero{تم حفظ {COUNT} كلمة مرور على هذا الجهاز فقط.}two{تم حفظ كلمتَي مرور ({COUNT}) على هذا الجهاز فقط.}few{تم حفظ {COUNT} كلمات مرور على هذا الجهاز فقط.}many{تم حفظ {COUNT} كلمة مرور على هذا الجهاز فقط.}other{تم حفظ {COUNT} كلمة مرور على هذا الجهاز فقط.}}</translation>
+<translation id="7351036311845404642">تتبع الرزمة</translation>
 <translation id="7352651011704765696">حدث خطأ ما</translation>
 <translation id="7352664183151911163">‏في تطبيقاتك ومتصفِّح Chrome</translation>
 <translation id="7353261921908507769">يمكن لجهات الاتصال القريبة منك مشاركة الوسائط معك. ولن تبدأ عمليات النقل إلا عند موافقتك.</translation>
@@ -9886,6 +9889,7 @@
 <translation id="8005600846065423578">السماح دائمًا لـ <ph name="HOST" /> بالاطلاع على الحافظة</translation>
 <translation id="8006630792898017994">‏مفتاح المسافة أو مفتاح التبويب (Tab)</translation>
 <translation id="8006906484704059308">‏مواصلة حظر هذا الموقع الإلكتروني من التحكّم في أجهزة MIDI وإعادة برمجتها</translation>
+<translation id="8008098599765575085">يمكن لهذا الملحق قراءة معلومات الموقع وتعديلها أو العمل في الخلفية</translation>
 <translation id="8008356846765065031">تم قطع الاتصال بالإنترنت. يُرجى التحقق من الاتصال بالإنترنت.</translation>
 <translation id="8008704580256716350">تم حظر ملف مُريب.</translation>
 <translation id="8009196983040865987">‏عند استخدام ميزة "تنظيم علامات التبويب"، يتم إرسال عناوين علامات التبويب وعناوين URL الخاصة بعلامات التبويب المفتوحة إلى Google لإنشاء مجموعات علامات تبويب مقترَحة</translation>
@@ -10069,7 +10073,7 @@
 <translation id="8135557862853121765"><ph name="NUM_KILOBYTES" /> ‏                 كيلوبايت</translation>
 <translation id="8136269678443988272">أرقام التعريف الشخصية التي أدخلتها غير متطابقة</translation>
 <translation id="8137559199583651773">إدارة الإضافات</translation>
-<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{مراجعة إضافة واحدة قد تكون غير آمنة}zero{مراجعة {NUM_EXTENSIONS} إضافة قد تكون غير آمنة}two{مراجعة إضافتَين ({NUM_EXTENSIONS}) قد تكونان غير آمنتَين}few{مراجعة {NUM_EXTENSIONS} إضافات قد تكون غير آمنة}many{مراجعة {NUM_EXTENSIONS} إضافة قد تكون غير آمنة}other{مراجعة {NUM_EXTENSIONS} إضافة قد تكون غير آمنة}}</translation>
+<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{يُرجى مراجعة ملحق واحد قد يكون غير آمن}zero{يُرجى مراجعة {NUM_EXTENSIONS} ملحق قد يكون غير آمن}two{يُرجى مراجعة ملحقين قد يكونان غير آمنين}few{يُرجى مراجعة {NUM_EXTENSIONS} ملحقات قد تكون غير آمنة}many{يُرجى مراجعة {NUM_EXTENSIONS} ملحقًا قد تكون غير آمنة}other{يُرجى مراجعة {NUM_EXTENSIONS} ملحق قد يكون غير آمن}}</translation>
 <translation id="8138217203226449454">هل كنت تقصد تغيير مُوفِّر خدمة البحث؟</translation>
 <translation id="8138997515734480534">حالة <ph name="VM_NAME" /></translation>
 <translation id="8139440916039659819">تسريع المؤشر</translation>
@@ -11031,7 +11035,7 @@
 <translation id="8808686172382650546">قط</translation>
 <translation id="8809147117840417135">أزرق مخضر فاتح</translation>
 <translation id="8811862054141704416">‏الوصول إلى ميكروفون نظام التشغيل Crostini</translation>
-<translation id="8811923271770626905">قد يتم تشغيل هذه الإضافة في الخلفية.</translation>
+<translation id="8811923271770626905">قد يعمل هذا الملحق في الخلفية</translation>
 <translation id="8813199641941291474">‏تم حظر التحكّم في أجهزة MIDI وإعادة برمجتها</translation>
 <translation id="8813698869395535039">يتعذر تسجيل الدخول إلى <ph name="USERNAME" /></translation>
 <translation id="8813872945700551674">عليك الحصول على موافقة أحد الوالدَين على "<ph name="EXTENSION_NAME" />".</translation>
@@ -11405,6 +11409,7 @@
 <translation id="9062468308252555888">14 ضعفًا</translation>
 <translation id="9063208415146866933">خطأ من السطر رقم <ph name="ERROR_LINE_START" /> إلى <ph name="ERROR_LINE_END" /></translation>
 <translation id="9064275926664971810">تفعيل الملء التلقائي لملء النماذج بنقرة واحدة</translation>
+<translation id="9064735624474258556">لا يمكن لهذا الملحق قراءة معلومات الموقع وتعديلها أو العمل في الخلفية</translation>
 <translation id="9065203028668620118">تعديل</translation>
 <translation id="9066394310994446814">‏يتم عرض هذا العنصر لك استنادًا إلى نشاطك السابق على خدمات Google. يمكنك الاطّلاع على بياناتك وحذفها وتغيير إعداداتك على الرابط <ph name="BEGIN_LINK1" />myactivity.google.com<ph name="END_LINK1" />.
         <ph name="BREAK" />

@@ -122,7 +122,11 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       {"sidebarExtensions", IDS_EXTENSIONS_SIDEBAR_EXTENSIONS},
       {"appsTitle", IDS_EXTENSIONS_APPS_TITLE},
       {"noExtensionsOrApps", IDS_EXTENSIONS_NO_INSTALLED_ITEMS},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"noDescription", IDS_EXTENSIONS_NO_DESCRIPTION_V2},
+#else
       {"noDescription", IDS_EXTENSIONS_NO_DESCRIPTION},
+#endif
       {"viewInStore", IDS_EXTENSIONS_ITEM_CHROME_WEB_STORE},
       {"extensionWebsite", IDS_EXTENSIONS_ITEM_EXTENSION_WEBSITE},
       {"dropToInstall", IDS_EXTENSIONS_INSTALL_DROP_TARGET},
@@ -132,12 +136,22 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
        IDS_EXTENSIONS_EDIT_SITE_PERMISSIONS_CUSTOMIZE_PER_EXTENSION},
       {"editSitePermissionsRestrictExtensions",
        IDS_EXTENSIONS_EDIT_SITE_PERMISSIONS_RESTRICT_EXTENSIONS},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"enableToggleTooltipDisabled",
+       IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_DISABLED_V2},
+#else
       {"enableToggleTooltipDisabled",
        IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_DISABLED},
+#endif
       {"enableToggleTooltipEnabled",
        IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_ENABLED},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"enableToggleTooltipEnabledWithSiteAccess",
+       IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_ENABLED_WITH_SITE_ACCESS_V2},
+#else
       {"enableToggleTooltipEnabledWithSiteAccess",
        IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_ENABLED_WITH_SITE_ACCESS},
+#endif
       {"errorsPageHeading", IDS_EXTENSIONS_ERROR_PAGE_HEADING},
       {"clearActivities", IDS_EXTENSIONS_CLEAR_ACTIVITIES},
       {"clearAll", IDS_EXTENSIONS_ERROR_CLEAR_ALL},
@@ -151,7 +165,11 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       {"safetyCheckExtensionsDetailPagePrimaryLabel",
        IDS_EXTENSIONS_SAFETY_CHECK_PRIMARY_LABEL},
       {"safetyCheckExtensionsKeep", IDS_CONFIRM_DOWNLOAD},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"stackTrace", IDS_EXTENSIONS_ERROR_STACK_TRACE_V2},
+#else
       {"stackTrace", IDS_EXTENSIONS_ERROR_STACK_TRACE},
+#endif
       // TODO(dpapad): Unify with Settings' IDS_SETTINGS_WEB_STORE.
       {"sidebarDiscoverMore", IDS_EXTENSIONS_SIDEBAR_DISCOVER_MORE},
       {"keyboardShortcuts", IDS_EXTENSIONS_SIDEBAR_KEYBOARD_SHORTCUTS},
@@ -307,7 +325,11 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
        IDS_EXTENSIONS_MATCHING_RESTRICTED_SITES_WARNING},
       {"missingOrUninstalledExtension", IDS_MISSING_OR_UNINSTALLED_EXTENSION},
       {"noActivities", IDS_EXTENSIONS_NO_ACTIVITIES},
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      {"noErrorsToShow", IDS_EXTENSIONS_ERROR_NO_ERRORS_CODE_MESSAGE_V2},
+#else
       {"noErrorsToShow", IDS_EXTENSIONS_ERROR_NO_ERRORS_CODE_MESSAGE},
+#endif
       {"opensInNewTab", IDS_EXTENSIONS_OPENS_IN_NEW_TAB},
       {"removeSitesDialogTitle", IDS_EXTENSIONS_REMOVE_SITES_DIALOG_TITLE},
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)

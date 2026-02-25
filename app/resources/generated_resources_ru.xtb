@@ -255,6 +255,7 @@
 <translation id="116896278675803795">Автоматически устанавливать язык, соответствующий выбранному контенту</translation>
 <translation id="1169266963600477608">Настройки игры</translation>
 <translation id="1169435433292653700">В файле "<ph name="FILE_NAME" />" содержатся конфиденциальные или опасные данные. Сообщение от администратора: "<ph name="CUSTOM_MESSAGE" />".</translation>
+<translation id="1171126916421636890">Нет описания</translation>
 <translation id="1171515578268894665"><ph name="ORIGIN" /> запрашивает разрешение на подключение к HID-устройству</translation>
 <translation id="1172750555846831341">Переплет по короткому краю</translation>
 <translation id="1173036203040243666">Эта вкладка подключена к устройству Bluetooth</translation>
@@ -1394,7 +1395,7 @@
 <translation id="1949849604471335579">Выберите обои, заставку, акцентные цвета и многое другое.</translation>
 <translation id="1949980990364952348">Название приложения</translation>
 <translation id="1951012854035635156">Ассистент</translation>
-<translation id="1951823516285577843">Найти аналог</translation>
+<translation id="1951823516285577843">Найти похожие</translation>
 <translation id="1953796913175502363">Настройте рабочий профиль</translation>
 <translation id="1954597385941141174">Разрешить сайтам отправлять запрос на подключение к USB-устройствам</translation>
 <translation id="1954813140452229842">Не удалось подключить ресурс. Проверьте учетные данные и повторите попытку.</translation>
@@ -3030,7 +3031,7 @@
 <translation id="3083899879156272923">Перемещать экран, оставляя курсор в центре</translation>
 <translation id="3083998949001524405">Разрешено использовать сторонние файлы cookie</translation>
 <translation id="3084121729444215602">Расширение "<ph name="EXTENSION_NAME" />" закреплено администратором</translation>
-<translation id="3084548735795614657">Чтобы установить расширение, перетащите его</translation>
+<translation id="3084548735795614657">Отпустите, чтобы установить</translation>
 <translation id="3084771660770137092">Выполнение процесса этой веб-страницы было прекращено. Это может быть вызвано тем, что Chrome не хватает памяти, или иными причинами. Чтобы продолжить, обновите страницу или перейдите на другой URL.</translation>
 <translation id="3085412380278336437">Сайт может использовать камеру</translation>
 <translation id="3085431803365340433">Не удалось обновить браузер Chrome</translation>
@@ -5739,7 +5740,7 @@
 <translation id="5026806129670917316">Включить Wi-Fi</translation>
 <translation id="5026874946691314267">Больше не показывать это сообщение</translation>
 <translation id="5027550639139316293">Сертификат электронной почты</translation>
-<translation id="5027562294707732951">Установить расширение</translation>
+<translation id="5027562294707732951">Добавить расширение</translation>
 <translation id="5029287942302939687">Пароль установлен</translation>
 <translation id="5029873138381728058">Не удалось проверить виртуальные машины.</translation>
 <translation id="503155457707535043">Скачивание приложений</translation>
@@ -5792,6 +5793,7 @@
 <translation id="5068553687099139861">показать пароли</translation>
 <translation id="506886127401228110">Включить изолированные веб-приложения</translation>
 <translation id="5068919226082848014">Пицца</translation>
+<translation id="5068995096404904646">Ничего нет</translation>
 <translation id="5071295820492622726">Вернуться к последним скачанным файлам</translation>
 <translation id="5071892329440114717">Открыть описание стандартной защиты</translation>
 <translation id="5072303130033714629">Инструмент "Перенос контента"</translation>
@@ -6879,7 +6881,7 @@
 <translation id="5857693745746757503">Сэкономьте от 50 долларов США при покупке нового Chromebook сегодня</translation>
 <translation id="5858490737742085133">Терминал</translation>
 <translation id="585979798156957858">Внешняя клавиша Meta</translation>
-<translation id="5860033963881614850">ВЫКЛ</translation>
+<translation id="5860033963881614850">Выключено</translation>
 <translation id="5860254591544742609">Показать строку заголовка</translation>
 <translation id="5860335608673904825">Клавиша поиска + Ctrl + Shift + <ph name="TOP_ROW_KEY" /></translation>
 <translation id="5860491529813859533">Включить</translation>
@@ -8443,7 +8445,7 @@
 <translation id="6983890893900549383">Esc</translation>
 <translation id="698428203349952091">Добавить сайты, которым запрещено показывать уведомления</translation>
 <translation id="6985235333261347343">Агент восстановления ключей Microsoft</translation>
-<translation id="698524779381350301">Автоматически разрешать доступ к следующим сайтам</translation>
+<translation id="698524779381350301">Автоматически разрешать доступ к следующим веб-сайтам</translation>
 <translation id="6985607387932385770">Принтеры</translation>
 <translation id="6988094684494323731">Запуск контейнера Linux</translation>
 <translation id="6988403677482707277">Вкладка перемещена в начало панели</translation>
@@ -8928,6 +8930,7 @@
 <translation id="7348920948593871738">Камера отключена в системных настройках macOS</translation>
 <translation id="7349010927677336670">Воспроизведение видео</translation>
 <translation id="7350327333026851413">{COUNT,plural, =1{{COUNT} пароль сохранен только на этом устройстве}one{{COUNT} пароль сохранен только на этом устройстве}few{{COUNT} пароля сохранено только на этом устройстве}many{{COUNT} паролей сохранено только на этом устройстве}other{{COUNT} пароля сохранено только на этом устройстве}}</translation>
+<translation id="7351036311845404642">Трассировка стека</translation>
 <translation id="7352651011704765696">Ошибка</translation>
 <translation id="7352664183151911163">Между приложениями и браузером Chrome</translation>
 <translation id="7353261921908507769">Ваши контакты могут обмениваться с вами контентом, когда находятся поблизости. Передача данных не начинается без вашего согласия.</translation>
@@ -9881,6 +9884,7 @@
 <translation id="8005600846065423578">Всегда открывать сайту <ph name="HOST" /> доступ к буферу обмена</translation>
 <translation id="8006630792898017994">Пробел или Tab</translation>
 <translation id="8006906484704059308">По-прежнему не разрешать этому сайту управлять MIDI-устройствами и перепрограммировать их</translation>
+<translation id="8008098599765575085">Это расширение может читать и изменять данные веб-сайта или работать в фоновом режиме</translation>
 <translation id="8008356846765065031">Не удалось установить соединение. Проверьте подключение к Интернету.</translation>
 <translation id="8008704580256716350">Подозрительный файл заблокирован</translation>
 <translation id="8009196983040865987">При использовании функции "Объединить вкладки" заголовки и URL открытых вкладок отправляются в Google для создания вариантов групп.</translation>
@@ -10064,7 +10068,7 @@
 <translation id="8135557862853121765"><ph name="NUM_KILOBYTES" />K</translation>
 <translation id="8136269678443988272">PIN-коды не совпадают.</translation>
 <translation id="8137559199583651773">Управление расширениями</translation>
-<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Проверьте расширение, которое может быть небезопасным}one{Проверьте {NUM_EXTENSIONS} расширение, которые могут быть небезопасными}few{Проверьте {NUM_EXTENSIONS} расширения, которые могут быть небезопасными}many{Проверьте {NUM_EXTENSIONS} расширений, которые могут быть небезопасными}other{Проверьте {NUM_EXTENSIONS} расширения, которые могут быть небезопасными}}</translation>
+<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Посмотрите {NUM_EXTENSIONS} расширение, которое может быть небезопасным}few{Посмотрите {NUM_EXTENSIONS} расширения, которые могут быть небезопасными}many{Посмотрите {NUM_EXTENSIONS} расширений, которые могут быть небезопасными}other{Посмотрите {NUM_EXTENSIONS} расширения, которые могут быть небезопасными}}</translation>
 <translation id="8138217203226449454">Вы хотели сменить поисковую систему?</translation>
 <translation id="8138997515734480534">Статус ВМ "<ph name="VM_NAME" />"</translation>
 <translation id="8139440916039659819">Ускорение курсора</translation>
@@ -11398,6 +11402,7 @@
 <translation id="9062468308252555888">14x</translation>
 <translation id="9063208415146866933">Ошибка в строках <ph name="ERROR_LINE_START" />–<ph name="ERROR_LINE_END" /></translation>
 <translation id="9064275926664971810">Включить автозаполнение для быстрого добавления данных в веб-формы</translation>
+<translation id="9064735624474258556">Это расширение не может читать и изменять данные веб-сайта или работать в фоновом режиме</translation>
 <translation id="9065203028668620118">Изменить</translation>
 <translation id="9066394310994446814">Этот контент предложен с учетом ваших предыдущих действий в сервисах Google. Вы можете посмотреть записи в истории, удалить их и изменить настройки отслеживания действий на странице <ph name="BEGIN_LINK1" />myactivity.google.com<ph name="END_LINK1" />.
         <ph name="BREAK" />

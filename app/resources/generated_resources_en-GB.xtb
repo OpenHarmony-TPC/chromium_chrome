@@ -256,6 +256,7 @@ Check your passwords at any time in <ph name="GOOGLE_PASSWORD_MANAGER" />.</tran
 <translation id="116896278675803795">Automatically change language to match selected content</translation>
 <translation id="1169266963600477608">Game controls</translation>
 <translation id="1169435433292653700"><ph name="FILE_NAME" /> has sensitive or dangerous data. Your administrator says: '<ph name="CUSTOM_MESSAGE" />'</translation>
+<translation id="1171126916421636890">No description available</translation>
 <translation id="1171515578268894665"><ph name="ORIGIN" /> wants to connect to a HID device</translation>
 <translation id="1172750555846831341">Flip on short edge</translation>
 <translation id="1173036203040243666">This tab is connected to a Bluetooth device</translation>
@@ -5814,6 +5815,7 @@ Use Ctrl + Alt + Brightness down to zoom out.</translation>
 <translation id="5068553687099139861">show passwords</translation>
 <translation id="506886127401228110">Turn on isolated web apps</translation>
 <translation id="5068919226082848014">Pizza</translation>
+<translation id="5068995096404904646">Nothing here</translation>
 <translation id="5071295820492622726">Back to recent downloads</translation>
 <translation id="5071892329440114717">Show standard protection details</translation>
 <translation id="5072303130033714629">Content Transfer tool</translation>
@@ -8945,6 +8947,7 @@ You have # more compromised passwords. Google Password Manager recommends checki
 <translation id="7348920948593871738">Camera is turned off in Mac system settings</translation>
 <translation id="7349010927677336670">Video smoothness</translation>
 <translation id="7350327333026851413">{COUNT,plural, =1{{COUNT} password is saved only to this device}other{{COUNT} passwords are saved only to this device}}</translation>
+<translation id="7351036311845404642">Stack trace</translation>
 <translation id="7352651011704765696">Something went wrong</translation>
 <translation id="7352664183151911163">Across your apps and Chrome browser</translation>
 <translation id="7353261921908507769">Your contacts can share with you when they are nearby. Transfers won't start until you accept.</translation>
@@ -9901,6 +9904,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
 <translation id="8005600846065423578">Always allow <ph name="HOST" /> to see the clipboard</translation>
 <translation id="8006630792898017994">Space or tab</translation>
 <translation id="8006906484704059308">Continue blocking this site from controlling and reprogramming your MIDI devices</translation>
+<translation id="8008098599765575085">This extension may read and modify site information or run in the background</translation>
 <translation id="8008356846765065031">Internet disconnected. Please check your Internet connection.</translation>
 <translation id="8008704580256716350">Suspicious file blocked</translation>
 <translation id="8009196983040865987">When you use organise tabs, the titles and URLs of your open tabs are sent to Google to generate suggested tab groups</translation>
@@ -10084,7 +10088,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
 <translation id="8135557862853121765"><ph name="NUM_KILOBYTES" />K</translation>
 <translation id="8136269678443988272">The PINs that you entered don’t match</translation>
 <translation id="8137559199583651773">Manage extensions</translation>
-<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Review one extension that may be unsafe}other{Review {NUM_EXTENSIONS} extensions that may be unsafe}}</translation>
+<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Review {NUM_EXTENSIONS} extension that may be unsafe}other{Review {NUM_EXTENSIONS} extensions that may be unsafe}}</translation>
 <translation id="8138217203226449454">Did you mean to change your search provider?</translation>
 <translation id="8138997515734480534"><ph name="VM_NAME" /> status</translation>
 <translation id="8139440916039659819">Cursor acceleration</translation>
@@ -11419,6 +11423,7 @@ Permissions that you've already given to websites and apps may apply to this acc
 <translation id="9062468308252555888">14x</translation>
 <translation id="9063208415146866933">Error from line <ph name="ERROR_LINE_START" /> to <ph name="ERROR_LINE_END" /></translation>
 <translation id="9064275926664971810">Enable Auto-fill to fill out forms in a single click</translation>
+<translation id="9064735624474258556">This extension cannot read and modify site information or run in the background</translation>
 <translation id="9065203028668620118">Edit</translation>
 <translation id="9066394310994446814">You're seeing this item based on your previous activity using Google services. You can see your data, delete it and change your settings at <ph name="BEGIN_LINK1" />myactivity.google.com<ph name="END_LINK1" />.
         <ph name="BREAK" />
