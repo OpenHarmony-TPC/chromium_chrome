@@ -255,6 +255,7 @@
 <translation id="116896278675803795">選択したコンテンツに合わせて言語を自動的に変更する</translation>
 <translation id="1169266963600477608">ゲーム操作キー</translation>
 <translation id="1169435433292653700"><ph name="FILE_NAME" /> には機密データまたは危険なデータが含まれています。管理者からのメッセージ:「<ph name="CUSTOM_MESSAGE" />」</translation>
+<translation id="1171126916421636890">説明はありません</translation>
 <translation id="1171515578268894665"><ph name="ORIGIN" /> が HID デバイスへの接続を要求しています</translation>
 <translation id="1172750555846831341">短辺とじ</translation>
 <translation id="1173036203040243666">このタブは Bluetooth デバイスに接続されています</translation>
@@ -1389,7 +1390,7 @@
 <translation id="1949849604471335579">壁紙、スクリーン セーバー、アクセント カラーなどをパーソナライズ</translation>
 <translation id="1949980990364952348">アプリ名</translation>
 <translation id="1951012854035635156">アシスタント</translation>
-<translation id="1951823516285577843">代わりの拡張機能を探す</translation>
+<translation id="1951823516285577843">代替方法の検索</translation>
 <translation id="1953796913175502363">仕事用プロフィールの設定</translation>
 <translation id="1954597385941141174">サイトが USB デバイスへの接続を要求できるようにする</translation>
 <translation id="1954813140452229842">共有フォルダのマウントエラー。認証情報を確認してもう一度お試しください。</translation>
@@ -3022,7 +3023,7 @@
 <translation id="3083899879156272923">マウスを画面の中央に固定して画面を移動する</translation>
 <translation id="3083998949001524405">サードパーティ Cookie の使用が許可されています</translation>
 <translation id="3084121729444215602"><ph name="EXTENSION_NAME" /> は管理者によって固定されています</translation>
-<translation id="3084548735795614657">ここにドロップすると、インストールされます</translation>
+<translation id="3084548735795614657">ドロップしてインストール</translation>
 <translation id="3084771660770137092">Chrome のメモリが不足しているか、ウェブページのプロセスが何らかの原因で終了しました。続行するには、ページを再読み込みするか別のページに移動してください。</translation>
 <translation id="3085412380278336437">サイトにカメラの使用が許可されています</translation>
 <translation id="3085431803365340433">Chrome ブラウザを更新できませんでした</translation>
@@ -3245,7 +3246,7 @@
 <translation id="3262336253311870293">このアカウントは <ph name="DOMAIN" /> で管理されているため、Google アカウントからはログアウトされません。ブックマーク、履歴、パスワード、その他の設定は同期されなくなります。ただし、これまでに同期したデータは引き続き Google アカウントに保存され、<ph name="BEGIN_LINK" />Google ダッシュボード<ph name="END_LINK" />で管理できます。</translation>
 <translation id="3262986719682892278">ファイルが大きすぎます</translation>
 <translation id="3264544094376351444">Sans Serif フォント</translation>
-<translation id="3264582393905923483">コンテキスト</translation>
+<translation id="3264582393905923483">背景</translation>
 <translation id="3265459715026181080">ウインドウを閉じる</translation>
 <translation id="3266022278425892773">Linux 開発環境</translation>
 <translation id="3266030505377585301">このデバイスからのみ閲覧履歴データを削除して Google アカウントにはデータを残しておく場合は、<ph name="BEGIN_LINK" />ログアウト<ph name="END_LINK" />してください。</translation>
@@ -5738,7 +5739,7 @@
 <translation id="5038621320029329200">信頼できる証明書</translation>
 <translation id="5038818366306248416"><ph name="ORIGIN" /> の拡張機能を一切許可しないよう選択しています</translation>
 <translation id="5039071832298038564">デバイスのネットワーク情報</translation>
-<translation id="5039804452771397117">許可する</translation>
+<translation id="5039804452771397117">許可</translation>
 <translation id="5040262127954254034">プライバシー</translation>
 <translation id="5040823038948176460">その他のコンテンツの設定</translation>
 <translation id="5041509233170835229">Chrome アプリ</translation>
@@ -5779,6 +5780,7 @@
 <translation id="5068553687099139861">パスワードを表示</translation>
 <translation id="506886127401228110">独立したウェブアプリをオンにする</translation>
 <translation id="5068919226082848014">ピザ</translation>
+<translation id="5068995096404904646">ここには何もありません</translation>
 <translation id="5071295820492622726">最近のダウンロードに戻る</translation>
 <translation id="5071892329440114717">標準保護機能の詳細を表示</translation>
 <translation id="5072303130033714629">コンテンツ転送ツール</translation>
@@ -8419,7 +8421,7 @@
 <translation id="6983890893900549383">Esc</translation>
 <translation id="698428203349952091">サイトをブロックリストに追加します</translation>
 <translation id="6985235333261347343">Microsoft キー回復エージェント</translation>
-<translation id="698524779381350301">以下のサイトで自動的にアクセスを許可する</translation>
+<translation id="698524779381350301">以下のサイトへのアクセスを自動的に許可する</translation>
 <translation id="6985607387932385770">プリンタ</translation>
 <translation id="6988094684494323731">Linux コンテナを起動しています</translation>
 <translation id="6988403677482707277">タブをタブバーの左端に移動しました</translation>
@@ -8903,6 +8905,7 @@
 <translation id="7348920948593871738">Mac のシステム設定でカメラがオフになっています</translation>
 <translation id="7349010927677336670">動画の滑らかさ</translation>
 <translation id="7350327333026851413">{COUNT,plural, =1{{COUNT} 件のパスワードがこのデバイスのみに保存されています}other{{COUNT} 件のパスワードがこのデバイスのみに保存されています}}</translation>
+<translation id="7351036311845404642">スタックトレース</translation>
 <translation id="7352651011704765696">問題が発生しました</translation>
 <translation id="7352664183151911163">アプリと Chrome ブラウザ</translation>
 <translation id="7353261921908507769">近くにいる連絡先から共有を受けられます。許可するまで転送は行われません。</translation>
@@ -9856,6 +9859,7 @@
 <translation id="8005600846065423578"><ph name="HOST" /> によるクリップボードへのアクセスを常に許可する</translation>
 <translation id="8006630792898017994">スペースキーまたは Tab キー</translation>
 <translation id="8006906484704059308">このサイトによる MIDI デバイスの操作と再プログラムを引き続きブロックする</translation>
+<translation id="8008098599765575085">この拡張機能は、サイト情報の読み取りや変更をしたり、バックグラウンドで実行したりする場合があります</translation>
 <translation id="8008356846765065031">インターネットが切断されました。インターネット接続を確認してください。</translation>
 <translation id="8008704580256716350">不審なファイルをブロックしました</translation>
 <translation id="8009196983040865987">タブの整理機能を使用すると、開いているタブのタイトルと URL が Google に送信され、タブグループの候補が生成されます</translation>
@@ -10039,7 +10043,7 @@
 <translation id="8135557862853121765"><ph name="NUM_KILOBYTES" />K</translation>
 <translation id="8136269678443988272">入力した PIN が一致しません</translation>
 <translation id="8137559199583651773">拡張機能を管理</translation>
-<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{安全でない可能性がある 1 件の拡張機能を確認する}other{安全でない可能性がある {NUM_EXTENSIONS} 件の拡張機能を確認する}}</translation>
+<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, other{安全でない可能性のある{NUM_EXTENSIONS}個の拡張機能をレビュー}}</translation>
 <translation id="8138217203226449454">検索プロバイダを変更するつもりでしたか？</translation>
 <translation id="8138997515734480534"><ph name="VM_NAME" /> ステータス</translation>
 <translation id="8139440916039659819">カーソル アクセラレーション</translation>
@@ -10996,7 +11000,7 @@
 <translation id="8808686172382650546">ネコ</translation>
 <translation id="8809147117840417135">明るい青緑</translation>
 <translation id="8811862054141704416">Crostini のマイクへのアクセス</translation>
-<translation id="8811923271770626905">この拡張機能はバックグラウンドで実行可能です</translation>
+<translation id="8811923271770626905">この拡張機能は、バックグラウンドで実行される場合があります</translation>
 <translation id="8813199641941291474">MIDI デバイスの操作と再プログラムがブロックされています</translation>
 <translation id="8813698869395535039"><ph name="USERNAME" /> にログインできません</translation>
 <translation id="8813872945700551674">保護者の方に「<ph name="EXTENSION_NAME" />」を承認してもらいましょう</translation>
@@ -11370,6 +11374,7 @@
 <translation id="9062468308252555888">14 倍</translation>
 <translation id="9063208415146866933"><ph name="ERROR_LINE_START" />～<ph name="ERROR_LINE_END" /> 行目にエラーがあります</translation>
 <translation id="9064275926664971810">フォームにワンクリックで自動入力できるようにします</translation>
+<translation id="9064735624474258556">この拡張機能は、サイト情報の読み取りや変更、バックグラウンドでの実行ができません</translation>
 <translation id="9065203028668620118">編集</translation>
 <translation id="9066394310994446814">このアイテムは、Google サービスでの過去のアクティビティに基づいて表示されています。自分のデータの確認や削除、設定の変更は <ph name="BEGIN_LINK1" />myactivity.google.com<ph name="END_LINK1" /> で行うことができます。
         <ph name="BREAK" />

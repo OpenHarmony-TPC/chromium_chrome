@@ -255,6 +255,7 @@ Semak kata laluan anda pada bila-bila masa dalam <ph name="GOOGLE_PASSWORD_MANAG
 <translation id="116896278675803795">Tukar bahasa secara automatik untuk memadankan kandungan yang dipilih</translation>
 <translation id="1169266963600477608">Kawalan permainan</translation>
 <translation id="1169435433292653700"><ph name="FILE_NAME" /> mengandungi data sensitif atau berbahaya. Pentadbir anda berkata: "<ph name="CUSTOM_MESSAGE" />"</translation>
+<translation id="1171126916421636890">Tiada penerangan tersedia</translation>
 <translation id="1171515578268894665"><ph name="ORIGIN" /> mahu menyambung ke peranti HID</translation>
 <translation id="1172750555846831341">Terbalikkan pada tepi pendek</translation>
 <translation id="1173036203040243666">Tab ini disambungkan kepada peranti Bluetooth</translation>
@@ -4247,7 +4248,7 @@ Maklumat ini termasuk maklumat tentang perisian yang dipasang, fail, penyemak im
 <translation id="3925926055063465902">Pengguna lain pada peranti ini boleh menggunakan rangkaian ini juga</translation>
 <translation id="3926002189479431949">Telefon Smart Lock telah berubah</translation>
 <translation id="3926410220776569451">Akses kamera telah disekat</translation>
-<translation id="3927932062596804919">Nafikan</translation>
+<translation id="3927932062596804919">Tolak</translation>
 <translation id="3928570707778085600">Simpan perubahan kepada <ph name="FILE_OR_FOLDER_NAME" />?</translation>
 <translation id="3928659086758780856">Dakwat hampir habis</translation>
 <translation id="3929426037718431833">Sambungan ini boleh melihat dan menukar maklumat di tapak ini.</translation>
@@ -5751,7 +5752,7 @@ Gunakan Ctrl + Alt + Kurangkan kecerahan untuk zum keluar.</translation>
 <translation id="5026806129670917316">Hidupkan Wi-Fi</translation>
 <translation id="5026874946691314267">Jangan tunjukkannya lagi</translation>
 <translation id="5027550639139316293">Sijil E-mel</translation>
-<translation id="5027562294707732951">Tambahkan sambungan</translation>
+<translation id="5027562294707732951">Tambah sambungan</translation>
 <translation id="5029287942302939687">Kata laluan anda telah ditetapkan</translation>
 <translation id="5029873138381728058">Gagal menyemak VM</translation>
 <translation id="503155457707535043">Apl sedang dimuat turun</translation>
@@ -5804,6 +5805,7 @@ Gunakan Ctrl + Alt + Kurangkan kecerahan untuk zum keluar.</translation>
 <translation id="5068553687099139861">tunjukkan kata laluan</translation>
 <translation id="506886127401228110">Hidupkan apl web terpencil</translation>
 <translation id="5068919226082848014">Piza</translation>
+<translation id="5068995096404904646">Tiada apa-apa di sini</translation>
 <translation id="5071295820492622726">Kembali ke muat turun terbaharu</translation>
 <translation id="5071892329440114717">Paparkan butiran perlindungan standard</translation>
 <translation id="5072303130033714629">Alat Pemindahan Kandungan</translation>
@@ -8449,7 +8451,7 @@ Anda mempunyai # lagi kata laluan yang terjejas. Google Password Manager mengesy
 <translation id="6983890893900549383">escape</translation>
 <translation id="698428203349952091">Tambahkan laman kepada senarai tidak dibenarkan</translation>
 <translation id="6985235333261347343">Ejen Pemulihan Penting Microsoft</translation>
-<translation id="698524779381350301">Benarkan akses pada tapak berikut secara automatik</translation>
+<translation id="698524779381350301">Benarkan akses pada tapak yang berikut secara automatik</translation>
 <translation id="6985607387932385770">Pencetak</translation>
 <translation id="6988094684494323731">Memulakan bekas Linux</translation>
 <translation id="6988403677482707277">Tab dialihkan ke bahagian permulaan jalur tab</translation>
@@ -8934,6 +8936,7 @@ Anda mempunyai # lagi kata laluan yang terjejas. Google Password Manager mengesy
 <translation id="7348920948593871738">Kamera dimatikan dalam Tetapan Sistem Mac</translation>
 <translation id="7349010927677336670">Kelancaran Video</translation>
 <translation id="7350327333026851413">{COUNT,plural, =1{{COUNT} kata laluan disimpan pada peranti ini sahaja}other{{COUNT} kata laluan disimpan pada peranti ini sahaja}}</translation>
+<translation id="7351036311845404642">Jejak longgokan</translation>
 <translation id="7352651011704765696">Kesilapan telah berlaku</translation>
 <translation id="7352664183151911163">Merentas apl dan penyemak imbas Chrome anda</translation>
 <translation id="7353261921908507769">Kenalan anda boleh berkongsi dengan anda apabila mereka berada berdekatan. Pemindahan tidak akan bermula sehinggalah anda menerima perkongsian.</translation>
@@ -9889,6 +9892,7 @@ Simpan fail kunci anda di tempat selamat. Anda akan memerlukannya untuk mencipta
 <translation id="8005600846065423578">Sentiasa benarkan <ph name="HOST" /> untuk melihat papan keratan</translation>
 <translation id="8006630792898017994">Ruang atau Tab</translation>
 <translation id="8006906484704059308">Teruskan menyekat laman ini daripada mengawal dan mengatur cara semula peranti MIDI anda</translation>
+<translation id="8008098599765575085">Sambungan ini mungkin membaca dan mengubah suai maklumat tapak atau berjalan dalam latar belakang</translation>
 <translation id="8008356846765065031">Internet terputus sambungan. Sila periksa sambungan internet anda.</translation>
 <translation id="8008704580256716350">Fail yang mencurigakan disekat</translation>
 <translation id="8009196983040865987">Apabila anda menggunakan tab atur, tajuk dan URL tab terbuka anda akan dihantar kepada Google untuk menjana kumpulan tab yang dicadangkan</translation>
@@ -10072,7 +10076,7 @@ Simpan fail kunci anda di tempat selamat. Anda akan memerlukannya untuk mencipta
 <translation id="8135557862853121765"><ph name="NUM_KILOBYTES" />K</translation>
 <translation id="8136269678443988272">PIN yang anda masukkan tidak sepadan</translation>
 <translation id="8137559199583651773">Uruskan sambungan...</translation>
-<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Semak 1 sambungan yang mungkin tidak selamat}other{Semak {NUM_EXTENSIONS} sambungan yang mungkin tidak selamat}}</translation>
+<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, other{Semak {NUM_EXTENSIONS} sambungan yang mungkin tidak selamat}}</translation>
 <translation id="8138217203226449454">Adakah anda bermaksud untuk menukar penyedia carian anda?</translation>
 <translation id="8138997515734480534">Status <ph name="VM_NAME" /></translation>
 <translation id="8139440916039659819">Pecutan kursor</translation>
@@ -11030,7 +11034,7 @@ perubahan ini berlaku, anda mungkin tidak mahukannya.</translation>
 <translation id="8808686172382650546">Kucing</translation>
 <translation id="8809147117840417135">Hijau kebiruan cerah</translation>
 <translation id="8811862054141704416">Akses mikrofon Crostini</translation>
-<translation id="8811923271770626905">Sambungan ini mungkin dijalankan pada latar</translation>
+<translation id="8811923271770626905">Sambungan ini mungkin berjalan dalam latar belakang</translation>
 <translation id="8813199641941291474">Kawalan dan pengaturcaraan semula peranti MIDI disekat</translation>
 <translation id="8813698869395535039">Tidak dapat mengelog masuk ke <ph name="USERNAME" /></translation>
 <translation id="8813872945700551674">Sila minta ibu/bapa meluluskan "<ph name="EXTENSION_NAME" />"</translation>
@@ -11404,6 +11408,7 @@ Kebenaran yang telah anda berikan kepada laman web dan apl mungkin dikenakan pad
 <translation id="9062468308252555888">14x</translation>
 <translation id="9063208415146866933">Ralat daripada baris <ph name="ERROR_LINE_START" /> hingga <ph name="ERROR_LINE_END" /></translation>
 <translation id="9064275926664971810">Dayakan Autolengkap untuk mengisi borang dengan satu klikan</translation>
+<translation id="9064735624474258556">Sambungan ini tidak boleh membaca dan mengubah suai maklumat tapak atau berjalan dalam latar belakang</translation>
 <translation id="9065203028668620118">Edit</translation>
 <translation id="9066394310994446814">Anda melihat item ini berdasarkan aktiviti terdahulu anda menggunakan perkhidmatan Google. Anda boleh melihat data anda, memadamkan data tersebut dan menukar tetapan di <ph name="BEGIN_LINK1" />myactivity.google.com<ph name="END_LINK1" />.
         <ph name="BREAK" />

@@ -255,6 +255,7 @@ Controlla le password in qualsiasi momento in <ph name="GOOGLE_PASSWORD_MANAGER"
 <translation id="116896278675803795">Cambia automaticamente la lingua in base ai contenuti selezionati</translation>
 <translation id="1169266963600477608">Controlli di gioco</translation>
 <translation id="1169435433292653700"><ph name="FILE_NAME" /> presenta dati sensibili o pericolosi. Messaggio dell'amministratore: "<ph name="CUSTOM_MESSAGE" />"</translation>
+<translation id="1171126916421636890">Nessuna descrizione disponibile</translation>
 <translation id="1171515578268894665"><ph name="ORIGIN" /> vuole collegarsi a un dispositivo HID</translation>
 <translation id="1172750555846831341">Lato corto</translation>
 <translation id="1173036203040243666">Questa scheda è connessa a un dispositivo Bluetooth</translation>
@@ -3028,7 +3029,7 @@ Puoi gestire le impostazioni dell'account installando l'app Family Link su quest
 <translation id="3083899879156272923">Sposta lo schermo tenendo il puntatore del mouse al centro</translation>
 <translation id="3083998949001524405">Autorizzati a utilizzare i cookie di terze parti</translation>
 <translation id="3084121729444215602">L'amministratore ha bloccato <ph name="EXTENSION_NAME" /></translation>
-<translation id="3084548735795614657">Trascina per installare</translation>
+<translation id="3084548735795614657">Rilascia per installare</translation>
 <translation id="3084771660770137092">Google Chrome ha esaurito la memoria o il processo relativo alla pagina web è stato chiuso per qualche altro motivo. Per continuare, ricarica la pagina o aprine un'altra.</translation>
 <translation id="3085412380278336437">Il sito può usare la videocamera</translation>
 <translation id="3085431803365340433">Impossibile aggiornare il browser Chrome</translation>
@@ -4234,7 +4235,7 @@ Potrebbero essere incluse informazioni su software installati, file, browser e s
 <translation id="3925926055063465902">Anche altri utenti di questo dispositivo possono usare questa rete</translation>
 <translation id="3926002189479431949">Telefono con Smart Lock cambiato</translation>
 <translation id="3926410220776569451">Accesso alla fotocamera bloccato</translation>
-<translation id="3927932062596804919">Non consentire</translation>
+<translation id="3927932062596804919">Nega</translation>
 <translation id="3928570707778085600">Salvare le modifiche per <ph name="FILE_OR_FOLDER_NAME" />?</translation>
 <translation id="3928659086758780856">Inchiostro in esaurimento</translation>
 <translation id="3929426037718431833">Queste estensioni possono vedere e modificare le informazioni sul sito.</translation>
@@ -5790,6 +5791,7 @@ Premi Ctrl + Alt + Diminuisci luminosità per diminuire lo zoom.</translation>
 <translation id="5068553687099139861">mostrare le password</translation>
 <translation id="506886127401228110">Attiva le app web isolate</translation>
 <translation id="5068919226082848014">Pizza</translation>
+<translation id="5068995096404904646">Nessun dato presente</translation>
 <translation id="5071295820492622726">Torna ai download recenti</translation>
 <translation id="5071892329440114717">Mostra dettagli della protezione standard</translation>
 <translation id="5072303130033714629">Strumento Trasferimento contenuti</translation>
@@ -6875,7 +6877,7 @@ A questo account potrebbero essere applicate le autorizzazioni già concesse a s
 <translation id="5857693745746757503">Risparmia 50 $ o più su un nuovo Chromebook se esegui l'upgrade oggi stesso</translation>
 <translation id="5858490737742085133">Terminale</translation>
 <translation id="585979798156957858">Meta esterno</translation>
-<translation id="5860033963881614850">Off</translation>
+<translation id="5860033963881614850">Disattivato</translation>
 <translation id="5860254591544742609">Mostra la barra del titolo</translation>
 <translation id="5860335608673904825">tasto per la ricerca + Ctrl + Maiusc + <ph name="TOP_ROW_KEY" /></translation>
 <translation id="5860491529813859533">Attiva</translation>
@@ -8432,7 +8434,7 @@ Hai altre # password compromesse. Gestore delle password di Google consiglia di 
 <translation id="6983890893900549383">esc</translation>
 <translation id="698428203349952091">Aggiungi sito all'elenco dei siti non consentiti</translation>
 <translation id="6985235333261347343">Agente di recupero chiavi Microsoft</translation>
-<translation id="698524779381350301">Consenti accesso automatico ai seguenti siti</translation>
+<translation id="698524779381350301">Consenti automaticamente l'accesso ai seguenti siti</translation>
 <translation id="6985607387932385770">Stampanti</translation>
 <translation id="6988094684494323731">Avvio del container Linux</translation>
 <translation id="6988403677482707277">Scheda spostata all'inizio della tabstrip</translation>
@@ -8917,6 +8919,7 @@ Hai altre # password compromesse. Gestore delle password di Google consiglia di 
 <translation id="7348920948593871738">La fotocamera è disattivata nelle Impostazioni di sistema del Mac</translation>
 <translation id="7349010927677336670">Fluidità video</translation>
 <translation id="7350327333026851413">{COUNT,plural, =1{{COUNT} password è salvata solo su questo dispositivo}other{{COUNT} password sono salvate solo su questo dispositivo}}</translation>
+<translation id="7351036311845404642">Traccia della pila</translation>
 <translation id="7352651011704765696">Si è verificato un problema</translation>
 <translation id="7352664183151911163">Nelle app e nel browser Chrome</translation>
 <translation id="7353261921908507769">I tuoi contatti possono condividere dei contenuti con te quando si trovano nelle vicinanze. I trasferimenti non inizieranno finché non accetti.</translation>
@@ -9871,6 +9874,7 @@ Conserva il file di chiave in un luogo sicuro. Ti servirà per creare nuove vers
 <translation id="8005600846065423578">Consenti sempre a <ph name="HOST" /> di leggere gli appunti</translation>
 <translation id="8006630792898017994">Spazio o Tab</translation>
 <translation id="8006906484704059308">Continua a impedire a questo sito di controllare e riprogrammare i tuoi dispositivi MIDI</translation>
+<translation id="8008098599765575085">Questa estensione può leggere e modificare le informazioni del sito o essere eseguita in background</translation>
 <translation id="8008356846765065031">Disconnesso da Internet. Controlla la tua connessione Internet.</translation>
 <translation id="8008704580256716350">File sospetto bloccato</translation>
 <translation id="8009196983040865987">Quando utilizzi Organizza schede, gli URL e i titoli delle schede aperte vengono inviati a Google per generare gruppi di schede suggeriti</translation>
@@ -10054,7 +10058,7 @@ Conserva il file di chiave in un luogo sicuro. Ti servirà per creare nuove vers
 <translation id="8135557862853121765"><ph name="NUM_KILOBYTES" />K</translation>
 <translation id="8136269678443988272">I PIN inseriti non corrispondono</translation>
 <translation id="8137559199583651773">Gestisci estensioni</translation>
-<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Esamina 1 estensione che potrebbe non essere sicura}other{Esamina {NUM_EXTENSIONS} estensioni che potrebbero non essere sicure}}</translation>
+<translation id="8137711267692884979">{NUM_EXTENSIONS,plural, =1{Esamina {NUM_EXTENSIONS} estensione che potrebbe non essere sicura}other{Esamina {NUM_EXTENSIONS} estensioni che potrebbero non essere sicure}}</translation>
 <translation id="8138217203226449454">Era tua intenzione cambiare provider di ricerca?</translation>
 <translation id="8138997515734480534">Stato <ph name="VM_NAME" /></translation>
 <translation id="8139440916039659819">Accelerazione del cursore</translation>
@@ -11011,7 +11015,7 @@ Conserva il file di chiave in un luogo sicuro. Ti servirà per creare nuove vers
 <translation id="8808686172382650546">Gatto</translation>
 <translation id="8809147117840417135">Verde acqua</translation>
 <translation id="8811862054141704416">Accesso al microfono su Crostini</translation>
-<translation id="8811923271770626905">Questa estensione potrebbe essere eseguita in background</translation>
+<translation id="8811923271770626905">Questa estensione può essere eseguita in background</translation>
 <translation id="8813199641941291474">Controllo e riprogrammazione dei dispositivi MIDI bloccati</translation>
 <translation id="8813698869395535039">Impossibile accedere a <ph name="USERNAME" /></translation>
 <translation id="8813872945700551674">Chiedi a un genitore di approvare "<ph name="EXTENSION_NAME" />"</translation>
@@ -11385,6 +11389,7 @@ A questo account potrebbero essere applicate le autorizzazioni già concesse a s
 <translation id="9062468308252555888">14x</translation>
 <translation id="9063208415146866933">Errore dalla riga <ph name="ERROR_LINE_START" /> alla riga <ph name="ERROR_LINE_END" /></translation>
 <translation id="9064275926664971810">Attiva la funzione Compilazione automatica per compilare i moduli con un singolo clic</translation>
+<translation id="9064735624474258556">Questa estensione non può leggere e modificare le informazioni del sito o essere eseguita in background</translation>
 <translation id="9065203028668620118">Modifica</translation>
 <translation id="9066394310994446814">Questo elemento è stato visualizzato in base alla tua precedente attività di utilizzo dei servizi Google. Puoi visualizzare i tuoi dati, eliminarli e cambiare le impostazioni all'indirizzo <ph name="BEGIN_LINK1" />myactivity.google.com<ph name="END_LINK1" />.
         <ph name="BREAK" />

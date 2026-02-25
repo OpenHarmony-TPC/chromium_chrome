@@ -28,14 +28,23 @@
   <message name="IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_DISABLED" desc="The tooltip for the enable extension toggle when the extension is disabled.">
     This extension cannot read and change site information or run in the background
   </message>
+  <message name="IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_DISABLED_V2" desc="The tooltip for the enable extension toggle when the extension is disabled.">
+    This extension cannot read and modify site information or run in the background
+  </message>
   <message name="IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_ENABLED" desc="The tooltip for the enable extension toggle when the extension is enabled but does not have host permissions.">
     This extension may run in the background
   </message>
   <message name="IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_ENABLED_WITH_SITE_ACCESS" desc="The tooltip for the enable extension toggle when the extension is enabled and has host permissions.">
     This extension may read and change site information or run in the background
   </message>
+  <message name="IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_ENABLED_WITH_SITE_ACCESS_V2" desc="The tooltip for the enable extension toggle when the extension is enabled and has host permissions.">
+    This extension may read and modify site information or run in the background
+  </message>
   <message name="IDS_EXTENSIONS_ERROR_NO_ERRORS_CODE_MESSAGE" desc="The text displayed in the 'code' section when an extension has no errors.">
     Nothing to see here, move along.
+  </message>
+  <message name="IDS_EXTENSIONS_ERROR_NO_ERRORS_CODE_MESSAGE_V2" desc="The text displayed in the 'code' section when an extension has no errors.">
+    Nothing here
   </message>
   <message name="IDS_EXTENSIONS_INSTALL_DROP_TARGET" desc="Text on drop target for installing extensions.">
     Drop to install
@@ -126,6 +135,9 @@
   </message>
   <message name="IDS_EXTENSIONS_ERROR_STACK_TRACE" desc="The label for the stack trace of an extension's error.">
     Stack Trace
+  </message>
+  <message name="IDS_EXTENSIONS_ERROR_STACK_TRACE_V2" desc="The label for the stack trace of an extension's error.">
+    Stack trace
   </message>
   <message name="IDS_EXTENSIONS_ERROR_LINES_NOT_SHOWN" desc="The label displayed to the users indicating that some lines of code are truncated.">
     {LINE_COUNT, plural,
@@ -405,6 +417,9 @@
   </message>
   <message name="IDS_EXTENSIONS_NO_DESCRIPTION" desc="The message shown to the user when an extension does not have any description.">
     No description provided
+  </message>
+  <message name="IDS_EXTENSIONS_NO_DESCRIPTION_V2" desc="The message shown to the user when an extension does not have any description.">
+    No description available
   </message>
   <message name="IDS_EXTENSIONS_OPENS_IN_NEW_TAB" desc="ARIA (accessibility) label describing a link which opens in a new tab.">
     Opens in new tab
