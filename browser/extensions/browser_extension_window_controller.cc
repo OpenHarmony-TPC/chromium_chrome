@@ -23,9 +23,6 @@
 #include "extensions/common/manifest_handlers/options_page_info.h"
 #include "extensions/common/mojom/context_type.mojom.h"
 
-#if BUILDFLAG(ARKWEB_NWEB_EX)
-#include "ohos_nweb_ex/core/extension/nweb_extension_manager_dispatcher.h"
-#endif
 namespace extensions {
 
 namespace {
@@ -228,11 +225,7 @@ bool BrowserExtensionWindowController::OpenOptionsPage(
   } else {
     // Options page tab is Extension settings pointed at that Extension's ID,
     // e.g. chrome://extensions?options=...
-#if BUILDFLAG(ARKWEB_NWEB_EX)
-    url_to_navigate = GURL("hwbrowser://extensions/");
-#else
     url_to_navigate = GURL(chrome::kChromeUIExtensionsURL);
-#endif
     GURL::Replacements replacements;
     std::string query =
         base::StringPrintf("options=%s", extension->id().c_str());
@@ -245,15 +238,10 @@ bool BrowserExtensionWindowController::OpenOptionsPage(
   // However, if the options page opens inside the chrome://extensions page, we
   // can override an existing page.
   // Note: ref behavior is to ignore.
-#if BUILDFLAG(ARKWEB_NWEB_EX)
-    NWebExtensionManagerDispatcher::OnExtensionOpenUrlCallBack(
-      url_to_navigate.spec(), URL_TYPE_OPTIONS);
-#else
   ShowSingletonTabOverwritingNTP(browser_to_use, url_to_navigate,
                                  open_in_tab
                                      ? NavigateParams::RESPECT
                                      : NavigateParams::IGNORE_AND_NAVIGATE);
-#endif
   return true;
 }
 

@@ -46,6 +46,11 @@
 #include "third_party/cros_system_api/dbus/service_constants.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_NWEB_EX)
+#include "extensions/common/manifest_handlers/options_page_info.h"
+#include "ohos_nweb_ex/core/extension/nweb_extension_manager_dispatcher.h"
+#endif
+
 using extensions::Extension;
 using extensions::ExtensionSystem;
 using extensions::ExtensionUpdater;
@@ -346,8 +351,29 @@ bool ChromeRuntimeAPIDelegate::RestartDevice(std::string* error_message) {
 bool ChromeRuntimeAPIDelegate::OpenOptionsPage(
     const Extension* extension,
     content::BrowserContext* browser_context) {
+#if BUILDFLAG(ARKWEB_NWEB_EX)
+  if (!extensions::OptionsPageInfo::HasOptionsPage(extension))
+    return false;
+  GURL url_to_navigate;
+  bool open_in_tab = extensions::OptionsPageInfo::ShouldOpenInTab(extension);
+  if (open_in_tab) {
+    url_to_navigate = extensions::OptionsPageInfo::GetOptionsPage(extension);
+  } else {
+    url_to_navigate = GURL("hwbrowser://extensions/");
+    GURL::Replacements replacements;
+    std::string query =
+        base::StringPrintf("options=%s", extension->id().c_str());
+    replacements.SetQueryStr(query);
+    url_to_navigate = url_to_navigate.ReplaceComponents(replacements);
+  }
+
+  NWebExtensionManagerDispatcher::OnExtensionOpenUrlCallBack(
+      url_to_navigate.spec(), URL_TYPE_OPTIONS);
+  return true;
+#else
   return extensions::ExtensionTabUtil::OpenOptionsPageFromAPI(extension,
                                                               browser_context);
+#endif
 }
 
 int ChromeRuntimeAPIDelegate::GetDeveloperToolsWindowId(
