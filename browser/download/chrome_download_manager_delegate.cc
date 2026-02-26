@@ -2296,3 +2296,7 @@ void ChromeDownloadManagerDelegate::CancelAllEphemeralWarnings() {
   }
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ARKWEB)
+#include "arkweb/chromium_ext/content/browser/download/chrome_download_manager_delegate_for_include.cc"
+#endif // IS_ARKWEB
