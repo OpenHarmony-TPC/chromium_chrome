@@ -361,10 +361,9 @@ std::string SanitizeFrontendQueryParam(const std::string& key,
   }
 
 #if BUILDFLAG(ARKWEB_DEVTOOLS)
-  if (key == "decckSide" && (value == "undocked")) {
+  if (key == "dockSide" && (value == "undocked")) {
     return value;
   }
-
 #endif // BUILDFLAG(ARKWEB_DEVTOOLS)
 
   // Pass connection endpoints as is.
