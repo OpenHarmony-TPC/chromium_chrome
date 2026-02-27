@@ -360,6 +360,13 @@ std::string SanitizeFrontendQueryParam(const std::string& key,
     return "true";
   }
 
+#if BUILDFLAG(ARKWEB_DEVTOOLS)
+  if (key == "decckSide" && (value == "undocked")) {
+    return value;
+  }
+
+#endif // BUILDFLAG(ARKWEB_DEVTOOLS)
+
   // Pass connection endpoints as is.
   if (key == "ws" || key == "service-backend") {
     return SanitizeEndpoint(value);
