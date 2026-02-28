@@ -60,21 +60,12 @@ bool DevToolsUI::IsFrontendResourceURL(const GURL& url) {
   return false;
 }
 
+DevToolsUI::DevToolsUI(content::WebUI* web_ui)
 #if BUILDFLAG(ARKWEB_DEVTOOLS)
-DevToolsUI::DevToolsUI(content::WebUI* web_ui)
     : WebUIController(web_ui) {
-  web_ui->SetBindings(content::BindingsPolicySet());
-  auto factory = web_ui->GetWebContents()
-                     ->GetBrowserContext()
-                     ->GetDefaultStoragePartition()
-                     ->GetURLLoaderFactoryForBrowserProcess();
-  content::URLDataSource::Add(
-      web_ui->GetWebContents()->GetBrowserContext(),
-      std::make_unique<DevToolsDataSource>(std::move(factory)));
-}
 #else
-DevToolsUI::DevToolsUI(content::WebUI* web_ui)
     : WebUIController(web_ui), bindings_(web_ui->GetWebContents()) {
+#endif // BUILDFLAG(ARKWEB_DEVTOOLS)
   web_ui->SetBindings(content::BindingsPolicySet());
   auto factory = web_ui->GetWebContents()
                      ->GetBrowserContext()
@@ -84,6 +75,4 @@ DevToolsUI::DevToolsUI(content::WebUI* web_ui)
       web_ui->GetWebContents()->GetBrowserContext(),
       std::make_unique<DevToolsDataSource>(std::move(factory)));
 }
-#endif // BUILDFLAG(ARKWEB_DEVTOOLS)
-
 DevToolsUI::~DevToolsUI() = default;
