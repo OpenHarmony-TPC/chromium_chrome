@@ -507,6 +507,8 @@ StartupProfileInfo CreateInitialProfile(
     // report when an error occurs?
     ShowProfileErrorDialog(error_type, IDS_COULDNT_STARTUP_PROFILE_ERROR,
                            "Error creating initial profile.");
+#else
+  LOG(ERROR) << "Error creating initial profile.";
 #endif
     return profile_info;
   }
@@ -1287,6 +1289,9 @@ void ChromeBrowserMainParts::PostCreateThreads() {
 int ChromeBrowserMainParts::PreMainMessageLoopRun() {
   TRACE_EVENT0("startup", "ChromeBrowserMainParts::PreMainMessageLoopRun");
 
+#if BUILDFLAG(IS_ARKWEB)
+  LOG(INFO) << "PreMainMessageLoopRun start";
+#endif
   result_code_ = PreMainMessageLoopRunImpl();
 
   for (auto& chrome_extra_part : chrome_extra_parts_)
