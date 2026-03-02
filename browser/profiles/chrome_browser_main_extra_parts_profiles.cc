@@ -554,6 +554,10 @@
 #include "cef/ohos_cef_ext/libcef/browser/content_settings/oh_host_content_settings_observer_factory.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_NO_STATE_PREFETCH)
+#include "cef/ohos_cef_ext/libcef/browser/predictors/loading_predictor_factory.h"
+#endif
+
 namespace chrome {
 
 void AddProfilesExtraParts(ChromeBrowserMainParts* main_parts) {
@@ -1344,6 +1348,10 @@ void ChromeBrowserMainExtraPartsProfiles::
 
 #if BUILDFLAG(ARKWEB_EXT_EXCEPTION_LIST)
   OhHostContentSettingsObserverFactory::GetInstance();
+#endif
+
+#if BUILDFLAG(ARKWEB_NO_STATE_PREFETCH)
+  ohos_predictors::LoadingPredictorFactory::GetInstance();
 #endif
 }
 
