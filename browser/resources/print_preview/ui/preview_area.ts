@@ -63,6 +63,8 @@ export class PrintPreviewPreviewAreaElement extends
     return 'print-preview-preview-area';
   }
 
+  private static readonly UI_HIDE_DELAY_MS = 100;
+
   static override get styles() {
     return getCss();
   }
@@ -112,6 +114,7 @@ export class PrintPreviewPreviewAreaElement extends
   private inFlightRequestId_: number = -1;
   private pluginProxy_: PluginProxy = PluginProxyImpl.getInstance();
   private keyEventCallback_: ((e: KeyboardEvent) => void)|null = null;
+  private hideUiTimeout_: number | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -164,6 +167,11 @@ export class PrintPreviewPreviewAreaElement extends
    * controls if custom margins are being used.
    */
   private onPointerOver_() {
+    if (this.hideUiTimeout_) {
+      clearTimeout(this.hideUiTimeout_);
+      this.hideUiTimeout_ = null;
+    }
+
     this.$.marginControlContainer.setInvisible(false);
   }
 
@@ -171,8 +179,19 @@ export class PrintPreviewPreviewAreaElement extends
    * Called when the pointer moves off of the component. Hides the margin
    * controls if they are visible.
    */
-  private onPointerOut_() {
-    this.$.marginControlContainer.setInvisible(true);
+  private onPointerOut_(e: PointerEvent) {
+    if (e.pointerType === 'touch') {
+      return;
+    }
+ 
+    if (this.hideUiTimeout_) {
+      clearTimeout(this.hideUiTimeout_);
+    }
+ 
+    this.hideUiTimeout_ = window.setTimeout(() => {
+      this.hideUiTimeout_ = null;
+      this.$.marginControlContainer.setInvisible(true);
+    }, PrintPreviewPreviewAreaElement.UI_HIDE_DELAY_MS);
   }
 
   private pluginOrDocumentStatusChanged_() {
