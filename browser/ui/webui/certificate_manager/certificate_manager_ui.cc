@@ -31,6 +31,10 @@
 #include "components/user_manager/user_manager.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/webui/settings/settings_utils.h"
+#endif
+
 namespace {
 
 const char kCRSLearnMoreLink[] =
@@ -121,7 +125,7 @@ void AddCertificateManagerV2Strings(content::WebUIDataSource* html_source) {
        IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM_CERTS_TITLE},
       {"certificateManagerV2PlatformCertsToggleLabel",
        IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM_CERTS_TOGGLE_LABEL},
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
       {"certificateManagerV2PlatformCertsManageLink",
        IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM_CERTS_MANAGE_LINK},
       {"certificateManagerV2PlatformCertsManageLinkAriaDescription",
@@ -184,7 +188,7 @@ CertificateManagerUI::CertificateManagerUI(content::WebUI* web_ui)
   }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
   if (base::FeatureList::IsEnabled(features::kEnableCertManagementUIV2)) {
     source->AddResourcePath("", IDR_CERT_MANAGER_DIALOG_V2_HTML);
     AddCertificateManagerV2Strings(source);
@@ -199,6 +203,11 @@ CertificateManagerUI::CertificateManagerUI(content::WebUI* web_ui)
         "clientCertImportAndBindAllowed",
         client_cert_policy.IsManagementAllowed(
             ClientCertManagementAccessControls::kHardwareBacked));
+#endif
+#if BUILDFLAG(IS_OHOS)
+  source->AddBoolean(
+        "ohosSdk22",
+        settings_utils::IsSdk22(nullptr));
 #endif
 
     auto plural_string_handler = std::make_unique<PluralStringHandler>();

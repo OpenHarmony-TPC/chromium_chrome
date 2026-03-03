@@ -535,11 +535,6 @@
 #include "chrome/browser/chrome_browser_main_posix.h"
 #endif
 
-#if BUILDFLAG(IS_OHOS)
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/views/chrome_browser_main_extra_parts_views_ohos.h"
-#endif
-
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/digital_credentials/digital_identity_provider_desktop.h"
 #include "chrome/browser/preloading/preview/preview_navigation_throttle.h"
@@ -718,6 +713,12 @@
 #include "chrome/browser/plugins/plugin_response_interceptor_url_loader_throttle.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/views/chrome_browser_main_extra_parts_views_ohos.h"
+#include "ohos/adapter/cert_manager/cert_manager_adapter.h"
+#endif
+
 #if BUILDFLAG(ENABLE_PDF)
 #include "chrome/browser/pdf/chrome_pdf_stream_delegate.h"
 #include "components/pdf/browser/pdf_navigation_throttle.h"
@@ -842,6 +843,10 @@ using plugins::ChromeContentBrowserClientPluginsPart;
 
 #if !BUILDFLAG(IS_ANDROID)
 using web_apps::ChromeContentBrowserClientIsolatedWebAppsPart;
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+using namespace ohos::adapter;
 #endif
 
 namespace {
@@ -4180,7 +4185,15 @@ base::OnceClosure ChromeContentBrowserClient::SelectClientCertificate(
   DCHECK(requesting_url.is_valid()) << "Invalid URL string: " << requesting_url;
 
   net::ClientCertIdentityList matching_certificates, nonmatching_certificates;
-  enterprise_util::AutoSelectCertificates(
+  bool is_huks = false;
+#if BUILDFLAG(IS_OHOS)
+  is_huks = CertManagerAdapter::GetInstance().IsSdk22();
+# endif
+
+  if (is_huks && client_certs.size() > 0) {
+    matching_certificates.push_back(std::move(client_certs[0]));
+  } else
+    enterprise_util::AutoSelectCertificates(
       profile, requesting_url, std::move(client_certs), &matching_certificates,
       &nonmatching_certificates);
 
