@@ -803,8 +803,7 @@ void CertificatesHandler::HandleImportPersonalPasswordSelected(
 
 #if BUILDFLAG(IS_OHOS)
   std::string pass = args[1].GetString();
-  std::shared_ptr<char[]> buff = std::make_shared<char[]>(file_data_.length());
-  memcpy(buff.get(), file_data_.data(), file_data_.length());
+  std::vector<uint8_t> buff(file_data_.begin(), file_data_.end());
   std::string common_name = certificate_manager_model_->ParsePfxGetCommonName(
       file_data_, pass);
   if (common_name == "") {
@@ -819,7 +818,7 @@ void CertificatesHandler::HandleImportPersonalPasswordSelected(
 
   int32_t ret =
       ohos::adapter::CertManagerAdapter::GetInstance().InstallPersonalCert(
-          buff, file_data_.length(), pass, common_name);
+          std::move(buff), pass, common_name);
   memset(&pass[0], 0, pass.size());
   ImportExportCleanup();
   if (!ret) {

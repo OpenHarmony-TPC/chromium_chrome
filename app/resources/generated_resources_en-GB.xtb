@@ -7840,6 +7840,9 @@ Permissions that you've already given to websites and apps may apply to this acc
 <translation id="6562117348069327379">Store system logs to the downloads directory.</translation>
 <translation id="656293578423618167">The file path or name is too long.  Please save with a shorter name or to another location.</translation>
 <translation id="6563002009564846727">View imported certificates from Windows</translation>
+<translation id="4336738774964272398">View imported certificates from OHOS</translation>
+<translation id="4978092847842315976">Manage imported certificates from OHOS</translation>
+<translation id="9211978661998961119">Imported from OHOS</translation>
 <translation id="6563055593659435495">Can't maintain a connection with your phone. Make sure that your phone is nearby, unlocked and that Bluetooth and Wi-Fi are turned on.</translation>
 <translation id="6569931898053264308">Medium savings</translation>
 <translation id="6570622975915850879">Use a different device</translation>

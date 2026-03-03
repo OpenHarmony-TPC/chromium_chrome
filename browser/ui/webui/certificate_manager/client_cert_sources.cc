@@ -46,6 +46,11 @@
 #include "net/ssl/client_cert_store_nss.h"
 #endif  // BUILDFLAG(USE_NSS_CERTS)
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/crypto_module_delegate_ohos.h"
+#include "net/ssl/client_cert_store_ohos.h"
+#endif
+
 #if BUILDFLAG(IS_WIN)
 #include "net/ssl/client_cert_store_win.h"
 #endif  // BUILDFLAG(IS_WIN)
@@ -54,7 +59,7 @@
 #include "net/ssl/client_cert_store_mac.h"
 #endif  // BUILDFLAG(IS_MAC)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
 #include "chrome/browser/enterprise/client_certificates/certificate_provisioning_service_factory.h"
 #include "components/enterprise/client_certificates/core/certificate_provisioning_service.h"
 #include "components/enterprise/client_certificates/core/client_certificates_service.h"
@@ -78,6 +83,15 @@
 #include "chromeos/constants/chromeos_features.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include <openssl/bio.h>
+#include <openssl/pem.h>
+#include <openssl/pkcs12.h>
+#include <openssl/x509.h>
+#include "net/cert/x509_util.h"
+#include "ohos/adapter/cert_manager/cert_manager_adapter.h"
 #endif
 
 namespace {
@@ -105,8 +119,11 @@ class ClientCertStoreLoader {
     active_requests_[store_ptr] = std::move(store);
     // Unretained is safe as the callback is not run if `active_requests_` is
     // destroyed.
-    store_ptr->GetClientCerts(
-        base::MakeRefCounted<net::SSLCertRequestInfo>(),
+    // store_ptr->GetClientCerts(
+    //     base::MakeRefCounted<net::SSLCertRequestInfo>(),
+    //     base::BindOnce(&ClientCertStoreLoader::HandleClientCertsResult,
+    //                    base::Unretained(this), store_ptr, std::move(callback)));
+    store_ptr->GetSoftClientCerts(
         base::BindOnce(&ClientCertStoreLoader::HandleClientCertsResult,
                        base::Unretained(this), store_ptr, std::move(callback)));
   }
@@ -161,6 +178,15 @@ class ClientCertStoreFactoryNSS : public ClientCertStoreFactory {
                             kCryptoModulePasswordClientAuth));
   }
 };
+#elif BUILDFLAG(IS_OHOS)
+class ClientCertStoreFactoryOHOS : public ClientCertStoreFactory {
+ public:
+  std::unique_ptr<net::ClientCertStore> CreateClientCertStore() override {
+    return std::make_unique<net::ClientCertStoreOHOS>(
+        base::BindRepeating(&CreateCryptoModuleBlockingPasswordDelegate,
+                            kCryptoModulePasswordClientAuth));
+  }
+};
 #elif BUILDFLAG(IS_WIN)
 class ClientCertStoreFactoryWin : public ClientCertStoreFactory {
  public:
@@ -183,6 +209,9 @@ std::unique_ptr<ClientCertStoreLoader> CreatePlatformClientCertLoader(
 #if BUILDFLAG(IS_WIN)
   return std::make_unique<ClientCertStoreLoader>(
       std::make_unique<ClientCertStoreFactoryWin>());
+#elif BUILDFLAG(IS_OHOS)
+  return std::make_unique<ClientCertStoreLoader>(
+      std::make_unique<ClientCertStoreFactoryOHOS>());
 #elif BUILDFLAG(IS_MAC)
   return std::make_unique<ClientCertStoreLoader>(
       std::make_unique<ClientCertStoreFactoryMac>());
@@ -192,7 +221,7 @@ std::unique_ptr<ClientCertStoreLoader> CreatePlatformClientCertLoader(
 }
 #endif
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
 // ClientCertStore implementation that always returns an empty list. The
 // CertificateProvisioningService implementation expects to wrap a platform
 // cert store, but here we only want to get results from the provisioning
@@ -350,7 +379,7 @@ class ClientCertSource : public CertificateManagerPageHandler::CertSource {
   std::optional<net::CertificateList> certs_;
 };
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
 // ChromeOS currently can use either Kcer or NSS for listing client certs, and
 // Linux uses NSS only. This interface provides an abstraction to hide that
 // from WritableClientCertSource. Currently this class only handles reading
@@ -511,6 +540,8 @@ class NSSLoader : public WritableCertLoader {
         loader_(std::make_unique<ClientCertStoreLoader>(
 #if BUILDFLAG(IS_CHROMEOS_ASH)
             std::make_unique<ClientCertStoreFactoryAsh>(profile)
+#elif BUILDFLAG(IS_OHOS)
+            std::make_unique<ClientCertStoreFactoryOHOS>()
 #else
             std::make_unique<ClientCertStoreFactoryNSS>()
 #endif
@@ -711,6 +742,40 @@ class WritableClientCertSource
             &WritableClientCertSource::GotImportPassword,
             weak_ptr_factory_.GetWeakPtr(), std::move(*file_bytes)));
   }
+#if BUILDFLAG(IS_OHOS)
+  std::string ParsePfxGetCommonName(
+    std::vector<uint8_t> p12data,
+    const std::string& pass) {
+  std::string ret = "";
+  auto der_buf = reinterpret_cast<const uint8_t*>(p12data.data());
+  bssl::UniquePtr<PKCS12> p12(d2i_PKCS12(nullptr, &der_buf, p12data.size()));
+
+  EVP_PKEY* pkey = nullptr;
+  X509* cert = nullptr;
+  // Parse the PKCS12 structure
+  if (PKCS12_parse(p12.get(), pass.c_str(), &pkey, &cert, nullptr) != 1) {
+    return "";
+  }
+  // if |p12| does not contain a private key,
+  // both |pkey| and |cert| will be set to NULL
+  // and all certificates will be returned via |ca|.
+  bssl::UniquePtr<EVP_PKEY> pkey_free(pkey);
+  bssl::UniquePtr<X509> cert_free(cert);
+  if (!cert) {
+    return "";
+  }
+  // Get the Common Name (CN) from the certificate
+  X509_NAME* subjectName = X509_get_subject_name(cert);
+  int commonNameIndex =
+      X509_NAME_get_index_by_NID(subjectName, NID_commonName, -1);
+  X509_NAME_ENTRY* commonNameEntry =
+      X509_NAME_get_entry(subjectName, commonNameIndex);
+  ASN1_STRING* commonNameASN1 = X509_NAME_ENTRY_get_data(commonNameEntry);
+  ret = std::string(reinterpret_cast<char*>(ASN1_STRING_data(commonNameASN1)),
+                    ASN1_STRING_length(commonNameASN1));
+  return ret;
+}
+#endif
 
   void GotImportPassword(std::vector<uint8_t> file_bytes,
                          const std::optional<std::string>& password) {
@@ -719,7 +784,22 @@ class WritableClientCertSource
       std::move(import_callback_).Run(nullptr);
       return;
     }
+#if BUILDFLAG(IS_OHOS)
+  std::string common_name = ParsePfxGetCommonName(
+      file_bytes, *password);
+  if (common_name == "") {
+    ReplyToImportCallback(-1);
+    return;
+  }
 
+  int32_t ret =
+      ohos::adapter::CertManagerAdapter::GetInstance().InstallPersonalCert(
+          std::move(file_bytes), *password, common_name);
+
+  ReplyToImportCallback(ret);
+  return;
+
+#else
     content::GetIOThreadTaskRunner({})->PostTask(
         FROM_HERE,
         base::BindOnce(
@@ -732,8 +812,9 @@ class WritableClientCertSource
                 import_hardware_backed_, std::move(file_bytes), *password,
                 base::BindOnce(&WritableClientCertSource::FinishedNSSImport,
                                weak_ptr_factory_.GetWeakPtr()))));
+  #endif
   }
-
+#if BUILDFLAG(IS_LINUX)
   static void GetCertDBOnIOThread(
       NssCertDatabaseGetter database_getter,
       base::OnceCallback<void(net::NSSCertDatabase*)> callback) {
@@ -779,7 +860,7 @@ class WritableClientCertSource
                                   std::move(file_bytes), std::move(password),
                                   nss_import_result));
   }
-
+#endif
   void FinishedNSSImport(std::vector<uint8_t> file_bytes,
                          std::string password,
                          int nss_import_result) {
@@ -901,7 +982,13 @@ class WritableClientCertSource
               "cert not found"));
       return;
     }
+#if BUILDFLAG(IS_OHOS)
+  std::string cert_uri = cert->GetCertUri();
+  int32_t ret = ohos::adapter::CertManagerAdapter::GetInstance()
+      .UninstallPersonalCert(cert_uri);
+  FinishedDelete(std::move(callback), ret == 0);
 
+#else
     content::GetIOThreadTaskRunner({})->PostTask(
         FROM_HERE,
         base::BindOnce(
@@ -915,8 +1002,10 @@ class WritableClientCertSource
                 base::BindOnce(&WritableClientCertSource::FinishedDelete,
                                weak_ptr_factory_.GetWeakPtr(),
                                std::move(callback)))));
+#endif
   }
 
+#if BUILDFLAG(IS_LINUX)
   static void GotNSSCertDatabaseForDeleteOnIOThread(
       scoped_refptr<net::X509Certificate> cert,
       ClientCertManagementAccessControls client_cert_policy,
@@ -960,6 +1049,7 @@ class WritableClientCertSource
         base::BindPostTask(content::GetUIThreadTaskRunner({}),
                            std::move(finished_delete_callback)));
   }
+#endif
 
   void FinishedDelete(
       CertificateManagerPageHandler::DeleteCertificateCallback callback,
@@ -1057,7 +1147,7 @@ CreatePlatformClientCertSource(
     mojo::Remote<certificate_manager_v2::mojom::CertificateManagerPage>*
         remote_client,
     Profile* profile) {
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
   return std::make_unique<WritableClientCertSource>(remote_client, profile);
 #else
   return std::make_unique<ClientCertSource>(
@@ -1065,7 +1155,7 @@ CreatePlatformClientCertSource(
 #endif
 }
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
 std::unique_ptr<CertificateManagerPageHandler::CertSource>
 CreateProvisionedClientCertSource(Profile* profile) {
   return std::make_unique<ClientCertSource>(
@@ -1116,7 +1206,7 @@ bool ClientCertManagementAccessControls::IsChangeAllowed(
 
   return client_cert_policy_ == ClientCertificateManagementPermission::kAll;
 }
-#elif BUILDFLAG(IS_LINUX)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
 ClientCertManagementAccessControls::ClientCertManagementAccessControls(
     Profile* profile) {}
 
