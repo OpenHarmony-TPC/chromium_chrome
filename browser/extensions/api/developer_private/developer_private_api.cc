@@ -2128,6 +2128,10 @@ DeveloperPrivateOpenDevToolsFunction::Run() {
             properties.column_number ? *properties.column_number - 1 : 0),
         DevToolsOpenedByAction::kInspectLink);
   } else {
+#if BUILDFLAG(ARKWEB_DEVTOOLS)
+    devtools_util::InspectServiceWorkerBackgroundV2(
+        extension, profile, DevToolsOpenedByAction::kInspectLink);
+#endif // ARKWEB_DEVTOOLS
     DevToolsWindow::OpenDevToolsWindow(web_contents,
                                        DevToolsOpenedByAction::kInspectLink);
   }

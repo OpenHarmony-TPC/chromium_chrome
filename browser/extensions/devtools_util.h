@@ -18,6 +18,10 @@ namespace devtools_util {
 void InspectServiceWorkerBackground(const Extension* extension,
                                     Profile* profile,
                                     DevToolsOpenedByAction opened_by);
+// ARKWEB_DEVTOOLS
+void InspectServiceWorkerBackgroundV2(const Extension* extension,
+                                      Profile* profile,
+                                      DevToolsOpenedByAction opened_by);
 
 // Open a dev tools window for an inactive service worker background for the
 // given extension.
