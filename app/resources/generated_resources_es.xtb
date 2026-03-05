@@ -665,6 +665,7 @@ Los permisos que hayas dado a aplicaciones se pueden aplicar a esta cuenta. Pued
 <translation id="1462480037563370607">Añadir sitios manualmente</translation>
 <translation id="1462850958694534228">Revisa la actualización del icono</translation>
 <translation id="1463112138205428654">Protección Avanzada ha bloqueado <ph name="FILE_NAME" />.</translation>
+<translation id="1463485635176816071">{NUM_EXTENSIONS,plural, =1{Es posible que esta extensión deje de ser compatible pronto}other{	Es posible que estas extensiones dejen de ser compatibles pronto}}</translation>
 <translation id="1464044141348608623">No permitir que los sitios sepan cuándo usas activamente tu dispositivo</translation>
 <translation id="1464258312790801189">Tus cuentas</translation>
 <translation id="1464597059227482327">Si vas a compartir archivos con un Chromebook que no está en tus contactos, comprueba que esté activada la opción Visibilidad Nearby. Para activar Visibilidad Nearby, selecciona la esquina inferior derecha y, después, la opción Visibilidad Nearby para activarla. <ph name="LINK_BEGIN" />Más información<ph name="LINK_END" /></translation>
