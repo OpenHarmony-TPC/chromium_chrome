@@ -82,6 +82,10 @@
 #include "components/supervised_user/core/common/features.h"
 #endif  // BUILDFLAG(ENABLE_SUPERVISED_USERS)
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/chrome/browser/extensions/api/developer_private/extension_info_generator_for_include.cc"
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
+
 namespace extensions {
 
 namespace developer = api::developer_private;
@@ -775,6 +779,10 @@ void ExtensionInfoGenerator::CreateExtensionInfoHelper(
   }
 
   AddPermissionsInfo(browser_context_, extension, &info->permissions);
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  AddOptionalPermissionsInfo(browser_context_, extension, &info->permissions);
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
 
   // Runtime warnings.
   std::vector<std::string> warnings =

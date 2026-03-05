@@ -269,6 +269,7 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       {"itemPermissions", IDS_EXTENSIONS_ITEM_PERMISSIONS},
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
       {"itemPermissionsEmpty", IDS_EXTENSIONS_ITEM_PERMISSIONS_EMPTY_V2},
+      {"itemOptionalPermissions", IDS_EXTENSIONS_ITEM_OPTIONAL_PERMISSIONS},
 #else
       {"itemPermissionsEmpty", IDS_EXTENSIONS_ITEM_PERMISSIONS_EMPTY},
 #endif

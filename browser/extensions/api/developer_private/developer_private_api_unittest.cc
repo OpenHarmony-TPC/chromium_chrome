@@ -3353,4 +3353,8 @@ TEST_F(DeveloperPrivateApiWithMV2DeprecationDisabledUnitTest,
   EXPECT_TRUE(experiment_manager->DidUserAcknowledgeNotice(extension->id()));
 }
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/chrome/browser/extensions/api/developer_private/developer_private_api_unittest_for_include.cc"
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
+
 }  // namespace extensions
