@@ -211,6 +211,18 @@ namespace developerPrivate {
     DOMString[] submessages;
   };
 
+  dictionary OptionalPermission {
+    DOMString name;
+    DOMString message;
+    DOMString[] submessages;
+    boolean granted;
+  };
+
+  dictionary OptionalPermissionUpdate {
+    DOMString name;
+    boolean enabled;
+  };
+
   dictionary SiteControl {
     // The host pattern for the site.
     DOMString host;
@@ -239,6 +251,9 @@ namespace developerPrivate {
     // True if the extension can access site data through host permissions or
     // API permissions such as activeTab.
     boolean canAccessSiteData;
+
+    // Optional permissions that can be granted or revoked by the user.
+    OptionalPermission[]? optionalSimplePermissions;
   };
 
   dictionary ExtensionInfo {
@@ -347,6 +362,7 @@ namespace developerPrivate {
     SafetyCheckWarningReason? acknowledgeSafetyCheckWarningReason;
     boolean? acknowledgeSafetyCheckWarning;
     boolean? pinnedToToolbar;
+    OptionalPermissionUpdate? optionalPermission;
   };
 
   dictionary ProfileConfigurationUpdate {

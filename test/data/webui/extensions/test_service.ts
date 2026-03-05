@@ -69,6 +69,7 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
       'setItemCollectsErrors',
       'setItemEnabled',
       'setItemHostAccess',
+      'setItemOptionalPermission',
       'setItemPinnedToToolbar',
       'setItemSafetyCheckWarningAcknowledged',
       'setProfileInDevMode',
@@ -181,6 +182,10 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
 
   setItemPinnedToToolbar(id: string, pinnedToToolbar: boolean) {
     this.methodCalled('setItemPinnedToToolbar', [id, pinnedToToolbar]);
+  }
+
+  setItemOptionalPermission(id: string, name: string, enabled: boolean): void {
+    this.methodCalled('setItemOptionalPermission', [id, name, enabled]);
   }
 
   setShortcutHandlingSuspended(enable: boolean) {

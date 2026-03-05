@@ -312,6 +312,32 @@ this text can be found by Ctrl + F because it isn't hidden. -->
             </extensions-toggle-row>` : ''}
         </div>
       </div>` : ''}
+    <div class="section hr">
+      <div class="section-title" role="heading" aria-level="2">
+        $i18n{itemOptionalPermissions}
+      </div>
+      <div class="section-content">
+        <ul id="optional-permissions-list"
+            ?hidden="${!this.data.permissions.optionalSimplePermissions?.length}">
+          ${(this.data.permissions.optionalSimplePermissions || []).map(item => html`
+            <li>
+              <extensions-toggle-row
+                class="optional-permissions-toggle"
+                data-name="${item.name}"
+                ?checked="${item.granted}"
+                @change="${this.onOptionalPermissionChange_}">
+                <div>
+                  ${item.message}
+                  <ul ?hidden="${!item.submessages.length}">
+                    ${item.submessages.map(submessage => html`
+                      <li>${submessage}</li>`)}
+                  </ul>
+                </div>
+              </extensions-toggle-row>
+            </li>`)}
+        </ul>
+      </div>
+    </div>
     ${this.hasDependentExtensions_() ? html`
       <div class="section hr">
         <div class="section-title" role="heading" aria-level="2">

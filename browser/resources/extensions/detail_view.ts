@@ -713,6 +713,14 @@ export class ExtensionsDetailViewElement extends
     return this.i18n(
         'mv2DeprecationPanelExtensionActionMenuLabel', this.data.name);
   }
+
+  protected onOptionalPermissionChange_(e: Event): void {
+    const row = e.target as ExtensionsToggleRowElement;
+    const {name} = row.dataset;
+    if (name) {
+      this.delegate.setItemOptionalPermission(this.data.id, name, row.checked);
+    }
+  }
 }
 
 declare global {
