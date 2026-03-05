@@ -626,6 +626,7 @@ template("chrome_paks") {
     }
 
     if (arkweb_i18n) {
+      resource_rejectlist = "//arkweb/build/config/paks/resource_rejectlist.json"
       input_locales = locales_for_ohos
     } else {
       input_locales = platform_pak_locales
