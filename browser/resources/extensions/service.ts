@@ -246,6 +246,16 @@ export class Service implements ServiceInterface {
     });
   }
 
+  setItemOptionalPermission(id: string, name: string, enabled: boolean): void {
+    chrome.developerPrivate.updateExtensionConfiguration({
+      extensionId: id,
+      optionalPermission: {
+        name,
+        enabled,
+      },
+    });
+  }
+
   inspectItemView(id: string, view: chrome.developerPrivate.ExtensionView):
       void {
     chrome.developerPrivate.openDevTools({
