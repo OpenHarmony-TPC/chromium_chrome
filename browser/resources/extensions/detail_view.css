@@ -208,3 +208,9 @@ extensions-toggle-row {
   display: flex;
   flex-direction: row;
 }
+
+#optional-permissions-list extensions-toggle-row.optional-permissions-toggle {
+  padding: 0;
+  margin: 0;
+  border: none;
+}

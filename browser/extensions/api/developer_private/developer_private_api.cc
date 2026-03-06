@@ -1179,6 +1179,13 @@ DeveloperPrivateUpdateExtensionConfigurationFunction::Run() {
     }
   }
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  if (update.optional_permission) {
+    UpdateOptionalPermissions(browser_context(), *extension,
+                              *update.optional_permission);
+  }
+#endif  // ARKWEB_ARKWEB_EXTENSIONS
+
   return RespondNow(NoArguments());
 }
 
