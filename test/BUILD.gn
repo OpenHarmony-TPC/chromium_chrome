@@ -6040,6 +6040,12 @@ test("unit_tests") {
     "../renderer/v8_unwinder_unittest.cc",
   ]
 
+  if (arkweb_unittests) {
+    sources += [
+      "//arkweb/chromium_ext/chrome/browser/password_manager/chrome_password_manager_client_ext_unittest.cc",
+    ]
+  }
+
   if (build_with_tflite_lib) {
     sources += [
       "../browser/navigation_predictor/preloading_model_executor_unittest.cc",
