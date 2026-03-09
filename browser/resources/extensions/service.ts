@@ -246,6 +246,7 @@ export class Service implements ServiceInterface {
     });
   }
 
+  // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   setItemOptionalPermission(id: string, name: string, enabled: boolean): void {
     chrome.developerPrivate.updateExtensionConfiguration({
       extensionId: id,
@@ -255,6 +256,7 @@ export class Service implements ServiceInterface {
       },
     });
   }
+  // #endif
 
   inspectItemView(id: string, view: chrome.developerPrivate.ExtensionView):
       void {
