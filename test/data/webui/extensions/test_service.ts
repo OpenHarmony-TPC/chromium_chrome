@@ -69,7 +69,9 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
       'setItemCollectsErrors',
       'setItemEnabled',
       'setItemHostAccess',
+      // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
       'setItemOptionalPermission',
+      // #endif
       'setItemPinnedToToolbar',
       'setItemSafetyCheckWarningAcknowledged',
       'setProfileInDevMode',
@@ -184,9 +186,11 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
     this.methodCalled('setItemPinnedToToolbar', [id, pinnedToToolbar]);
   }
 
+  // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   setItemOptionalPermission(id: string, name: string, enabled: boolean): void {
     this.methodCalled('setItemOptionalPermission', [id, name, enabled]);
   }
+  // #endif
 
   setShortcutHandlingSuspended(enable: boolean) {
     this.methodCalled('setShortcutHandlingSuspended', enable);
