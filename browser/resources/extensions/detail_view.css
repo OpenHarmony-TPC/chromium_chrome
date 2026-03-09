@@ -209,8 +209,10 @@ extensions-toggle-row {
   flex-direction: row;
 }
 
+/* #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS) */
 #optional-permissions-list extensions-toggle-row.optional-permissions-toggle {
   padding: 0;
   margin: 0;
   border: none;
 }
+/* #endif */

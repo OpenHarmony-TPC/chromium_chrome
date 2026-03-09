@@ -105,8 +105,10 @@ export class MockItemDelegate extends ClickMock implements ItemDelegate {
       _id: string, _hostAccess: chrome.developerPrivate.HostAccess) {}
   setItemCollectsErrors(_id: string, _collectsErrors: boolean) {}
   setItemPinnedToToolbar(_id: string, _pinnedToToolbar: boolean) {}
+  // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   setItemOptionalPermission(_id: string, _name: string, _enabled: boolean):
       void {}
+  // #endif
   inspectItemView(_id: string, _view: chrome.developerPrivate.ExtensionView) {}
   openUrl(_url: string) {}
   // <if expr="arkweb_test">

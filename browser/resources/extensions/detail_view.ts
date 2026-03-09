@@ -714,6 +714,7 @@ export class ExtensionsDetailViewElement extends
         'mv2DeprecationPanelExtensionActionMenuLabel', this.data.name);
   }
 
+  // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   protected onOptionalPermissionChange_(e: Event): void {
     const row = e.target as ExtensionsToggleRowElement;
     const {name} = row.dataset;
@@ -721,6 +722,7 @@ export class ExtensionsDetailViewElement extends
       this.delegate.setItemOptionalPermission(this.data.id, name, row.checked);
     }
   }
+  // #endif
 }
 
 declare global {
