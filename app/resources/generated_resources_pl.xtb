@@ -668,6 +668,7 @@ Na tym koncie mogą obowiązywać uprawnienia przyznane wcześniej aplikacjom. U
 <translation id="1462480037563370607">Dodaj witryny ręcznie</translation>
 <translation id="1462850958694534228">Sprawdź zmienioną ikonę</translation>
 <translation id="1463112138205428654">Plik <ph name="FILE_NAME" /> został zablokowany przez Ochronę zaawansowaną.</translation>
+<translation id="1463485635176816071">{NUM_EXTENSIONS,plural, =1{To rozszerzenie może wkrótce przestać być obsługiwane}other{Te rozszerzenia mogą wkrótce przestać być obsługiwane}}</translation>
 <translation id="1464044141348608623">Nie zezwalaj witrynom na sprawdzanie, kiedy używasz urządzenia</translation>
 <translation id="1464258312790801189">Twoje konta</translation>
 <translation id="1464597059227482327">Jeśli chcesz coś udostępnić użytkownikowi Chromebooka, którego nie masz w kontaktach, upewnij się, że na urządzeniu jest włączona „Widoczność w pobliżu”. Aby włączyć tę opcję, kliknij w prawym dolnym rogu i włącz „Widoczność w pobliżu”. <ph name="LINK_BEGIN" />Więcej informacji<ph name="LINK_END" /></translation>

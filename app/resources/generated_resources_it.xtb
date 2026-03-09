@@ -666,6 +666,7 @@ A questo account potrebbero essere applicate le autorizzazioni già concesse all
 <translation id="1462480037563370607">Aggiungi siti manualmente</translation>
 <translation id="1462850958694534228">Controlla l'aggiornamento dell'icona</translation>
 <translation id="1463112138205428654">Il file <ph name="FILE_NAME" /> è stato bloccato dalla protezione avanzata.</translation>
+<translation id="1463485635176816071">{NUM_EXTENSIONS,plural, =1{Questa estensione potrebbe non essere più supportata a breve}other{Queste estensioni potrebbero presto non essere più supportate}}</translation>
 <translation id="1464044141348608623">Non consentire ai siti di sapere quando stai utilizzando attivamente il tuo dispositivo</translation>
 <translation id="1464258312790801189">I tuoi account</translation>
 <translation id="1464597059227482327">Se vuoi attivare la condivisione con un Chromebook non presente nei tuoi contatti, assicurati che sul dispositivo in questione sia attiva l'opzione "Visibilità nelle vicinanze". Per attivare l'opzione "Visibilità nelle vicinanze", seleziona l'angolo in basso a destra, quindi attiva l'opzione. <ph name="LINK_BEGIN" />Scopri di più<ph name="LINK_END" /></translation>
