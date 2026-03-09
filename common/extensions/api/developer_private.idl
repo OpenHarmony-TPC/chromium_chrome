@@ -211,6 +211,7 @@ namespace developerPrivate {
     DOMString[] submessages;
   };
 
+  // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   dictionary OptionalPermission {
     DOMString name;
     DOMString message;
@@ -222,6 +223,7 @@ namespace developerPrivate {
     DOMString name;
     boolean enabled;
   };
+  // #endif
 
   dictionary SiteControl {
     // The host pattern for the site.
@@ -252,6 +254,7 @@ namespace developerPrivate {
     // API permissions such as activeTab.
     boolean canAccessSiteData;
 
+    // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
     // Optional permissions that can be granted or revoked by the user.
     OptionalPermission[]? optionalSimplePermissions;
   };
@@ -362,6 +365,7 @@ namespace developerPrivate {
     SafetyCheckWarningReason? acknowledgeSafetyCheckWarningReason;
     boolean? acknowledgeSafetyCheckWarning;
     boolean? pinnedToToolbar;
+    // #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
     OptionalPermissionUpdate? optionalPermission;
   };
 
