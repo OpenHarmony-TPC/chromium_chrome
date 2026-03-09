@@ -662,6 +662,12 @@
       other {These extensions may soon no longer be supported}
     }
   </message>
+  <message name="IDS_EXTENSIONS_MV2_DEPRECATION_PANEL_WARNING_HEADER_V2" desc="Header text displayed in the manifest v2 deprecation panel for the warning stage.">
+    {NUM_EXTENSIONS, plural,
+      =1 {This extension may be unsupported soon}
+      other {These extensions may be unsupported soon}
+    }
+  </message>
   <message name="IDS_EXTENSIONS_MV2_DEPRECATION_PANEL_WARNING_SUBTITLE" desc="Subtitle text displayed in the manifest v2 deprecation panel for the warning stage.">
     {NUM_EXTENSIONS, plural,
       =1 {Remove or replace it with similar extensions from the <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank"&gt;</ph>Chrome Web Store<ph name="END_LINK">&lt;/a&gt;</ph>.}

@@ -639,7 +639,12 @@ ExtensionsUI::ExtensionsUI(content::WebUI* web_ui)
                                             IDS_EXTENSIONS_SC_ALL_DONE_FOR_NOW);
   plural_string_handler->AddLocalizedString(
       "mv2DeprecationPanelWarningHeader",
-      IDS_EXTENSIONS_MV2_DEPRECATION_PANEL_WARNING_HEADER);
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      IDS_EXTENSIONS_MV2_DEPRECATION_PANEL_WARNING_HEADER_V2
+#else
+      IDS_EXTENSIONS_MV2_DEPRECATION_PANEL_WARNING_HEADER
+#endif
+      );
   plural_string_handler->AddLocalizedString(
       "mv2DeprecationPanelWarningSubtitle",
       IDS_EXTENSIONS_MV2_DEPRECATION_PANEL_WARNING_SUBTITLE);
