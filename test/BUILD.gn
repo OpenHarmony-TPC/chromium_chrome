@@ -6040,12 +6040,6 @@ test("unit_tests") {
     "../renderer/v8_unwinder_unittest.cc",
   ]
 
-  if (arkweb_unittests) {
-    sources += [
-      "//arkweb/chromium_ext/chrome/browser/password_manager/chrome_password_manager_client_ext_unittest.cc",
-    ]
-  }
-
   if (build_with_tflite_lib) {
     sources += [
       "../browser/navigation_predictor/preloading_model_executor_unittest.cc",
@@ -11362,6 +11356,21 @@ test("chrome_app_unittests") {
   ]
   if (is_android) {
     sources += [ "../app/android/chrome_main_delegate_android_unittest.cc" ]
+  }
+}
+
+if (arkweb_unittests) {
+  test("arkweb_password_manager_client_ext_unittests") {
+    sources = [ "//arkweb/chromium_ext/chrome/browser/password_manager/chrome_password_manager_client_ext_unittest.cc" ]
+    deps = [
+      ":test_support",
+      "//base/test:run_all_unittests",
+      "//base/test:test_support",
+      "//chrome/browser",
+      "//components/autofill/core/common",
+      "//components/password_manager/core/browser",
+      "//crypto",
+    ]
   }
 }
 
