@@ -11363,11 +11363,11 @@ if (arkweb_unittests) {
   test("arkweb_password_manager_client_ext_unittests") {
     sources = [
       "//arkweb/chromium_ext/chrome/browser/password_manager/chrome_password_manager_client_ext_unittest.cc",
-      "base/run_all_unittests.cc",
     ]
     deps = [
       ":test_support",
       "//base",
+      "//base/test:run_all_unittests",
       "//base/test:test_support",
       "//chrome:resources",
       "//chrome:strings",
