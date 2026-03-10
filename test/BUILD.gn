@@ -11379,7 +11379,6 @@ if (arkweb_unittests) {
       "//components/autofill/core/common",
       "//components/autofill/content/browser:test_support",
       "//components/password_manager/core/browser",
-      "//content/public/test",
       "//crypto",
     ]
 
