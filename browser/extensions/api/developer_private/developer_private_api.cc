@@ -2138,6 +2138,7 @@ DeveloperPrivateOpenDevToolsFunction::Run() {
 #if BUILDFLAG(ARKWEB_DEVTOOLS)
     devtools_util::InspectServiceWorkerBackgroundV2(
         extension, profile, DevToolsOpenedByAction::kInspectLink);
+    return RespondNow(NoArguments());
 #endif // ARKWEB_DEVTOOLS
     DevToolsWindow::OpenDevToolsWindow(web_contents,
                                        DevToolsOpenedByAction::kInspectLink);
