@@ -421,6 +421,10 @@ void ComponentLoader::AddWebStoreApp() {
   }
 #endif
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LOG(INFO) << "name is " << IDS_WEBSTORE_NAME_STORE << ",description is " << IDS_WEBSTORE_APP_DESCRIPTION;
+#endif
+
   AddWithNameAndDescription(
       IDR_WEBSTORE_MANIFEST, base::FilePath(FILE_PATH_LITERAL("web_store")),
       l10n_util::GetStringUTF8(IDS_WEBSTORE_NAME_STORE),
