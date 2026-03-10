@@ -11361,14 +11361,16 @@ test("chrome_app_unittests") {
 
 if (arkweb_unittests) {
   test("arkweb_password_manager_client_ext_unittests") {
+    include_dirs = [ "//cef" ]
     sources = [
+      "//arkweb/chromium_ext/chrome/browser/password_manager/chrome_password_manager_client_ext_test_main.cc",
       "//arkweb/chromium_ext/chrome/browser/password_manager/chrome_password_manager_client_ext_unittest.cc",
     ]
     deps = [
       ":test_support",
       "//base",
-      "//base/test:run_all_unittests",
       "//base/test:test_support",
+      "//cef:libcef_static",
       "//chrome:resources",
       "//chrome:strings",
       "//chrome/browser",
@@ -11377,8 +11379,8 @@ if (arkweb_unittests) {
       "//components/autofill/core/common",
       "//components/autofill/content/browser:test_support",
       "//components/password_manager/core/browser",
+      "//content/public/test",
       "//crypto",
-      "//mojo/core/test:test_support",
     ]
 
     if (is_win) {
