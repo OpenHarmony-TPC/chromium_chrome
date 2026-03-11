@@ -853,6 +853,10 @@ using web_apps::ChromeContentBrowserClientIsolatedWebAppsPart;
 using namespace ohos::adapter;
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/context_path/context_path_adapter.h"
+#endif
+
 namespace {
 
 BASE_FEATURE(kSkipPagehideInCommitForDSENavigation,
@@ -2755,6 +2759,12 @@ void MaybeAppendBlinkSettingsSwitchForFieldTrial(
 void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
     base::CommandLine* command_line,
     int child_process_id) {
+#if BUILDFLAG(IS_OHOS)
+  base::FilePath temp_dir(
+      ::ohos::adapter::ContextPathAdapter::GetTempDir());
+ 
+  command_line->AppendSwitchPath(switches::kOhosTempDir, temp_dir);
+#endif
   crash_keys::AppendStringAnnotationsCommandLineSwitch(command_line);
 #if BUILDFLAG(IS_MAC)
   std::unique_ptr<metrics::ClientInfo> client_info =
