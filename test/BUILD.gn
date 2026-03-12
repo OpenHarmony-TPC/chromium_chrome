@@ -11359,6 +11359,35 @@ test("chrome_app_unittests") {
   }
 }
 
+if (arkweb_unittests) {
+  test("arkweb_password_manager_client_ext_unittests") {
+    include_dirs = [ "//cef" ]
+    sources = [
+      "//arkweb/chromium_ext/chrome/browser/password_manager/chrome_password_manager_client_ext_test_main.cc",
+      "//arkweb/chromium_ext/chrome/browser/password_manager/chrome_password_manager_client_ext_unittest.cc",
+    ]
+    deps = [
+      ":test_support",
+      "//base",
+      "//base/test:test_support",
+      "//cef:libcef_static",
+      "//chrome:resources",
+      "//chrome:strings",
+      "//chrome/browser",
+      "//chrome/browser/autofill",
+      "//chrome/common",
+      "//components/autofill/core/common",
+      "//components/autofill/content/browser:test_support",
+      "//components/password_manager/core/browser",
+      "//crypto",
+    ]
+
+    if (is_win) {
+      deps += [ "//chrome/install_static/test:test_support" ]
+    }
+  }
+}
+
 if (!is_android) {
   # Everything needed to build/copy to run the performance_browser_tests isolate.
   # See: //testing/buildbot/gn_isolate_map.pyl
