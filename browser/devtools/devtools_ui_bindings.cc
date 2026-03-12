@@ -361,7 +361,7 @@ std::string SanitizeFrontendQueryParam(const std::string& key,
   }
 
 #if BUILDFLAG(ARKWEB_DEVTOOLS)
-  if (key == "dockSide" && (value == "undocked")) {
+  if (key == "showToolbox" && value == "true") {
     return value;
   }
 #endif // BUILDFLAG(ARKWEB_DEVTOOLS)
