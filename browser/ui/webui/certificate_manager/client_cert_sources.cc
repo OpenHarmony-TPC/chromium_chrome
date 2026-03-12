@@ -47,7 +47,6 @@
 #endif  // BUILDFLAG(USE_NSS_CERTS)
 
 #if BUILDFLAG(IS_OHOS)
-#include "chrome/browser/ui/crypto_module_delegate_ohos.h"
 #include "net/ssl/client_cert_store_ohos.h"
 #endif
 
@@ -119,10 +118,6 @@ class ClientCertStoreLoader {
     active_requests_[store_ptr] = std::move(store);
     // Unretained is safe as the callback is not run if `active_requests_` is
     // destroyed.
-    // store_ptr->GetClientCerts(
-    //     base::MakeRefCounted<net::SSLCertRequestInfo>(),
-    //     base::BindOnce(&ClientCertStoreLoader::HandleClientCertsResult,
-    //                    base::Unretained(this), store_ptr, std::move(callback)));
     store_ptr->GetSoftClientCerts(
         base::BindOnce(&ClientCertStoreLoader::HandleClientCertsResult,
                        base::Unretained(this), store_ptr, std::move(callback)));
@@ -182,9 +177,7 @@ class ClientCertStoreFactoryNSS : public ClientCertStoreFactory {
 class ClientCertStoreFactoryOHOS : public ClientCertStoreFactory {
  public:
   std::unique_ptr<net::ClientCertStore> CreateClientCertStore() override {
-    return std::make_unique<net::ClientCertStoreOHOS>(
-        base::BindRepeating(&CreateCryptoModuleBlockingPasswordDelegate,
-                            kCryptoModulePasswordClientAuth));
+    return std::make_unique<net::ClientCertStoreOHOS>();
   }
 };
 #elif BUILDFLAG(IS_WIN)
