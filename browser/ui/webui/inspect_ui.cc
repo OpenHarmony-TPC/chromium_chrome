@@ -602,6 +602,11 @@ void InspectUI::Pause(const std::string& source_id,
                       const std::string& target_id) {
   scoped_refptr<DevToolsAgentHost> target = FindTarget(source_id, target_id);
   content::WebContents* web_contents = target->GetWebContents();
+#if BUILDFLAG(ARKWEB_DEVTOOLS)
+  if (web_contents && InspectInclude(source_id, target_id)) {
+    return;
+  }
+#endif // ARKWEB_DEVTOOLS
   if (web_contents) {
     DevToolsWindow::OpenDevToolsWindow(web_contents,
                                        DevToolsToggleAction::PauseInDebugger(),
