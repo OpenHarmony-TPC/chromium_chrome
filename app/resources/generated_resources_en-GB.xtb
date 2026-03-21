@@ -669,6 +669,7 @@ Permissions that you've already given to apps may apply to this account. You can
 <translation id="1462480037563370607">Add sites manually</translation>
 <translation id="1462850958694534228">Review icon update</translation>
 <translation id="1463112138205428654"><ph name="FILE_NAME" /> was blocked by Advanced Protection.</translation>
+<translation id="1463485635176816071">{NUM_EXTENSIONS,plural, =1{This extension may be unsupported soon}other{These extensions may be unsupported soon}}</translation>
 <translation id="1464044141348608623">Don't allow sites to know when you're actively using your device</translation>
 <translation id="1464258312790801189">Your Accounts</translation>
 <translation id="1464597059227482327">If you're sharing with a Chromebook that is not in your contacts, make sure that the Chromebook has 'Nearby visibility' turned on. To turn on 'Nearby visibility', select the bottom-right corner and then select to turn on 'Nearby visibility'. <ph name="LINK_BEGIN" />Learn more<ph name="LINK_END" /></translation>

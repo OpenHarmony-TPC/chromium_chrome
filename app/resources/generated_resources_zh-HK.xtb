@@ -669,6 +669,7 @@
 <translation id="1462480037563370607">手動新增網站</translation>
 <translation id="1462850958694534228">檢查新圖示</translation>
 <translation id="1463112138205428654">「進階保護功能」已封鎖 <ph name="FILE_NAME" />。</translation>
+<translation id="1463485635176816071">{NUM_EXTENSIONS,plural, =1{此擴展程式可能很快將不再受支援}other{這些擴展程式可能很快將不再受支援}}</translation>
 <translation id="1464044141348608623">不允許網站偵測您使用裝置的時間</translation>
 <translation id="1464258312790801189">您的帳戶</translation>
 <translation id="1464597059227482327">如果要與未設定為聯絡人的 Chromebook 分享內容，請確認該 Chromebook 已啟用「咫尺共享」分享設定。如要開啟「咫尺共享」分享設定，請選取右下角，然後選取開啟「咫尺共享」分享設定。<ph name="LINK_BEGIN" />瞭解詳情<ph name="LINK_END" /></translation>

@@ -668,6 +668,7 @@
 <translation id="1462480037563370607">手動新增網站</translation>
 <translation id="1462850958694534228">檢查新圖示</translation>
 <translation id="1463112138205428654">進階保護功能已封鎖 <ph name="FILE_NAME" />。</translation>
+<translation id="1463485635176816071">{NUM_EXTENSIONS,plural, =1{此擴充程式可能很快將不再受支援}other{這些擴充程式可能很快將不再受支援}}</translation>
 <translation id="1464044141348608623">禁止網站偵測你使用裝置的時間</translation>
 <translation id="1464258312790801189">你的帳戶</translation>
 <translation id="1464597059227482327">如果要與未設為聯絡人的 Chromebook 分享內容，請確認該 Chromebook 已開啟「鄰近分享瀏覽權限」，開啟方式如下：點選右下角並選取「鄰近分享瀏覽權限」。<ph name="LINK_BEGIN" />瞭解詳情<ph name="LINK_END" /></translation>
