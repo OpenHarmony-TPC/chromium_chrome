@@ -92,6 +92,7 @@ Na tym koncie mogą obowiązywać uprawnienia przyznane stronom i aplikacjom. K
 <translation id="2199210295479376551">Usuń konto z Chromium</translation>
 <translation id="2210682093923538346">Niebezpieczna witryna. Przeglądarka Chromium usunęła powiadomienia.</translation>
 <translation id="2236949375853147973">Moja aktywność</translation>
+<translation id="2238104961394611930">Włączone • Nie można zweryfikować źródła rozszerzenia</translation>
 <translation id="2240214816234246077">Ta witryna nie była przez Ciebie ostatnio odwiedzana. Przeglądarka Chromium usunęła te uprawnienia: <ph name="PERMISSION_1" /> i <ph name="PERMISSION_2" />.</translation>
 <translation id="2241627712206172106">Jeśli dzielisz się komputerem ze znajomymi lub rodziną, wszyscy możecie niezależnie przeglądać internet i po swojemu skonfigurować Chromium.</translation>
 <translation id="2313870531055795960">Sprawdza, czy URL jest na liście niebezpiecznych stron zapisanej w Chromium. Jeśli strona próbuje wykraść Twoje hasło lub pobierasz szkodliwy plik, Chromium może też wysłać URL wraz z fragmentami zawartości strony do usługi Bezpieczne przeglądanie.</translation>
@@ -444,6 +445,7 @@ Niektóre funkcje mogą być niedostępne. Podaj inny katalog z profilem lub uż
 <translation id="685279860330610299">Chromium może rozpoznawać więcej typów informacji i szybciej uzupełniać formularze. Więcej informacji o <ph name="BEGIN_LINK" />autouzupełnianiu w Chrome<ph name="END_LINK" /></translation>
 <translation id="6857782730669500492">Chromium – <ph name="PAGE_TITLE" /></translation>
 <translation id="6873893289264747459">Przeglądarka Chromium wykryła, że rozszerzenie „<ph name="EXTENSION_NAME" />” zawiera złośliwe oprogramowanie</translation>
+<translation id="6885534934768077023">Uwaga: Przeglądarka nie może zapobiegać rejestrowaniu historii przeglądania przez zainstalowane rozszerzenia. Aby wyłączyć to rozszerzenie w Trybie prywatnym, wyłącz tę opcję.</translation>
 <translation id="6896758677409633944">Kopiuj</translation>
 <translation id="6929417474050522668">Gdy testy są włączone, w ramach pomiaru skuteczności reklam odwiedzane przez Ciebie witryny mogą prosić Chromium o dostęp do potrzebnych w tym celu informacji. Pomiar skuteczności reklam ogranicza śledzenie w witrynach, ponieważ pomiędzy poszczególnymi stronami przenoszona jest możliwie najmniejsza ilość informacji.</translation>
 <translation id="6940431691900807093">Witryna, którą później odwiedzisz, może zapytać o Twoje zainteresowania i na tej podstawie spersonalizować wyświetlane reklamy. Chromium może udostępnić do 3 zainteresowań.</translation>
@@ -494,6 +496,7 @@ Chromium nie może odzyskać ustawień.</translation>
 <translation id="7582945390259497898">Chromium może oszacować Twoje zainteresowania. Witryna, którą później odwiedzisz, może o nie zapytać i na tej podstawie spersonalizować wyświetlane reklamy.</translation>
 <translation id="7583399374488819119">Instalator <ph name="COMPANY_NAME" /></translation>
 <translation id="7585391435984513350">Ta witryna nie była przez Ciebie ostatnio odwiedzana. Przeglądarka Chromium usunęła te uprawnienia: <ph name="PERMISSION" />.</translation>
+<translation id="7597668698051545254">Wyłączone • Nie można zweryfikować źródła rozszerzenia</translation>
 <translation id="761356813943268536">Chromium używa Twojej kamery i mikrofonu.</translation>
 <translation id="7617377681829253106">Przeglądarka Chromium jest jeszcze lepsza</translation>
 <translation id="7649070708921625228">Pomoc</translation>

@@ -92,6 +92,7 @@ A questo account potrebbero essere applicate le autorizzazioni già concesse a s
 <translation id="2199210295479376551">Rimuovi account da Chromium</translation>
 <translation id="2210682093923538346">Sito pericoloso. Chromium ha rimosso le notifiche.</translation>
 <translation id="2236949375853147973">Le mie attività</translation>
+<translation id="2238104961394611930">Attivato • La sorgente di estensione non può essere verificata</translation>
 <translation id="2240214816234246077">Non hai visitato il sito di recente. Chromium ha rimosso <ph name="PERMISSION_1" /> e <ph name="PERMISSION_2" /></translation>
 <translation id="2241627712206172106">Se condividi un computer, i tuoi amici e la tua famiglia possono navigare separatamente e configurare Chromium in base alle proprie esigenze.</translation>
 <translation id="2313870531055795960">Controlla gli URL confrontandoli con un elenco di siti non sicuri memorizzato in Chromium. Se un sito cerca di rubare la tua password o se scarichi un file dannoso, Chromium potrebbe anche inviare gli URL, inclusi frammenti dei contenuti delle pagine, a Navigazione sicura.</translation>
@@ -446,6 +447,7 @@ Alcune funzioni potrebbero non essere disponibili. Specifica un'altra directory 
 <translation id="685279860330610299">Chromium può comprendere più tipi di informazioni e compilare automaticamente i moduli più velocemente. Scopri di più sulla <ph name="BEGIN_LINK" />compilazione automatica di Chrome<ph name="END_LINK" /></translation>
 <translation id="6857782730669500492">Chromium - <ph name="PAGE_TITLE" /></translation>
 <translation id="6873893289264747459">Chromium ha rilevato che l'estensione "<ph name="EXTENSION_NAME" />" contiene malware</translation>
+<translation id="6885534934768077023">Nota: Il browser non può impedire alle estensioni di registrare la cronologia di navigazione. Per disabilitare questa estensione in Modalità privata, disattiva questa opzione.</translation>
 <translation id="6896758677409633944">Copia</translation>
 <translation id="6929417474050522668">Quando sono attive le prove, Ad measurement consente ai siti che visiti di chiedere a Chromium informazioni che li aiutino a valutare il rendimento dei loro annunci. Ad measurement limita il tracciamento tra siti trasferendo il minor numero possibile di informazioni tra i siti.</translation>
 <translation id="6940431691900807093">Dopodiché, un sito che visiti può chiedere a Chromium di conoscere i tuoi interessi per personalizzare gli annunci che ti vengono mostrati. Chromium può condividere fino a 3 interessi.</translation>
@@ -496,6 +498,7 @@ Chromium non è in grado di recuperare le impostazioni.</translation>
 <translation id="7582945390259497898">Chromium può stimare i tuoi interessi. Dopodiché, un sito che visiti può chiedere a Chromium di conoscere i tuoi interessi per personalizzare gli annunci da mostrarti.</translation>
 <translation id="7583399374488819119">Programma di installazione di <ph name="COMPANY_NAME" /></translation>
 <translation id="7585391435984513350">Non hai visitato il sito di recente. Chromium ha rimosso <ph name="PERMISSION" /></translation>
+<translation id="7597668698051545254">Disattivato • La sorgente di estensione non può essere verificata</translation>
 <translation id="761356813943268536">Chromium sta utilizzando videocamera e microfono.</translation>
 <translation id="7617377681829253106">Da oggi Chromium è ancora meglio</translation>
 <translation id="7649070708921625228">Guida</translation>
