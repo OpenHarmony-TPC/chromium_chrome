@@ -32,7 +32,7 @@
 #include "chrome/browser/ui/webui/certificate_manager/platform_cert_sources.h"
 #endif
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
 #include "chrome/browser/ui/webui/settings/settings_utils.h"
 #endif
 
@@ -221,7 +221,7 @@ CertificateManagerPageHandler::GetCertSource(
                 CERTIFICATE_TRUST_TYPE_DISTRUSTED,
             profile_, &remote_client_);
         break;
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
       case certificate_manager_v2::mojom::CertificateSource::
           kProvisionedClientCert:
         source_ptr = CreateProvisionedClientCertSource(profile_);
@@ -244,6 +244,9 @@ void CertificateManagerPageHandler::GetCertManagementMetadata(
       ProfileNetworkContextServiceFactory::GetForContext(profile_);
   ProfileNetworkContextService::CertificatePoliciesForView policies =
       service->GetCertificatePolicyForView();
+#if BUILDFLAG(IS_OHOS)
+  content::GetCertVerifierServiceFactory()->PlatformCertRefresh();
+#endif
 #if !BUILDFLAG(IS_CHROMEOS)
   content::GetCertVerifierServiceFactory()->GetPlatformRootStoreInfo(
       base::BindOnce(&GetCertManagementMetadataAsync, std::move(policies),
@@ -255,7 +258,7 @@ void CertificateManagerPageHandler::GetCertManagementMetadata(
 #endif
 }
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
 void CertificateManagerPageHandler::ShowNativeManageCertificates() {
   settings_utils::ShowManageSSLCertificates(web_contents_);
 }

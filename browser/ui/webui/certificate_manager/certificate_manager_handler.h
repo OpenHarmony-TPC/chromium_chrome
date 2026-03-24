@@ -82,7 +82,7 @@ class CertificateManagerPageHandler
   void GetCertManagementMetadata(
       GetCertManagementMetadataCallback callback) override;
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
   void ShowNativeManageCertificates() override;
 #endif
 

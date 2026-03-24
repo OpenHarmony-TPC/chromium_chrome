@@ -290,6 +290,10 @@
 #include "components/safe_browsing/content/browser/safe_browsing_tab_observer.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/tab_process_logger_ohos.h"
+#endif
+
 using content::WebContents;
 
 namespace {
@@ -782,6 +786,10 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
   }
 #elif BUILDFLAG(ENABLE_PRINTING)
   printing::InitializePrintingForWebContents(web_contents);
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  TabProcessLogger::CreateForWebContents(web_contents);
 #endif
 
   // --- Section 4: The warning ---

@@ -19,6 +19,10 @@
 #include "chrome/common/chrome_paths.h"
 #include "net/base/file_stream.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/native_messaging/native_messaging_adapter.h"
+#endif
+
 namespace extensions {
 
 namespace {
@@ -54,6 +58,22 @@ base::FilePath LaunchContext::FindManifest(const std::string& host_name,
 
   return result;
 }
+
+#if BUILDFLAG(IS_OHOS)
+// static
+std::string LaunchContext::FindManifestConfig(const std::string& host_name,
+                                              std::string& error_message) {
+  ohos::adapter::nativemessaging::NativeMessagingAdapter& native_messaging_adapter =
+      ohos::adapter::nativemessaging::NativeMessagingAdapter::GetInstance();
+ 
+  std::string result = native_messaging_adapter.GetManifestConfig(host_name);
+  if (result.empty()) {
+    error_message = "Can't find native messaging host " + host_name;
+  }
+ 
+  return result;
+}
+#endif
 
 // static
 std::optional<LaunchContext::ProcessState> LaunchContext::LaunchNativeProcess(
@@ -93,6 +113,11 @@ std::optional<LaunchContext::ProcessState> LaunchContext::LaunchNativeProcess(
   // This is executing a third-party binary, so do not associate any system
   // private data requests with Chrome.
   options.disclaim_responsibility = true;
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  // start native message host process
+  options.is_native_message = true;
 #endif
 
   base::Process local_process = base::LaunchProcess(command_line, options);

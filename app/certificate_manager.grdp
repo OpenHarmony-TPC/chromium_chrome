@@ -50,13 +50,19 @@
 
     <if expr="is_ohos">
       <message name="IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM" desc="Label for the OS platform.">
-        OhOS
+        OHOS
       </message>
       <message name="IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM_CERTS_TITLE" desc="Label for the title of the platform certs subpage.">
-        Imported from OhOS
+        Imported from OHOS
       </message>
       <message name="IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM_CERTS_VIEW_LINK" desc="Label for a link to view the imported platform certs.">
-        View imported certificates from OhOS
+        View imported certificates from OHOS
+      </message>
+      <message name="IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM_CERTS_MANAGE_LINK" desc="Label for a link opening the platform cert manager.">
+        Manage imported certificates from OHOS
+      </message>
+      <message name="IDS_SETTINGS_CERTIFICATE_MANAGER_V2_PLATFORM_CERTS_MANAGE_LINK_ARIA_DESCRIPTION" desc="Text read by screen readers for the row that opens the OHOS certificate management application. When clicked, it will open the OHOS certificate manager application in a separate window. This text will only be announced by a screen reader and will not be visible in the UI.">
+        Opens in a separate application
       </message>
     </if>
 

@@ -243,8 +243,12 @@ bool DownloadProtectionService::MaybeCheckClientDownload(
 #endif
 
   if (delegate_->MayCheckClientDownload(item)) {
+#if BUILDFLAG(IS_OHOS)
+    return false;
+#else
     CheckClientDownload(item, std::move(callback), /*password=*/std::nullopt);
     return true;
+#endif
   }
 
 #if !BUILDFLAG(IS_ANDROID)

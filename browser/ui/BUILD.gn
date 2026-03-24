@@ -3028,6 +3028,10 @@ static_library("ui") {
         "webui/signin/sync_confirmation_ui.cc",
         "webui/signin/sync_confirmation_ui.h",
       ]
+      sources += [
+        "tab_process_logger_ohos.cc",
+        "tab_process_logger_ohos.h",
+      ]
     }
 
     deps += [
@@ -5880,7 +5884,7 @@ static_library("ui_public_dependencies") {
       "//ui/views/controls/webview",
     ]
   }
-  if (chrome_root_store_cert_management_ui || is_ohos) {
+  if (chrome_root_store_cert_management_ui) {
     public_deps +=
         [ "//ui/webui/resources/cr_components/certificate_manager:mojom" ]
   }

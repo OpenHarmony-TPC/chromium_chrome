@@ -12,6 +12,10 @@
 #include "build/build_config.h"
 #include "chrome/common/buildflags.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/ohos/browser_list_observer_ohos.h"
+#endif
+
 namespace system_permission_settings {
 class PlatformHandle;
 }  // namespace system_permission_settings
@@ -129,6 +133,10 @@ class GlobalFeatures {
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
   std::unique_ptr<installer_downloader::InstallerDownloaderController>
       installer_downloader_controller_;
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+  std::unique_ptr<chrome::BrowserListObserverOhos> browser_list_observer_;
 #endif
 };
 

@@ -56,6 +56,10 @@
 
 using BrowsingDataType = browsing_data::BrowsingDataType;
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/logging.h"
+#endif
+
 namespace {
 
 const int kMaxTimesHistoryNoticeShown = 1;
@@ -266,6 +270,11 @@ void ClearBrowsingDataHandler::HandleClearBrowsingData(
   browsing_data::TimePeriod time_period =
       static_cast<browsing_data::TimePeriod>(period_selected);
 
+#if BUILDFLAG(IS_OHOS)
+  LOG(INFO) << "[browsing_data] remove_mask= " << remove_mask
+            << ", origin_mask= " << origin_mask
+            << ", time_period= " << static_cast<int>(time_period);
+#endif
   browsing_data_important_sites_util::Remove(
       remove_mask, origin_mask, time_period,
       content::BrowsingDataFilterBuilder::Create(
@@ -277,6 +286,10 @@ void ClearBrowsingDataHandler::OnClearingTaskFinished(
     const std::string& webui_callback_id,
     const base::flat_set<BrowsingDataType>& data_types,
     uint64_t failed_data_types) {
+#if BUILDFLAG(IS_OHOS)
+  LOG(INFO) << "[browsing_data] webui_callback_id= " << webui_callback_id
+             << ", failed_data_types= " << failed_data_types;
+#endif
   PrefService* prefs = profile_->GetPrefs();
   int history_notice_shown_times = prefs->GetInteger(
       browsing_data::prefs::kClearBrowsingDataHistoryNoticeShownTimes);

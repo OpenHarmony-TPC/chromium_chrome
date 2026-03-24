@@ -333,6 +333,12 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
 
     drag_controller_ = std::make_unique<TabDragController>();
 
+#if BUILDFLAG(IS_OHOS)
+    if (event.IsGestureEvent()) {
+      drag_controller_->SetTouchFingerId(event.AsGestureEvent()->pointer_id());
+    }
+#endif
+
     // !!! Init may delete `drag_controller_` on some platforms. !!!
     // Init takes capture, which on some platforms may reenter Chrome, the
     // TabStrip, and the TabDragController, and may end the drag and destroy

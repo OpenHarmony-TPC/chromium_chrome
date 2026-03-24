@@ -8647,6 +8647,14 @@ const char kParallelBeforeUnloadName [] = "Parallel processing of beforeunload";
 const char kParallelBeforeUnloadDescription [] = "Controls whether to enable "
     "parallel processing of the beforeunload event during rendering. "
     "Enabled by default.";
+const char kUseInputMethodJSApiName[] = "Starting from version API 15, "
+    "the input method is required to use the JS-compatible API.";
+const char kUseInputMethodJSApiDescription[] = "Starting from API version 15, "
+    "the input method uses the HarmonyOS native API (C API) by default. "
+    "To force the use of the JS API (i.e., the implementation where C++ calls ets and js), "
+    "enable this option. This feature is disabled by default."
+    "If the system SDK version is lower than 15, you do not need to worry about this configuration item,"
+    " as the system will automatically use the JS API.";
 #endif  // BUILDFLAG(IS_OHOS)
 
 // ============================================================================
