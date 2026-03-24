@@ -38,9 +38,16 @@ namespace {
 // returned.
 GURL GetUrlFromClipboard(bool notify_if_restricted) {
   std::u16string url_text;
+#if BUILDFLAG(IS_OHOS)
+  ui::DataTransferEndpoint data_dst =
+      ui::DataTransferEndpoint(ui::EndpointType::kDefault,
+                               {.notify_if_restricted = notify_if_restricted,
+                                .truely_transfer = false});
+#else
   ui::DataTransferEndpoint data_dst =
       ui::DataTransferEndpoint(ui::EndpointType::kDefault,
                                {.notify_if_restricted = notify_if_restricted});
+#endif
   ui::Clipboard::GetForCurrentThread()->ReadText(
       ui::ClipboardBuffer::kCopyPaste, &data_dst, &url_text);
   return GURL(url_text);

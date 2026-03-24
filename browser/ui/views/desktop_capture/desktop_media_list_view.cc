@@ -195,6 +195,12 @@ void DesktopMediaListView::OnSourceAdded(size_t index) {
     controller_->OnSourceListLayoutChanged();
   }
 
+#if BUILDFLAG(IS_OHOS)
+  //Set this to invisible and notify the simulation of selection.
+  source_view->SetVisible(false);
+  OnSelectionChanged();
+#endif
+
   PreferredSizeChanged();
 }
 
@@ -291,8 +297,13 @@ void DesktopMediaListView::SetStyle(const DesktopMediaSourceViewStyle& style) {
 }
 
 DesktopMediaSourceView* DesktopMediaListView::GetSelectedView() {
+#if BUILDFLAG(IS_OHOS)
+  // Simulate selecting the first source
+  return children().empty() ? nullptr : AsDesktopMediaSourceView(children()[0]);
+#else
   const auto i =
       std::ranges::find_if(children(), &DesktopMediaSourceView::GetSelected,
                            &AsDesktopMediaSourceView);
   return (i == children().cend()) ? nullptr : AsDesktopMediaSourceView(*i);
+#endif
 }

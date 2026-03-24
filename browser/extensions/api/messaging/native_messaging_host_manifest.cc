@@ -11,6 +11,10 @@
 #include "base/strings/string_util.h"
 #include "chrome/common/chrome_features.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/json/json_string_value_serializer.h"
+#endif
+
 namespace extensions {
 
 NativeMessagingHostManifest::~NativeMessagingHostManifest() = default;
@@ -68,10 +72,48 @@ std::unique_ptr<NativeMessagingHostManifest> NativeMessagingHostManifest::Load(
   return result;
 }
 
+#if BUILDFLAG(IS_OHOS)
+// static
+std::unique_ptr<NativeMessagingHostManifest> NativeMessagingHostManifest::LoadConfig(
+    const std::string& shared_config,
+    std::string* error_message) {
+  DCHECK(error_message);
+ 
+  JSONStringValueDeserializer deserializer(shared_config);
+  std::unique_ptr<base::Value> parsed =
+      deserializer.Deserialize(nullptr, error_message);
+  if (!parsed) {
+    return nullptr;
+  }
+ 
+  if (!parsed->is_dict()) {
+    *error_message = "Invalid manifest file.";
+    return nullptr;
+  }
+  const base::Value::Dict& dict = parsed->GetDict();
+ 
+  std::unique_ptr<NativeMessagingHostManifest> result(
+      new NativeMessagingHostManifest());
+  if (!result->Parse(dict, error_message)) {
+    return nullptr;
+  }
+ 
+  return result;
+}
+#endif
+
 NativeMessagingHostManifest::NativeMessagingHostManifest() = default;
 
 bool NativeMessagingHostManifest::Parse(const base::Value::Dict& dict,
                                         std::string* error_message) {
+#if BUILDFLAG(IS_OHOS)
+  const std::string* ability_name_str = dict.FindString("abilityName");
+  if (!ability_name_str || ability_name_str->empty()) {
+    *error_message = "Invalid value for ability name.";
+    return false;
+  }
+  ability_name_ = *ability_name_str;
+#elif
   const std::string* name_str = dict.FindString("name");
   if (!name_str || !IsValidName(*name_str)) {
     *error_message = "Invalid value for name.";
@@ -100,7 +142,7 @@ bool NativeMessagingHostManifest::Parse(const base::Value::Dict& dict,
     *error_message = "Invalid value for path.";
     return false;
   }
-
+#endif
   const base::Value::List* allowed_origins_list =
       dict.FindList("allowed_origins");
   if (!allowed_origins_list) {

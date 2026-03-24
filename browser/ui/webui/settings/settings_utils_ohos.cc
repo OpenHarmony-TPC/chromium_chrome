@@ -5,9 +5,10 @@
 #include "chrome/browser/ui/webui/settings/settings_utils.h"
 
 #include "base/notreached.h"
+#include "ohos/adapter/cert_manager/cert_manager_adapter.h"
 #include "ohos/adapter/net/system_settings_adapter.h"
 
-using namespace ohos::adapter::net;
+using namespace ohos::adapter;
 namespace settings_utils {
 
 namespace {
@@ -17,12 +18,13 @@ const std::string kPageProxySubUri = "proxy_page";
 
 void ShowNetworkProxySettings(content::WebContents* web_contents) {
   // Open your computer's proxy settings
-  SystemSettingsAdapter::GetInstance().ShowSystemsSettings(kPageNetworkUri,
-                                                           kPageProxySubUri);
+  net::SystemSettingsAdapter::GetInstance().ShowSystemsSettings(
+      kPageNetworkUri, kPageProxySubUri);
 }
 
 void ShowManageSSLCertificates(content::WebContents* web_contents) {
-  NOTIMPLEMENTED_LOG_ONCE();
+  // Open your computer's certificate manager
+  CertManagerAdapter::GetInstance().ShowCertificateManagerDialog();
 }
 
 }  // namespace settings_utils

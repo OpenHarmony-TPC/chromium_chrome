@@ -32,6 +32,10 @@
 #include "chrome/browser/web_applications/os_integration/mac/app_shim_registry.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "base/logging.h"
+#endif
+
 namespace web_app {
 namespace {
 
@@ -96,6 +100,16 @@ void ShortcutSubManager::Execute(
   bool force_create_shortcuts =
       synchronize_options.has_value() &&
       synchronize_options.value().force_create_shortcuts;
+
+#if BUILDFLAG(IS_OHOS)
+  LOG(INFO) << "[webapp] app_id is:" << app_id
+            << ", desired_state.has_shortcut()= "
+            << desired_state.has_shortcut()
+            << ", current_state.has_shortcut()= "
+            << current_state.has_shortcut()
+            << ", force_update_shortcuts= " << force_update_shortcuts
+            << ", force_create_shortcuts= " << force_create_shortcuts;
+#endif
 
   // First, handle the case where both current & desired state don't have
   // shortcuts, which should be a no-op.

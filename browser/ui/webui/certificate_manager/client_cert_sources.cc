@@ -54,7 +54,11 @@
 #include "net/ssl/client_cert_store_mac.h"
 #endif  // BUILDFLAG(IS_MAC)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_OHOS)
+#include "net/ssl/client_cert_store_ohos.h"
+#endif  // BUILDFLAG(IS_OHOS)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/client_certificates/certificate_provisioning_service_factory.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
@@ -175,6 +179,13 @@ class ClientCertStoreFactoryMac : public ClientCertStoreFactory {
     return std::make_unique<net::ClientCertStoreMac>();
   }
 };
+#elif BUILDFLAG(IS_OHOS)
+class ClientCertStoreFactoryOhos : public ClientCertStoreFactory {
+ public:
+  std::unique_ptr<net::ClientCertStore> CreateClientCertStore() override {
+    return std::make_unique<net::ClientCertStoreOhos>();
+  }
+};
 #endif
 
 #if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_LINUX)
@@ -186,13 +197,16 @@ std::unique_ptr<ClientCertStoreLoader> CreatePlatformClientCertLoader(
 #elif BUILDFLAG(IS_MAC)
   return std::make_unique<ClientCertStoreLoader>(
       std::make_unique<ClientCertStoreFactoryMac>());
+#elif BUILDFLAG(IS_OHOS)
+  return std::make_unique<ClientCertStoreLoader>(
+      std::make_unique<ClientCertStoreFactoryOhos>());
 #else
   return nullptr;
 #endif
 }
 #endif
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
 // ClientCertStore implementation that always returns an empty list. The
 // CertificateProvisioningService implementation expects to wrap a platform
 // cert store, but here we only want to get results from the provisioning
@@ -1107,7 +1121,7 @@ CreatePlatformClientCertSource(
 #endif
 }
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
 std::unique_ptr<CertificateManagerPageHandler::CertSource>
 CreateProvisionedClientCertSource(Profile* profile) {
   return std::make_unique<ClientCertSource>(

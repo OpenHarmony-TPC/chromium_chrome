@@ -34,8 +34,9 @@ namespace extensions {
 namespace {
 
 // Whether the NTP post-install UI is enabled. By default, this is limited to
-// Windows, Mac, and ChromeOS, but can be overridden for testing.
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+// Windows, Mac, ChromeOS and OhOS, but can be overridden for testing.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS) || \
+    BUILDFLAG(IS_OHOS)
 bool g_ntp_post_install_ui_enabled = true;
 #else
 bool g_ntp_post_install_ui_enabled = false;

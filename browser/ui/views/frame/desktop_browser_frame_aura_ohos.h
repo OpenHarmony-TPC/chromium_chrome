@@ -29,6 +29,9 @@ class DesktopBrowserFrameAuraOhos : public DesktopBrowserFrameAura {
       views::Widget::InitParams::Ownership ownership) override;
   bool UseCustomFrame() const override;
   bool ShouldSaveWindowPlacement() const override;
+  void GetWindowPlacement(
+      gfx::Rect* bounds,
+      ui::mojom::WindowShowState* show_state) const override;
 
  private:
   void OnWidgetInitialized();
