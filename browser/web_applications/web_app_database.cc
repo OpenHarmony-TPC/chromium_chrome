@@ -1847,6 +1847,17 @@ void WebAppDatabase::MigrateDatabase(ProtobufState& state) {
   bool did_change_metadata = false;
   std::set<webapps::AppId> changed_apps;
 
+#if BUILDFLAG(IS_ARKWEB)
+  // Downgrade future database metadata versions to version 1 without touching
+  // app protos. This branch already understands the fields it needs from newer
+  // app protos and ignores unknown fields. Rewriting only the metadata avoids
+  // dropping data from newer fields that this branch does not serialize.
+  if (state.metadata.version() > 1 && GetCurrentDatabaseVersion() <= 1) {
+    state.metadata.set_version(1);
+    did_change_metadata = true;
+  }
+#endif
+
   // Downgrade from version 1 to version 0, i.e. remove any UserInstalled
   // sources. This can be removed when the kWebAppDontAddExistingAppsToSync
   // feature has shipped by default and is being removed.
