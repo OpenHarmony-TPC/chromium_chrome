@@ -20,3 +20,9 @@
 :host([dragging_=dragging-horizontal]) {
   cursor: ew-resize;
 }
+
+@media (hover: none) {
+  print-preview-margin-control {
+    touch-action: none;
+  }
+}
