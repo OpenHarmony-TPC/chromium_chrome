@@ -57,6 +57,11 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 
+#if BUILDFLAG(ARKWEB_PDF) && !defined(COMPONENT_BUILD)
+#include "ohos_nweb/src/nweb_advanced_security.h"
+#include "content/public/common/content_switches_ext.h"
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
@@ -510,8 +515,22 @@ void ComponentLoader::AddDefaultComponentExtensions(
     }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(ENABLE_PDF)
-    Add(pdf_extension_util::GetManifest(),
-        base::FilePath(FILE_PATH_LITERAL("pdf")));
+#if BUILDFLAG(ARKWEB_PDF) && !defined(COMPONENT_BUILD)
+    using ASHelper = OHOS::NWeb::NWebAdvancedSecurityHelper;
+    // If in advanced security mode, PDF preview is prohibited
+    bool isAdvancedSecurityMode =
+        ASHelper::Inst().IsSecFeatureEnabled(
+            ASHelper::Feature::ENABLE_PDFVIEWER) ||
+        base::CommandLine::ForCurrentProcess()->HasSwitch(
+            switches::kDisablePdfViewer);
+    LOG(DEBUG) << "pdf in advanced security mode: " << isAdvancedSecurityMode;
+    if (!isAdvancedSecurityMode) {
+#endif  // BUILDFLAG(ARKWEB_PDF) && !defined(COMPONENT_BUILD)
+        Add(pdf_extension_util::GetManifest(),
+            base::FilePath(FILE_PATH_LITERAL("pdf")));
+#if BUILDFLAG(ARKWEB_PDF) && !defined(COMPONENT_BUILD)
+    }
+#endif  // BUILDFLAG(ARKWEB_PDF) && !defined(COMPONENT_BUILD)
 #endif  // BUILDFLAG(ENABLE_PDF)
   }
 
