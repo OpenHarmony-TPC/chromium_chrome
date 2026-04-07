@@ -1990,7 +1990,7 @@ Puedes gestionar la configuración de esta cuenta instalando la aplicación Fami
 <translation id="2350182423316644347">Iniciando aplicación...</translation>
 <translation id="235028206512346451">Si te alejas de tu dispositivo, la pantalla se bloqueará automáticamente. Mientras estés enfrente del dispositivo, la pantalla se mantendrá activa durante más tiempo. Si no usas una pantalla de bloqueo, el dispositivo se suspenderá en lugar de bloquearse.</translation>
 <translation id="2351923523007389195">Permitido (<ph name="PERMISSION_DETAILS" />). Activa el <ph name="LINK_BEGIN" />acceso a la ubicación del sistema<ph name="LINK_END" />.</translation>
-<translation id="2352662711729498748">Menos de 1 MB</translation>
+<translation id="2352662711729498748">&lt;1 MB</translation>
 <translation id="2352810082280059586">Las notas de la pantalla de bloqueo se guardan automáticamente en <ph name="LOCK_SCREEN_APP_NAME" />. La nota más reciente seguirá apareciendo en la pantalla de bloqueo.</translation>
 <translation id="2353168619378866466">Abrir grupo</translation>
 <translation id="2353297238722298836">Cámara y micrófono permitidos</translation>
