@@ -40,6 +40,10 @@
 #include "rlz/lib/machine_id.h"  // nogncheck crbug.com/1125897
 #endif
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "extensions/common/extension_urls.h"
+#endif
+
 namespace {
 
 using extensions::ExtensionIdSet;
@@ -65,11 +69,7 @@ const int kSignatureFormatVersion = 2;
 const size_t kSaltBytes = 32;
 
 const char kBackendUrl[] =
-#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
-    "https://x.x.x";
-#else
     "https://www.googleapis.com/chromewebstore/v1.1/items/verify";
-#endif
 
 const char kPublicKeyPEM[] =
     "-----BEGIN PUBLIC KEY-----"
@@ -83,7 +83,11 @@ const char kPublicKeyPEM[] =
     "-----END PUBLIC KEY-----";
 
 GURL GetBackendUrl() {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   return GURL(kBackendUrl);
+#else
+  return GURL(extension_urls::GetDefaultWebstoreVerifyURL());
+#endif
 }
 
 // Hashes |salt| with the machine id, base64-encodes it and returns it in
@@ -272,11 +276,6 @@ void InstallSigner::GetSignature(SignatureCallback callback) {
     ReportErrorViaCallback();
     return;
   }
-
-#if BUILDFLAG(ARKWEB_PRIVACY_COMPLIANCE)
-  ReportErrorViaCallback();
-  return;
-#endif
 
   if (!url_loader_factory_) {
     ReportErrorViaCallback();
