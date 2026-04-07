@@ -60,6 +60,10 @@
 #include "components/user_manager/user_manager.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/extensions/browser/custom_handler.h"
+#endif
+
 using base::RandDouble;
 using base::UnguessableToken;
 using Error = extensions::ExtensionDownloaderDelegate::Error;
@@ -429,11 +433,25 @@ void ExtensionUpdater::CheckNow(CheckParams params) {
     std::set<ExtensionId> pending_ids;
     for (const ExtensionId& id :
          pending_extension_manager->GetPendingIdsForUpdateCheck()) {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      const Extension* extension =
+          registry_->GetExtensionById(id, ExtensionRegistry::EVERYTHING);
+      if (!CustomData::CanBeUpdated(extension)) {
+        continue;
+      }
+#endif
       pending_ids.insert(id);
     }
     // Include corrupted extensions that should be repaired.
     for (const auto& it :
          corrupted_extension_reinstaller->GetExpectedReinstalls()) {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      const Extension* extension =
+          registry_->GetExtensionById(it.first, ExtensionRegistry::EVERYTHING);
+      if (!CustomData::CanBeUpdated(extension)) {
+        continue;
+      }
+#endif
       pending_ids.insert(it.first);
     }
 
@@ -526,6 +544,11 @@ void ExtensionUpdater::CheckNow(CheckParams params) {
       const Extension* extension =
           registry_->GetExtensionById(id, ExtensionRegistry::EVERYTHING);
       if (extension) {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+        if (!CustomData::CanBeUpdated(extension)) {
+          continue;
+        }
+#endif
         if (CanUseUpdateService(id)) {
           update_check_params.update_info[id] = GetExtensionUpdateData(id);
         } else if (AddExtensionToDownloader(*extension, request_id,

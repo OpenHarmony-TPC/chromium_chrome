@@ -220,6 +220,12 @@ void CrxInstaller::InstallCrx(const base::FilePath& source_file) {
   InstallCrxFile(CRXFileInfo(source_file, format));
 }
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+void CrxInstaller::set_webstore_type(int webstore_type) {
+  webstore_type_ = webstore_type;
+}
+#endif
+
 void CrxInstaller::InstallCrxFile(const CRXFileInfo& source_file) {
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   LOG(INFO) << "CrxInstaller::InstallCrxFile";
@@ -239,6 +245,10 @@ void CrxInstaller::InstallCrxFile(const CRXFileInfo& source_file) {
   auto unpacker = base::MakeRefCounted<SandboxedUnpacker>(
       install_source_, creation_flags_, install_directory_,
       GetUnpackerTaskRunner(), this);
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  unpacker->set_webstore_type(webstore_type_);
+#endif
 
   if (!GetUnpackerTaskRunner()->PostTask(
           FROM_HERE, base::BindOnce(&SandboxedUnpacker::StartWithCrx, unpacker,
