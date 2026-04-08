@@ -336,6 +336,12 @@ void ExtensionUpdater::AddToDownloader(
        extension_iter != extensions->end(); ++extension_iter) {
     const Extension& extension = **extension_iter;
     const ExtensionId& extension_id = extension.id();
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    if (!CustomData::CanBeUpdated(&extension)) {
+      continue;
+    }
+#endif
+
     if (!Manifest::IsAutoUpdateableLocation(extension.location())) {
       LOG(INFO) << "Extension " << extension_id << " is not auto updateable";
       continue;
