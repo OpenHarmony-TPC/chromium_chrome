@@ -12,6 +12,7 @@
 #include "chrome/browser/performance_manager/policies/page_discarding_helper.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "content/public/browser/browser_thread.h"
+#include "base/memory/low_memory_mode_ohos.h"
 
 using content::BrowserThread;
 using MemoryPressureLevel = base::MemoryPressureListener::MemoryPressureLevel;
@@ -20,15 +21,25 @@ namespace performance_manager::policies {
 
 namespace {
 
+// default
 // Keep maximum alive tab count, will discard tab if overflow.
-constexpr int32_t kMaxAliveTabCount = 80;
+constexpr int32_t kDefaultMaxAliveTabCount = 80;
 // Keep maximum audible tab count.
-constexpr int32_t kMaxAudibleTabCount = 8;
+constexpr int32_t kDefaultMaxAudibleTabCount = 8;
 // Each time discard count, avoid spending too much time.
-constexpr int32_t kDiscardTabBatchCount = 5;
-constexpr int32_t kDiscardAudibleTabCount = 2;
-constexpr int32_t kDiscardMemoryCountUrgent = 10;
-constexpr int32_t kReservedMemoryCountUrgent = 20;
+constexpr int32_t kDefaultDiscardTabBatchCount = 5;
+constexpr int32_t kDefaultDiscardAudibleTabCount = 2;
+constexpr int32_t kDefaultDiscardMemoryCountUrgent = 10;
+constexpr int32_t kDefaultReservedMemoryCountUrgent = 20;
+
+// LowMemoryMode
+constexpr int32_t kLowMemoryMaxAliveTabCount = 15;
+constexpr int32_t kLowMemoryMaxAudibleTabCount = 1;
+constexpr int32_t kLowMemoryDiscardTabBatchCount = 1;
+constexpr int32_t kLowMemoryDiscardAudibleTabCount = 1;
+constexpr int32_t kLowMemoryDiscardMemoryCountUrgent = 3;
+constexpr int32_t kLowMemoryReservedMemoryCountUrgent = 5;
+
 // Next time duration to discard tab.
 constexpr int64_t kDefaultDiscardTimeDeltaMs = 30000;  // 30s
 constexpr int64_t kFastDiscardTimeDelatMs = 1000; // 1s
@@ -47,9 +58,35 @@ PageNodeVector GetSortedPageNodeVector(const PageNodeSet& page_node_set) {
 
 }  // namespace
 
-PageDiscardingPolicyOhos::PageDiscardingPolicyOhos() {}
+PageDiscardingPolicyOhos::PageDiscardingPolicyOhos() {
+  InitializeConfig();
+}
 
 PageDiscardingPolicyOhos::~PageDiscardingPolicyOhos() {}
+
+void PageDiscardingPolicyOhos::InitializeConfig() {
+   bool low_memory_mode = base::GetLowMemoryMode();
+   if (low_memory_mode) {
+    max_alive_tab_count_ = kLowMemoryMaxAliveTabCount;
+    max_audible_tab_count_ = kLowMemoryMaxAudibleTabCount;
+    discard_tab_batch_count_ = kLowMemoryDiscardTabBatchCount;
+    discard_audible_tab_count_ = kLowMemoryDiscardAudibleTabCount;
+    discard_memory_count_urgent_ = kLowMemoryDiscardMemoryCountUrgent;
+    reserved_memory_count_urgent_ = kLowMemoryReservedMemoryCountUrgent;
+  } else {
+    max_alive_tab_count_ = kDefaultMaxAliveTabCount;
+    max_audible_tab_count_ = kDefaultMaxAudibleTabCount;
+    discard_tab_batch_count_ = kDefaultDiscardTabBatchCount;
+    discard_audible_tab_count_ = kDefaultDiscardAudibleTabCount;
+    discard_memory_count_urgent_ = kDefaultDiscardMemoryCountUrgent;
+    reserved_memory_count_urgent_ = kDefaultReservedMemoryCountUrgent;
+  }
+  LOG(INFO) << "PageDiscardingPolicyOhos initialized in "
+            << (low_memory_mode ? "LOW MEMORY" : "NORMAL")
+            << " mode: max_alive_tab_count=" << max_alive_tab_count_
+            << ", max_audible_tab_count=" << max_audible_tab_count_
+            << ", discard_tab_batch_count=" << discard_tab_batch_count_;
+}
 
 void PageDiscardingPolicyOhos::OnPageNodeAdded(const PageNode* page_node) {
   if (page_node->GetType() == PageType::kTab && !page_node->IsVisible()) {
@@ -149,7 +186,7 @@ void PageDiscardingPolicyOhos::StartDiscardTimerIfNeeded() {
     tab_count = candidate_discarding_page_nodes_.size();
   }
 
-  if (tab_count < kMaxAliveTabCount + window_count) {
+  if (tab_count < max_alive_tab_count_ + window_count) {
     if (tab_discard_timer_) {
       tab_discard_timer_->Stop();
       tab_discard_timer_.reset();
@@ -167,6 +204,20 @@ void PageDiscardingPolicyOhos::StartDiscardTimerIfNeeded() {
   }
 }
 
+void PageDiscardingPolicyOhos::StopDiscardTimerIfNeeded() {
+  int32_t window_count = BrowserList::GetInstance()->size();
+  int32_t tab_count = 0;
+
+  {
+    base::AutoLock auto_lock(lock_);
+    tab_count = candidate_discarding_page_nodes_.size();
+  }
+  if (tab_discard_timer_ && (tab_count < max_alive_tab_count_ + window_count + discard_tab_batch_count_)) {
+    tab_discard_timer_->Stop();
+    tab_discard_timer_.reset();
+  }
+}
+
 void PageDiscardingPolicyOhos::PostAudibleTabDiscardTaskIfNeeded() {
   int32_t audible_tab_count = 0;
 
@@ -175,7 +226,7 @@ void PageDiscardingPolicyOhos::PostAudibleTabDiscardTaskIfNeeded() {
     audible_tab_count = candidate_audible_page_nodes_.size();
   }
 
-  if (audible_tab_count >= kMaxAudibleTabCount) {
+  if (audible_tab_count >= max_audible_tab_count_) {
     content::GetUIThreadTaskRunner({base::TaskPriority::BEST_EFFORT})->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&PageDiscardingPolicyOhos::DiscardTabByReason,
@@ -203,14 +254,14 @@ void PageDiscardingPolicyOhos::DiscardTabByReason(DiscardReason reason) {
         sorted_page_node =
             GetSortedPageNodeVector(candidate_discarding_page_nodes_);
       }
-      count_to_discard = kDiscardTabBatchCount;
+      count_to_discard = discard_tab_batch_count_;
       break;
     case DiscardReason::kAudibleTabOverflow:
       {
         base::AutoLock auto_lock(lock_);
         sorted_page_node = GetSortedPageNodeVector(candidate_audible_page_nodes_);
       }
-      count_to_discard = kDiscardAudibleTabCount;
+      count_to_discard = discard_audible_tab_count_;
       break;
     case DiscardReason::kMemoryOverUrgent:
       {
@@ -218,9 +269,9 @@ void PageDiscardingPolicyOhos::DiscardTabByReason(DiscardReason reason) {
         sorted_page_node =
             GetSortedPageNodeVector(candidate_discarding_page_nodes_);
         auto tab_count = sorted_page_node.size();
-        count_to_discard = kDiscardMemoryCountUrgent;
-        if (tab_count - count_to_discard < kReservedMemoryCountUrgent) {
-          count_to_discard = tab_count - kReservedMemoryCountUrgent;
+        count_to_discard = discard_memory_count_urgent_;
+        if (tab_count - count_to_discard < reserved_memory_count_urgent_) {
+          count_to_discard = tab_count - reserved_memory_count_urgent_;
         }
         if (count_to_discard <= 0) {
           LOG(INFO) << "Tab count reaches the reserved threshold. Don't discard.";
@@ -251,6 +302,7 @@ void PageDiscardingPolicyOhos::DiscardTabImpl(DiscardReason reason,
       discard_vector, DiscardEligibilityPolicy::DiscardReason::EXTERNAL);
   LOG(WARNING) << "DiscardTabImpl reason: " << reason << ", total candidate tab: "
                << nodes.size() << ", discard count: " << discard_count;
+  StopDiscardTimerIfNeeded();
 }
 
 }  // namespace performance_manager::policies
