@@ -171,6 +171,9 @@ namespace extensions {
 // static
 GURL WebstoreInstaller::GetWebstoreInstallURL(
     const std::string& extension_id,
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    int webstore_type,
+#endif
     InstallSource source) {
   std::string install_source;
   switch (source) {
@@ -198,7 +201,12 @@ GURL WebstoreInstaller::GetWebstoreInstallURL(
   if (!install_source.empty())
     params.push_back(installsource_param);
   params.push_back("uc");
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   std::string url_string = extension_urls::GetWebstoreUpdateUrl().spec();
+#else
+  std::string url_string =
+      extension_urls::GetWebstoreUpdateUrl(webstore_type).spec();
+#endif
 
   GURL url(
       url_string + "?response=redirect&" +
@@ -272,6 +280,13 @@ WebstoreInstaller::WebstoreInstaller(Profile* profile,
   DCHECK(web_contents);
   CHECK(success_callback_);
   CHECK(failure_callback_);
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  if (web_contents) {
+    auto url = web_contents->GetURL();
+    webstore_type_ = extension_urls::GetWebStoreTypeByUrl(true, url);
+  }
+#endif
 
   extension_registry_observation_.Observe(ExtensionRegistry::Get(profile));
 }
@@ -519,7 +534,11 @@ void WebstoreInstaller::DownloadNextPendingModule() {
 
 void WebstoreInstaller::DownloadCrx(const extensions::ExtensionId& extension_id,
                                     InstallSource source) {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   download_url_ = GetWebstoreInstallURL(extension_id, source);
+#else
+  download_url_ = GetWebstoreInstallURL(extension_id, webstore_type_, source);
+#endif
   MaybeAppendAuthUserParameter(approval_->authuser, &download_url_);
 
   base::FilePath user_data_dir;
@@ -687,6 +706,10 @@ void WebstoreInstaller::StartCrxInstaller(const DownloadItem& download) {
   DCHECK(approval);
 
   crx_installer_ = download_crx_util::CreateCrxInstaller(profile_, download);
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  crx_installer_->set_webstore_type(webstore_type_);
+#endif
 
   crx_installer_->set_expected_id(approval->extension_id);
   crx_installer_->set_is_gallery_install(true);
