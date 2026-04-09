@@ -184,6 +184,10 @@ class CrxInstaller : public SandboxedUnpackerClient, public ProfileObserver {
   bool delete_source() const { return delete_source_; }
   void set_delete_source(bool val) { delete_source_ = val; }
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  void set_webstore_type(int webstore_type);
+#endif
+
   bool allow_silent_install() const { return allow_silent_install_; }
   void set_allow_silent_install(bool val) { allow_silent_install_ = val; }
 
@@ -499,6 +503,10 @@ class CrxInstaller : public SandboxedUnpackerClient, public ProfileObserver {
   // What caused this install?  Used only for histograms that report
   // on failure rates, broken down by the cause of the install.
   extension_misc::CrxInstallCause install_cause_;
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  int webstore_type_ = kWebStoreTypeDefault;
+#endif
 
   // Creation flags to use for the extension.  These flags will be used
   // when calling Extension::Create() by the crx installer.

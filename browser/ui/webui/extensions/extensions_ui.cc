@@ -175,7 +175,11 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       {"stackTrace", IDS_EXTENSIONS_ERROR_STACK_TRACE},
 #endif
       // TODO(dpapad): Unify with Settings' IDS_SETTINGS_WEB_STORE.
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
       {"sidebarDiscoverMore", IDS_EXTENSIONS_SIDEBAR_DISCOVER_MORE},
+#else
+      {"sidebarDiscoverMore", IDS_EXTENSIONS_SIDEBAR_DISCOVER_MORE_V2},
+#endif
       {"keyboardShortcuts", IDS_EXTENSIONS_SIDEBAR_KEYBOARD_SHORTCUTS},
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
       {"incognitoInfoWarning", IDS_EXTENSIONS_INCOGNITO_WARNING_V2},

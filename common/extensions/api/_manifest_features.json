@@ -62,6 +62,10 @@
       "extension", "legacy_packaged_app", "hosted_app"
     ]
   },
+  "custom_data": {
+    "channel": "stable",
+    "extension_types": ["extension"]
+  },    
   "devtools_page": {
     "channel": "stable",
     "extension_types": ["extension", "legacy_packaged_app"]

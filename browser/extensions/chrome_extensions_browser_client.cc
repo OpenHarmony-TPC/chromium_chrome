@@ -655,8 +655,13 @@ ChromeExtensionsBrowserClient::CreateUpdateClient(
       override_url = update_url;
     }
   }
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   return update_client::UpdateClientFactory(
       ChromeUpdateClientConfig::Create(context, override_url));
+#else
+  return update_client::UpdateClientFactory(
+      ChromeUpdateClientConfig::Create(context, override_url), true);
+#endif
 }
 
 std::unique_ptr<ScopedExtensionUpdaterKeepAlive>

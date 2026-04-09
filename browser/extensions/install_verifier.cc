@@ -66,6 +66,8 @@ VerifyStatus GetExperimentStatus() {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING) && \
     (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC))
   return VerifyStatus::ENFORCE;
+#elif BUILDFLAG(IS_OHOS)
+  return VerifyStatus::ENFORCE;
 #else
   return VerifyStatus::NONE;
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
