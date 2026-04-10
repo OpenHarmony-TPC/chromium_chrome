@@ -1049,6 +1049,13 @@ void CrxInstaller::ReportFailureFromUIThread(const CrxInstallError& error) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK_NE(CrxInstallErrorType::NONE, error.type());
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LOG_FEEDBACK(INFO) << "failed to install extension " << expected_id_
+                     << ",reason is " << (int)error.sandbox_failure_detail()
+                     << ",detail is " << (int)error.detail() << ",message is "
+                     << base::UTF16ToUTF8(error.message());
+#endif
+
   if (!service_weak_.get() || service_weak_->browser_terminating())
     return;
 
@@ -1088,6 +1095,10 @@ void CrxInstaller::ReportSuccessFromSharedFileThread() {
 
 void CrxInstaller::ReportSuccessFromUIThread() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LOG_FEEDBACK(INFO) << "succeed to install extension " << expected_id_;
+#endif
 
   if (!service_weak_.get() || service_weak_->browser_terminating())
     return;
