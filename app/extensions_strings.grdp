@@ -566,7 +566,7 @@
     Discover more extensions and themes on the <ph name="BEGIN_LINK">&lt;a target="_blank" href="$1"&gt;</ph>Chrome Web Store<ph name="END_LINK">&lt;/a&gt; <ex>&lt;/a&gt;</ex> </ph>
   </message>
   <message name="IDS_EXTENSIONS_SIDEBAR_DISCOVER_MORE_V2" desc="The text displayed in the sidebar to open the Browser Web Store to get more extensions.">
-    Visita <ph name="BEGIN_LINK">&lt;a target="_blank" href="$1"&gt;</ph>Browser Web Store<ph name="END_LINK">&lt;/a&gt; <ex>&lt;/a&gt;</ex> </ph>
+    Visita <ph name="BEGIN_LINK">&lt;a target="_blank" href="$1"&gt;</ph>Browser Toolbox<ph name="END_LINK">&lt;/a&gt; <ex>&lt;/a&gt;</ex> </ph>
   </message>
   <message name="IDS_EXTENSIONS_SIDEBAR_KEYBOARD_SHORTCUTS" desc="The text for the link to manage keyboard shortcuts for extensions.">
     Keyboard shortcuts
