@@ -78,6 +78,7 @@
 #endif
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/base/ohos/sys_info_utils_ext.h"
 #include "base/task/thread_pool.h"
 #endif
 
@@ -155,6 +156,10 @@ CrxInstaller::CrxInstaller(base::WeakPtr<ExtensionService> service_weak,
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   if (client_) {
     client_->install_ui()->SetSkipPostInstallUI(true);
+  }
+
+  if (!base::ohos::IsPcDevice()) {
+    webstore_type_ = kWebStoreTypeHuawei;
   }
 #endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
