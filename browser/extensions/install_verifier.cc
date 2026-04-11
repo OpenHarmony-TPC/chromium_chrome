@@ -43,10 +43,6 @@
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-#include "extensions/common/extension_urls.h"
-#endif
-
 namespace extensions {
 
 namespace {
@@ -139,12 +135,6 @@ bool InstallVerifier::ShouldEnforce() {
 // static
 bool InstallVerifier::NeedsVerification(const Extension& extension,
                                         content::BrowserContext* context) {
-#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  if (!extension_urls::IsWebStoreEnable()) {
-    return false;
-  }
-#endif
-
   return IsFromStore(extension, context) && CanUseExtensionApis(extension);
 }
 
