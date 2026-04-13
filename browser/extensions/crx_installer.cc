@@ -79,6 +79,7 @@
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "arkweb/chromium_ext/base/ohos/sys_info_utils_ext.h"
+#include "arkweb/chromium_ext/extensions/browser/custom_handler.h"
 #include "base/task/thread_pool.h"
 #endif
 
@@ -277,6 +278,10 @@ void CrxInstaller::InstallUnpackedCrx(const ExtensionId& extension_id,
       install_source_, creation_flags_, install_directory_,
       GetUnpackerTaskRunner(), this);
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  unpacker->set_webstore_type(webstore_type_);
+#endif
+
   if (!GetUnpackerTaskRunner()->PostTask(
           FROM_HERE,
           base::BindOnce(&SandboxedUnpacker::StartWithDirectory, unpacker,
@@ -346,6 +351,10 @@ void CrxInstaller::UpdateExtensionFromUnpackedCrx(
     }
     return;
   }
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  webstore_type_ = CustomData::GetStoreType(extension);
+#endif
 
   expected_id_ = extension_id;
   install_source_ = extension->location();
