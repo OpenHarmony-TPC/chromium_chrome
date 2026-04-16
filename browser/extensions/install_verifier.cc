@@ -43,6 +43,10 @@
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "extensions/common/extension_urls.h"
+#endif
+
 namespace extensions {
 
 namespace {
@@ -67,6 +71,10 @@ VerifyStatus GetExperimentStatus() {
     (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC))
   return VerifyStatus::ENFORCE;
 #elif BUILDFLAG(IS_OHOS)
+  if (!extension_urls::IsWebStoreEnable()) {
+    return VerifyStatus::NONE;
+  }
+
   return VerifyStatus::ENFORCE;
 #else
   return VerifyStatus::NONE;

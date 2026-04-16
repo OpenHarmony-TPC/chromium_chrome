@@ -78,6 +78,8 @@
 #endif
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/base/ohos/sys_info_utils_ext.h"
+#include "arkweb/chromium_ext/extensions/browser/custom_handler.h"
 #include "base/task/thread_pool.h"
 #endif
 
@@ -155,6 +157,10 @@ CrxInstaller::CrxInstaller(base::WeakPtr<ExtensionService> service_weak,
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   if (client_) {
     client_->install_ui()->SetSkipPostInstallUI(true);
+  }
+
+  if (!base::ohos::IsPcDevice()) {
+    webstore_type_ = kWebStoreTypeHuawei;
   }
 #endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
@@ -272,6 +278,10 @@ void CrxInstaller::InstallUnpackedCrx(const ExtensionId& extension_id,
       install_source_, creation_flags_, install_directory_,
       GetUnpackerTaskRunner(), this);
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  unpacker->set_webstore_type(webstore_type_);
+#endif
+
   if (!GetUnpackerTaskRunner()->PostTask(
           FROM_HERE,
           base::BindOnce(&SandboxedUnpacker::StartWithDirectory, unpacker,
@@ -341,6 +351,10 @@ void CrxInstaller::UpdateExtensionFromUnpackedCrx(
     }
     return;
   }
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  webstore_type_ = CustomData::GetStoreType(extension);
+#endif
 
   expected_id_ = extension_id;
   install_source_ = extension->location();
@@ -1049,6 +1063,13 @@ void CrxInstaller::ReportFailureFromUIThread(const CrxInstallError& error) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK_NE(CrxInstallErrorType::NONE, error.type());
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LOG_FEEDBACK(INFO) << "failed to install extension " << expected_id_
+                     << ",reason is " << (int)error.sandbox_failure_detail()
+                     << ",detail is " << (int)error.detail() << ",message is "
+                     << base::UTF16ToUTF8(error.message());
+#endif
+
   if (!service_weak_.get() || service_weak_->browser_terminating())
     return;
 
@@ -1088,6 +1109,10 @@ void CrxInstaller::ReportSuccessFromSharedFileThread() {
 
 void CrxInstaller::ReportSuccessFromUIThread() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LOG_FEEDBACK(INFO) << "succeed to install extension " << expected_id_;
+#endif
 
   if (!service_weak_.get() || service_weak_->browser_terminating())
     return;
