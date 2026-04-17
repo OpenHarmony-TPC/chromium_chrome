@@ -731,6 +731,7 @@ Permissions that you've already given to apps may apply to this account. You can
 <translation id="1500720779546450982">I trust the site (<ph name="SITE_URL" />)</translation>
 <translation id="1500801317528437432">Learn more about unsupported Chrome Apps</translation>
 <translation id="1501480321619201731">Delete group</translation>
+<translation id="1502582685401185834">Visita <ph name="BEGIN_LINK" />Browser Toolbox<ph name="END_LINK" /></translation>
 <translation id="1503392482221435031">Automatically sends usage statistics to Google. You can turn crash reports on or off in your device's settings.</translation>
 <translation id="1503556098270577657">You signed in to <ph name="USER_EMAIL" /> using your Android phone</translation>
 <translation id="150411034776756821">Remove <ph name="SITE" /></translation>
@@ -8001,7 +8002,6 @@ You have # more compromised passwords. Google Password Manager recommends checki
 <translation id="6667187897999649121">For now, you can only share passwords with family members. <ph name="BEGIN_LINK" />Create a family group<ph name="END_LINK" /> with up to six members and get more from your products and subscriptions across Google.</translation>
 <translation id="666731172850799929">Open in <ph name="APP_NAME" /></translation>
 <translation id="6669195257625975787">Data is treated the same as the site that you’re viewing</translation>
-<translation id="6669339704603379540">Visita <ph name="BEGIN_LINK" />Browser Toolbox<ph name="END_LINK" /></translation>
 <translation id="6670142487971298264"><ph name="APP_NAME" /> is now available</translation>
 <translation id="6670767097276846646">Some extensions can add search engines to Chrome</translation>
 <translation id="6670983860904543332">Automatic updates provide you with the latest features. Explore highlights from recent updates.</translation>
