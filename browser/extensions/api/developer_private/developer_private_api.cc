@@ -135,6 +135,8 @@
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "arkweb/chromium_ext/chrome/browser/extensions/api/developer_private_api_ext.cc"
 #include "arkweb/chromium_ext/chrome/browser/extensions/extension_multiple_uninstall_dialog_ohos.h"
+#include "base/i18n/rtl.h"
+#include "ui/base/text/bytes_formatting.h"
 #endif // ARKWEB_ARKWEB_EXTENSIONS
 
 namespace extensions {
@@ -1024,10 +1026,30 @@ DeveloperPrivateGetExtensionSizeFunction::Run() {
   if (!extension)
     return RespondNow(Error(kNoSuchExtensionError));
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  extensions::path_util::CalculateExtensionDirectorySize(extension->path(),
+      base::BindOnce(
+          [](scoped_refptr<DeveloperPrivateGetExtensionSizeFunction> function, int64_t size_in_bytes) {
+              constexpr int64_t kOneMebibyteInBytes = 1024 * 1024;
+              std::u16string size;
+              if (size_in_bytes < kOneMebibyteInBytes) {
+                  size = l10n_util::GetStringUTF16(IDS_APPLICATION_INFO_SIZE_SMALL_LABEL);
+              } else {
+                  std::u16string amount = ui::FormatBytesWithUnits(size_in_bytes,
+                      ui::DATA_UNITS_MEBIBYTE,
+                      /*show_units=*/false);
+                  size = l10n_util::GetStringFUTF16(IDS_EXTENSIONS_ITEM_SIZE_MEBIBYTES, amount);
+                  size = base::i18n::GetDisplayStringInLTRDirectionality(size);
+              }
+              function->Respond(function->WithArguments(size));
+          },
+          scoped_refptr<DeveloperPrivateGetExtensionSizeFunction>(this)));
+#else
   extensions::path_util::CalculateAndFormatExtensionDirectorySize(
       extension->path(), IDS_APPLICATION_INFO_SIZE_SMALL_LABEL,
       base::BindOnce(
           &DeveloperPrivateGetExtensionSizeFunction::OnSizeCalculated, this));
+#endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
   return RespondLater();
 }
