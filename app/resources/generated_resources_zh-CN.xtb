@@ -728,6 +728,7 @@
 <translation id="1500720779546450982">我信任该网站 (<ph name="SITE_URL" />)</translation>
 <translation id="1500801317528437432">详细了解不受支持的 Chrome 应用</translation>
 <translation id="1501480321619201731">删除群组</translation>
+<translation id="1502582685401185834">访问<ph name="BEGIN_LINK" />浏览器工具箱<ph name="END_LINK" /></translation>
 <translation id="1503392482221435031">自动将使用情况统计信息发送给 Google。您可在设备的设置中开启或关闭崩溃报告。</translation>
 <translation id="1503556098270577657">您已使用 Android 手机登录 <ph name="USER_EMAIL" /></translation>
 <translation id="150411034776756821">移除 <ph name="SITE" /></translation>
@@ -7972,7 +7973,6 @@
 <translation id="6667187897999649121">目前，您只能向家庭成员分享密码。不妨<ph name="BEGIN_LINK" />创建一个家人群组<ph name="END_LINK" />并添加最多 6 名成员，与他们一起充分利用 Google 产品和订阅。</translation>
 <translation id="666731172850799929">在 <ph name="APP_NAME" />中打开</translation>
 <translation id="6669195257625975787">在数据处理方面，与您正在查看的网站相同</translation>
-<translation id="6669339704603379540">访问<ph name="BEGIN_LINK" />浏览器工具箱<ph name="END_LINK" /></translation>
 <translation id="6670142487971298264">现在可以使用“<ph name="APP_NAME" />”了</translation>
 <translation id="6670767097276846646">某些扩展程序可以向 Chrome 添加搜索引擎</translation>
 <translation id="6670983860904543332">自动更新可为您提供最新功能。探索近期更新中的亮点。</translation>
