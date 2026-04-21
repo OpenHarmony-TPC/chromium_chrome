@@ -119,6 +119,7 @@ source_set("feedback_impl") {
       "//services/cert_verifier:lib",
     ]
   }
+
   if (is_chromeos) {
     deps += [
       "//ash",
