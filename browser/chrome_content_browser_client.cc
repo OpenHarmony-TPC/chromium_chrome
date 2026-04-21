@@ -850,11 +850,8 @@ using web_apps::ChromeContentBrowserClientIsolatedWebAppsPart;
 #endif
 
 #if BUILDFLAG(IS_OHOS)
-using namespace ohos::adapter;
-#endif
-
-#if BUILDFLAG(IS_OHOS)
 #include "ohos/adapter/context_path/context_path_adapter.h"
+using namespace ohos::adapter;
 #endif
 
 namespace {
