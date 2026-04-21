@@ -361,6 +361,11 @@ void InstallSigner::ReportErrorViaCallback() {
 void InstallSigner::ParseFetchResponse(
     std::unique_ptr<std::string> response_body) {
   if (!response_body || response_body->empty()) {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    LOG_FEEDBACK(INFO) << "response is empty,net error is "
+                       << simple_loader_->NetError();
+#endif
+
     ReportErrorViaCallback();
     return;
   }
