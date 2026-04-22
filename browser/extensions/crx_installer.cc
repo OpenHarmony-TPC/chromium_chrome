@@ -143,6 +143,10 @@ CrxInstaller::CrxInstaller(base::WeakPtr<ExtensionService> service_weak,
   if (client_) {
     client_->install_ui()->SetSkipPostInstallUI(true);
   }
+
+  if (!base::ohos::IsPcDevice()) {
+    webstore_type_ = kWebStoreTypeHuawei;
+  }
 #endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
   if (!approval)
@@ -157,10 +161,6 @@ CrxInstaller::CrxInstaller(base::WeakPtr<ExtensionService> service_weak,
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   if (client_) {
     client_->install_ui()->SetSkipPostInstallUI(true);
-  }
-
-  if (!base::ohos::IsPcDevice()) {
-    webstore_type_ = kWebStoreTypeHuawei;
   }
 #endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
@@ -1064,10 +1064,16 @@ void CrxInstaller::ReportFailureFromUIThread(const CrxInstallError& error) {
   DCHECK_NE(CrxInstallErrorType::NONE, error.type());
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  LOG_FEEDBACK(INFO) << "failed to install extension " << expected_id_
-                     << ",reason is " << (int)error.sandbox_failure_detail()
-                     << ",detail is " << (int)error.detail() << ",message is "
-                     << base::UTF16ToUTF8(error.message());
+  if (error.type() == CrxInstallErrorType::SANDBOXED_UNPACKER_FAILURE) {
+    LOG_FEEDBACK(INFO) << "failed to install extension " << expected_id_
+                       << ",sandboxed unpacker error, detail is "
+                       << (int)error.sandbox_failure_detail() << ",message is "
+                       << base::UTF16ToUTF8(error.message());
+  } else {
+    LOG_FEEDBACK(INFO) << "failed to install extension " << expected_id_
+                       << ",detail is " << (int)error.detail() << ",message is "
+                       << base::UTF16ToUTF8(error.message());
+  }
 #endif
 
   if (!service_weak_.get() || service_weak_->browser_terminating())
