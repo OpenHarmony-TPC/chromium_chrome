@@ -151,7 +151,12 @@ bool GetExtensionInfo(content::WebContents* wc,
     *type = ChromeDevToolsManagerDelegate::kTypePage;
     return true;
   }
-
+#if BUILDFLAG(ARKWEB_DEVTOOLS)
+  if (view_type == extensions::mojom::ViewType::kTabContents) {
+    *type = DevToolsAgentHost::kTypePage;
+    return true;
+  }
+#endif // ARKWEB_DEVTOOLS
   // Set type to other for extensions if not matched previously.
   *type = DevToolsAgentHost::kTypeOther;
   return true;
