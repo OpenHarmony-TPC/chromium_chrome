@@ -203,6 +203,10 @@
 #include "chrome/browser/ui/webui/on_device_translation_internals/on_device_translation_internals_ui.h"
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/base/ohos/sys_info_utils_ext.h"
+#endif
+
 void RegisterChromeWebUIConfigs() {
   // Don't add calls to `AddWebUIConfig()` for Ash-specific WebUIs here. Add
   // them in chrome_web_ui_configs_chromeos.cc.
@@ -212,7 +216,9 @@ void RegisterChromeWebUIConfigs() {
 
   auto& map = content::WebUIConfigMap::GetInstance();
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
-  map.AddWebUIConfig(std::make_unique<extensions::ExtensionsUIConfig>());
+  if (base::ohos::IsPcDevice()) {
+    map.AddWebUIConfig(std::make_unique<extensions::ExtensionsUIConfig>());
+  }
 #endif
 #if BUILDFLAG(ARKWEB_NETWORK_LOAD)
   map.AddWebUIConfig(std::make_unique<NetExportUIConfig>());
