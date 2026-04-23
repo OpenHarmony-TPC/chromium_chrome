@@ -39,6 +39,8 @@ export class PrintPreviewMarginControlContainerElement extends
     return 'print-preview-margin-control-container';
   }
 
+  private static readonly CONTEXT_MENU_PREVENT_DELAY_MS = 100;
+
   static get template() {
     return getTemplate();
   }
@@ -292,6 +294,16 @@ export class PrintPreviewMarginControlContainerElement extends
   private onPointerUp_(event: PointerEvent) {
     const control = event.target as PrintPreviewMarginControlElement;
     this.dragging_ = '';
+    // Prevent context menu from popping up when drag ends
+    const contextMenuHandler = (e: Event): void => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    document.addEventListener('contextmenu', contextMenuHandler, true);
+    setTimeout(() => {
+      document.removeEventListener('contextmenu', contextMenuHandler, true);
+    }, PrintPreviewMarginControlContainerElement.CONTEXT_MENU_PREVENT_DELAY_MS);
+
     const posInPixels = this.translatePointerToPositionInPixels(
         new Coordinate2d(event.x, event.y));
     const posInPts = this.posInPixelsToPts_(control, posInPixels);
