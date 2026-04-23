@@ -473,6 +473,12 @@ void InstallVerifier::SignatureCallback(
       provisional_ =
           base::STLSetDifference<ExtensionIdSet>(provisional_, signature_->ids);
     }
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    LOG_FEEDBACK(INFO) << "id count is " << signature_->ids.size()
+                       << ",invalid id count is "
+                       << signature_->invalid_ids.size();
+#endif
   }
 
   // TODO(asargent) - if this was something like a network error, we need to
