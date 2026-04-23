@@ -29,7 +29,7 @@
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/web_contents.h"
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
 #include "chrome/browser/ui/webui/settings/settings_utils.h"
 #endif
 
@@ -216,7 +216,7 @@ CertificateManagerPageHandler::GetCertSource(
                 CERTIFICATE_TRUST_TYPE_DISTRUSTED,
             profile_, &remote_client_);
         break;
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_OHOS)
       case certificate_manager_v2::mojom::CertificateSource::
           kProvisionedClientCert:
         source_ptr = CreateProvisionedClientCertSource(profile_);
@@ -239,12 +239,22 @@ void CertificateManagerPageHandler::GetCertManagementMetadata(
       ProfileNetworkContextServiceFactory::GetForContext(profile_);
   ProfileNetworkContextService::CertificatePoliciesForView policies =
       service->GetCertificatePolicyForView();
+#if BUILDFLAG(IS_OHOS)
+  content::GetCertVerifierServiceFactory()->PlatformCertRefresh();
+#endif
   content::GetCertVerifierServiceFactory()->GetPlatformRootStoreInfo(
       base::BindOnce(&GetCertManagementMetadataAsync, std::move(policies),
                      std::move(callback), profile_->GetWeakPtr()));
 }
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_OHOS)
+void CertificateManagerPageHandler::IsSdk22(IsSdk22Callback callback) {
+  bool result = settings_utils::IsSdk22(web_contents_);
+  std::move(callback).Run(result);
+}
+#endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OHOS)
 void CertificateManagerPageHandler::ShowNativeManageCertificates() {
   settings_utils::ShowManageSSLCertificates(web_contents_);
 }

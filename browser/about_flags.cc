@@ -11984,6 +11984,10 @@ const FeatureEntry kFeatureEntries[] = {
     {"parallel-before-unload", flag_descriptions::kParallelBeforeUnloadName,
      flag_descriptions::kParallelBeforeUnloadDescription, kOsOhOS,
      FEATURE_VALUE_TYPE(features::kParallelBeforeUnload)},
+    {"inputmethod-use-js-api", flag_descriptions::kUseInputMethodJSApiName,
+     flag_descriptions::kUseInputMethodJSApiDescription, kOsOhOS,
+     FEATURE_VALUE_TYPE(features::kUseInputMethodJSApi)},
+
 #endif  // BUILDFLAG(IS_OHOS)
 
     // NOTE: Adding a new flag requires adding a corresponding entry to enum

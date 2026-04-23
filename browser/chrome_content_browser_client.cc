@@ -535,11 +535,6 @@
 #include "chrome/browser/chrome_browser_main_posix.h"
 #endif
 
-#if BUILDFLAG(IS_OHOS)
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/views/chrome_browser_main_extra_parts_views_ohos.h"
-#endif
-
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/digital_credentials/digital_identity_provider_desktop.h"
 #include "chrome/browser/preloading/preview/preview_navigation_throttle.h"
@@ -634,6 +629,10 @@
 #include "chrome/browser/apps/link_capturing/web_app_link_capturing_delegate.h"
 #endif
 
+#if BUILDFLAG(IS_OHOS)
+#include "components/crash/content/browser/crash_handler_host_linux.h"
+#endif
+
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 #include "chrome/browser/enterprise/chrome_browser_main_extra_parts_enterprise.h"
 #include "chrome/browser/enterprise/profile_management/oidc_auth_response_capture_navigation_throttle.h"
@@ -716,6 +715,12 @@
 #if BUILDFLAG(ENABLE_PLUGINS)
 #include "chrome/browser/plugins/chrome_content_browser_client_plugins_part.h"
 #include "chrome/browser/plugins/plugin_response_interceptor_url_loader_throttle.h"
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/views/chrome_browser_main_extra_parts_views_ohos.h"
+#include "ohos/adapter/cert_manager/cert_manager_adapter.h"
 #endif
 
 #if BUILDFLAG(ENABLE_PDF)
@@ -842,6 +847,11 @@ using plugins::ChromeContentBrowserClientPluginsPart;
 
 #if !BUILDFLAG(IS_ANDROID)
 using web_apps::ChromeContentBrowserClientIsolatedWebAppsPart;
+#endif
+
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/context_path/context_path_adapter.h"
+using namespace ohos::adapter;
 #endif
 
 namespace {
@@ -1044,11 +1054,11 @@ blink::mojom::AutoplayPolicy GetAutoplayPolicyForWebContents(
   return result;
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_OHOS)
 int GetCrashSignalFD(const base::CommandLine& command_line) {
   return crashpad::CrashHandlerHost::Get()->GetDeathSignalSocket();
 }
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OHOS)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 int GetCrashSignalFD(const base::CommandLine& command_line) {
   int fd;
   return crash_reporter::GetHandlerSocket(&fd, nullptr) ? fd : -1;
@@ -2746,6 +2756,12 @@ void MaybeAppendBlinkSettingsSwitchForFieldTrial(
 void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
     base::CommandLine* command_line,
     int child_process_id) {
+#if BUILDFLAG(IS_OHOS)
+  base::FilePath temp_dir(
+      ::ohos::adapter::ContextPathAdapter::GetTempDir());
+ 
+  command_line->AppendSwitchPath(switches::kOhosTempDir, temp_dir);
+#endif
   crash_keys::AppendStringAnnotationsCommandLineSwitch(command_line);
 #if BUILDFLAG(IS_MAC)
   std::unique_ptr<metrics::ClientInfo> client_info =
@@ -4180,7 +4196,15 @@ base::OnceClosure ChromeContentBrowserClient::SelectClientCertificate(
   DCHECK(requesting_url.is_valid()) << "Invalid URL string: " << requesting_url;
 
   net::ClientCertIdentityList matching_certificates, nonmatching_certificates;
-  enterprise_util::AutoSelectCertificates(
+  bool is_huks = false;
+#if BUILDFLAG(IS_OHOS)
+  is_huks = CertManagerAdapter::GetInstance().IsSdk22();
+# endif
+
+  if (is_huks && client_certs.size() > 0) {
+    matching_certificates.push_back(std::move(client_certs[0]));
+  } else
+    enterprise_util::AutoSelectCertificates(
       profile, requesting_url, std::move(client_certs), &matching_certificates,
       &nonmatching_certificates);
 

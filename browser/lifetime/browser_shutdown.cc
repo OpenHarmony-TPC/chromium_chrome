@@ -58,6 +58,7 @@
 
 #if BUILDFLAG(IS_OHOS)
 #include "ohos/adapter/ime_adapter/input_method_ohos_adapter.h"
+#include "ui/base/ime/ohos/input_method_ohos.h"
 #endif  // BUILDFLAG(IS_OHOS)
 
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
@@ -144,8 +145,10 @@ void OnShutdownStarting(ShutdownType type) {
   nested_run_loop.Run();
 #endif  // BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX) && BUILDFLAG(CLANG_PGO)
 #if BUILDFLAG(IS_OHOS)
+if (!ui::IsValidInputMethodOhosNAPI()) {
   auto& ime_instance = ohos::adapter::InputMethodOHOSAdapter::GetInstance();
   ime_instance.OffListenIME();
+}
 #endif // BUILDFLAG(IS_OHOS)
 
   // Call FastShutdown on all of the RenderProcessHosts.  This will be

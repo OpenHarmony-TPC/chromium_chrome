@@ -4886,6 +4886,9 @@ extern const char kNetworkPreloadDescription[];
 extern const char kOmniboxPreName[];
 extern const char kOmniboxPreDescription[];
 
+extern const char kUseInputMethodJSApiName [];
+extern const char kUseInputMethodJSApiDescription [];
+
 extern const char kParallelBeforeUnloadName [];
 extern const char kParallelBeforeUnloadDescription [];
 #endif  // BUILDFLAG(IS_OHOS)

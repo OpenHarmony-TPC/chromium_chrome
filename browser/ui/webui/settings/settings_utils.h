@@ -29,6 +29,11 @@ void ShowNetworkProxySettings(content::WebContents* web_contents);
 
 // Invoke UI for SSL certificates.
 void ShowManageSSLCertificates(content::WebContents* web_contents);
+#if BUILDFLAG(IS_OHOS)
+// Invoke UI for SSL certificates.
+void ShowManageSSLClientCertificates(content::WebContents* web_contents);
+bool IsSdk22(content::WebContents* web_contents);
+#endif
 
 // Returns whether |url_string| is a valid startup page. |fixed_url| is set to
 // the fixed up, valid URL if not null.
