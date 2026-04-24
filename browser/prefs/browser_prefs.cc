@@ -578,6 +578,10 @@
 #include "ohos_nweb_ex/overrides/cef/libcef/browser/alloy/alloy_browser_engine_global_config.h"
 #endif
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "extensions/browser/extension_util.h"
+#endif
+
 namespace {
 
 // Please keep the list of deprecated prefs in chronological order. i.e. Add to
@@ -2083,6 +2087,11 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   extensions::ActivityLog::RegisterProfilePrefs(registry);
   extensions::AudioAPI::RegisterUserPrefs(registry);
   extensions::ExtensionsUI::RegisterProfilePrefs(registry);
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  extensions::util::RegisterProfilePrefs(registry);
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   extensions::shared_storage::RegisterProfilePrefs(registry);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
