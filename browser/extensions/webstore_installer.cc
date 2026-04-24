@@ -729,6 +729,11 @@ void WebstoreInstaller::ReportFailure(const std::string& error,
   success_callback_ = base::NullCallback();
   extension_registry_observation_.Reset();
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LOG_FEEDBACK(INFO) << "failed to install extension " << id_ << ",error is "
+                     << error;
+#endif
+
   extensions::InstallTracker* tracker =
       extensions::InstallTrackerFactory::GetForBrowserContext(profile_);
   tracker->OnInstallFailure(id_);
@@ -741,6 +746,10 @@ void WebstoreInstaller::ReportSuccess() {
   std::move(success_callback_).Run(id_);
   failure_callback_ = base::NullCallback();
   extension_registry_observation_.Reset();
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  LOG_FEEDBACK(INFO) << "succeed to install extension " << id_;
+#endif
 
   Release();  // Balanced in Start().
 }
