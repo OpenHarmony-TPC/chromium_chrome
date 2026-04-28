@@ -684,6 +684,17 @@ void DeveloperPrivateEventRouter::OnExtensionDisableReasonsChanged(
   BroadcastItemStateChanged(developer::EventType::kPrefsChanged, extension_id);
 }
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+void DeveloperPrivateEventRouter::OnExtensionStateChanged(
+    const ExtensionId& extension_id,
+    bool state) {
+  // Disabling or enabling an extension updates pref-backed fields such as
+  // disableReasons, but that transition does not trigger
+  // OnExtensionDisableReasonsChanged().
+  BroadcastItemStateChanged(developer::EventType::kPrefsChanged, extension_id);
+}
+#endif
+
 void DeveloperPrivateEventRouter::OnExtensionRuntimePermissionsChanged(
     const ExtensionId& extension_id) {
   BroadcastItemStateChanged(developer::EventType::kPermissionsChanged,

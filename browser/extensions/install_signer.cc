@@ -41,6 +41,8 @@
 #endif
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "arkweb/chromium_ext/base/ohos/sys_info_utils_ext.h"
+#include "base/uuid.h"
 #include "extensions/common/extension_urls.h"
 #endif
 
@@ -59,6 +61,21 @@ const char kSignatureKey[] = "signature";
 const char kSignatureFormatVersionKey[] = "signature_format_version";
 const char kTimestampKey[] = "timestamp";
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+const char kIdKey[] = "id";
+const char kModelKey[] = "model";
+const char kSourceKey[] = "source";
+const char kIdDetailsKey[] = "idDetails";
+const char kDeviceTypeKey[] = "deviceType";
+const char kTransactionIdKey[] = "transactionId";
+
+enum : int {
+  kDeviceTypePhone = 1,
+  kDeviceTypeTablet = 2,
+  kDeviceTypePC = 3,
+};
+#endif
+
 const char kContentTypeJSON[] = "application/json";
 
 // This allows us to version the format of what we write into the prefs,
@@ -72,6 +89,19 @@ const char kBackendUrl[] =
     "https://www.googleapis.com/chromewebstore/v1.1/items/verify";
 
 const char kPublicKeyPEM[] =
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+    "-----BEGIN PUBLIC KEY-----"
+    "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAlmkw7puq58gQkvViwGSf"
+    "xqy259+NFnQwIIVB9ttBuA8xOgaGQztbWgTvkGeMcFHU0QfOaBIgEU/8HDLynW6p"
+    "9tBLxaXKeImMy/0ZhZpP7IRvcQ2XOO02ngMZjwI8tiQpwHniUroQI6KyjfctLa/5"
+    "6WvHap0vbTuzaaM9zToMmMkmjUp+Ncl5cAjyVpjnw26SW2dz7sngzz4HL16F2sti"
+    "qfQfU1BOLovDr6Fl8qzQXH1bs/ASHMrsgIJz3ZlPsJMiUc69j8sCgTeqY2bZr4er"
+    "CFb3lZBIP1SwMLYMRaxi5DMk+TnIzHMvqjJUWYr+wiNTI6t1eEClhN7C3bqk7Jjg"
+    "wPLyncTcknaJbHQxGELKU43WRfit551YfNSlgNx6ciraNaHWxM8qRbPXWRp1Z4r"
+    "VHad0osjMTaOfcjYeKsPtg0IpE6zg5qGSfFamVCuJikO2qRNIyTGkYFrKTFZBC4+"
+    "RtmyhpeVdMDmwaE6qICqVx6WEhbDEs7TfFp513vxEBZXrAgMBAAE="
+    "-----END PUBLIC KEY-----";
+#else
     "-----BEGIN PUBLIC KEY-----"
     "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAj/u/XDdjlDyw7gHEtaaa"
     "sZ9GdG8WOKAyJzXd8HFrDtz2Jcuy7er7MtWvHgNDA0bwpznbI5YdZeV4UfCEsA4S"
@@ -81,12 +111,21 @@ const char kPublicKeyPEM[] =
     "/PMIEv+TvWIx2BzqGp71gSh/dV7SJ3rClvWd2xj8dtxG8FfAWDTIIi0qZXWn2Qhi"
     "zQIDAQAB"
     "-----END PUBLIC KEY-----";
+#endif
 
 GURL GetBackendUrl() {
 #if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   return GURL(kBackendUrl);
 #else
   return GURL(extension_urls::GetDefaultWebstoreVerifyURL());
+#endif
+}
+
+crypto::SignatureVerifier::SignatureAlgorithm GetSignatureAlgorithm() {
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  return crypto::SignatureVerifier::RSA_PSS_SHA256;
+#else
+  return crypto::SignatureVerifier::RSA_PKCS1_SHA1;
 #endif
 }
 
@@ -206,8 +245,14 @@ std::unique_ptr<InstallSignature> InstallSignature::FromDict(
 
 InstallSigner::InstallSigner(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
     const ExtensionIdSet& ids)
     : ids_(ids), url_loader_factory_(std::move(url_loader_factory)) {}
+#else
+    const std::map<ExtensionId, int>& webstore_types)
+    : webstore_types_(webstore_types),
+      url_loader_factory_(std::move(url_loader_factory)) {}
+#endif
 
 InstallSigner::~InstallSigner() = default;
 
@@ -232,7 +277,7 @@ bool InstallSigner::VerifySignature(const InstallSignature& signature) {
     return false;
 
   crypto::SignatureVerifier verifier;
-  if (!verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1,
+  if (!verifier.VerifyInit(GetSignatureAlgorithm(),
                            base::as_bytes(base::make_span(signature.signature)),
                            base::as_bytes(base::make_span(public_key))))
     return false;
@@ -262,7 +307,11 @@ void InstallSigner::GetSignature(SignatureCallback callback) {
 
   // If the set of ids is empty, just return an empty signature and skip the
   // call to the server.
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   if (ids_.empty()) {
+#else
+  if (webstore_types_.empty()) {
+#endif
     if (!callback_.is_null())
       std::move(callback_).Run(std::make_unique<InstallSignature>());
     return;
@@ -322,11 +371,38 @@ void InstallSigner::GetSignature(SignatureCallback callback) {
   base::Value::Dict dictionary;
   dictionary.Set(kProtocolVersionKey, 1);
   dictionary.Set(kHashKey, hash_base64);
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   base::Value::List id_list;
   for (const ExtensionId& extension_id : ids_) {
     id_list.Append(extension_id);
   }
   dictionary.Set(kIdsKey, std::move(id_list));
+#else
+  base::Value::List id_list;
+  base::Value::List id_detail_list;
+  for (const auto& iter : webstore_types_) {
+    id_list.Append(iter.first);
+
+    base::Value::Dict detail;
+    detail.Set(kIdKey, iter.first);
+    detail.Set(kSourceKey, iter.second);
+    id_detail_list.Append(std::move(detail));
+  }
+  dictionary.Set(kIdsKey, std::move(id_list));
+  dictionary.Set(kIdDetailsKey, std::move(id_detail_list));
+
+  if (base::ohos::IsPcDevice()) {
+    dictionary.Set(kDeviceTypeKey, kDeviceTypePC);
+  } else if (base::ohos::IsMobileDevice()) {
+    dictionary.Set(kDeviceTypeKey, kDeviceTypePhone);
+  } else if (base::ohos::IsTabletDevice()) {
+    dictionary.Set(kDeviceTypeKey, kDeviceTypeTablet);
+  }
+  dictionary.Set(kModelKey, base::ohos::ProductModel());
+
+  dictionary.Set(kTransactionIdKey,
+                 base::Uuid::GenerateRandomV4().AsLowercaseString());
+#endif
   std::string json;
   base::JSONWriter::Write(dictionary, &json);
   if (json.empty()) {
@@ -431,8 +507,17 @@ void InstallSigner::ParseFetchResponse(
 void InstallSigner::HandleSignatureResult(const std::string& signature,
                                           const std::string& expire_date,
                                           const ExtensionIdSet& invalid_ids) {
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   ExtensionIdSet valid_ids =
       base::STLSetDifference<ExtensionIdSet>(ids_, invalid_ids);
+#else
+  ExtensionIdSet ids;
+  std::transform(webstore_types_.begin(), webstore_types_.end(),
+                 std::inserter(ids, ids.begin()),
+                 [](auto& kv) { return kv.first; });
+  ExtensionIdSet valid_ids =
+      base::STLSetDifference<ExtensionIdSet>(ids, invalid_ids);
+#endif
 
   std::unique_ptr<InstallSignature> result;
   if (!signature.empty()) {

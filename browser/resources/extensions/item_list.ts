@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import 'chrome://resources/cr_components/managed_footnote/managed_footnote.js';
+import './blacklist_review_panel.js';
 import './item.js';
 import './mv2_deprecation_panel.js';
 import './review_panel.js';
@@ -64,6 +65,12 @@ export class ExtensionsItemListElement extends ExtensionsItemListElementBase {
       filteredApps_: {type: Array},
 
       /**
+       * List of extensions disabled by the blocklist flow that should be
+       * visible in the blocklist review panel.
+       */
+      blacklistedExtensions_: {type: Array},
+
+      /**
        * List of potentially unsafe extensions that should be visible in the
        * review panel.
        */
@@ -82,6 +89,19 @@ export class ExtensionsItemListElement extends ExtensionsItemListElementBase {
 
       shownAppsCount_: {type: Number},
       shownExtensionsCount_: {type: Number},
+
+      /**
+       * Indicates whether the blocklist review panel is shown.
+       */
+      showBlacklistReviewPanel_: {type: Boolean},
+
+      /**
+       * Indicates if the blocklist review panel has ever been shown.
+       */
+      blacklistReviewPanelShown_: {
+        type: Boolean,
+        state: true,
+      },
 
       /**
        * Indicates whether the review panel is shown.
@@ -108,6 +128,7 @@ export class ExtensionsItemListElement extends ExtensionsItemListElementBase {
   protected filteredApps_: chrome.developerPrivate.ExtensionInfo[] = [];
   protected computedFilter_: Filter|null = null;
   protected maxColumns_: number = 3;
+  protected blacklistedExtensions_: chrome.developerPrivate.ExtensionInfo[] = [];
   protected unsafeExtensions_: chrome.developerPrivate.ExtensionInfo[] = [];
   protected mv2ExperimentStage_: Mv2ExperimentStage =
       getMv2ExperimentStage(loadTimeData.getInteger('MV2ExperimentStage'));
@@ -115,7 +136,9 @@ export class ExtensionsItemListElement extends ExtensionsItemListElementBase {
       [];
   protected shownAppsCount_: number = 0;
   protected shownExtensionsCount_: number = 0;
+  protected showBlacklistReviewPanel_: boolean = false;
   protected showSafetyCheckReviewPanel_: boolean = false;
+  private blacklistReviewPanelShown_: boolean = false;
   private reviewPanelShown_: boolean = false;
 
   override willUpdate(changedProperties: PropertyValues<this>) {
@@ -142,6 +165,8 @@ export class ExtensionsItemListElement extends ExtensionsItemListElementBase {
     }
 
     if (changedProperties.has('extensions')) {
+      this.blacklistedExtensions_ = this.computeBlacklistedExtensions_();
+      this.showBlacklistReviewPanel_ = this.computeShowBlacklistReviewPanel_();
       this.unsafeExtensions_ = this.computeUnsafeExtensions_();
       this.showSafetyCheckReviewPanel_ =
           this.computeShowSafetyCheckReviewPanel_();
@@ -237,6 +262,32 @@ export class ExtensionsItemListElement extends ExtensionsItemListElementBase {
               extension.disableReasons.unsupportedManifestVersion;
       }
     });
+  }
+
+  /**
+   * Computes the extensions that are disabled by the blocklist flow and should
+   * be visible in the review panel.
+   */
+  private computeBlacklistedExtensions_():
+      chrome.developerPrivate.ExtensionInfo[] {
+    return this.extensions.filter(
+        extension => extension.disableReasons.suspiciousInstall);
+  }
+
+  /**
+   * Returns whether the blocklist review panel should be visible.
+   */
+  private computeShowBlacklistReviewPanel_(): boolean {
+    if (!loadTimeData.getBoolean('blacklistReviewShowReviewPanel')) {
+      return false;
+    }
+
+    if (this.blacklistedExtensions_.length !== 0) {
+      this.blacklistReviewPanelShown_ = true;
+    }
+
+    return this.blacklistedExtensions_.length !== 0 ||
+        this.blacklistReviewPanelShown_;
   }
 
   /**
