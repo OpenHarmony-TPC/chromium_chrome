@@ -333,7 +333,7 @@ void GoogleURLLoaderThrottle::WillProcessResponse(
 #if BUILDFLAG(IS_ARKWEB)
     if (!response_head || !response_head->parsed_headers) {
       LOG(ERROR) << "parsed_headers is empty";
-      base::debug::DumpWithOutCrashing();
+      base::debug::DumpWithoutCrashing();
       return;
     }
 #else
