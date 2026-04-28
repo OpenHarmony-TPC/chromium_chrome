@@ -139,6 +139,12 @@ class DeveloperPrivateEventRouter : public ExtensionRegistryObserver,
   // ExtensionPrefsObserver:
   void OnExtensionDisableReasonsChanged(const ExtensionId& extension_id,
                                         int disable_reasons) override;
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  void OnExtensionStateChanged(const ExtensionId& extension_id,
+                               bool state) override;
+#endif
+
   void OnExtensionRuntimePermissionsChanged(
       const ExtensionId& extension_id) override;
 

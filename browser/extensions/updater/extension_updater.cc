@@ -806,6 +806,10 @@ bool ExtensionUpdater::CanUseUpdateService(
   if (extension == nullptr)
     return false;
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  // Only expansion to specified webstore may be updated
+  return true;
+#else
   // Furthermore, we can only update extensions that were installed from the
   // default webstore or extensions with empty update URLs not converted from
   // user scripts.
@@ -816,6 +820,7 @@ bool ExtensionUpdater::CanUseUpdateService(
   if (update_url.is_empty())
     return !extension->converted_from_user_script();
   return extension_urls::IsWebstoreUpdateUrl(update_url);
+#endif
 }
 
 void ExtensionUpdater::InstallCRXFile(FetchedCRXFile crx_file) {

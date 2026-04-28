@@ -162,10 +162,78 @@ suite('ExtensionItemListTest', function() {
   test('SafetyCheckPanel_Disabled', async () => {
     // Panel is hidden if safetyCheckShowReviewPanel and
     // safetyHubShowReviewPanel are disabled.
-    loadTimeData.overrideValues(
-        {safetyCheckShowReviewPanel: false, safetyHubShowReviewPanel: false});
+    loadTimeData.overrideValues({
+      // arkweb_arkweb_extensions
+      blacklistReviewShowReviewPanel: false,
+      safetyCheckShowReviewPanel: false,
+      safetyHubShowReviewPanel: false,
+    });
     setupElement();
     boundTestVisible('extensions-review-panel', false);
+  });
+
+  test('BlacklistPanel_Disabled', async () => {
+    loadTimeData.overrideValues({blacklistReviewShowReviewPanel: false});
+    setupElement();
+    boundTestVisible('extensions-blacklist-review-panel', false);
+  });
+
+  test('BlacklistPanel_Enabled', async () => {
+    loadTimeData.overrideValues({blacklistReviewShowReviewPanel: true});
+    setupElement();
+    boundTestVisible('extensions-blacklist-review-panel', false);
+
+    itemList.extensions = [
+      ...itemList.extensions.slice(),
+      createExtensionInfo({
+        name: 'Blacklisted extension',
+        id: 'd'.repeat(32),
+        disableReasons: {
+          ...createExtensionInfo().disableReasons,
+          suspiciousInstall: true,
+        },
+      }),
+    ];
+    await microtasksFinished();
+    boundTestVisible('extensions-blacklist-review-panel', true);
+    const reviewPanel =
+        itemList.shadowRoot!.querySelector('extensions-blacklist-review-panel');
+    assertTrue(!!reviewPanel);
+    assertEquals(1, reviewPanel.extensions.length);
+  });
+
+  test('BlacklistPanel_OrderBeforeSafetyPanel', async () => {
+    loadTimeData.overrideValues(
+        {blacklistReviewShowReviewPanel: true, safetyHubShowReviewPanel: true});
+    setupElement();
+
+    itemList.extensions = [
+      ...itemList.extensions.slice(),
+      createExtensionInfo({
+        name: 'Blacklisted extension',
+        id: 'd'.repeat(32),
+        disableReasons: {
+          ...createExtensionInfo().disableReasons,
+          suspiciousInstall: true,
+        },
+      }),
+      createExtensionInfo({
+        name: 'Unsafe extension',
+        id: 'e'.repeat(32),
+        safetyCheckText: {panelString: 'This extension contains malware.'},
+      }),
+    ];
+    await microtasksFinished();
+
+    const blacklistPanel = itemList.shadowRoot!.querySelector(
+        'extensions-blacklist-review-panel');
+    const safetyPanel =
+        itemList.shadowRoot!.querySelector('extensions-review-panel');
+    assertTrue(!!blacklistPanel);
+    assertTrue(!!safetyPanel);
+    assertTrue(
+        !!(blacklistPanel.compareDocumentPosition(safetyPanel) &
+           Node.DOCUMENT_POSITION_FOLLOWING));
   });
 
   test('SafetyCheckPanel_EnabledSafetyCheck', async () => {

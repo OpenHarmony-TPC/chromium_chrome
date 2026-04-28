@@ -84,6 +84,10 @@ IN_PROC_BROWSER_TEST_F(CrExtensionsTest, SafetyCheckReviewPanel) {
   RunTest("extensions/review_panel_test.js", "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(CrExtensionsTest, BlacklistReviewPanel) {
+  RunTest("extensions/blacklist_review_panel_test.js", "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(CrExtensionsTest, SitePermissions) {
   RunTest("extensions/site_permissions_test.js", "mocha.run()");
 }
@@ -386,6 +390,19 @@ IN_PROC_BROWSER_TEST_F(CrExtensionsItemListTest, LoadTimeData) {
 
 IN_PROC_BROWSER_TEST_F(CrExtensionsItemListTest, SafetyCheckPanel_Disabled) {
   RunTestCase("SafetyCheckPanel_Disabled");
+}
+
+IN_PROC_BROWSER_TEST_F(CrExtensionsItemListTest, BlacklistPanel_Disabled) {
+  RunTestCase("BlacklistPanel_Disabled");
+}
+
+IN_PROC_BROWSER_TEST_F(CrExtensionsItemListTest, BlacklistPanel_Enabled) {
+  RunTestCase("BlacklistPanel_Enabled");
+}
+
+IN_PROC_BROWSER_TEST_F(CrExtensionsItemListTest,
+                       BlacklistPanel_OrderBeforeSafetyPanel) {
+  RunTestCase("BlacklistPanel_OrderBeforeSafetyPanel");
 }
 
 IN_PROC_BROWSER_TEST_F(CrExtensionsItemListTest,
