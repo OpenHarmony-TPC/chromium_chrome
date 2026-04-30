@@ -54,6 +54,7 @@ class InspectUI : public content::WebUIController,
   void Inspect(const std::string& source_id, const std::string& target_id);
 #if BUILDFLAG(ARKWEB_DEVTOOLS)
   bool InspectInclude(const std::string& source_id, const std::string& target_id);
+  std::string GetTypeFromHost(const std::string& hostType);
 #endif // ARKWEB_DEVTOOLS
   void InspectFallback(const std::string& source_id,
                        const std::string& target_id);
