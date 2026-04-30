@@ -174,6 +174,11 @@ class FakeMojoPasswordManagerDriver
       const autofill::mojom::OhosPasswordFormAutofillState state,
       const autofill::InputFillRequestData& username_data,
       const autofill::InputFillRequestData& password_data) override {}
+  void PreSuppressKeyboardIfNeed(
+      autofill::FormRendererId form_id,
+      const autofill::mojom::OhosPasswordFormAutofillState state,
+      const autofill::InputFillRequestData& username_data,
+      const autofill::InputFillRequestData& password_data) override {}
 #endif
 
   // Records whether ShowNotSecureWarning() gets called.
