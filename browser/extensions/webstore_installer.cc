@@ -313,16 +313,21 @@ void WebstoreInstaller::Start() {
   // Add the extension main module into the list.
   SharedModuleInfo::ImportInfo info;
   info.extension_id = id_;
+  info.webstore_type = webstore_type_;
   pending_modules_.push_back(info);
 
   total_modules_ = pending_modules_.size();
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   std::set<extensions::ExtensionId> ids;
   std::list<SharedModuleInfo::ImportInfo>::const_iterator i;
   for (i = pending_modules_.begin(); i != pending_modules_.end(); ++i) {
     ids.insert(i->extension_id);
   }
   InstallVerifier::Get(profile_)->AddProvisional(ids);
+#else
+  InstallVerifier::Get(profile_)->AddProvisional(pending_modules_);
+#endif
 
   const std::string* name =
       approval_->manifest->available_values().FindString(manifest_keys::kName);

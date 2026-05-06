@@ -5,15 +5,23 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_INSTALL_SIGNER_H_
 #define CHROME_BROWSER_EXTENSIONS_INSTALL_SIGNER_H_
 
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "arkweb/build/features/features.h"
 #include "base/functional/callback.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "extensions/common/extension_id.h"
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+namespace content {
+class BrowserContext;
+}  // namespace content
+#endif
 
 namespace network {
 class SimpleURLLoader;
@@ -67,7 +75,11 @@ class InstallSigner {
   // it may contain only a subset of the ids they passed in.
   InstallSigner(
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
       const ExtensionIdSet& ids);
+#else
+      const std::map<ExtensionId, int>& webstore_types);
+#endif
 
   InstallSigner(const InstallSigner&) = delete;
   InstallSigner& operator=(const InstallSigner&) = delete;
@@ -105,9 +117,13 @@ class InstallSigner {
   // The final callback for when we're done.
   SignatureCallback callback_;
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   // The current set of ids we're trying to verify. This may contain fewer ids
   // than we started with.
   ExtensionIdSet ids_;
+#else
+  std::map<ExtensionId, int> webstore_types_;
+#endif
 
   // An array of random bytes used as an input to hash with the machine id,
   // which will need to be persisted in the eventual InstallSignature we get.
