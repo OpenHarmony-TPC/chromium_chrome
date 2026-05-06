@@ -475,6 +475,7 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
        IDS_EXTENSIONS_SC_REMOVE_BUTTON_A11Y_LABEL},
       {"safetyCheckOptionMenuA11yLabel",
        IDS_EXTENSIONS_SC_OPTION_MENU_A11Y_LABEL},
+      {"blacklistReviewRowReason", IDS_EXTENSIONS_BLACKLIST_ROW_REASON},
 #if BUILDFLAG(IS_CHROMEOS_ASH)
       {"manageKioskApp", IDS_EXTENSIONS_MANAGE_KIOSK_APP},
       {"kioskAddApp", IDS_EXTENSIONS_KIOSK_ADD_APP},
@@ -552,9 +553,11 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       base::FeatureList::IsEnabled(
           extensions_features::kExtensionsMenuAccessControlWithPermittedSites));
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  source->AddBoolean("blacklistReviewShowReviewPanel", true);
   source->AddBoolean("safetyCheckShowReviewPanel", false);
   source->AddBoolean("safetyHubShowReviewPanel", true);
 #else
+  source->AddBoolean("blacklistReviewShowReviewPanel", false);
   source->AddBoolean(
       "safetyCheckShowReviewPanel",
       base::FeatureList::IsEnabled(features::kSafetyCheckExtensions));
@@ -645,6 +648,13 @@ ExtensionsUI::ExtensionsUI(content::WebUI* web_ui)
                                             IDS_EXTENSIONS_SC_DESCRIPTION);
   plural_string_handler->AddLocalizedString("safetyCheckAllDoneForNow",
                                             IDS_EXTENSIONS_SC_ALL_DONE_FOR_NOW);
+  plural_string_handler->AddLocalizedString("blacklistReviewTitle",
+                                            IDS_EXTENSIONS_BLACKLIST_TITLE);
+  plural_string_handler->AddLocalizedString(
+      "blacklistReviewDescription", IDS_EXTENSIONS_BLACKLIST_DESCRIPTION);
+  plural_string_handler->AddLocalizedString(
+      "blacklistReviewAllDoneForNow",
+      IDS_EXTENSIONS_BLACKLIST_ALL_DONE_FOR_NOW);
   plural_string_handler->AddLocalizedString(
       "mv2DeprecationPanelWarningHeader",
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)

@@ -130,6 +130,7 @@
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "arkweb/chromium_ext/chrome/browser/extensions/extension_service_for_include.cc"
+#include "arkweb/chromium_ext/extensions/browser/custom_handler.h"
 #include "extensions/browser/extension_util.h"
 #endif
 
@@ -1976,7 +1977,12 @@ void ExtensionService::AddNewOrUpdatedExtension(
                                          std::move(ruleset_install_prefs));
   delayed_installs_.Remove(extension->id());
   if (InstallVerifier::NeedsVerification(*extension, GetBrowserContext()))
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
     InstallVerifier::Get(GetBrowserContext())->VerifyExtension(extension->id());
+#else
+    InstallVerifier::Get(GetBrowserContext())
+        ->VerifyExtension(CustomData::GetStoreType(extension), extension->id());
+#endif
 
   FinishInstallation(extension);
 }

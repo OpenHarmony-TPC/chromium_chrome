@@ -5,18 +5,24 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_INSTALL_VERIFIER_H_
 #define CHROME_BROWSER_EXTENSIONS_INSTALL_VERIFIER_H_
 
+#include <list>
 #include <memory>
 #include <set>
 #include <string>
 
 #include "base/containers/queue.h"
 #include "base/functional/callback.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "extensions/browser/management_policy.h"
 #include "extensions/common/extension_id.h"
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "extensions/common/manifest_handlers/shared_module_info.h"
+#endif
 
 namespace content {
 class BrowserContext;
@@ -85,6 +91,12 @@ class InstallVerifier : public KeyedService,
   // Call this to add a set of ids that will immediately be considered allowed,
   // and kick off an aysnchronous request to Add.
   void AddProvisional(const ExtensionIdSet& ids);
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  void AddProvisional(
+      const std::list<SharedModuleInfo::ImportInfo>& pending_modules);
+  void VerifyExtension(int webstore_type, const std::string& extension_id);
+#endif
 
   // Removes an id or set of ids from the verified list.
   void Remove(const std::string& id);
@@ -155,6 +167,13 @@ class InstallVerifier : public KeyedService,
   // Called with the result of a signature request, or NULL on failure.
   void SignatureCallback(std::unique_ptr<InstallSignature> signature);
 
+  FRIEND_TEST_ALL_PREFIXES(
+      InstallVerifierTest,
+      OnVerificationCompleteSingleAddRechecksManagementPolicy);
+  FRIEND_TEST_ALL_PREFIXES(
+      InstallVerifierTest,
+      OnVerificationCompleteProvisionalAddRechecksManagementPolicy);
+
   raw_ptr<ExtensionPrefs> prefs_;
 
   // The context with which the InstallVerifier is associated.
@@ -176,6 +195,10 @@ class InstallVerifier : public KeyedService,
   // A set of ids that have been provisionally added, which we're willing to
   // consider allowed until we hear back from the server signature request.
   ExtensionIdSet provisional_;
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  std::map<ExtensionId, int> webstore_types_;
+#endif
 
   base::WeakPtrFactory<InstallVerifier> weak_factory_{this};
 };
