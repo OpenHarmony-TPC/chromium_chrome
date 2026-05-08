@@ -603,7 +603,7 @@ void InspectUI::Pause(const std::string& source_id,
   scoped_refptr<DevToolsAgentHost> target = FindTarget(source_id, target_id);
   content::WebContents* web_contents = target->GetWebContents();
 #if BUILDFLAG(ARKWEB_DEVTOOLS)
-  if (web_contents && InspectInclude(source_id, target_id)) {
+  if (web_contents && InspectInclude(source_id, target_id, "sources")) {
     return;
   }
 #endif // ARKWEB_DEVTOOLS
