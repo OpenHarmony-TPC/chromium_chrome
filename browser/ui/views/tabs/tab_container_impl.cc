@@ -1099,6 +1099,32 @@ TabContainerImpl::DropArrow::DropArrow(const BrowserRootView::DropIndex& index,
   arrow_window_->Show();
 }
 
+#if BUILDFLAG(IS_OHOS)
+TabContainerImpl::DropArrow::DropArrow(const BrowserRootView::DropIndex& index,
+                                       bool point_down,
+                                       views::Widget* context,
+                                       const gfx::Rect& bounds)
+    : index_(index), point_down_(point_down) {
+  arrow_window_ = new views::Widget;
+  views::Widget::InitParams params(
+      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
+      views::Widget::InitParams::TYPE_POPUP);
+  params.z_order = ui::ZOrderLevel::kFloatingUIElement;
+  params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
+  params.accept_events = false;
+  params.bounds = bounds;
+  params.context = context->GetNativeWindow();
+  arrow_window_->Init(std::move(params));
+  arrow_view_ =
+      arrow_window_->SetContentsView(std::make_unique<views::ImageView>());
+  arrow_view_->SetImage(
+      ui::ImageModel::FromResourceId(GetDropArrowImageResourceId(point_down_)));
+  scoped_observation_.Observe(arrow_window_.get());
+ 
+  arrow_window_->Show();
+}
+#endif
+
 TabContainerImpl::DropArrow::~DropArrow() {
   // Close eventually deletes the window, which deletes arrow_view too.
   if (arrow_window_) {
@@ -1730,7 +1756,12 @@ void TabContainerImpl::SetDropArrow(
       GetDropBounds(index->index, drop_before, group_inclusion, &is_beneath);
 
   if (!drop_arrow_) {
+#if BUILDFLAG(IS_OHOS)
+    drop_arrow_ = std::make_unique<DropArrow>(*index, !is_beneath, GetWidget(),
+                                              drop_bounds);
+#else
     drop_arrow_ = std::make_unique<DropArrow>(*index, !is_beneath, GetWidget());
+#endif
   } else {
     drop_arrow_->set_index(*index);
     drop_arrow_->SetPointDown(!is_beneath);
