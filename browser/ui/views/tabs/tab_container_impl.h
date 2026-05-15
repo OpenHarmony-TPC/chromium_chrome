@@ -168,6 +168,12 @@ class TabContainerImpl : public TabContainer,
     DropArrow(const BrowserRootView::DropIndex& index,
               bool point_down,
               views::Widget* context);
+#if BUILDFLAG(IS_OHOS)
+    DropArrow(const BrowserRootView::DropIndex& index,
+              bool point_down,
+              views::Widget* context,
+              const gfx::Rect& bounds);
+#endif
     DropArrow(const DropArrow&) = delete;
     DropArrow& operator=(const DropArrow&) = delete;
     ~DropArrow() override;
