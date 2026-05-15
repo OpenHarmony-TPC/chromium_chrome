@@ -164,6 +164,13 @@ void InstallVerifier::Init() {
       DVLOG(1) << "Init - ignoring invalid signature";
     } else {
       signature_ = std::move(signature_from_prefs);
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+      LOG_FEEDBACK(INFO) << "id count is " << signature_->ids.size()
+                         << ",invalid id count is "
+                         << signature_->invalid_ids.size();
+#endif
+
       GarbageCollect();
     }
   }
@@ -205,6 +212,7 @@ void InstallVerifier::AddMany(const ExtensionIdSet& ids, OperationType type) {
     return;
   }
 
+#if !BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   if (signature_.get()) {
     ExtensionIdSet not_allowed_yet =
         base::STLSetDifference<ExtensionIdSet>(ids, signature_->ids);
@@ -213,6 +221,7 @@ void InstallVerifier::AddMany(const ExtensionIdSet& ids, OperationType type) {
       return;
     }
   }
+#endif
 
   std::unique_ptr<InstallVerifier::PendingOperation> operation(
       new InstallVerifier::PendingOperation(type));

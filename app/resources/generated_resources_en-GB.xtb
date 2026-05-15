@@ -10361,6 +10361,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
 <translation id="8324158725704657629">Don't ask again</translation>
 <translation id="8324784016256120271">Sites can use cookies to see your browsing activity across different sites, for example, to personalise ads</translation>
 <translation id="8325413836429495820">Not allowed to see your clipboard</translation>
+<translation id="832618879023665598">This extension failed the security compliance check and has been automatically disabled.</translation>
 <translation id="8326478304147373412">PKCS #7, certificate chain</translation>
 <translation id="8327386430364625757">Mathematical font</translation>
 <translation id="8327490658947427005">Selection not in <ph name="LANGUAGE" /></translation>
