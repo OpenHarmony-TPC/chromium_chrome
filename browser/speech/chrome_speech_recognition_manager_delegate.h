@@ -17,6 +17,7 @@ class ChromeSpeechRecognitionManagerDelegate
     : public content::SpeechRecognitionManagerDelegate,
       public content::SpeechRecognitionEventListener {
  public:
+  friend class ChromeSpeechRecognitionTest;
   ChromeSpeechRecognitionManagerDelegate();
 
   ChromeSpeechRecognitionManagerDelegate(
