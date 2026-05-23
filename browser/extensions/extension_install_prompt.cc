@@ -48,6 +48,7 @@
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 #include "arkweb/chromium_ext/chrome/browser/extensions/extension_install_prompt_ext.h"
 #include "arkweb/chromium_ext/chrome/browser/ui/extensions/installation_error_infobar_delegate_ohos.h"
+#include "arkweb/chromium_ext/extensions/browser/custom_handler.h"
 #endif // BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
 
 using extensions::Extension;
@@ -517,7 +518,8 @@ void ExtensionInstallPrompt::ShowDialog(
    * set it again. Otherwise, it is necessary to determine whether it is from
    * huawei webstore based on the extension information.*/
   if (!prompt_->is_from_webstore()) {
-    bool is_from_huawei_webstore = CustomData::IsFromHuaweiWebStore(extension);
+    bool is_from_huawei_webstore =
+        extensions::CustomData::IsFromHuaweiWebStore(extension);
     prompt_->set_is_from_webstore(is_from_huawei_webstore);
   }
 #endif
