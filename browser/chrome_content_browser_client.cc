@@ -738,6 +738,10 @@
 
 #include "base/win/windows_h_disallowed.h"
 
+#if BUILDFLAG(IS_OHOS)
+#include "ohos/adapter/context_path/context_path_adapter.h"
+#endif
+
 using blink::mojom::EffectiveConnectionType;
 using blink::web_pref::WebPreferences;
 using content::BrowserThread;
@@ -2645,6 +2649,12 @@ void MaybeAppendBlinkSettingsSwitchForFieldTrial(
 void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
     base::CommandLine* command_line,
     int child_process_id) {
+#if BUILDFLAG(IS_OHOS)
+  base::FilePath temp_dir(
+      ::ohos::adapter::ContextPathAdapter::GetTempDir());
+
+  command_line->AppendSwitchPath(switches::kOhosTempDir, temp_dir);
+#endif
   crash_keys::AppendStringAnnotationsCommandLineSwitch(command_line);
 #if BUILDFLAG(IS_MAC)
   std::unique_ptr<metrics::ClientInfo> client_info =
