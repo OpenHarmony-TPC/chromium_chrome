@@ -56,7 +56,16 @@ class PageDiscardingPolicyOhos : public GraphOwned,
     kMemoryOverUrgent,
   };
 
+  int32_t max_alive_tab_count_ = 80;
+  int32_t max_audible_tab_count_ = 8;
+  int32_t discard_tab_batch_count_ = 4;
+  int32_t discard_audible_tab_count_ = 2;
+  int32_t discard_memory_count_urgent_ = 10;
+  int32_t reserved_memory_count_urgent_ = 20;
+
   void StartDiscardTimerIfNeeded();
+  void StopDiscardTimerIfNeeded();
+  void InitializeConfig();
   void PostAudibleTabDiscardTaskIfNeeded();
   void PostMemoryDiscardTask(DiscardReason reason);
   void DiscardTabByReason(DiscardReason reason);
