@@ -63,6 +63,10 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+#include "components/embedder_support/user_agent_utils.h"
+#endif
+
 using content::BrowserContext;
 using content::BrowserThread;
 using content::DownloadManager;
@@ -661,6 +665,13 @@ void WebstoreInstaller::StartDownload(
   params->set_callback(base::BindOnce(&WebstoreInstaller::OnDownloadStarted,
                                       this, extension_id));
   params->set_download_source(download::DownloadSource::EXTENSION_INSTALLER);
+
+#if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
+  auto user_agent =
+      embedder_support::GetUserAgentByHost(download_url_.GetHost());
+  params->add_request_header(net::HttpRequestHeaders::kUserAgent, user_agent);
+#endif
+
   download_manager->DownloadUrl(std::move(params));
 }
 
