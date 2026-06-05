@@ -400,6 +400,12 @@ export class SettingsBasicPageElement extends SettingsBasicPageElementBase {
         PerformanceFeedbackCategory.SPEED);
   }
   // </if>
+
+  // <if expr="is_ohos">
+  private systemPageVisibility_(): boolean {
+    return loadTimeData.getBoolean('systemPageVisibility');
+  }
+  // </if>
 }
 
 declare global {

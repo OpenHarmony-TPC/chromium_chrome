@@ -242,10 +242,18 @@
               </settings-section>
             </template>
 <if expr="not chromeos_ash">
-            <settings-section page-title="$i18n{systemPageTitle}"
-                section="system">
-              <settings-system-page prefs="{{prefs}}"></settings-system-page>
-            </settings-section>
+            <if expr="is_ohos">
+              <settings-section page-title="$i18n{systemPageTitle}" 
+                  section="system" hidden="[[!systemPageVisibility_()]]">
+                <settings-system-page prefs="{{prefs}}"></settings-system-page>
+              </settings-section>
+            </if>
+            <if expr="not is_ohos">
+              <settings-section page-title="$i18n{systemPageTitle}"
+                  section="system">
+                <settings-system-page prefs="{{prefs}}"></settings-system-page>
+              </settings-section>
+            </if>
 </if>
             <template is="dom-if" if="[[showPage_(pageVisibility.reset)]]"
                 restamp>
