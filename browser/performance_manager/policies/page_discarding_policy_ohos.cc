@@ -59,7 +59,7 @@ constexpr int32_t kDefaultReservedMemoryCountUrgent = 20;
 
 // LowMemoryMode
 constexpr int32_t kLowMemoryMaxAliveTabCount = 15;
-constexpr int32_t kLowMemoryMaxAudibleTabCount = 1;
+constexpr int32_t kLowMemoryMaxAudibleTabCount = 3;
 constexpr int32_t kLowMemoryDiscardTabBatchCount = 1;
 constexpr int32_t kLowMemoryDiscardAudibleTabCount = 1;
 constexpr int32_t kLowMemoryDiscardMemoryCountUrgent = 3;
@@ -295,6 +295,11 @@ void PageDiscardingPolicyOhos::DiscardTabByReason(DiscardReason reason) {
             GetSortedPageNodeVector(candidate_discarding_page_nodes_);
         auto tab_count = sorted_page_node.size();
         count_to_discard = discard_memory_count_urgent_;
+        if (tab_count <= count_to_discard) {
+          // tab_count is of the size_t type, and count_to_discard is of the int32_t type.
+          // Prevent unsigned integer underflow.
+          return;
+        }
         if (tab_count - count_to_discard < reserved_memory_count_urgent_) {
           count_to_discard = tab_count - reserved_memory_count_urgent_;
         }
