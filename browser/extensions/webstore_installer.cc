@@ -668,7 +668,7 @@ void WebstoreInstaller::StartDownload(
 
 #if BUILDFLAG(ARKWEB_ARKWEB_EXTENSIONS)
   auto user_agent =
-      embedder_support::GetUserAgentByHost(download_url_.GetHost());
+      embedder_support::GetUserAgentByHost(download_url_.host());
   params->add_request_header(net::HttpRequestHeaders::kUserAgent, user_agent);
 #endif
 
